@@ -449,16 +449,12 @@ Bh = (...) => (
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
 )
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
@@ -526,16 +522,12 @@ Ch = (...) => (
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
 )
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
@@ -632,20 +624,14 @@ Ee = (...) => (undefined | te(b))
 Ef = (...) => (
  || ("textarea" === a)
  || ("noscript" === a)
- || ("string" === ???*0*)
- || ("number" === ???*1*)
+ || ("string" === typeof(b["children"]))
+ || ("number" === typeof(b["children"]))
  || (
-     && ("object" === ???*2*)
+     && ("object" === typeof(b["dangerouslySetInnerHTML"]))
      && (null !== b["dangerouslySetInnerHTML"])
      && (null != b["dangerouslySetInnerHTML"]["__html"])
     )
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
 
 Eg = (...) => undefined
 
@@ -697,15 +683,18 @@ Fd = (...) => ???*0*
 
 Fe = (...) => (undefined | te(b))
 
-Ff = (???*0* ? ???*2* : ???*3*)
+Ff = (???*0* ? ???*3* : ???*4*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(setTimeout)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(setTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* unsupported expression
   ⚠️  This value might have side effects
 
 Fg = (...) => undefined
@@ -760,15 +749,18 @@ Ge = (...) => (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) &
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-Gf = (???*0* ? ???*2* : ???*3*)
+Gf = (???*0* ? ???*3* : ???*4*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(clearTimeout)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(clearTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* unsupported expression
   ⚠️  This value might have side effects
 
 Gg = (...) => (!(1) | ???*0* | !(0))
@@ -804,33 +796,42 @@ Hd = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-He = (???*0* ? ???*2* : (...) => ???*4*)
+He = (???*0* ? ???*4* : (...) => ???*6*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
-  ⚠️  nested operation
-- *5* unsupported expression
+- *4* ???*5*["is"]
+  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
+  ⚠️  nested operation
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
   ⚠️  This value might have side effects
 
-Hf = (???*0* ? ???*2* : ???*3*)
+Hf = (???*0* ? ???*3* : ???*4*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(Promise)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(Promise)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* unsupported expression
   ⚠️  This value might have side effects
 
 Hg = (...) => undefined
@@ -904,16 +905,12 @@ J#431 = (...) => (
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
 )
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
@@ -947,32 +944,47 @@ Jd = (...) => ???*0*
 
 Je = (...) => a
 
-Jf = (???*0* ? ???*2* : ???*3*)
+Jf = (???*0* ? ???*3* : ???*4*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(queueMicrotask)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* (???*4* ? (...) => ???*6* : ???*7*)
-  ⚠️  nested operation
-- *4* ("undefined" !== ???*5*)
-  ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* Hf["resolve"](null)["then"](a)["catch"](If)
-  ⚠️  nested operation
-- *7* (???*8* ? ???*10* : ???*11*)
-  ⚠️  nested operation
-- *8* ("function" === ???*9*)
-  ⚠️  nested operation
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* FreeVar(setTimeout)
+- *3* FreeVar(queueMicrotask)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *11* unsupported expression
+- *4* (???*5* ? (...) => ???*11* : ???*12*)
+  ⚠️  nested operation
+- *5* ("undefined" !== ???*6*)
+  ⚠️  nested operation
+- *6* typeof(???*7*)
+  ⚠️  nested operation
+- *7* (???*8* ? ???*9* : ???*10*)
+  ⚠️  nested operation
+- *8* ("function" === ???)
+  ⚠️  nested operation
+- *9* FreeVar(Promise)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* Hf["resolve"](null)["then"](a)["catch"](If)
+  ⚠️  nested operation
+- *12* (???*13* ? ???*16* : ???*17*)
+  ⚠️  nested operation
+- *13* ("function" === ???*14*)
+  ⚠️  nested operation
+- *14* typeof(???*15*)
+  ⚠️  nested operation
+- *15* FreeVar(setTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *16* FreeVar(setTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *17* unsupported expression
   ⚠️  This value might have side effects
 
 Jg = (...) => undefined
@@ -1002,9 +1014,7 @@ K = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-Ka = (...) => (null | (("function" === ???*0*) ? a : null))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Ka = (...) => (null | (("function" === typeof(a)) ? a : null))
 
 Kb = (...) => (null | c)
 
@@ -1172,15 +1182,18 @@ Lh = (...) => undefined
 
 Li = (...) => {"value": a, "source": null, "stack": ((null != c) ? c : null), "digest": ((null != b) ? b : null)}
 
-Lj = (???*0* ? ???*2* : ???*3*)
+Lj = (???*0* ? ???*3* : ???*4*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(WeakSet)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* FreeVar(Set)
+- *3* FreeVar(WeakSet)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* FreeVar(Set)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -1535,15 +1548,18 @@ Ng = (null | ???*0* | ???*1*)
 
 Nh = []
 
-Ni = (???*0* ? ???*2* : ???*3*)
+Ni = (???*0* ? ???*3* : ???*4*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(WeakMap)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* FreeVar(Map)
+- *3* FreeVar(WeakMap)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* FreeVar(Map)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -1711,12 +1727,15 @@ Pd = (...) => (b["getModifierState"] ? b["getModifierState"](a) : (???*0* ? !(!(
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-Pe = (!(???*0*) | ???*2*)
+Pe = (!(???*0*) | ???*3*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
 
 Pf = `__reactProps$${???*0*}`
@@ -3169,13 +3188,13 @@ a#261 = (
   | undefined["contentWindow"]
   | null["contentWindow"]
   | ???*1*
-  | (???*4* ? ???*6* : ???*7*)["activeElement"]["contentWindow"]
-  | (???*8* ? ???*10* : ???*11*)["body"]["contentWindow"]
-  | (???*12* ? ???*14* : ???*15*)["body"]["contentWindow"]
-  | ???*16*
-  | (???*20* ? ???*22* : ???*23*)["activeElement"]["contentWindow"]
-  | (???*24* ? ???*26* : ???*27*)["body"]["contentWindow"]
-  | (???*28* ? ???*30* : ???*31*)["body"]["contentWindow"]
+  | (???*4* ? ???*7* : ???*8*)["activeElement"]["contentWindow"]
+  | (???*9* ? ???*12* : ???*13*)["body"]["contentWindow"]
+  | (???*14* ? ???*17* : ???*18*)["body"]["contentWindow"]
+  | ???*19*
+  | (???*23* ? ???*26* : ???*27*)["activeElement"]["contentWindow"]
+  | (???*28* ? ???*31* : ???*32*)["body"]["contentWindow"]
+  | (???*33* ? ???*36* : ???*37*)["body"]["contentWindow"]
 )
 - *0* FreeVar(window)
   ⚠️  unknown global
@@ -3187,55 +3206,58 @@ a#261 = (
 - *3* unknown function argument (out of bounds)
 - *4* ("undefined" !== ???*5*)
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
+- *5* typeof(???*6*)
+  ⚠️  nested operation
 - *6* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* ("undefined" !== ???*9*)
-  ⚠️  nested operation
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* FreeVar(document)
+- *7* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *11* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *12* ("undefined" !== ???*13*)
+- *9* ("undefined" !== ???*10*)
   ⚠️  nested operation
+- *10* typeof(???*11*)
+  ⚠️  nested operation
+- *11* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *12* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *13* unsupported expression
   ⚠️  This value might have side effects
-- *14* FreeVar(document)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *15* unsupported expression
-  ⚠️  This value might have side effects
-- *16* ???*17*["contentWindow"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *17* ???*18*["activeElement"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *18* ???*19*["document"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *19* FreeVar(window)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *20* ("undefined" !== ???*21*)
+- *14* ("undefined" !== ???*15*)
   ⚠️  nested operation
-- *21* unsupported expression
-  ⚠️  This value might have side effects
-- *22* FreeVar(document)
+- *15* typeof(???*16*)
+  ⚠️  nested operation
+- *16* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *23* unsupported expression
+- *17* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *24* ("undefined" !== ???*25*)
+- *18* unsupported expression
+  ⚠️  This value might have side effects
+- *19* ???*20*["contentWindow"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *20* ???*21*["activeElement"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *21* ???*22*["document"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *22* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *23* ("undefined" !== ???*24*)
   ⚠️  nested operation
-- *25* unsupported expression
+- *24* typeof(???*25*)
+  ⚠️  nested operation
+- *25* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *26* FreeVar(document)
   ⚠️  unknown global
@@ -3244,12 +3266,27 @@ a#261 = (
   ⚠️  This value might have side effects
 - *28* ("undefined" !== ???*29*)
   ⚠️  nested operation
-- *29* unsupported expression
-  ⚠️  This value might have side effects
+- *29* typeof(???*30*)
+  ⚠️  nested operation
 - *30* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *31* unsupported expression
+- *31* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *32* unsupported expression
+  ⚠️  This value might have side effects
+- *33* ("undefined" !== ???*34*)
+  ⚠️  nested operation
+- *34* typeof(???*35*)
+  ⚠️  nested operation
+- *35* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *36* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *37* unsupported expression
   ⚠️  This value might have side effects
 
 a#265 = ???*0*
@@ -4102,30 +4139,30 @@ a#514 = (
         "lanes": 0,
         "dispatch": null,
         "lastRenderedReducer": (...) => ???*4*,
-        "lastRenderedState": ???*6*
+        "lastRenderedState": ???*5*
     }()
-  | ???*7*()
+  | ???*6*()
   | {
         "pending": null,
         "interleaved": null,
         "lanes": 0,
         "dispatch": null,
-        "lastRenderedReducer": (...) => (("function" === ???*8*) ? b(a) : b),
+        "lastRenderedReducer": (...) => (("function" === typeof(b)) ? b(a) : b),
         "lastRenderedState": (
-          | ???*9*
-          | ???*10*()
+          | ???*7*
+          | ???*8*()
           | {
                 "pending": null,
                 "interleaved": null,
                 "lanes": 0,
                 "dispatch": null,
-                "lastRenderedReducer": (...) => (("function" === ???*11*) ? b(a) : b),
-                "lastRenderedState": ???*12*
+                "lastRenderedReducer": (...) => (("function" === typeof(b)) ? b(a) : b),
+                "lastRenderedState": ???*9*
             }
-          | ???*13*
+          | ???*10*
         )
     }
-  | ???*14*
+  | ???*11*
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -4135,27 +4172,21 @@ a#514 = (
   ⚠️  nested operation
 - *3* a
   ⚠️  circular variable reference
-- *4* (("function" === ???*5*) ? b(a) : b)
+- *4* (("function" === typeof(b)) ? b(a) : b)
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* a
+- *5* a
   ⚠️  circular variable reference
-- *7* unsupported expression
+- *6* unsupported expression
   ⚠️  This value might have side effects
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* arguments[0]
+- *7* arguments[0]
   ⚠️  function calls are not analysed yet
-- *10* a
+- *8* a
   ⚠️  circular variable reference
+- *9* a
+  ⚠️  circular variable reference
+- *10* unsupported expression
+  ⚠️  This value might have side effects
 - *11* unsupported expression
-  ⚠️  This value might have side effects
-- *12* a
-  ⚠️  circular variable reference
-- *13* unsupported expression
-  ⚠️  This value might have side effects
-- *14* unsupported expression
   ⚠️  This value might have side effects
 
 a#515 = ???*0*
@@ -4772,28 +4803,34 @@ a#647 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-a#65 = (???*0* | ???*1* | (???*2* ? ???*4* : ???*5*) | (???*6* ? ???*8* : ???*9*))
+a#65 = (???*0* | ???*1* | (???*2* ? ???*5* : ???*6*) | (???*7* ? ???*10* : ???*11*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* a
   ⚠️  circular variable reference
 - *2* ("undefined" !== ???*3*)
   ⚠️  nested operation
-- *3* unsupported expression
-  ⚠️  This value might have side effects
+- *3* typeof(???*4*)
+  ⚠️  nested operation
 - *4* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* ("undefined" !== ???*7*)
-  ⚠️  nested operation
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* FreeVar(document)
+- *5* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *9* unsupported expression
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* ("undefined" !== ???*8*)
+  ⚠️  nested operation
+- *8* typeof(???*9*)
+  ⚠️  nested operation
+- *9* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *10* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *11* unsupported expression
   ⚠️  This value might have side effects
 
 a#665 = (???*0* | ???*1*)
@@ -5543,12 +5580,15 @@ ac = module<scheduler, {}>["unstable_scheduleCallback"]
 
 ad = (...) => undefined
 
-ae = (!(???*0*) | ???*2*)
+ae = (!(???*0*) | ???*3*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
 
 af = (???*0* | ???*1* | "animationiteration" | ???*2*)
@@ -9658,8 +9698,8 @@ c#254 = (
 - *26* c
   ⚠️  circular variable reference
 
-c#261 = (("string" === ???*0*) | false)
-- *0* unsupported expression
+c#261 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 c#266 = ???*0*
@@ -11882,17 +11922,20 @@ cc = module<scheduler, {}>["unstable_shouldYield"]
 
 cd = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentBatchConfig"]
 
-ce = (!(???*0*) | ???*2* | !((null | ???*3*)))
+ce = (!(???*0*) | ???*3* | !((null | ???*4*)))
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
-- *3* ???*4*["documentMode"]
+- *4* ???*5*["documentMode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* FreeVar(document)
+- *5* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -14071,26 +14114,32 @@ dd = (true | false | !(???*0*))
 - *3* Cf
   ⚠️  circular variable reference
 
-de = (!(???*0*) | !((???*2* | ???*5*)) | null | ???*6* | ???*8*)
+de = (!(???*0*) | !((???*3* | ???*7*)) | null | ???*8* | ???*10*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* !(???*3*)
+- *1* typeof(???*2*)
   ⚠️  nested operation
-- *3* ("undefined" === ???*4*)
-  ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* ???*7*["documentMode"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* FreeVar(document)
+- *2* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *8* unsupported expression
+- *3* !(???*4*)
+  ⚠️  nested operation
+- *4* ("undefined" === ???*5*)
+  ⚠️  nested operation
+- *5* typeof(???*6*)
+  ⚠️  nested operation
+- *6* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ???*9*["documentMode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *9* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *10* unsupported expression
   ⚠️  This value might have side effects
 
 df = ???*0*
@@ -14136,22 +14185,25 @@ e#1004 = (???*0* | null)
 - *6* updated with update expression
   ⚠️  This value might have side effects
 
-e#1013 = ((???*0* ? ???*2* : (...) => undefined) | ???*3* | ???*5*)
+e#1013 = ((???*0* ? ???*3* : (...) => undefined) | ???*4* | ???*6*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(reportError)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* ???*4*["onRecoverableError"]
+- *3* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* ???*5*["onRecoverableError"]
   ⚠️  unknown object
-- *4* arguments[1]
+- *5* arguments[1]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*["onRecoverableError"]
+- *6* ???*7*["onRecoverableError"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *6* unknown new expression
+- *7* unknown new expression
   ⚠️  This value might have side effects
 
 e#1018 = (
@@ -16020,9 +16072,7 @@ eg = (null | [???*0*] | null["slice"](???*1*) | ???*3* | ???*7*)
 
 eh = (...) => undefined
 
-ei = (...) => (("function" === ???*0*) ? b(a) : b)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ei = (...) => (("function" === typeof(b)) ? b(a) : b)
 
 ej = (...) => (???*0* | b["child"])
 - *0* null
@@ -17189,46 +17239,49 @@ fk = (...) => undefined
 fl = (...) => a
 
 g#1018 = (
-  | (???*0* ? ???*2* : (...) => undefined)
-  | ???*3*
-  | (null != ???*5*)[(???*6* | 0 | ???*7*)]["onRecoverableError"]
-  | ???*8*
-  | null[(???*14* | 0 | ???*15*)]["onRecoverableError"]
+  | (???*0* ? ???*3* : (...) => undefined)
+  | ???*4*
+  | (null != ???*6*)[(???*7* | 0 | ???*8*)]["onRecoverableError"]
+  | ???*9*
+  | null[(???*15* | 0 | ???*16*)]["onRecoverableError"]
 )
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(reportError)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* ???*4*["onRecoverableError"]
+- *3* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* ???*5*["onRecoverableError"]
   ⚠️  unknown object
-- *4* arguments[2]
+- *5* arguments[2]
   ⚠️  function calls are not analysed yet
-- *5* c
+- *6* c
   ⚠️  circular variable reference
-- *6* arguments[0]
+- *7* arguments[0]
   ⚠️  function calls are not analysed yet
-- *7* updated with update expression
+- *8* updated with update expression
   ⚠️  This value might have side effects
-- *8* ???*9*["onRecoverableError"]
+- *9* ???*10*["onRecoverableError"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *9* ???*10*[(???*12* | 0 | ???*13*)]
+- *10* ???*11*[(???*13* | 0 | ???*14*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *10* ???*11*["hydratedSources"]
+- *11* ???*12*["hydratedSources"]
   ⚠️  unknown object
-- *11* c
+- *12* c
   ⚠️  circular variable reference
-- *12* arguments[0]
+- *13* arguments[0]
   ⚠️  function calls are not analysed yet
-- *13* updated with update expression
+- *14* updated with update expression
   ⚠️  This value might have side effects
-- *14* arguments[0]
+- *15* arguments[0]
   ⚠️  function calls are not analysed yet
-- *15* updated with update expression
+- *16* updated with update expression
   ⚠️  This value might have side effects
 
 g#123 = ???*0*
@@ -17950,10 +18003,8 @@ hc = module<scheduler, {}>["unstable_NormalPriority"]
 
 hd = (...) => (undefined | FreeVar(undefined))
 
-he = (...) => ((("object" === ???*0*) && ???*1*) ? a["data"] : null)
+he = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 hf = "abort auxClick cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll toggle touchMove waiting wheel"["split"](" ")[(0 | ???*0*)]
@@ -17977,7 +18028,10 @@ hl = (...) => (undefined | null | a["child"]["stateNode"])
 ia = !(???*0*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 ib = (...) => undefined
@@ -18937,12 +18991,15 @@ lj = (...) => undefined
 
 lk = (...) => undefined
 
-ll = (???*0* ? ???*2* : (...) => undefined)
+ll = (???*0* ? ???*3* : (...) => undefined)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *3* FreeVar(reportError)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -18976,8 +19033,12 @@ m#601 = (???*0* | ("function" === ???*2*))
   ⚠️  unknown object
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
-  ⚠️  This value might have side effects
+- *2* typeof(???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["getDerivedStateFromProps"]
+  ⚠️  unknown object
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 m#673 = (0 | ???*0*)
 - *0* updated with update expression
@@ -19252,9 +19313,7 @@ of = `__reactEvents$${???*0*}`
 
 og = []
 
-oh = (...) => (("function" === ???*0*) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+oh = (...) => (("function" === typeof(a["shouldComponentUpdate"])) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))
 
 oi = (...) => (undefined | !(He(a, c)) | !(0))
 
@@ -19377,12 +19436,24 @@ q#494 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-q#601 = (("function" === ???*0*) | ???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* ???*2*["pendingProps"]
+q#601 = (("function" === ???*0*) | ???*7*)
+- *0* typeof((???*1* | ???*3*))
+  ⚠️  nested operation
+- *1* ???*2*["getDerivedStateFromProps"]
   ⚠️  unknown object
-- *2* arguments[1]
+- *2* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *3* ("function" === ???*4*)
+  ⚠️  nested operation
+- *4* typeof(???*5*)
+  ⚠️  nested operation
+- *5* ???*6*["getDerivedStateFromProps"]
+  ⚠️  unknown object
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["pendingProps"]
+  ⚠️  unknown object
+- *8* arguments[1]
   ⚠️  function calls are not analysed yet
 
 q#673 = ???*0*
@@ -19489,11 +19560,7 @@ r#883 = ???*0*
 
 ra = /[\-:]([a-z])/g
 
-rb = (...) => (((null == b) || ("boolean" === ???*0*) || ("" === b)) ? "" : ((c || ("number" !== ???*1*) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? b["trim"]() : `${b}px`))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+rb = (...) => (((null == b) || ("boolean" === typeof(b)) || ("" === b)) ? "" : ((c || ("number" !== typeof(b)) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? b["trim"]() : `${b}px`))
 
 rc = (64 | ???*0*)
 - *0* unsupported assign operation
@@ -19796,9 +19863,7 @@ va = ???*0*
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-vb = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+vb = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))
 
 vc = (...) => (undefined | (b + 250) | (b + 5000) | ???*0*)
 - *0* unsupported expression
@@ -19922,17 +19987,26 @@ wd = (???*0* | ???*1* | 0)
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-we = (false | ???*0* | ???*1* | ("function" === ???*2*) | !(???*3*))
+we = (false | ???*0* | ???*1* | ("function" === ???*2*) | !(???*6*))
 - *0* xe
   ⚠️  pattern without value
 - *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* ???*4*["documentMode"]
+- *2* typeof(???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["oninput"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* FreeVar(document)
+- *4* ???*5*["createElement"]("div")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *5* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* ???*7*["documentMode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *7* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -19998,7 +20072,16 @@ xe = (???*0* | ???*1* | ("function" === ???*2*) | false)
   ⚠️  pattern without value
 - *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *2* typeof(???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["oninput"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *4* ???*5*["createElement"]("div")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *5* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 xf = /\r\n?/g
@@ -20073,7 +20156,16 @@ yd = (???*0* | ???*1*)
 ye = (???*0* | ("function" === ???*1*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* ???*3*["oninput"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* ???*4*["createElement"]("div")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *4* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 yf = /\u0000|\uFFFD/g
@@ -20126,9 +20218,7 @@ ze = ???*0*
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-zf = (...) => (("string" === ???*0*) ? a : a)["replace"](xf, "\n")["replace"](yf, "")
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+zf = (...) => (("string" === typeof(a)) ? a : a)["replace"](xf, "\n")["replace"](yf, "")
 
 zg = (null | [???*0*])
 - *0* arguments[0]

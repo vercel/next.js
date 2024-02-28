@@ -1220,8 +1220,20 @@
 0 -> 226 free var = FreeVar(Symbol)
 
 0 -> 229 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*2* | ???*4*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["iterator"]
+  ⚠️  unknown object
   ⚠️  This value might have side effects
+- *3* FreeVar(Symbol)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* ???*5*[Ja]
+  ⚠️  unknown object
+- *5* a
+  ⚠️  circular variable reference
 
 0 -> 231 free var = FreeVar(Object)
 
@@ -1373,8 +1385,12 @@
 0 -> 272 conditional = (???*0* | ("string" === ???*1*))
 - *0* l
   ⚠️  pattern without value
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* ???*3*["stack"]
+  ⚠️  unknown object
+- *3* l
+  ⚠️  pattern without value
 
 272 -> 275 member call = ???*0*["split"]("\n")
 - *0* ???*1*["stack"]
@@ -2049,12 +2065,44 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 
 0 -> 317 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ???*2* | null["displayName"] | null["name"] | "" | ???*4*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["displayName"]
+  ⚠️  unknown object
+- *3* a
+  ⚠️  circular variable reference
+- *4* (???*5* ? ???*7* : "ForwardRef")
+  ⚠️  nested operation
+- *5* ("" !== ???*6*)
+  ⚠️  nested operation
+- *6* a
+  ⚠️  circular variable reference
+- *7* `ForwardRef(${???*8*})`
+  ⚠️  nested operation
+- *8* a
+  ⚠️  circular variable reference
 
 0 -> 320 conditional = ("object" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ???*2* | null["displayName"] | null["name"] | "" | ???*4*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["displayName"]
+  ⚠️  unknown object
+- *3* a
+  ⚠️  circular variable reference
+- *4* (???*5* ? ???*7* : "ForwardRef")
+  ⚠️  nested operation
+- *5* ("" !== ???*6*)
+  ⚠️  nested operation
+- *6* a
+  ⚠️  circular variable reference
+- *7* `ForwardRef(${???*8*})`
+  ⚠️  nested operation
+- *8* a
+  ⚠️  circular variable reference
 
 320 -> 329 conditional = ("" !== (???*0* | ???*1* | null["displayName"] | null["name"] | "" | ???*3*))
 - *0* arguments[0]
@@ -2255,8 +2303,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 
 0 -> 350 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ""["type"]))
+  ⚠️  nested operation
+- *1* ???*2*["type"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 0 -> 356 member call = (???*0* | ???*1*)["toLowerCase"]()
 - *0* arguments[0]
@@ -2327,14 +2379,29 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 369 conditional = (!(???*0*) | ("undefined" !== ???*2*) | ("function" === ???*3*))
+0 -> 369 conditional = (!(???*0*) | ("undefined" !== ???*2*) | ("function" === ???*5*))
 - *0* ???*1*["hasOwnProperty"](b)
   ⚠️  unknown callee object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
+- *2* typeof(???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
+  ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *4* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *5* typeof(???*6*)
+  ⚠️  nested operation
+- *6* ???*7*["get"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *7* ???*8*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *8* FreeVar(Object)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 369 -> 373 free var = FreeVar(Object)
@@ -2627,7 +2694,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 399 free var = FreeVar(document)
 
 0 -> 400 conditional = ("undefined" !== ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 400 -> 401 free var = FreeVar(document)
@@ -3171,13 +3241,16 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 
 0 -> 563 free var = FreeVar(MSApp)
 
-0 -> 564 conditional = (("undefined" !== ???*0*) | ???*1*)
-- *0* unsupported expression
+0 -> 564 conditional = (("undefined" !== ???*0*) | ???*2*)
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(MSApp)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *1* ???*2*["execUnsafeLocalFunction"]
+- *2* ???*3*["execUnsafeLocalFunction"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *2* FreeVar(MSApp)
+- *3* FreeVar(MSApp)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -3377,12 +3450,14 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 611 conditional = ((null == ???*0*) | ("boolean" === ???*1*) | ("" === ???*2*))
+0 -> 611 conditional = ((null == ???*0*) | ("boolean" === ???*1*) | ("" === ???*3*))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* arguments[1]
   ⚠️  function calls are not analysed yet
 
 611 -> 613 member call = {
@@ -3433,26 +3508,28 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-611 -> 615 conditional = (???*0* | ("number" !== ???*1*) | (0 === ???*2*) | ???*3* | true | ???*7*)
+611 -> 615 conditional = (???*0* | ("number" !== ???*1*) | (0 === ???*3*) | ???*4* | true | ???*8*)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *3* (???*4* | ???*5*)(???*6*)
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *4* (???*5* | ???*6*)(???*7*)
   ⚠️  non-function callee
-- *4* FreeVar(undefined)
+- *5* FreeVar(undefined)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *5* unknown mutation
+- *6* unknown mutation
   ⚠️  This value might have side effects
-- *6* arguments[0]
+- *7* arguments[0]
   ⚠️  function calls are not analysed yet
-- *7* {}[???*8*]
+- *8* {}[???*9*]
   ⚠️  unknown object prototype methods or values
   ⚠️  This value might have side effects
-- *8* arguments[0]
+- *9* arguments[0]
   ⚠️  function calls are not analysed yet
 
 615 -> 617 member call = ???*0*["trim"]()
@@ -3475,22 +3552,18 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* c
   ⚠️  pattern without value
 
-621 -> 625 call = (...) => (((null == b) || ("boolean" === ???*0*) || ("" === b)) ? "" : ((c || ("number" !== ???*1*) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))((???*2* | "cssFloat"), ???*3*, (0 === (???*5* | ???*7*)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* c
+621 -> 625 call = (...) => (((null == b) || ("boolean" === typeof(b)) || ("" === b)) ? "" : ((c || ("number" !== typeof(b)) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))((???*0* | "cssFloat"), ???*1*, (0 === (???*3* | ???*5*)))
+- *0* c
   ⚠️  pattern without value
-- *3* ???*4*[c]
+- *1* ???*2*[c]
   ⚠️  unknown object
-- *4* arguments[1]
+- *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*["indexOf"]("--")
+- *3* ???*4*["indexOf"]("--")
   ⚠️  unknown callee object
-- *6* c
+- *4* c
   ⚠️  pattern without value
-- *7* "cssFloat"["indexOf"]("--")
+- *5* "cssFloat"["indexOf"]("--")
   ⚠️  nested operation
 
 621 -> 626 conditional = (0 === (???*0* | ???*2*))
@@ -3621,10 +3694,14 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* `https://reactjs.org/docs/error-decoder.html?invariant=${60}`
   ⚠️  nested operation
 
-640 -> 648 conditional = (("object" !== ???*0*) | !(???*1*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
+640 -> 648 conditional = (("object" !== ???*0*) | !(???*3*))
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* ???*2*["dangerouslySetInnerHTML"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* unsupported expression
   ⚠️  This value might have side effects
 
 648 -> 649 free var = FreeVar(Error)
@@ -3645,8 +3722,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
-  ⚠️  This value might have side effects
+- *2* typeof(???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["style"]
+  ⚠️  unknown object
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 654 -> 655 free var = FreeVar(Error)
 
@@ -3709,8 +3790,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 
 0 -> 671 conditional = ("function" !== ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((null | (...) => undefined))
+  ⚠️  nested operation
 
 671 -> 672 free var = FreeVar(Error)
 
@@ -3994,16 +4075,30 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 - *17* arguments[1]
   ⚠️  function calls are not analysed yet
-- *18* unsupported expression
-  ⚠️  This value might have side effects
+- *18* typeof((???*19* | false["stateNode"] | null[???*21*]))
+  ⚠️  nested operation
+- *19* ???*20*["stateNode"]
+  ⚠️  unknown object
+- *20* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *21* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 701 -> 702 free var = FreeVar(Error)
 
-701 -> 703 call = (...) => `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`(231, ???*0*, ???*1*)
+701 -> 703 call = (...) => `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`(
+    231,
+    ???*0*,
+    typeof((???*1* | false["stateNode"] | null[???*3*]))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* ???*2*["stateNode"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 701 -> 704 call = ???*0*(
     `Minified React error #${231}; visit ${???*1*} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`
@@ -4017,7 +4112,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 705 conditional = !(???*0*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 705 -> 707 free var = FreeVar(Object)
@@ -4548,7 +4646,13 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *1* unsupported expression
+- *1* typeof((null["onCommitFiberRoot"] | ???*2*))
+  ⚠️  nested operation
+- *2* ???*3*["onCommitFiberRoot"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 826 -> 830 member call = (null | ???*0*)["onCommitFiberRoot"]((null | ???*1*), ???*3*, ???*4*, (128 === ???*5*))
@@ -7072,18 +7176,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 1218 conditional = (("object" === ???*0*) | ???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
+0 -> 1218 conditional = (("object" === ???*0*) | ???*4*)
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["detail"]
+  ⚠️  unknown object
+- *3* a
+  ⚠️  circular variable reference
+- *4* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 1220 call = (...) => ((("object" === ???*0*) && ???*1*) ? a["data"] : null)(???*2*)
+0 -> 1220 call = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)(???*1*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* arguments[1]
+- *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 1223 conditional = (((???*0* | ???*1*) === ???*3*) | false | true)
@@ -7194,30 +7302,36 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 1246 conditional = (!(???*0*) | !((???*2* | ???*5*)) | null | ???*6* | ???*8* | ("ko" !== ???*9*))
+0 -> 1246 conditional = (!(???*0*) | !((???*3* | ???*7*)) | null | ???*8* | ???*10* | ("ko" !== ???*11*))
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* !(???*3*)
+- *1* typeof(???*2*)
   ⚠️  nested operation
-- *3* ("undefined" === ???*4*)
-  ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* ???*7*["documentMode"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* FreeVar(document)
+- *2* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *8* unsupported expression
+- *3* !(???*4*)
+  ⚠️  nested operation
+- *4* ("undefined" === ???*5*)
+  ⚠️  nested operation
+- *5* typeof(???*6*)
+  ⚠️  nested operation
+- *6* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *9* ???*10*["locale"]
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ???*9*["documentMode"]
   ⚠️  unknown object
-- *10* arguments[1]
+  ⚠️  This value might have side effects
+- *9* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* ???*12*["locale"]
+  ⚠️  unknown object
+- *12* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 1251 member call = ???*0*["toLowerCase"]()
@@ -7295,13 +7409,19 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 1264 conditional = !(???*0*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1264 -> 1265 conditional = !(???*0*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1265 -> 1266 free var = FreeVar(document)
@@ -7311,7 +7431,16 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *1* ("function" === ???*2*)
   ⚠️  nested operation
-- *2* unsupported expression
+- *2* typeof(???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["oninput"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *4* ???*5*["createElement"]("div")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *5* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1267 -> 1269 free var = FreeVar(document)
@@ -7450,31 +7579,43 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 1298 free var = FreeVar(Object)
 
 0 -> 1299 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* ???*2*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *2* FreeVar(Object)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1299 -> 1301 free var = FreeVar(Object)
 
-0 -> 1302 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*8*)
+0 -> 1302 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*10*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* arguments[0]
+- *9* arguments[0]
   ⚠️  function calls are not analysed yet
-- *8* arguments[1]
+- *10* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 1304 free var = FreeVar(Object)
@@ -7517,30 +7658,36 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 1317 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*9*)
+0 -> 1317 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*11*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
-  ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* ???*8*[e]
+- *4* ???*5*["is"]
   ⚠️  unknown object
-- *8* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
+  ⚠️  nested operation
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* ???*10*[e]
   ⚠️  unknown object
-- *10* arguments[1]
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *11* ???*12*[e]
+  ⚠️  unknown object
+- *12* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 1320 call = (...) => a(
@@ -7681,8 +7828,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 
 0 -> 1345 call = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])()
 
-0 -> 1350 conditional = (("string" === ???*0*) | false)
-- *0* unsupported expression
+0 -> 1350 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 1353 call = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])(
@@ -7691,12 +7838,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
       | undefined["contentWindow"]["document"]
       | null["contentWindow"]["document"]
       | ???*2*
-      | (???*6* ? ???*8* : ???*9*)["activeElement"]["contentWindow"]["document"]
-      | (???*10* ? ???*12* : ???*13*)["body"]["contentWindow"]["document"]
-      | (???*14* ? ???*16* : ???*17*)["body"]["contentWindow"]["document"]
-      | (???*18* ? ???*20* : ???*21*)["activeElement"]["contentWindow"]["document"]
-      | (???*22* ? ???*24* : ???*25*)["body"]["contentWindow"]["document"]
-      | (???*26* ? ???*28* : ???*29*)["body"]["contentWindow"]["document"]
+      | (???*6* ? ???*9* : ???*10*)["activeElement"]["contentWindow"]["document"]
+      | (???*11* ? ???*14* : ???*15*)["body"]["contentWindow"]["document"]
+      | (???*16* ? ???*19* : ???*20*)["body"]["contentWindow"]["document"]
+      | (???*21* ? ???*24* : ???*25*)["activeElement"]["contentWindow"]["document"]
+      | (???*26* ? ???*29* : ???*30*)["body"]["contentWindow"]["document"]
+      | (???*31* ? ???*34* : ???*35*)["body"]["contentWindow"]["document"]
     )
 )
 - *0* ???*1*["document"]
@@ -7714,43 +7861,46 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *5* unknown function argument (out of bounds)
 - *6* ("undefined" !== ???*7*)
   ⚠️  nested operation
-- *7* unsupported expression
-  ⚠️  This value might have side effects
+- *7* typeof(???*8*)
+  ⚠️  nested operation
 - *8* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* ("undefined" !== ???*11*)
-  ⚠️  nested operation
-- *11* unsupported expression
-  ⚠️  This value might have side effects
-- *12* FreeVar(document)
+- *9* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* unsupported expression
+- *10* unsupported expression
   ⚠️  This value might have side effects
-- *14* ("undefined" !== ???*15*)
+- *11* ("undefined" !== ???*12*)
   ⚠️  nested operation
+- *12* typeof(???*13*)
+  ⚠️  nested operation
+- *13* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *14* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *15* unsupported expression
   ⚠️  This value might have side effects
-- *16* FreeVar(document)
+- *16* ("undefined" !== ???*17*)
+  ⚠️  nested operation
+- *17* typeof(???*18*)
+  ⚠️  nested operation
+- *18* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *17* unsupported expression
-  ⚠️  This value might have side effects
-- *18* ("undefined" !== ???*19*)
-  ⚠️  nested operation
-- *19* unsupported expression
-  ⚠️  This value might have side effects
-- *20* FreeVar(document)
+- *19* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *21* unsupported expression
+- *20* unsupported expression
   ⚠️  This value might have side effects
-- *22* ("undefined" !== ???*23*)
+- *21* ("undefined" !== ???*22*)
   ⚠️  nested operation
-- *23* unsupported expression
+- *22* typeof(???*23*)
+  ⚠️  nested operation
+- *23* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *24* FreeVar(document)
   ⚠️  unknown global
@@ -7759,12 +7909,27 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *26* ("undefined" !== ???*27*)
   ⚠️  nested operation
-- *27* unsupported expression
-  ⚠️  This value might have side effects
+- *27* typeof(???*28*)
+  ⚠️  nested operation
 - *28* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *29* unsupported expression
+- *29* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *30* unsupported expression
+  ⚠️  This value might have side effects
+- *31* ("undefined" !== ???*32*)
+  ⚠️  nested operation
+- *32* typeof(???*33*)
+  ⚠️  nested operation
+- *33* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *34* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *35* unsupported expression
   ⚠️  This value might have side effects
 
 0 -> 1357 member call = ???*0*["toLowerCase"]()
@@ -9347,12 +9512,15 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *14* unknown new expression
   ⚠️  This value might have side effects
 
-1679 -> 1751 conditional = (!(???*0*) | ???*2*)
+1679 -> 1751 conditional = (!(???*0*) | ???*3*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
 
 1751 -> 1752 conditional = (false | true)
@@ -9398,25 +9566,26 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1764 -> 1766 call = (...) => ((("object" === ???*0*) && ???*1*) ? a["data"] : null)(???*2*)
+1764 -> 1766 call = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)(???*1*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* arguments[2]
+- *1* arguments[2]
   ⚠️  function calls are not analysed yet
 
-1679 -> 1768 conditional = (!(???*0*) | ???*2* | !((null | ???*3*)))
+1679 -> 1768 conditional = (!(???*0*) | ???*3* | !((null | ???*4*)))
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
-- *3* ???*4*["documentMode"]
+- *4* ???*5*["documentMode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* FreeVar(document)
+- *5* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -10154,17 +10323,21 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 0 -> 1810 conditional = ("string" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-0 -> 1811 member call = (???*0* ? ???*2* : ???*3*)["replace"](/\r\n?/g, "\n")
+0 -> 1811 member call = (???*0* ? ???*3* : ???*4*)["replace"](/\r\n?/g, "\n")
 - *0* ("string" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 - *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 1812 member call = ???*0*["replace"](/\u0000|\uFFFD/g, "")
@@ -10176,37 +10349,33 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  nested operation
 - *3* ("string" === ???*4*)
   ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
+- *4* typeof(???)
+  ⚠️  nested operation
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 - *6* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 1813 call = (...) => (("string" === ???*0*) ? a : `${a}`)["replace"](xf, "\n")["replace"](yf, "")((???*1* | ???*2*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[1]
+0 -> 1813 call = (...) => (("string" === typeof(a)) ? a : `${a}`)["replace"](xf, "\n")["replace"](yf, "")((???*0* | ???*1*))
+- *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*["replace"](yf, "")
+- *1* ???*2*["replace"](yf, "")
   ⚠️  unknown callee object
-- *3* ???*4*(/\r\n?/g, "\n")
+- *2* ???*3*(/\r\n?/g, "\n")
   ⚠️  unknown callee
-- *4* ???*5*["replace"]
+- *3* ???*4*["replace"]
   ⚠️  unknown object
-- *5* (???*6* ? ???*7* : ???*8*)
+- *4* (???*5* ? ???*6* : ???*7*)
   ⚠️  nested operation
-- *6* ("string" === ???)
+- *5* ("string" === ???)
   ⚠️  nested operation
+- *6* b
+  ⚠️  circular variable reference
 - *7* b
   ⚠️  circular variable reference
-- *8* b
-  ⚠️  circular variable reference
 
-0 -> 1814 call = (...) => (("string" === ???*0*) ? a : `${a}`)["replace"](xf, "\n")["replace"](yf, "")(???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[0]
+0 -> 1814 call = (...) => (("string" === typeof(a)) ? a : `${a}`)["replace"](xf, "\n")["replace"](yf, "")(???*0*)
+- *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 1815 conditional = ((???*0* !== (???*7* | ???*8*)) | ???*15*)
@@ -10259,7 +10428,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 1825 free var = FreeVar(setTimeout)
 
 0 -> 1826 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(setTimeout)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1826 -> 1827 free var = FreeVar(setTimeout)
@@ -10267,7 +10439,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 1828 free var = FreeVar(clearTimeout)
 
 0 -> 1829 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(clearTimeout)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1829 -> 1830 free var = FreeVar(clearTimeout)
@@ -10275,7 +10450,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 1831 free var = FreeVar(Promise)
 
 0 -> 1832 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(Promise)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1832 -> 1833 free var = FreeVar(Promise)
@@ -10283,24 +10461,44 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 1834 free var = FreeVar(queueMicrotask)
 
 0 -> 1835 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(queueMicrotask)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 1835 -> 1836 free var = FreeVar(queueMicrotask)
 
 1835 -> 1837 conditional = ("undefined" !== ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* (???*2* ? ???*5* : ???*6*)
+  ⚠️  nested operation
+- *2* ("function" === ???*3*)
+  ⚠️  nested operation
+- *3* typeof(???*4*)
+  ⚠️  nested operation
+- *4* FreeVar(Promise)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *5* FreeVar(Promise)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* unsupported expression
   ⚠️  This value might have side effects
 
-1837 -> 1841 member call = (???*0* ? ???*2* : ???*3*)["resolve"](null)
+1837 -> 1841 member call = (???*0* ? ???*3* : ???*4*)["resolve"](null)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(Promise)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(Promise)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* unsupported expression
   ⚠️  This value might have side effects
 
 1837 -> 1842 member call = ???*0*["then"](???*7*)
@@ -10312,8 +10510,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  nested operation
 - *3* ("function" === ???*4*)
   ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
+- *4* typeof(???)
+  ⚠️  nested operation
 - *5* FreeVar(Promise)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -11055,46 +11253,40 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 2067 call = (...) => (
  || ("textarea" === a)
  || ("noscript" === a)
- || ("string" === ???*0*)
- || ("number" === ???*1*)
+ || ("string" === typeof(b["children"]))
+ || ("number" === typeof(b["children"]))
  || (
-     && ("object" === ???*2*)
+     && ("object" === typeof(b["dangerouslySetInnerHTML"]))
      && (null !== b["dangerouslySetInnerHTML"])
      && (null != b["dangerouslySetInnerHTML"]["__html"])
     )
 )(
-    (???*3* | (???*5* ? ???*7* : null)["type"]),
-    (???*9* | (???*11* ? ???*13* : null)["memoizedProps"])
+    (???*0* | (???*2* ? ???*4* : null)["type"]),
+    (???*6* | (???*8* ? ???*10* : null)["memoizedProps"])
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* ???*4*["type"]
+- *0* ???*1*["type"]
   ⚠️  unknown object
-- *4* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *5* (null !== ???*6*)
+- *2* (null !== ???*3*)
   ⚠️  nested operation
-- *6* a
+- *3* a
   ⚠️  circular variable reference
-- *7* ???*8*["dehydrated"]
+- *4* ???*5*["dehydrated"]
   ⚠️  unknown object
-- *8* a
+- *5* a
   ⚠️  circular variable reference
-- *9* ???*10*["memoizedProps"]
+- *6* ???*7*["memoizedProps"]
   ⚠️  unknown object
-- *10* arguments[0]
+- *7* arguments[0]
   ⚠️  function calls are not analysed yet
-- *11* (null !== ???*12*)
+- *8* (null !== ???*9*)
   ⚠️  nested operation
-- *12* a
+- *9* a
   ⚠️  circular variable reference
-- *13* ???*14*["dehydrated"]
+- *10* ???*11*["dehydrated"]
   ⚠️  unknown object
-- *14* a
+- *11* a
   ⚠️  circular variable reference
 
 0 -> 2068 conditional = ???*0*
@@ -11640,7 +11832,25 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 
 2246 -> 2253 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*2* | ???*6* | null["next"]["payload"]))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["payload"]
+  ⚠️  unknown object
+- *3* ???*4*["pending"]
+  ⚠️  unknown object
+- *4* ???*5*["shared"]
+  ⚠️  unknown object
+- *5* ???["updateQueue"]
+  ⚠️  unknown object
+- *6* ???*7*["payload"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *7* ???*8*["lastBaseUpdate"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *8* unsupported expression
   ⚠️  This value might have side effects
 
 2253 -> 2255 member call = (
@@ -11648,8 +11858,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*1*
   | ???*6*
   | null["next"]["payload"]
-  | (???*9* ? ???*11* : ???*13*)["next"]["payload"]
-)["call"](???*14*, ???*15*, ???*16*)
+  | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
+)["call"](???*15*, ???*16*, ???*17*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["payload"]
@@ -11672,23 +11882,43 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *9* ("function" === ???*10*)
   ⚠️  nested operation
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* ???*12*["call"](y, q, r)
-  ⚠️  unknown callee object
-- *12* n
+- *10* typeof(???*11*)
+  ⚠️  nested operation
+- *11* n
   ⚠️  circular variable reference
+- *12* ???*13*["call"](y, q, r)
+  ⚠️  unknown callee object
 - *13* n
   ⚠️  circular variable reference
-- *14* max number of linking steps reached
-  ⚠️  This value might have side effects
+- *14* n
+  ⚠️  circular variable reference
 - *15* max number of linking steps reached
   ⚠️  This value might have side effects
 - *16* max number of linking steps reached
   ⚠️  This value might have side effects
+- *17* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2246 -> 2259 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*2* | ???*6* | null["next"]["payload"]))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["payload"]
+  ⚠️  unknown object
+- *3* ???*4*["pending"]
+  ⚠️  unknown object
+- *4* ???*5*["shared"]
+  ⚠️  unknown object
+- *5* ???["updateQueue"]
+  ⚠️  unknown object
+- *6* ???*7*["payload"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *7* ???*8*["lastBaseUpdate"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *8* unsupported expression
   ⚠️  This value might have side effects
 
 2259 -> 2261 member call = (
@@ -11696,8 +11926,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*1*
   | ???*6*
   | null["next"]["payload"]
-  | (???*9* ? ???*11* : ???*13*)["next"]["payload"]
-)["call"](???*14*, ???*15*, ???*16*)
+  | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
+)["call"](???*15*, ???*16*, ???*17*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["payload"]
@@ -11720,19 +11950,21 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *9* ("function" === ???*10*)
   ⚠️  nested operation
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* ???*12*["call"](y, q, r)
-  ⚠️  unknown callee object
-- *12* n
+- *10* typeof(???*11*)
+  ⚠️  nested operation
+- *11* n
   ⚠️  circular variable reference
+- *12* ???*13*["call"](y, q, r)
+  ⚠️  unknown callee object
 - *13* n
   ⚠️  circular variable reference
-- *14* max number of linking steps reached
-  ⚠️  This value might have side effects
+- *14* n
+  ⚠️  circular variable reference
 - *15* max number of linking steps reached
   ⚠️  This value might have side effects
 - *16* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *17* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2246 -> 2262 call = ???*0*({}, ???*2*, ???*3*)
@@ -11813,8 +12045,28 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 2303 -> 2305 conditional = ("function" !== ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | 0["effects"][(???*6* | 0 | ???*7*)]["callback"] | ???*8*))
+  ⚠️  nested operation
+- *1* ???*2*["callback"]
+  ⚠️  unknown object
   ⚠️  This value might have side effects
+- *2* ???*3*[(???*4* | 0 | ???*5*)]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* updated with update expression
+  ⚠️  This value might have side effects
+- *6* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *7* updated with update expression
+  ⚠️  This value might have side effects
+- *8* ???*9*["callback"]
+  ⚠️  unknown object
+- *9* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 2305 -> 2306 free var = FreeVar(Error)
 
@@ -13560,8 +13812,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 
 0 -> 2353 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* ???*2*["shouldComponentUpdate"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 2353 -> 2355 member call = (???*0* | ???*1*)["shouldComponentUpdate"](???*3*, ???*4*, ???*5*)
 - *0* arguments[0]
@@ -13597,10 +13853,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 
 0 -> 2363 conditional = (
   | ("object" === ???*0*)
-  | (null !== (???*1* | ???*3* | ???*5* | ???*6* | ???*7*))
+  | (null !== (???*12* | ???*14* | ???*16* | ???*17* | ???*18*))
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ???*3* | ???*5* | ???*6* | ???*7*))
+  ⚠️  nested operation
 - *1* ???*2*["contextType"]
   ⚠️  unknown object
 - *2* arguments[1]
@@ -13624,6 +13880,30 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *10* ???*11*["stateNode"]
   ⚠️  unknown object
 - *11* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *12* ???*13*["contextType"]
+  ⚠️  unknown object
+- *13* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *14* ???*15*["contextType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *15* unknown new expression
+  ⚠️  This value might have side effects
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *17* unknown mutation
+  ⚠️  This value might have side effects
+- *18* (???*19* ? ({} | ???*20*) : {})
+  ⚠️  nested operation
+- *19* unsupported expression
+  ⚠️  This value might have side effects
+- *20* ???*21*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *21* ???*22*["stateNode"]
+  ⚠️  unknown object
+- *22* arguments[0]
   ⚠️  function calls are not analysed yet
 
 2363 -> 2364 call = (...) => b(
@@ -13759,14 +14039,14 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 2399 conditional = (("object" === ???*0*) | (null !== (???*1* | ???*3*)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2399 conditional = (("object" === ???*0*) | (null !== (???*10* | ???*12*)))
+- *0* typeof((???*1* | ???*3*))
+  ⚠️  nested operation
 - *1* ???*2*["contextType"]
   ⚠️  unknown object
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *3* (???*4* ? ({} | ???*9*) : ({} | ???*10*))
+- *3* (???*4* ? ({} | ???*8*) : ({} | ???*9*))
   ⚠️  nested operation
 - *4* (null !== (???*5* | ???*6*))
   ⚠️  nested operation
@@ -13774,13 +14054,31 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 - *6* ???*7*["state"]
   ⚠️  unknown object
-- *7* ???*8*["stateNode"]
+- *7* ???["stateNode"]
   ⚠️  unknown object
-- *8* arguments[0]
-  ⚠️  function calls are not analysed yet
+- *8* unknown mutation
+  ⚠️  This value might have side effects
 - *9* unknown mutation
   ⚠️  This value might have side effects
-- *10* unknown mutation
+- *10* ???*11*["contextType"]
+  ⚠️  unknown object
+- *11* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *12* (???*13* ? ({} | ???*18*) : ({} | ???*19*))
+  ⚠️  nested operation
+- *13* (null !== (???*14* | ???*15*))
+  ⚠️  nested operation
+- *14* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *15* ???*16*["state"]
+  ⚠️  unknown object
+- *16* ???*17*["stateNode"]
+  ⚠️  unknown object
+- *17* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *18* unknown mutation
+  ⚠️  This value might have side effects
+- *19* unknown mutation
   ⚠️  This value might have side effects
 
 2399 -> 2401 call = (...) => b(
@@ -13942,17 +14240,29 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *4* arguments[3]
   ⚠️  function calls are not analysed yet
 
-0 -> 2434 conditional = ((null !== (???*0* | ???*1*)) | ("function" !== ???*3*) | ("object" !== ???*4*))
+0 -> 2434 conditional = ((null !== (???*0* | ???*1*)) | ("function" !== ???*3*) | ("object" !== ???*7*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["ref"]
   ⚠️  unknown object
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
-  ⚠️  This value might have side effects
+- *3* typeof((???*4* | ???*5*))
+  ⚠️  nested operation
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["ref"]
+  ⚠️  unknown object
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* typeof((???*8* | ???*9*))
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*["ref"]
+  ⚠️  unknown object
+- *10* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 2434 -> 2436 conditional = ???*0*
 - *0* ???*1*["_owner"]
@@ -14016,7 +14326,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | (null !== (???*0* | (...) => undefined))
   | (null !== (???*1* | (...) => undefined["ref"]))
   | ("function" === ???*3*)
-  | ((???*4* | (...) => undefined["ref"]["_stringRef"]) === (???*7* | ???*8*))
+  | ((???*6* | (...) => undefined["ref"]["_stringRef"]) === (???*9* | ???*10*))
 )
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -14024,19 +14334,23 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown object
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* ???*5*["_stringRef"]
+- *3* typeof((???*4* | (...) => undefined["ref"]))
+  ⚠️  nested operation
+- *4* ???*5*["ref"]
   ⚠️  unknown object
-- *5* ???*6*["ref"]
-  ⚠️  unknown object
-- *6* arguments[1]
+- *5* arguments[1]
   ⚠️  function calls are not analysed yet
-- *7* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *8* ???*9*["ref"]
+- *6* ???*7*["_stringRef"]
   ⚠️  unknown object
-- *9* arguments[2]
+- *7* ???*8*["ref"]
+  ⚠️  unknown object
+- *8* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *9* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *10* ???*11*["ref"]
+  ⚠️  unknown object
+- *11* arguments[2]
   ⚠️  function calls are not analysed yet
 
 2436 -> 2457 conditional = (null === ???*0*)
@@ -14044,8 +14358,14 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 2434 -> 2461 conditional = ("string" !== ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["ref"]
+  ⚠️  unknown object
+- *3* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 2461 -> 2462 free var = FreeVar(Error)
 
@@ -14386,9 +14706,9 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | (null !== ???*0*)
   | (???*1* === ???*3*)
   | ("object" === ???*5*)
-  | (null !== ???*6*)
-  | (???*8* === ???*11*)
-  | (???*13* === ???*17*)
+  | (null !== ???*8*)
+  | (???*10* === ???*13*)
+  | (???*15* === ???*19*)
 )
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -14400,35 +14720,39 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown object
 - *4* arguments[2]
   ⚠️  function calls are not analysed yet
-- *5* unsupported expression
-  ⚠️  This value might have side effects
+- *5* typeof(???*6*)
+  ⚠️  nested operation
 - *6* ???*7*["type"]
   ⚠️  unknown object
 - *7* arguments[2]
   ⚠️  function calls are not analysed yet
-- *8* ???*9*["$$typeof"]
+- *8* ???*9*["type"]
   ⚠️  unknown object
-- *9* ???*10*["type"]
-  ⚠️  unknown object
-- *10* arguments[2]
+- *9* arguments[2]
   ⚠️  function calls are not analysed yet
-- *11* ???*12*["for"]("react.lazy")
+- *10* ???*11*["$$typeof"]
+  ⚠️  unknown object
+- *11* ???*12*["type"]
+  ⚠️  unknown object
+- *12* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *13* ???*14*["for"]("react.lazy")
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *12* FreeVar(Symbol)
+- *14* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* ???*14*(a["_payload"])
+- *15* ???*16*(a["_payload"])
   ⚠️  unknown callee
-- *14* ???*15*["_init"]
+- *16* ???*17*["_init"]
   ⚠️  unknown object
-- *15* ???*16*["type"]
-  ⚠️  unknown object
-- *16* arguments[2]
-  ⚠️  function calls are not analysed yet
 - *17* ???*18*["type"]
   ⚠️  unknown object
-- *18* arguments[1]
+- *18* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *19* ???*20*["type"]
+  ⚠️  unknown object
+- *20* arguments[1]
   ⚠️  function calls are not analysed yet
 
 2536 -> 2538 call = (...) => a(???*0*, ???*1*)
@@ -14603,20 +14927,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *5* arguments[2]
   ⚠️  function calls are not analysed yet
 
-0 -> 2571 conditional = (("string" === ???*0*) | ("" !== (???*1* | ???*2* | ???*3* | ???*4*)) | ("number" === ???*6*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* b
-  ⚠️  circular variable reference
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* ???*5*["mode"]
-  ⚠️  unknown object
-- *5* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *6* unsupported expression
+0 -> 2571 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2571 -> 2573 call = (...) => a((???*0* | ???*1* | ???*2* | ???*3*), ???*5*, (???*7* | ???*8* | ???*11* | ???*14* | ???*15*))
@@ -14656,19 +14968,9 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
-0 -> 2575 conditional = (("object" === ???*0*) | (null !== (???*1* | ???*2* | ???*3* | ???*4*)))
-- *0* unsupported expression
+0 -> 2575 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* b
-  ⚠️  circular variable reference
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* ???*5*["mode"]
-  ⚠️  unknown object
-- *5* arguments[0]
-  ⚠️  function calls are not analysed yet
 
 2575 -> 2581 call = (...) => (Ah(c["children"], e, f, b) | ???*0* | qj(c, e, f, b) | b)(
     (???*1* | ???*3*),
@@ -14862,24 +15164,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *6* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2575 -> 2593 call = (...) => (null | (("function" === ???*0*) ? a : null))((???*1* | ???*2* | ???*3* | ???*4*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[1]
+2575 -> 2593 call = (...) => (null | (("function" === typeof(a)) ? a : null))((???*0* | ???*1* | ???*2* | ???*3*))
+- *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *2* b
+- *1* b
   ⚠️  circular variable reference
-- *3* unknown new expression
+- *2* unknown new expression
   ⚠️  This value might have side effects
-- *4* ???*5*["mode"]
+- *3* ???*4*["mode"]
   ⚠️  unknown object
-- *5* arguments[0]
+- *4* arguments[0]
   ⚠️  function calls are not analysed yet
 
 2575 -> 2594 conditional = (
   | ???*0*
   | null
-  | (???*3* ? (???*5* | ???*6* | ???*7* | ???*8* | ???*10*) : null)
+  | (???*3* ? (???*12* | ???*13* | ???*14* | ???*15* | ???*17*) : null)
 )
 - *0* ???*1*(b)
   ⚠️  unknown callee
@@ -14892,8 +15192,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *3* ("function" === ???*4*)
   ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
+- *4* typeof((???*5* | ???*6* | ???*7* | ???*8* | ???*10*))
+  ⚠️  nested operation
 - *5* arguments[1]
   ⚠️  function calls are not analysed yet
 - *6* b
@@ -14908,6 +15208,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *11* FreeVar(Symbol)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *12* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *13* b
+  ⚠️  circular variable reference
+- *14* unknown new expression
+  ⚠️  This value might have side effects
+- *15* ???*16*["mode"]
+  ⚠️  unknown object
+- *16* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *17* ???*18*["iterator"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *18* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -14966,13 +15282,17 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 2601 conditional = (("string" === ???*0*) | ("" !== ???*1*) | ("number" === ???*2*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2601 conditional = (("string" === ???*0*) | ("" !== ???*2*) | ("number" === ???*3*))
+- *0* typeof(???*1*)
+  ⚠️  nested operation
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
-  ⚠️  This value might have side effects
+- *2* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *3* typeof(???*4*)
+  ⚠️  nested operation
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 2601 -> 2602 conditional = (null !== (???*0* | ???*5*))
 - *0* (???*1* ? ???*3* : null)
@@ -15003,10 +15323,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *4* arguments[3]
   ⚠️  function calls are not analysed yet
 
-0 -> 2604 conditional = (("object" === ???*0*) | (null !== ???*1*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2604 conditional = (("object" === ???*0*) | (null !== ???*2*))
+- *0* typeof(???*1*)
+  ⚠️  nested operation
 - *1* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[2]
   ⚠️  function calls are not analysed yet
 
 2604 -> 2607 conditional = (???*0* === (???*2* | ???*7*))
@@ -15135,13 +15457,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
 
-2604 -> 2617 call = (...) => (null | (("function" === ???*0*) ? a : null))(???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[2]
+2604 -> 2617 call = (...) => (null | (("function" === typeof(a)) ? a : null))(???*0*)
+- *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-2604 -> 2618 conditional = (???*0* | null | (???*3* ? (???*5* | ???*6* | ???*8*) : null))
+2604 -> 2618 conditional = (???*0* | null | (???*3* ? (???*10* | ???*11* | ???*13*) : null))
 - *0* ???*1*(c)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
@@ -15153,8 +15473,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *3* ("function" === ???*4*)
   ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
+- *4* typeof((???*5* | ???*6* | ???*8*))
+  ⚠️  nested operation
 - *5* arguments[2]
   ⚠️  function calls are not analysed yet
 - *6* ???*7*["iterator"]
@@ -15166,6 +15486,18 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *8* ???*9*[Ja]
   ⚠️  unknown object
 - *9* a
+  ⚠️  circular variable reference
+- *10* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *11* ???*12*["iterator"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *12* FreeVar(Symbol)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *13* ???*14*[Ja]
+  ⚠️  unknown object
+- *14* a
   ⚠️  circular variable reference
 
 2618 -> 2619 conditional = (null !== (???*0* | ???*5*))
@@ -15203,13 +15535,17 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 
-0 -> 2622 conditional = (("string" === ???*0*) | ("" !== ???*1*) | ("number" === ???*2*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2622 conditional = (("string" === ???*0*) | ("" !== ???*2*) | ("number" === ???*3*))
+- *0* typeof(???*1*)
+  ⚠️  nested operation
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
-  ⚠️  This value might have side effects
+- *2* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *3* typeof(???*4*)
+  ⚠️  nested operation
+- *4* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 2622 -> 2624 member call = (???*0* | ???*1* | null)["get"](???*3*)
 - *0* arguments[0]
@@ -15238,10 +15574,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *6* arguments[4]
   ⚠️  function calls are not analysed yet
 
-0 -> 2626 conditional = (("object" === ???*0*) | (null !== ???*1*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2626 conditional = (("object" === ???*0*) | (null !== ???*2*))
+- *0* typeof(???*1*)
+  ⚠️  nested operation
 - *1* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[3]
   ⚠️  function calls are not analysed yet
 
 2626 -> 2630 conditional = (null === ???*0*)
@@ -15373,13 +15711,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* arguments[3]
   ⚠️  function calls are not analysed yet
 
-2626 -> 2645 call = (...) => (null | (("function" === ???*0*) ? a : null))(???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[3]
+2626 -> 2645 call = (...) => (null | (("function" === typeof(a)) ? a : null))(???*0*)
+- *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-2626 -> 2646 conditional = (???*0* | null | (???*3* ? (???*5* | ???*6* | ???*8*) : null))
+2626 -> 2646 conditional = (???*0* | null | (???*3* ? (???*10* | ???*11* | ???*13*) : null))
 - *0* ???*1*(d)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
@@ -15391,8 +15727,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *3* ("function" === ???*4*)
   ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
+- *4* typeof((???*5* | ???*6* | ???*8*))
+  ⚠️  nested operation
 - *5* arguments[3]
   ⚠️  function calls are not analysed yet
 - *6* ???*7*["iterator"]
@@ -15404,6 +15740,18 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *8* ???*9*[Ja]
   ⚠️  unknown object
 - *9* a
+  ⚠️  circular variable reference
+- *10* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *11* ???*12*["iterator"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *12* FreeVar(Symbol)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *13* ???*14*[Ja]
+  ⚠️  unknown object
+- *14* a
   ⚠️  circular variable reference
 
 2646 -> 2648 member call = (???*0* | ???*1* | null)["get"](???*3*)
@@ -15620,14 +15968,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-0 -> 2690 call = (...) => (null | (("function" === ???*0*) ? a : null))(???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+0 -> 2690 call = (...) => (null | (("function" === typeof(a)) ? a : null))(???*0*)
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 2691 conditional = ("function" !== ???*0*)
-- *0* unsupported expression
+0 -> 2691 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2691 -> 2692 free var = FreeVar(Error)
@@ -15851,9 +16197,9 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-0 -> 2752 conditional = (("object" === ???*0*) | (null !== (???*1* | ???*2* | ???*5*)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2752 conditional = (("object" === ???*0*) | (null !== (???*6* | ???*7* | ???*10*)))
+- *0* typeof((???*1* | ???*2* | ???*5*))
+  ⚠️  nested operation
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 - *2* ???*3*["children"]
@@ -15863,6 +16209,16 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *4* f
   ⚠️  circular variable reference
 - *5* f
+  ⚠️  circular variable reference
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["children"]
+  ⚠️  unknown object
+- *8* ???*9*["props"]
+  ⚠️  unknown object
+- *9* f
+  ⚠️  circular variable reference
+- *10* f
   ⚠️  circular variable reference
 
 2752 -> 2756 conditional = ???*0*
@@ -16089,25 +16445,21 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, ???*5*, ???*6*, ???*7*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, ???*3*, ???*4*, ???*5*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
+- *2* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* max number of linking steps reached
   ⚠️  This value might have side effects
 - *5* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *6* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *7* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2752 -> 2826 call = ???*0*((???*2* | ???*3* | ???*6*))
@@ -16157,28 +16509,26 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *7* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2752 -> 2829 call = (...) => (null | (("function" === ???*0*) ? a : null))((???*1* | ???*2* | ???*5*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[2]
+2752 -> 2829 call = (...) => (null | (("function" === typeof(a)) ? a : null))((???*0* | ???*1* | ???*4*))
+- *0* arguments[2]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*["children"]
+- *1* ???*2*["children"]
   ⚠️  unknown object
-- *3* ???*4*["props"]
+- *2* ???*3*["props"]
   ⚠️  unknown object
-- *4* f
+- *3* f
   ⚠️  circular variable reference
-- *5* f
+- *4* f
   ⚠️  circular variable reference
 
 2752 -> 2830 conditional = (
   | null
-  | (???*0* ? (???*2* | ???*3* | ???*6* | ???*7*) : null)
+  | (???*0* ? (???*9* | ???*10* | ???*13* | ???*14*) : null)
 )
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof((???*2* | ???*3* | ???*6* | ???*7*))
+  ⚠️  nested operation
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
 - *3* ???*4*["children"]
@@ -16193,6 +16543,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *8* FreeVar(Symbol)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *9* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *10* ???*11*["children"]
+  ⚠️  unknown object
+- *11* ???*12*["props"]
+  ⚠️  unknown object
+- *12* f
+  ⚠️  circular variable reference
+- *13* f
+  ⚠️  circular variable reference
+- *14* ???*15*["iterator"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *15* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -16228,9 +16594,9 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *5* f
   ⚠️  circular variable reference
 
-0 -> 2833 conditional = (("string" === ???*0*) | ("" !== (???*1* | ???*2* | ???*5*)) | ("number" === ???*6*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 2833 conditional = (("string" === ???*0*) | ("" !== (???*6* | ???*7* | ???*10*)) | ("number" === ???*11*))
+- *0* typeof((???*1* | ???*2* | ???*5*))
+  ⚠️  nested operation
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 - *2* ???*3*["children"]
@@ -16241,8 +16607,28 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 - *5* f
   ⚠️  circular variable reference
-- *6* unsupported expression
-  ⚠️  This value might have side effects
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["children"]
+  ⚠️  unknown object
+- *8* ???*9*["props"]
+  ⚠️  unknown object
+- *9* f
+  ⚠️  circular variable reference
+- *10* f
+  ⚠️  circular variable reference
+- *11* typeof((???*12* | ???*13* | ???*16*))
+  ⚠️  nested operation
+- *12* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *13* ???*14*["children"]
+  ⚠️  unknown object
+- *14* ???*15*["props"]
+  ⚠️  unknown object
+- *15* f
+  ⚠️  circular variable reference
+- *16* f
+  ⚠️  circular variable reference
 
 2833 -> 2835 conditional = ???*0*
 - *0* max number of linking steps reached
@@ -16804,30 +17190,36 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* `https://reactjs.org/docs/error-decoder.html?invariant=${321}`
   ⚠️  nested operation
 
-0 -> 2921 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*9*)
+0 -> 2921 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*11*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
-  ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* ???*8*[c]
+- *4* ???*5*["is"]
   ⚠️  unknown object
-- *8* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
+  ⚠️  nested operation
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* ???*10*[c]
   ⚠️  unknown object
-- *10* arguments[1]
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *11* ???*12*[c]
+  ⚠️  unknown object
+- *12* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 2927 conditional = ((null === (???*0* | ???*1*)) | (null === ???*3*))
@@ -17396,8 +17788,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 
 0 -> 2965 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 2965 -> 2966 call = ???*0*(???*1*)
 - *0* arguments[1]
@@ -17460,26 +17854,32 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2984 -> 3008 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*8*)
+2984 -> 3008 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*10*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* max number of linking steps reached
+- *9* max number of linking steps reached
   ⚠️  This value might have side effects
-- *8* max number of linking steps reached
+- *10* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 3014 conditional = ???*0*
@@ -17526,26 +17926,32 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *6* g
   ⚠️  circular variable reference
 
-3031 -> 3038 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*8*)
+3031 -> 3038 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*10*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* max number of linking steps reached
+- *9* max number of linking steps reached
   ⚠️  This value might have side effects
-- *8* max number of linking steps reached
+- *10* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 3043 call = (...) => P()
@@ -17554,26 +17960,32 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 3046 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*8*())
+0 -> 3046 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*10*())
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* max number of linking steps reached
+- *9* max number of linking steps reached
   ⚠️  This value might have side effects
-- *8* arguments[1]
+- *10* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 3050 member call = (...) => c(*anonymous function 67764*)["bind"](
@@ -18159,32 +18571,38 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 3085 call = (???*0* ? ???*2* : (...) => ???*4*)((???*7* | ???*8*), ???*10*())
+0 -> 3085 call = (???*0* ? ???*4* : (...) => ???*6*)((???*9* | ???*10*), ???*12*())
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* arguments[0]
+- *9* arguments[0]
   ⚠️  function calls are not analysed yet
-- *8* ???*9*["value"]
+- *10* ???*11*["value"]
   ⚠️  unknown object
-- *9* a
+- *11* a
   ⚠️  circular variable reference
-- *10* ???*11*["getSnapshot"]
+- *12* ???*13*["getSnapshot"]
   ⚠️  unknown object
-- *11* arguments[0]
+- *13* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 3086 call = (...) => ((3 === c["tag"]) ? c["stateNode"] : null)(???*0*, 1)
@@ -18221,20 +18639,18 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
         "interleaved": null,
         "lanes": 0,
         "dispatch": null,
-        "lastRenderedReducer": (...) => (("function" === ???*2*) ? b(a) : b),
-        "lastRenderedState": ???*3*
+        "lastRenderedReducer": (...) => (("function" === typeof(b)) ? b(a) : b),
+        "lastRenderedState": ???*2*
     }
-  | ???*4*
+  | ???*3*
 )()
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* a
   ⚠️  circular variable reference
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* a
+- *2* a
   ⚠️  circular variable reference
-- *4* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
 
 0 -> 3095 member call = (...) => (undefined | FreeVar(undefined))["bind"](
@@ -18265,10 +18681,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
             "interleaved": null,
             "lanes": 0,
             "dispatch": null,
-            "lastRenderedReducer": (...) => (("function" === ???*25*) ? b(a) : b),
-            "lastRenderedState": ???*26*
+            "lastRenderedReducer": (...) => (("function" === typeof(b)) ? b(a) : b),
+            "lastRenderedState": ???*25*
         }
-      | ???*27*
+      | ???*26*
     )
 )
 - *0* arguments[1]
@@ -18322,11 +18738,9 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 - *24* a
   ⚠️  circular variable reference
-- *25* unsupported expression
-  ⚠️  This value might have side effects
-- *26* a
+- *25* a
   ⚠️  circular variable reference
-- *27* unsupported expression
+- *26* unsupported expression
   ⚠️  This value might have side effects
 
 0 -> 3098 conditional = (null === (???*0* | null["updateQueue"] | ???*1* | {"lastEffect": null, "stores": null}))
@@ -18654,8 +19068,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 0 -> 3134 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 3134 -> 3135 call = (???*0* | ???*1*())()
 - *0* arguments[0]
@@ -18846,28 +19262,34 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 3169 call = (???*0* ? ???*2* : (...) => ???*4*)((???*7* | 64 | ???*8*), ???*9*)
+0 -> 3169 call = (???*0* ? ???*4* : (...) => ???*6*)((???*9* | 64 | ???*10*), ???*11*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* arguments[2]
+- *9* arguments[2]
   ⚠️  function calls are not analysed yet
-- *8* unsupported assign operation
+- *10* unsupported assign operation
   ⚠️  This value might have side effects
-- *9* arguments[1]
+- *11* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 3170 call = (...) => a()
@@ -19928,42 +20350,16 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *11* arguments[0]
   ⚠️  function calls are not analysed yet
 
-3198 -> 3203 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*10*)
+3198 -> 3203 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*12*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
-  ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* ???*8*(g, c)
-  ⚠️  unknown callee
-- *8* ???*9*["alternate"]
-  ⚠️  unknown object
-- *9* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *10* ???*11*["lastRenderedState"]
-  ⚠️  unknown object
-- *11* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-3198 -> 3204 conditional = ???*0*
-- *0* ???*1*(???*9*, ???*12*)
-  ⚠️  unknown callee
-- *1* (???*2* ? ???*4* : (...) => ???*6*)
-  ⚠️  nested operation
-- *2* ("function" === ???*3*)
-  ⚠️  nested operation
-- *3* unsupported expression
   ⚠️  This value might have side effects
 - *4* ???*5*["is"]
   ⚠️  unknown object
@@ -19986,6 +20382,41 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *12* ???*13*["lastRenderedState"]
   ⚠️  unknown object
 - *13* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+3198 -> 3204 conditional = ???*0*
+- *0* ???*1*(???*10*, ???*13*)
+  ⚠️  unknown callee
+- *1* (???*2* ? ???*5* : (...) => ???*7*)
+  ⚠️  nested operation
+- *2* ("function" === ???*3*)
+  ⚠️  nested operation
+- *3* typeof(???*4*)
+  ⚠️  nested operation
+- *4* ???["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* ???*6*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *6* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *7* (((a === b) && ((0 !== a) || (???*8* === ???*9*))) || ((a !== a) && (b !== b)))
+  ⚠️  nested operation
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* ???*11*(g, c)
+  ⚠️  unknown callee
+- *11* ???*12*["alternate"]
+  ⚠️  unknown object
+- *12* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *13* ???*14*["lastRenderedState"]
+  ⚠️  unknown object
+- *14* arguments[1]
   ⚠️  function calls are not analysed yet
 
 3204 -> 3206 conditional = (null === ???*0*)
@@ -21249,9 +21680,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 3299 call = (...) => [b["memoizedState"], c["dispatch"]]((...) => (("function" === ???*0*) ? b(a) : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 3299 call = (...) => [b["memoizedState"], c["dispatch"]]((...) => (("function" === typeof(b)) ? b(a) : b))
 
 0 -> 3300 call = (...) => P()
 
@@ -21403,15 +21832,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *52* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 3304 call = (...) => [b["memoizedState"], c["dispatch"]]((...) => (("function" === ???*0*) ? b(a) : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 3304 call = (...) => [b["memoizedState"], c["dispatch"]]((...) => (("function" === typeof(b)) ? b(a) : b))
 
 0 -> 3306 call = (...) => P()
 
-0 -> 3307 call = (...) => [f, d]((...) => (("function" === ???*0*) ? b(a) : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 3307 call = (...) => [f, d]((...) => (("function" === typeof(b)) ? b(a) : b))
 
 0 -> 3308 call = (...) => P()
 
@@ -21610,9 +22035,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *52* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 3314 call = (...) => [f, d]((...) => (("function" === ???*0*) ? b(a) : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 3314 call = (...) => [f, d]((...) => (("function" === typeof(b)) ? b(a) : b))
 
 0 -> 3316 call = (...) => P()
 
@@ -21656,7 +22079,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 3329 free var = FreeVar(WeakMap)
 
 0 -> 3330 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(WeakMap)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 3330 -> 3331 free var = FreeVar(WeakMap)
@@ -21702,8 +22128,14 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  circular variable reference
 
 0 -> 3343 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* ???*2*["getDerivedStateFromError"]
+  ⚠️  unknown object
+- *2* ???*3*["type"]
+  ⚠️  unknown object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 3343 -> 3346 call = ???*0*(???*3*)
 - *0* ???*1*["getDerivedStateFromError"]
@@ -22097,23 +22529,19 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, null, ???*5*, ???*6*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, null, ???*3*, ???*4*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *4* arguments[1]
+- *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *5* arguments[2]
+- *3* arguments[2]
   ⚠️  function calls are not analysed yet
-- *6* arguments[3]
+- *4* arguments[3]
   ⚠️  function calls are not analysed yet
 
 3406 -> 3409 call = (...) => (
@@ -22121,27 +22549,23 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, ???*5*, ???*7*, ???*8*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, ???*3*, ???*5*, ???*6*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *4* arguments[1]
+- *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*["child"]
+- *3* ???*4*["child"]
   ⚠️  unknown object
-- *6* arguments[0]
+- *4* arguments[0]
   ⚠️  function calls are not analysed yet
-- *7* arguments[2]
+- *5* arguments[2]
   ⚠️  function calls are not analysed yet
-- *8* arguments[3]
+- *6* arguments[3]
   ⚠️  function calls are not analysed yet
 
 0 -> 3412 call = (...) => undefined(???*0*, ???*1*)
@@ -23143,7 +23567,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3553 -> 3554 call = (...) => undefined(???*0*, ???*1*, (???*2* | ("function" === ???*4*)), ???*5*)
+3553 -> 3554 call = (...) => undefined(???*0*, ???*1*, (???*2* | ("function" === ???*4*)), ???*7*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* arguments[2]
@@ -23152,58 +23576,60 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  unknown object
 - *3* arguments[2]
   ⚠️  function calls are not analysed yet
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* max number of linking steps reached
+- *4* typeof(???*5*)
+  ⚠️  nested operation
+- *5* ???*6*["getDerivedStateFromProps"]
+  ⚠️  unknown object
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3553 -> 3556 call = (...) => (("function" === ???*0*) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))(
+3553 -> 3556 call = (...) => (("function" === typeof(a["shouldComponentUpdate"])) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))(
+    ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     ???*4*,
-    ???*5*,
-    (???*7* | ???*10* | ???*11* | (???*12* ? ({} | ???*16*) : ({} | ???*17*)) | {}),
-    ???*18*
+    (???*6* | ???*9* | ???*10* | (???*11* ? ({} | ???*15*) : ({} | ???*16*)) | {}),
+    ???*17*
 )
-- *0* unsupported expression
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *2* max number of linking steps reached
   ⚠️  This value might have side effects
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* arguments[2]
-  ⚠️  function calls are not analysed yet
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
-- *4* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *5* ???*6*["memoizedState"]
+- *4* ???*5*["memoizedState"]
   ⚠️  unknown object
-- *6* arguments[1]
+- *5* arguments[1]
   ⚠️  function calls are not analysed yet
-- *7* ???*8*["context"]
+- *6* ???*7*["context"]
   ⚠️  unknown object
-- *8* ???*9*["stateNode"]
+- *7* ???*8*["stateNode"]
   ⚠️  unknown object
-- *9* arguments[1]
+- *8* arguments[1]
   ⚠️  function calls are not analysed yet
-- *10* FreeVar(undefined)
+- *9* FreeVar(undefined)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *11* unknown mutation
+- *10* unknown mutation
   ⚠️  This value might have side effects
-- *12* (null !== (???*13* | ???*14*))
+- *11* (null !== (???*12* | ???*13*))
   ⚠️  nested operation
-- *13* arguments[2]
+- *12* arguments[2]
   ⚠️  function calls are not analysed yet
-- *14* ???*15*["childContextTypes"]
+- *13* ???*14*["childContextTypes"]
   ⚠️  unknown object
-- *15* a
+- *14* a
   ⚠️  circular variable reference
+- *15* unknown mutation
+  ⚠️  This value might have side effects
 - *16* unknown mutation
   ⚠️  This value might have side effects
-- *17* unknown mutation
-  ⚠️  This value might have side effects
-- *18* max number of linking steps reached
+- *17* max number of linking steps reached
   ⚠️  This value might have side effects
 
 3553 -> 3561 member call = ???*0*["componentWillMount"]()
@@ -23244,10 +23670,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 
 3531 -> 3588 conditional = (
   | ("object" === ???*0*)
-  | (null !== (???*1* | ???*4* | ???*5* | ???*6* | {}))
+  | (null !== (???*13* | ???*16* | ???*17* | ???*18* | {}))
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ???*4* | ???*5* | ???*6* | {}))
+  ⚠️  nested operation
 - *1* ???*2*["context"]
   ⚠️  unknown object
 - *2* ???*3*["stateNode"]
@@ -23272,6 +23698,31 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *11* unknown mutation
   ⚠️  This value might have side effects
 - *12* unknown mutation
+  ⚠️  This value might have side effects
+- *13* ???*14*["context"]
+  ⚠️  unknown object
+- *14* ???*15*["stateNode"]
+  ⚠️  unknown object
+- *15* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *17* unknown mutation
+  ⚠️  This value might have side effects
+- *18* (???*19* ? ({} | ???*23*) : ({} | ???*24*))
+  ⚠️  nested operation
+- *19* (null !== (???*20* | ???*21*))
+  ⚠️  nested operation
+- *20* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *21* ???*22*["childContextTypes"]
+  ⚠️  unknown object
+- *22* a
+  ⚠️  circular variable reference
+- *23* unknown mutation
+  ⚠️  This value might have side effects
+- *24* unknown mutation
   ⚠️  This value might have side effects
 
 3588 -> 3589 call = (...) => b(
@@ -23419,55 +23870,53 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *4* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3604 -> 3607 call = (...) => (("function" === ???*0*) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))(
+3604 -> 3607 call = (...) => (("function" === typeof(a["shouldComponentUpdate"])) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))(
+    ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
     ???*4*,
-    ???*5*,
-    ???*7*,
-    (???*9* | ???*12* | ???*13* | (???*14* ? ({} | ???*18*) : ({} | ???*19*)) | {})
+    ???*6*,
+    (???*8* | ???*11* | ???*12* | (???*13* ? ({} | ???*17*) : ({} | ???*18*)) | {})
 )
-- *0* unsupported expression
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *2* max number of linking steps reached
   ⚠️  This value might have side effects
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* arguments[2]
-  ⚠️  function calls are not analysed yet
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
-- *4* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *5* ???*6*["memoizedState"]
+- *4* ???*5*["memoizedState"]
   ⚠️  unknown object
-- *6* arguments[1]
+- *5* arguments[1]
   ⚠️  function calls are not analysed yet
-- *7* ???*8*["memoizedState"]
+- *6* ???*7*["memoizedState"]
   ⚠️  unknown object
-- *8* arguments[1]
+- *7* arguments[1]
   ⚠️  function calls are not analysed yet
-- *9* ???*10*["context"]
+- *8* ???*9*["context"]
   ⚠️  unknown object
-- *10* ???*11*["stateNode"]
+- *9* ???*10*["stateNode"]
   ⚠️  unknown object
-- *11* arguments[1]
+- *10* arguments[1]
   ⚠️  function calls are not analysed yet
-- *12* FreeVar(undefined)
+- *11* FreeVar(undefined)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* unknown mutation
+- *12* unknown mutation
   ⚠️  This value might have side effects
-- *14* (null !== (???*15* | ???*16*))
+- *13* (null !== (???*14* | ???*15*))
   ⚠️  nested operation
-- *15* arguments[2]
+- *14* arguments[2]
   ⚠️  function calls are not analysed yet
-- *16* ???*17*["childContextTypes"]
+- *15* ???*16*["childContextTypes"]
   ⚠️  unknown object
-- *17* a
+- *16* a
   ⚠️  circular variable reference
-- *18* unknown mutation
+- *17* unknown mutation
   ⚠️  This value might have side effects
-- *19* unknown mutation
+- *18* unknown mutation
   ⚠️  This value might have side effects
 
 3604 -> 3612 member call = ???*0*["componentWillUpdate"](
@@ -23595,8 +24044,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 3650 conditional = ((0 !== ???*0*) | ("function" !== ???*1*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
+- *2* ???*3*["getDerivedStateFromError"]
+  ⚠️  unknown object
+- *3* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 3650 -> 3652 member call = (???*0* | ???*1*)["render"]()
 - *0* arguments[3]
@@ -23617,25 +24070,21 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, ???*5*, null, ???*7*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, ???*3*, null, ???*5*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *4* arguments[1]
+- *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*["child"]
+- *3* ???*4*["child"]
   ⚠️  unknown object
-- *6* arguments[0]
+- *4* arguments[0]
   ⚠️  function calls are not analysed yet
-- *7* arguments[5]
+- *5* arguments[5]
   ⚠️  function calls are not analysed yet
 
 3654 -> 3659 call = (...) => (
@@ -23643,31 +24092,27 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, null, (???*5* ? null : ???*7*), ???*10*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, null, (???*3* ? null : ???*5*), ???*8*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *4* arguments[1]
+- *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *5* (0 !== ???*6*)
+- *3* (0 !== ???*4*)
   ⚠️  nested operation
-- *6* unsupported expression
+- *4* unsupported expression
   ⚠️  This value might have side effects
-- *7* ???*8*()
+- *5* ???*6*()
   ⚠️  nested operation
-- *8* ???*9*["render"]
+- *6* ???*7*["render"]
   ⚠️  unknown object
-- *9* arguments[3]
+- *7* arguments[3]
   ⚠️  function calls are not analysed yet
-- *10* arguments[5]
+- *8* arguments[5]
   ⚠️  function calls are not analysed yet
 
 3654 -> 3660 call = (...) => undefined(???*0*, ???*1*, (???*2* ? null : ???*4*), ???*7*)
@@ -23962,30 +24407,26 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, (???*5* | ???*7*), null, ???*9*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, (???*3* | ???*5*), null, ???*7*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *4* arguments[1]
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* ???*4*["child"]
+  ⚠️  unknown object
+- *4* arguments[0]
   ⚠️  function calls are not analysed yet
 - *5* ???*6*["child"]
   ⚠️  unknown object
-- *6* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *7* ???*8*["child"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *8* unsupported expression
+- *6* unsupported expression
   ⚠️  This value might have side effects
-- *9* arguments[2]
+- *7* arguments[2]
   ⚠️  function calls are not analysed yet
 
 0 -> 3785 call = (...) => ???*0*(???*1*, ???*2*)
@@ -24058,23 +24499,19 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, ???*5*, null, ???*6*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, ???*3*, null, ???*4*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *4* max number of linking steps reached
+- *2* max number of linking steps reached
   ⚠️  This value might have side effects
-- *5* max number of linking steps reached
+- *3* max number of linking steps reached
   ⚠️  This value might have side effects
-- *6* arguments[6]
+- *4* arguments[6]
   ⚠️  function calls are not analysed yet
 
 3788 -> 3816 call = (...) => {"baseLanes": a, "cachePool": null, "transitions": null}(???*0*)
@@ -26865,8 +27302,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-4229 -> 4230 conditional = ("string" === ???*0*)
-- *0* unsupported expression
+4229 -> 4230 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 4230 -> 4234 call = (...) => undefined(???*0*, ???*1*, ???*2*)
@@ -26942,8 +27379,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-4255 -> 4263 conditional = ("string" === ???*0*)
-- *0* unsupported expression
+4255 -> 4263 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 4263 -> 4266 member call = ???*0*["createElement"](???*1*, ???*2*)
@@ -26980,12 +27417,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-4200 -> 4281 call = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))(???*1*, ???*2*)
-- *0* unsupported expression
+4200 -> 4281 call = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))(???*0*, ???*1*)
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
 4200 -> 4282 call = (...) => undefined("cancel", ???*0*)
@@ -27145,8 +27580,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-4313 -> 4314 conditional = ("string" === ???*0*)
-- *0* unsupported expression
+4313 -> 4314 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 4314 -> 4315 call = (...) => (undefined | FreeVar(undefined))(???*0*, ???*1*)
@@ -27661,7 +28096,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 4598 free var = FreeVar(WeakSet)
 
 0 -> 4599 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(WeakSet)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 4599 -> 4600 free var = FreeVar(WeakSet)
@@ -27675,8 +28113,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 4603 -> 4604 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* ???*2*["ref"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 4604 -> 4605 call = ???*0*(null)
 - *0* ???*1*["ref"]
@@ -27922,8 +28364,12 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 4700 -> 4703 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* ???*2*["ref"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 4703 -> 4704 call = ???*0*((???*2* | ???*3*))
 - *0* ???*1*["ref"]
@@ -28199,7 +28645,13 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *1* unsupported expression
+- *1* typeof((null["onCommitFiberUnmount"] | ???*2*))
+  ⚠️  nested operation
+- *2* ???*3*["onCommitFiberUnmount"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 4797 -> 4799 member call = (null | ???*0*)["onCommitFiberUnmount"]((null | ???*1*), (???*3* | ???*4*))
@@ -28777,58 +29229,54 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-4932 -> 4936 call = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))((???*1* | ???*3*), ???*5*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* ???*2*["type"]
+4932 -> 4936 call = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))((???*0* | ???*2*), ???*4*)
+- *0* ???*1*["type"]
   ⚠️  unknown object
-- *2* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* ???*4*["stateNode"]
+- *2* ???*3*["stateNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
-- *5* max number of linking steps reached
+- *4* max number of linking steps reached
   ⚠️  This value might have side effects
 
-4932 -> 4937 call = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))((???*1* | ???*3*), (???*5* | (null !== (???*7* | ???*10*)) | ???*13*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* ???*2*["type"]
+4932 -> 4937 call = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))((???*0* | ???*2*), (???*4* | (null !== (???*6* | ???*9*)) | ???*12*))
+- *0* ???*1*["type"]
   ⚠️  unknown object
-- *2* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* ???*4*["stateNode"]
+- *2* ???*3*["stateNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
-- *5* ???*6*["memoizedProps"]
+- *4* ???*5*["memoizedProps"]
   ⚠️  unknown object
-- *6* arguments[0]
+- *5* arguments[0]
   ⚠️  function calls are not analysed yet
-- *7* ???*8*["memoizedState"]
+- *6* ???*7*["memoizedState"]
   ⚠️  unknown object
-- *8* ???*9*["stateNode"]
+- *7* ???*8*["stateNode"]
   ⚠️  unknown object
-- *9* arguments[0]
+- *8* arguments[0]
   ⚠️  function calls are not analysed yet
-- *10* ???*11*["memoizedState"]
+- *9* ???*10*["memoizedState"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *11* ???*12*["stateNode"]
+- *10* ???*11*["stateNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *12* unsupported expression
+- *11* unsupported expression
   ⚠️  This value might have side effects
-- *13* ???*14*["style"]
+- *12* ???*13*["style"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *14* ???*15*["stateNode"]
+- *13* ???*14*["stateNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *15* unsupported expression
+- *14* unsupported expression
   ⚠️  This value might have side effects
 
 4932 -> 4941 conditional = ???*0*
@@ -29345,8 +29793,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5016 -> 5026 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+5016 -> 5026 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5026 -> 5033 member call = ???*0*["componentWillUnmount"]()
@@ -29423,7 +29871,24 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 
 5048 -> 5051 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*4*))
+  ⚠️  nested operation
+- *1* ???*2*["setProperty"]
+  ⚠️  unknown object
+- *2* ???*3*["memoizedProps"]
+  ⚠️  unknown object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* ???*5*["setProperty"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* ???*6*["style"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *6* ???*7*["stateNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *7* unsupported expression
   ⚠️  This value might have side effects
 
 5051 -> 5053 member call = (???*0* | (null !== (???*2* | ???*5*)) | ???*8*)["setProperty"]("display", "none", "important")
@@ -29513,12 +29978,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *17* unsupported expression
   ⚠️  This value might have side effects
 
-5048 -> 5064 call = (...) => (((null == b) || ("boolean" === ???*0*) || ("" === b)) ? "" : ((c || ("number" !== ???*1*) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))("display", ???*2*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+5048 -> 5064 call = (...) => (((null == b) || ("boolean" === typeof(b)) || ("" === b)) ? "" : ((c || ("number" !== typeof(b)) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))("display", ???*0*)
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5046 -> 5066 call = (...) => undefined(???*0*, ???*1*, ???*3*)
@@ -29949,8 +30410,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *2* k
   ⚠️  pattern without value
 
-0 -> 5226 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+0 -> 5226 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5226 -> 5229 member call = ???*0*["componentDidMount"]()
@@ -30331,32 +30792,47 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-5284 -> 5293 call = (???*0* ? ???*2* : ???*3*)((...) => undefined)
+5284 -> 5293 call = (???*0* ? ???*3* : ???*4*)((...) => undefined)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(queueMicrotask)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* (???*4* ? (...) => ???*6* : ???*7*)
-  ⚠️  nested operation
-- *4* ("undefined" !== ???*5*)
-  ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* Hf["resolve"](null)["then"](a)["catch"](If)
-  ⚠️  nested operation
-- *7* (???*8* ? ???*10* : ???*11*)
-  ⚠️  nested operation
-- *8* ("function" === ???*9*)
-  ⚠️  nested operation
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* FreeVar(setTimeout)
+- *3* FreeVar(queueMicrotask)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *11* unsupported expression
+- *4* (???*5* ? (...) => ???*11* : ???*12*)
+  ⚠️  nested operation
+- *5* ("undefined" !== ???*6*)
+  ⚠️  nested operation
+- *6* typeof(???*7*)
+  ⚠️  nested operation
+- *7* (???*8* ? ???*9* : ???*10*)
+  ⚠️  nested operation
+- *8* ("function" === ???)
+  ⚠️  nested operation
+- *9* FreeVar(Promise)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* Hf["resolve"](null)["then"](a)["catch"](If)
+  ⚠️  nested operation
+- *12* (???*13* ? ???*16* : ???*17*)
+  ⚠️  nested operation
+- *13* ("function" === ???*14*)
+  ⚠️  nested operation
+- *14* typeof(???*15*)
+  ⚠️  nested operation
+- *15* FreeVar(setTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *16* FreeVar(setTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *17* unsupported expression
   ⚠️  This value might have side effects
 
 5293 -> 5294 call = (...) => null()
@@ -30722,19 +31198,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5351 -> 5361 call = (???*0* ? ???*2* : ???*3*)(???*4*, ???*5*)
+5351 -> 5361 call = (???*0* ? ???*3* : ???*4*)(???*5*, ???*6*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(setTimeout)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(setTimeout)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* max number of linking steps reached
+- *4* unsupported expression
   ⚠️  This value might have side effects
 - *5* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *6* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5330 -> 5362 call = (...) => null(???*0*, ???*1*, null)
@@ -30787,19 +31266,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5330 -> 5372 call = (???*0* ? ???*2* : ???*3*)(???*4*, ???*5*)
+5330 -> 5372 call = (???*0* ? ???*3* : ???*4*)(???*5*, ???*6*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(setTimeout)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(setTimeout)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* max number of linking steps reached
+- *4* unsupported expression
   ⚠️  This value might have side effects
 - *5* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *6* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5330 -> 5373 call = (...) => null(???*0*, ???*1*, null)
@@ -30891,36 +31373,42 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-5398 -> 5404 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*(), ???*11*)
+5398 -> 5404 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*(), ???*13*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* ???*8*["getSnapshot"]
+- *9* ???*10*["getSnapshot"]
   ⚠️  unknown object
-- *8* ???*9*[d]
+- *10* ???*11*[d]
   ⚠️  unknown object
-- *9* ???*10*["updateQueue"]
+- *11* ???*12*["updateQueue"]
   ⚠️  unknown object
-- *10* arguments[0]
+- *12* arguments[0]
   ⚠️  function calls are not analysed yet
-- *11* ???*12*[d]
+- *13* ???*14*[d]
   ⚠️  unknown object
-- *12* ???*13*["updateQueue"]
+- *14* ???*15*["updateQueue"]
   ⚠️  unknown object
-- *13* arguments[0]
+- *15* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 5407 conditional = (???*0* | (null !== ???*1*))
@@ -31169,17 +31657,20 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 
 0 -> 5463 call = (...) => undefined({"current": 0})
 
-0 -> 5468 call = (???*0* ? ???*2* : ???*3*)(???*4*)
+0 -> 5468 call = (???*0* ? ???*3* : ???*4*)(???*5*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* FreeVar(clearTimeout)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(clearTimeout)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* max number of linking steps reached
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 5469 conditional = ???*0*
@@ -32052,7 +32543,13 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *1* unsupported expression
+- *1* typeof((null["onPostCommitFiberRoot"] | ???*2*))
+  ⚠️  nested operation
+- *2* ???*3*["onPostCommitFiberRoot"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 5745 -> 5747 member call = (null | ???*0*)["onPostCommitFiberRoot"]((null | ???*1*), ((???*3* ? ???*4* : 1) | null | ???*9* | ???*10*))
@@ -32836,23 +33333,19 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, null, ???*5*, ???*6*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, null, ???*3*, ???*4*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
+- *2* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *4* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *5* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *6* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5900 -> 5928 call = (...) => undefined()
@@ -32894,23 +33387,17 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 5940 call = (...) => (
  || ("textarea" === a)
  || ("noscript" === a)
- || ("string" === ???*0*)
- || ("number" === ???*1*)
+ || ("string" === typeof(b["children"]))
+ || ("number" === typeof(b["children"]))
  || (
-     && ("object" === ???*2*)
+     && ("object" === typeof(b["dangerouslySetInnerHTML"]))
      && (null !== b["dangerouslySetInnerHTML"])
      && (null != b["dangerouslySetInnerHTML"]["__html"])
     )
-)(???*3*, ???*4*)
-- *0* unsupported expression
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *4* max number of linking steps reached
+- *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 5941 conditional = ???*0*
@@ -32920,23 +33407,17 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 5941 -> 5942 call = (...) => (
  || ("textarea" === a)
  || ("noscript" === a)
- || ("string" === ???*0*)
- || ("number" === ???*1*)
+ || ("string" === typeof(b["children"]))
+ || ("number" === typeof(b["children"]))
  || (
-     && ("object" === ???*2*)
+     && ("object" === typeof(b["dangerouslySetInnerHTML"]))
      && (null !== b["dangerouslySetInnerHTML"])
      && (null != b["dangerouslySetInnerHTML"]["__html"])
     )
-)(???*3*, ???*4*)
-- *0* unsupported expression
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *4* max number of linking steps reached
+- *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 5944 call = (...) => undefined(???*0*, ???*1*)
@@ -32988,23 +33469,19 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
-)(???*4*, null, ???*5*, ???*6*)
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
+)(???*2*, null, ???*3*, ???*4*)
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
+- *2* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *4* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *5* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *6* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5953 -> 5956 call = (...) => undefined(???*0*, ???*1*, ???*2*, ???*3*)
@@ -33080,26 +33557,32 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5983 -> 5985 call = (???*0* ? ???*2* : (...) => ???*4*)(???*7*, ???*8*)
+5983 -> 5985 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*10*)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+- *1* typeof(???*2*)
+  ⚠️  nested operation
 - *2* ???*3*["is"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *3* FreeVar(Object)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *4* (((a === b) && ((0 !== a) || (???*5* === ???*6*))) || ((a !== a) && (b !== b)))
+- *4* ???*5*["is"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
-- *5* unsupported expression
+- *7* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *8* unsupported expression
   ⚠️  This value might have side effects
-- *7* max number of linking steps reached
+- *9* max number of linking steps reached
   ⚠️  This value might have side effects
-- *8* max number of linking steps reached
+- *10* max number of linking steps reached
   ⚠️  This value might have side effects
 
 5983 -> 5986 conditional = ???*0*
@@ -33380,8 +33863,14 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 0 -> 6113 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["$$typeof"]
+  ⚠️  unknown object
+- *3* a
+  ⚠️  circular variable reference
 
 6113 -> 6114 call = (...) => !((!(a) || !(a["isReactComponent"])))((???*0* | ???*1*))
 - *0* arguments[0]
@@ -33456,7 +33945,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 0 -> 6163 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* unknown new expression
   ⚠️  This value might have side effects
 
 6163 -> 6164 call = (...) => !((!(a) || !(a["isReactComponent"])))((???*0* | ???*1*))
@@ -33466,7 +33959,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 
 6163 -> 6165 conditional = ("string" === ???*0*)
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* unknown new expression
   ⚠️  This value might have side effects
 
 6165 -> 6167 call = (...) => a(???*0*, (???*2* | ???*3*), ???*4*, (???*5* | ???*6*))
@@ -33539,12 +34036,16 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *5* unknown new expression
   ⚠️  This value might have side effects
 
-6165 -> 6178 conditional = (("object" === ???*0*) | (null !== (???*1* | ???*2*)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+6165 -> 6178 conditional = (("object" === ???*0*) | (null !== (???*3* | ???*4*)))
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 - *2* unknown new expression
+  ⚠️  This value might have side effects
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* unknown new expression
   ⚠️  This value might have side effects
 
 6165 -> 6180 free var = FreeVar(Error)
@@ -33566,7 +34067,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 - *4* unknown new expression
   ⚠️  This value might have side effects
-- *5* unsupported expression
+- *5* typeof((???*6* | ???*7*))
+  ⚠️  nested operation
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* unknown new expression
   ⚠️  This value might have side effects
 
 6165 -> 6183 call = ???*0*(
@@ -35151,7 +35656,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 6317 free var = FreeVar(reportError)
 
 0 -> 6318 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(reportError)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 6318 -> 6319 free var = FreeVar(reportError)
@@ -35405,8 +35913,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 6364 -> 6365 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | (...) => undefined))
+  ⚠️  nested operation
+- *1* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 6365 -> 6366 call = (...) => (undefined | null | a["child"]["stateNode"])((???*0* | ???*1* | ???*3*))
 - *0* arguments[1]
@@ -35465,8 +35975,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 0 -> 6381 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | (...) => undefined))
+  ⚠️  nested operation
+- *1* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 6381 -> 6382 call = (...) => (undefined | null | a["child"]["stateNode"])((???*0* | ???*1*))
 - *0* arguments[0]
@@ -35537,8 +36049,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  function calls are not analysed yet
 
 6396 -> 6397 conditional = ("function" === ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* typeof((???*1* | (...) => undefined))
+  ⚠️  nested operation
+- *1* arguments[4]
+  ⚠️  function calls are not analysed yet
 
 6397 -> 6398 call = (...) => (undefined | null | a["child"]["stateNode"])(???*0*)
 - *0* max number of linking steps reached
@@ -36306,7 +36820,10 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 0 -> 6475 free var = FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
 
 0 -> 6476 conditional = ("undefined" !== ???*0*)
-- *0* unsupported expression
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 6476 -> 6477 free var = FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
@@ -36487,7 +37004,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
     (false | true),
     false,
     ("" | ???*1* | ???*3*),
-    ((???*5* ? ???*7* : (...) => undefined) | ???*8* | ???*10*)
+    ((???*5* ? ???*8* : (...) => undefined) | ???*9* | ???*11*)
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -36502,19 +37019,22 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *5* ("function" === ???*6*)
   ⚠️  nested operation
-- *6* unsupported expression
-  ⚠️  This value might have side effects
+- *6* typeof(???*7*)
+  ⚠️  nested operation
 - *7* FreeVar(reportError)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *8* ???*9*["onRecoverableError"]
+- *8* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *9* ???*10*["onRecoverableError"]
   ⚠️  unknown object
-- *9* arguments[1]
+- *10* arguments[1]
   ⚠️  function calls are not analysed yet
-- *10* ???*11*["onRecoverableError"]
+- *11* ???*12*["onRecoverableError"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *11* unknown new expression
+- *12* unknown new expression
   ⚠️  This value might have side effects
 
 0 -> 6516 conditional = (8 === ???*0*)
@@ -36543,8 +37063,8 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-6523 -> 6525 conditional = ("function" === ???*0*)
-- *0* unsupported expression
+6523 -> 6525 conditional = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 6525 -> 6526 free var = FreeVar(Error)
@@ -36727,11 +37247,11 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
       | null[(???*46* | 0 | ???*47*)]["identifierPrefix"]
     ),
     (
-      | (???*48* ? ???*50* : (...) => undefined)
-      | ???*51*
-      | (null != ???*53*)[(???*54* | 0 | ???*55*)]["onRecoverableError"]
-      | ???*56*
-      | null[(???*62* | 0 | ???*63*)]["onRecoverableError"]
+      | (???*48* ? ???*51* : (...) => undefined)
+      | ???*52*
+      | (null != ???*54*)[(???*55* | 0 | ???*56*)]["onRecoverableError"]
+      | ???*57*
+      | null[(???*63* | 0 | ???*64*)]["onRecoverableError"]
     )
 )
 - *0* max number of linking steps reached
@@ -36838,38 +37358,41 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
   ⚠️  This value might have side effects
 - *48* ("function" === ???*49*)
   ⚠️  nested operation
-- *49* unsupported expression
-  ⚠️  This value might have side effects
+- *49* typeof(???*50*)
+  ⚠️  nested operation
 - *50* FreeVar(reportError)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *51* ???*52*["onRecoverableError"]
+- *51* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *52* ???*53*["onRecoverableError"]
   ⚠️  unknown object
-- *52* arguments[2]
+- *53* arguments[2]
   ⚠️  function calls are not analysed yet
-- *53* c
+- *54* c
   ⚠️  circular variable reference
-- *54* arguments[0]
+- *55* arguments[0]
   ⚠️  function calls are not analysed yet
-- *55* updated with update expression
+- *56* updated with update expression
   ⚠️  This value might have side effects
-- *56* ???*57*["onRecoverableError"]
+- *57* ???*58*["onRecoverableError"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *57* ???*58*[(???*60* | 0 | ???*61*)]
+- *58* ???*59*[(???*61* | 0 | ???*62*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *58* ???*59*["hydratedSources"]
+- *59* ???*60*["hydratedSources"]
   ⚠️  unknown object
-- *59* c
+- *60* c
   ⚠️  circular variable reference
-- *60* arguments[0]
+- *61* arguments[0]
   ⚠️  function calls are not analysed yet
-- *61* updated with update expression
+- *62* updated with update expression
   ⚠️  This value might have side effects
-- *62* arguments[0]
+- *63* arguments[0]
   ⚠️  function calls are not analysed yet
-- *63* updated with update expression
+- *64* updated with update expression
   ⚠️  This value might have side effects
 
 0 -> 6568 call = (...) => undefined((???*0* | 0 | ???*1*))

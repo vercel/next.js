@@ -441,6 +441,11 @@ pub enum JsValue {
     /// `(total_node_count, iterable)`
     Iterated(usize, Box<JsValue>),
 
+    /// A `typeof` expression.
+    ///
+    /// `(total_node_count, operand)`
+    TypeOf(usize, Box<JsValue>),
+
     // PLACEHOLDERS
     // ----------------------------
     /// A reference to a variable.
@@ -632,6 +637,7 @@ impl Display for JsValue {
                 write!(f, "arguments[{}#{}]", index, func_ident)
             }
             JsValue::Iterated(_, iterable) => write!(f, "Iterated({})", iterable),
+            JsValue::TypeOf(_, operand) => write!(f, "typeof({})", operand),
         }
     }
 }
@@ -703,7 +709,8 @@ impl JsValue {
             | JsValue::SuperCall(..)
             | JsValue::Tenary(..)
             | JsValue::MemberCall(..)
-            | JsValue::Iterated(..) => JsValueMetaKind::Operation,
+            | JsValue::Iterated(..)
+            | JsValue::TypeOf(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
             | JsValue::FreeVar(..)
@@ -793,6 +800,10 @@ impl JsValue {
 
     pub fn logical_not(inner: Box<JsValue>) -> Self {
         Self::Not(1 + inner.total_nodes(), inner)
+    }
+
+    pub fn type_of(operand: Box<JsValue>) -> Self {
+        Self::TypeOf(1 + operand.total_nodes(), operand)
     }
 
     pub fn array(items: Vec<JsValue>) -> Self {
@@ -913,7 +924,8 @@ impl JsValue {
             | JsValue::MemberCall(c, _, _, _)
             | JsValue::Member(c, _, _)
             | JsValue::Function(c, _, _)
-            | JsValue::Iterated(c, ..) => *c,
+            | JsValue::Iterated(c, ..)
+            | JsValue::TypeOf(c, ..) => *c,
         }
     }
 
@@ -982,6 +994,10 @@ impl JsValue {
 
             JsValue::Iterated(c, iterable) => {
                 *c = 1 + iterable.total_nodes();
+            }
+
+            JsValue::TypeOf(c, operand) => {
+                *c = 1 + operand.total_nodes();
             }
         }
     }
@@ -1079,6 +1095,9 @@ impl JsValue {
                 }
                 JsValue::Iterated(_, iterable) => {
                     iterable.make_unknown_without_content(false, "node limit reached");
+                }
+                JsValue::TypeOf(_, operand) => {
+                    operand.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Member(_, o, p) => {
                     make_max_unknown([&mut **o, &mut **p].into_iter());
@@ -1309,6 +1328,12 @@ impl JsValue {
                 format!(
                     "Iterated({})",
                     iterable.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::TypeOf(_, operand) => {
+                format!(
+                    "typeof({})",
+                    operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
             JsValue::Call(_, callee, list) => {
@@ -1813,6 +1838,7 @@ impl JsValue {
             } => *has_side_effects,
             JsValue::Argument(_, _) => false,
             JsValue::Iterated(_, iterable) => iterable.has_side_effects(),
+            JsValue::TypeOf(_, operand) => operand.has_side_effects(),
         }
     }
 
@@ -1973,7 +1999,9 @@ impl JsValue {
     /// don't know. Returns Some if we know if or if not the value is a string.
     pub fn is_string(&self) -> Option<bool> {
         match self {
-            JsValue::Constant(ConstantValue::Str(..)) | JsValue::Concat(..) => Some(true),
+            JsValue::Constant(ConstantValue::Str(..))
+            | JsValue::Concat(..)
+            | JsValue::TypeOf(..) => Some(true),
 
             // Objects are not strings
             JsValue::Constant(..)
@@ -2307,6 +2335,13 @@ macro_rules! for_each_children_async {
                 $value.update_total_nodes();
                 ($value, modified)
             }
+            JsValue::TypeOf(_, box operand) => {
+                let (new_operand, modified) = $visit_fn(take(operand), $($args),+).await?;
+                *operand = new_operand;
+
+                $value.update_total_nodes();
+                ($value, modified)
+            }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
@@ -2597,6 +2632,14 @@ impl JsValue {
                 modified
             }
 
+            JsValue::TypeOf(_, operand) => {
+                let modified = visitor(operand);
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
+
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
@@ -2756,6 +2799,10 @@ impl JsValue {
 
             JsValue::Iterated(_, iterable) => {
                 visitor(iterable);
+            }
+
+            JsValue::TypeOf(_, operand) => {
+                visitor(operand);
             }
 
             JsValue::Constant(_)
@@ -3111,6 +3158,9 @@ impl JsValue {
             }
             JsValue::Iterated(_, iterable) => {
                 iterable.similar_hash(state, depth - 1);
+            }
+            JsValue::TypeOf(_, operand) => {
+                operand.similar_hash(state, depth - 1);
             }
             JsValue::Module(ModuleValue {
                 module: v,

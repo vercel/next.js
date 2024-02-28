@@ -356,6 +356,16 @@ impl EvalContext {
                 JsValue::logical_not(Box::new(arg))
             }
 
+            Expr::Unary(UnaryExpr {
+                op: op!("typeof"),
+                arg,
+                ..
+            }) => {
+                let arg = self.eval(arg);
+
+                JsValue::type_of(Box::new(arg))
+            }
+
             Expr::Bin(BinExpr {
                 op: op!(bin, "+"),
                 left,
