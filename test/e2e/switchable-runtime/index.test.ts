@@ -189,7 +189,6 @@ describe('Switchable runtime', () => {
               '/api/hello': {
                 files: expect.arrayContaining([
                   'server/edge-runtime-webpack.js',
-                  'server/edge-chunks/189.js',
                   'server/pages/api/hello.js',
                 ]),
                 name: 'pages/api/hello',
