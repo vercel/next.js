@@ -38,7 +38,7 @@ export type ManifestChunks = Array<string>
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  ASYNC_CLIENT_MODULES: [] as string[],
+  ASYNC_CLIENT_MODULES: new Set() as Set<string>,
 })
 
 export interface ManifestNode {
@@ -173,13 +173,14 @@ export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   appDirBase: string
-  ASYNC_CLIENT_MODULES: Set<string>
+  // ASYNC_CLIENT_MODULES: Set<string>
+  pluginState: typeof pluginState
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
-    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
+    this.pluginState = pluginState //.ASYNC_CLIENT_MODULES
   }
 
   apply(compiler: webpack.Compiler) {
@@ -273,7 +274,7 @@ export class ClientReferenceManifestPlugin {
       }
 
       const requiredChunks = getAppPathRequiredChunks(chunkGroup, rootMainFiles)
-      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
+      const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         // Skip all modules from the pages folder.
         if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) {
           return
@@ -304,7 +305,9 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
+        const modResource = mod.resourceResolveData?.path || ''
+        const isAsyncModule =
+          this.pluginState.ASYNC_CLIENT_MODULES.has(modResource)
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
@@ -330,7 +333,7 @@ export class ClientReferenceManifestPlugin {
         function addClientReference() {
           const exportName = resource
           manifest.clientModules[exportName] = {
-            id,
+            id: modId,
             name: '*',
             chunks: requiredChunks,
             async: isAsyncModule,
@@ -347,8 +350,8 @@ export class ClientReferenceManifestPlugin {
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id]['*'] = {
+            moduleIdMapping[modId] = moduleIdMapping[modId] || {}
+            moduleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -362,8 +365,8 @@ export class ClientReferenceManifestPlugin {
             typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
             'undefined'
           ) {
-            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id]['*'] = {
+            edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
+            edgeModuleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -500,6 +503,6 @@ export class ClientReferenceManifestPlugin {
       }
     }
 
-    pluginState.ASYNC_CLIENT_MODULES = []
+    pluginState.ASYNC_CLIENT_MODULES = new Set<string>()
   }
 }

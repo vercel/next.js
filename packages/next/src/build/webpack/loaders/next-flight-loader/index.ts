@@ -91,8 +91,6 @@ const proxy = createProxy(String.raw\`${resourceKey}\`)
 // The __esModule getter forces the proxy target to create the default export
 // and the $$typeof value is for rendering logic to determine if the module
 // is a client boundary.
-const { __esModule, $$typeof } = proxy;
-const __default__ = proxy.default;
 `
       let cnt = 0
       for (const ref of clientRefs) {
@@ -100,13 +98,13 @@ const __default__ = proxy.default;
           esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
         } else if (ref === 'default') {
           esmSource += `\
-export { __esModule, $$typeof };
 export default createProxy(String.raw\`${resourceKey}#default\`);
 `
         } else {
-          esmSource += `
+          esmSource += `\
 const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
-export { e${cnt++} as ${ref} };`
+export { e${cnt++} as ${ref} };
+`
         }
       }
 
