@@ -390,6 +390,7 @@ pub struct ExperimentalTurboConfig {
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
     pub resolve_extensions: Option<Vec<String>>,
+    pub use_swc_css: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -504,8 +505,6 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
-
-    use_swc_css_for_turbopack: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -840,7 +839,9 @@ impl NextConfig {
         Ok(Vc::cell(
             self.await?
                 .experimental
-                .use_swc_css_for_turbopack
+                .turbo
+                .as_ref()
+                .and_then(|turbo| turbo.use_swc_css)
                 .unwrap_or(false),
         ))
     }
