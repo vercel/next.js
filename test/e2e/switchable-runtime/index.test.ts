@@ -625,7 +625,6 @@ describe('Switchable runtime', () => {
                 files: [
                   'prerender-manifest.js',
                   'server/edge-runtime-webpack.js',
-                  'server/edge-chunks/189.js',
                   'server/pages/api/hello.js',
                 ],
                 name: 'pages/api/hello',
