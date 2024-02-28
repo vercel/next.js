@@ -864,15 +864,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 
 [[package]]
-name = "cloudabi"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4344512281c643ae7638bbabc3af17a11307803ec8f0fcad9fae512a8bf36467"
-dependencies = [
- "bitflags 1.3.2",
-]
-
-[[package]]
 name = "cobs"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1412,7 +1403,7 @@ dependencies = [
  "hashbrown 0.14.3",
  "lock_api",
  "once_cell",
- "parking_lot_core 0.9.8",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -1791,7 +1782,7 @@ checksum = "d4029edd3e734da6fe05b6cd7bd2960760a616bd2ddd0d59a0124746d6272af0"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
- "redox_syscall 0.3.5",
+ "redox_syscall",
  "windows-sys 0.48.0",
 ]
 
@@ -2477,15 +2468,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "instant"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
-dependencies = [
- "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -3308,20 +3290,8 @@ dependencies = [
 name = "next-build"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "async-recursion",
- "base64 0.21.4",
  "console-subscriber",
- "dunce",
- "indexmap 1.9.3",
- "indoc",
- "mime_guess",
  "next-core",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
  "turbo-tasks",
  "turbopack-binding",
  "vergen 7.5.1",
@@ -3336,13 +3306,11 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "base64 0.21.4",
- "const_format",
  "futures",
  "indexmap 1.9.3",
  "indoc",
  "lazy-regex",
  "lazy_static",
- "mime",
  "mime_guess",
  "next-custom-transforms",
  "once_cell",
@@ -3362,15 +3330,11 @@ dependencies = [
 name = "next-custom-transforms"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "chrono",
- "convert_case 0.5.0",
  "easy-error",
  "either",
  "fxhash",
  "hex",
- "lazy_static",
- "lightningcss",
  "once_cell",
  "pathdiff",
  "preset_env_base",
@@ -3404,14 +3368,12 @@ dependencies = [
  "next-build",
  "next-core",
  "next-custom-transforms",
- "once_cell",
  "serde",
  "serde_json",
  "shadow-rs",
  "tokio",
  "tracing",
  "tracing-chrome",
- "tracing-futures",
  "tracing-subscriber",
  "turbo-tasks",
  "turbopack-binding",
@@ -3757,22 +3719,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
- "parking_lot_core 0.9.8",
-]
-
-[[package]]
-name = "parking_lot_core"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c361aa727dd08437f2f1447be8b59a33b0edd15e0fcee698f935613d9efbca9b"
-dependencies = [
- "cfg-if 0.1.10",
- "cloudabi",
- "instant",
- "libc",
- "redox_syscall 0.1.57",
- "smallvec",
- "winapi",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -3783,7 +3730,7 @@ checksum = "93f00c865fe7cabf650081affecd3871070f26767e7b2070a3ffae14c654b447"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
- "redox_syscall 0.3.5",
+ "redox_syscall",
  "smallvec",
  "windows-targets 0.48.1",
 ]
@@ -4396,12 +4343,6 @@ dependencies = [
  "swc_ecma_ast",
  "swc_ecma_visit",
 ]
-
-[[package]]
-name = "redox_syscall"
-version = "0.1.57"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
 
 [[package]]
 name = "redox_syscall"
@@ -6862,7 +6803,7 @@ checksum = "cb94d2f3cc536af71caac6b6fcebf65860b347e7ce0cc9ebe8f70d3e521054ef"
 dependencies = [
  "cfg-if 1.0.0",
  "fastrand",
- "redox_syscall 0.3.5",
+ "redox_syscall",
  "rustix 0.38.31",
  "windows-sys 0.48.0",
 ]
@@ -8544,14 +8485,9 @@ dependencies = [
  "getrandom",
  "js-sys",
  "next-custom-transforms",
- "once_cell",
- "parking_lot_core 0.8.0",
- "path-clean 0.1.0",
- "serde",
  "serde-wasm-bindgen",
  "serde_json",
  "swc_core",
- "tracing",
  "turbopack-binding",
  "wasm-bindgen",
  "wasm-bindgen-futures",
