@@ -186,11 +186,9 @@ async function createRedirectRenderResult(
     // other than the headers from the request.
     const host = process.env.__NEXT_PRIVATE_HOST || originalHost.value
 
-    const fetchUrl = parsedRedirectUrl.search
-      ? new URL(
-          `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
-        )
-      : new URL(`${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`)
+    const fetchUrl = new URL(
+      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
+    )
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
