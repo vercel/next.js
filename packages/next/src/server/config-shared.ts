@@ -900,7 +900,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
-    optimizeServerReact: false,
+    optimizeServerReact: true,
     useEarlyImport: false,
   },
 }
