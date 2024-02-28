@@ -474,9 +474,6 @@ async fn apply_typescript_types_options(
             field: "types".to_string(),
             extensions: Some(vec![".d.ts".to_string(), ".ts".to_string()]),
         });
-    resolve_options
-        .into_package
-        .push(ResolveIntoPackage::Default("index".to_string()));
     for item in resolve_options.in_package.iter_mut() {
         if let ResolveInPackage::ImportsField { conditions, .. } = item {
             conditions.insert("types".to_string(), ConditionValue::Set);

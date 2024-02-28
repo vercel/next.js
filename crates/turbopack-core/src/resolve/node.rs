@@ -29,7 +29,6 @@ pub fn node_cjs_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> 
                 field: "main".to_string(),
                 extensions: None,
             },
-            ResolveIntoPackage::Default("index".to_string()),
         ],
         in_package: vec![ResolveInPackage::ImportsField {
             conditions,
@@ -63,7 +62,6 @@ pub fn node_esm_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> 
                 field: "main".to_string(),
                 extensions: Some(extensions),
             },
-            ResolveIntoPackage::Default("index".to_string()),
         ],
         in_package: vec![ResolveInPackage::ImportsField {
             conditions,
