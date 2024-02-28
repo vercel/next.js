@@ -1,11 +1,9 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use crate::{
-    module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-    transition::Transition,
-};
+use crate::{module_options::ModuleOptionsContext, transition::Transition};
 
 /// A transition that only affects the asset context.
 #[turbo_tasks::value(shared)]

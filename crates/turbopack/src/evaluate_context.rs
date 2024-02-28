@@ -5,17 +5,17 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
+    condition::ContextCondition,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::execution_context::ExecutionContext;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    condition::ContextCondition, module_options::ModuleOptionsContext,
-    resolve_options_context::ResolveOptionsContext, transition::TransitionsByName,
-    ModuleAssetContext,
+    module_options::ModuleOptionsContext, transition::TransitionsByName, ModuleAssetContext,
 };
 
 #[turbo_tasks::function]

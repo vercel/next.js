@@ -9,11 +9,9 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::ProcessResult, module::Module,
     reference_type::ReferenceType, source::Source,
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use crate::{
-    module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-    ModuleAssetContext,
-};
+use crate::{module_options::ModuleOptionsContext, ModuleAssetContext};
 
 /// Some kind of operation that is executed during reference processing. e. g.
 /// you can transition to a different environment on a specific import

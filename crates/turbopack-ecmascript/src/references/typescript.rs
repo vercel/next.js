@@ -8,8 +8,9 @@ use turbopack_core::{
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
+use turbopack_resolve::typescript::type_resolve;
 
-use crate::typescript::{resolve::type_resolve, TsConfigModuleAsset};
+use crate::typescript::TsConfigModuleAsset;
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]

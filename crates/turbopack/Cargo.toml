@@ -40,6 +40,7 @@ turbopack-image = { workspace = true }
 turbopack-json = { workspace = true }
 turbopack-mdx = { workspace = true }
 turbopack-node = { workspace = true }
+turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-wasm = { workspace = true }
 

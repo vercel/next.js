@@ -39,6 +39,7 @@ turbo-tasks-memory = { workspace = true }
 turbopack = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

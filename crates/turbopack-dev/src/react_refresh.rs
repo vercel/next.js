@@ -1,13 +1,14 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::parse::Request,
 };
-use turbopack_ecmascript::resolve::apply_cjs_specific_options;
+use turbopack_resolve::{
+    ecmascript::apply_cjs_specific_options, resolve_options_context::ResolveOptionsContext,
+};
 
 #[turbo_tasks::function]
 fn react_refresh_request() -> Vc<Request> {
@@ -47,8 +48,10 @@ pub async fn assert_can_resolve_react_refresh(
     path: Vc<FileSystemPath>,
     resolve_options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveReactRefreshResult>> {
-    let resolve_options =
-        apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
+    let resolve_options = apply_cjs_specific_options(turbopack_resolve::resolve::resolve_options(
+        path,
+        resolve_options_context,
+    ));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
         let result = turbopack_core::resolve::resolve(
             path,

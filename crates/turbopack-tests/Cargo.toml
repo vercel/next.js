@@ -39,6 +39,7 @@ turbopack-ecmascript-plugins = { workspace = true, features = [
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
+turbopack-resolve = { workspace = true }
 turbopack-test-utils = { workspace = true }
 
 [build-dependencies]

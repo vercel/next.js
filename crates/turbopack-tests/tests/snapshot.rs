@@ -20,13 +20,11 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    condition::ContextCondition,
     ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset},
     module_options::{
         JsxTransformOptions, ModuleOptionsContext, ModuleRule, ModuleRuleCondition,
         ModuleRuleEffect,
     },
-    resolve_options_context::ResolveOptionsContext,
     ModuleAssetContext,
 };
 use turbopack_build::{BuildChunkingContext, MinifyType};
@@ -38,6 +36,7 @@ use turbopack_core::{
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
+    condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
@@ -55,6 +54,7 @@ use turbopack_ecmascript_plugins::transform::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::ProcessEnvAsset;
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
 use crate::util::REPO_ROOT;
@@ -69,6 +69,7 @@ fn register() {
     turbopack_env::register();
     turbopack_ecmascript_plugins::register();
     turbopack_ecmascript_runtime::register();
+    turbopack_resolve::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
 }
 

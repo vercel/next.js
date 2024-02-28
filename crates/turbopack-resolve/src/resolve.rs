@@ -9,11 +9,11 @@ use turbopack_core::resolve::{
     },
     AliasMap, AliasPattern, ExternalType, FindContextFileResult,
 };
-use turbopack_ecmascript::typescript::resolve::{
-    apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options,
-};
 
-use crate::resolve_options_context::ResolveOptionsContext;
+use crate::{
+    resolve_options_context::ResolveOptionsContext,
+    typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
+};
 
 const NODE_EXTERNALS: [&str; 51] = [
     "assert",
