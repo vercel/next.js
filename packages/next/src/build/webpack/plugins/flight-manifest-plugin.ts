@@ -483,14 +483,13 @@ export class ClientReferenceManifestPlugin {
         entryCSSFiles: {},
       }
 
-      const rootManifests = manifestsPerGroup.get('') || []
-      for (const manifest of rootManifests) {
-        mergeManifest(mergedManifest, manifest)
-      }
-      // Bug: This includes the `app/page` files and root manifest files too.
-      const appHomeManifests = manifestsPerGroup.get('app') || []
-      for (const manifest of appHomeManifests) {
-        mergeManifest(mergedManifest, manifest)
+      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
+      let group = ''
+      for (const segment of segments) {
+        for (const manifest of manifestsPerGroup.get(group) || []) {
+          mergeManifest(mergedManifest, manifest)
+        }
+        group += (group ? '/' : '') + segment
       }
 
       const json = JSON.stringify(mergedManifest)
