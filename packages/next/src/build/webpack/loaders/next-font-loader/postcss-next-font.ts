@@ -47,7 +47,7 @@ const postcssNextFontPlugin = ({
       }
 
       const formatFamily = (family: string) => {
-        if (!fontFamilyHash) return family
+        if (fixedFontFamily) return family
 
         // Turn the font family unguessable to make it locally scoped
         return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`

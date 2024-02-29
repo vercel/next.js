@@ -126,9 +126,12 @@ export default async function nextFontLoader(this: any) {
       const exports: { name: any; value: any }[] = []
 
       // Generate a hash from the CSS content. Used to generate classnames and font families
-      const fontFamilyHash = !fixedFontFamily
-        ? loaderUtils.getHashDigest(Buffer.from(css), 'sha1', 'hex', 6)
-        : undefined
+      const fontFamilyHash = loaderUtils.getHashDigest(
+        Buffer.from(css),
+        'sha1',
+        'hex',
+        6
+      )
 
       // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
       const result = await nextFontLoaderSpan
