@@ -129,12 +129,13 @@ createNextDescribe(
                         ],
                       },
                       {
-                        name: 'fetch GET https://vercel.com/',
+                        name: 'fetch GET https://example.vercel.sh/',
                         attributes: {
                           'http.method': 'GET',
-                          'http.url': 'https://vercel.com/',
-                          'net.peer.name': 'vercel.com',
-                          'next.span_name': 'fetch GET https://vercel.com/',
+                          'http.url': 'https://example.vercel.sh/',
+                          'net.peer.name': 'example.vercel.sh',
+                          'next.span_name':
+                            'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
                         },
                         kind: 2,
@@ -265,14 +266,15 @@ createNextDescribe(
                         ],
                       },
                       {
-                        name: 'fetch GET https://vercel.com/',
+                        name: 'fetch GET https://example.vercel.sh/',
                         kind: 2,
                         attributes: {
-                          'next.span_name': 'fetch GET https://vercel.com/',
+                          'next.span_name':
+                            'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
-                          'http.url': 'https://vercel.com/',
+                          'http.url': 'https://example.vercel.sh/',
                           'http.method': 'GET',
-                          'net.peer.name': 'vercel.com',
+                          'net.peer.name': 'example.vercel.sh',
                         },
                         status: { code: 0 },
                       },

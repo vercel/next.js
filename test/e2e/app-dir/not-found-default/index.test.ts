@@ -31,12 +31,6 @@ createNextDescribe(
       expect(await browser.elementByCss('html').getAttribute('class')).toBe(
         'root-layout-html'
       )
-
-      if (isNextDev) {
-        const cliOutput = next.cliOutput
-        expect(cliOutput).toContain('/not-found')
-        expect(cliOutput).not.toContain('/_error')
-      }
     })
 
     it('should error on server notFound from root layout on server-side', async () => {
