@@ -1239,8 +1239,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1
       mini-css-extract-plugin:
-        specifier: 2.4.3
-        version: 2.4.3(webpack@5.90.0)
+        specifier: 2.4.4
+        version: 2.4.4(webpack@5.90.0)
       msw:
         specifier: 1.3.0
         version: 1.3.0(typescript@5.2.2)
@@ -17722,13 +17722,13 @@ packages:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
 
-  /mini-css-extract-plugin@2.4.3(webpack@5.90.0):
-    resolution: {integrity: sha512-zekavl9mZuGyk7COjsfFY/f655AX61EKE0AthXPrmDk+oZyjZ9WzO4WPjXnnO9xl8obK2kmM6rAQrBEmk+WK1g==}
+  /mini-css-extract-plugin@2.4.4(webpack@5.90.0):
+    resolution: {integrity: sha512-UJ+aNuFQaQaECu7AamlWOBLj2cJ6XSGU4zNiqXeZ7lZLe5VD0DoSPWFbWArXueo+6FZVbgHzpX9lUIaBIDLuYg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
       webpack: 5.90.0
     dependencies:
-      schema-utils: 3.1.1
+      schema-utils: 3.2.0
       webpack: 5.90.0(@swc/core@1.3.85)
     dev: true
 
@@ -22274,15 +22274,6 @@ packages:
 
   /schema-utils@3.0.0:
     resolution: {integrity: sha512-6D82/xSzO094ajanoOSbe4YvXWMfn2A//8Y1+MUqFAJul5Bs+yn36xbK9OtNDcRVSBJ9jjeoXftM6CfztsjOAA==}
-    engines: {node: '>= 10.13.0'}
-    dependencies:
-      '@types/json-schema': 7.0.12
-      ajv: 6.12.6
-      ajv-keywords: 3.5.2(ajv@6.12.6)
-    dev: true
-
-  /schema-utils@3.1.1:
-    resolution: {integrity: sha512-Y5PQxS4ITlC+EahLuXaY86TXfR7Dc5lw294alXOq86JAHCihAIZfqv8nNCWvaEJvaC51uN9hbLGeV0cFBdH+Fw==}
     engines: {node: '>= 10.13.0'}
     dependencies:
       '@types/json-schema': 7.0.12
