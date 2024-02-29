@@ -2,9 +2,7 @@ import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-frame
 import { CallStackFrame } from './CallStackFrame'
 import { FrameworkIcon } from './FrameworkIcon'
 
-export function CollapseIcon(
-  { collapsed }: { collapsed?: boolean } = { collapsed: false }
-) {
+export function CollapseIcon({ collapsed }: { collapsed?: boolean } = {}) {
   // If is not collapsed, rotate 90 degrees
   return (
     <svg
@@ -20,7 +18,9 @@ export function CollapseIcon(
       strokeWidth="2"
       viewBox="0 0 24 24"
       // rotate 90 degrees if not collapsed
-      style={{ transform: collapsed ? undefined : 'rotate(90deg)' }}
+      {...(typeof collapsed === 'boolean'
+        ? { style: { transform: collapsed ? undefined : 'rotate(90deg)' } }
+        : {})}
     >
       <path d="M9 18l6-6-6-6" />
     </svg>

@@ -129,13 +129,12 @@ describe('Error overlay for hydration errors', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-      "<Mismatch>
-        <div>
-        ^^^^^
-          <main>
-          ^^^^^^
-      "
-    `)
+        "<Mismatch>
+          <div>
+          ^^^^^
+            <main>
+            ^^^^^^"
+      `)
     }
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
@@ -381,13 +380,12 @@ describe('Error overlay for hydration errors', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-      "<Page>
-        <p>
-        ^^^
+        "<Page>
           <p>
           ^^^
-"
-    `)
+            <p>
+            ^^^"
+      `)
     }
 
     await cleanup()

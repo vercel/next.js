@@ -16,12 +16,14 @@ createNextDescribe(
 
       if (process.env.TURBOPACK) {
         expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
-          "<Root>
-            <AppContainer>
-              <Container>
-                <ReactDevOverlay>
-                  <ErrorBoundary>
-                    <PathnameContextProviderAdapter>"
+          "...
+            <App>
+              <Mismatch>
+                <main>
+                  <Component>
+                    <div>
+                      "server"
+                      "client""
         `)
       } else {
         expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
@@ -29,7 +31,9 @@ createNextDescribe(
             <main>
               <Component>
                 <div>
-                  <p>"
+                  <p>
+                    "server"
+                    "client""
         `)
       }
     })
