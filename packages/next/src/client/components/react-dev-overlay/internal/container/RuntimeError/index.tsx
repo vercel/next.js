@@ -4,7 +4,6 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -72,13 +71,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           />
         </>
       ) : null}
-
-      {error.componentStackFrames?.map((componentStackFrame, index) => (
-        <ComponentStackFrameRow
-          key={index}
-          componentStackFrame={componentStackFrame}
-        />
-      ))}
 
       {stackFramesGroupedByFramework.length ? (
         <GroupedStackFrames
@@ -185,5 +177,15 @@ export const styles = css`
   }
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
+  }
+
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+    padding-left: var(--size-gap-triple);
+  }
+
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 0;
   }
 `
