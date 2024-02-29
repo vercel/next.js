@@ -202,4 +202,8 @@ export const styles = css`
   [data-nextjs-container-errors-pseudo-html--diff-remove] {
     color: var(--color-ansi-red);
   }
+  [data-nextjs-container-errors-pseudo-html--tag-error] {
+    color: var(--color-ansi-red);
+    font-weight: bold;
+  }
 `

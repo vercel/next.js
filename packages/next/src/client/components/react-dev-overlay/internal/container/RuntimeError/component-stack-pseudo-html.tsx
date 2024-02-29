@@ -2,6 +2,7 @@ import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { CollapseIcon } from './GroupedStackFrames'
 
+// In total it will display 6 rows.
 const MAX_NON_COLLAPSED_FRAMES = 6
 
 /**
@@ -56,6 +57,7 @@ export function PseudoHtmlDiff({
     const tagNames = isHtmlTagsWarning ? [serverContent, clientContent] : []
     const nestedHtmlStack: React.ReactNode[] = []
     let lastText = ''
+
     componentStackFrames
       .map((frame) => frame.component)
       .reverse()
@@ -106,14 +108,18 @@ export function PseudoHtmlDiff({
           )
           nestedHtmlStack.push(wrappedCodeLine)
         } else {
-          if (!isHtmlCollapsed) {
+          if (
+            !isHtmlCollapsed ||
+            (!isHtmlTagsWarning &&
+              nestedHtmlStack.length < MAX_NON_COLLAPSED_FRAMES)
+          ) {
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
                 {spaces}
                 {'<' + component + '>\n'}
               </span>
             )
-          } else if (lastText !== '...') {
+          } else if (isHtmlCollapsed && lastText !== '...') {
             lastText = '...'
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
