@@ -25,7 +25,7 @@ import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
-import { PseudoHtml } from './RuntimeError/component-stack-pseudo-html'
+import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   isHtmlTagsWarning,
   type HydrationErrorState,
@@ -274,11 +274,14 @@ export function Errors({
             {hydrationWarning && activeError.componentStackFrames && (
               <>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
-                <PseudoHtml
+                <PseudoHtmlDiff
                   className="nextjs__container_errors__extra_code"
+                  hydrationMismatchType={
+                    isHtmlTagsWarningTemplate ? 'tag' : 'text'
+                  }
                   componentStackFrames={activeError.componentStackFrames}
-                  serverTagName={isHtmlTagsWarningTemplate ? serverContent : ''}
-                  clientTagName={isHtmlTagsWarningTemplate ? clientContent : ''}
+                  serverContent={serverContent}
+                  clientContent={clientContent}
                 />
               </>
             )}
@@ -351,6 +354,9 @@ export const styles = css`
   }
   .nextjs__container_errors__extra_code {
     margin: 20px 0;
+    padding: 12px 32px;
+    color: var(--color-ansi-fg);
+    background: var(--color-ansi-bg);
   }
   .nextjs-toast-errors-parent {
     cursor: pointer;
