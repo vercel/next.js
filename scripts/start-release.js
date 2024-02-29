@@ -9,7 +9,7 @@ function getPromptErrorDetails(rawAssertion, mostRecentChunk) {
   return `Waiting for:\n  "${assertion}"\nmost recent chunk was:\n  "${mostRecent}"`
 }
 
-async function waitForPrompt(cp, rawAssertion, timeout = 30_000) {
+async function waitForPrompt(cp, rawAssertion, timeout = 120_000) {
   let assertion
   if (typeof rawAssertion === 'string') {
     assertion = (chunk) => chunk.includes(rawAssertion)
