@@ -1035,50 +1035,38 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
-        let not_found_tree = if components.not_found.is_some() {
-            LoaderTree {
+        let not_found_tree = LoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
                         page: app_page.clone(),
-                        segment: "__DEFAULT__".to_string(),
-                        parallel_routes: IndexMap::new(),
-                        components: Components {
-                            default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
-                            ..Default::default()
-                        }.cell(),
+                        segment: "/_not-found".to_string(),
+                        parallel_routes: indexmap! {
+                            "children".to_string() => LoaderTree {
+                                page: app_page.clone(),
+                                segment: "__PAGE__".to_string(),
+                                parallel_routes: IndexMap::new(),
+                                components: Components {
+                                    page: if components.not_found.is_some() { components.not_found } else { Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())) },
+                                    ..Default::default()
+                                }.cell(),
+                                global_metadata
+                            }.cell()
+                        },
+                        components: Components { ..Default::default()} .cell(),
                         global_metadata,
                     }.cell(),
                 },
                 components: components.without_leafs().cell(),
                 global_metadata,
-            }.cell()
-        } else {
-            // Create default not-found page for production if there's no customized
-            // not-found
-            LoaderTree {
-                page: app_page.clone(),
-                segment: directory_name.to_string(),
-                parallel_routes: indexmap! {
-                    "children".to_string() => LoaderTree {
-                        page: app_page.clone(),
-                        segment: "__PAGE__".to_string(),
-                        parallel_routes: IndexMap::new(),
-                        components: Components {
-                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
-                            ..Default::default()
-                        }.cell(),
-                        global_metadata,
-                    }.cell(),
-                },
-                components: components.without_leafs().cell(),
-                global_metadata,
-            }.cell()
-        };
+            }
+            .cell();
 
         {
-            let app_page = app_page.clone_push_str("_not-found")?;
+            let app_page = app_page
+                .clone_push_str("_not-found")?
+                .clone_push_str("page")?;
             add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
         }
     }
