@@ -1,5 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use turbo_tasks::{Value, Vc};
+use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::PassthroughModule,
@@ -71,7 +72,7 @@ impl Module for GlobalCssAsset {
 impl Asset for GlobalCssAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("CSS global asset has no contents")
+        Ok(AssetContent::file(FileContent::NotFound.cell()))
     }
 }
 
