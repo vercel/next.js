@@ -573,7 +573,7 @@ interface BaseUpdate {
     path: string
   }
   diagnostics: unknown[]
-  issues: unknown[]
+  issues: Issue[]
 }
 
 interface IssuesUpdate extends BaseUpdate {
