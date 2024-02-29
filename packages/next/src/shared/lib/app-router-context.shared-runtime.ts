@@ -138,7 +138,8 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-}>(null as any)
+} | null>(null)
+
 export const GlobalLayoutRouterContext = React.createContext<{
   buildId: string
   tree: FlightRouterState
