@@ -49,9 +49,7 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin, UnsupportedEdgeNodeModulesResolvePlugin, UnsupportedModulesResolvePlugin
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -184,6 +182,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                //Vc::upcast(UnsupportedEdgeNodeModulesResolvePlugin::new(project_path)),
             ]
         }
         ServerContextType::Middleware { .. } => {

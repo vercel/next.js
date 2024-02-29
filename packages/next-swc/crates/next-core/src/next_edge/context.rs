@@ -25,8 +25,7 @@ use crate::{
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
-        ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-        UnsupportedModulesResolvePlugin,
+        ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin, UnsupportedEdgeNodeModulesResolvePlugin, UnsupportedModulesResolvePlugin
     },
     util::foreign_code_context_condition,
 };
@@ -128,6 +127,7 @@ pub async fn get_edge_resolve_options_context(
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+            //Vc::upcast(UnsupportedEdgeNodeModulesResolvePlugin::new(project_path)),
         ],
         ..Default::default()
     };

@@ -46,37 +46,37 @@ describe('Edge runtime code with imports', () => {
     context.page.restore()
   })
 
-  describe.each([
+  describe.only.each([
     {
       title: 'Edge API',
       url: routeUrl,
       init(importStatement) {
         context.api.write(`
           import { NextResponse } from 'next/server'
-  
+
           export default async function handler(request) {
             const { writeFile } = ${importStatement}
             return Response.json({ ok: writeFile() })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
     },
-    {
+    /*{
       title: 'Middleware',
       url: middlewareUrl,
       init(importStatement) {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-  
+
           export async function middleware(request) {
             const { writeFile } = ${importStatement}
             return NextResponse.next()
           }
         `)
       },
-    },
+    },*/
   ])('$title dynamically importing node.js module', ({ init, url }) => {
     const moduleName = 'fs'
     const importStatement = `await import("${moduleName}")`
@@ -93,11 +93,15 @@ describe('Edge runtime code with imports', () => {
         await retry(async () => {
           const res = await fetchViaHTTP(context.appPort, url)
           expect(res.status).toBe(500)
-          expectUnsupportedModuleDevError(
+
+          /*expectUnsupportedModuleDevError(
             moduleName,
             importStatement,
             await res.text()
-          )
+          )*/
+
+          require('console').log(await res.text())
+          expect(true).toBe(false)
         })
       })
     })
@@ -129,11 +133,11 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.api.write(`
           import throwAsync from '../../lib'
-  
+
           export default async function handler(request) {
             return Response.json({ ok: await throwAsync() })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -145,7 +149,7 @@ describe('Edge runtime code with imports', () => {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
           import throwAsync from './lib'
-  
+
           export async function middleware(request) {
             await throwAsync()
             return NextResponse.next()
@@ -216,12 +220,12 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.api.write(`
           ${importStatement}
-  
+
           export default async function handler(request) {
             new Unknown()
             return Response.json({ ok: true })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -233,7 +237,7 @@ describe('Edge runtime code with imports', () => {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
           ${importStatement}
-  
+
           export async function middleware(request) {
             new Unknown()
             return NextResponse.next()
@@ -289,7 +293,7 @@ describe('Edge runtime code with imports', () => {
             response.headers.set('x-from-runtime', nanoid())
             return response
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -358,7 +362,7 @@ describe('Edge runtime code with imports', () => {
             response.headers.set('x-from-runtime', Buffer.isBuffer('a string'))
             return response
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },

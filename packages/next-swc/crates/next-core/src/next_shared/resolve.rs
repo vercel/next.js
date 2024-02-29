@@ -456,3 +456,69 @@ impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
         )))
     }
 }
+
+#[turbo_tasks::value]
+pub struct UnsupportedEdgeNodeModulesResolvePlugin {
+    root: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl UnsupportedEdgeNodeModulesResolvePlugin {
+    #[turbo_tasks::function]
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+        UnsupportedEdgeNodeModulesResolvePlugin { root }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvePlugin for UnsupportedEdgeNodeModulesResolvePlugin {
+    #[turbo_tasks::function]
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+    }
+
+    #[turbo_tasks::function]
+    async fn after_resolve(
+        &self,
+        fs_path: Vc<FileSystemPath>,
+        _context: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        /*
+        let raw_fs_path = &*fs_path.await?;
+        let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
+        let new_path = fs_path.root().join(modified_path);
+        Ok(Vc::cell(Some(
+            ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
+        ))) */
+
+        let raw_fs_path = &*fs_path.await?;
+        let path = raw_fs_path.path.to_string();
+
+        let c = &*_context.await?;
+        let pp = c.path.to_string();
+
+        let r = &*request.await?;
+        match r {
+            Request::Module {
+                module,
+                path,
+                ..
+            } => {
+                println!("module: {:#?}, path: {:#?}", module, path);
+            }
+            Request::Relative {
+                path,
+                ..
+            } => {
+                println!("relative: {:#?}", path);
+            }
+            _ => {
+                println!("{:#?}", r);
+            }
+        }
+
+        Ok(ResolveResultOption::none())
+    }
+}

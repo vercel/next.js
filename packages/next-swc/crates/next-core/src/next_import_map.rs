@@ -12,7 +12,7 @@ use turbopack_binding::{
                 options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
                 parse::Request,
                 pattern::Pattern,
-                resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
+                resolve, AliasPattern, ExternalType, ResolveAliasMap, ResolveResult, SubpathValue,
             },
             source::Source,
         },
@@ -328,6 +328,36 @@ pub async fn get_next_edge_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    /*
+    import_map.insert_exact_alias(
+        "fs",
+        //ImportMapping::External(Some("fs--------".to_string()), ExternalType::CommonJs).cell()
+        ImportMapping::Direct(ResolveResult::unresolveable().cell()).cell(),
+    );
+
+    insert_exact_alias_map(
+        &mut import_map,
+        project_path,
+        indexmap! {
+            "fs" => "__internal_fs__".to_string(),
+        }
+    );*/
+
+    import_map.insert_exact_alias(
+        "fs",
+        ImportMapping::Expression(
+            project_path.join("fs".to_string()),
+            r#"
+            const error = `The edge runtime does not support Node.js 'fs' module
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`;
+
+            const proxy = __turbopack_import_unsupported__(error);
+            __turbopack_export_namespace__(proxy);
+              "#
+            .to_string(),
+        )
+        .into(),
+    );
     // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
 
     // Alias next/dist imports to next/dist/esm assets

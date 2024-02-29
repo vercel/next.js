@@ -135,6 +135,7 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
         result.response.headers.delete(headerName)
       }
     })
+
     if (!result) throw new Error('Edge function did not return a response')
     return result
   } finally {
