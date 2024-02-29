@@ -68,8 +68,7 @@ describe('Error overlay for hydration errors', () => {
           <div>
             <main>
               "server"
-              "client"
-        "
+              "client""
       `)
     }
 
@@ -123,18 +122,18 @@ describe('Error overlay for hydration errors', () => {
         "...
           <Mismatch>
             <div>
-            ^^^
+            ^^^^^
               <main>
-              ^^^
+              ^^^^^^
         "
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
       "<Mismatch>
         <div>
-        ^^^
+        ^^^^^
           <main>
-          ^^^
+          ^^^^^^
       "
     `)
     }
@@ -387,7 +386,7 @@ describe('Error overlay for hydration errors', () => {
         ^^^
           <p>
           ^^^
-      "
+"
     `)
     }
 
@@ -441,15 +440,14 @@ describe('Error overlay for hydration errors', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-      "<Page>
-        <p>
-        ^^^
-          <span>
-            ...
-              <span>
-                <p>
-                ^^^
-      "
+        "<Page>
+          <p>
+          ^^^
+            <span>
+              ...
+                <span>
+                  <p>
+                  ^^^"
     `)
     }
 

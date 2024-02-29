@@ -354,6 +354,9 @@ export const styles = css`
   }
   .nextjs__container_errors__extra_code {
     margin: 20px 0;
+    padding: 12px 32px;
+    color: var(--color-ansi-fg);
+    background: var(--color-ansi-bg);
   }
   .nextjs-toast-errors-parent {
     cursor: pointer;

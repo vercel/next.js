@@ -73,13 +73,18 @@ export function PseudoHtmlDiff({
           tagNames.includes(prevComponent) ||
           tagNames.includes(nextComponent)
 
+        const isLastFewFrames =
+          !isHtmlTagsWarning && index >= componentList.length - 6
+        const reachedMaxDisplayFrames =
+          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES
+
         if (
           nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
           isHtmlCollapsed
         ) {
           return
         }
-        if (isHtmlTagsWarning && isRelatedTag) {
+        if ((isHtmlTagsWarning && isRelatedTag) || isLastFewFrames) {
           const codeLine = (
             <span>
               <span>{spaces}</span>
@@ -108,11 +113,7 @@ export function PseudoHtmlDiff({
           )
           nestedHtmlStack.push(wrappedCodeLine)
         } else {
-          if (
-            !isHtmlCollapsed ||
-            (!isHtmlTagsWarning &&
-              nestedHtmlStack.length < MAX_NON_COLLAPSED_FRAMES)
-          ) {
+          if ((isHtmlTagsWarning && !isHtmlCollapsed) || isLastFewFrames) {
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
                 {spaces}
@@ -124,8 +125,7 @@ export function PseudoHtmlDiff({
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
                 {spaces}
-                {'...'}
-                {'\n'}
+                {'...\n'}
               </span>
             )
           }

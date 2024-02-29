@@ -70,7 +70,9 @@ describe('Component Stack in error overlay', () => {
           <main>
             <Component>
               <div>
-                <p>"
+                <p>
+                  "server"
+                  "client""
       `)
     }
 
