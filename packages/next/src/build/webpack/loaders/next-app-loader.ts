@@ -1,5 +1,6 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
 import {
+  UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type ValueOf,
 } from '../../../shared/lib/constants'
@@ -414,14 +415,16 @@ async function createTreeCodeFromPath(
           defaultNotFoundPath
         nestedCollectedAsyncImports.push(notFoundPath)
         subtreeCode = `{
-          children: ['${PAGE_SEGMENT_KEY}', {}, {
-            page: [
-              () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-                notFoundPath
-              )}),
-              ${JSON.stringify(notFoundPath)}
-            ]
-          }]
+          children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+            children: ['${PAGE_SEGMENT_KEY}', {}, {
+              page: [
+                () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                  notFoundPath
+                )}),
+                ${JSON.stringify(notFoundPath)}
+              ]
+            }]
+          }, {}]
         }`
       }
 
