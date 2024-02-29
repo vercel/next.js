@@ -1048,7 +1048,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 segment: "__PAGE__".to_string(),
                                 parallel_routes: IndexMap::new(),
                                 components: Components {
-                                    page: if components.not_found.is_some() { components.not_found } else { Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())) },
+                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()))),
                                     ..Default::default()
                                 }.cell(),
                                 global_metadata
