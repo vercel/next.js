@@ -7622,7 +7622,6 @@ dependencies = [
  "turbopack-cli-utils",
  "turbopack-core",
  "turbopack-dev",
- "turbopack-dev-server",
  "turbopack-ecmascript",
  "turbopack-ecmascript-hmr-protocol",
  "turbopack-ecmascript-plugins",

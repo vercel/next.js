@@ -28,7 +28,6 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
   "__turbopack",
   "__turbopack_build",
-  "__turbopack_cli_utils",
   "__turbopack_core",
   "__turbopack_dev",
   "__turbopack_ecmascript",
