@@ -1054,7 +1054,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 global_metadata
                             }.cell()
                         },
-                        components: Components { ..Default::default()} .cell(),
+                        components: Components::default().cell(),
                         global_metadata,
                     }.cell(),
                 },
