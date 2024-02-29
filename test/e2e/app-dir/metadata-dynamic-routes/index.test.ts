@@ -200,7 +200,9 @@ createNextDescribe(
         const ids = ['child0', 'child1', 'child2', 'child3']
         function fetchSitemap(id) {
           return next
-            .fetch(isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}`)
+            .fetch(
+              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
+            )
             .then((res) => res.text())
         }
 
@@ -321,7 +323,7 @@ createNextDescribe(
     it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
       const $ = await next.render$('/')
       const canonicalUrl = $('link[rel="canonical"]').attr('href')
-      expect(canonicalUrl).toBe('https://mydomain.com/')
+      expect(canonicalUrl).toBe('https://mydomain.com')
     })
 
     it('should inject dynamic metadata properly to head', async () => {

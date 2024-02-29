@@ -1,5 +1,9 @@
 import { parse } from 'next/dist/compiled/stacktrace-parser'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import {
+  decorateServerError,
+  type ErrorSourceType,
+} from '../../../../../shared/lib/error-source'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
@@ -20,24 +24,7 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-const symbolError = Symbol('NextjsError')
-
-export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
-  return (error as any)[symbolError] || null
-}
-
-type ErrorType = 'edge-server' | 'server'
-
-export function decorateServerError(error: Error, type: ErrorType) {
-  Object.defineProperty(error, symbolError, {
-    writable: false,
-    enumerable: false,
-    configurable: false,
-    value: type,
-  })
-}
-
-export function getServerError(error: Error, type: ErrorType): Error {
+export function getServerError(error: Error, type: ErrorSourceType): Error {
   let n: Error
   try {
     throw new Error(error.message)

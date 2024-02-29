@@ -28,11 +28,11 @@ createNextDescribe(
     if (isNextStart) {
       it('should include not found client reference manifest in the file trace', async () => {
         const fileTrace = JSON.parse(
-          await next.readFile('.next/server/app/_not-found.js.nft.json')
+          await next.readFile('.next/server/app/_not-found/page.js.nft.json')
         )
 
         const isTraced = fileTrace.files.some((filePath) =>
-          filePath.includes('_not-found_client-reference-manifest.js')
+          filePath.includes('page_client-reference-manifest.js')
         )
 
         expect(isTraced).toBe(true)

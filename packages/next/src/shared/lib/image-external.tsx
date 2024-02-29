@@ -7,7 +7,14 @@ import { Image } from '../../client/image-component'
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
-export const getImageProps = (imgProps: ImageProps) => {
+/**
+ * For more advanced use cases, you can call `getImageProps()`
+ * to get the props that would be passed to the underlying `<img>` element,
+ * and instead pass to them to another component, style, canvas, etc.
+ *
+ * Read more: [Next.js docs: `getImageProps`](https://nextjs.org/docs/app/api-reference/components/image#getimageprops)
+ */
+export function getImageProps(imgProps: ImageProps) {
   const { props } = getImgProps(imgProps, {
     defaultLoader,
     // This is replaced by webpack define plugin

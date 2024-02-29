@@ -95,12 +95,13 @@ export const installTemplate = async ({
       cwd: root,
       dot: true,
       stats: false,
+      // We don't want to modify compiler options in [ts/js]config.json
+      // and none of the files in the .git folder
+      ignore: ["tsconfig.json", "jsconfig.json", ".git/**/*"],
     });
     const writeSema = new Sema(8, { capacity: files.length });
     await Promise.all(
       files.map(async (file) => {
-        // We don't want to modify compiler options in [ts/js]config.json
-        if (file === "tsconfig.json" || file === "jsconfig.json") return;
         await writeSema.acquire();
         const filePath = path.join(root, file);
         if ((await fs.stat(filePath)).isFile()) {
@@ -208,7 +209,6 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      autoprefixer: "^10.4.17",
       postcss: "^8",
       tailwindcss: "^3.4.1",
     };

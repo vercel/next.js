@@ -29,7 +29,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.11.3
+  TURBO_VERSION: 1.12.2
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
     environment: release-${{ github.event.inputs.releaseType || 'canary' }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           check-latest: true
@@ -75,7 +75,7 @@ jobs:
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         timeout-minutes: 5
         id: cache-pnpm-store
         with:

@@ -8,7 +8,7 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
-use crate::next_config::Rewrites;
+use crate::next_config::{CrossOriginConfig, Rewrites};
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -177,28 +177,28 @@ pub struct LoadableManifest {
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ServerReferenceManifest {
+pub struct ServerReferenceManifest<'a> {
     /// A map from hashed action name to the runtime module we that exports it.
-    pub node: HashMap<String, ActionManifestEntry>,
+    pub node: HashMap<&'a str, ActionManifestEntry<'a>>,
     /// A map from hashed action name to the runtime module we that exports it.
-    pub edge: HashMap<String, ActionManifestEntry>,
+    pub edge: HashMap<&'a str, ActionManifestEntry<'a>>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ActionManifestEntry {
+pub struct ActionManifestEntry<'a> {
     /// A mapping from the page that uses the server action to the runtime
     /// module that exports it.
-    pub workers: HashMap<String, ActionManifestWorkerEntry>,
+    pub workers: HashMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
-    pub layer: HashMap<String, ActionLayer>,
+    pub layer: HashMap<&'a str, ActionLayer>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-pub enum ActionManifestWorkerEntry {
-    String(String),
+pub enum ActionManifestWorkerEntry<'a> {
+    String(&'a str),
     Number(f64),
 }
 
@@ -247,7 +247,7 @@ pub struct ClientReferenceManifest {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: String,
-    pub cross_origin: Option<String>,
+    pub cross_origin: Option<CrossOriginConfig>,
 }
 
 #[derive(Serialize, Default, Debug, Clone)]
