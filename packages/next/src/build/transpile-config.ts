@@ -1,4 +1,4 @@
-import { readFile, unlink, writeFile } from 'fs/promises'
+import { readFile, unlink, writeFile, rm } from 'fs/promises'
 import { dirname, extname, join } from 'path'
 import { pathToFileURL } from 'url'
 import { transform } from './swc'
@@ -24,6 +24,105 @@ const swcOptions: Options = {
   isModule: 'unknown',
 }
 
+async function _bundle({
+  nextConfigPath,
+  nextCompiledConfigName,
+  cwd,
+  distDir,
+  isESM,
+  resolvedBaseUrl,
+  tsConfig,
+}: {
+  nextConfigPath: string
+  nextCompiledConfigName: string
+  cwd: string
+  distDir: string
+  isESM: boolean
+  resolvedBaseUrl: { baseUrl: string; isImplicit: boolean }
+  tsConfig: any
+}): Promise<NextConfig> {
+  const nextBuildSpan = trace('next-config-ts')
+  const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+  const webpackConfig: webpack.Configuration = {
+    mode: 'none',
+    entry: nextConfigPath,
+    experiments: {
+      // Needed for output.libraryTarget: 'module'
+      outputModule: isESM,
+    },
+    output: {
+      filename: nextCompiledConfigName,
+      path: join(cwd, distDir),
+      libraryTarget: isESM ? 'module' : 'commonjs2',
+    },
+    resolve: {
+      plugins: [
+        new JsConfigPathsPlugin(
+          tsConfig.compilerOptions?.paths ?? {},
+          resolvedBaseUrl
+        ),
+      ],
+      modules: ['node_modules'],
+      extensions: ['.ts', '.mts', '.cts'],
+      // Need to resolve @swc/helpers/_/ alias for next config as async function:
+      // Module not found: Can't resolve '@swc/helpers/_/_async_to_generator'
+      alias: {
+        '@swc/helpers/_': join(
+          dirname(require.resolve('@swc/helpers/package.json')),
+          '_'
+        ),
+      },
+    },
+    plugins: [new ProfilingPlugin({ runWebpackSpan, rootDir: cwd })],
+    module: {
+      rules: [
+        {
+          test: /\.(c|m)?ts$/,
+          exclude: /node_modules/,
+          loader: require.resolve('./webpack/loaders/next-swc-loader'),
+          options: {
+            rootDir: cwd,
+            isServer: false,
+            hasReactRefresh: false,
+            // Seems like no need to pass nextConfig to SWC loader
+            nextConfig: {},
+            jsConfig: tsConfig,
+            swcCacheDir: join(cwd, distDir, 'cache', 'swc'),
+            supportedBrowsers: undefined,
+            esm: isESM,
+          } satisfies SWCLoaderOptions,
+        },
+      ],
+    },
+  }
+
+  // Support tsconfig baseUrl
+  // Only add the baseUrl if it's explicitly set in tsconfig
+  if (!resolvedBaseUrl.isImplicit) {
+    webpackConfig.resolve!.modules!.push(resolvedBaseUrl.baseUrl)
+  }
+
+  const [{ errors }] = await runCompiler(webpackConfig, {
+    runWebpackSpan,
+  })
+
+  if (errors.length > 0) {
+    throw new Error(errors[0].message)
+  }
+
+  const nextCompiledConfigPath = join(cwd, distDir, nextCompiledConfigName)
+  const nextCompiledConfig = await import(
+    pathToFileURL(nextCompiledConfigPath).href
+  )
+
+  // For named-exported configs, we do not supoort it but proceeds as something like:
+  //  ⚠ Invalid next.config.ts options detected:
+  //  ⚠     Unrecognized key(s) in object: 'config'
+  // So we try to return the default if exits, otherwise return-
+  // the whole object as is to prevent returning undefined and preserve the current behavior
+  return nextCompiledConfig.default ?? nextCompiledConfig
+}
+
 export async function transpileConfig({
   nextConfigPath,
   nextConfigName,
@@ -37,7 +136,7 @@ export async function transpileConfig({
   let packageJson: any = {}
   try {
     // TODO: Use dynamic import when repo TS upgraded >= 5.3
-    tsConfig = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
+    tsConfig = JSON.parse(await readFile(join(cwd, 'tsconfig.json'), 'utf8'))
     packageJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
   } catch {}
 
@@ -49,137 +148,74 @@ export async function transpileConfig({
   // On ESM projects, it won't matter if the config is .mjs or .js if in ESM format
   const nextCompiledConfigName = `next.compiled.config${isESM ? '.mjs' : '.js'}`
 
-  // Return early if nextConfig does not have a valid import or require
   let tempNextConfigPath = ''
+  let hasDistDir = false
   try {
     // Transpile by SWC to check if has import or require other than type
-    const tempNextConfig = await readFile(nextConfigPath, 'utf8')
-    const { code } = await transform(tempNextConfig, swcOptions)
-    const hasImportOrRequire = code.includes('require(')
+    const nextConfigTS = await readFile(nextConfigPath, 'utf8')
+    const { code } = await transform(nextConfigTS, swcOptions)
 
-    // Does not have an import or require, no need to use webpack
-    if (!hasImportOrRequire) {
-      // Write to next.config.cjs
+    // Since the code is transpiled to CJS, we only need to check for require
+    // SWC will also drop types and unused imports
+    const isMissingImportOrRequire = !code.includes('require(')
+
+    // If distDir is set, we need to ensure to remove the temporary .next directory
+    hasDistDir = code.includes('distDir:')
+
+    if (isMissingImportOrRequire && !hasDistDir) {
       tempNextConfigPath = join(cwd, `next.config.cjs`)
       await writeFile(tempNextConfigPath, code)
-    }
-  } catch {
-  } finally {
-    if (tempNextConfigPath) {
-      await unlink(tempNextConfigPath).catch(() => {})
-    }
-  }
 
-  const nextBuildSpan = trace('next-config-ts')
-  const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
-  const resolvedBaseUrl = {
-    baseUrl: join(cwd, tsConfig.compilerOptions?.baseUrl ?? ''),
-    isImplicit: Boolean(tsConfig.compilerOptions?.baseUrl),
-  }
-
-  async function _bundle(nextConfig: NextConfig = {}): Promise<NextConfig> {
-    const distDir = nextConfig.distDir ?? '.next'
-    const webpackConfig: webpack.Configuration = {
-      mode: 'none',
-      entry: nextConfigPath,
-      experiments: {
-        // Needed for output.libraryTarget: 'module'
-        outputModule: isESM,
-      },
-      output: {
-        filename: nextCompiledConfigName,
-        path: join(cwd, distDir),
-        libraryTarget: isESM ? 'module' : 'commonjs2',
-      },
-      resolve: {
-        plugins: [
-          new JsConfigPathsPlugin(
-            tsConfig.compilerOptions?.paths ?? {},
-            resolvedBaseUrl
-          ),
-        ],
-        modules: ['node_modules'],
-        extensions: ['.ts', '.mts', '.cts'],
-        // Need to resolve @swc/helpers/_/ alias for next config as async function:
-        // Module not found: Can't resolve '@swc/helpers/_/_async_to_generator'
-        alias: {
-          '@swc/helpers/_': join(
-            dirname(require.resolve('@swc/helpers/package.json')),
-            '_'
-          ),
-        },
-      },
-      plugins: [new ProfilingPlugin({ runWebpackSpan, rootDir: cwd })],
-      module: {
-        rules: [
-          {
-            test: /\.(c|m)?ts$/,
-            exclude: /node_modules/,
-            loader: require.resolve('./webpack/loaders/next-swc-loader'),
-            options: {
-              rootDir: cwd,
-              isServer: false,
-              hasReactRefresh: false,
-              nextConfig,
-              jsConfig: {
-                compilerOptions: tsConfig.options,
-              },
-              swcCacheDir: join(cwd, distDir, 'cache', 'swc'),
-              supportedBrowsers: undefined,
-              esm: isESM,
-            } satisfies SWCLoaderOptions,
-          },
-        ],
-      },
+      const tempNextConfig = await import(
+        pathToFileURL(tempNextConfigPath).href
+      )
+      // See the last return of _bundle for explanation
+      return tempNextConfig.default ?? tempNextConfig
     }
 
-    // Support tsconfig baseUrl
-    // Only add the baseUrl if it's explicitly set in tsconfig
-    if (!resolvedBaseUrl.isImplicit) {
-      webpackConfig.resolve!.modules!.push(resolvedBaseUrl.baseUrl)
+    const resolvedBaseUrl = {
+      // Use cwd if baseUrl is not set
+      baseUrl: join(cwd, tsConfig.compilerOptions?.baseUrl ?? ''),
+      // If baseUrl is not set, it's implicit (cwd)
+      isImplicit: Boolean(!tsConfig.compilerOptions?.baseUrl),
     }
 
-    const [{ errors }] = await runCompiler(webpackConfig, {
-      runWebpackSpan,
+    const nextConfig = await _bundle({
+      nextConfigPath,
+      nextCompiledConfigName,
+      cwd,
+      distDir: '.next',
+      isESM,
+      resolvedBaseUrl,
+      tsConfig,
     })
 
-    if (errors.length > 0) {
-      throw new Error(errors[0].message)
-    }
+    if (hasDistDir && nextConfig.distDir) {
+      const recompiledNextConfig = await _bundle({
+        nextConfigPath,
+        nextCompiledConfigName,
+        cwd,
+        distDir: nextConfig.distDir,
+        isESM,
+        resolvedBaseUrl,
+        tsConfig,
+      })
 
-    const nextCompiledConfigPath = join(cwd, distDir, nextCompiledConfigName)
-    const nextCompiledConfig = await import(
-      pathToFileURL(nextCompiledConfigPath).href
-    )
+      // TODO: Can it cause any issues? Are we sure that if distDir is set, nothing else is generated later inside '.next'?
+      // Remove the temporary .next directory
+      await rm(join(cwd, '.next'), { recursive: true, force: true }).catch(
+        () => {}
+      )
 
-    // For named-exported configs, we do not supoort it but proceeds as something like:
-    //  ⚠ Invalid next.config.ts options detected:
-    //  ⚠     Unrecognized key(s) in object: 'config'
-    // So we try to return the default if exits, otherwise return-
-    // the whole object as is to prevent returning undefined and preserve the current behavior
-    return nextCompiledConfig.default ?? nextCompiledConfig
-  }
-
-  try {
-    const nextConfig = await _bundle()
-
-    // TODO: Do we really need to re-compile?
-    if (
-      // List of options possibly passed to next-swc-loader
-      nextConfig.modularizeImports ||
-      nextConfig.experimental?.optimizePackageImports ||
-      nextConfig.experimental?.swcPlugins ||
-      nextConfig.compiler ||
-      nextConfig.experimental?.optimizeServerReact ||
-      // For swcCacheDir option
-      nextConfig.distDir
-    ) {
-      // Re-compile with the parsed nextConfig
-      return await _bundle(nextConfig)
+      return recompiledNextConfig
     }
 
     return nextConfig
   } catch (error) {
     throw error
+  } finally {
+    if (tempNextConfigPath) {
+      await unlink(tempNextConfigPath).catch(() => {})
+    }
   }
 }
