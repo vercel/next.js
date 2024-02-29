@@ -181,7 +181,6 @@ import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
-import { modifyRouteRegex } from '../lib/redirect-status'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -287,17 +286,13 @@ export type RoutesManifest = {
   caseSensitive?: boolean
 }
 
-function pageToRoute(page: string, restrictedPaths?: string[]) {
+function pageToRoute(page: string) {
   const routeRegex = getNamedRouteRegex(page, true)
   return {
     page,
-    regex: normalizeRouteRegex(
-      restrictedPaths?.length
-        ? modifyRouteRegex(routeRegex.re.source, restrictedPaths)
-        : routeRegex.re.source
-    ),
+    regex: normalizeRouteRegex(routeRegex.re.source),
     routeKeys: routeRegex.routeKeys,
-    namedRegex: modifyRouteRegex(routeRegex.namedRegex, restrictedPaths),
+    namedRegex: routeRegex.namedRegex,
   }
 }
 
@@ -1094,9 +1089,6 @@ export default async function build(
       const restrictedRedirectPaths = ['/_next'].map((p) =>
         config.basePath ? `${config.basePath}${p}` : p
       )
-      const restrictedDynamicPaths = ['/_next/static'].map((p) =>
-        config.basePath ? `${config.basePath}${p}` : p
-      )
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
       const routesManifest: RoutesManifest = nextBuildSpan
@@ -1111,7 +1103,7 @@ export default async function build(
 
           for (const route of sortedRoutes) {
             if (isDynamicRoute(route)) {
-              dynamicRoutes.push(pageToRoute(route, restrictedDynamicPaths))
+              dynamicRoutes.push(pageToRoute(route))
             } else if (!isReservedPage(route)) {
               staticRoutes.push(pageToRoute(route))
             }
