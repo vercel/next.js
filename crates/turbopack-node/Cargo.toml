@@ -24,6 +24,7 @@ const_format = "0.2.30"
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
+indoc = { workspace = true }
 mime = { workspace = true }
 once_cell = { workspace = true }
 owo-colors = { workspace = true }
