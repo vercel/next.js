@@ -50,7 +50,9 @@ jobs:
           node-version: 18
           check-latest: true
 
-      - run: git clone https://github.com/vercel/next.js.git --depth=25 .
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
 
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
