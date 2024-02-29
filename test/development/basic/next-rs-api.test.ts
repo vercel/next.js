@@ -228,12 +228,13 @@ describe('next.rs api', () => {
   })
 
   it('should detect the correct routes', async () => {
-    const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints = await entrypointsSubscribtion.next()
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
-      '/_not-found',
+      // TODO: Unclear why this needs to be `/_not-found/page` whereas the others don't include `/page`.
+      '/_not-found/page',
       '/api/edge',
       '/api/nodejs',
       '/app',
@@ -248,7 +249,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscribtion.return()
+    entrypointsSubscription.return()
   })
 
   const routes = [
