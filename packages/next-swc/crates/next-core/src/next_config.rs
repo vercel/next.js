@@ -2,46 +2,24 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, Completion, Value, Vc};
-use turbo_tasks_fs::json::parse_json_with_source_context;
+use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            changed::any_content_changed_of_module,
-            context::{AssetContext, ProcessResult},
-            file_source::FileSource,
-            ident::AssetIdent,
-            issue::{
-                Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage,
-                OptionStyledString, StyledString,
-            },
-            reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
-            resolve::{
-                find_context_file,
-                options::{ImportMap, ImportMapping},
-                ExternalType, FindContextFileResult, ResolveAliasMap,
-            },
-            source::Source,
+            issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+            resolve::ResolveAliasMap,
         },
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
             styled_components::StyledComponentsTransformConfig,
         },
-        node::{
-            debug::should_debug,
-            evaluate::evaluate,
-            execution_context::ExecutionContext,
-            transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
-        },
-        turbopack::{
-            evaluate_context::node_evaluate_asset_context,
-            module_options::{LoaderRuleItem, OptionWebpackRules},
-        },
+        node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
+        turbopack::module_options::{LoaderRuleItem, OptionWebpackRules},
     },
 };
 
-use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
+use crate::next_shared::transforms::ModularizeImportPackageConfig;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -863,184 +841,6 @@ impl NextConfig {
             self.await?.experimental.use_lightningcss.unwrap_or(false),
         ))
     }
-}
-
-fn next_configs() -> Vc<Vec<String>> {
-    Vc::cell(
-        ["next.config.mjs", "next.config.js"]
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect(),
-    )
-}
-
-#[turbo_tasks::function]
-pub async fn load_next_config(execution_context: Vc<ExecutionContext>) -> Result<Vc<NextConfig>> {
-    Ok(load_config_and_custom_routes(execution_context)
-        .await?
-        .config)
-}
-
-#[turbo_tasks::function]
-pub async fn load_rewrites(execution_context: Vc<ExecutionContext>) -> Result<Vc<Rewrites>> {
-    Ok(load_config_and_custom_routes(execution_context)
-        .await?
-        .custom_routes
-        .await?
-        .rewrites)
-}
-
-#[turbo_tasks::function]
-async fn load_config_and_custom_routes(
-    execution_context: Vc<ExecutionContext>,
-) -> Result<Vc<NextConfigAndCustomRoutes>> {
-    let ExecutionContext { project_path, .. } = *execution_context.await?;
-    let find_config_result = find_context_file(project_path, next_configs());
-    let config_file = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(*config_path),
-        FindContextFileResult::NotFound(_) => None,
-    };
-
-    load_next_config_and_custom_routes_internal(execution_context, config_file)
-        .issue_file_path(config_file, "Loading Next.js config")
-        .await
-}
-
-#[turbo_tasks::function]
-async fn load_next_config_and_custom_routes_internal(
-    execution_context: Vc<ExecutionContext>,
-    config_file: Option<Vc<FileSystemPath>>,
-) -> Result<Vc<NextConfigAndCustomRoutes>> {
-    let ExecutionContext {
-        project_path,
-        chunking_context,
-        env,
-    } = *execution_context.await?;
-    let mut import_map = ImportMap::default();
-
-    import_map.insert_exact_alias(
-        "next",
-        ImportMapping::External(None, ExternalType::CommonJs).into(),
-    );
-    import_map.insert_wildcard_alias(
-        "next/",
-        ImportMapping::External(None, ExternalType::CommonJs).into(),
-    );
-    import_map.insert_exact_alias(
-        "styled-jsx",
-        ImportMapping::External(None, ExternalType::CommonJs).into(),
-    );
-    import_map.insert_exact_alias(
-        "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".to_string()),
-            ExternalType::CommonJs,
-        )
-        .cell(),
-    );
-    import_map.insert_wildcard_alias(
-        "styled-jsx/",
-        ImportMapping::External(None, ExternalType::CommonJs).into(),
-    );
-
-    let context = node_evaluate_asset_context(
-        execution_context,
-        Some(import_map.cell()),
-        None,
-        "next_config".to_string(),
-    );
-    let config_asset = config_file.map(FileSource::new);
-
-    let config_changed = if let Some(config_asset) = config_asset {
-        // This invalidates the execution when anything referenced by the config file
-        // changes
-        match *context
-            .process(
-                Vc::upcast(config_asset),
-                Value::new(ReferenceType::Internal(InnerAssets::empty())),
-            )
-            .await?
-        {
-            ProcessResult::Module(module) => any_content_changed_of_module(module),
-            ProcessResult::Ignore => Completion::immutable(),
-        }
-    } else {
-        Completion::immutable()
-    };
-    let load_next_config_asset = context
-        .process(
-            next_asset("entry/config/next.js".to_string()),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-        )
-        .module();
-    let config_value = evaluate(
-        load_next_config_asset,
-        project_path,
-        env,
-        config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),
-        context,
-        chunking_context,
-        None,
-        vec![],
-        config_changed,
-        should_debug("next_config"),
-    )
-    .await?;
-
-    let turbopack_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value
-        .try_into_single()
-        .await
-        .context("Evaluation of Next.js config failed")?
-    else {
-        return Ok(NextConfigAndCustomRoutes {
-            config: NextConfig::default().cell(),
-            custom_routes: CustomRoutes {
-                rewrites: Rewrites::default().cell(),
-            }
-            .cell(),
-        }
-        .cell());
-    };
-    let next_config_and_custom_routes: NextConfigAndCustomRoutesRaw =
-        parse_json_with_source_context(val.to_str()?)?;
-
-    if let Some(turbo) = next_config_and_custom_routes
-        .config
-        .experimental
-        .turbo
-        .as_ref()
-    {
-        if turbo.loaders.is_some() {
-            OutdatedConfigIssue {
-                path: config_file.unwrap_or(project_path),
-                old_name: "experimental.turbo.loaders".to_string(),
-                new_name: "experimental.turbo.rules".to_string(),
-                description: indoc::indoc! { r#"
-                    The new option is similar, but the key should be a glob instead of an extension.
-                    Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }"# }
-                .to_string(),
-            }
-            .cell()
-            .emit()
-        }
-    }
-
-    Ok(NextConfigAndCustomRoutes {
-        config: next_config_and_custom_routes.config.cell(),
-        custom_routes: CustomRoutes {
-            rewrites: next_config_and_custom_routes.custom_routes.rewrites.cell(),
-        }
-        .cell(),
-    }
-    .cell())
-}
-
-#[turbo_tasks::function]
-pub async fn has_next_config(context: Vc<FileSystemPath>) -> Result<Vc<bool>> {
-    Ok(Vc::cell(!matches!(
-        *find_context_file(context, next_configs()).await?,
-        FindContextFileResult::NotFound(_)
-    )))
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
