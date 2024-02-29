@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    io::{ErrorKind, Result as IoResult},
+    io::{self, ErrorKind},
     path::Path,
 };
 
@@ -20,6 +20,12 @@ pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
          '/'",
         join
     );
+
+    // TODO: figure out why this freezes the benchmarks.
+    // // an absolute path would leave the file system root
+    // if Path::new(join).is_absolute() {
+    //     return None;
+    // }
 
     if fs_path.is_empty() {
         normalize_path(join)
@@ -120,10 +126,10 @@ pub fn normalize_request(str: &str) -> String {
 /// Converts a disk access Result<T> into a Result<Some<T>>, where a NotFound
 /// error results in a None value. This is purely to reduce boilerplate code
 /// comparing NotFound errors against all other errors.
-pub fn extract_disk_access<T>(value: IoResult<T>, path: &Path) -> Result<Option<T>> {
+pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Option<T>> {
     match value {
         Ok(v) => Ok(Some(v)),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+        Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => Ok(None),
         Err(e) => Err(anyhow!(e).context(format!("reading file {}", path.display()))),
     }
 }

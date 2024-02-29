@@ -332,7 +332,9 @@ impl FileSystem for DiskFileSystem {
             .await
         {
             Ok(file) => FileContent::new(file),
-            Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
+            Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
+                FileContent::NotFound
+            }
             Err(e) => {
                 bail!(anyhow!(e).context(format!("reading file {}", full_path.display())))
             }
