@@ -211,11 +211,11 @@ function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
   clientHookInServerComponentError('useSelectedLayoutSegments')
-  const tree = useContext(LayoutRouterContext)?.tree
+  const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
-  if (!tree) return null
+  if (!context) return null
 
-  return getSelectedLayoutSegmentPath(tree, parallelRouteKey)
+  return getSelectedLayoutSegmentPath(context.tree, parallelRouteKey)
 }
 
 /**
