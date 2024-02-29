@@ -1,5 +1,8 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
-import type { ValueOf } from '../../../shared/lib/constants'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  type ValueOf,
+} from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
@@ -192,7 +195,8 @@ async function createTreeCodeFromPath(
   globalError: string
 }> {
   const splittedPath = pagePath.split(/[\\/]/, 1)
-  const isNotFoundRoute = page === '/_not-found'
+  const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const hasRootNotFound = await resolver(

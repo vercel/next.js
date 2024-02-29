@@ -40,6 +40,7 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -1306,9 +1307,7 @@ export default class NextNodeServer extends BaseServer {
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
+      const notFoundPathname = UNDERSCORE_NOT_FOUND_ROUTE
 
       if (this.renderOpts.dev) {
         await this.ensurePage({
