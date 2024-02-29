@@ -106,6 +106,7 @@ import {
   getClientComponentLoaderMetrics,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
+import { createServerModuleMap } from './action-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -633,16 +634,20 @@ async function renderToHTMLOrFlightImpl(
     req.on('end', () => {
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
-        getTracer()
-          .startSpan(NextNodeServerSpan.clientComponentLoading, {
-            startTime: metrics.clientComponentLoadStart,
-            attributes: {
-              'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
-            },
-          })
-          .end(
-            metrics.clientComponentLoadStart + metrics.clientComponentLoadTimes
-          )
+        if (metrics) {
+          getTracer()
+            .startSpan(NextNodeServerSpan.clientComponentLoading, {
+              startTime: metrics.clientComponentLoadStart,
+              attributes: {
+                'next.clientComponentLoadCount':
+                  metrics.clientComponentLoadCount,
+              },
+            })
+            .end(
+              metrics.clientComponentLoadStart +
+                metrics.clientComponentLoadTimes
+            )
+        }
       }
     })
   }
@@ -654,27 +659,10 @@ async function renderToHTMLOrFlightImpl(
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
 
-  const workerName = 'app' + renderOpts.page
-  const serverModuleMap: {
-    [id: string]: {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  } = new Proxy(
-    {},
-    {
-      get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[workerName],
-          name: id,
-          chunks: [],
-        }
-      },
-    }
-  )
+  const serverModuleMap = createServerModuleMap({
+    serverActionsManifest,
+    pageName: renderOpts.page,
+  })
 
   setReferenceManifestsSingleton({
     clientReferenceManifest,
@@ -964,6 +952,7 @@ async function renderToHTMLOrFlightImpl(
         polyfills,
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
+        basePath: renderOpts.basePath,
       })
 
       const renderer = createStaticRenderer({
@@ -1191,8 +1180,8 @@ async function renderToHTMLOrFlightImpl(
         // a suspense boundary.
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
+          const stack = getStackWithoutErrorMessage(err)
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
-            const stack = getStackWithoutErrorMessage(err)
             error(
               `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
             )
@@ -1201,7 +1190,7 @@ async function renderToHTMLOrFlightImpl(
           }
 
           warn(
-            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering`
+            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering\n${stack}`
           )
         }
 
@@ -1293,6 +1282,7 @@ async function renderToHTMLOrFlightImpl(
                 polyfills,
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
+                basePath: renderOpts.basePath,
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,

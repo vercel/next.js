@@ -1055,11 +1055,11 @@
     "passed": [
       "Error overlay - editor links should be possible to open source file on build error"
     ],
-    "failed": [
-      "Error overlay - editor links should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor links should be possible to open import trace files on module not found error"
+    "failed": [],
+    "pending": [
+      "Error overlay - editor opening links in import traces links should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor opening links in import traces links should be possible to open import trace files on module not found error"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1083,9 +1083,10 @@
       "Error recovery app turbo render error not shown right after syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
+      "Error recovery app turbo stuck error",
       "Error recovery app turbo syntax > runtime error"
     ],
-    "failed": ["Error recovery app turbo stuck error"],
+    "failed": [],
     "pending": [
       "Error recovery app default can recover from a event handler error",
       "Error recovery app default can recover from a syntax error without losing state",
@@ -1130,7 +1131,6 @@
   },
   "test/development/acceptance-app/rsc-build-errors.test.ts": {
     "passed": [
-      "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
       "Error overlay - RSC build errors should error when Component from react is used in server component",
@@ -1164,7 +1164,9 @@
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
     ],
-    "failed": [],
+    "failed": [
+      "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only"
+    ],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],
@@ -6125,6 +6127,7 @@
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
+      "opentelemetry incoming context propagation app router should trace middleware",
       "opentelemetry incoming context propagation pages should handle api routes in pages",
       "opentelemetry incoming context propagation pages should handle api routes in pages on edge",
       "opentelemetry incoming context propagation pages should handle getServerSideProps",
@@ -6134,6 +6137,7 @@
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
+      "opentelemetry root context app router should trace middleware",
       "opentelemetry root context pages should handle api routes in pages",
       "opentelemetry root context pages should handle api routes in pages on edge",
       "opentelemetry root context pages should handle getServerSideProps",
