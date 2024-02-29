@@ -151,7 +151,10 @@ pub fn generate_register() {
             writeln!(values_code, "}});").unwrap();
         }
 
-        let code = format!("{{\n{register_code}{values_code}}}\n");
+        let code = format!(
+            "{{\nstatic ONCE: std::sync::Once = std::sync::Once::new();\nONCE.call_once(|| \
+             {{\n{register_code}{values_code}}});\n}}\n"
+        );
         std::fs::write(out_file, code).unwrap();
 
         // println!("cargo:warning={}", out_file.display());
