@@ -52,15 +52,14 @@ describe('Error overlay for hydration errors', () => {
 
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Root>
-          <ServerRoot>
-            <AppRouter>
-              <ErrorBoundary>
-                <ErrorBoundaryHandler>
-                  <Router>
+        "...
+          <RedirectBoundary>
+            <RedirectErrorBoundary>
+              <InnerLayoutRouter>
+                <Mismatch>
+                  <div>
                     "server"
-                    "client"
-        "
+                    "client""
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -124,8 +123,7 @@ describe('Error overlay for hydration errors', () => {
             <div>
             ^^^^^
               <main>
-              ^^^^^^
-        "
+              ^^^^^^"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -375,8 +373,7 @@ describe('Error overlay for hydration errors', () => {
             <p>
             ^^^
               <p>
-              ^^^
-        "
+              ^^^"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -433,8 +430,7 @@ describe('Error overlay for hydration errors', () => {
             ^^^
               <span>
                 ...
-                  <span>
-        "
+                  <span>"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
