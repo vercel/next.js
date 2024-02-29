@@ -72,7 +72,8 @@ function generateSegmentsFromPatch(
   return segments
 }
 
-function addRefetchToLeafSegments(
+// TODO: if it's not being used, remove it later
+export function addRefetchToLeafSegments(
   newCache: CacheNode,
   currentCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
