@@ -22,10 +22,7 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import {
-  DEFAULT_SEGMENT_KEY,
-  GLOBAL_NOT_FOUND_SEGMENT_KEY,
-} from '../../../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -202,28 +199,6 @@ function navigateReducer_noPPR(
             prefetchValues.kind === 'auto' &&
               prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
           )
-
-          if (
-            !applied &&
-            // if we've navigated away from the global not found segment but didn't apply the flight data, we need to refetch
-            // as otherwise we'd be incorrectly using the global not found cache node for the incoming page
-            currentTree[0] === GLOBAL_NOT_FOUND_SEGMENT_KEY
-          ) {
-            applied = addRefetchToLeafSegments(
-              cache,
-              currentCache,
-              flightSegmentPath,
-              treePatch,
-              // eslint-disable-next-line no-loop-func
-              () =>
-                fetchServerResponse(
-                  url,
-                  currentTree,
-                  state.nextUrl,
-                  state.buildId
-                )
-            )
-          }
 
           const hardNavigate = shouldHardNavigate(
             // TODO-APP: remove ''
@@ -449,28 +424,6 @@ function navigateReducer_PPR(
               prefetchValues.kind === 'auto' &&
                 prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
             )
-
-            if (
-              !applied &&
-              // if we've navigated away from the global not found segment but didn't apply the flight data, we need to refetch
-              // as otherwise we'd be incorrectly using the global not found cache node for the incoming page
-              currentTree[0] === GLOBAL_NOT_FOUND_SEGMENT_KEY
-            ) {
-              applied = addRefetchToLeafSegments(
-                cache,
-                currentCache,
-                flightSegmentPath,
-                treePatch,
-                // eslint-disable-next-line no-loop-func
-                () =>
-                  fetchServerResponse(
-                    url,
-                    currentTree,
-                    state.nextUrl,
-                    state.buildId
-                  )
-              )
-            }
 
             const hardNavigate = shouldHardNavigate(
               // TODO-APP: remove ''

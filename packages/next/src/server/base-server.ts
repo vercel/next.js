@@ -49,6 +49,8 @@ import {
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
@@ -1726,7 +1728,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<ResponsePayload | null> {
     const is404Page =
       // For edge runtime 404 page, /_not-found needs to be treated as 404 page
-      (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
+      (process.env.NEXT_RUNTIME === 'edge' &&
+        pathname === UNDERSCORE_NOT_FOUND_ROUTE) ||
       pathname === '/404'
 
     // Strip the internal headers.
@@ -3234,7 +3237,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.enabledDirectories.app) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
             query,
             params: {},
             isAppPath: true,
