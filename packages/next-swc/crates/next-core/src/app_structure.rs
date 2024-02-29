@@ -1066,7 +1066,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         {
             let app_page = app_page
                 .clone_push_str("_not-found")?
-                .clone_push_str("page")?;
+                .complete(PageType::Page)?;
             add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
         }
     }
