@@ -233,8 +233,7 @@ describe('next.rs api', () => {
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
-      // TODO: Unclear why this needs to be `/_not-found/page` whereas the others don't include `/page`.
-      '/_not-found/page',
+      '/_not-found',
       '/api/edge',
       '/api/nodejs',
       '/app',
