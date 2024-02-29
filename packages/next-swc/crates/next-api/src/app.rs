@@ -63,11 +63,13 @@ use crate::{
         DynamicImportedChunks,
     },
     font::create_font_manifest,
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    paths::{
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
+        wasm_paths_to_bindings,
+    },
     project::Project,
     route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
     server_actions::create_server_actions_manifest,
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -1110,13 +1112,18 @@ impl Endpoint for AppEndpoint {
 
             let node_root_ref = &node_root.await?;
 
-            let node_root = this.app_project.project().node_root();
             this.app_project
                 .project()
                 .emit_all_output_assets(Vc::cell(output_assets))
                 .await?;
 
+            let node_root = this.app_project.project().node_root();
             let server_paths = all_server_paths(output_assets, node_root)
+                .await?
+                .clone_value();
+
+            let client_relative_root = this.app_project.project().client_relative_path();
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
                 .await?
                 .clone_value();
 
@@ -1127,8 +1134,12 @@ impl Endpoint for AppEndpoint {
                         .context("Node.js chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,
+                    client_paths,
                 },
-                AppEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
+                AppEndpointOutput::Edge { .. } => WrittenEndpoint::Edge {
+                    server_paths,
+                    client_paths,
+                },
             };
             Ok(written_endpoint.cell())
         }
