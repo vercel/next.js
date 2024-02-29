@@ -755,6 +755,22 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
   return result
 }
 
+export async function hasErrorToast(
+  browser: BrowserInterface
+): Promise<boolean> {
+  return browser.eval(() => {
+    return Boolean(
+      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-toast]')
+      )
+    )
+  })
+}
+
+export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+}
+
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
@@ -815,6 +831,27 @@ export async function getRedboxDescription(browser: BrowserInterface) {
     3000,
     500,
     'getRedboxDescription'
+  )
+}
+
+export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__extra'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
   )
 }
 
@@ -1017,18 +1054,26 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-component-stack-frame]',
+    '[data-nextjs-container-errors-pseudo-html]',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-component-stack-frame]'
+    '[data-nextjs-container-errors-pseudo-html]'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
   return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function toggleComponentStack(
+  browser: BrowserInterface
+): Promise<void> {
+  await browser
+    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
+    .click()
 }
 
 export async function expandCallStack(

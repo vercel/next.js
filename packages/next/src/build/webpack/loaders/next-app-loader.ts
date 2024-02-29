@@ -1,5 +1,9 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
-import type { ValueOf } from '../../../shared/lib/constants'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  type ValueOf,
+} from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
@@ -29,7 +33,6 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import type { PageExtensions } from '../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
 
@@ -125,8 +128,9 @@ async function createAppRouteCode({
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
+      filePath: resolvedPagePath,
       isDynamic: isDynamic ? '1' : '0',
-    })}!${resolvedPagePath}${`?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`}`
+    })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
   const pathname = new AppPathnameNormalizer().normalize(page)
@@ -192,7 +196,8 @@ async function createTreeCodeFromPath(
   globalError: string
 }> {
   const splittedPath = pagePath.split(/[\\/]/, 1)
-  const isNotFoundRoute = page === '/_not-found'
+  const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const hasRootNotFound = await resolver(
@@ -410,14 +415,16 @@ async function createTreeCodeFromPath(
           defaultNotFoundPath
         nestedCollectedAsyncImports.push(notFoundPath)
         subtreeCode = `{
-          children: ['${PAGE_SEGMENT_KEY}', {}, {
-            page: [
-              () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-                notFoundPath
-              )}),
-              ${JSON.stringify(notFoundPath)}
-            ]
-          }]
+          children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+            children: ['${PAGE_SEGMENT_KEY}', {}, {
+              page: [
+                () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                  notFoundPath
+                )}),
+                ${JSON.stringify(notFoundPath)}
+              ]
+            }]
+          }, {}]
         }`
       }
 
@@ -450,22 +457,12 @@ async function createTreeCodeFromPath(
           adjacentParallelSegment === 'children'
             ? ''
             : `/${adjacentParallelSegment}`
-        let defaultPath = await resolver(
-          `${appDirPrefix}${segmentPath}${actualSegment}/default`
-        )
 
-        if (!defaultPath) {
-          // no default was found at this segment. Check if the normalized segment resolves a default
-          // for example: /(level1)/(level2)/default doesn't exist, but /default does
-          const normalizedDefault = await resolver(
-            `${appDirPrefix}${normalizeAppPath(
-              segmentPath
-            )}/${actualSegment}/default`
-          )
-
-          // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
-          defaultPath = normalizedDefault ?? PARALLEL_ROUTE_DEFAULT_PATH
-        }
+        // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
+        const defaultPath =
+          (await resolver(
+            `${appDirPrefix}${segmentPath}${actualSegment}/default`
+          )) ?? PARALLEL_ROUTE_DEFAULT_PATH
 
         nestedCollectedAsyncImports.push(defaultPath)
         props[normalizeParallelKey(adjacentParallelSegment)] = `[

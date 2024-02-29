@@ -276,6 +276,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        navigationRAF: z.boolean().optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -377,6 +378,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
+        useEarlyImport: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

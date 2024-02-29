@@ -41,6 +41,7 @@ export async function exportAppPage(
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
   if (page === '/_not-found') {
     pathname = '/404'
   }

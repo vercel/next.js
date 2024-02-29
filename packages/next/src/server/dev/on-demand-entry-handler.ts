@@ -34,6 +34,8 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
@@ -427,6 +429,29 @@ export async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
+    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
+      const notFoundPath = await findPageFile(
+        appDir,
+        'not-found',
+        extensions,
+        true
+      )
+      if (notFoundPath) {
+        return {
+          filename: join(appDir, notFoundPath),
+          bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        }
+      }
+
+      return {
+        filename: require.resolve(
+          'next/dist/client/components/not-found-error'
+        ),
+        bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      }
+    }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
@@ -464,14 +489,6 @@ export async function findPagePathData(
       filename: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
-    }
-  }
-
-  if (page === '/not-found' && appDir) {
-    return {
-      filename: require.resolve('next/dist/client/components/not-found-error'),
-      bundlePath: 'app/not-found',
-      page: '/not-found',
     }
   }
 

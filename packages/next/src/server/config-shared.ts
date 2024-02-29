@@ -167,6 +167,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  navigationRAF?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -838,6 +839,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    navigationRAF: false,
     prerenderEarlyExit: false,
     serverMinification: true,
     serverSourceMaps: false,
@@ -901,6 +903,7 @@ export const defaultConfig: NextConfig = {
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: false,
+    useEarlyImport: false,
   },
 }
 
