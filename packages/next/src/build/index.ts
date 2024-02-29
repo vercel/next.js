@@ -72,6 +72,8 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -1034,7 +1036,7 @@ export default async function build(
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
-      const hasApp404 = !!mappedAppPages?.['/_not-found']
+      const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -2436,7 +2438,9 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
-      const isApp404Static = appStaticPaths.has('/_not-found')
+      const isApp404Static = appStaticPaths.has(
+        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      )
       const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
@@ -2679,7 +2683,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
-              if (route === '/_not-found') return
+              if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,
