@@ -194,6 +194,9 @@ export function getDefineEnv({
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
     ),
+    'process.env.__NEXT_NAVIGATION_RAF': JSON.stringify(
+      config.experimental.navigationRAF
+    ),
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE': JSON.stringify(
       config.experimental.externalMiddlewareRewritesResolve
     ),
@@ -206,6 +209,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution
+    ),
+    'process.env.__NEXT_LINK_NO_TOUCH_START': JSON.stringify(
+      config.experimental.linkNoTouchStart
     ),
     'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
     ...(isNodeOrEdgeCompilation

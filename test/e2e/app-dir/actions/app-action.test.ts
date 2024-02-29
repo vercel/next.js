@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request, Response, Route } from 'playwright-chromium'
+import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -1026,6 +1026,7 @@ createNextDescribe(
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+        expect(html).not.toContain('some-module-level-encryption-value')
       })
     })
 
@@ -1091,6 +1092,22 @@ createNextDescribe(
         // verify that the POST request was only made to the action handler
         expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
         expect(responseCodes).toEqual([303])
+      })
+
+      it('displays searchParams correctly when redirecting with SearchParams', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+        await browser.refresh()
+        expect(await browser.elementByCss('h2').text()).toBe('baz=')
+
+        // redirect with search params
+        await browser.elementById('redirect-with-search-params').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
+
+        // verify that the search params was set correctly
+        expect(await browser.elementByCss('h2').text()).toBe('baz=1')
       })
 
       it('merges cookies correctly when redirecting', async () => {
