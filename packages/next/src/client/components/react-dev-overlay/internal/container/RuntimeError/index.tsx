@@ -100,7 +100,7 @@ export const styles = css`
     font-size: var(--size-font-small);
     line-height: var(--size-font-bigger);
     color: var(--color-accents-3);
-    text-decoration: underline dotted;
+    text-decoration: underline;
     align-self: start;
   }
 

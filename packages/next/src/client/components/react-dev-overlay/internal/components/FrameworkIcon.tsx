@@ -1,12 +1,9 @@
-import React from 'react'
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
+import type { StackFramesGroup } from '../helpers/group-stack-frames-by-framework'
 
-export function FrameworkIcon({
-  framework,
-}: {
+export function FrameworkIcon(props: {
   framework: NonNullable<StackFramesGroup['framework']>
 }) {
-  if (framework === 'react') {
+  if (props.framework === 'react') {
     return (
       <svg
         data-nextjs-call-stack-framework-icon="react"
