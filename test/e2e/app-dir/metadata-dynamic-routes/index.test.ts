@@ -200,7 +200,9 @@ createNextDescribe(
         const ids = ['child0', 'child1', 'child2', 'child3']
         function fetchSitemap(id) {
           return next
-            .fetch(isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}`)
+            .fetch(
+              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
+            )
             .then((res) => res.text())
         }
 

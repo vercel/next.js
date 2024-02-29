@@ -73,6 +73,8 @@ export class NextInstance {
     this.env = {}
     Object.assign(this, opts)
 
+    require('console').log('packageJson??', this.packageJson)
+
     if (!(global as any).isNextDeploy) {
       this.env = {
         ...this.env,
@@ -102,7 +104,17 @@ export class NextInstance {
         )
       }
 
-      await fs.cp(files.fsPath, this.testDir, { recursive: true })
+      await fs.cp(files.fsPath, this.testDir, {
+        recursive: true,
+        filter(source) {
+          // we don't copy a package.json as it's manually written
+          // via the createNextInstall process
+          if (path.relative(files.fsPath, source) === 'package.json') {
+            return false
+          }
+          return true
+        },
+      })
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]

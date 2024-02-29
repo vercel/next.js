@@ -182,6 +182,7 @@ describe('navigateReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
@@ -402,6 +403,7 @@ describe('navigateReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
@@ -1142,6 +1144,7 @@ describe('navigateReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
@@ -1406,6 +1409,7 @@ describe('navigateReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "parallel-tab-bar" => {
@@ -1824,6 +1828,7 @@ describe('navigateReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {

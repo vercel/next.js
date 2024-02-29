@@ -12,8 +12,8 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
   waitFor,
-  normalizeRegEx,
   check,
+  normalizeRouteRegExes,
 } from 'next-test-utils'
 
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
@@ -767,9 +767,7 @@ export function runTests(ctx) {
 
       for (const key of Object.keys(prerenderManifest.dynamicRoutes).sort()) {
         const item = prerenderManifest.dynamicRoutes[key]
-        item.routeRegex = normalizeRegEx(item.routeRegex)
-        item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
-        dynamicRoutes[key] = item
+        dynamicRoutes[key] = normalizeRouteRegExes(item)
       }
 
       expect(
@@ -1167,25 +1165,25 @@ export function runTests(ctx) {
       ).toMatchInlineSnapshot(`
         "{
           "/gsp/fallback/[slug]": {
-            "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+            "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)?$",
             "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
             "fallback": "/gsp/fallback/[slug].html",
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$"
           },
           "/gsp/no-fallback/[slug]": {
-            "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+            "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)?$",
             "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
             "fallback": false,
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$"
           },
           "/not-found/blocking-fallback/[slug]": {
-            "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+            "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)?$",
             "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
             "fallback": null,
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$"
           },
           "/not-found/fallback/[slug]": {
-            "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+            "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)?$",
             "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
             "fallback": "/not-found/fallback/[slug].html",
             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$"

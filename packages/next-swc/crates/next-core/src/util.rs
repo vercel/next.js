@@ -13,7 +13,7 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             module::Module,
             source::Source,
             virtual_source::VirtualSource,
@@ -179,8 +179,8 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]

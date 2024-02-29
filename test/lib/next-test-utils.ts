@@ -834,12 +834,58 @@ export async function getRedboxDescription(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__extra'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
+  )
+}
+
 export function getBrowserBodyText(browser: BrowserInterface) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
 
 export function normalizeRegEx(src: string) {
-  return new RegExp(src).source.replace(/\^\//g, '^\\/')
+  return (
+    new RegExp(src).source
+      .replace(/\^\//g, '^\\/')
+      // normalize our ignores at the top-level so each
+      // snapshot doesn't need to be updated each time
+      .replace('(?!\\/_next\\/static)', '')
+      .replace('?(?:\\/)?$', '?$')
+      .replace('(?:\\/)?$', '?$')
+  )
+}
+
+export const normalizeRouteRegExes = (item: any) => {
+  const fields = [
+    'regex',
+    'routeRegex',
+    'namedRegex',
+    'namedDataRouteRegex',
+    'dataRouteRegex',
+  ]
+
+  for (const field of fields) {
+    if (typeof item[field] === 'string') {
+      item[field] = normalizeRegEx(item[field])
+    }
+  }
+  return item
 }
 
 function readJson(path: string) {
@@ -1033,18 +1079,26 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-component-stack-frame]',
+    '[data-nextjs-container-errors-pseudo-html]',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-component-stack-frame]'
+    '[data-nextjs-container-errors-pseudo-html]'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
   return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function toggleComponentStack(
+  browser: BrowserInterface
+): Promise<void> {
+  await browser
+    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
+    .click()
 }
 
 export async function expandCallStack(

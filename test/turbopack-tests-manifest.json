@@ -1131,7 +1131,6 @@
   },
   "test/development/acceptance-app/rsc-build-errors.test.ts": {
     "passed": [
-      "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
       "Error overlay - RSC build errors should error when Component from react is used in server component",
@@ -1165,7 +1164,9 @@
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
     ],
-    "failed": [],
+    "failed": [
+      "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only"
+    ],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],

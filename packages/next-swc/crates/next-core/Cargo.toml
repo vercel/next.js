@@ -16,7 +16,6 @@ anyhow = { workspace = true }
 async-recursion = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
-const_format = "0.2.30"
 lazy-regex = "3.0.1"
 next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
@@ -25,7 +24,6 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
-mime = { workspace = true }
 mime_guess = "2.0.4"
 indoc = { workspace = true }
 allsorts = { workspace = true }

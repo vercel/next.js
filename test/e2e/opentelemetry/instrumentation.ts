@@ -1,6 +1,6 @@
-import { register as registerForTest } from './instrumentation-test'
-
 export async function register() {
+  const { register: registerForTest } = await import('./instrumentation-test')
+
   if (process.env.__NEXT_TEST_MODE) {
     registerForTest()
   } else if (process.env.NEXT_RUNTIME === 'nodejs') {

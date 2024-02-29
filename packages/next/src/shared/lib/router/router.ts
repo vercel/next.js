@@ -1943,12 +1943,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined

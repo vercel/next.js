@@ -952,6 +952,7 @@ async function renderToHTMLOrFlightImpl(
         polyfills,
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
+        basePath: renderOpts.basePath,
       })
 
       const renderer = createStaticRenderer({
@@ -1179,8 +1180,8 @@ async function renderToHTMLOrFlightImpl(
         // a suspense boundary.
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
+          const stack = getStackWithoutErrorMessage(err)
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
-            const stack = getStackWithoutErrorMessage(err)
             error(
               `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
             )
@@ -1189,7 +1190,7 @@ async function renderToHTMLOrFlightImpl(
           }
 
           warn(
-            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering`
+            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering\n${stack}`
           )
         }
 
@@ -1281,6 +1282,7 @@ async function renderToHTMLOrFlightImpl(
                 polyfills,
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
+                basePath: renderOpts.basePath,
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,

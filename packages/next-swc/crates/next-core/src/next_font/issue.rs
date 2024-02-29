@@ -1,7 +1,7 @@
 use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
-    turbopack::core::issue::{Issue, IssueSeverity, OptionStyledString, StyledString},
+    turbopack::core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
 };
 
 #[turbo_tasks::value(shared)]
@@ -15,8 +15,8 @@ pub(crate) struct NextFontIssue {
 #[turbo_tasks::value_impl]
 impl Issue for NextFontIssue {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("other".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::CodeGen.into()
     }
 
     #[turbo_tasks::function]

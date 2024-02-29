@@ -18,48 +18,59 @@ describe('Component Stack in error overlay', () => {
 
     await session.waitForAndOpenRuntimeError()
 
+    // If it's too long we can collapse
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "p
-        div
-        Component
-        main
-        Mismatch
-        InnerLayoutRouter
-        RedirectErrorBoundary
-        RedirectBoundary
-        NotFoundErrorBoundary
-        NotFoundBoundary
-        LoadingBoundary
-        ErrorBoundary
-        InnerScrollAndFocusHandler
-        ScrollAndFocusHandler
-        RenderFromTemplateContext
-        OuterLayoutRouter
-        body
-        html
-        RootLayout
-        RedirectErrorBoundary
-        RedirectBoundary
-        NotFoundErrorBoundary
-        NotFoundBoundary
-        DevRootNotFoundBoundary
-        ReactDevOverlay
-        HotReload
-        Router
-        ErrorBoundaryHandler
-        ErrorBoundary
-        AppRouter
-        ServerRoot
-        Root"
+        "<Root>
+          <ServerRoot>
+            <AppRouter>
+              <ErrorBoundary>
+                <ErrorBoundaryHandler>
+                  <Router>"
+      `)
+
+      await session.toggleComponentStack()
+      expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
+        "<Root>
+          <ServerRoot>
+            <AppRouter>
+              <ErrorBoundary>
+                <ErrorBoundaryHandler>
+                  <Router>
+                    <HotReload>
+                      <ReactDevOverlay>
+                        <DevRootNotFoundBoundary>
+                          <NotFoundBoundary>
+                            <NotFoundErrorBoundary>
+                              <RedirectBoundary>
+                                <RedirectErrorBoundary>
+                                  <RootLayout>
+                                    <html>
+                                      <body>
+                                        <OuterLayoutRouter>
+                                          <RenderFromTemplateContext>
+                                            <ScrollAndFocusHandler>
+                                              <InnerScrollAndFocusHandler>
+                                                <ErrorBoundary>
+                                                  <LoadingBoundary>
+                                                    <NotFoundBoundary>
+                                                      <NotFoundErrorBoundary>
+                                                        <RedirectBoundary>
+                                                          <RedirectErrorBoundary>
+                                                            <InnerLayoutRouter>
+                                                              <Mismatch>
+                                                                <main>
+                                                                  <Component>
+                                                                    <div>
+                                                                      <p>"
       `)
     } else {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "p
-        div
-        Component
-        main
-        Mismatch"
+        "<Mismatch>
+          <main>
+            <Component>
+              <div>
+                <p>"
       `)
     }
 

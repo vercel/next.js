@@ -50,7 +50,6 @@ import {
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
-import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
@@ -1164,36 +1163,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             return this.renderError(null, req, res, '/_error', {})
           }
           throw err
-        }
-      }
-
-      if (
-        // Edge runtime always has minimal mode enabled.
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        !this.minimalMode &&
-        defaultLocale
-      ) {
-        const { getLocaleRedirect } =
-          require('../shared/lib/i18n/get-locale-redirect') as typeof import('../shared/lib/i18n/get-locale-redirect')
-        const redirect = getLocaleRedirect({
-          defaultLocale,
-          domainLocale,
-          headers: req.headers,
-          nextConfig: this.nextConfig,
-          pathLocale: pathnameInfo.locale,
-          urlParsed: {
-            ...url,
-            pathname: pathnameInfo.locale
-              ? `/${pathnameInfo.locale}${url.pathname}`
-              : url.pathname,
-          },
-        })
-
-        if (redirect) {
-          return res
-            .redirect(redirect, RedirectStatusCode.TemporaryRedirect)
-            .body(redirect)
-            .send()
         }
       }
 

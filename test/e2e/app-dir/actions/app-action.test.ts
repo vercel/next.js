@@ -1094,6 +1094,22 @@ createNextDescribe(
         expect(responseCodes).toEqual([303])
       })
 
+      it('displays searchParams correctly when redirecting with SearchParams', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+        await browser.refresh()
+        expect(await browser.elementByCss('h2').text()).toBe('baz=')
+
+        // redirect with search params
+        await browser.elementById('redirect-with-search-params').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
+
+        // verify that the search params was set correctly
+        expect(await browser.elementByCss('h2').text()).toBe('baz=1')
+      })
+
       it('merges cookies correctly when redirecting', async () => {
         const browser = await next.browser('/redirects/action-redirect')
 
