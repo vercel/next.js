@@ -225,15 +225,27 @@ function useChangeByServerResponse(
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, shouldScroll) => {
-      const url = new URL(addBasePath(href), location.href)
+      const navigateWrapper = process.env.__NEXT_NAVIGATION_RAF
+        ? (cb: () => void) => {
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                cb()
+              }, 1)
+            })
+          }
+        : (cb: () => void) => cb()
 
-      return dispatch({
-        type: ACTION_NAVIGATE,
-        url,
-        isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
-        shouldScroll: shouldScroll ?? true,
-        navigateType,
+      navigateWrapper(() => {
+        const url = new URL(addBasePath(href), location.href)
+
+        return dispatch({
+          type: ACTION_NAVIGATE,
+          url,
+          isExternalUrl: isExternalURL(url),
+          locationSearch: location.search,
+          shouldScroll: shouldScroll ?? true,
+          navigateType,
+        })
       })
     },
     [dispatch]
