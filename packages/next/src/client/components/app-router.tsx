@@ -227,8 +227,19 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
     (href, navigateType, shouldScroll) => {
       const navigateWrapper = process.env.__NEXT_NAVIGATION_RAF
         ? (cb: () => void) => {
+            let finished = false
+
+            // if the frame is hidden or requestAnimationFrame
+            // is delayed too long add upper bound timeout
+            setTimeout(() => {
+              if (!finished) {
+                finished = true
+                cb()
+              }
+            }, 1000)
             requestAnimationFrame(() => {
               setTimeout(() => {
+                finished = true
                 cb()
               }, 1)
             })

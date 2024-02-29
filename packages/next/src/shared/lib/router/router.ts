@@ -1515,6 +1515,9 @@ export default class Router implements BaseRouter {
         }),
         process.env.__NEXT_NAVIGATION_RAF
           ? new Promise((resolve) => {
+              // if the frame is hidden or requestAnimationFrame
+              // is delayed too long add upper bound timeout
+              setTimeout(resolve, 1000)
               requestAnimationFrame(() => {
                 setTimeout(resolve, 1)
               })
