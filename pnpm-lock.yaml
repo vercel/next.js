@@ -1284,8 +1284,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
       postcss-modules-local-by-default:
-        specifier: 4.0.0
-        version: 4.0.0(postcss@8.4.31)
+        specifier: 4.0.4
+        version: 4.0.4(postcss@8.4.31)
       postcss-modules-scope:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
@@ -3449,7 +3449,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /@csstools/postcss-normalize-display-values@1.0.0(postcss@8.4.31):
@@ -10132,7 +10132,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /css-box-shadow@1.0.0-3:
@@ -10173,7 +10173,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /css-prefers-color-scheme@6.0.3(postcss@8.4.31):
@@ -19435,7 +19435,7 @@ packages:
       postcss: ^8.0.2
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-calc@7.0.1:
@@ -19453,7 +19453,7 @@ packages:
       postcss: ^8.2.2
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
       postcss-value-parser: 4.2.0
     dev: true
 
@@ -19566,7 +19566,7 @@ packages:
       postcss: ^8.1.2
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-dir-pseudo-class@6.0.4(postcss@8.4.31):
@@ -19576,7 +19576,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-discard-comments@4.0.2:
@@ -19679,7 +19679,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-focus-within@5.0.4(postcss@8.4.31):
@@ -19689,7 +19689,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-font-variant@5.0.0(postcss@8.4.31):
@@ -19846,7 +19846,7 @@ packages:
       caniuse-api: 3.0.0
       cssnano-utils: 3.1.0(postcss@8.4.31)
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-minify-font-values@4.0.2:
@@ -19930,7 +19930,7 @@ packages:
       postcss: ^8.2.15
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-modules-extract-imports@3.0.0(postcss@8.4.31):
@@ -19942,15 +19942,15 @@ packages:
       postcss: 8.4.31
     dev: true
 
-  /postcss-modules-local-by-default@4.0.0(postcss@8.4.31):
-    resolution: {integrity: sha512-sT7ihtmGSF9yhm6ggikHdV0hlziDTX7oFoXtuVWeDd3hHObNkcHRo9V3yg7vCAY7cONyxJC/XXCmmiHHcvX7bQ==}
+  /postcss-modules-local-by-default@4.0.4(postcss@8.4.31):
+    resolution: {integrity: sha512-L4QzMnOdVwRm1Qb8m4x8jsZzKAaPAgrUF1r/hjDR2Xj7R+8Zsf97jAlSQzWtKx5YNiNGN8QxmPFIc/sh+RQl+Q==}
     engines: {node: ^10 || ^12 || >= 14}
     peerDependencies:
       postcss: ^8.1.0
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.31)
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
       postcss-value-parser: 4.2.0
     dev: true
 
@@ -19984,7 +19984,7 @@ packages:
       lodash.camelcase: 4.3.0
       postcss: 8.4.31
       postcss-modules-extract-imports: 3.0.0(postcss@8.4.31)
-      postcss-modules-local-by-default: 4.0.0(postcss@8.4.31)
+      postcss-modules-local-by-default: 4.0.4(postcss@8.4.31)
       postcss-modules-scope: 3.0.0(postcss@8.4.31)
       postcss-modules-values: 4.0.0(postcss@8.4.31)
       string-hash: 1.1.3
@@ -20014,7 +20014,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-normalize-charset@4.0.1:
@@ -20300,7 +20300,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-pseudoelements@5.0.0:
@@ -20477,7 +20477,7 @@ packages:
       postcss: ^8.2.15
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-value-parser@3.3.1:
