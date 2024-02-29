@@ -41,6 +41,7 @@ import {
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -1307,23 +1308,23 @@ export default class NextNodeServer extends BaseServer {
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      const notFoundPathname = UNDERSCORE_NOT_FOUND_ROUTE
-
       if (this.renderOpts.dev) {
         await this.ensurePage({
-          page: notFoundPathname,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           clientOnly: false,
           url: req.url,
         }).catch(() => {})
       }
 
-      if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
+      if (
+        this.getEdgeFunctionsPages().includes(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY)
+      ) {
         await this.runEdgeFunction({
           req: req as BaseNextRequest,
           res: res as BaseNextResponse,
           query: query || {},
           params: {},
-          page: notFoundPathname,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           appPaths: null,
         })
         return null
