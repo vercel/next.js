@@ -10,7 +10,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::middleware::get_font_paths_from_root;
+use crate::paths::get_font_paths_from_root;
 
 pub(crate) async fn create_font_manifest(
     client_root: Vc<FileSystemPath>,
