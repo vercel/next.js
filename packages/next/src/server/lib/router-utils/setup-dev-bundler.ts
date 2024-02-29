@@ -13,7 +13,7 @@ import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { loadEnvConfig } from '@next/env'
-import isError from '../../../lib/is-error'
+import isError, { type NextError } from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
@@ -901,12 +901,6 @@ async function startWatcher(opts: SetupOpts) {
                   isServer: true,
                 }
               )
-
-              err.stack = await traceTurbopackErrorStack(
-                hotReloader.turbopackProject!,
-                err,
-                frames
-              )
             } catch {}
           } else {
             const moduleId = frameFile.replace(
@@ -963,17 +957,34 @@ async function startWatcher(opts: SetupOpts) {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
+
+            let errorToLog
             if (isEdgeCompiler) {
-              err = err.message
-            }
-            if (type === 'warning') {
-              Log.warn(err)
-            } else if (type === 'app-dir') {
-              logAppDirError(err)
-            } else if (type) {
-              Log.error(`${type}:`, err)
+              errorToLog = err.message
+            } else if (isError(err) && hotReloader.turbopackProject) {
+              const stack = await traceTurbopackErrorStack(
+                hotReloader.turbopackProject,
+                opts.dir,
+                err,
+                frames
+              )
+
+              const error: NextError = new Error(err.message)
+              error.stack = stack
+              error.digest = err.digest
+              errorToLog = error
             } else {
-              Log.error(err)
+              errorToLog = err
+            }
+
+            if (type === 'warning') {
+              Log.warn(errorToLog)
+            } else if (type === 'app-dir') {
+              logAppDirError(errorToLog)
+            } else if (type) {
+              Log.error(`${type}:`, errorToLog)
+            } else {
+              Log.error(errorToLog)
             }
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
@@ -1087,8 +1098,13 @@ async function traceTurbopackErrorStack(
         }
 
         if (f.file != null) {
-          // Built-in "filenames" like `<anonymous>` shouldn't be made relative
-          const file = f.file.startsWith('<') ? f.file : `./${f.file}`
+          const file =
+            f.file.startsWith('/') ||
+            // Built-in "filenames" like `<anonymous>` shouldn't be made relative
+            f.file.startsWith('<') ||
+            f.file.startsWith('node:')
+              ? f.file
+              : `./${f.file}`
 
           line += ` (${file}`
           if (f.lineNumber != null) {
