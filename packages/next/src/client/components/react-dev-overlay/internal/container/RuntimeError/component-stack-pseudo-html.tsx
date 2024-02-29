@@ -75,8 +75,6 @@ export function PseudoHtmlDiff({
 
         const isLastFewFrames =
           !isHtmlTagsWarning && index >= componentList.length - 6
-        const reachedMaxDisplayFrames =
-          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES
 
         if (
           nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
@@ -91,7 +89,7 @@ export function PseudoHtmlDiff({
               <span
                 {...(isHighlightedTag
                   ? {
-                      ['data-nextjs-container-errors-pseudo-html--tag-error']:
+                      'data-nextjs-container-errors-pseudo-html--tag-error':
                         true,
                     }
                   : undefined)}
@@ -137,10 +135,10 @@ export function PseudoHtmlDiff({
       const wrappedCodeLine = (
         <Fragment key={nestedHtmlStack.length}>
           <span data-nextjs-container-errors-pseudo-html--diff-remove>
-            {spaces + `"${serverContent}"` + '\n'}
+            {spaces + `"${serverContent}"\n`}
           </span>
           <span data-nextjs-container-errors-pseudo-html--diff-add>
-            {spaces + `"${clientContent}"` + '\n'}
+            {spaces + `"${clientContent}"\n`}
           </span>
         </Fragment>
       )
@@ -154,6 +152,7 @@ export function PseudoHtmlDiff({
     clientContent,
     serverContent,
     isHtmlTagsWarning,
+    hydrationMismatchType,
   ])
 
   return (
