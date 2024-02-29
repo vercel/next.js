@@ -559,6 +559,16 @@ type HandleEntrypointsHooks = {
   unsubscribeFromHmrEvents: (client: ws, id: string) => void
 }
 
+type HandleEntrypointsDevOpts = {
+  assetMapper: AssetMapper
+  changeSubscriptions: ChangeSubscriptions
+  clients: Set<ws>
+  clientStates: ClientStateMap
+  serverFields: ServerFields
+
+  hooks: HandleEntrypointsHooks
+}
+
 export async function handleEntrypoints({
   entrypoints,
 
@@ -569,13 +579,7 @@ export async function handleEntrypoints({
   nextConfig,
   rewrites,
 
-  assetMapper,
-  changeSubscriptions,
-  clients,
-  clientStates,
-  serverFields,
-
-  hooks,
+  dev,
 }: {
   entrypoints: TurbopackResult<RawEntrypoints>
 
@@ -586,13 +590,7 @@ export async function handleEntrypoints({
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
 
-  assetMapper?: AssetMapper // dev
-  changeSubscriptions?: ChangeSubscriptions // dev
-  clients?: Set<ws> // dev
-  clientStates?: ClientStateMap // dev
-  serverFields?: ServerFields // dev
-
-  hooks?: HandleEntrypointsHooks //dev
+  dev?: HandleEntrypointsDevOpts
 }) {
   currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
   currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
@@ -628,55 +626,13 @@ export async function handleEntrypoints({
     }
   }
 
-  // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
-  if (assetMapper) {
-    for (const key of assetMapper.keys()) {
-      if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
-        assetMapper.delete(key)
-      }
-    }
-  }
+  if (dev) {
+    await handleEntrypointsDevCleanup({
+      currentEntryIssues,
+      currentEntrypoints,
 
-  if (changeSubscriptions) {
-    for (const key of changeSubscriptions.keys()) {
-      // middleware is handled below
-      if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
-        await hooks?.unsubscribeFromChanges(key)
-      }
-    }
-  }
-
-  for (const [key] of currentEntryIssues) {
-    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
-      currentEntryIssues.delete(key)
-    }
-  }
-
-  if (clients && clientStates) {
-    for (const client of clients) {
-      const state = clientStates.get(client)
-      if (!state) {
-        continue
-      }
-
-      for (const key of state.clientIssues.keys()) {
-        if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
-          state.clientIssues.delete(key)
-        }
-      }
-
-      for (const id of state.subscriptions.keys()) {
-        if (
-          !hasEntrypointForKey(
-            currentEntrypoints,
-            getEntryKey('assets', 'client', id),
-            assetMapper
-          )
-        ) {
-          hooks?.unsubscribeFromHmrEvents(client, id)
-        }
-      }
-    }
+      ...dev,
+    })
   }
 
   const { middleware, instrumentation } = entrypoints
@@ -687,14 +643,14 @@ export async function handleEntrypoints({
   if (currentEntrypoints.global.middleware && !middleware) {
     const key = getEntryKey('root', 'server', 'middleware')
     // Went from middleware to no middleware
-    await hooks?.unsubscribeFromChanges(key)
+    await dev?.hooks.unsubscribeFromChanges(key)
     currentEntryIssues.delete(key)
-    hooks?.sendHmr('middleware', {
+    dev?.hooks.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   } else if (!currentEntrypoints.global.middleware && middleware) {
     // Went from no middleware to middleware
-    hooks?.sendHmr('middleware', {
+    dev?.hooks.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   }
@@ -709,7 +665,7 @@ export async function handleEntrypoints({
       const key = getEntryKey('root', 'server', name)
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+      dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
       processIssues(currentEntryIssues, key, writtenEndpoint)
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
@@ -723,19 +679,19 @@ export async function handleEntrypoints({
       pageEntrypoints: currentEntrypoints.page,
     })
 
-    if (serverFields && hooks?.propagateServerField) {
-      serverFields.actualInstrumentationHookFile = '/instrumentation'
-      await hooks.propagateServerField(
+    if (dev) {
+      dev.serverFields.actualInstrumentationHookFile = '/instrumentation'
+      await dev.hooks.propagateServerField(
         'actualInstrumentationHookFile',
-        serverFields.actualInstrumentationHookFile
+        dev.serverFields.actualInstrumentationHookFile
       )
     }
   } else {
-    if (serverFields && hooks?.propagateServerField) {
-      serverFields.actualInstrumentationHookFile = undefined
-      await hooks.propagateServerField(
+    if (dev) {
+      dev.serverFields.actualInstrumentationHookFile = undefined
+      await dev.hooks.propagateServerField(
         'actualInstrumentationHookFile',
-        serverFields.actualInstrumentationHookFile
+        dev.serverFields.actualInstrumentationHookFile
       )
     }
   }
@@ -743,13 +699,15 @@ export async function handleEntrypoints({
   if (middleware) {
     const key = getEntryKey('root', 'server', 'middleware')
 
-    const processMiddleware = async () => {
-      const writtenEndpoint = await middleware.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    const endpoint = middleware.endpoint
+
+    async function processMiddleware() {
+      const writtenEndpoint = await endpoint.writeToDisk()
+      dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
       processIssues(currentEntryIssues, key, writtenEndpoint)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
-      if (serverFields) {
-        serverFields.middleware = {
+      if (dev) {
+        dev.serverFields.middleware = {
           match: null as any,
           page: '/',
           matchers:
@@ -759,16 +717,21 @@ export async function handleEntrypoints({
     }
     await processMiddleware()
 
-    hooks?.subscribeToChanges(key, false, middleware.endpoint, async () => {
-      const finishBuilding = hooks.startBuilding('middleware', undefined, true)
+    dev?.hooks.subscribeToChanges(key, false, endpoint, async () => {
+      const finishBuilding = dev.hooks.startBuilding(
+        'middleware',
+        undefined,
+        true
+      )
       await processMiddleware()
-      if (serverFields && hooks.propagateServerField) {
-        await hooks.propagateServerField(
-          'actualMiddlewareFile',
-          serverFields.actualMiddlewareFile
-        )
-        await hooks.propagateServerField('middleware', serverFields.middleware)
-      }
+      await dev.hooks.propagateServerField(
+        'actualMiddlewareFile',
+        dev.serverFields.actualMiddlewareFile
+      )
+      await dev.hooks.propagateServerField(
+        'middleware',
+        dev.serverFields.middleware
+      )
       await manifestLoader.writeManifests({
         rewrites: rewrites,
         pageEntrypoints: currentEntrypoints.page,
@@ -781,17 +744,81 @@ export async function handleEntrypoints({
     manifestLoader.deleteMiddlewareManifest(
       getEntryKey('root', 'server', 'middleware')
     )
-    if (serverFields) {
-      serverFields.actualMiddlewareFile = undefined
-      serverFields.middleware = undefined
+    if (dev) {
+      dev.serverFields.actualMiddlewareFile = undefined
+      dev.serverFields.middleware = undefined
     }
   }
-  if (serverFields && hooks?.propagateServerField) {
-    await hooks.propagateServerField(
+
+  if (dev) {
+    await dev.hooks.propagateServerField(
       'actualMiddlewareFile',
-      serverFields.actualMiddlewareFile
+      dev.serverFields.actualMiddlewareFile
     )
-    await hooks.propagateServerField('middleware', serverFields.middleware)
+    await dev.hooks.propagateServerField(
+      'middleware',
+      dev.serverFields.middleware
+    )
+  }
+}
+
+async function handleEntrypointsDevCleanup({
+  currentEntryIssues,
+  currentEntrypoints,
+
+  assetMapper,
+  changeSubscriptions,
+  clients,
+  clientStates,
+
+  hooks,
+}: {
+  currentEntrypoints: Entrypoints
+  currentEntryIssues: EntryIssuesMap
+} & HandleEntrypointsDevOpts) {
+  // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
+  for (const key of assetMapper.keys()) {
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      assetMapper.delete(key)
+    }
+  }
+
+  for (const key of changeSubscriptions.keys()) {
+    // middleware is handled separately
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      await hooks.unsubscribeFromChanges(key)
+    }
+  }
+
+  for (const [key] of currentEntryIssues) {
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      currentEntryIssues.delete(key)
+    }
+  }
+
+  for (const client of clients) {
+    const state = clientStates.get(client)
+    if (!state) {
+      continue
+    }
+
+    for (const key of state.clientIssues.keys()) {
+      if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+        state.clientIssues.delete(key)
+      }
+    }
+
+    for (const id of state.subscriptions.keys()) {
+      if (
+        !hasEntrypointForKey(
+          currentEntrypoints,
+          getEntryKey('assets', 'client', id),
+          assetMapper
+        )
+      ) {
+        hooks.unsubscribeFromHmrEvents(client, id)
+      }
+    }
   }
 }
 

@@ -429,22 +429,24 @@ export async function createHotReloaderTurbopack(
         nextConfig: opts.nextConfig,
         rewrites: opts.fsChecker.rewrites,
 
-        assetMapper,
-        changeSubscriptions,
-        clients,
-        clientStates,
-        serverFields,
+        dev: {
+          assetMapper,
+          changeSubscriptions,
+          clients,
+          clientStates,
+          serverFields,
 
-        hooks: {
-          handleWrittenEndpoint: (id, result) => {
-            clearRequireCache(id, result)
+          hooks: {
+            handleWrittenEndpoint: (id, result) => {
+              clearRequireCache(id, result)
+            },
+            propagateServerField: propagateServerField.bind(null, opts),
+            sendHmr,
+            startBuilding,
+            subscribeToChanges,
+            unsubscribeFromChanges,
+            unsubscribeFromHmrEvents,
           },
-          propagateServerField: propagateServerField.bind(null, opts),
-          sendHmr,
-          startBuilding,
-          subscribeToChanges,
-          unsubscribeFromChanges,
-          unsubscribeFromHmrEvents,
         },
       })
 
