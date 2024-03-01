@@ -144,9 +144,6 @@ export function processIssues(
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
-
     relevantIssues.add(formatted)
   }
 
