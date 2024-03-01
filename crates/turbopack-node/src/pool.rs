@@ -26,7 +26,7 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -71,8 +71,6 @@ enum NodeJsPoolProcess {
 }
 
 struct SpawnedNodeJsPoolProcess {
-    #[allow(dyn_drop)]
-    guard: Box<dyn Drop + Send + Sync>,
     child: Child,
     listener: TcpListener,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
@@ -336,7 +334,6 @@ impl NodeJsPoolProcess {
         shared_stderr: SharedOutputSet,
         debug: bool,
     ) -> Result<Self> {
-        let guard = Box::new(duration_span!("Node.js process startup"));
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;
@@ -367,7 +364,6 @@ impl NodeJsPoolProcess {
         let child = cmd.spawn().context("spawning node pooled process")?;
 
         Ok(Self::Spawned(SpawnedNodeJsPoolProcess {
-            guard,
             listener,
             child,
             debug,
@@ -382,7 +378,6 @@ impl NodeJsPoolProcess {
     async fn run(self) -> Result<RunningNodeJsPoolProcess> {
         Ok(match self {
             NodeJsPoolProcess::Spawned(SpawnedNodeJsPoolProcess {
-                guard,
                 mut child,
                 listener,
                 assets_for_source_mapping,
@@ -467,7 +462,7 @@ impl NodeJsPoolProcess {
                     final_stream: stderr(),
                 };
 
-                let mut process = RunningNodeJsPoolProcess {
+                RunningNodeJsPoolProcess {
                     child: Some(child),
                     connection,
                     assets_for_source_mapping,
@@ -476,20 +471,7 @@ impl NodeJsPoolProcess {
                     stdout_handler,
                     stderr_handler,
                     debug,
-                };
-
-                drop(guard);
-
-                let guard = duration_span!("Node.js initialization");
-                let ready_signal = process.recv().await?;
-
-                if !ready_signal.is_empty() {
-                    bail!("Node.js process didn't send the expected ready signal");
                 }
-
-                drop(guard);
-
-                process
             }
             NodeJsPoolProcess::Running(running) => running,
         })
@@ -501,18 +483,12 @@ impl RunningNodeJsPoolProcess {
         let connection = &mut self.connection;
         async fn with_timeout<T, E: Into<anyhow::Error>>(
             debug: bool,
-            fast: bool,
             future: impl Future<Output = Result<T, E>> + Send,
         ) -> Result<T> {
             if debug {
                 future.await.map_err(Into::into)
             } else {
-                let time = if fast {
-                    Duration::from_secs(20)
-                } else {
-                    Duration::from_secs(5 * 60)
-                };
-                timeout(time, future)
+                timeout(Duration::from_secs(60), future)
                     .await
                     .context("timeout while receiving message from process")?
                     .map_err(Into::into)
@@ -520,13 +496,13 @@ impl RunningNodeJsPoolProcess {
         }
         let debug = self.debug;
         let recv_future = async move {
-            let packet_len = with_timeout(debug, false, connection.read_u32())
+            let packet_len = with_timeout(debug, connection.read_u32())
                 .await
                 .context("reading packet length")?
                 .try_into()
                 .context("storing packet length")?;
             let mut packet_data = vec![0; packet_len];
-            with_timeout(debug, true, connection.read_exact(&mut packet_data))
+            with_timeout(debug, connection.read_exact(&mut packet_data))
                 .await
                 .context("reading packet data")?;
             Ok::<_, anyhow::Error>(packet_data)

@@ -353,11 +353,6 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(self.await?.resolve_options_context)
-    }
-
-    #[turbo_tasks::function]
     pub async fn is_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
         let resolve_options_context = self.await?.resolve_options_context.await?;
         Ok(Vc::cell(
@@ -429,7 +424,6 @@ async fn process_default_internal(
     let options = ModuleOptions::new(
         ident.path().parent(),
         module_asset_context.module_options_context(),
-        module_asset_context.resolve_options_context(),
     );
 
     let reference_type = reference_type.into_value();
