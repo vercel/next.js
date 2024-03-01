@@ -21,7 +21,7 @@ async fn basic_get() {
         });
 
 
-        let result = &*fetch(Vc::cell(server.url("/foo.woff")), Vc::cell(None)).await?;
+        let result = &*fetch(Vc::cell(server.url("/foo.woff")), Vc::cell(None), Vc::cell(None)).await?;
         resource_mock.assert();
 
         match result {
@@ -47,7 +47,7 @@ async fn sends_user_agent() {
                 .body("responsebody");
         });
 
-        let result = &*fetch(Vc::cell(server.url("/foo.woff")), Vc::cell(Some("foo".to_owned()))).await?;
+        let result = &*fetch(Vc::cell(server.url("/foo.woff")), Vc::cell(Some("foo".to_owned())), Vc::cell(None)).await?;
         resource_mock.assert();
 
         let Ok(response) = result else {
@@ -76,7 +76,8 @@ async fn invalidation_does_not_invalidate() {
 
         let url = Vc::cell(server.url("/foo.woff"));
         let user_agent = Vc::cell(Some("foo".to_owned()));
-        let result = &*fetch(url, user_agent).await?;
+        let proxy = Vc::cell(None);
+        let result = &*fetch(url, user_agent, proxy).await?;
         resource_mock.assert();
 
         let Ok(response_vc) = result else {
@@ -86,7 +87,7 @@ async fn invalidation_does_not_invalidate() {
         assert_eq!(response.status, 200);
         assert_eq!(*response.body.to_string().await?, "responsebody");
 
-        let second_result = &*fetch(url, user_agent).await?;
+        let second_result = &*fetch(url, user_agent, proxy).await?;
         let Ok(second_response_vc) = second_result else {
             panic!()
         };
@@ -104,7 +105,7 @@ async fn errors_on_failed_connection() {
         register();
 
         let url = "https://doesnotexist/foo.woff";
-        let result = &*fetch(Vc::cell(url.to_owned()), Vc::cell(None)).await?;
+        let result = &*fetch(Vc::cell(url.to_owned()), Vc::cell(None), Vc::cell(None)).await?;
         let Err(err_vc) = result else {
             panic!()
         };
@@ -125,7 +126,7 @@ async fn errors_on_404() {
 
         let server = httpmock::MockServer::start();
         let resource_url = server.url("/");
-        let result = &*fetch(Vc::cell(resource_url.clone()), Vc::cell(None)).await?;
+        let result = &*fetch(Vc::cell(resource_url.clone()), Vc::cell(None), Vc::cell(None)).await?;
         let Err(err_vc) = result else {
             panic!()
         };
