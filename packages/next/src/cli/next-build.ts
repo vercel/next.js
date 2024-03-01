@@ -16,7 +16,7 @@ type NextBuildOptions = {
   mangling: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
-  buildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate'
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
@@ -30,7 +30,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     mangling,
     experimentalAppOnly,
     experimentalTurbo,
-    buildMode,
+    experimentalBuildMode,
   } = options
 
   if (!lint) {
@@ -68,7 +68,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     !mangling,
     experimentalAppOnly,
     !!process.env.TURBOPACK,
-    buildMode
+    experimentalBuildMode
   ).catch((err) => {
     console.error('')
     if (

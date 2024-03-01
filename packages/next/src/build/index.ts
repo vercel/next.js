@@ -674,14 +674,14 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  buildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate'
 ): Promise<void> {
-  const isCompileMode = buildMode === 'compile'
-  const isGenerateMode = buildMode === 'generate'
+  const isCompileMode = experimentalBuildMode === 'compile'
+  const isGenerateMode = experimentalBuildMode === 'generate'
 
   try {
     const nextBuildSpan = trace('next-build', undefined, {
-      buildMode: buildMode,
+      buildMode: experimentalBuildMode,
       isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
