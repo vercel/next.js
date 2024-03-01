@@ -175,15 +175,19 @@ Creates an optimized production build of your application. The output displays i
 about each route.
 
 Arguments:
-  [directory]    A directory on which to build the application. If no directory is
-                 provided, the current directory will be used.
+  [directory]                       A directory on which to build the application. If no
+                                    provided, the current directory will be
+                                    used.
 
 Options:
-  -d, --debug    Eanbles a more verbose build output.
-  --profile      Enables production profiling for React.
-  --no-lint      Disables linting.
-  --no-mangling  Disables mangling.
-  -h, --help     Displays this message.
+  -d, --debug                       Enables a more verbose build output.
+  --profile                         Enables production profiling for React.
+  --no-lint                         Disables linting.
+  --no-mangling                     Disables mangling.
+  --experimental-app-only           Builds only App Router routes.
+  --experimental-build-mode [mode]  Uses an experimental build mode. (choices: "compile"
+                                    "generate", default: "default")
+  -h, --help                        Displays this message.
 ```
 
 ### Profiling
