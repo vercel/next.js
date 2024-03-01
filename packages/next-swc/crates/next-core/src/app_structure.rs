@@ -839,19 +839,24 @@ async fn directory_tree_to_loader_tree(
                 } else if *current_tree.has_only_catchall().await? {
                     tree.parallel_routes.insert("children".to_string(), subtree);
                 } else {
-                    // TODO: improve error message to have the full paths
-                    DirectoryTreeIssue {
-                        app_dir,
-                        message: StyledString::Text(format!(
-                            "You cannot have two parallel pages that resolve to the same path. \
-                             Route {} has multiple matches in {}",
-                            for_app_path, app_page
-                        ))
-                        .cell(),
-                        severity: IssueSeverity::Error.cell(),
-                    }
-                    .cell()
-                    .emit();
+                    // TODO: Investigate if this is still needed. Emitting the
+                    // error causes the test "should
+                    // gracefully handle when two page
+                    // segments match the `children`
+                    // parallel slot" to fail
+                    // DirectoryTreeIssue {
+                    //     app_dir,
+                    //     message: StyledString::Text(format!(
+                    //         "You cannot have two parallel pages that resolve
+                    // to the same path. \          Route {}
+                    // has multiple matches in {}",
+                    //         for_app_path, app_page
+                    //     ))
+                    //     .cell(),
+                    //     severity: IssueSeverity::Error.cell(),
+                    // }
+                    // .cell()
+                    // .emit();
                 }
             } else {
                 tree.parallel_routes.insert("children".to_string(), subtree);

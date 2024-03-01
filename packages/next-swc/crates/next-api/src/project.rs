@@ -40,6 +40,7 @@ use turbopack_binding::{
             context::AssetContext,
             diagnostics::DiagnosticExt,
             file_source::FileSource,
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             output::{OutputAsset, OutputAssets},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
@@ -347,6 +348,42 @@ impl ProjectDefineEnv {
     }
 }
 
+#[turbo_tasks::value(shared)]
+struct ConflictIssue {
+    path: Vc<FileSystemPath>,
+    title: Vc<StyledString>,
+    description: Vc<StyledString>,
+    severity: Vc<IssueSeverity>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for ConflictIssue {
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        self.title
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
@@ -639,6 +676,24 @@ impl Project {
         for (pathname, page_route) in pages_project.routes().await?.iter() {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
+                    ConflictIssue {
+                        path: self.project_path(),
+                        title: StyledString::Text(
+                            format!("App Router and Pages Router both match path: {}", pathname)
+                                .to_string(),
+                        )
+                        .cell(),
+                        description: StyledString::Text(
+                            "Next.js does not support having both App Router and Pages Router \
+                             routes matching the same path. Please remove one of the conflicting \
+                             routes."
+                                .to_string(),
+                        )
+                        .cell(),
+                        severity: IssueSeverity::Error.cell(),
+                    }
+                    .cell()
+                    .emit();
                     *entry.get_mut() = Route::Conflict;
                 }
                 Entry::Vacant(entry) => {
