@@ -40,7 +40,7 @@ use turbopack_binding::{
             context::AssetContext,
             diagnostics::DiagnosticExt,
             file_source::FileSource,
-            issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             output::{OutputAsset, OutputAssets},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
@@ -359,8 +359,8 @@ struct ConflictIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ConflictIssue {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("next app".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
     }
 
     #[turbo_tasks::function]
