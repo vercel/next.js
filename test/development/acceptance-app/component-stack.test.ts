@@ -21,48 +21,26 @@ describe('Component Stack in error overlay', () => {
     // If it's too long we can collapse
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "<Root>
-          <ServerRoot>
-            <AppRouter>
-              <ErrorBoundary>
-                <ErrorBoundaryHandler>
-                  <Router>"
+        "...
+          <InnerLayoutRouter>
+            <Mismatch>
+              <main>
+                <Component>
+                  <div>
+                    "server"
+                    "client""
       `)
 
       await session.toggleComponentStack()
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "<Root>
-          <ServerRoot>
-            <AppRouter>
-              <ErrorBoundary>
-                <ErrorBoundaryHandler>
-                  <Router>
-                    <HotReload>
-                      <ReactDevOverlay>
-                        <DevRootNotFoundBoundary>
-                          <NotFoundBoundary>
-                            <NotFoundErrorBoundary>
-                              <RedirectBoundary>
-                                <RedirectErrorBoundary>
-                                  <RootLayout>
-                                    <html>
-                                      <body>
-                                        <OuterLayoutRouter>
-                                          <RenderFromTemplateContext>
-                                            <ScrollAndFocusHandler>
-                                              <InnerScrollAndFocusHandler>
-                                                <ErrorBoundary>
-                                                  <LoadingBoundary>
-                                                    <NotFoundBoundary>
-                                                      <NotFoundErrorBoundary>
-                                                        <RedirectBoundary>
-                                                          <RedirectErrorBoundary>
-                                                            <InnerLayoutRouter>
-                                                              <Mismatch>
-                                                                <main>
-                                                                  <Component>
-                                                                    <div>
-                                                                      <p>"
+        "<InnerLayoutRouter>
+          <Mismatch>
+            <main>
+              <Component>
+                <div>
+                  <p>
+                    "server"
+                    "client""
       `)
     } else {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
@@ -70,7 +48,9 @@ describe('Component Stack in error overlay', () => {
           <main>
             <Component>
               <div>
-                <p>"
+                <p>
+                  "server"
+                  "client""
       `)
     }
 

@@ -26,10 +26,11 @@ use turbopack_binding::{
 };
 
 use crate::{
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    paths::{
+        all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -202,7 +203,11 @@ impl Endpoint for InstrumentationEndpoint {
                 .await?
                 .clone_value();
 
-            Ok(WrittenEndpoint::Edge { server_paths }.cell())
+            Ok(WrittenEndpoint::Edge {
+                server_paths,
+                client_paths: vec![],
+            }
+            .cell())
         }
         .instrument(span)
         .await

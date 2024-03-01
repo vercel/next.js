@@ -383,6 +383,9 @@ importers:
       node-plop:
         specifier: 0.31.1
         version: 0.31.1
+      npm-run-all:
+        specifier: 4.1.5
+        version: 4.1.5
       nprogress:
         specifier: 0.2.0
         version: 0.2.0
@@ -747,7 +750,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -809,7 +812,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.5
@@ -930,16 +933,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1239,8 +1242,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1
       mini-css-extract-plugin:
-        specifier: 2.4.3
-        version: 2.4.3(webpack@5.90.0)
+        specifier: 2.4.4
+        version: 2.4.4(webpack@5.90.0)
       msw:
         specifier: 1.3.0
         version: 1.3.0(typescript@5.2.2)
@@ -1284,8 +1287,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
       postcss-modules-local-by-default:
-        specifier: 4.0.0
-        version: 4.0.0(postcss@8.4.31)
+        specifier: 4.0.4
+        version: 4.0.4(postcss@8.4.31)
       postcss-modules-scope:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
@@ -1551,7 +1554,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.1.1-canary.80
+        specifier: 14.1.1-canary.82
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -3449,7 +3452,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /@csstools/postcss-normalize-display-values@1.0.0(postcss@8.4.31):
@@ -10132,7 +10135,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /css-box-shadow@1.0.0-3:
@@ -10173,7 +10176,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /css-prefers-color-scheme@6.0.3(postcss@8.4.31):
@@ -17192,6 +17195,11 @@ packages:
     engines: {node: '>= 0.6'}
     dev: true
 
+  /memorystream@0.3.1:
+    resolution: {integrity: sha1-htcJCzDORV1j+64S3aUaR93K+bI=}
+    engines: {node: '>= 0.10.0'}
+    dev: true
+
   /meow@3.7.0:
     resolution: {integrity: sha512-TNdwZs0skRlpPpCUK25StC4VH+tP5GgeY1HQOOGP+lQ2xtdkN2VtT/5tiX9k3IWpkBPV9b3LsAWXn4GGi/PrSA==}
     engines: {node: '>=0.10.0'}
@@ -17722,13 +17730,13 @@ packages:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
 
-  /mini-css-extract-plugin@2.4.3(webpack@5.90.0):
-    resolution: {integrity: sha512-zekavl9mZuGyk7COjsfFY/f655AX61EKE0AthXPrmDk+oZyjZ9WzO4WPjXnnO9xl8obK2kmM6rAQrBEmk+WK1g==}
+  /mini-css-extract-plugin@2.4.4(webpack@5.90.0):
+    resolution: {integrity: sha512-UJ+aNuFQaQaECu7AamlWOBLj2cJ6XSGU4zNiqXeZ7lZLe5VD0DoSPWFbWArXueo+6FZVbgHzpX9lUIaBIDLuYg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
       webpack: 5.90.0
     dependencies:
-      schema-utils: 3.1.1
+      schema-utils: 3.2.0
       webpack: 5.90.0(@swc/core@1.3.85)
     dev: true
 
@@ -18383,6 +18391,22 @@ packages:
     transitivePeerDependencies:
       - bluebird
       - supports-color
+    dev: true
+
+  /npm-run-all@4.1.5:
+    resolution: {integrity: sha512-Oo82gJDAVcaMdi3nuoKFavkIHBRVqQ1qvMb+9LHk/cF4P6B2m8aP04hGf7oL6wZ9BuGwX1onlLhpuoofSyoQDQ==}
+    engines: {node: '>= 4'}
+    hasBin: true
+    dependencies:
+      ansi-styles: 3.2.1
+      chalk: 2.4.2
+      cross-spawn: 6.0.5
+      memorystream: 0.3.1
+      minimatch: 3.1.2
+      pidtree: 0.3.0
+      read-pkg: 3.0.0
+      shell-quote: 1.7.3
+      string.prototype.padend: 3.1.0
     dev: true
 
   /npm-run-path@1.0.0:
@@ -19273,6 +19297,12 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
+  /pidtree@0.3.0:
+    resolution: {integrity: sha512-9CT4NFlDcosssyg8KVFltgokyKZIFjoBxw8CTGy+5F38Y1eQWrt8tRayiUOXE+zVKQnYu5BR8JjCtvK3BcnBhg==}
+    engines: {node: '>=0.10'}
+    hasBin: true
+    dev: true
+
   /pify@2.3.0:
     resolution: {integrity: sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog==}
     engines: {node: '>=0.10.0'}
@@ -19435,7 +19465,7 @@ packages:
       postcss: ^8.0.2
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-calc@7.0.1:
@@ -19453,7 +19483,7 @@ packages:
       postcss: ^8.2.2
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
       postcss-value-parser: 4.2.0
     dev: true
 
@@ -19566,7 +19596,7 @@ packages:
       postcss: ^8.1.2
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-dir-pseudo-class@6.0.4(postcss@8.4.31):
@@ -19576,7 +19606,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-discard-comments@4.0.2:
@@ -19679,7 +19709,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-focus-within@5.0.4(postcss@8.4.31):
@@ -19689,7 +19719,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-font-variant@5.0.0(postcss@8.4.31):
@@ -19846,7 +19876,7 @@ packages:
       caniuse-api: 3.0.0
       cssnano-utils: 3.1.0(postcss@8.4.31)
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-minify-font-values@4.0.2:
@@ -19930,7 +19960,7 @@ packages:
       postcss: ^8.2.15
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-modules-extract-imports@3.0.0(postcss@8.4.31):
@@ -19942,15 +19972,15 @@ packages:
       postcss: 8.4.31
     dev: true
 
-  /postcss-modules-local-by-default@4.0.0(postcss@8.4.31):
-    resolution: {integrity: sha512-sT7ihtmGSF9yhm6ggikHdV0hlziDTX7oFoXtuVWeDd3hHObNkcHRo9V3yg7vCAY7cONyxJC/XXCmmiHHcvX7bQ==}
+  /postcss-modules-local-by-default@4.0.4(postcss@8.4.31):
+    resolution: {integrity: sha512-L4QzMnOdVwRm1Qb8m4x8jsZzKAaPAgrUF1r/hjDR2Xj7R+8Zsf97jAlSQzWtKx5YNiNGN8QxmPFIc/sh+RQl+Q==}
     engines: {node: ^10 || ^12 || >= 14}
     peerDependencies:
       postcss: ^8.1.0
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.31)
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
       postcss-value-parser: 4.2.0
     dev: true
 
@@ -19984,7 +20014,7 @@ packages:
       lodash.camelcase: 4.3.0
       postcss: 8.4.31
       postcss-modules-extract-imports: 3.0.0(postcss@8.4.31)
-      postcss-modules-local-by-default: 4.0.0(postcss@8.4.31)
+      postcss-modules-local-by-default: 4.0.4(postcss@8.4.31)
       postcss-modules-scope: 3.0.0(postcss@8.4.31)
       postcss-modules-values: 4.0.0(postcss@8.4.31)
       string-hash: 1.1.3
@@ -20014,7 +20044,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-normalize-charset@4.0.1:
@@ -20300,7 +20330,7 @@ packages:
       postcss: ^8.4
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-pseudoelements@5.0.0:
@@ -20477,7 +20507,7 @@ packages:
       postcss: ^8.2.15
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.10
+      postcss-selector-parser: 6.0.11
     dev: true
 
   /postcss-value-parser@3.3.1:
@@ -22281,15 +22311,6 @@ packages:
       ajv-keywords: 3.5.2(ajv@6.12.6)
     dev: true
 
-  /schema-utils@3.1.1:
-    resolution: {integrity: sha512-Y5PQxS4ITlC+EahLuXaY86TXfR7Dc5lw294alXOq86JAHCihAIZfqv8nNCWvaEJvaC51uN9hbLGeV0cFBdH+Fw==}
-    engines: {node: '>= 10.13.0'}
-    dependencies:
-      '@types/json-schema': 7.0.12
-      ajv: 6.12.6
-      ajv-keywords: 3.5.2(ajv@6.12.6)
-    dev: true
-
   /schema-utils@3.2.0:
     resolution: {integrity: sha512-0zTyLGyDJYd/MBxG1AhJkKa6fpEBds4OQO2ut0w7OYG+ZGhGea09lijvzsqegYSik88zc7cUtIlnnO+/BvD6gQ==}
     engines: {node: '>= 10.13.0'}
@@ -23073,6 +23094,14 @@ packages:
       internal-slot: 1.0.3
       regexp.prototype.flags: 1.4.3
       side-channel: 1.0.4
+
+  /string.prototype.padend@3.1.0:
+    resolution: {integrity: sha512-3aIv8Ffdp8EZj8iLwREGpQaUZiPyrWrpzMBHvkiSW/bK/EGve9np07Vwy7IJ5waydpGXzQZu/F8Oze2/IWkBaA==}
+    engines: {node: '>= 0.4'}
+    dependencies:
+      define-properties: 1.1.4
+      es-abstract: 1.20.2
+    dev: true
 
   /string.prototype.trim@1.2.7:
     resolution: {integrity: sha512-p6TmeT1T3411M8Cgg9wBTMRtY2q9+PNy9EV1i2lIXUN/btt763oIfxwN3RR8VU6wHX8j/1CFy0L+YuThm6bgOg==}
