@@ -187,7 +187,7 @@ async function createRedirectRenderResult(
     const host = process.env.__NEXT_PRIVATE_HOST || originalHost.value
 
     const fetchUrl = new URL(
-      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`
+      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {

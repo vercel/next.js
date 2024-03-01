@@ -932,8 +932,9 @@
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
+      "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
-      "ReactRefreshLogBox app turbo stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "failed": [],
@@ -953,8 +954,9 @@
       "ReactRefreshLogBox app default module init error not shown",
       "ReactRefreshLogBox app default non-Error errors are handled properly",
       "ReactRefreshLogBox app default server component can recover from error thrown in the module",
+      "ReactRefreshLogBox app default should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox app default should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app default should strip whitespace correctly with newline",
-      "ReactRefreshLogBox app default stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace",
       "ReactRefreshLogBox app default unterminated JSX",
       "ReactRefreshLogBox app turbo internal package errors",
       "ReactRefreshLogBox app turbo non-Error errors are handled properly"
@@ -1057,8 +1059,8 @@
     ],
     "failed": [],
     "pending": [
-      "Error overlay - editor opening links in import traces links should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor opening links in import traces links should be possible to open import trace files on module not found error"
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1105,12 +1107,14 @@
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors should only show one hydration error when bad nesting happened",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra element",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra node inside Suspense content",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra text node",
       "Error overlay for hydration errors should show correct hydration error when server renders an extra element",
-      "Error overlay for hydration errors should show correct hydration error when server renders an extra text node"
+      "Error overlay for hydration errors should show correct hydration error when server renders an extra text node",
+      "Error overlay for hydration errors should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
     "failed": [],
     "pending": [],
@@ -1286,8 +1290,9 @@
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
+      "ReactRefreshLogBox turbo should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox turbo should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
-      "ReactRefreshLogBox turbo stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
     "failed": [],
@@ -1300,8 +1305,9 @@
       "ReactRefreshLogBox default logbox: anchors links in error messages",
       "ReactRefreshLogBox default module init error not shown",
       "ReactRefreshLogBox default non-Error errors are handled properly",
+      "ReactRefreshLogBox default should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox default should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox default should strip whitespace correctly with newline",
-      "ReactRefreshLogBox default stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error",
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
@@ -1461,6 +1467,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-deleted-page/hmr-deleted-page.test.ts": {
+    "passed": ["hmr-deleted-page should not show errors for a deleted page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -1516,19 +1529,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Skipped in Turbopack optimizePackageImports - mui should support MUI"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/barrel-optimization/barrel-optimization.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
-      "Skipped in Turbopack optimizePackageImports app - should optimize recursive wildcard export mapping",
-      "Skipped in Turbopack optimizePackageImports app - should render the icons correctly without creating all the modules",
-      "Skipped in Turbopack optimizePackageImports pages - should optimize recursive wildcard export mapping",
-      "Skipped in Turbopack optimizePackageImports pages - should render the icons correctly without creating all the modules",
-      "Skipped in Turbopack optimizePackageImports should handle recursive wildcard exports",
-      "Skipped in Turbopack optimizePackageImports should not break \"use client\" directive in optimized packages",
-      "Skipped in Turbopack optimizePackageImports should support \"use client\" directive in barrel file",
-      "Skipped in Turbopack optimizePackageImports should support MUI",
-      "Skipped in Turbopack optimizePackageImports should support visx"
+      "Skipped in Turbopack optimizePackageImports - basic app - should optimize recursive wildcard export mapping",
+      "Skipped in Turbopack optimizePackageImports - basic app - should render the icons correctly without creating all the modules",
+      "Skipped in Turbopack optimizePackageImports - basic pages - should optimize recursive wildcard export mapping",
+      "Skipped in Turbopack optimizePackageImports - basic pages - should render the icons correctly without creating all the modules",
+      "Skipped in Turbopack optimizePackageImports - basic should handle recursive wildcard exports",
+      "Skipped in Turbopack optimizePackageImports - basic should not break \"use client\" directive in optimized packages",
+      "Skipped in Turbopack optimizePackageImports - basic should support \"use client\" directive in barrel file",
+      "Skipped in Turbopack optimizePackageImports - basic should support visx"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1589,6 +1610,7 @@
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles correctly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles in a stateful component correctly",
+      "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"\" should have correct router.isReady for auto-export page",
       "basic HMR, basePath: \"\" should have correct router.isReady for getStaticProps page",
       "basic HMR, basePath: \"\" should show hydration error correctly",
@@ -1607,6 +1629,7 @@
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles correctly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a stateful component correctly",
+      "basic HMR, basePath: \"/docs\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"/docs\" should have correct router.isReady for auto-export page",
       "basic HMR, basePath: \"/docs\" should have correct router.isReady for getStaticProps page",
       "basic HMR, basePath: \"/docs\" should show hydration error correctly"
@@ -1618,14 +1641,12 @@
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
-      "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
-      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error",
-      "basic HMR, basePath: \"/docs\" should have correct compile timing after fixing error"
+      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error"
     ],
     "pending": [],
     "flakey": [],
@@ -2109,6 +2130,7 @@
       "Client Navigation with onClick action should always replace the state and perform additional action",
       "Client Navigation with onClick action should not reload if default was prevented",
       "Client Navigation with onClick action should reload the page and perform additional action",
+      "Client Navigation with querystring relative urls router.replace with shallow=true shall not throw route cancelled errors",
       "Client Navigation with querystring relative urls should work with Link",
       "Client Navigation with querystring relative urls should work with router.push",
       "Client Navigation with querystring relative urls should work with router.replace",
@@ -2147,6 +2169,15 @@
   },
   "test/development/repeated-dev-edits/repeated-dev-edits.test.ts": {
     "passed": ["repeated-dev-edits should not break the hydration "],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/start-no-build/start-no-build.test.ts": {
+    "passed": [
+      "next start without next build should show error when there is no production build"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2323,6 +2354,7 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
@@ -2397,6 +2429,7 @@
   },
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
+      "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should successfully hard navigate from pages -> app",
@@ -2731,11 +2764,13 @@
       "app-custom-routes hooks cookies gets the correct values",
       "app-custom-routes hooks cookies().has() gets the correct values",
       "app-custom-routes hooks headers gets the correct values",
-      "app-custom-routes hooks notFound can respond correctly",
+      "app-custom-routes hooks notFound can respond correctly in edge",
+      "app-custom-routes hooks notFound can respond correctly in nodejs",
       "app-custom-routes hooks permanentRedirect can respond correctly",
       "app-custom-routes hooks redirect can respond correctly",
       "app-custom-routes hooks req.cookies gets the correct values",
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
+      "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
@@ -2796,11 +2831,13 @@
       "app-custom-routes hooks cookies gets the correct values",
       "app-custom-routes hooks cookies().has() gets the correct values",
       "app-custom-routes hooks headers gets the correct values",
-      "app-custom-routes hooks notFound can respond correctly",
+      "app-custom-routes hooks notFound can respond correctly in edge",
+      "app-custom-routes hooks notFound can respond correctly in nodejs",
       "app-custom-routes hooks permanentRedirect can respond correctly",
       "app-custom-routes hooks redirect can respond correctly",
       "app-custom-routes hooks req.cookies gets the correct values",
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
+      "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
@@ -3714,6 +3751,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-json-manifest/index.test.ts": {
+    "passed": [
+      "app-dir metadata-json-manifest should support metadata.json manifest"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
       "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
@@ -3820,6 +3866,7 @@
       "app dir - navigation SEO should emit refresh meta tag for redirect page when streaming",
       "app dir - navigation SEO should not log 404 errors in ipc server",
       "app dir - navigation bots should block rendering for bots and return 404 status",
+      "app dir - navigation browser back to a revalidated page should load the page",
       "app dir - navigation external push should push external url without affecting hooks",
       "app dir - navigation hash should not scroll to hash when scroll={false} is set",
       "app dir - navigation hash should scroll to the specified hash",
@@ -3961,13 +4008,12 @@
   },
   "test/e2e/app-dir/not-found/conflict-route/index.test.ts": {
     "passed": [
+      "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes",
+      "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with runtime = edge should use the not-found page for non-matching routes"
     ],
-    "failed": [
-      "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
-      "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5412,6 +5458,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/i18n-preferred-locale-detection/i18n-preferred-locale-detection.test.ts": {
+    "passed": [
+      "i18-preferred-locale-redirect should not request a path prefixed with my preferred detected locale when clicking link to index from a non-locale-prefixed path",
+      "i18-preferred-locale-redirect should request a path prefixed with my preferred detected locale when accessing index",
+      "i18-preferred-locale-redirect should request a path prefixed with my preferred detected locale when clicking link to index from a locale-prefixed path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/ignore-invalid-popstateevent/with-i18n.test.ts": {
     "passed": [
       "i18n: Event with stale state - static route previously was dynamic Don't ignore event with different locale",
@@ -6118,11 +6175,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/opentelemetry/instrumentation-pages-app-only.test.ts": {
+    "passed": [
+      "instrumentation app should start and serve correctly",
+      "instrumentation app src/ should start and serve correctly",
+      "instrumentation pages should start and serve correctly",
+      "instrumentation pages src/ should start and serve correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/opentelemetry/opentelemetry.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
       "opentelemetry incoming context propagation app router should handle RSC with fetch",
+      "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
@@ -6133,6 +6203,7 @@
       "opentelemetry incoming context propagation pages should handle getServerSideProps on edge",
       "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry root context app router should handle RSC with fetch",
+      "opentelemetry root context app router should handle RSC with fetch in RSC mode",
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
@@ -6533,6 +6604,15 @@
       "undici fetch undici global Request should return true when undici is used",
       "undici fetch undici global Response should return true when undici is used",
       "undici fetch undici global fetch should return true when undici is used"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/useselectedlayoutsegment-s-in-pages-router/useselectedlayoutsegment-s-in-pages-router.test.ts": {
+    "passed": [
+      "useSelectedLayoutSegment(s) in Pages Router Should render with `useSelectedLayoutSegment(s) hooks"
     ],
     "failed": [],
     "pending": [],
