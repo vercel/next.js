@@ -1,8 +1,8 @@
 import {
   getRedboxHeader,
   hasRedbox,
+  check,
   getRedboxSource,
-  retry,
 } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
@@ -17,24 +17,15 @@ createNextDescribe(
     if (isNextStart) {
       it('should print error for conflicting app/page', async () => {
         const { cliOutput } = await next.build()
-        if (process.env.TURBOPACK) {
-          expect(cliOutput).toContain(
-            'App Router and Pages Router both match path: /'
-          )
-          expect(cliOutput).toContain(
-            'App Router and Pages Router both match path: /another'
-          )
-        } else {
-          expect(cliOutput).toMatch(
-            /Conflicting app and page files? (were|was) found/
-          )
+        expect(cliOutput).toMatch(
+          /Conflicting app and page files? (were|was) found/
+        )
 
-          for (const [pagePath, appPath] of [
-            ['pages/index.js', 'app/page.js'],
-            ['pages/another.js', 'app/another/page.js'],
-          ]) {
-            expect(cliOutput).toContain(`"${pagePath}" - "${appPath}"`)
-          }
+        for (const [pagePath, appPath] of [
+          ['pages/index.js', 'app/page.js'],
+          ['pages/another.js', 'app/another/page.js'],
+        ]) {
+          expect(cliOutput).toContain(`"${pagePath}" - "${appPath}"`)
         }
 
         expect(cliOutput).not.toContain('/non-conflict-pages')
@@ -43,21 +34,19 @@ createNextDescribe(
     }
 
     async function containConflictsError(browser, conflicts) {
-      await retry(async () => {
+      await check(async () => {
         expect(await hasRedbox(browser)).toBe(true)
         const redboxSource = await getRedboxSource(browser)
-        if (process.env.TURBOPACK) {
-          expect(redboxSource).toContain(
-            'App Router and Pages Router both match path:'
-          )
+        expect(redboxSource).toMatch(
+          /Conflicting app and page files? (were|was) found, please remove the conflicting files to continue:/
+        )
+
+        for (const pair of conflicts) {
+          expect(redboxSource).toContain(`"${pair[0]}" - "${pair[1]}"`)
         }
 
-        if (!process.env.TURBOPACK) {
-          for (const pair of conflicts) {
-            expect(redboxSource).toContain(`"${pair[0]}" - "${pair[1]}"`)
-          }
-        }
-      })
+        return 'success'
+      }, /success/)
     }
 
     if (isNextDev) {

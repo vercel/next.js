@@ -1017,21 +1017,18 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      // Turbopack already handles conflicting app and page routes.
-      if (!IS_TURBOPACK_BUILD) {
-        const numConflictingAppPaths = conflictingAppPagePaths.length
-        if (mappedAppPages && numConflictingAppPaths > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflictingAppPaths === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
-          for (const [pagePath, appPath] of conflictingAppPagePaths) {
-            Log.error(`  "${pagePath}" - "${appPath}"`)
-          }
-          await telemetry.flush()
-          process.exit(1)
+      const numConflictingAppPaths = conflictingAppPagePaths.length
+      if (mappedAppPages && numConflictingAppPaths > 0) {
+        Log.error(
+          `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+        )
+        for (const [pagePath, appPath] of conflictingAppPagePaths) {
+          Log.error(`  "${pagePath}" - "${appPath}"`)
         }
+        await telemetry.flush()
+        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
@@ -1338,6 +1335,8 @@ export default async function build(
           throw new Error("next build doesn't support turbopack yet")
         }
 
+        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
+        // This is caused by Turbopack not having the production build option yet.
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1354,6 +1353,7 @@ export default async function build(
             allowedRevalidateHeaderKeys: undefined,
             clientRouterFilters: undefined,
             config,
+            // When passing `false` you get `react.jsxDEV is not a function`
             dev,
             distDir,
             fetchCacheKeyPrefix: undefined,
