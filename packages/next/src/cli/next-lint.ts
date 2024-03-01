@@ -117,7 +117,7 @@ const nextLint: CliCommand = async (args) => {
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
 
   const files: string[] = args['--file'] ?? []
-  const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
+  const dirs: string[] = args['--dir'] ?? args['--file'] ? [] : nextConfig.eslint?.dirs ?? [];
   const filesToLint = [...(dirs ?? []), ...files]
 
   const pathsToLint = (
