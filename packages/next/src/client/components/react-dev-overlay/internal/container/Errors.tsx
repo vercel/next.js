@@ -25,7 +25,7 @@ import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
-import { PseudoHtmlDiff } from './RuntimeError/ComponentStackPseudoHtml'
+import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   isHtmlTagsWarning,
   type HydrationErrorState,
