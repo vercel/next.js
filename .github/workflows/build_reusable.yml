@@ -72,7 +72,7 @@ env:
 
 jobs:
   build:
-    timeout-minutes: 40
+    timeout-minutes: 15
     runs-on:
       - 'self-hosted'
       - 'linux'
