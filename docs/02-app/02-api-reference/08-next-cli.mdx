@@ -10,10 +10,8 @@ The Next.js CLI allows you to develop, build, start your application, and more.
 To get a list of the available CLI commands, run the following command inside your project directory:
 
 ```bash filename="Terminal"
-npx next -h
+next -h
 ```
-
-_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher)_
 
 The output should look like this:
 
@@ -94,13 +92,13 @@ Options:
 The application will start at `http://localhost:3000` by default. The default port can be changed with `-p`, like so:
 
 ```bash filename="Terminal"
-npx next dev -p 4000
+next dev -p 4000
 ```
 
 Or using the `PORT` environment variable:
 
 ```bash filename="Terminal"
-PORT=4000 npx next dev
+PORT=4000 next dev
 ```
 
 > **Good to know**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
@@ -108,7 +106,7 @@ PORT=4000 npx next dev
 You can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
 
 ```bash filename="Terminal"
-npx next dev -H 192.168.1.2
+next dev -H 192.168.1.2
 ```
 
 ### Turbopack
@@ -264,13 +262,13 @@ Options:
 The application will start at `http://localhost:3000` by default. The default port can be changed with `-p`, like so:
 
 ```bash filename="Terminal"
-npx next start -p 4000
+next start -p 4000
 ```
 
 Or using the `PORT` environment variable:
 
 ```bash filename="Terminal"
-PORT=4000 npx next start
+PORT=4000 next start
 ```
 
 > **Good to know**:
@@ -286,7 +284,7 @@ When deploying Next.js behind a downstream proxy (e.g. a load-balancer like AWS 
 To configure the timeout values for the production Next.js server, pass `--keepAliveTimeout` (in milliseconds) to `next start`, like so:
 
 ```bash filename="Terminal"
-npx next start --keepAliveTimeout 70000
+next start --keepAliveTimeout 70000
 ```
 
 ## Info
