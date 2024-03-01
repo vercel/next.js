@@ -2123,9 +2123,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       postponed: string | undefined
     }) => Promise<ResponseCacheEntry | null>
 
+    // allow debugging the skeleton in dev with PPR
+    // instead of continuing to resume stream right away
+    const debugPPRSkeleton = Boolean(
+      this.nextConfig.experimental.ppr &&
+        this.renderOpts.dev &&
+        query.__nextppronly
+    )
+
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML: boolean =
+      let supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
         // support dynamic HTML.
         (!isDataReq && opts.dev === true) ||
@@ -2195,6 +2203,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+      }
+
+      if (debugPPRSkeleton) {
+        supportsDynamicHTML = false
+        renderOpts.nextExport = true
+        renderOpts.supportsDynamicHTML = false
+        renderOpts.isStaticGeneration = true
+        renderOpts.isRevalidate = true
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2852,6 +2868,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           type: 'html',
           body,
           revalidate: cacheEntry.revalidate,
+        }
+      }
+
+      if (debugPPRSkeleton) {
+        return {
+          type: 'html',
+          body,
+          revalidate: 0,
         }
       }
 
