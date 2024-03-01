@@ -276,6 +276,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        mergeCssChunks: z.boolean().optional(),
         navigationRAF: z.boolean().optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
