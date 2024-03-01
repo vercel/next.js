@@ -1,6 +1,6 @@
 import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
-import { CollapseIcon } from './GroupedStackFrames'
+import { CollapseIcon } from '../../icons/CollapseIcon'
 
 // In total it will display 6 rows.
 const MAX_NON_COLLAPSED_FRAMES = 6
@@ -12,6 +12,7 @@ const MAX_NON_COLLAPSED_FRAMES = 6
  *
  * For html tags mismatch, it will render it for the code block
  *
+ * ```
  * <pre>
  *  <code>{`
  *    <Page>
@@ -21,20 +22,21 @@ const MAX_NON_COLLAPSED_FRAMES = 6
  *         ^^^
  *  `}</code>
  * </pre>
+ * ```
  *
  * For text mismatch, it will render it for the code block
  *
+ * ```diff
  * <pre>
  * <code>{`
  *   <Page>
  *     <p>
- *       "Server Text" (red text as removed)
- *       "Client Text" (green text as added)
+ * -     "Server Text"
+ * +     "Client Text"
  *     </p>
  *   </Page>
  * `}</code>
- *
- *
+ * ```
  */
 export function PseudoHtmlDiff({
   componentStackFrames,
@@ -46,9 +48,8 @@ export function PseudoHtmlDiff({
   componentStackFrames: ComponentStackFrame[]
   serverContent: string
   clientContent: string
-  [prop: string]: any
   hydrationMismatchType: 'tag' | 'text'
-}) {
+} & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
   const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
@@ -157,12 +158,13 @@ export function PseudoHtmlDiff({
 
   return (
     <div data-nextjs-container-errors-pseudo-html>
-      <span
+      <button
+        tabIndex={10} // match CallStackFrame
         data-nextjs-container-errors-pseudo-html-collapse
         onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
       >
         <CollapseIcon collapsed={isHtmlCollapsed} />
-      </span>
+      </button>
       <pre {...props}>
         <code>{htmlComponents}</code>
       </pre>

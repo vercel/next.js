@@ -195,6 +195,10 @@ export const styles = css`
     position: absolute;
     left: 10px;
     top: 10px;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
   }
   [data-nextjs-container-errors-pseudo-html--diff-add] {
     color: var(--color-ansi-green);
