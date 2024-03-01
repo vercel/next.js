@@ -328,7 +328,7 @@ program
       'completely anonymous'
     )} telemetry collection.`
   )
-  .addArgument(new Argument('[toggle]').choices(['enable', 'disable']))
+  .addArgument(new Argument('[arg]').choices(['disable', 'enable', 'status']))
   .addHelpText('after', `\nLearn more: ${cyan('https://nextjs.org/telemetry')}`)
   .addOption(
     new Option('--enable', `Enables Next.js' telemetry collection.`).conflicts(
@@ -336,9 +336,9 @@ program
     )
   )
   .option('--disable', `Disables Next.js' telemetry collection.`)
-  .action((toggle, options) =>
+  .action((arg, options) =>
     import('../cli/next-telemetry.js').then((mod) =>
-      mod.nextTelemetry(options, toggle)
+      mod.nextTelemetry(options, arg)
     )
   )
   .usage('[options]')
