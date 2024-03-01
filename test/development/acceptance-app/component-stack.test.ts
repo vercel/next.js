@@ -27,8 +27,9 @@ describe('Component Stack in error overlay', () => {
               <main>
                 <Component>
                   <div>
-                    "server"
-                    "client""
+                    <p>
+                      "server"
+                      "client""
       `)
 
       await session.toggleCollapseComponentStack()
