@@ -6511,6 +6511,11 @@
     ],
     "subsets": ["arabic", "latin", "latin-ext"]
   },
+  "Madimi One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
+  },
   "Magra": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -7394,7 +7399,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["arabic"]
+    "subsets": ["arabic", "latin", "latin-ext", "math", "symbols"]
   },
   "Noto Music": {
     "weights": ["400"],
@@ -7668,7 +7673,7 @@
   "Noto Sans Brahmi": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["brahmi", "latin", "latin-ext"]
+    "subsets": ["brahmi", "latin", "latin-ext", "math", "symbols"]
   },
   "Noto Sans Buginese": {
     "weights": ["400"],
@@ -7943,7 +7948,15 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["georgian", "latin", "latin-ext"]
+    "subsets": [
+      "cyrillic-ext",
+      "georgian",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
   },
   "Noto Sans Glagolitic": {
     "weights": ["400"],
@@ -10134,6 +10147,19 @@
       "vietnamese"
     ]
   },
+  "Ojuju": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "math", "symbols", "vietnamese"]
+  },
   "Old Standard TT": {
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
@@ -11472,6 +11498,12 @@
         "min": -200,
         "max": 150,
         "defaultValue": 0
+      },
+      {
+        "tag": "XOPQ",
+        "min": 27,
+        "max": 175,
+        "defaultValue": 96
       },
       {
         "tag": "XTRA",

@@ -22,6 +22,7 @@ import {
   DEFAULT_RUNTIME_WEBPACK,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
   getActions,
@@ -333,6 +334,23 @@ export class FlightClientEntryPlugin {
           bundlePath,
           absolutePagePath: entryRequest,
         })
+
+        // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
+        // It needs the file in order to write the reference manifest for the path in the `.next/server` folder.
+        // TODO-APP: This could be better handled, however Turbopack does not have the same problem as we resolve client components in a single graph.
+        if (
+          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
+          bundlePath === 'app/not-found'
+        ) {
+          clientEntriesToInject.push({
+            compiler,
+            compilation,
+            entryName: name,
+            clientComponentImports: {},
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            absolutePagePath: entryRequest,
+          })
+        }
       }
 
       // Make sure CSS imports are deduplicated before injecting the client entry

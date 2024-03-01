@@ -72,10 +72,12 @@ use crate::{
         DynamicImportedChunks,
     },
     font::create_font_manifest,
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    paths::{
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
+        wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -1171,6 +1173,11 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .clone_value();
 
+            let client_relative_root = this.pages_project.project().client_relative_path();
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .await?
+                .clone_value();
+
             let node_root = &node_root.await?;
             let written_endpoint = match *output.await? {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => WrittenEndpoint::NodeJs {
@@ -1179,8 +1186,12 @@ impl Endpoint for PageEndpoint {
                         .context("ssr chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,
+                    client_paths,
                 },
-                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
+                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge {
+                    server_paths,
+                    client_paths,
+                },
             };
 
             Ok(written_endpoint.cell())

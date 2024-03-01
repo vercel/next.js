@@ -7,7 +7,7 @@ import { outdent } from 'outdent'
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       react: 'latest',
@@ -41,11 +41,35 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Text content does not match server-rendered HTML.
-
-      Warning: Text content did not match. Server: "server" Client: "client"
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Text content did not match. Server: "server" Client: "client""`
+    )
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <RedirectBoundary>
+            <RedirectErrorBoundary>
+              <InnerLayoutRouter>
+                <Mismatch>
+                  <div>
+                    "server"
+                    "client""
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Mismatch>
+          <div>
+            <main>
+              "server"
+              "client""
+      `)
+    }
 
     await session.patch(
       'app/page.js',
@@ -91,16 +115,37 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Mismatch>
+            <div>
+            ^^^^^
+              <main>
+              ^^^^^^"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Mismatch>
+          <div>
+          ^^^^^
+            <main>
+            ^^^^^^"
+      `)
+    }
+
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
-        Warning: Expected server HTML to contain a matching <main> in <div>.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+    `)
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Expected server HTML to contain a matching <main> in <div>."`
+    )
 
     await cleanup()
   })
+
   it('should show correct hydration error when client renders an extra text node', async () => {
     const { cleanup, session } = await sandbox(
       next,
@@ -128,11 +173,12 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
-      Warning: Expected server HTML to contain a matching text node for "second" in <div>.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Expected server HTML to contain a matching text node for "second" in <div>."`
+    )
 
     await cleanup()
   })
@@ -162,11 +208,11 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
-        Warning: Did not expect server HTML to contain a <main> in <div>.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
       `)
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Did not expect server HTML to contain a <main> in <div>."`
+    )
 
     await cleanup()
   })
@@ -192,11 +238,12 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
-      Warning: Did not expect server HTML to contain the text node "only" in <div>.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Did not expect server HTML to contain the text node "only" in <div>."`
+    )
 
     await cleanup()
   })
@@ -231,11 +278,12 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
-        Warning: Expected server HTML to contain a matching <main> in <div>.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
       `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Expected server HTML to contain a matching <main> in <div>."`
+    )
 
     await cleanup()
   })
@@ -297,8 +345,7 @@ describe('Error overlay for hydration errors', () => {
         ],
       ])
     )
-    // const browser = await next.browser('/hydration-mismatch/bad-nesting')
-    // await waitForAndOpenRuntimeError(browser)
+
     await session.waitForAndOpenRuntimeError()
     expect(await session.hasRedbox()).toBe(true)
 
@@ -311,9 +358,92 @@ describe('Error overlay for hydration errors', () => {
     expect(description).toContain(
       'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
     )
-    expect(description).toContain(
-      'Warning: In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Page>
+            <p>
+            ^^^
+              <p>
+              ^^^"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <p>
+          ^^^
+            <p>
+            ^^^"
+      `)
+    }
+
+    await cleanup()
+  })
+
+  it('should show the highlighted bad nesting html snippet when bad nesting happened', async () => {
+    const { cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            export default function Page() {
+              return (
+                <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
+
+    const description = await session.getRedboxDescription()
+    expect(description).toContain(
+      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
+    )
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    )
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Page>
+            <p>
+            ^^^
+              <span>
+                ...
+                  <span>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <p>
+          ^^^
+            <span>
+              ...
+                <span>
+                  <p>
+                  ^^^"
+    `)
+    }
 
     await cleanup()
   })
