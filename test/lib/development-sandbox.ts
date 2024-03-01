@@ -9,7 +9,7 @@ import {
   waitFor,
   waitForAndOpenRuntimeError,
   getRedboxDescriptionWarning,
-  toggleComponentStack,
+  toggleCollapseComponentStack,
 } from './next-test-utils'
 import webdriver from './next-webdriver'
 import { NextInstance } from './next-modes/base'
@@ -139,8 +139,8 @@ export async function sandbox(
       async getRedboxComponentStack() {
         return getRedboxComponentStack(browser)
       },
-      async toggleComponentStack() {
-        return toggleComponentStack(browser)
+      async toggleCollapseComponentStack() {
+        return toggleCollapseComponentStack(browser)
       },
       async getVersionCheckerText() {
         return getVersionCheckerText(browser)
