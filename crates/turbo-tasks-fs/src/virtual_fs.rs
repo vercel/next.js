@@ -4,7 +4,9 @@ use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
 use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
 
 #[turbo_tasks::value]
-pub struct VirtualFileSystem;
+pub struct VirtualFileSystem {
+    name: String,
+}
 
 impl VirtualFileSystem {
     /// Creates a new [`Vc<VirtualFileSystem>`].
@@ -16,7 +18,21 @@ impl VirtualFileSystem {
     /// [`Vc<FileSystemPath>`] created from another
     /// [`Vc<VirtualFileSystem>`].
     pub fn new() -> Vc<Self> {
-        Self::cell(VirtualFileSystem)
+        Self::cell(VirtualFileSystem {
+            name: "virtual file system".to_string(),
+        })
+    }
+
+    /// Creates a new [`Vc<VirtualFileSystem>`] with a name.
+    ///
+    /// NOTE: This function is not a `turbo_tasks::function` to avoid instances
+    /// being equivalent identity-wise. This ensures that a
+    /// [`Vc<FileSystemPath>`] created from this [`Vc<VirtualFileSystem>`]
+    /// will never be equivalent, nor be interoperable, with a
+    /// [`Vc<FileSystemPath>`] created from another
+    /// [`Vc<VirtualFileSystem>`].
+    pub fn new_with_name(name: String) -> Vc<Self> {
+        Self::cell(VirtualFileSystem { name })
     }
 }
 
@@ -76,6 +92,6 @@ impl FileSystem for VirtualFileSystem {
 impl ValueToString for VirtualFileSystem {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
-        Vc::cell("virtual file system".to_string())
+        Vc::cell(self.name.clone())
     }
 }
