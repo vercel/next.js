@@ -13,7 +13,7 @@ createNextDescribe(
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-      ? `pnpm next build --build-mode=experimental-compile`
+      ? `pnpm next build --experimental-build-mode=compile`
       : undefined,
     dependencies: {
       nanoid: '4.0.1',

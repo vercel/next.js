@@ -16,7 +16,7 @@ type NextBuildOptions = {
   mangling: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
-  buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
+  buildMode: 'default' | 'compile' | 'generate'
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {

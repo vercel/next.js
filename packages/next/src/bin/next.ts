@@ -111,10 +111,12 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
-    new Option('--build-mode [mode]')
-      .choices(['experimental-compile', 'experimental-generate'])
+    new Option(
+      '--experimental-build-mode [mode]',
+      'Uses experimental build modes.'
+    )
+      .choices(['compile', 'generate'])
       .default('default')
-      .hideHelp()
   )
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections
