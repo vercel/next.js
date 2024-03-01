@@ -58,8 +58,9 @@ describe('Error overlay for hydration errors', () => {
               <InnerLayoutRouter>
                 <Mismatch>
                   <div>
-                    "server"
-                    "client""
+                    <main>
+                      "server"
+                      "client""
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -430,7 +431,9 @@ describe('Error overlay for hydration errors', () => {
             ^^^
               <span>
                 ...
-                  <span>"
+                  <span>
+                    <p>
+                    ^^^"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`

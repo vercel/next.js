@@ -2,9 +2,6 @@ import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { CollapseIcon } from '../../icons/CollapseIcon'
 
-// In total it will display 6 rows.
-const MAX_NON_COLLAPSED_FRAMES = 6
-
 /**
  *
  * Format component stack into pseudo HTML
@@ -157,6 +154,7 @@ export function PseudoHtmlDiff({
     serverContent,
     isHtmlTagsWarning,
     hydrationMismatchType,
+    MAX_NON_COLLAPSED_FRAMES,
   ])
 
   return (
