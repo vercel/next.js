@@ -15,6 +15,7 @@ export function getNextFontLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
+        optimizeCssModuleMappings: ctx.experimental.optimizeCssModuleMappings,
         hasAppDir: ctx.hasAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,

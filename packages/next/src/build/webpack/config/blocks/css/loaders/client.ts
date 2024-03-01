@@ -1,11 +1,13 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export function getClientStyleLoader({
+  optimizeCssModuleMappings,
   hasAppDir,
   isAppDir,
   isDevelopment,
   assetPrefix,
 }: {
+  optimizeCssModuleMappings?: boolean
   hasAppDir: boolean
   isAppDir?: boolean
   isDevelopment: boolean
@@ -50,7 +52,12 @@ export function getClientStyleLoader({
       // Activating the mini-css-extract-plugin esmodules export
       // allows webpack to optimize the module tree and to inline
       // the css module class names directly into react components
-      esModule: true,
+      //
+      // Activating this option will break one edge case:
+      // import { default } from './file.module.css'
+      // Therefore it is behind the experimental flag
+      // `optimizeCssModuleMappings`
+      esModule: optimizeCssModuleMappings ? true : false,
     },
   }
 }
