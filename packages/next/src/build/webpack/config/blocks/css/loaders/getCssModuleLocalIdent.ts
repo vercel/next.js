@@ -64,8 +64,10 @@ function toUrlSafeBase64(input: number) {
   return result
 }
 
-const nameMap = new Map<string, number>()
+// Keep track of the current file path to reset the file-local nameMap
+// The assumption is that the loader is called once per file and not in parallel
 let currentFilePath = ''
+const nameMap = new Map<string, number>()
 
 /**
  * Calculate a hash based on the relative path and the export name
@@ -77,13 +79,17 @@ function calculateHashFromRelativePathAndName(
   relativePath: string,
   exportName: string
 ) {
+  // Reset the nameMap if the file path changes
   if (currentFilePath !== relativePath) {
     nameMap.clear()
     currentFilePath = relativePath
   }
-  const key = nameMap.get(exportName) || nameMap.size
-  if (!nameMap.has(exportName)) {
-    nameMap.set(exportName, nameMap.size)
+
+  // get increasing index for the exportName per file
+  let fileLocalIndex = nameMap.get(exportName)
+  if (fileLocalIndex === undefined) {
+    fileLocalIndex = nameMap.size
+    nameMap.set(exportName, fileLocalIndex)
   }
 
   // Generate a hash to make the class name unique. Generates url safe base64 strings
@@ -93,19 +99,16 @@ function calculateHashFromRelativePathAndName(
       'sha1',
       'base64',
       6
-    ) + toUrlSafeBase64(key)
+    ) + toUrlSafeBase64(fileLocalIndex)
   )
 }
 
 /**
- * Valid CSS identifiers can contain only [a-zA-Z0-9-_]
- * and can't start with a digit, two hyphens, or a hyphen followed by a digit.
- * This function replaces invalid symbols with underscores
+ * A valid CSS identifier can't start with a digit, two hyphens, or a hyphen followed by a digit.
+ * This function replaces invalid symbols with underscores @see https://www.w3.org/TR/CSS21/syndata.html#characters
  * @param base64str Urlsafe base64 string
  * @returns A valid CSS identifier
  */
 function toValidCSSIdentifier(base64str: string) {
-  // "they cannot start with a digit, two hyphens, or a hyphen followed by a digit [sic]"
-  // https://www.w3.org/TR/CSS21/syndata.html#characters
   return base64str.replace(/^(\d|--|-\d)/, '__$1')
 }
