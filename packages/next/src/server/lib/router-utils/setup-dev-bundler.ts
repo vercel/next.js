@@ -1082,7 +1082,8 @@ async function traceTurbopackErrorStack(
   )
 
   return (
-    'Error: ' +
+    error.name +
+    ': ' +
     error.message +
     '\n' +
     originalFrames

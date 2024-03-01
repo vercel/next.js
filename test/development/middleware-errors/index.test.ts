@@ -223,7 +223,7 @@ createNextDescribe(
         await check(
           () => stripAnsi(next.cliOutput),
           new RegExp(
-            ` uncaughtException: Error: This file asynchronously fails while loading`,
+            ` uncaughtException: \\[?Error: This file asynchronously fails while loading`,
             'm'
           )
         )
