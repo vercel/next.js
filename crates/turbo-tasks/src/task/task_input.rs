@@ -246,13 +246,16 @@ where
     fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self> {
         match input {
             ConcreteTaskInput::SharedValue(value) => {
-                let v = value.1.downcast_ref::<T>().ok_or_else(|| {
-                    anyhow!(
-                        "invalid task input type, expected {} got {:?}",
-                        type_name::<T>(),
-                        value.1,
-                    )
-                })?;
+                let v = (*value.1)
+                    .magic_any_ref()
+                    .downcast_ref::<T>()
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "invalid task input type, expected {} got {:?}",
+                            type_name::<T>(),
+                            value.1,
+                        )
+                    })?;
                 Ok(Value::new(v.clone()))
             }
             _ => bail!("invalid task input type, expected {}", type_name::<T>()),
@@ -275,7 +278,7 @@ where
     fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self> {
         match input {
             ConcreteTaskInput::TransientSharedValue(value) => {
-                let v = value.0.downcast_ref::<T>().ok_or_else(|| {
+                let v = value.0.magic_any_ref().downcast_ref::<T>().ok_or_else(|| {
                     anyhow!(
                         "invalid task input type, expected {} got {:?}",
                         type_name::<T>(),

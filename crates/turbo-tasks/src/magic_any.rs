@@ -10,7 +10,25 @@ use std::{
 
 use serde::{de::DeserializeSeed, Deserialize, Serialize};
 
-pub trait MagicAny: mopa::Any + Send + Sync {
+/// An extension of [`Any`], such that `dyn MagicAny` implements [`fmt::Debug`],
+/// [`PartialEq`], [`Eq`], [`PartialOrd`], [`Ord`], and [`Hash`], assuming the
+/// concrete type also implements those traits.
+///
+/// This allows `dyn MagicAny` to be used in contexts where `dyn Any` could not,
+/// such as a key in a map.
+pub trait MagicAny: Any + Send + Sync {
+    /// Upcasts to `&dyn Any`, which can later be used with
+    /// [`Any::downcast_ref`][Any#method.downcast_ref] to convert back to a
+    /// concrete type.
+    ///
+    /// This is a workaround for [Rust's lack of upcasting
+    /// support][trait_upcasting].
+    ///
+    /// [trait_upcasting]: https://rust-lang.github.io/rfcs/3324-dyn-upcasting.html
+    fn magic_any_ref(&self) -> &(dyn Any + Sync + Send);
+
+    /// Same as [`MagicAny::magic_any_arc`], except for `Arc<dyn Any>` instead
+    /// of `&dyn Any`.
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;
 
     fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result;
@@ -25,16 +43,11 @@ pub trait MagicAny: mopa::Any + Send + Sync {
     fn magic_type_name(&self) -> &'static str;
 }
 
-#[allow(clippy::transmute_ptr_to_ref)] // can't fix as it's in the macro
-mod clippy {
-    use mopa::mopafy;
-
-    use super::MagicAny;
-
-    mopafy!(MagicAny);
-}
-
 impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
+    fn magic_any_ref(&self) -> &(dyn Any + Sync + Send) {
+        self
+    }
+
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send> {
         self
     }
@@ -51,7 +64,7 @@ impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
     }
 
     fn magic_eq(&self, other: &dyn MagicAny) -> bool {
-        match other.downcast_ref::<Self>() {
+        match other.magic_any_ref().downcast_ref::<Self>() {
             None => false,
             Some(other) => self == other,
         }
@@ -62,7 +75,7 @@ impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
     }
 
     fn magic_cmp(&self, other: &dyn MagicAny) -> Ordering {
-        match other.downcast_ref::<Self>() {
+        match other.magic_any_ref().downcast_ref::<Self>() {
             None => Ord::cmp(&TypeId::of::<Self>(), &other.type_id()),
             Some(other) => self.cmp(other),
         }
@@ -125,7 +138,7 @@ impl dyn MagicAny {
     pub fn as_serialize<T: Debug + Eq + Ord + Hash + Serialize + Send + Sync + 'static>(
         &self,
     ) -> &dyn erased_serde::Serialize {
-        if let Some(r) = self.downcast_ref::<T>() {
+        if let Some(r) = self.magic_any_ref().downcast_ref::<T>() {
             r
         } else {
             #[cfg(debug_assertions)]
