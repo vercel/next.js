@@ -108,12 +108,7 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
-  .addOption(
-    new Option(
-      '--experimental-app-only',
-      'Builds only App Router routes.'
-    ).hideHelp()
-  )
+  .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
     new Option('--build-mode [mode]')
