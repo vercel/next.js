@@ -51,6 +51,8 @@ export function PseudoHtmlDiff({
   hydrationMismatchType: 'tag' | 'text'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
+  // For text mismatch, mismatched text will take 2 rows, so we display 4 rows of component stack
+  const MAX_NON_COLLAPSED_FRAMES = isHtmlTagsWarning ? 6 : 4
   const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
@@ -77,12 +79,6 @@ export function PseudoHtmlDiff({
         const isLastFewFrames =
           !isHtmlTagsWarning && index >= componentList.length - 6
 
-        if (
-          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
-          isHtmlCollapsed
-        ) {
-          return
-        }
         if ((isHtmlTagsWarning && isRelatedTag) || isLastFewFrames) {
           const codeLine = (
             <span>
@@ -112,6 +108,13 @@ export function PseudoHtmlDiff({
           )
           nestedHtmlStack.push(wrappedCodeLine)
         } else {
+          if (
+            nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
+            isHtmlCollapsed
+          ) {
+            return
+          }
+
           if (!isHtmlCollapsed || isLastFewFrames) {
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
