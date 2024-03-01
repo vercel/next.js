@@ -86,7 +86,7 @@ export function PseudoHtmlDiff({
         if ((isHtmlTagsWarning && isRelatedTag) || isLastFewFrames) {
           const codeLine = (
             <span>
-              <span>{spaces}</span>
+              {spaces}
               <span
                 {...(isHighlightedTag
                   ? {
@@ -112,7 +112,7 @@ export function PseudoHtmlDiff({
           )
           nestedHtmlStack.push(wrappedCodeLine)
         } else {
-          if ((isHtmlTagsWarning && !isHtmlCollapsed) || isLastFewFrames) {
+          if (!isHtmlCollapsed || isLastFewFrames) {
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
                 {spaces}

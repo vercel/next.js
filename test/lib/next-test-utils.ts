@@ -1068,7 +1068,7 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
-export async function toggleComponentStack(
+export async function toggleCollapseComponentStack(
   browser: BrowserInterface
 ): Promise<void> {
   await browser

@@ -447,4 +447,120 @@ describe('Error overlay for hydration errors', () => {
 
     await cleanup()
   })
+
+  it('should collapse and uncollapse properly when there are many frames', async () => {
+    const { cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            const isServer = typeof window === 'undefined'
+            
+            function Mismatch() {
+              return (
+                <p>
+                  <span>
+                    
+                    hello {isServer ? 'server' : 'client'}
+                  </span>
+                </p>
+              )
+            }
+            
+            export default function Page() {
+              return (
+                <div>
+                  <div>
+                    <div>
+                      <div>
+                        <Mismatch />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <div>
+            <div>
+              <div>
+                <Mismatch>
+                  <p>
+                    "server"
+                    "client""
+    `)
+
+    await session.toggleCollapseComponentStack()
+
+    const fullPseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(fullPseudoHtml).toMatchInlineSnapshot(`
+      "<Root>
+        <ServerRoot>
+          <AppRouter>
+            <ErrorBoundary>
+              <ErrorBoundaryHandler>
+                <Router>
+                  <HotReload>
+                    <ReactDevOverlay>
+                      <DevRootNotFoundBoundary>
+                        <NotFoundBoundary>
+                          <NotFoundErrorBoundary>
+                            <RedirectBoundary>
+                              <RedirectErrorBoundary>
+                                <RootLayout>
+                                  <html>
+                                    <body>
+                                      <OuterLayoutRouter>
+                                        <RenderFromTemplateContext>
+                                          <ScrollAndFocusHandler>
+                                            <InnerScrollAndFocusHandler>
+                                              <ErrorBoundary>
+                                                <LoadingBoundary>
+                                                  <NotFoundBoundary>
+                                                    <NotFoundErrorBoundary>
+                                                      <RedirectBoundary>
+                                                        <RedirectErrorBoundary>
+                                                          <InnerLayoutRouter>
+                                                            <Page>
+                                                              <div>
+                                                                <div>
+                                                                  <div>
+                                                                    <div>
+                                                                      <Mismatch>
+                                                                        <p>
+                                                                          <span>
+                                                                            "server"
+                                                                            "client""
+      `)
+    } else {
+      expect(fullPseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <div>
+            <div>
+              <div>
+                <div>
+                  <Mismatch>
+                    <p>
+                      <span>
+                        "server"
+                        "client""
+      `)
+    }
+
+    await cleanup()
+  })
 })
