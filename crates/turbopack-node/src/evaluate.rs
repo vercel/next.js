@@ -2,7 +2,6 @@ use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Du
 
 use anyhow::{anyhow, bail, Result};
 use async_stream::try_stream as generator;
-use async_trait::async_trait;
 use futures::{
     channel::mpsc::{unbounded, UnboundedSender},
     pin_mut, SinkExt, StreamExt,
@@ -10,23 +9,23 @@ use futures::{
 use futures_retry::{FutureRetry, RetryPolicy};
 use indexmap::indexmap;
 use parking_lot::Mutex;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, util::SharedError, Completion, RawVc, TaskInput, TryJoinIterExt,
-    Value, Vc,
+    duration_span, mark_finished, util::SharedError, Completion, RawVc, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{
+    glob::Glob, to_sys_path, DirectoryEntry, File, FileSystemPath, ReadGlobResult,
+};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
-    error::PrettyPrintError,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -46,19 +45,33 @@ use crate::{
 enum EvalJavaScriptOutgoingMessage<'a> {
     #[serde(rename_all = "camelCase")]
     Evaluate { args: Vec<&'a JsonValue> },
-    Result {
-        id: u64,
-        data: Option<JsonValue>,
-        error: Option<String>,
-    },
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptIncomingMessage {
-    Info { data: JsonValue },
-    Request { id: u64, data: JsonValue },
-    End { data: Option<String> },
+    FileDependency {
+        path: String,
+    },
+    BuildDependency {
+        path: String,
+    },
+    DirDependency {
+        path: String,
+        glob: String,
+    },
+    EmittedError {
+        severity: IssueSeverity,
+        error: StructuredError,
+    },
+    Value {
+        // TODO(WEB-735): There is like 3 levels of JSON string encoding that goes into returning a
+        // value, making it really inefficient.
+        data: String,
+    },
+    End {
+        data: Option<String>,
+    },
     Error(StructuredError),
 }
 
@@ -68,7 +81,7 @@ type EvaluationItem = Result<Bytes, SharedError>;
 type JavaScriptStream = Stream<EvaluationItem>;
 
 #[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
-pub struct JavaScriptStreamSender {
+struct JavaScriptStreamSender {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     get: Box<dyn Fn() -> UnboundedSender<Result<Bytes, SharedError>> + Send + Sync>,
 }
@@ -114,7 +127,11 @@ pub async fn get_evaluate_pool(
             Vc::upcast(VirtualSource::new(
                 runtime_asset.ident().path().join("evaluate.js".to_string()),
                 AssetContent::file(
-                    File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
+                    File::from(
+                        "import { run } from 'RUNTIME'; run(async (...args) => ((await \
+                         import('INNER')).default(...args)))",
+                    )
+                    .into(),
                 ),
             )),
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
@@ -212,29 +229,21 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
     }
 }
 
-#[async_trait]
-pub trait EvaluateContext {
-    type InfoMessage: DeserializeOwned;
-    type RequestMessage: DeserializeOwned;
-    type ResponseMessage: Serialize;
-
-    fn compute(self, sender: Vc<JavaScriptStreamSender>);
-    fn pool(&self) -> Vc<NodeJsPool>;
-    fn keep_alive(&self) -> bool {
-        false
-    }
-    fn args(&self) -> &[Vc<JsonValue>];
-    fn cwd(&self) -> Vc<FileSystemPath>;
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()>;
-    async fn info(&self, data: Self::InfoMessage, pool: &NodeJsPool) -> Result<()>;
-    async fn request(
-        &self,
-        data: Self::RequestMessage,
-        pool: &NodeJsPool,
-    ) -> Result<Self::ResponseMessage>;
-}
-
-pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptEvaluation> {
+/// Pass the file you cared as `runtime_entries` to invalidate and reload the
+/// evaluated result automatically.
+#[turbo_tasks::function]
+pub fn evaluate(
+    module_asset: Vc<Box<dyn Module>>,
+    cwd: Vc<FileSystemPath>,
+    env: Vc<Box<dyn ProcessEnv>>,
+    context_ident_for_issue: Vc<AssetIdent>,
+    asset_context: Vc<Box<dyn AssetContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    args: Vec<Vc<JsonValue>>,
+    additional_invalidation: Vc<Completion>,
+    debug: bool,
+) -> Vc<JavaScriptEvaluation> {
     // Note the following code uses some hacks to create a child task that produces
     // a stream that is returned by this task.
 
@@ -252,7 +261,17 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
     let initial = Mutex::new(Some(sender));
 
     // run the evaluation as side effect
-    evaluate_context.compute(
+    let _ = compute_evaluate_stream(
+        module_asset,
+        cwd,
+        env,
+        context_ident_for_issue,
+        asset_context,
+        chunking_context,
+        runtime_entries,
+        args,
+        additional_invalidation,
+        debug,
         JavaScriptStreamSender {
             get: Box::new(move || {
                 if let Some(sender) = initial.lock().take() {
@@ -276,10 +295,8 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
     raw.into()
 }
 
-/// Pass the file you cared as `runtime_entries` to invalidate and reload the
-/// evaluated result automatically.
 #[turbo_tasks::function]
-pub fn evaluate(
+async fn compute_evaluate_stream(
     module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
@@ -290,23 +307,6 @@ pub fn evaluate(
     args: Vec<Vc<JsonValue>>,
     additional_invalidation: Vc<Completion>,
     debug: bool,
-) -> Vc<JavaScriptEvaluation> {
-    custom_evaluate(BasicEvaluateContext {
-        module_asset,
-        cwd,
-        env,
-        context_ident_for_issue,
-        asset_context,
-        chunking_context,
-        runtime_entries,
-        args,
-        additional_invalidation,
-        debug,
-    })
-}
-
-pub async fn compute(
-    evaluate_context: impl EvaluateContext,
     sender: Vc<JavaScriptStreamSender>,
 ) -> Result<Vc<()>> {
     mark_finished();
@@ -316,13 +316,22 @@ pub async fn compute(
     };
 
     let stream = generator! {
-        let pool = evaluate_context.pool();
+        let pool = get_evaluate_pool(
+            module_asset,
+            cwd,
+            env,
+            asset_context,
+            chunking_context,
+            runtime_entries,
+            additional_invalidation,
+            debug,
+        );
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
         let pool = pool.strongly_consistent().await?;
 
-        let args = evaluate_context.args().iter().try_join().await?;
+        let args = args.into_iter().try_join().await?;
         // Assume this is a one-off operation, so we can kill the process
         // TODO use a better way to decide that.
         let kill = args.is_empty();
@@ -351,7 +360,7 @@ pub async fn compute(
         // need to spawn a new thread to continually pull data out of the process,
         // and ferry that along.
         loop {
-            let output = pull_operation(&mut operation, &pool, &evaluate_context).await?;
+            let output = pull_operation(&mut operation, cwd, &pool, context_ident_for_issue, chunking_context).await?;
 
             match output {
                 LoopResult::Continue(data) => {
@@ -362,7 +371,7 @@ pub async fn compute(
                     break;
                 }
                 LoopResult::Break(Err(e)) => {
-                    let error = print_error(e, &pool, &evaluate_context).await?;
+                    let error = e.print(pool.assets_for_source_mapping, pool.assets_root, chunking_context.context_path().root(), FormattingMode::Plain).await?;
                     Err(anyhow!("Node.js evaluation failed: {}", error))?;
                     break;
                 }
@@ -395,155 +404,82 @@ pub async fn compute(
 /// value/error/end.
 async fn pull_operation(
     operation: &mut NodeJsOperation,
+    cwd: Vc<FileSystemPath>,
     pool: &NodeJsPool,
-    evaluate_context: &impl EvaluateContext,
+    context_ident_for_issue: Vc<AssetIdent>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<LoopResult> {
+    let mut file_dependencies = Vec::new();
+    let mut dir_dependencies = Vec::new();
+
     let guard = duration_span!("Node.js evaluation");
 
     let output = loop {
         match operation.recv().await? {
             EvalJavaScriptIncomingMessage::Error(error) => {
-                evaluate_context.emit_error(error, pool).await?;
+                EvaluationIssue {
+                    error,
+                    context_ident: context_ident_for_issue,
+                    assets_for_source_mapping: pool.assets_for_source_mapping,
+                    assets_root: pool.assets_root,
+                    project_dir: chunking_context.context_path().root(),
+                }
+                .cell()
+                .emit();
                 // Do not reuse the process in case of error
                 operation.disallow_reuse();
                 // Issue emitted, we want to break but don't want to return an error
                 break ControlFlow::Break(Ok(None));
             }
+            EvalJavaScriptIncomingMessage::Value { data } => break ControlFlow::Continue(data),
             EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
-            EvalJavaScriptIncomingMessage::Info { data } => {
-                evaluate_context
-                    .info(serde_json::from_value(data)?, pool)
-                    .await?;
+            EvalJavaScriptIncomingMessage::FileDependency { path } => {
+                // TODO We might miss some changes that happened during execution
+                file_dependencies.push(cwd.join(path).read());
             }
-            EvalJavaScriptIncomingMessage::Request { id, data } => {
-                match evaluate_context
-                    .request(serde_json::from_value(data)?, pool)
-                    .await
-                {
-                    Ok(response) => {
-                        operation
-                            .send(EvalJavaScriptOutgoingMessage::Result {
-                                id,
-                                error: None,
-                                data: Some(serde_json::to_value(response)?),
-                            })
-                            .await?;
-                    }
-                    Err(e) => {
-                        operation
-                            .send(EvalJavaScriptOutgoingMessage::Result {
-                                id,
-                                error: Some(PrettyPrintError(&e).to_string()),
-                                data: None,
-                            })
-                            .await?;
-                    }
+            EvalJavaScriptIncomingMessage::BuildDependency { path } => {
+                // TODO We might miss some changes that happened during execution
+                BuildDependencyIssue {
+                    context_ident: context_ident_for_issue,
+                    path: cwd.join(path),
                 }
+                .cell()
+                .emit();
+            }
+            EvalJavaScriptIncomingMessage::DirDependency { path, glob } => {
+                // TODO We might miss some changes that happened during execution
+                dir_dependencies.push(dir_dependency(
+                    cwd.join(path).read_glob(Glob::new(glob), false),
+                ));
+            }
+            EvalJavaScriptIncomingMessage::EmittedError { error, severity } => {
+                EvaluateEmittedErrorIssue {
+                    file_path: context_ident_for_issue.path(),
+                    error,
+                    severity: severity.cell(),
+                    assets_for_source_mapping: pool.assets_for_source_mapping,
+                    assets_root: pool.assets_root,
+                    project_dir: chunking_context.context_path().root(),
+                }
+                .cell()
+                .emit();
             }
         }
     };
     drop(guard);
 
+    // Read dependencies to make them a dependencies of this task. This task will
+    // execute again when they change.
+    for dep in file_dependencies {
+        dep.await?;
+    }
+    for dep in dir_dependencies {
+        dep.await?;
+    }
+
     Ok(output)
 }
 
-#[turbo_tasks::function]
-async fn basic_compute(
-    evaluate_context: BasicEvaluateContext,
-    sender: Vc<JavaScriptStreamSender>,
-) -> Result<Vc<()>> {
-    compute(evaluate_context, sender).await
-}
-
-#[derive(Clone, PartialEq, Eq, TaskInput)]
-struct BasicEvaluateContext {
-    module_asset: Vc<Box<dyn Module>>,
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: Vc<AssetIdent>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
-    args: Vec<Vc<JsonValue>>,
-    additional_invalidation: Vc<Completion>,
-    debug: bool,
-}
-
-#[async_trait]
-impl EvaluateContext for BasicEvaluateContext {
-    type InfoMessage = ();
-    type RequestMessage = ();
-    type ResponseMessage = ();
-
-    fn compute(self, sender: Vc<JavaScriptStreamSender>) {
-        let _ = basic_compute(self, sender);
-    }
-
-    fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
-        get_evaluate_pool(
-            self.module_asset,
-            self.cwd,
-            self.env,
-            self.asset_context,
-            self.chunking_context,
-            self.runtime_entries,
-            self.additional_invalidation,
-            self.debug,
-        )
-    }
-
-    fn args(&self) -> &[Vc<serde_json::Value>] {
-        &self.args
-    }
-
-    fn cwd(&self) -> Vc<turbo_tasks_fs::FileSystemPath> {
-        self.cwd
-    }
-
-    fn keep_alive(&self) -> bool {
-        !self.args.is_empty()
-    }
-
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
-        EvaluationIssue {
-            error,
-            context_ident: self.context_ident_for_issue,
-            assets_for_source_mapping: pool.assets_for_source_mapping,
-            assets_root: pool.assets_root,
-            project_dir: self.chunking_context.context_path().root(),
-        }
-        .cell()
-        .emit();
-        Ok(())
-    }
-
-    async fn info(&self, _data: Self::InfoMessage, _pool: &NodeJsPool) -> Result<()> {
-        bail!("BasicEvaluateContext does not support info messages")
-    }
-
-    async fn request(
-        &self,
-        _data: Self::RequestMessage,
-        _pool: &NodeJsPool,
-    ) -> Result<Self::ResponseMessage> {
-        bail!("BasicEvaluateContext does not support request messages")
-    }
-}
-
-async fn print_error(
-    error: StructuredError,
-    pool: &NodeJsPool,
-    evaluate_context: &impl EvaluateContext,
-) -> Result<String> {
-    error
-        .print(
-            pool.assets_for_source_mapping,
-            pool.assets_root,
-            evaluate_context.cwd(),
-            FormattingMode::Plain,
-        )
-        .await
-}
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {
@@ -569,6 +505,135 @@ impl Issue for EvaluationIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
         self.context_ident.path()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(
+                self.error
+                    .print(
+                        self.assets_for_source_mapping,
+                        self.assets_root,
+                        self.project_dir,
+                        FormattingMode::Plain,
+                    )
+                    .await?,
+            )
+            .cell(),
+        )))
+    }
+}
+
+/// An issue that occurred while evaluating node code.
+#[turbo_tasks::value(shared)]
+pub struct BuildDependencyIssue {
+    pub context_ident: Vc<AssetIdent>,
+    pub path: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for BuildDependencyIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        IssueSeverity::Warning.into()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Build dependencies are not yet supported".to_string()).cell()
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Unsupported.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.context_ident.path()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(StyledString::Line(vec![
+            StyledString::Text("The file at ".to_string()),
+            StyledString::Code(self.path.await?.to_string()),
+            StyledString::Text(" is a build dependency, which is not yet implemented.
+Changing this file or any dependency will not be recognized and might require restarting the server".to_string()),
+        ]).cell())))
+    }
+}
+
+/// A hack to invalidate when any file in a directory changes. Need to be
+/// awaited before files are accessed.
+#[turbo_tasks::function]
+async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
+    let shallow = dir_dependency_shallow(glob);
+    let glob = glob.await?;
+    glob.inner
+        .values()
+        .map(|&inner| dir_dependency(inner))
+        .try_join()
+        .await?;
+    shallow.await?;
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::function]
+async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
+    let glob = glob.await?;
+    for item in glob.results.values() {
+        // Reading all files to add itself as dependency
+        match *item {
+            DirectoryEntry::File(file) => {
+                file.track().await?;
+            }
+            DirectoryEntry::Directory(dir) => {
+                dir_dependency(dir.read_glob(Glob::new("**".to_string()), false)).await?;
+            }
+            DirectoryEntry::Symlink(symlink) => {
+                symlink.read_link().await?;
+            }
+            DirectoryEntry::Other(other) => {
+                other.get_type().await?;
+            }
+            DirectoryEntry::Error => {}
+        }
+    }
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::value(shared)]
+pub struct EvaluateEmittedErrorIssue {
+    pub file_path: Vc<FileSystemPath>,
+    pub severity: Vc<IssueSeverity>,
+    pub error: StructuredError,
+    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    pub assets_root: Vc<FileSystemPath>,
+    pub project_dir: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for EvaluateEmittedErrorIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Transform.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Issue while running loader".to_string()).cell()
     }
 
     #[turbo_tasks::function]

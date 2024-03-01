@@ -26,11 +26,11 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 
-use super::{
-    util::{emitted_assets_to_virtual_sources, EmittedAsset},
-    webpack::WebpackLoaderContext,
+use super::util::{emitted_assets_to_virtual_sources, EmittedAsset};
+use crate::{
+    debug::should_debug, embed_js::embed_file, evaluate::evaluate,
+    execution_context::ExecutionContext,
 };
-use crate::{embed_js::embed_file, evaluate::custom_evaluate, execution_context::ExecutionContext};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -370,17 +370,18 @@ impl PostCssTransformedAsset {
         let css_fs_path = this.source.ident().path().await?;
         let css_path = css_fs_path.path.as_str();
 
-        let config_value = custom_evaluate(WebpackLoaderContext {
-            module_asset: postcss_executor,
-            cwd: project_path,
+        let config_value = evaluate(
+            postcss_executor,
+            project_path,
             env,
-            context_ident_for_issue: this.source.ident(),
-            asset_context: evaluate_context,
+            this.source.ident(),
+            evaluate_context,
             chunking_context,
-            resolve_options_context: None,
-            args: vec![Vc::cell(content.into()), Vc::cell(css_path.into())],
-            additional_invalidation: config_changed,
-        })
+            None,
+            vec![Vc::cell(content.into()), Vc::cell(css_path.into())],
+            config_changed,
+            should_debug("postcss_transform"),
+        )
         .await?;
 
         let SingleValue::Single(val) = config_value.try_into_single().await? else {
