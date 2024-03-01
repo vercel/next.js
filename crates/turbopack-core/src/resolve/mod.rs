@@ -10,7 +10,6 @@ use std::{
 use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
 use tracing::{Instrument, Level};
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
@@ -1944,22 +1943,53 @@ async fn apply_in_package(
             continue;
         };
 
+        let refs = refs.clone();
+        let request_key = RequestKey::new(request.clone());
+
+        if value.as_bool() == Some(false) {
+            return Ok(Some(
+                ResolveResult::primary_with_affecting_sources(
+                    request_key,
+                    ResolveResultItem::Ignore,
+                    refs,
+                )
+                .cell(),
+            ));
+        }
+
+        if let Some(value) = value.as_str() {
+            if value == request {
+                // This would be a cycle, so we ignore it
+                return Ok(None);
+            }
+            return Ok(Some(
+                resolve_internal(
+                    package_path,
+                    Request::parse(Value::new(Pattern::Constant(value.to_string())))
+                        .with_query(query),
+                    options,
+                )
+                .with_replaced_request_key(value.to_string(), Value::new(request_key))
+                .with_affecting_sources(refs),
+            ));
+        }
+
+        ResolvingIssue {
+            severity: IssueSeverity::Error.cell(),
+            file_path: *package_json_path,
+            request_type: format!("alias field ({field})"),
+            request: Request::parse(Value::new(Pattern::Constant(request.to_string()))),
+            resolve_options: options,
+            error_message: Some(format!("invalid alias field value: {}", value)),
+            source: None,
+        }
+        .cell()
+        .emit();
+
         return Ok(Some(
-            resolve_alias_field_result(
-                RequestKey::new(request.clone()),
-                value,
-                refs.clone(),
-                package_path,
-                options,
-                *package_json_path,
-                &request,
-                field,
-                query,
-            )
-            .await?,
+            ResolveResult::unresolveable_with_affecting_sources(refs).cell(),
         ));
     }
-
     Ok(None)
 }
 
@@ -2213,52 +2243,6 @@ fn resolve_import_map_result_boxed<'a>(
         options,
         query,
     ))
-}
-
-#[tracing::instrument(level = Level::TRACE, skip_all)]
-async fn resolve_alias_field_result(
-    request_key: RequestKey,
-    result: &JsonValue,
-    refs: Vec<Vc<Box<dyn Source>>>,
-    package_path: Vc<FileSystemPath>,
-    resolve_options: Vc<ResolveOptions>,
-    issue_context: Vc<FileSystemPath>,
-    issue_request: &str,
-    field_name: &str,
-    query: Vc<String>,
-) -> Result<Vc<ResolveResult>> {
-    if result.as_bool() == Some(false) {
-        return Ok(ResolveResult::primary_with_affecting_sources(
-            request_key,
-            ResolveResultItem::Ignore,
-            refs,
-        )
-        .cell());
-    }
-
-    if let Some(value) = result.as_str() {
-        return Ok(resolve_internal(
-            package_path,
-            Request::parse(Value::new(Pattern::Constant(value.to_string()))).with_query(query),
-            resolve_options,
-        )
-        .with_replaced_request_key(value.to_string(), Value::new(request_key))
-        .with_affecting_sources(refs));
-    }
-
-    ResolvingIssue {
-        severity: IssueSeverity::Error.cell(),
-        file_path: issue_context,
-        request_type: format!("alias field ({field_name})"),
-        request: Request::parse(Value::new(Pattern::Constant(issue_request.to_string()))),
-        resolve_options,
-        error_message: Some(format!("invalid alias field value: {}", result)),
-        source: None,
-    }
-    .cell()
-    .emit();
-
-    Ok(ResolveResult::unresolveable_with_affecting_sources(refs).cell())
 }
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]

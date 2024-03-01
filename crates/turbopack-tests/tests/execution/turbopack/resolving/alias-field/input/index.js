@@ -19,3 +19,9 @@ it("should follow the alias field for a module request", () => {
 it("should follow the alias field for a module request with subpath", () => {
   expect(file5).toBe("file5");
 });
+
+import { otherPackage, otherPackageSubPath } from "package/dir";
+it("should not cycle when following the alias field", () => {
+  expect(otherPackage).toBe("other-package/index");
+  expect(otherPackageSubPath).toBe("other-package/sub-path");
+});
