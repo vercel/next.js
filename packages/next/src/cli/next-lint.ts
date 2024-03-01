@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import type arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { green } from '../lib/picocolors'
 
 import type { CliCommand } from '../lib/commands'
@@ -55,7 +55,7 @@ const nextLint: CliCommand = async (args) => {
         If not configured, ESLint will be set up for the first time.
 
       Usage
-        $ next lint <baseDir> [options]
+        $ next lint <baseDir> [options] [files]
 
       <baseDir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
@@ -118,12 +118,12 @@ const nextLint: CliCommand = async (args) => {
 
   const files: string[] = args['--file'] ?? []
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
-  const filesToLint = [...(dirs ?? []), ...files]
+  const filesToLint = [...(dirs ?? []), ...files, ...args._.slice(1)]
 
   const pathsToLint = (
     filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
-    const currDir = join(baseDir, d)
+    const currDir = resolve(baseDir, d)
     if (!existsSync(currDir)) return res
     res.push(currDir)
     return res
