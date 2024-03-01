@@ -1733,10 +1733,7 @@ async fn resolve_into_folder(
 
     for resolve_into_package in options_value.into_package.iter() {
         match resolve_into_package {
-            ResolveIntoPackage::MainField {
-                field: name,
-                extensions,
-            } => {
+            ResolveIntoPackage::MainField { field: name } => {
                 if let Some(package_json) = &*read_package_json(package_json_path).await? {
                     if let Some(field_value) = package_json[name].as_str() {
                         let normalized_request = normalize_request(field_value);
@@ -1747,12 +1744,6 @@ async fn resolve_into_folder(
                             continue;
                         }
                         let request = Request::parse(Value::new(normalized_request.into()));
-
-                        let options = if let Some(extensions) = extensions {
-                            options.with_extensions(extensions.clone())
-                        } else {
-                            options
-                        };
 
                         let result = &*resolve_internal_inline(package_path, request, options)
                             .await?
@@ -1773,9 +1764,23 @@ async fn resolve_into_folder(
         }
     }
 
+    if options_value.fully_specified {
+        return Ok(ResolveResult::unresolveable().into());
+    }
+
     // fall back to dir/index.[js,ts,...]
-    let str = "./index".to_string();
-    let request = Request::parse(Value::new(str.into()));
+    let pattern = match &options_value.default_files[..] {
+        [] => return Ok(ResolveResult::unresolveable().into()),
+        [file] => Pattern::Constant(format!("./{file}")),
+        files => Pattern::Alternatives(
+            files
+                .iter()
+                .map(|file| Pattern::Constant(format!("./{file}")))
+                .collect(),
+        ),
+    };
+
+    let request = Request::parse(Value::new(pattern));
 
     Ok(
         resolve_internal_inline(package_path, request.resolve().await?, options)
@@ -1814,19 +1819,21 @@ async fn resolve_relative_request(
     }
 
     let mut new_path = path_pattern.clone();
-    // Add the extensions as alternatives to the path
-    // read_matches keeps the order of alternatives intact
-    new_path.push(Pattern::Alternatives(
-        once(Pattern::Constant("".to_string()))
-            .chain(
-                options_value
-                    .extensions
-                    .iter()
-                    .map(|ext| Pattern::Constant(ext.clone())),
-            )
-            .collect(),
-    ));
-    new_path.normalize();
+    if !options_value.fully_specified {
+        // Add the extensions as alternatives to the path
+        // read_matches keeps the order of alternatives intact
+        new_path.push(Pattern::Alternatives(
+            once(Pattern::Constant("".to_string()))
+                .chain(
+                    options_value
+                        .extensions
+                        .iter()
+                        .map(|ext| Pattern::Constant(ext.clone())),
+                )
+                .collect(),
+        ));
+        new_path.normalize();
+    };
 
     let mut results = Vec::new();
     let matches = read_matches(
@@ -1840,24 +1847,26 @@ async fn resolve_relative_request(
     for m in matches.iter() {
         if let PatternMatch::File(matched_pattern, path) = m {
             let mut matches_without_extension = false;
-            for ext in options_value.extensions.iter() {
-                let Some(matched_pattern) = matched_pattern.strip_suffix(ext) else {
-                    continue;
-                };
-                if path_pattern.is_match(matched_pattern) {
-                    results.push(
-                        resolved(
-                            RequestKey::new(matched_pattern.to_string()),
-                            *path,
-                            lookup_path,
-                            request,
-                            options_value,
-                            options,
-                            query,
-                        )
-                        .await?,
-                    );
-                    matches_without_extension = true;
+            if !options_value.fully_specified {
+                for ext in options_value.extensions.iter() {
+                    let Some(matched_pattern) = matched_pattern.strip_suffix(ext) else {
+                        continue;
+                    };
+                    if path_pattern.is_match(matched_pattern) {
+                        results.push(
+                            resolved(
+                                RequestKey::new(matched_pattern.to_string()),
+                                *path,
+                                lookup_path,
+                                request,
+                                options_value,
+                                options,
+                                query,
+                            )
+                            .await?,
+                        );
+                        matches_without_extension = true;
+                    }
                 }
             }
             if !matches_without_extension || path_pattern.is_match(matched_pattern) {
@@ -1980,6 +1989,8 @@ async fn resolve_module_request(
         return Ok(result);
     }
 
+    let mut results = vec![];
+
     let result = find_package(
         lookup_path,
         module.to_string(),
@@ -1994,7 +2005,7 @@ async fn resolve_module_request(
         .into());
     }
 
-    let mut results = vec![];
+    let package_options = options.with_fully_specified(false).resolve().await?;
 
     // There may be more than one package with the same name. For instance, in a
     // TypeScript project, `compilerOptions.baseUrl` can declare a path where to
@@ -2008,7 +2019,7 @@ async fn resolve_module_request(
                     Value::new(path.clone()),
                     package_path,
                     query,
-                    options,
+                    package_options,
                 ));
             }
             FindPackageItem::PackageFile(package_path) => {
@@ -2029,13 +2040,32 @@ async fn resolve_module_request(
         }
     }
 
-    Ok(
+    let module_result =
         merge_results_with_affecting_sources(results, result.affecting_sources.clone())
             .with_replaced_request_key(
                 ".".to_string(),
                 Value::new(RequestKey::new(module.to_string())),
-            ),
-    )
+            );
+
+    if options_value.prefer_relative {
+        let module_prefix = format!("./{module}");
+        let pattern = Pattern::concat([
+            module_prefix.clone().into(),
+            "/".to_string().into(),
+            path.clone(),
+        ]);
+        let relative = Request::relative(Value::new(pattern), query, true);
+        let relative_result =
+            resolve_internal_boxed(lookup_path, relative.resolve().await?, options).await?;
+        let relative_result = relative_result.with_replaced_request_key(
+            module_prefix,
+            Value::new(RequestKey::new(module.to_string())),
+        );
+
+        Ok(merge_results(vec![relative_result, module_result]))
+    } else {
+        Ok(module_result)
+    }
 }
 
 #[turbo_tasks::function]
