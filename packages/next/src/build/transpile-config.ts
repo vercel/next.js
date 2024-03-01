@@ -1,6 +1,5 @@
-import { readFile, unlink, writeFile, rm } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, extname, join } from 'path'
-import { pathToFileURL } from 'url'
 import { transform } from './swc'
 import { runCompiler } from './compiler'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
@@ -24,7 +23,7 @@ const swcOptions: Options = {
   isModule: 'unknown',
 }
 
-async function _bundle({
+async function _runWebpack({
   nextConfigPath,
   nextCompiledConfigName,
   cwd,
@@ -40,7 +39,7 @@ async function _bundle({
   isESM: boolean
   resolvedBaseUrl: { baseUrl: string; isImplicit: boolean }
   tsConfig: any
-}): Promise<NextConfig> {
+}): Promise<void> {
   const nextBuildSpan = trace('next-config-ts')
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
   const webpackConfig: webpack.Configuration = {
@@ -109,18 +108,6 @@ async function _bundle({
   if (errors.length > 0) {
     throw new Error(errors[0].message)
   }
-
-  const nextCompiledConfigPath = join(cwd, distDir, nextCompiledConfigName)
-  const nextCompiledConfig = await import(
-    pathToFileURL(nextCompiledConfigPath).href
-  )
-
-  // For named-exported configs, we do not supoort it but proceeds as something like:
-  //  ⚠ Invalid next.config.ts options detected:
-  //  ⚠     Unrecognized key(s) in object: 'config'
-  // So we try to return the default if exits, otherwise return-
-  // the whole object as is to prevent returning undefined and preserve the current behavior
-  return nextCompiledConfig.default ?? nextCompiledConfig
 }
 
 export async function transpileConfig({
@@ -131,7 +118,7 @@ export async function transpileConfig({
   nextConfigPath: string
   nextConfigName: string
   cwd: string
-}) {
+}): Promise<NextConfig> {
   let tsConfig: any = {}
   let packageJson: any = {}
   try {
@@ -143,34 +130,38 @@ export async function transpileConfig({
   // package.json type: module or next.config.mts
   const isESM =
     extname(nextConfigName) === '.mts' || packageJson.type === 'module'
-  // On CJS projects, importing Native ESM will need the config to be .mjs
-  // Therefore the config needs to be next.config.mts
-  // On ESM projects, it won't matter if the config is .mjs or .js if in ESM format
+
+  // On CJS projects, importing Native ESM will need the config to be `.mjs`.
+  // Therefore the config needs to be `next.config.mts`.
+  // On ESM projects, it won't matter if the config is `.mjs` or `.js` in ESM format.
   const nextCompiledConfigName = `next.compiled.config${isESM ? '.mjs' : '.js'}`
 
-  let tempNextConfigPath = ''
-  let hasDistDir = false
+  // Since .next will be gitignored, it is OK to use it although distDir might be set on nextConfig.
+  const distDir = '.next'
+
   try {
-    // Transpile by SWC to check if has import or require other than type
+    // Transpile by SWC to check if the config has `import` or `require`.
     const nextConfigTS = await readFile(nextConfigPath, 'utf8')
     const { code } = await transform(nextConfigTS, swcOptions)
 
-    // Since the code is transpiled to CJS, we only need to check for require
-    // SWC will also drop types and unused imports
-    const isMissingImportOrRequire = !code.includes('require(')
+    // Since the code is transpiled to CJS, we only need to check for require.
+    // SWC will also drop types and unused imports.
+    const hasNoImportOrRequire = !code.includes('require(')
 
-    // If distDir is set, we need to ensure to remove the temporary .next directory
-    hasDistDir = code.includes('distDir:')
-
-    if (isMissingImportOrRequire && !hasDistDir) {
-      tempNextConfigPath = join(cwd, `next.config.cjs`)
-      await writeFile(tempNextConfigPath, code)
-
-      const tempNextConfig = await import(
-        pathToFileURL(tempNextConfigPath).href
+    // Transpile-only if there's no import or require.
+    // This will be the most common case and will avoid the need to run bundle.
+    if (hasNoImportOrRequire) {
+      const transpiledNextConfigPath = join(
+        cwd,
+        distDir,
+        `next.compiled.config.cjs`
       )
-      // See the last return of _bundle for explanation
-      return tempNextConfig.default ?? tempNextConfig
+
+      await mkdir(dirname(transpiledNextConfigPath), { recursive: true })
+      await writeFile(transpiledNextConfigPath, code)
+
+      const transpiledNextConfig = await import(transpiledNextConfigPath)
+      return transpiledNextConfig.default ?? transpiledNextConfig
     }
 
     const resolvedBaseUrl = {
@@ -180,42 +171,26 @@ export async function transpileConfig({
       isImplicit: Boolean(!tsConfig.compilerOptions?.baseUrl),
     }
 
-    const nextConfig = await _bundle({
+    await _runWebpack({
       nextConfigPath,
       nextCompiledConfigName,
       cwd,
-      distDir: '.next',
+      distDir,
       isESM,
       resolvedBaseUrl,
       tsConfig,
     })
 
-    if (hasDistDir && nextConfig.distDir) {
-      const recompiledNextConfig = await _bundle({
-        nextConfigPath,
-        nextCompiledConfigName,
-        cwd,
-        distDir: nextConfig.distDir,
-        isESM,
-        resolvedBaseUrl,
-        tsConfig,
-      })
+    const nextCompiledConfigPath = join(cwd, distDir, nextCompiledConfigName)
+    const nextCompiledConfig = await import(nextCompiledConfigPath)
 
-      // TODO: Can it cause any issues? Are we sure that if distDir is set, nothing else is generated later inside '.next'?
-      // Remove the temporary .next directory
-      await rm(join(cwd, '.next'), { recursive: true, force: true }).catch(
-        () => {}
-      )
-
-      return recompiledNextConfig
-    }
-
-    return nextConfig
+    // For named-exported configs, we do not supoort it but proceeds as something like:
+    //  ⚠ Invalid next.config.ts options detected:
+    //  ⚠     Unrecognized key(s) in object: 'config'
+    // So we try to return the default if exits, otherwise return-
+    // the whole object as is to prevent returning undefined and preserve the current behavior
+    return nextCompiledConfig.default ?? nextCompiledConfig
   } catch (error) {
     throw error
-  } finally {
-    if (tempNextConfigPath) {
-      await unlink(tempNextConfigPath).catch(() => {})
-    }
   }
 }
