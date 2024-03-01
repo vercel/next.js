@@ -113,7 +113,7 @@ program
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
-      'Uses experimental build modes.'
+      'Uses an experimental build mode.'
     )
       .choices(['compile', 'generate'])
       .default('default')
