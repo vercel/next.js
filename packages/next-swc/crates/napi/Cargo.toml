@@ -76,7 +76,8 @@ napi = { version = "2", default-features = false, features = [
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 
-regex = "1.5"
+once_cell = { workspace = true }
+regex = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
