@@ -3,6 +3,7 @@ import {
   hasRedbox,
   getRedboxSource,
   retry,
+  getRedboxDescription,
 } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
@@ -45,16 +46,17 @@ createNextDescribe(
     async function containConflictsError(browser, conflicts) {
       await retry(async () => {
         expect(await hasRedbox(browser)).toBe(true)
-        const redboxSource = await getRedboxSource(browser)
         if (process.env.TURBOPACK) {
-          expect(redboxSource).toContain(
+          expect(await getRedboxDescription(browser)).toContain(
             'App Router and Pages Router both match path:'
           )
         }
 
         if (!process.env.TURBOPACK) {
           for (const pair of conflicts) {
-            expect(redboxSource).toContain(`"${pair[0]}" - "${pair[1]}"`)
+            expect(await getRedboxSource(browser)).toContain(
+              `"${pair[0]}" - "${pair[1]}"`
+            )
           }
         }
       })
