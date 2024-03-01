@@ -62,7 +62,7 @@ async function _runWebpack({
         ),
       ],
       modules: ['node_modules'],
-      extensions: ['.ts', '.mts', '.cts'],
+      extensions: ['.ts', '.mts', '.cts', '.js', '.mjs', '.cjs'],
       // Need to resolve @swc/helpers/_/ alias for next config as async function:
       // Module not found: Can't resolve '@swc/helpers/_/_async_to_generator'
       alias: {
