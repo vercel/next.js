@@ -16,11 +16,6 @@
 /packages/create-next-app/                    @vercel/next-js
 /pnpm-lock.yaml                               @vercel/next-js @vercel/turbopack
 
-# Next.js CLI
-
-/packages/next/src/bin                           @samcx @ijjk
-/packages/next/src/cli                           @samcx @ijjk
-
 # Image Component (@styfle)
 
 /**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi @ztanner @vercel/devex
