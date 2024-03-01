@@ -63,7 +63,7 @@ const nextLint: CliCommand = async (args) => {
       Options
         Basic configuration:
           -h, --help                     List this help
-          -d, --dir Array                Include directory, or directories, to run ESLint - default: 'pages', 'components', and 'lib'
+          -d, --dir Array                Include directory, or directories, to run ESLint - default: 'pages', 'app', 'components', and 'lib'
           --file Array                   Include file, or files, to run ESLint
           -c, --config path::String      Use this configuration file, overriding all other config options
           --ext [String]                 Specify JavaScript file extensions - default: .js, .mjs, .cjs, .jsx, .ts, .mts, .cts, .tsx
