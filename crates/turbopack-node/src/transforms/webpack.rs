@@ -284,6 +284,7 @@ pub struct WebpackResolveOptions {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RequestMessage {
+    #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
         lookup_path: String,
