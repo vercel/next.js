@@ -964,7 +964,6 @@ async function startWatcher(opts: SetupOpts) {
             } else if (isError(err) && hotReloader.turbopackProject) {
               const stack = await traceTurbopackErrorStack(
                 hotReloader.turbopackProject,
-                opts.dir,
                 err,
                 frames
               )
