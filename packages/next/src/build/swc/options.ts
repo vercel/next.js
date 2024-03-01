@@ -17,7 +17,11 @@ const regeneratorRuntimePath = require.resolve(
 )
 
 function isTypeScriptFile(filename: string) {
-  return filename.endsWith('.ts') || filename.endsWith('.tsx')
+  return (
+    filename.endsWith('.ts') ||
+    filename.endsWith('.mts') ||
+    filename.endsWith('.tsx')
+  )
 }
 
 function isCommonJSFile(filename: string) {
