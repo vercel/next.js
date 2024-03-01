@@ -363,7 +363,6 @@ describe('Telemetry CLI', () => {
       const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
         .exec(stderr)
         .pop()
-
       expect(event1).toMatch(/"staticPropsPageCount": 2/)
       expect(event1).toMatch(/"serverPropsPageCount": 2/)
       expect(event1).toMatch(/"ssrPageCount": 3/)
