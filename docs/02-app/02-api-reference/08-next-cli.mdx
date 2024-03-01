@@ -126,7 +126,7 @@ npx next dev --turbo
 For certain use cases like webhooks or authentication, it may be required to use HTTPS to have a secure environment on `localhost`. Next.js can generate a self-signed certificate with `next dev` as follows:
 
 ```bash filename="Terminal"
-npx next dev --experimental-https
+next dev --experimental-https
 ```
 
 You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
