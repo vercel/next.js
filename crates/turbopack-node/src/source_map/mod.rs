@@ -6,7 +6,6 @@ use std::{
 
 use anyhow::Result;
 use const_format::concatcp;
-pub use content_source::NextSourceMapTraceContentSource;
 use once_cell::sync::Lazy;
 use regex::Regex;
 pub use trace::{SourceMapTrace, StackFrame, TraceResult};
@@ -24,7 +23,6 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMapping};
 
-pub mod content_source;
 pub mod trace;
 
 const MAX_CODE_FRAMES: usize = 3;
