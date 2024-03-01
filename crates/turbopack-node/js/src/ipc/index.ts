@@ -32,6 +32,7 @@ export type Ipc<TIncoming, TOutgoing> = {
   recv(): Promise<TIncoming>;
   send(message: TOutgoing): Promise<void>;
   sendError(error: Error): Promise<never>;
+  sendReady(): Promise<void>;
 };
 
 function createIpc<TIncoming, TOutgoing>(
@@ -109,6 +110,21 @@ function createIpc<TIncoming, TOutgoing>(
     });
   }
 
+  function sendReady(): Promise<void> {
+    const length = Buffer.from([0, 0, 0, 0]);
+    return new Promise((resolve, reject) => {
+      socket.write(length, (err) => {
+        process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
+        process.stdout.write(`TURBOPACK_OUTPUT_D\n`);
+        if (err != null) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   return {
     async recv() {
       const packet = packetQueue.shift();
@@ -128,6 +144,8 @@ function createIpc<TIncoming, TOutgoing>(
     send(message: TOutgoing) {
       return send(message);
     },
+
+    sendReady,
 
     async sendError(error: Error): Promise<never> {
       try {
