@@ -43,7 +43,7 @@ async function _runWebpack({
   const nextBuildSpan = trace('next-config-ts')
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
   const webpackConfig: webpack.Configuration = {
-    mode: 'none',
+    mode: 'production',
     entry: nextConfigPath,
     experiments: {
       // Needed for output.libraryTarget: 'module'
@@ -76,7 +76,7 @@ async function _runWebpack({
     module: {
       rules: [
         {
-          test: /\.(c|m)?ts$/,
+          test: /\.(ts|mts)$/,
           exclude: /node_modules/,
           loader: require.resolve('./webpack/loaders/next-swc-loader'),
           options: {
@@ -88,7 +88,6 @@ async function _runWebpack({
             jsConfig: tsConfig,
             swcCacheDir: join(cwd, distDir, 'cache', 'swc'),
             supportedBrowsers: undefined,
-            esm: isESM,
           } satisfies SWCLoaderOptions,
         },
       ],
