@@ -3,7 +3,6 @@
     "strict": false,
     "noEmit": true,
     "allowJs": true,
-    "skipLibCheck": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
     "module": "esnext",
