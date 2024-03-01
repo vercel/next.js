@@ -1092,7 +1092,7 @@ async function traceTurbopackErrorStack(
           return null
         }
 
-        let line = 'at'
+        let line = '    at'
         if (f.methodName != null) {
           line += ' ' + f.methodName
         }
