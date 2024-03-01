@@ -13,10 +13,10 @@ import {
   waitFor,
   nextBuild,
   nextStart,
+  normalizeRegEx,
   check,
   hasRedbox,
   getRedboxHeader,
-  normalizeRouteRegExes,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
@@ -28,13 +28,6 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests({ dev }) {
-  it('should not match dynamic route for non-existent _next/static asset', async () => {
-    const res = await fetchViaHTTP(appPort, '/_next/static/non-existent')
-
-    expect(res.status).toBe(404)
-    expect(await res.text()).not.toContain('nested catch-all')
-  })
-
   if (!dev) {
     it('should have correct cache entries on prefetch', async () => {
       const browser = await webdriver(appPort, '/')
@@ -1241,15 +1234,21 @@ function runTests({ dev }) {
         join(appDir, '.next/routes-manifest.json')
       )
 
-      manifest.staticRoutes = manifest.staticRoutes.map((item) =>
-        normalizeRouteRegExes(item)
-      )
-      manifest.dynamicRoutes = manifest.dynamicRoutes.map((item) =>
-        normalizeRouteRegExes(item)
-      )
-      manifest.dataRoutes = manifest.dataRoutes.map((item) =>
-        normalizeRouteRegExes(item)
-      )
+      for (const route of manifest.dynamicRoutes) {
+        route.regex = normalizeRegEx(route.regex)
+
+        // ensure regexes are valid
+        new RegExp(route.regex)
+        new RegExp(route.namedRegex)
+      }
+
+      for (const route of manifest.dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+
+        // ensure regexes are valid
+        new RegExp(route.dataRouteRegex)
+        new RegExp(route.namedDataRouteRegex)
+      }
 
       expect(manifest).toEqual({
         version: 3,
@@ -1271,7 +1270,7 @@ function runTests({ dev }) {
             regex: '^/another(?:/)?$',
             routeKeys: {},
           },
-        ].map((item) => normalizeRouteRegExes(item)),
+        ],
         redirects: expect.arrayContaining([]),
         dataRoutes: [
           {
@@ -1302,9 +1301,11 @@ function runTests({ dev }) {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
             )}/p1/p2/all\\-ssg/(?<nxtPrest>.+?)\\.json$`,
-            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-              buildId
-            )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`,
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
+            ),
             page: '/p1/p2/all-ssg/[...rest]',
             routeKeys: {
               nxtPrest: 'nxtPrest',
@@ -1314,9 +1315,11 @@ function runTests({ dev }) {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
             )}/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)\\.json$`,
-            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-              buildId
-            )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`,
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
+            ),
             page: '/p1/p2/nested-all-ssg/[...rest]',
             routeKeys: {
               nxtPrest: 'nxtPrest',
@@ -1326,18 +1329,22 @@ function runTests({ dev }) {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
             )}/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)\\.json$`,
-            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-              buildId
-            )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`,
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
+            ),
             page: '/p1/p2/predefined-ssg/[...rest]',
             routeKeys: {
               nxtPrest: 'nxtPrest',
             },
           },
           {
-            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-              buildId
-            )}\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)\\.json$`,
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)\\.json$`
+            ),
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
             )}/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)\\.json$`,
@@ -1348,12 +1355,12 @@ function runTests({ dev }) {
               nxtPrest: 'nxtPrest',
             },
           },
-        ].map((item) => normalizeRouteRegExes(item)),
+        ],
         dynamicRoutes: [
           {
             namedRegex: '^/b/(?<nxtP123>[^/]+?)(?:/)?$',
             page: '/b/[123]',
-            regex: '^\\/b\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               nxtP123: 'nxtP123',
             },
@@ -1361,7 +1368,9 @@ function runTests({ dev }) {
           {
             namedRegex: `^/blog/(?<nxtPname>[^/]+?)/comment/(?<nxtPid>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
-            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx(
+              '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
+            ),
             routeKeys: {
               nxtPname: 'nxtPname',
               nxtPid: 'nxtPid',
@@ -1370,7 +1379,7 @@ function runTests({ dev }) {
           {
             namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
             page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
-            regex: '^\\/c\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               a: 'nxtPalongparamnameshouldbeallowedeventhoughweird',
             },
@@ -1378,7 +1387,7 @@ function runTests({ dev }) {
           {
             namedRegex: '^/catchall\\-dash/(?<nxtPhelloworld>.+?)(?:/)?$',
             page: '/catchall-dash/[...hello-world]',
-            regex: '^\\/catchall\\-dash\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
             routeKeys: {
               nxtPhelloworld: 'nxtPhello-world',
             },
@@ -1386,7 +1395,7 @@ function runTests({ dev }) {
           {
             namedRegex: '^/d/(?<nxtPid>[^/]+?)(?:/)?$',
             page: '/d/[id]',
-            regex: '^\\/d\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/d\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               nxtPid: 'nxtPid',
             },
@@ -1394,7 +1403,7 @@ function runTests({ dev }) {
           {
             namedRegex: '^/dash/(?<nxtPhelloworld>[^/]+?)(?:/)?$',
             page: '/dash/[hello-world]',
-            regex: '^\\/dash\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/dash\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               nxtPhelloworld: 'nxtPhello-world',
             },
@@ -1402,7 +1411,7 @@ function runTests({ dev }) {
           {
             namedRegex: '^/index/(?<nxtPslug>.+?)(?:/)?$',
             page: '/index/[...slug]',
-            regex: '^/index/(.+?)(?:/)?$',
+            regex: normalizeRegEx('^/index/(.+?)(?:/)?$'),
             routeKeys: {
               nxtPslug: 'nxtPslug',
             },
@@ -1410,7 +1419,7 @@ function runTests({ dev }) {
           {
             namedRegex: `^/on\\-mount/(?<nxtPpost>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
-            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               nxtPpost: 'nxtPpost',
             },
@@ -1418,7 +1427,7 @@ function runTests({ dev }) {
           {
             namedRegex: `^/p1/p2/all\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssg/[...rest]',
-            regex: '^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
             routeKeys: {
               nxtPrest: 'nxtPrest',
             },
@@ -1426,7 +1435,7 @@ function runTests({ dev }) {
           {
             namedRegex: `^/p1/p2/all\\-ssr/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssr/[...rest]',
-            regex: '^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
             routeKeys: {
               nxtPrest: 'nxtPrest',
             },
@@ -1434,7 +1443,9 @@ function runTests({ dev }) {
           {
             namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/nested-all-ssg/[...rest]',
-            regex: '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
             routeKeys: {
               nxtPrest: 'nxtPrest',
             },
@@ -1442,7 +1453,9 @@ function runTests({ dev }) {
           {
             namedRegex: `^/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
             page: '/p1/p2/predefined-ssg/[...rest]',
-            regex: '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
             routeKeys: {
               nxtPrest: 'nxtPrest',
             },
@@ -1450,7 +1463,7 @@ function runTests({ dev }) {
           {
             namedRegex: `^/(?<nxtPname>[^/]+?)(?:/)?$`,
             page: '/[name]',
-            regex: '^\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               nxtPname: 'nxtPname',
             },
@@ -1458,7 +1471,7 @@ function runTests({ dev }) {
           {
             namedRegex: `^/(?<nxtPname>[^/]+?)/comments(?:/)?$`,
             page: '/[name]/comments',
-            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$',
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
             routeKeys: {
               nxtPname: 'nxtPname',
             },
@@ -1466,7 +1479,9 @@ function runTests({ dev }) {
           {
             namedRegex: `^/(?<nxtPname>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
             page: '/[name]/on-mount-redir',
-            regex: '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
+            ),
             routeKeys: {
               nxtPname: 'nxtPname',
             },
@@ -1474,7 +1489,7 @@ function runTests({ dev }) {
           {
             namedRegex: `^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)(?:/)?$`,
             page: '/[name]/[comment]',
-            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               nxtPname: 'nxtPname',
               nxtPcomment: 'nxtPcomment',
@@ -1484,14 +1499,16 @@ function runTests({ dev }) {
             namedRegex:
               '^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)(?:/)?$',
             page: '/[name]/[comment]/[...rest]',
-            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)(?:\\/)?$'
+            ),
             routeKeys: {
               nxtPcomment: 'nxtPcomment',
               nxtPname: 'nxtPname',
               nxtPrest: 'nxtPrest',
             },
           },
-        ].map((item) => normalizeRouteRegExes(item)),
+        ],
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',

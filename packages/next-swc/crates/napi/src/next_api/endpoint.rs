@@ -3,8 +3,8 @@ use std::{ops::Deref, sync::Arc};
 use anyhow::Result;
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::{
+    paths::ServerPath,
     route::{Endpoint, WrittenEndpoint},
-    server_paths::ServerPath,
 };
 use tracing::Instrument;
 use turbo_tasks::{ReadRef, Vc};
@@ -28,10 +28,10 @@ pub struct NapiServerPath {
     pub content_hash: String,
 }
 
-impl From<&ServerPath> for NapiServerPath {
-    fn from(server_path: &ServerPath) -> Self {
+impl From<ServerPath> for NapiServerPath {
+    fn from(server_path: ServerPath) -> Self {
         Self {
-            path: server_path.path.clone(),
+            path: server_path.path,
             content_hash: format!("{:x}", server_path.content_hash),
         }
     }
@@ -42,25 +42,32 @@ impl From<&ServerPath> for NapiServerPath {
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
-    pub server_paths: Option<Vec<NapiServerPath>>,
+    pub client_paths: Vec<String>,
+    pub server_paths: Vec<NapiServerPath>,
     pub config: NapiEndpointConfig,
 }
 
-impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
-    fn from(written_endpoint: &WrittenEndpoint) -> Self {
+impl From<WrittenEndpoint> for NapiWrittenEndpoint {
+    fn from(written_endpoint: WrittenEndpoint) -> Self {
         match written_endpoint {
             WrittenEndpoint::NodeJs {
                 server_entry_path,
                 server_paths,
+                client_paths,
             } => Self {
                 r#type: "nodejs".to_string(),
-                entry_path: Some(server_entry_path.clone()),
-                server_paths: Some(server_paths.iter().map(From::from).collect()),
+                entry_path: Some(server_entry_path),
+                client_paths,
+                server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            WrittenEndpoint::Edge { server_paths } => Self {
+            WrittenEndpoint::Edge {
+                server_paths,
+                client_paths,
+            } => Self {
                 r#type: "edge".to_string(),
-                server_paths: Some(server_paths.iter().map(From::from).collect()),
+                client_paths,
+                server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
         }
@@ -127,7 +134,7 @@ pub async fn endpoint_write_to_disk(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(TurbopackResult {
-        result: NapiWrittenEndpoint::from(&*written),
+        result: NapiWrittenEndpoint::from(written.clone_value()),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })

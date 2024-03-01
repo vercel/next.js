@@ -49,6 +49,8 @@ import {
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
@@ -1726,7 +1728,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<ResponsePayload | null> {
     const is404Page =
       // For edge runtime 404 page, /_not-found needs to be treated as 404 page
-      (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
+      (process.env.NEXT_RUNTIME === 'edge' &&
+        pathname === UNDERSCORE_NOT_FOUND_ROUTE) ||
       pathname === '/404'
 
     // Strip the internal headers.
@@ -2120,9 +2123,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       postponed: string | undefined
     }) => Promise<ResponseCacheEntry | null>
 
+    // allow debugging the skeleton in dev with PPR
+    // instead of continuing to resume stream right away
+    const debugPPRSkeleton = Boolean(
+      this.nextConfig.experimental.ppr &&
+        this.renderOpts.dev &&
+        query.__nextppronly
+    )
+
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML: boolean =
+      let supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
         // support dynamic HTML.
         (!isDataReq && opts.dev === true) ||
@@ -2192,6 +2203,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+      }
+
+      if (debugPPRSkeleton) {
+        supportsDynamicHTML = false
+        renderOpts.nextExport = true
+        renderOpts.supportsDynamicHTML = false
+        renderOpts.isStaticGeneration = true
+        renderOpts.isRevalidate = true
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2852,6 +2871,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
+      if (debugPPRSkeleton) {
+        return {
+          type: 'html',
+          body,
+          revalidate: 0,
+        }
+      }
+
       // This request has postponed, so let's create a new transformer that the
       // dynamic data can pipe to that will attach the dynamic data to the end
       // of the response.
@@ -3234,7 +3261,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.enabledDirectories.app) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
             query,
             params: {},
             isAppPath: true,
