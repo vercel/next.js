@@ -15,8 +15,8 @@ use turbopack_core::{
         handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
-            ConditionValue, ImportMap, ImportMapping, ResolveInPackage, ResolveIntoPackage,
-            ResolveModules, ResolveOptions,
+            ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
+            ResolveOptions,
         },
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
@@ -25,6 +25,8 @@ use turbopack_core::{
     },
     source::{OptionSource, Source},
 };
+
+use crate::ecmascript::get_condition_maps;
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
     pub severity: Vc<IssueSeverity>,
@@ -472,12 +474,9 @@ async fn apply_typescript_types_options(
         .into_package
         .push(ResolveIntoPackage::MainField {
             field: "types".to_string(),
-            extensions: Some(vec![".d.ts".to_string(), ".ts".to_string()]),
         });
-    for item in resolve_options.in_package.iter_mut() {
-        if let ResolveInPackage::ImportsField { conditions, .. } = item {
-            conditions.insert("types".to_string(), ConditionValue::Set);
-        }
+    for conditions in get_condition_maps(&mut resolve_options) {
+        conditions.insert("types".to_string(), ConditionValue::Set);
     }
     Ok(resolve_options.into())
 }

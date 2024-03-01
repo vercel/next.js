@@ -18,7 +18,7 @@ use turbopack_core::{
 /// package to control how it can be imported) and the "in" package (controlling
 /// how this package imports others) resolution options, so that they can be
 /// manipulated together.
-fn get_condition_maps(
+pub fn get_condition_maps(
     options: &mut ResolveOptions,
 ) -> impl Iterator<Item = &mut ResolutionConditions> {
     options
@@ -43,6 +43,8 @@ fn get_condition_maps(
 #[turbo_tasks::function]
 pub async fn apply_esm_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.await?.clone_value();
+    // TODO set fully_specified when in strict ESM mode
+    // options.fully_specified = true;
     for conditions in get_condition_maps(&mut options) {
         conditions.insert("import".to_string(), ConditionValue::Set);
         conditions.insert("require".to_string(), ConditionValue::Unset);

@@ -27,13 +27,13 @@ pub fn node_cjs_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> 
             },
             ResolveIntoPackage::MainField {
                 field: "main".to_string(),
-                extensions: None,
             },
         ],
         in_package: vec![ResolveInPackage::ImportsField {
             conditions,
             unspecified_conditions: ConditionValue::Unset,
         }],
+        default_files: vec!["index".to_string()],
         ..Default::default()
     }
     .cell()
@@ -48,7 +48,8 @@ pub fn node_esm_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> 
     .into();
     let extensions = vec![".js".to_string(), ".json".to_string(), ".node".to_string()];
     ResolveOptions {
-        extensions: vec![],
+        fully_specified: true,
+        extensions,
         modules: vec![ResolveModules::Nested(
             root,
             vec!["node_modules".to_string()],
@@ -60,13 +61,13 @@ pub fn node_esm_resolve_options(root: Vc<FileSystemPath>) -> Vc<ResolveOptions> 
             },
             ResolveIntoPackage::MainField {
                 field: "main".to_string(),
-                extensions: Some(extensions),
             },
         ],
         in_package: vec![ResolveInPackage::ImportsField {
             conditions,
             unspecified_conditions: ConditionValue::Unset,
         }],
+        default_files: vec!["index".to_string()],
         ..Default::default()
     }
     .cell()

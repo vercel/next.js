@@ -225,18 +225,15 @@ async fn base_resolve_options(
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField {
                     field: "browser".to_string(),
-                    extensions: None,
                 });
             }
             if opt.module {
                 resolve_into.push(ResolveIntoPackage::MainField {
                     field: "module".to_string(),
-                    extensions: None,
                 });
             }
             resolve_into.push(ResolveIntoPackage::MainField {
                 field: "main".to_string(),
-                extensions: None,
             });
             resolve_into
         },
@@ -250,6 +247,7 @@ async fn base_resolve_options(
             }
             resolve_in
         },
+        default_files: vec!["index".to_string()],
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
         plugins,
