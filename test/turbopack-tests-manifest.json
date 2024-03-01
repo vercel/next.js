@@ -1467,6 +1467,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-deleted-page/hmr-deleted-page.test.ts": {
+    "passed": ["hmr-deleted-page should not show errors for a deleted page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -4001,13 +4008,12 @@
   },
   "test/e2e/app-dir/not-found/conflict-route/index.test.ts": {
     "passed": [
+      "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes",
+      "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with runtime = edge should use the not-found page for non-matching routes"
     ],
-    "failed": [
-      "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
-      "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6604,6 +6610,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/useselectedlayoutsegment-s-in-pages-router/useselectedlayoutsegment-s-in-pages-router.test.ts": {
+    "passed": [
+      "useSelectedLayoutSegment(s) in Pages Router Should render with `useSelectedLayoutSegment(s) hooks"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
     "passed": [],
     "failed": [],
@@ -8746,7 +8761,6 @@
       "Dynamic Routing dev mode should not have any console warnings when navigating to dynamic route",
       "Dynamic Routing dev mode should not have any query values when not defined",
       "Dynamic Routing dev mode should not have placeholder query values for SSS",
-      "Dynamic Routing dev mode should not match dynamic route for non-existent _next/static asset",
       "Dynamic Routing dev mode should not preload buildManifest for non-auto export dynamic pages",
       "Dynamic Routing dev mode should pass params in getInitialProps during SSR",
       "Dynamic Routing dev mode should pass params in getInitialProps during client navigation",
@@ -8823,7 +8837,6 @@
       "Dynamic Routing production mode should not error when requesting dynamic page with /api",
       "Dynamic Routing production mode should not have any query values when not defined",
       "Dynamic Routing production mode should not have placeholder query values for SSS",
-      "Dynamic Routing production mode should not match dynamic route for non-existent _next/static asset",
       "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
       "Dynamic Routing production mode should output a pages-manifest correctly",
       "Dynamic Routing production mode should output a routes-manifest correctly",
@@ -8907,7 +8920,6 @@
       "Dynamic Routing dev mode should not have any console warnings when navigating to dynamic route",
       "Dynamic Routing dev mode should not have any query values when not defined",
       "Dynamic Routing dev mode should not have placeholder query values for SSS",
-      "Dynamic Routing dev mode should not match dynamic route for non-existent _next/static asset",
       "Dynamic Routing dev mode should not preload buildManifest for non-auto export dynamic pages",
       "Dynamic Routing dev mode should pass params in getInitialProps during SSR",
       "Dynamic Routing dev mode should pass params in getInitialProps during client navigation",
@@ -8984,7 +8996,6 @@
       "Dynamic Routing production mode should not error when requesting dynamic page with /api",
       "Dynamic Routing production mode should not have any query values when not defined",
       "Dynamic Routing production mode should not have placeholder query values for SSS",
-      "Dynamic Routing production mode should not match dynamic route for non-existent _next/static asset",
       "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
       "Dynamic Routing production mode should output a pages-manifest correctly",
       "Dynamic Routing production mode should pass params in getInitialProps during SSR",
