@@ -132,7 +132,7 @@ next dev --experimental-https
 You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
 
 ```bash filename="Terminal"
-npx next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
 ```
 
 `next dev --experimental-https` is only intended for development and creates a locally-trusted certificate with `mkcert`. In production, use properly issued certificates from trusted authorities. When deploying to Vercel, HTTPS is [automatically configured](https://vercel.com/docs/security/encryption) for your Next.js application.
