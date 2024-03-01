@@ -1,13 +1,12 @@
 import type { NextConfig } from 'next'
-import { foo } from './foo.cts'
-import { bar } from './bar.cjs'
-import { baz } from './baz.js'
+import fs from 'fs'
+import path from 'path'
+
+const foo = fs.readFileSync(path.join(__dirname, 'foo.txt'), 'utf8')
 
 const nextConfig: NextConfig = {
   env: {
     foo,
-    bar,
-    baz,
   },
 }
 

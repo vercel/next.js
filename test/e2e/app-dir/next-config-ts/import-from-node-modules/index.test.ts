@@ -7,6 +7,6 @@ describe('next-config-ts-import-from-node-modules', () => {
 
   it('should import from node_modules', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('foobar')
+    expect($('p').text()).toBe('foo')
   })
 })

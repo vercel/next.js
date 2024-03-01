@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
-import { foo } from './foo.mts'
-import { bar } from './bar.mjs'
-import { baz } from './baz.js'
+import { foo } from './lib/foo.cts'
+import { bar } from './lib/bar.cjs'
+import { baz } from './lib/baz'
 
 const nextConfig: NextConfig = {
   env: {
