@@ -254,11 +254,6 @@ export function nextTestSetup(
 
   const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
     get: function (_target, property) {
-      if (!next) {
-        throw new Error(
-          'next instance is not initialized yet, make sure you call methods on next instance in test body.'
-        )
-      }
       const prop = next[property]
       return typeof prop === 'function' ? prop.bind(next) : prop
     },
