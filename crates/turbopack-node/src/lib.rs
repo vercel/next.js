@@ -2,6 +2,7 @@
 #![feature(min_specialization)]
 #![feature(lint_reasons)]
 #![feature(arbitrary_self_types)]
+#![feature(extract_if)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
