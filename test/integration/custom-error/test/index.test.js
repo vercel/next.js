@@ -94,8 +94,8 @@ describe('Custom _error', () => {
     afterAll(() => killApp(app))
 
     it('should not contain /_error in build output', async () => {
-      expect(buildOutput).toMatch(/λ .*?\/404/)
-      expect(buildOutput).not.toMatch(/λ .*?\/_error/)
+      expect(buildOutput).toMatch(/ƒ .*?\/404/)
+      expect(buildOutput).not.toMatch(/ƒ .*?\/_error/)
     })
 
     runTests()

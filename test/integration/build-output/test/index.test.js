@@ -261,7 +261,7 @@ describe('Build Output', () => {
         })
 
         expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
-        expect(stdout).toMatch(/λ \/404 (.* )?\d{1,} B/)
+        expect(stdout).toMatch(/ƒ \/404 (.* )?\d{1,} B/)
         expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
         expect(stdout).toMatch(/ chunks\/main-[0-9a-z]{16}\.js [ 0-9.]* kB/)
         expect(stdout).toMatch(
@@ -289,7 +289,7 @@ describe('Build Output', () => {
           stdout: true,
         })
         expect(stdout).toContain('○ /404')
-        expect(stdout).not.toContain('λ /_error')
+        expect(stdout).not.toContain('ƒ /_error')
         expect(stdout).not.toContain('<buildId>')
       })
     })

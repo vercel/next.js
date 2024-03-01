@@ -658,17 +658,17 @@ describe('Switchable runtime', () => {
         const expectedOutputLines = splitLines(`
       ┌   /_app
       ├ ○ /404
-      ├ ℇ /api/hello
-      ├ λ /api/node
-      ├ ℇ /edge
-      ├ ℇ /edge-rsc
+      ├ ƒ /api/hello
+      ├ ƒ /api/node
+      ├ ƒ /edge
+      ├ ƒ /edge-rsc
       ├ ○ /node
       ├ ● /node-rsc
       ├ ● /node-rsc-isr
       ├ ● /node-rsc-ssg
-      ├ λ /node-rsc-ssr
+      ├ ƒ /node-rsc-ssr
       ├ ● /node-ssg
-      ├ λ /node-ssr
+      ├ ƒ /node-ssr
       └ ○ /static
       `)
 
