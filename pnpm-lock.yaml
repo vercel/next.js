@@ -750,7 +750,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -812,7 +812,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.5
@@ -933,16 +933,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1124,6 +1124,9 @@ importers:
       client-only:
         specifier: 0.0.1
         version: 0.0.1
+      commander:
+        specifier: 12.0.0
+        version: 12.0.0
       comment-json:
         specifier: 3.0.3
         version: 3.0.3
@@ -1554,7 +1557,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.1.2-canary.0
+        specifier: 14.1.2-canary.1
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -9582,12 +9585,13 @@ packages:
   /comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
 
+  /commander@12.0.0:
+    resolution: {integrity: sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==}
+    engines: {node: '>=18'}
+    dev: true
+
   /commander@2.20.0:
     resolution: {integrity: sha512-7j2y+40w61zy6YC2iRNpUe/NwhNyoXrYpHMrSunaMG64nRnaf96zO/KMQR4OyN/UnE5KLyEBnKHd4aG3rskjpQ==}
-
-  /commander@2.20.3:
-    resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
-    dev: true
 
   /commander@4.1.1:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
@@ -24940,7 +24944,7 @@ packages:
     hasBin: true
     dependencies:
       chalk: 1.1.3
-      commander: 2.20.3
+      commander: 2.20.0
       debug: 2.6.9
     transitivePeerDependencies:
       - supports-color
