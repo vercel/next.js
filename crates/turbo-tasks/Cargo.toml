@@ -28,6 +28,7 @@ erased-serde = "0.3.20"
 event-listener = "2.5.3"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
+mopa = "0.2.0"
 nohash-hasher = "0.2.0"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
