@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, extname, join } from 'path'
 import { transform } from './swc'
 import { runCompiler } from './compiler'
@@ -51,9 +51,18 @@ async function _runWebpack({
     },
     output: {
       filename: nextCompiledConfigName,
-      path: cwd,
+      path: join(cwd, distDir),
       libraryTarget: isESM ? 'module' : 'commonjs2',
     },
+    // Set node.__dirname to true, and context to cwd.
+    // This will ensure __dirname points to cwd not `.next`.
+    // See https://webpack.js.org/configuration/node/#node__dirname
+    node: {
+      __dirname: true,
+      // __filename will be `next.config.ts` instead of the original absolute path behavior.
+      __filename: true,
+    },
+    context: cwd,
     // Resolve Node.js API like `fs`, and also allow to use ESM.
     target: ['node', 'es2020'],
     resolve: {
@@ -137,8 +146,9 @@ export async function transpileConfig({
   // On ESM projects, it won't matter if the config is `.mjs` or `.js` in ESM format.
   const nextCompiledConfigName = `next.compiled.config${isESM ? '.mjs' : '.js'}`
 
-  let nextCompiledConfigPath = ''
-  let nextCompiledConfig: NextConfig
+  // Since .next will be gitignored, it is OK to use it although distDir might be set on nextConfig.
+  const distDir = '.next'
+
   try {
     // Transpile by SWC to check if the config has `import` or `require`.
     const nextConfigTS = await readFile(nextConfigPath, 'utf8')
@@ -151,12 +161,16 @@ export async function transpileConfig({
     // Transpile-only if there's no import or require.
     // This will be the most common case and will avoid the need to run bundle.
     if (hasNoImportOrRequire) {
-      nextCompiledConfigPath = join(cwd, `next.compiled.config.cjs`)
+      const nextCompiledConfigPath = join(
+        cwd,
+        distDir,
+        `next.compiled.config.cjs`
+      )
 
       await mkdir(dirname(nextCompiledConfigPath), { recursive: true })
       await writeFile(nextCompiledConfigPath, code)
 
-      nextCompiledConfig = await import(nextCompiledConfigPath)
+      const nextCompiledConfig = await import(nextCompiledConfigPath)
       return nextCompiledConfig.default ?? nextCompiledConfig
     }
 
@@ -166,9 +180,6 @@ export async function transpileConfig({
       // If baseUrl is not set, it's implicit (cwd).
       isImplicit: Boolean(!tsConfig.compilerOptions?.baseUrl),
     }
-
-    // Since .next will be gitignored, it is OK to use it although distDir might be set on nextConfig.
-    const distDir = '.next'
 
     await _runWebpack({
       nextConfigPath,
@@ -180,8 +191,8 @@ export async function transpileConfig({
       tsConfig,
     })
 
-    nextCompiledConfigPath = join(cwd, nextCompiledConfigName)
-    nextCompiledConfig = await import(nextCompiledConfigPath)
+    const nextCompiledConfigPath = join(cwd, distDir, nextCompiledConfigName)
+    const nextCompiledConfig = await import(nextCompiledConfigPath)
 
     // For named-exported configs, we do not supoort it but proceeds as something like:
     //  ⚠ Invalid next.config.ts options detected:
@@ -191,10 +202,5 @@ export async function transpileConfig({
     return nextCompiledConfig.default ?? nextCompiledConfig
   } catch (error) {
     throw error
-  } finally {
-    if (nextCompiledConfigPath) {
-      // We cannot store the config to `.next` since it'll break when use `__dirname`.
-      await unlink(nextCompiledConfigPath).catch(() => {})
-    }
   }
 }
