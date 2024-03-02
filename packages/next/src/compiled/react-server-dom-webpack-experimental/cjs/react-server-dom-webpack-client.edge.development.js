@@ -30,6 +30,49 @@ function readFinalStringChunk(decoder, buffer) {
   return decoder.decode(buffer);
 }
 
+// This flips color using ANSI, then sets a color styling, then resets.
+var badgeFormat = '\x1b[0m\x1b[7m%c%s\x1b[0m%c '; // Same badge styling as DevTools.
+
+var badgeStyle = // We use a fixed background if light-dark is not supported, otherwise
+// we use a transparent background.
+'background: #e6e6e6;' + 'background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));' + 'color: #000000;' + 'color: light-dark(#000000, #ffffff);' + 'border-radius: 2px';
+var resetStyle = '';
+var pad = ' ';
+function printToConsole(methodName, args, badgeName) {
+  var offset = 0;
+
+  switch (methodName) {
+    case 'dir':
+    case 'dirxml':
+    case 'groupEnd':
+    case 'table':
+      {
+        // These methods cannot be colorized because they don't take a formatting string.
+        // eslint-disable-next-line react-internal/no-production-logging
+        console[methodName].apply(console, args);
+        return;
+      }
+
+    case 'assert':
+      {
+        // assert takes formatting options as the second argument.
+        offset = 1;
+      }
+  }
+
+  var newArgs = args.slice(0);
+
+  if (typeof newArgs[offset] === 'string') {
+    newArgs.splice(offset, 1, badgeFormat + newArgs[offset], badgeStyle, pad + badgeName + pad, resetStyle);
+  } else {
+    newArgs.splice(offset, 0, badgeFormat, badgeStyle, pad + badgeName + pad, resetStyle);
+  } // eslint-disable-next-line react-internal/no-production-logging
+
+
+  console[methodName].apply(console, newArgs);
+  return;
+}
+
 // This is the parsed shape of the wire format which is why it is
 // condensed to only the essentialy information
 var ID = 0;
@@ -1603,18 +1646,29 @@ function reportGlobalError(response, error) {
   });
 }
 
+function nullRefGetter() {
+  {
+    return null;
+  }
+}
+
 function createElement(type, key, props) {
-  var element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  var element;
+
+  {
+    // `ref` is non-enumerable in dev
+    element = {
+      $$typeof: REACT_ELEMENT_TYPE,
+      type: type,
+      key: key,
+      props: props,
+      _owner: null
+    };
+    Object.defineProperty(element, 'ref', {
+      enumerable: false,
+      get: nullRefGetter
+    });
+  }
 
   {
     // We don't really need to add any of these but keeping them for good measure.
@@ -1788,6 +1842,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(function () {});
+          }
+
           var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
@@ -1868,6 +1927,23 @@ function parseModelString(response, parentObject, key, value) {
         {
           // BigInt
           return BigInt(value.slice(2));
+        }
+
+      case 'E':
+        {
+          {
+            // In DEV mode we allow indirect eval to produce functions for logging.
+            // This should not compile to eval() because then it has local scope access.
+            try {
+              // eslint-disable-next-line no-eval
+              return (0, eval)(value.slice(2));
+            } catch (x) {
+              // We currently use this to express functions so we fail parsing it,
+              // let's just return a blank function as a place holder.
+              return function () {};
+            }
+          } // Fallthrough
+
         }
 
       default:
@@ -2083,6 +2159,17 @@ function resolveDebugInfo(response, id, debugInfo) {
   chunkDebugInfo.push(debugInfo);
 }
 
+function resolveConsoleEntry(response, value) {
+
+  var payload = parseModel(response, value);
+  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
+  // const stackTrace = payload[1];
+
+  var env = payload[2];
+  var args = payload.slice(3);
+  printToConsole(methodName, args, env);
+}
+
 function mergeBuffer(buffer, lastChunk) {
   var l = buffer.length; // Count the bytes we'll need
 
@@ -2260,6 +2347,17 @@ function processFullRow(response, id, tag, buffer, chunk) {
         {
           var debugInfo = JSON.parse(row);
           resolveDebugInfo(response, id, debugInfo);
+          return;
+        } // Fallthrough to share the error with Console entries.
+
+      }
+
+    case 87
+    /* "W" */
+    :
+      {
+        {
+          resolveConsoleEntry(response, row);
           return;
         }
       }
