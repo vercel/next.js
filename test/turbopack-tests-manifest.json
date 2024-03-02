@@ -1513,9 +1513,10 @@
     "runtimeError": false
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
-    "passed": [],
+    "passed": [
+      "app-render-error-log should log the correct values on app-render error"
+    ],
     "failed": [
-      "app-render-error-log should log the correct values on app-render error",
       "app-render-error-log should log the correct values on app-render error with edge runtime"
     ],
     "pending": [],
@@ -4554,243 +4555,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/scss/multi-page/multi-page.test.ts": {
-    "passed": [],
-    "failed": [
-      "SCSS Support Has CSS in computed styles in Production should have CSS for page",
-      "SCSS Support Can hot reload CSS without losing state should update CSS color without remounting <input>",
-      "SCSS Support Has CSS in computed styles in Development should have CSS for page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/unused/unused.test.ts": {
-    "passed": [],
-    "failed": [
-      "unused scss Body is not hidden when unused in Development development only should have body visible",
-      "unused scss Body is not hidden when broken in Development development only should have body visible"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts": {
-    "passed": [],
-    "failed": [
-      "Can hot reload CSS Module without losing state development only should update CSS color without remounting <input>"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/url-global/url-global.test.ts": {
-    "passed": [],
-    "failed": [
-      "SCSS Support loader handling CSS URL via `file-loader` should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/3rd-party-module/3rd-party-module.test.ts": {
-    "passed": [],
-    "failed": ["3rd Party CSS Module Support should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/external-url/external-url.test.ts": {
-    "passed": [],
-    "failed": [
-      "SCSS Support loader handling External imports should include font on the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/composes-basic/composes-basic.test.ts": {
-    "passed": [],
-    "failed": ["CSS Module Composes Usage (Basic) should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/data-url/data-url.test.ts": {
-    "passed": [],
-    "failed": [
-      "SCSS Support loader handling Data Urls should render the module"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/nested-global/nested-global.test.ts": {
-    "passed": [],
-    "failed": ["Nested @import() Global Support should render the page"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/npm-import-tilde/npm-import-tilde.test.ts": {
-    "passed": [],
-    "failed": [
-      "Good CSS Import from node_modules with tilde should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/loader-order/loader-order.test.ts": {
-    "passed": [],
-    "failed": [
-      "SCSS Support loader handling Preprocessor loader order should render the module"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/dev-module/dev-module.test.ts": {
-    "passed": [],
-    "failed": [
-      "Has CSS Module in computed styles in Development should have CSS for page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/npm-import/npm-import.test.ts": {
-    "passed": [],
-    "failed": ["Good CSS Import from node_modules should render the page"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/prod-module/prod-module.test.ts": {
-    "passed": [],
-    "failed": [
-      "Has CSS Module in computed styles in Production should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-
-  "test/e2e/app-dir/scss/with-styled-jsx/with-styled-jsx.test.ts": {
-    "passed": [],
-    "failed": [
-      "Ordering with styled-jsx should have the correct color (css ordering)"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/catch-all-module/catch-all-module.test.ts": {
-    "passed": [],
-    "failed": ["Catch-all Route CSS Module Usage should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/basic-module-additional-data/basic-module-additional-data.test.ts": {
-    "passed": [],
-    "failed": ["Basic Module Additional Data Support should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/basic-module-include-paths/basic-module-include-paths.test.ts": {
-    "passed": [],
-    "failed": ["Basic Module Include Paths Support should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/basic-module-prepend-data/basic-module-prepend-data.test.ts": {
-    "passed": [],
-    "failed": ["Basic Module Prepend Data Support should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
-    "passed": [],
-    "failed": ["Multi Global Support (reversed) should render the page"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/single-global-src/single-global-src.test.ts": {
-    "passed": [],
-    "failed": ["Basic Global Support with src/ dir should render the page"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/basic-module/basic-module.test.ts": {
-    "passed": [],
-    "failed": ["Basic SCSS Module Support should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/single-global/single-global.test.ts": {
-    "passed": [],
-    "failed": ["Basic Global Support scss should render the page"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/multi-global/multi-global.test.ts": {
-    "passed": [],
-    "failed": ["Multi Global Support should render the page"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/npm-import-nested/npm-import-nested.test.ts": {
-    "passed": [],
-    "failed": [
-      "Good Nested CSS Import from node_modules should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/nm-module-nested/nm-module-nested.test.ts": {
-    "passed": [],
-    "failed": [
-      "Valid Nested CSS Module Usage from within node_modules should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/nm-module/nm-module.test.ts": {
-    "passed": [],
-    "failed": [
-      "Valid CSS Module Usage from within node_modules should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/composes-external/composes-external.test.ts": {
-    "passed": [],
-    "failed": ["CSS Module Composes Usage (External) should render the module"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/url-global-partial/url-global-partial.test.ts": {
-    "passed": [],
-    "failed": [
-      "SCSS Support loader handling CSS URL via file-loader sass partial should render the page"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/search-params-react-key/layout-params.test.ts": {
     "passed": [
       "app dir - search params keys should keep the React router instance the same when changing the search params"
@@ -5176,13 +4940,13 @@
     "runtimeError": false
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Conflict between app file and pages file should error again when there is new conflict",
       "Conflict between app file and pages file should show error overlay for /",
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [
       "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir"

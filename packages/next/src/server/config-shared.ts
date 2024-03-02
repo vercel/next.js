@@ -194,6 +194,11 @@ export interface ExperimentalConfig {
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
+   * This will enable a plugin that attempts to keep CSS entries below a certain amount
+   * by merging smaller chunks into larger ones
+   */
+  mergeCssChunks?: boolean
+  /**
    * @deprecated use config.cacheHandler instead
    */
   incrementalCacheHandlerPath?: string
@@ -910,6 +915,7 @@ export const defaultConfig: NextConfig = {
     optimizeServerReact: false,
     useEarlyImport: false,
     minifiedCSSClassNamesForCSSModules: false,
+    mergeCssChunks: true,
   },
 }
 
