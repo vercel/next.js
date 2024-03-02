@@ -224,6 +224,8 @@ describe('Error overlay - RSC build errors', () => {
 
     expect(await session.hasRedbox()).toBe(true)
     if (isTurbopack) {
+      // TODO: fix the issue ordering.
+      // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
         Ecmascript file had an error
