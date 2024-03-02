@@ -1,5 +1,4 @@
-import React from 'react'
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
+import type { StackFramesGroup } from '../helpers/group-stack-frames-by-framework'
 
 export function FrameworkIcon({
   framework,
