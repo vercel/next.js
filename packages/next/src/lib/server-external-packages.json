@@ -8,8 +8,6 @@
   "@mikro-orm/core",
   "@mikro-orm/knex",
   "@prisma/client",
-  "@sentry/nextjs",
-  "@sentry/node",
   "@swc/core",
   "argon2",
   "autoprefixer",
