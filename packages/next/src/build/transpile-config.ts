@@ -121,6 +121,40 @@ async function _runWebpack({
   }
 }
 
+async function _transpileOnly({
+  nextConfigPath,
+  cwd,
+  distDir,
+}: {
+  nextConfigPath: string
+  cwd: string
+  distDir: string
+}): Promise<NextConfig | undefined> {
+  // Transpile by SWC to check if the config has `import` or `require`.
+  const nextConfigTS = await readFile(nextConfigPath, 'utf8')
+  const { code } = await transform(nextConfigTS, swcOptions)
+
+  // Since the code is transpiled to CJS, we only need to check for require.
+  // SWC will also drop types and unused imports.
+  const hasNoImportOrRequire = !code.includes('require(')
+
+  // Transpile-only if there's no import or require.
+  // This will be the most common case and will avoid the need to run bundle.
+  if (hasNoImportOrRequire) {
+    const nextCompiledConfigPath = join(
+      cwd,
+      distDir,
+      `next.compiled.config.cjs`
+    )
+
+    await mkdir(dirname(nextCompiledConfigPath), { recursive: true })
+    await writeFile(nextCompiledConfigPath, code)
+
+    const nextCompiledConfig = await import(nextCompiledConfigPath)
+    return nextCompiledConfig.default ?? nextCompiledConfig
+  }
+}
+
 export async function transpileConfig({
   isProd,
   nextConfigPath,
@@ -153,6 +187,18 @@ export async function transpileConfig({
     }
   }
 
+  // Try transpile-only first to avoid running webpack.
+  try {
+    const nextCompiledConfig = await _transpileOnly({
+      nextConfigPath,
+      cwd,
+      distDir,
+    })
+    if (nextCompiledConfig) {
+      return nextCompiledConfig
+    }
+  } catch {}
+
   let tsConfig: any = {}
   let packageJson: any = {}
   try {
@@ -161,39 +207,17 @@ export async function transpileConfig({
     packageJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
   } catch {}
 
-  // package.json type: module or next.config.mts
-  const isESM =
-    extname(nextConfigName) === '.mts' || packageJson.type === 'module'
-
-  // On CJS projects, importing Native ESM will need the config to be `.mjs`.
-  // Therefore the config needs to be `next.config.mts`.
-  // On ESM projects, it won't matter if the config is `.mjs` or `.js` in ESM format.
-  const nextCompiledConfigName = `next.compiled.config${isESM ? '.mjs' : '.js'}`
-
   try {
-    // Transpile by SWC to check if the config has `import` or `require`.
-    const nextConfigTS = await readFile(nextConfigPath, 'utf8')
-    const { code } = await transform(nextConfigTS, swcOptions)
+    // package.json type: module or next.config.mts
+    const isESM =
+      extname(nextConfigName) === '.mts' || packageJson.type === 'module'
 
-    // Since the code is transpiled to CJS, we only need to check for require.
-    // SWC will also drop types and unused imports.
-    const hasNoImportOrRequire = !code.includes('require(')
-
-    // Transpile-only if there's no import or require.
-    // This will be the most common case and will avoid the need to run bundle.
-    if (hasNoImportOrRequire) {
-      const nextCompiledConfigPath = join(
-        cwd,
-        distDir,
-        `next.compiled.config.cjs`
-      )
-
-      await mkdir(dirname(nextCompiledConfigPath), { recursive: true })
-      await writeFile(nextCompiledConfigPath, code)
-
-      const nextCompiledConfig = await import(nextCompiledConfigPath)
-      return nextCompiledConfig.default ?? nextCompiledConfig
-    }
+    // On CJS projects, importing Native ESM will need the config to be `.mjs`.
+    // Therefore the config needs to be `next.config.mts`.
+    // On ESM projects, it won't matter if the config is `.mjs` or `.js` in ESM format.
+    const nextCompiledConfigName = `next.compiled.config${
+      isESM ? '.mjs' : '.js'
+    }`
 
     const resolvedBaseUrl = {
       // Use cwd if baseUrl is not set.
