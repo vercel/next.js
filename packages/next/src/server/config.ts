@@ -993,11 +993,15 @@ export default async function loadConfig(
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
       } else if (isTypeScript) {
+        const start = Date.now()
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
           nextConfigName: configFileName,
           cwd: dir,
         })
+        const end = Date.now()
+
+        curLog.info(`TypeScript config transpiled in ${end - start}ms`)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
