@@ -129,8 +129,8 @@ async function _transpileOnly({
   distDir: string
 }): Promise<NextConfig | undefined> {
   // Transpile by SWC to check if the config has `import` or `require`.
-  const nextConfigTS = await readFile(nextConfigPath, 'utf8')
-  const { code } = await transform(nextConfigTS, swcOptions)
+  const nextConfig = await readFile(nextConfigPath, 'utf8')
+  const { code } = await transform(nextConfig, swcOptions)
 
   // Since the code is transpiled to CJS, we only need to check for require.
   // SWC will also drop types and unused imports.
@@ -144,8 +144,7 @@ async function _transpileOnly({
     await mkdir(dirname(nextCompiledConfigPath), { recursive: true })
     await writeFile(nextCompiledConfigPath, code)
 
-    const nextCompiledConfig = await import(nextCompiledConfigPath)
-    return nextCompiledConfig.default ?? nextCompiledConfig
+    return await import(nextCompiledConfigPath)
   }
 }
 
@@ -176,8 +175,7 @@ export async function transpileConfig({
       }
     )
     if (preCompiledConfig?.length) {
-      const nextCompiledConfig = await import(preCompiledConfig)
-      return nextCompiledConfig.default ?? nextCompiledConfig
+      return await import(preCompiledConfig)
     }
   }
 
@@ -230,14 +228,7 @@ export async function transpileConfig({
     })
 
     const nextCompiledConfigPath = join(distDir, nextCompiledConfigName)
-    const nextCompiledConfig = await import(nextCompiledConfigPath)
-
-    // For named-exported configs, we do not supoort it but proceeds as something like:
-    //  ⚠ Invalid next.config.ts options detected:
-    //  ⚠     Unrecognized key(s) in object: 'config'
-    // So we try to return the default if exits, otherwise return-
-    // the whole object as is to prevent returning undefined and preserve the current behavior.
-    return nextCompiledConfig.default ?? nextCompiledConfig
+    return await import(nextCompiledConfigPath)
   } catch (error) {
     throw error
   }

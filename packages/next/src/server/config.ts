@@ -1028,7 +1028,11 @@ export default async function loadConfig(
 
     const userConfig = await normalizeConfig(
       phase,
-      userConfigModule.default || userConfigModule
+      // SWC transform wraps the module in a default export when-
+      // `module.importInterop: 'none'` or `module.noInterop: true` is not set.
+      userConfigModule.default?.default ??
+        userConfigModule.default ??
+        userConfigModule
     )
 
     if (!process.env.NEXT_MINIMAL) {
