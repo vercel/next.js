@@ -11,7 +11,7 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -32,6 +32,7 @@ import { IncrementalCache } from './lib/incremental-cache'
 import type { PAGE_TYPES } from '../lib/page-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -242,7 +243,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     // For edge runtime if the pathname hit as /_not-found entrypoint,
     // override the pathname to /404 for rendering
-    if (pathname === (renderOpts.dev ? '/not-found' : '/_not-found')) {
+    if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }
     return renderToHTML(
@@ -266,6 +267,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
+      swrDelta: SwrDelta | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')

@@ -288,10 +288,11 @@ createNextDescribe(
       describe('chunks', () => {
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
+
           expect(
             [
               ...html.matchAll(
-                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+                /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
               ),
             ].length
           ).toBe(3)

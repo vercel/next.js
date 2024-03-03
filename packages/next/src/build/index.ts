@@ -19,6 +19,7 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
+import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -71,6 +72,8 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -169,23 +172,15 @@ import { isInterceptionRouteAppPath } from '../server/future/helpers/interceptio
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
-  type GlobalEntrypoints,
-  type CurrentEntrypoints,
-  type CurrentIssues,
-  type BuildManifests,
-  type AppBuildManifests,
-  type PagesManifests,
-  type AppPathsManifests,
-  type MiddlewareManifests,
-  type ActionManifests,
-  type FontManifests,
-  type LoadableManifests,
+  type EntryIssuesMap,
   handleRouteType,
-  writeManifests,
   handlePagesErrorRoute,
   formatIssue,
 } from '../server/dev/turbopack-utils'
+import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
+import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { createProgress } from './progress'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -669,6 +664,8 @@ async function getBuildId(
     .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
+const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -677,14 +674,14 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate'
 ): Promise<void> {
-  const isCompileMode = buildMode === 'experimental-compile'
-  const isGenerateMode = buildMode === 'experimental-generate'
+  const isCompileMode = experimentalBuildMode === 'compile'
+  const isGenerateMode = experimentalBuildMode === 'generate'
 
   try {
     const nextBuildSpan = trace('next-build', undefined, {
-      buildMode: buildMode,
+      buildMode: experimentalBuildMode,
       isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
@@ -1020,23 +1017,26 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      const numConflictingAppPaths = conflictingAppPagePaths.length
-      if (mappedAppPages && numConflictingAppPaths > 0) {
-        Log.error(
-          `Conflicting app and page file${
-            numConflictingAppPaths === 1 ? ' was' : 's were'
-          } found, please remove the conflicting files to continue:`
-        )
-        for (const [pagePath, appPath] of conflictingAppPagePaths) {
-          Log.error(`  "${pagePath}" - "${appPath}"`)
+      // Turbopack already handles conflicting app and page routes.
+      if (!IS_TURBOPACK_BUILD) {
+        const numConflictingAppPaths = conflictingAppPagePaths.length
+        if (mappedAppPages && numConflictingAppPaths > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflictingAppPaths === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const [pagePath, appPath] of conflictingAppPagePaths) {
+            Log.error(`  "${pagePath}" - "${appPath}"`)
+          }
+          await telemetry.flush()
+          process.exit(1)
         }
-        await telemetry.flush()
-        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
-      const hasApp404 = !!mappedAppPages?.['/_not-found']
+      const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -1334,11 +1334,10 @@ export default async function build(
         duration: number
         buildTraceContext: undefined
       }> {
-        if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
+        if (!IS_TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
-        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
-        // This is caused by Turbopack not having the production build option yet.
+
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1355,7 +1354,6 @@ export default async function build(
             allowedRevalidateHeaderKeys: undefined,
             clientRouterFilters: undefined,
             config,
-            // When passing `false` you get `react.jsxDEV is not a function`
             dev,
             distDir,
             fetchCacheKeyPrefix: undefined,
@@ -1382,22 +1380,23 @@ export default async function build(
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entrypointsSubscription = project.entrypointsSubscribe()
-        const globalEntrypoints: GlobalEntrypoints = {
-          app: undefined,
-          document: undefined,
-          error: undefined,
-        }
-        const currentEntrypoints: CurrentEntrypoints = new Map()
-        const currentIssues: CurrentIssues = new Map()
+        const currentEntrypoints: Entrypoints = {
+          global: {
+            app: undefined,
+            document: undefined,
+            error: undefined,
 
-        const buildManifests: BuildManifests = new Map()
-        const appBuildManifests: AppBuildManifests = new Map()
-        const pagesManifests: PagesManifests = new Map()
-        const appPathsManifests: AppPathsManifests = new Map()
-        const middlewareManifests: MiddlewareManifests = new Map()
-        const actionManifests: ActionManifests = new Map()
-        const fontManifests: FontManifests = new Map()
-        const loadableManifests: LoadableManifests = new Map()
+            middleware: undefined,
+            instrumentation: undefined,
+          },
+
+          app: new Map(),
+          page: new Map(),
+        }
+
+        const currentEntryIssues: EntryIssuesMap = new Map()
+
+        const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
         // TODO: implement this
         const emptyRewritesObjToBeImplemented = {
@@ -1406,104 +1405,114 @@ export default async function build(
           fallback: [],
         }
 
-        for await (const entrypoints of entrypointsSubscription) {
-          await handleEntrypoints({
-            rewrites: emptyRewritesObjToBeImplemented,
-            nextConfig: config,
-            entrypoints,
-            serverFields: undefined,
-            propagateServerField: undefined,
-            distDir,
-            buildId,
-            globalEntrypoints,
-            currentEntrypoints,
-            changeSubscriptions: undefined,
-            changeSubscription: undefined,
-            clearChangeSubscription: undefined,
-            sendHmr: undefined,
-            startBuilding: undefined,
-            handleRequireCacheClearing: undefined,
-            prevMiddleware: undefined,
-            currentIssues,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-          })
-
-          const promises = []
-          for (const [page, route] of currentEntrypoints) {
-            promises.push(
-              handleRouteType({
-                rewrites: emptyRewritesObjToBeImplemented,
-                distDir,
-                buildId,
-                globalEntrypoints,
-                currentIssues,
-                buildManifests,
-                appBuildManifests,
-                pagesManifests,
-                appPathsManifests,
-                middlewareManifests,
-                actionManifests,
-                fontManifests,
-                loadableManifests,
-                currentEntrypoints,
-                handleRequireCacheClearing: undefined,
-                changeSubscription: undefined,
-                readyIds: undefined,
-                page,
-                route,
-              })
-            )
-          }
-
-          promises.push(
-            handlePagesErrorRoute({
-              rewrites: emptyRewritesObjToBeImplemented,
-              globalEntrypoints,
-              currentIssues,
-              distDir,
-              buildId,
-              buildManifests,
-              pagesManifests,
-              fontManifests,
-              appBuildManifests,
-              appPathsManifests,
-              middlewareManifests,
-              actionManifests,
-              loadableManifests,
-              currentEntrypoints,
-              handleRequireCacheClearing: undefined,
-              changeSubscription: undefined,
-            })
-          )
-          await Promise.all(promises)
-          break
+        const entrypointsResult = await entrypointsSubscription.next()
+        if (entrypointsResult.done) {
+          throw new Error('Turbopack did not return any entrypoints')
         }
-        await writeManifests({
-          rewrites: emptyRewritesObjToBeImplemented,
-          distDir,
-          buildId,
-          buildManifests,
-          appBuildManifests,
-          pagesManifests,
-          appPathsManifests,
-          middlewareManifests,
-          actionManifests,
-          fontManifests,
-          loadableManifests,
+        entrypointsSubscription.return?.().catch(() => {})
+
+        const entrypoints = entrypointsResult.value
+
+        const topLevelErrors: {
+          message: string
+        }[] = []
+        for (const issue of entrypoints.issues) {
+          topLevelErrors.push({
+            message: formatIssue(issue),
+          })
+        }
+
+        if (topLevelErrors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${
+              topLevelErrors.length
+            } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
+          )
+        }
+
+        await handleEntrypoints({
+          entrypoints,
           currentEntrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          nextConfig: config,
+          rewrites: emptyRewritesObjToBeImplemented,
         })
 
-        const errors = []
-        for (const pageIssues of currentIssues.values()) {
-          for (const issue of pageIssues.values()) {
+        const progress = createProgress(
+          currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
+          'Building'
+        )
+        const promises: Promise<any>[] = []
+        const sema = new Sema(10)
+        const enqueue = (fn: () => Promise<void>) => {
+          promises.push(
+            (async () => {
+              await sema.acquire()
+              try {
+                await fn()
+              } finally {
+                sema.release()
+                progress()
+              }
+            })()
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.page) {
+          enqueue(() =>
+            handleRouteType({
+              dev,
+              page,
+              pathname: page,
+              route,
+
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+            })
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.app) {
+          enqueue(() =>
+            handleRouteType({
+              page,
+              dev: false,
+              pathname: normalizeAppPath(page),
+              route,
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+            })
+          )
+        }
+
+        enqueue(() =>
+          handlePagesErrorRoute({
+            currentEntryIssues,
+            entrypoints: currentEntrypoints,
+            manifestLoader,
+            rewrites: emptyRewritesObjToBeImplemented,
+          })
+        )
+        await Promise.all(promises)
+
+        await manifestLoader.writeManifests({
+          rewrites: emptyRewritesObjToBeImplemented,
+          pageEntrypoints: currentEntrypoints.page,
+        })
+
+        const errors: {
+          page: string
+          message: string
+        }[] = []
+        for (const [page, entryIssues] of currentEntryIssues) {
+          for (const issue of entryIssues.values()) {
             errors.push({
+              page,
               message: formatIssue(issue),
             })
           }
@@ -1512,7 +1521,9 @@ export default async function build(
         if (errors.length > 0) {
           throw new Error(
             `Turbopack build failed with ${errors.length} issues:\n${errors
-              .map((e) => e.message)
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
               .join('\n')}`
           )
         }
@@ -1522,11 +1533,16 @@ export default async function build(
           buildTraceContext: undefined,
         }
       }
+
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // webpack build worker is always enabled unless manually disabled
-      const useBuildWorker = config.experimental.webpackBuildWorker !== false
+      // If there's has a custom webpack config and disable the build worker.
+      // Otherwise respect the option if it's set.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker ||
+        (config.experimental.webpackBuildWorker === undefined &&
+          !config.webpack)
       const runServerAndEdgeInParallel =
         config.experimental.parallelServerCompiles
       const collectServerBuildTracesInParallel =
@@ -2433,7 +2449,9 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
-      const isApp404Static = appStaticPaths.has('/_not-found')
+      const isApp404Static = appStaticPaths.has(
+        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      )
       const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
@@ -2676,7 +2694,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
-              if (route === '/_not-found') return
+              if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,

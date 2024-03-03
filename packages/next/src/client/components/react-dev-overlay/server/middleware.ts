@@ -8,6 +8,7 @@ import url from 'url'
 import type webpack from 'webpack'
 import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
 import { launchEditor } from '../internal/helpers/launchEditor'
+import { findSourcePackage, type OriginalStackFrameResponse } from './shared'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { parseStack } from '../internal/helpers/parseStack'
 
@@ -16,12 +17,6 @@ export type OverlayMiddlewareOptions = {
   stats(): webpack.Stats | null
   serverStats(): webpack.Stats | null
   edgeServerStats(): webpack.Stats | null
-}
-
-export type OriginalStackFrameResponse = {
-  originalStackFrame: StackFrame
-  originalCodeFrame: string | null
-  sourcePackage?: string
 }
 
 type Source = { map: () => any } | null
@@ -112,22 +107,10 @@ function findOriginalSourcePositionAndContentFromCompilation(
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
-function findCallStackFramePackage(
-  id: string,
-  compilation?: webpack.Compilation
-): string | undefined {
-  if (!compilation) {
-    return undefined
-  }
-  const module = getModuleById(id, compilation)
-  return (module as any)?.resourceResolveData?.descriptionFileData?.name
-}
-
 export async function createOriginalStackFrame({
   line,
   column,
   source,
-  sourcePackage,
   moduleId,
   modulePath,
   rootDirectory,
@@ -140,7 +123,6 @@ export async function createOriginalStackFrame({
   line: number
   column: number | null
   source: any
-  sourcePackage?: string
   moduleId?: string
   modulePath?: string
   rootDirectory: string
@@ -246,7 +228,7 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: originalFrame,
     originalCodeFrame,
-    sourcePackage,
+    sourcePackage: findSourcePackage(filePath) ?? null,
   }
 }
 
@@ -310,6 +292,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const isEdgeServerError = frame.isEdgeServer === 'true'
       const isClientError = !isServerError && !isEdgeServerError
 
+      let sourcePackage = findSourcePackage(frame.file)
+
       if (
         !(
           (frame.file?.startsWith('webpack-internal:///') ||
@@ -318,6 +302,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           Boolean(parseInt(frame.lineNumber?.toString() ?? '', 10))
         )
       ) {
+        if (sourcePackage) {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          res.write(Buffer.from(JSON.stringify({ sourcePackage })))
+          return res.end()
+        }
         res.statusCode = 400
         res.write('Bad Request')
         return res.end()
@@ -333,7 +323,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       )
 
       let source: Source = null
-      let sourcePackage: string | undefined = undefined
+
       const clientCompilation = options.stats()?.compilation
       const serverCompilation = options.serverStats()?.compilation
       const edgeCompilation = options.edgeServerStats()?.compilation
@@ -345,20 +335,17 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           // In `pages` we leverage `isClientError` to check
           // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
           source = await getSourceById(isFile, moduleId, clientCompilation)
-          sourcePackage = findCallStackFramePackage(moduleId, clientCompilation)
         }
         // Try Server Compilation
         // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
         // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
         if ((isServerError || isAppDirectory) && source === null) {
           source = await getSourceById(isFile, moduleId, serverCompilation)
-          sourcePackage = findCallStackFramePackage(moduleId, serverCompilation)
         }
         // Try Edge Server Compilation
         // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
         if ((isEdgeServerError || isAppDirectory) && source === null) {
           source = await getSourceById(isFile, moduleId, edgeCompilation)
-          sourcePackage = findCallStackFramePackage(moduleId, edgeCompilation)
         }
       } catch (err) {
         console.log('Failed to get source map:', err)
@@ -368,6 +355,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (source == null) {
+        if (sourcePackage) {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          res.write(Buffer.from(JSON.stringify({ sourcePackage })))
+          return res.end()
+        }
         res.statusCode = 204
         res.write('No Content')
         return res.end()
@@ -387,7 +380,6 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           line: frameLine,
           column: frameColumn,
           source,
-          sourcePackage,
           frame,
           moduleId,
           modulePath,
@@ -399,6 +391,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         })
 
         if (originalStackFrameResponse === null) {
+          if (sourcePackage) {
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.write(Buffer.from(JSON.stringify({ sourcePackage })))
+            return res.end()
+          }
           res.statusCode = 204
           res.write('No Content')
           return res.end()

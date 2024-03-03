@@ -9,7 +9,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackAppLayer, isWebpackServerLayer } from './utils'
+import { isWebpackAppLayer, isWebpackServerOnlyLayer } from './utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
@@ -233,7 +233,7 @@ export function makeExternalHandler({
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     // Make sure @vercel/og is loaded as ESM for Node.js runtime
     if (
-      isWebpackServerLayer(layer) &&
+      isWebpackServerOnlyLayer(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
       return `module ${request}`
@@ -420,7 +420,7 @@ function resolveBundlingOptOutPackages({
 
   if (nodeModulesRegex.test(resolvedRes)) {
     const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
-    if (isWebpackServerLayer(layer)) {
+    if (isWebpackServerOnlyLayer(layer)) {
       if (isOptOutBundling) {
         return `${externalType} ${request}` // Externalize if opted out
       }

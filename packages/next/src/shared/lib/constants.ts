@@ -33,6 +33,8 @@ export const COMPILER_INDEXES: {
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
+export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
+export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
@@ -97,6 +99,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = 'polyfills'
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
+export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'

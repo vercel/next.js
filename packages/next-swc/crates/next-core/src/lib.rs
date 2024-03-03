@@ -4,6 +4,7 @@
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
+#![feature(iter_intersperse)]
 
 mod app_segment_config;
 pub mod app_structure;
@@ -57,7 +58,6 @@ pub fn register() {
     turbo::tasks_fs::register();
     turbo::tasks_fetch::register();
     turbopack::dev::register();
-    turbopack::dev_server::register();
     turbopack::node::register();
     turbopack::turbopack::register();
     turbopack::image::register();

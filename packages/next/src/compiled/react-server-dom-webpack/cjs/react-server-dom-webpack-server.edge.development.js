@@ -159,10 +159,10 @@ function closeWithError(destination, error) {
 }
 
 // eslint-disable-next-line no-unused-vars
-var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+var CLIENT_REFERENCE_TAG$1 = Symbol.for('react.client.reference');
 var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
 function isClientReference(reference) {
-  return reference.$$typeof === CLIENT_REFERENCE_TAG;
+  return reference.$$typeof === CLIENT_REFERENCE_TAG$1;
 }
 function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
@@ -174,7 +174,7 @@ function registerClientReference(proxyImplementation, id, exportName) {
 function registerClientReferenceImpl(proxyImplementation, id, async) {
   return Object.defineProperties(proxyImplementation, {
     $$typeof: {
-      value: CLIENT_REFERENCE_TAG
+      value: CLIENT_REFERENCE_TAG$1
     },
     $$id: {
       value: id
@@ -195,6 +195,14 @@ function bind() {
   var newFn = FunctionBind.apply(this, arguments);
 
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
+    {
+      var thisBind = arguments[0];
+
+      if (thisBind != null) {
+        error('Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().');
+      }
+    }
+
     var args = ArraySlice.call(arguments, 1);
     return Object.defineProperties(newFn, {
       $$typeof: {
@@ -221,13 +229,16 @@ function registerServerReference(reference, id, exportName) {
       value: SERVER_REFERENCE_TAG
     },
     $$id: {
-      value: exportName === null ? id : id + '#' + exportName
+      value: exportName === null ? id : id + '#' + exportName,
+      configurable: true
     },
     $$bound: {
-      value: null
+      value: null,
+      configurable: true
     },
     bind: {
-      value: bind
+      value: bind,
+      configurable: true
     }
   });
 }
@@ -265,6 +276,10 @@ var deepProxyHandlers = {
       case Symbol.toPrimitive:
         // $FlowFixMe[prop-missing]
         return Object.prototype[Symbol.toPrimitive];
+
+      case Symbol.toStringTag:
+        // $FlowFixMe[prop-missing]
+        return Object.prototype[Symbol.toStringTag];
 
       case 'Provider':
         throw new Error("Cannot render a Client Context Provider on the Server. " + "Instead, you can export a Client Component wrapper " + "that itself renders a Client Context Provider.");
@@ -307,6 +322,10 @@ function getReference(target, name) {
       // $FlowFixMe[prop-missing]
       return Object.prototype[Symbol.toPrimitive];
 
+    case Symbol.toStringTag:
+      // $FlowFixMe[prop-missing]
+      return Object.prototype[Symbol.toStringTag];
+
     case '__esModule':
       // Something is conditionally checking which export to use. We'll pretend to be
       // an ESM compat module but then we'll check again on the client.
@@ -345,6 +364,10 @@ function getReference(target, name) {
         return undefined;
       }
 
+  }
+
+  if (typeof name === 'symbol') {
+    throw new Error('Cannot read Symbol exports. Only named exports are supported on a client module ' + 'imported on the server.');
   }
 
   var cachedReference = target[name];
@@ -1090,6 +1113,10 @@ function describeValueForErrorMessage(value) {
           return '[...]';
         }
 
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
         var name = objectName(value);
 
         if (name === 'Object') {
@@ -1100,7 +1127,15 @@ function describeValueForErrorMessage(value) {
       }
 
     case 'function':
-      return 'function';
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var _name = value.displayName || value.name;
+
+        return _name ? 'function ' + _name : 'function';
+      }
 
     default:
       // eslint-disable-next-line react-internal/safe-string-coercion
@@ -1144,6 +1179,12 @@ function describeElementType(type) {
   }
 
   return '';
+}
+
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
 }
 
 function describeObjectForErrorMessage(objectOrArray, expandedName) {
@@ -1224,6 +1265,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
     } else if (jsxPropsParents.has(objectOrArray)) {
       // Print JSX
       var _type = jsxPropsParents.get(objectOrArray);
@@ -1274,9 +1317,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _name = _names[_i3];
-        str += describeKeyForErrorMessage(_name) + ': ';
-        var _value3 = _object[_name];
+        var _name2 = _names[_i3];
+        str += describeKeyForErrorMessage(_name2) + ': ';
+        var _value3 = _object[_name2];
 
         var _substr3 = void 0;
 
@@ -1286,7 +1329,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           _substr3 = describeValueForErrorMessage(_value3);
         }
 
-        if (_name === expandedName) {
+        if (_name2 === expandedName) {
           start = str.length;
           length = _substr3.length;
           str += _substr3;
@@ -1341,7 +1384,7 @@ function defaultPostponeHandler(reason) {// Noop
 var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
-function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone) {
+function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone, environmentName) {
   if (ReactCurrentCache.current !== null && ReactCurrentCache.current !== DefaultCacheDispatcher) {
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
@@ -1379,6 +1422,11 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone
   };
+
+  {
+    request.environmentName = environmentName === undefined ? 'Server' : environmentName;
+  }
+
   var rootTask = createTask(request, model, null, false, abortSet);
   pingedTasks.push(rootTask);
   return request;
@@ -1398,6 +1446,15 @@ function resolveRequest() {
 function serializeThenable(request, task, thenable) {
   var newTask = createTask(request, null, task.keyPath, // the server component sequence continues through Promise-as-a-child.
   task.implicitSlot, request.abortableTasks);
+
+  {
+    // If this came from Flight, forward any debug info into this new row.
+    var debugInfo = thenable._debugInfo;
+
+    if (debugInfo) {
+      forwardDebugInfo(request, newTask.id, debugInfo);
+    }
+  }
 
   switch (thenable.status) {
     case 'fulfilled':
@@ -1533,6 +1590,12 @@ function createLazyWrapperAroundWakeable(wakeable) {
     _payload: thenable,
     _init: readThenable
   };
+
+  {
+    // If this came from React, transfer the debug info.
+    lazyType._debugInfo = thenable._debugInfo || [];
+  }
+
   return lazyType;
 }
 
@@ -1553,7 +1616,8 @@ function renderFunctionComponent(request, task, key, Component, props) {
       var componentName = Component.displayName || Component.name || '';
       request.pendingChunks++;
       emitDebugChunk(request, debugID, {
-        name: componentName
+        name: componentName,
+        env: request.environmentName
       });
     }
   }
@@ -1601,6 +1665,24 @@ function renderFunctionComponent(request, task, key, Component, props) {
 
 function renderFragment(request, task, children) {
   {
+    var debugInfo = children._debugInfo;
+
+    if (debugInfo) {
+      // If this came from Flight, forward any debug info into this new row.
+      if (debugID === null) {
+        // We don't have a chunk to assign debug info. We need to outline this
+        // component to assign it an ID.
+        return outlineTask(request, task);
+      } else {
+        // Forward any debug info we have the first time we see it.
+        // We do this after init so that we have received all the debug info
+        // from the server by the time we emit it.
+        forwardDebugInfo(request, debugID, debugInfo);
+      }
+    }
+  }
+
+  {
     return children;
   }
 }
@@ -1636,6 +1718,8 @@ function renderElement(request, task, type, key, ref, props) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
     // cases.
+    // TODO: `ref` is now just a prop when `enableRefAsProp` is on. Should we
+    // do what the above comment says?
     throw new Error('Refs cannot be used in Server Components, nor passed to Client Components.');
   }
 
@@ -2076,17 +2160,64 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
             _writtenObjects.set(value, -1);
           }
 
-          var element = value; // Attempt to render the Server Component.
+          var element = value;
+
+          {
+            var debugInfo = value._debugInfo;
+
+            if (debugInfo) {
+              // If this came from Flight, forward any debug info into this new row.
+              if (debugID === null) {
+                // We don't have a chunk to assign debug info. We need to outline this
+                // component to assign it an ID.
+                return outlineTask(request, task);
+              } else {
+                // Forward any debug info we have the first time we see it.
+                forwardDebugInfo(request, debugID, debugInfo);
+              }
+            }
+          }
+
+          var props = element.props;
+          var ref;
+
+          {
+            ref = element.ref;
+          } // Attempt to render the Server Component.
+
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, element.ref, element.props);
+          element.key, ref, props);
         }
 
       case REACT_LAZY_TYPE:
         {
-          var payload = value._payload;
-          var init = value._init;
+          // Reset the task's thenable state before continuing. If there was one, it was
+          // from suspending the lazy before.
+          task.thenableState = null;
+          var lazy = value;
+          var payload = lazy._payload;
+          var init = lazy._init;
           var resolvedModel = init(payload);
+
+          {
+            var _debugInfo = lazy._debugInfo;
+
+            if (_debugInfo) {
+              // If this came from Flight, forward any debug info into this new row.
+              if (debugID === null) {
+                // We don't have a chunk to assign debug info. We need to outline this
+                // component to assign it an ID.
+                return outlineTask(request, task);
+              } else {
+                // Forward any debug info we have the first time we see it.
+                // We do this after init so that we have received all the debug info
+                // from the server by the time we emit it.
+                forwardDebugInfo(request, debugID, _debugInfo);
+              }
+            }
+          }
+
           return renderModelDestructive(request, task, emptyRoot, '', resolvedModel);
         }
     }
@@ -2227,8 +2358,11 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (/^on[A-Z]/.test(parentPropertyName)) {
       throw new Error('Event handlers cannot be passed to Client Component props.' + describeObjectForErrorMessage(parent, parentPropertyName) + '\nIf you need interactivity, consider converting part of this to a Client Component.');
+    } else if ((jsxChildrenParents.has(parent) || jsxPropsParents.has(parent) && parentPropertyName === 'children')) {
+      var componentName = value.displayName || value.name || 'Component';
+      throw new Error('Functions are not valid as a child of Client Components. This may happen if ' + 'you return ' + componentName + ' instead of <' + componentName + ' /> from render. ' + 'Or maybe you meant to call this function rather than return it.' + describeObjectForErrorMessage(parent, parentPropertyName));
     } else {
-      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server".' + describeObjectForErrorMessage(parent, parentPropertyName));
+      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server". ' + 'Or maybe you meant to call this function rather than return it.' + describeObjectForErrorMessage(parent, parentPropertyName));
     }
   }
 
@@ -2265,13 +2399,40 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 }
 
 function logPostpone(request, reason) {
-  var onPostpone = request.onPostpone;
-  onPostpone(reason);
+  var prevRequest = currentRequest;
+  currentRequest = null;
+
+  try {
+    var onPostpone = request.onPostpone;
+
+    if (supportsRequestStorage) {
+      // Exit the request context while running callbacks.
+      requestStorage.run(undefined, onPostpone, reason);
+    } else {
+      onPostpone(reason);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 }
 
 function logRecoverableError(request, error) {
-  var onError = request.onError;
-  var errorDigest = onError(error);
+  var prevRequest = currentRequest;
+  currentRequest = null;
+  var errorDigest;
+
+  try {
+    var onError = request.onError;
+
+    if (supportsRequestStorage) {
+      // Exit the request context while running callbacks.
+      errorDigest = requestStorage.run(undefined, onError, error);
+    } else {
+      errorDigest = onError(error);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 
   if (errorDigest != null && typeof errorDigest !== 'string') {
     // eslint-disable-next-line react-internal/prod-error-codes
@@ -2330,8 +2491,11 @@ function emitErrorChunk(request, id, digest, error) {
         message = String(error.message); // eslint-disable-next-line react-internal/safe-string-coercion
 
         stack = String(error.stack);
+      } else if (typeof error === 'object' && error !== null) {
+        message = describeObjectForErrorMessage(error);
       } else {
-        message = 'Error: ' + error;
+        // eslint-disable-next-line react-internal/safe-string-coercion
+        message = String(error);
       }
     } catch (x) {
       message = 'An error occurred but serializing the error message failed.';
@@ -2384,6 +2548,13 @@ function emitDebugChunk(request, id, debugInfo) {
   var row = serializeRowHeader('D', id) + json + '\n';
   var processedChunk = stringToChunk(row);
   request.completedRegularChunks.push(processedChunk);
+}
+
+function forwardDebugInfo(request, id, debugInfo) {
+  for (var i = 0; i < debugInfo.length; i++) {
+    request.pendingChunks++;
+    emitDebugChunk(request, id, debugInfo[i]);
+  }
 }
 
 var emptyRoot = {};
@@ -3385,7 +3556,7 @@ function decodeFormState(actionResult, body, serverManifest) {
 }
 
 function renderToReadableStream(model, webpackMap, options) {
-  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined);
+  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined, options ? options.environmentName : undefined);
 
   if (options && options.signal) {
     var signal = options.signal;

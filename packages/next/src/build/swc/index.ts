@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
-import { platform, arch } from 'os'
+import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
+import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
+import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
@@ -166,11 +166,19 @@ export interface Binding {
   transformSync: any
   parse: any
   parseSync: any
+
   getTargetTriple(): string | undefined
+
   initCustomTraceSubscriber?: any
   teardownTraceSubscriber?: any
   initHeapProfiler?: any
   teardownHeapProfiler?: any
+  css: {
+    lightning: {
+      transform(transformOptions: any): Promise<any>
+      transformStyleAttr(attrOptions: any): Promise<any>
+    }
+  }
 }
 
 export async function loadBindings(
@@ -501,7 +509,7 @@ export type StyledString =
 
 export interface Issue {
   severity: string
-  category: string
+  stage: string
   filePath: string
   title: StyledString
   description?: StyledString
@@ -565,7 +573,7 @@ interface BaseUpdate {
     path: string
   }
   diagnostics: unknown[]
-  issues: unknown[]
+  issues: Issue[]
 }
 
 interface IssuesUpdate extends BaseUpdate {
@@ -616,15 +624,21 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+
   getSourceForAsset(filePath: string): Promise<string | null>
+
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
+
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
@@ -636,11 +650,15 @@ export type Route =
     }
   | {
       type: 'app-page'
-      htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      pages: {
+        originalName: string
+        htmlEndpoint: Endpoint
+        rscEndpoint: Endpoint
+      }[]
     }
   | {
       type: 'app-route'
+      originalName: string
       endpoint: Endpoint
     }
   | {
@@ -656,12 +674,14 @@ export type Route =
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+
   /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
   clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+
   /**
    * Listen to server-side changes to the endpoint.
    * After serverChanged() has been awaited it will listen to changes.
@@ -698,13 +718,17 @@ export type WrittenEndpoint =
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
-      /** All server paths that has been written for the endpoint. */
+      /** All client paths that have been written for the endpoint. */
+      clientPaths: string[]
+      /** All server paths that have been written for the endpoint. */
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
   | {
       type: 'edge'
-      /** All server paths that has been written for the endpoint. */
+      /** All client paths that have been written for the endpoint. */
+      clientPaths: string[]
+      /** All server paths that have been written for the endpoint. */
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
@@ -883,11 +907,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'app-page'
-            htmlEndpoint: NapiEndpoint
-            rscEndpoint: NapiEndpoint
+            pages: {
+              originalName: string
+              htmlEndpoint: NapiEndpoint
+              rscEndpoint: NapiEndpoint
+            }[]
           }
         | {
             type: 'app-route'
+            originalName: string
             endpoint: NapiEndpoint
           }
         | {
@@ -923,13 +951,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-page':
                 route = {
                   type: 'app-page',
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
+                  pages: nativeRoute.pages.map((page) => ({
+                    originalName: page.originalName,
+                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
+                  })),
                 }
                 break
               case 'app-route':
                 route = {
                   type: 'app-route',
+                  originalName: nativeRoute.originalName,
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break
@@ -983,21 +1015,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     hmrEvents(identifier: string) {
-      const subscription = subscribe<TurbopackResult<Update>>(
-        true,
-        async (callback) =>
-          binding.projectHmrEvents(this._nativeProject, identifier, callback)
+      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
+        binding.projectHmrEvents(this._nativeProject, identifier, callback)
       )
-      return subscription
     }
 
     hmrIdentifiersSubscribe() {
-      const subscription = subscribe<TurbopackResult<HmrIdentifiers>>(
+      return subscribe<TurbopackResult<HmrIdentifiers>>(
         false,
         async (callback) =>
           binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
       )
-      return subscription
     }
 
     traceSource(
@@ -1198,8 +1226,7 @@ async function loadWasm(importPath = '') {
             : Promise.resolve(bindings.parseSync(src.toString(), options))
         },
         parseSync(src: string, options: any) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
+          return bindings.parseSync(src.toString(), options)
         },
         getTargetTriple() {
           return undefined
@@ -1376,11 +1403,10 @@ function loadNative(importPath?: string) {
       turbo: {
         startTrace: (options = {}, turboTasks: unknown) => {
           initHeapProfiler()
-          const ret = (customBindings ?? bindings).runTurboTracing(
+          return (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
           )
-          return ret
         },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
@@ -1422,6 +1448,14 @@ function loadNative(importPath?: string) {
         compileSync: (src: string, options: any) =>
           bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
       },
+      css: {
+        lightning: {
+          transform: (transformOptions: any) =>
+            bindings.lightningCssTransform(transformOptions),
+          transformStyleAttr: (transformAttrOptions: any) =>
+            bindings.lightningCssTransformStyleAttribute(transformAttrOptions),
+        },
+      },
     }
     return nativeBindings
   }
@@ -1432,7 +1466,7 @@ function loadNative(importPath?: string) {
 /// Build a mdx options object contains default values that
 /// can be parsed with serde_wasm_bindgen.
 function getMdxOptions(options: any = {}) {
-  const ret = {
+  return {
     ...options,
     development: options.development ?? false,
     jsx: options.jsx ?? false,
@@ -1441,8 +1475,6 @@ function getMdxOptions(options: any = {}) {
       mathTextSingleDollar: true,
     },
   }
-
-  return ret
 }
 
 function toBuffer(t: any) {

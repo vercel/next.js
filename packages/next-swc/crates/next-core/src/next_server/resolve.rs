@@ -4,6 +4,7 @@ use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
+        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
         resolve::{
             find_context_file,
@@ -100,7 +101,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         let raw_fs_path = &*fs_path.await?;
 
         let predicate = self.predicate.await?;
-        match &*predicate {
+        let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
                 let exception_glob = packages_glob(*exceptions).await?;
 
@@ -119,6 +120,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                         return Ok(ResolveResultOption::none());
                     }
                 }
+                false
             }
             ExternalPredicate::Only(externals) => {
                 let external_glob = packages_glob(*externals).await?;
@@ -141,8 +143,9 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 } else {
                     return Ok(ResolveResultOption::none());
                 }
+                true
             }
-        }
+        };
 
         let is_esm = self.import_externals
             && ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
@@ -152,7 +155,8 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         enum FileType {
             CommonJs,
             EcmaScriptModule,
-            Unsupported,
+            UnsupportedExtension,
+            InvalidPackageJson,
         }
 
         async fn get_file_type(
@@ -179,7 +183,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 };
                 let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
                     // can't parse package.json
-                    return Ok(FileType::Unsupported);
+                    return Ok(FileType::InvalidPackageJson);
                 };
 
                 if let Some("module") = package["type"].as_str() {
@@ -189,30 +193,135 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 return Ok(FileType::CommonJs);
             }
 
-            Ok(FileType::Unsupported)
+            Ok(FileType::UnsupportedExtension)
         }
 
+        let node_resolve_options = if is_esm {
+            node_esm_resolve_options(context.root())
+        } else {
+            node_cjs_resolve_options(context.root())
+        };
         let node_resolved = resolve(
+            self.project_path,
+            reference_type.clone(),
+            request,
+            node_resolve_options,
+        );
+        let unable_to_externalize = |reason: &str| {
+            if must_be_external {
+                UnableToExternalize {
+                    file_path: fs_path,
+                    request: request_str.as_deref().unwrap_or("<unknown>").to_string(),
+                    reason: reason.to_string(),
+                }
+                .cell()
+                .emit();
+            }
+            Ok(ResolveResultOption::none())
+        };
+        let Some(result) = *node_resolved.first_source().await? else {
+            // this can't resolve with node.js from the project directory, so bundle it
+            return unable_to_externalize(
+                "The request could not be resolved by Node.js from the project \
+                 directory.\nPackages that should be external need to be installed in the project \
+                 directory, so they can be resolved from the output files.\nTry to install the \
+                 package into the project directory.",
+            );
+        };
+        let node_resolved_from_original_location = resolve(
             context,
             reference_type.clone(),
             request,
-            if is_esm {
-                node_esm_resolve_options(context.root())
-            } else {
-                node_cjs_resolve_options(context.root())
-            },
+            node_resolve_options,
         );
-        let Some(result) = *node_resolved.first_source().await? else {
-            // this can't resolve with node.js, so bundle it
-            return Ok(ResolveResultOption::none());
+        let Some(result_from_original_location) =
+            *node_resolved_from_original_location.first_source().await?
+        else {
+            // this can't resolve with node.js from the original location, so bundle it
+            return unable_to_externalize(
+                "The request could not be resolved by Node.js from the importing module.",
+            );
         };
+        let result = result.resolve().await?;
+        let result_from_original_location = result_from_original_location.resolve().await?;
+        if result_from_original_location != result {
+            let package_json_file = find_context_file(
+                result.ident().path().parent().resolve().await?,
+                package_json(),
+            );
+            let package_json_from_original_location = find_context_file(
+                result_from_original_location
+                    .ident()
+                    .path()
+                    .parent()
+                    .resolve()
+                    .await?,
+                package_json(),
+            );
+            let FindContextFileResult::Found(package_json_file, _) = *package_json_file.await?
+            else {
+                return unable_to_externalize(
+                    "The package.json of the package resolved from the project directory can't be \
+                     found.",
+                );
+            };
+            let FindContextFileResult::Found(package_json_from_original_location, _) =
+                *package_json_from_original_location.await?
+            else {
+                return unable_to_externalize("The package.json of the package can't be found.");
+            };
+            let FileJsonContent::Content(package_json_file) =
+                &*package_json_file.read_json().await?
+            else {
+                return unable_to_externalize(
+                    "The package.json of the package resolved from project directory can't be \
+                     parsed.",
+                );
+            };
+            let FileJsonContent::Content(package_json_from_original_location) =
+                &*package_json_from_original_location.read_json().await?
+            else {
+                return unable_to_externalize("The package.json of the package can't be parsed.");
+            };
+            let (Some(name), Some(version)) = (
+                package_json_file.get("name"),
+                package_json_file.get("version"),
+            ) else {
+                return unable_to_externalize(
+                    "The package.json of the package has not name or version.",
+                );
+            };
+            let (Some(name2), Some(version2)) = (
+                package_json_from_original_location.get("name"),
+                package_json_from_original_location.get("version"),
+            ) else {
+                return unable_to_externalize(
+                    "The package.json of the package resolved from project directory has not name \
+                     or version.",
+                );
+            };
+            if (name, version) != (name2, version2) {
+                // this can't resolve with node.js from the original location, so bundle it
+                return unable_to_externalize(
+                    "The package resolves to a different version when requested from the project \
+                     directory compared to the package requested from the importing module.\nMake \
+                     sure to install the same version of the package in both locations.",
+                );
+            }
+        }
         let path = result.ident().path();
         let file_type = get_file_type(path, &*path.await?).await?;
 
         match (file_type, is_esm) {
-            (FileType::Unsupported, _) => {
+            (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
-                Ok(ResolveResultOption::none())
+                unable_to_externalize(
+                    "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.",
+                )
+            }
+            (FileType::InvalidPackageJson, _) => {
+                // invalid package.json, bundle it
+                unable_to_externalize("The package.json can't be found or parsed.")
             }
             (FileType::CommonJs, _) => {
                 if let Some(request) = request.await?.request() {
@@ -226,7 +335,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     ))
                 } else {
                     // unsupported request, bundle it
-                    Ok(ResolveResultOption::none())
+                    unable_to_externalize("There is not known request to work with.")
                 }
             }
             (FileType::EcmaScriptModule, true) => {
@@ -241,13 +350,16 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     ))
                 } else {
                     // unsupported request, bundle it
-                    Ok(ResolveResultOption::none())
+                    unable_to_externalize("There is not known request to work with.")
                 }
             }
             (FileType::EcmaScriptModule, false) => {
                 // even with require() this resolves to a ESM,
                 // which would break node.js, bundle it
-                Ok(ResolveResultOption::none())
+                unable_to_externalize(
+                    "The package seems invalid. require() resolves to a EcmaScript module, which \
+                     would result in an error in Node.js.",
+                )
             }
         }
     }
@@ -279,4 +391,72 @@ async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<OptionPackagesGlo
         path_glob: path_glob.resolve().await?,
         request_glob: request_glob.resolve().await?,
     })))
+}
+
+#[turbo_tasks::value]
+struct UnableToExternalize {
+    file_path: Vc<FileSystemPath>,
+    request: String,
+    reason: String,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for UnableToExternalize {
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        IssueSeverity::Error.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        let request = &self.request;
+        let package = if request.starts_with('@') {
+            request
+                .splitn(3, '/')
+                .take(2)
+                .intersperse("/")
+                .collect::<String>()
+        } else if let Some((package, _)) = request.split_once('/') {
+            package.to_string()
+        } else {
+            request.to_string()
+        };
+        Ok(StyledString::Line(vec![
+            StyledString::Text("Package ".to_string()),
+            StyledString::Code(package),
+            StyledString::Text(" (".to_string()),
+            StyledString::Code("serverComponentsExtenalPackages".to_string()),
+            StyledString::Text(" or default list) can't be external".to_string()),
+        ])
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Config.into()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Stack(vec![
+                StyledString::Line(vec![
+                    StyledString::Text("The request ".to_string()),
+                    StyledString::Code(self.request.to_string()),
+                    StyledString::Text(" matches ".to_string()),
+                    StyledString::Code("serverComponentsExtenalPackages".to_string()),
+                    StyledString::Text(
+                        " (or the default list), but it can't be external:".to_string(),
+                    ),
+                ]),
+                StyledString::Line(vec![StyledString::Text(self.reason.to_string())]),
+            ])
+            .cell(),
+        ))
+    }
 }

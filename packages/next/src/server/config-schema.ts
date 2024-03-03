@@ -267,6 +267,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
+        swrDelta: z.number().optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
@@ -275,6 +276,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        mergeCssChunks: z.boolean().optional(),
+        navigationRAF: z.boolean().optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -291,6 +294,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         parallelServerBuildTraces: z.boolean().optional(),
         ppr: z.boolean().optional(),
         taint: z.boolean().optional(),
+        prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),
@@ -341,6 +345,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ])
               )
               .optional(),
+            resolveExtensions: z.array(z.string()).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -374,6 +379,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
+        useEarlyImport: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

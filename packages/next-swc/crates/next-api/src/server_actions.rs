@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
-    util::{get_asset_prefix_from_pathname, NextRuntime},
+    util::NextRuntime,
 };
 use tracing::Instrument;
 use turbo_tasks::{
@@ -48,7 +48,6 @@ pub(crate) async fn create_server_actions_manifest(
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    pathname: &str,
     page_name: &str,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -65,8 +64,7 @@ pub(crate) async fn create_server_actions_manifest(
         .as_chunk_item(Vc::upcast(chunking_context))
         .id()
         .to_string();
-    let manifest =
-        build_manifest(node_root, pathname, page_name, runtime, actions, loader_id).await?;
+    let manifest = build_manifest(node_root, page_name, runtime, actions, loader_id).await?;
     Ok((evaluable, manifest))
 }
 
@@ -128,19 +126,20 @@ async fn build_server_actions_loader(
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
     node_root: Vc<FileSystemPath>,
-    pathname: &str,
     page_name: &str,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
     loader_id: Vc<String>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
+    let manifest_path_prefix = page_name;
     let manifest_path = node_root.join(format!(
-        "server/app{manifest_path_prefix}/page/server-reference-manifest.json",
+        "server/app{manifest_path_prefix}/server-reference-manifest.json",
     ));
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };
+
+    let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
     let loader_id_value = loader_id.await?;
@@ -150,12 +149,12 @@ async fn build_manifest(
     };
 
     for (hash_id, (layer, _name, _module)) in actions_value {
-        let entry = mapping.entry(hash_id.clone()).or_default();
+        let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
-            format!("app{page_name}"),
-            ActionManifestWorkerEntry::String(loader_id_value.clone_value()),
+            &key,
+            ActionManifestWorkerEntry::String(loader_id_value.as_str()),
         );
-        entry.layer.insert(format!("app{page_name}"), *layer);
+        entry.layer.insert(&key, *layer);
     }
 
     Ok(Vc::upcast(VirtualOutputAsset::new(
@@ -264,7 +263,7 @@ async fn get_referenced_modules(
 ) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
     primary_referenced_modules(module)
         .await
-        .map(|modules| modules.clone_value().into_iter().map(move |m| (layer, m)))
+        .map(|modules| modules.into_iter().map(move |&m| (layer, m)))
 }
 
 /// Parses the Server Actions comment for all exported action function names.

@@ -6,6 +6,7 @@ use std::{
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
+use swc_core::common::Span;
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -125,10 +126,12 @@ impl<C: Comments> ServerActions<C> {
         } else {
             // Check if the function has `"use server"`
             if let Some(body) = maybe_body {
+                let mut action_span = None;
                 remove_server_directive_index_in_fn(
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
+                    &mut action_span,
                     self.config.enabled,
                 );
 
@@ -136,7 +139,7 @@ impl<C: Comments> ServerActions<C> {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
-                                body.span,
+                                action_span.unwrap_or(body.span),
                                 "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
                             )
                             .emit()
@@ -1396,6 +1399,7 @@ fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
+    action_span: &mut Option<Span>,
     enabled: bool,
 ) {
     let mut is_directive = true;
@@ -1407,6 +1411,8 @@ fn remove_server_directive_index_in_fn(
         }) = stmt
         {
             if value == "use server" {
+                *action_span = Some(*span);
+
                 if is_directive {
                     *is_action_fn = true;
                     if !enabled {

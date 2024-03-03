@@ -73,7 +73,7 @@ const externals = {
   'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
-    'next/dist/build/webpack/plugins/terser-webpack-plugin',
+    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -1008,14 +1008,6 @@ export async function ncc_amp_optimizer(task, opts) {
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
-externals['arg'] = 'next/dist/compiled/arg'
-export async function ncc_arg(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('arg')))
-    .ncc({ packageName: 'arg' })
-    .target('src/compiled/arg')
-}
-// eslint-disable-next-line camelcase
 externals['async-retry'] = 'next/dist/compiled/async-retry'
 export async function ncc_async_retry(task, opts) {
   await task
@@ -1158,6 +1150,13 @@ export async function ncc_cli_select(task, opts) {
     .source(relative(__dirname, require.resolve('cli-select')))
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
+}
+externals['commmander'] = 'next/dist/compiled/commander'
+export async function ncc_commander(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('commander')))
+    .ncc({ packageName: 'commander', externals })
+    .target('src/compiled/commander')
 }
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
@@ -2178,6 +2177,7 @@ export async function ncc(task, opts) {
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
+        'ncc_commander',
         'ncc_node_fetch',
         'ncc_node_anser',
         'ncc_node_stacktrace_parser',
@@ -2187,7 +2187,6 @@ export async function ncc(task, opts) {
         'ncc_node_shell_quote',
         'ncc_acorn',
         'ncc_amphtml_validator',
-        'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
@@ -2387,11 +2386,6 @@ export async function server(task, opts) {
     .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
-
-  await fs.copyFile(
-    join(__dirname, 'src/server/google-font-metrics.json'),
-    join(__dirname, 'dist/server/google-font-metrics.json')
-  )
 }
 
 export async function server_esm(task, opts) {
