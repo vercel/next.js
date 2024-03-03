@@ -1106,6 +1106,7 @@
   },
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
+      "Error overlay for hydration errors should collapse and uncollapse properly when there are many frames",
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
       "Error overlay for hydration errors should only show one hydration error when bad nesting happened",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
@@ -7530,6 +7531,7 @@
       "CLI Usage dev should not throw UnhandledPromiseRejectionWarning",
       "CLI Usage dev should warn when unknown argument provided",
       "CLI Usage export --help",
+      "CLI Usage export run export command",
       "CLI Usage info --help",
       "CLI Usage info -h",
       "CLI Usage info should print output",
