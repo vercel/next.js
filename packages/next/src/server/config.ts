@@ -3,7 +3,11 @@ import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
-import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_SERVER,
+} from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
   ExperimentalConfig,
@@ -995,6 +999,7 @@ export default async function loadConfig(
       } else if (isTypeScript) {
         const start = Date.now()
         userConfigModule = await transpileConfig({
+          isProd: phase === PHASE_PRODUCTION_SERVER,
           nextConfigPath: path,
           nextConfigName: configFileName,
           cwd: dir,

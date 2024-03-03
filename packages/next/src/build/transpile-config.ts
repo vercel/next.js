@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, extname, join } from 'path'
+import findUp from 'next/dist/compiled/find-up'
 import { transform } from './swc'
 import { runCompiler } from './compiler'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
@@ -121,14 +122,37 @@ async function _runWebpack({
 }
 
 export async function transpileConfig({
+  isProd,
   nextConfigPath,
   nextConfigName,
   cwd,
 }: {
+  isProd: boolean
   nextConfigPath: string
   nextConfigName: string
   cwd: string
 }): Promise<NextConfig> {
+  // Since .next will be gitignored, it is OK to use it although distDir might be set on nextConfig.
+  const distDir = '.next'
+
+  // On production, use build cache if exists.
+  if (isProd) {
+    const preCompiledConfig = await findUp(
+      [
+        'next.compiled.config.cjs', // Transpile-only is the most-used case.
+        'next.compiled.config.js',
+        'next.compiled.config.mjs',
+      ],
+      {
+        cwd: join(cwd, distDir),
+      }
+    )
+    if (preCompiledConfig?.length) {
+      const nextCompiledConfig = await import(preCompiledConfig)
+      return nextCompiledConfig.default ?? nextCompiledConfig
+    }
+  }
+
   let tsConfig: any = {}
   let packageJson: any = {}
   try {
@@ -145,9 +169,6 @@ export async function transpileConfig({
   // Therefore the config needs to be `next.config.mts`.
   // On ESM projects, it won't matter if the config is `.mjs` or `.js` in ESM format.
   const nextCompiledConfigName = `next.compiled.config${isESM ? '.mjs' : '.js'}`
-
-  // Since .next will be gitignored, it is OK to use it although distDir might be set on nextConfig.
-  const distDir = '.next'
 
   try {
     // Transpile by SWC to check if the config has `import` or `require`.
