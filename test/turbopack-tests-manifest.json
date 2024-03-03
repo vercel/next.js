@@ -4940,13 +4940,13 @@
     "runtimeError": false
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Conflict between app file and pages file should error again when there is new conflict",
       "Conflict between app file and pages file should show error overlay for /",
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [
       "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir"
