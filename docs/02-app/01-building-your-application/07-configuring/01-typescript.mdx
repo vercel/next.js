@@ -31,6 +31,8 @@ Add TypeScript to your project by renaming a file to `.ts` / `.tsx`. Run `next d
 
 If you already had a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
 
+We also recommend you to use `next.config.ts` over `next.config.js` for better type inference.
+
 <AppOnly>
 
 ## TypeScript Plugin
@@ -74,7 +76,7 @@ It is highly recommended to be on at least `v4.5.2` of TypeScript to get syntax 
 
 You can use TypeScript in your Next.js configuration by using `next.config.ts`. If you have a `next.config.js` or `next.config.mjs` file, you can rename it to `next.config.ts`, and will be able to use TypeScript without any change in the configuration.
 
-Although you can use `module.exports` in `next.config.ts`, it is recommended to use the `export default` syntax for better type inference.
+Although you can use `module.exports` syntax in `next.config.ts`, it is recommended to use the `export default` syntax for better type inference.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
