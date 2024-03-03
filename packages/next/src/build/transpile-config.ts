@@ -52,7 +52,7 @@ async function _runWebpack({
     },
     output: {
       filename: nextCompiledConfigName,
-      path: join(cwd, distDir),
+      path: distDir,
       libraryTarget: isESM ? 'module' : 'commonjs2',
     },
     // Set node.__dirname to true, and context to cwd.
@@ -98,7 +98,7 @@ async function _runWebpack({
             // Seems like no need to pass nextConfig to SWC loader
             nextConfig: {},
             jsConfig: tsConfig,
-            swcCacheDir: join(cwd, distDir, 'cache', 'swc'),
+            swcCacheDir: join(distDir, 'cache', 'swc'),
             supportedBrowsers: undefined,
           } satisfies SWCLoaderOptions,
         },
@@ -123,11 +123,9 @@ async function _runWebpack({
 
 async function _transpileOnly({
   nextConfigPath,
-  cwd,
   distDir,
 }: {
   nextConfigPath: string
-  cwd: string
   distDir: string
 }): Promise<NextConfig | undefined> {
   // Transpile by SWC to check if the config has `import` or `require`.
@@ -141,11 +139,7 @@ async function _transpileOnly({
   // Transpile-only if there's no import or require.
   // This will be the most common case and will avoid the need to run bundle.
   if (hasNoImportOrRequire) {
-    const nextCompiledConfigPath = join(
-      cwd,
-      distDir,
-      `next.compiled.config.cjs`
-    )
+    const nextCompiledConfigPath = join(distDir, `next.compiled.config.cjs`)
 
     await mkdir(dirname(nextCompiledConfigPath), { recursive: true })
     await writeFile(nextCompiledConfigPath, code)
@@ -167,7 +161,7 @@ export async function transpileConfig({
   cwd: string
 }): Promise<NextConfig> {
   // Since .next will be gitignored, it is OK to use it although distDir might be set on nextConfig.
-  const distDir = '.next'
+  const distDir = join(cwd, '.next')
 
   // On production, use build cache if exists.
   if (isProd) {
@@ -178,7 +172,7 @@ export async function transpileConfig({
         'next.compiled.config.mjs',
       ],
       {
-        cwd: join(cwd, distDir),
+        cwd: distDir,
       }
     )
     if (preCompiledConfig?.length) {
@@ -191,7 +185,6 @@ export async function transpileConfig({
   try {
     const nextCompiledConfig = await _transpileOnly({
       nextConfigPath,
-      cwd,
       distDir,
     })
     if (nextCompiledConfig) {
@@ -236,7 +229,7 @@ export async function transpileConfig({
       tsConfig,
     })
 
-    const nextCompiledConfigPath = join(cwd, distDir, nextCompiledConfigName)
+    const nextCompiledConfigPath = join(distDir, nextCompiledConfigName)
     const nextCompiledConfig = await import(nextCompiledConfigPath)
 
     // For named-exported configs, we do not supoort it but proceeds as something like:
