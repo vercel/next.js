@@ -10,13 +10,17 @@
   "dependencies": {
     "@portabletext/react": "^2.0.1",
     "@sanity/image-url": "^1.0.2",
+    "@sanity/vision": "^3.30.1",
     "@sanity/webhook": "^2.0.0",
     "classnames": "^2.3.1",
     "date-fns": "^2.29.3",
     "next": "latest",
     "next-sanity": "^4.1.2",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "sanity": "^3.30.1",
+    "sanity-plugin-asset-source-unsplash": "^1.1.2",
+    "styled-components": "^6.1.8"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.13",
