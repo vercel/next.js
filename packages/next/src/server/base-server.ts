@@ -1286,10 +1286,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const invokeQuery = req.headers['x-invoke-query']
 
         if (typeof invokeQuery === 'string') {
-          Object.assign(
-            parsedUrl.query,
-            JSON.parse(decodeURIComponent(invokeQuery))
-          )
+          Object.assign(parsedUrl.query, {
+            ...JSON.parse(decodeURIComponent(invokeQuery)),
+            __nextLocale: parsedUrl.query.__nextLocale,
+          })
         }
 
         finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
