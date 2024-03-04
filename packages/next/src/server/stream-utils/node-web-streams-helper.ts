@@ -431,12 +431,12 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
 
 type MissingTag = 'html' | 'body'
 
-export function isWindowWithMissingTags(
-  window: any
-): window is { __next_root_layout_missing_tags: MissingTag[] } {
+export function isObjWithMissingTags(
+  obj: any
+): obj is { __next_root_layout_missing_tags: MissingTag[] } {
   return (
-    '__next_root_layout_missing_tags' in window &&
-    Array.isArray(window.__next_root_layout_missing_tags)
+    '__next_root_layout_missing_tags' in obj &&
+    Array.isArray(obj.__next_root_layout_missing_tags)
   )
 }
 
