@@ -1106,6 +1106,7 @@
   },
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
+      "Error overlay for hydration errors should collapse and uncollapse properly when there are many frames",
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
       "Error overlay for hydration errors should only show one hydration error when bad nesting happened",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
@@ -1985,283 +1986,6 @@
       "next/font build-errors should show a module not found error if local font file can' be resolved",
       "next/font build-errors should show a next/font error when input is wrong"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/next-font/deprecated-package.test.ts": {
-    "passed": [
-      "Deprecated @next/font warning should not warn if @next/font is not in deps",
-      "Deprecated @next/font warning should warn if @next/font is in deps"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/next-font/font-loader-in-document-error.test.ts": {
-    "passed": [],
-    "failed": ["font-loader-in-document-error next/font inside _document"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/pages-dir/client-navigation/index.test.ts": {
-    "passed": [
-      "Client Navigation Rendering via HTTP 404 should 404 on not existent page",
-      "Client Navigation Rendering via HTTP 404 should 404 on wrong casing",
-      "Client Navigation Rendering via HTTP 404 should not 404 for <page>/",
-      "Client Navigation Rendering via HTTP 404 should should not contain a page script in a 404 page",
-      "Client Navigation Rendering via HTTP allows to import .json files",
-      "Client Navigation Rendering via HTTP asPath",
-      "Client Navigation Rendering via HTTP default Content-Type",
-      "Client Navigation Rendering via HTTP default export is not a React Component",
-      "Client Navigation Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation Rendering via HTTP error-inside-page",
-      "Client Navigation Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation Rendering via HTTP getInitialProps should be class method",
-      "Client Navigation Rendering via HTTP header helper avoids dedupe of meta tags with the same name if they use unique keys",
-      "Client Navigation Rendering via HTTP header helper avoids dedupe of specific tags",
-      "Client Navigation Rendering via HTTP header helper dedupes tags",
-      "Client Navigation Rendering via HTTP header helper dedupes tags with the same key as the default",
-      "Client Navigation Rendering via HTTP header helper renders Fragment children",
-      "Client Navigation Rendering via HTTP header helper renders boolean attributes correctly children",
-      "Client Navigation Rendering via HTTP header helper renders header information",
-      "Client Navigation Rendering via HTTP header renders default charset",
-      "Client Navigation Rendering via HTTP header renders default viewport",
-      "Client Navigation Rendering via HTTP renders a link component",
-      "Client Navigation Rendering via HTTP renders a stateless component",
-      "Client Navigation Rendering via HTTP renders properties populated asynchronously",
-      "Client Navigation Rendering via HTTP renders styled jsx",
-      "Client Navigation Rendering via HTTP renders styled jsx external",
-      "Client Navigation Rendering via HTTP renders when component is a forwardRef instance",
-      "Client Navigation Rendering via HTTP renders when component is a memo instance",
-      "Client Navigation Rendering via HTTP renders with fragment syntax",
-      "Client Navigation Rendering via HTTP setting Content-Type in getInitialProps",
-      "Client Navigation Rendering via HTTP should handle undefined prop in head server-side",
-      "Client Navigation Rendering via HTTP should place charset element at the top of <head>",
-      "Client Navigation Rendering via HTTP should render 404 for _next routes that do not exist",
-      "Client Navigation Rendering via HTTP should render page that has module.exports anywhere",
-      "Client Navigation Rendering via HTTP should render the page with `nextExport` property",
-      "Client Navigation Rendering via HTTP should render the page with custom extension",
-      "Client Navigation Rendering via HTTP should render the page without `err` property",
-      "Client Navigation Rendering via HTTP should render the page without `nextExport` property",
-      "Client Navigation Rendering via HTTP should set Cache-Control header",
-      "Client Navigation Rendering via HTTP should should not contain scripts that are not js",
-      "Client Navigation Rendering via HTTP should show a valid error when undefined is thrown",
-      "Client Navigation Rendering via HTTP with the HOC based router should include asPath",
-      "Client Navigation Rendering via HTTP with the HOC based router should navigate as expected",
-      "Client Navigation foreign history manipulation should ignore foreign history state with missing properties",
-      "Client Navigation foreign history manipulation should ignore history state with an invalid url",
-      "Client Navigation foreign history manipulation should ignore history state without options",
-      "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
-      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
-      "Client Navigation should emit routeChangeError on hash change cancel",
-      "Client Navigation should handle undefined prop in head client-side",
-      "Client Navigation should navigate to paths relative to the current page",
-      "Client Navigation should not error on module.exports + polyfills",
-      "Client Navigation should not reload when visiting /_error directly",
-      "Client Navigation should scroll to top when the scroll option is set to true",
-      "Client Navigation should work on nested /index/index.js",
-      "Client Navigation updating head while client routing should not warn when application/ld+json scripts are in head",
-      "Client Navigation updating head while client routing should only execute async and defer scripts once",
-      "Client Navigation updating head while client routing should update head during client routing",
-      "Client Navigation updating head while client routing should update head when unmounting component",
-      "Client Navigation updating head while client routing should update title during client routing",
-      "Client Navigation updating head while client routing should warn when scripts are in head",
-      "Client Navigation updating head while client routing should warn when stylesheets or scripts are in head",
-      "Client Navigation with 404 pages should 404 on not existent page",
-      "Client Navigation with 404 pages should 404 on wrong casing",
-      "Client Navigation with 404 pages should 404 on wrong casing of url dynamic param",
-      "Client Navigation with 404 pages should get url dynamic param",
-      "Client Navigation with 404 pages should not 404 for <page>/",
-      "Client Navigation with 404 pages should should not contain a page script in a 404 page",
-      "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should error when calling onClick without event",
-      "Client Navigation with <Link/> should have proper error when no children are provided",
-      "Client Navigation with <Link/> should navigate an absolute local url",
-      "Client Navigation with <Link/> should navigate an absolute local url with as",
-      "Client Navigation with <Link/> should navigate an absolute url",
-      "Client Navigation with <Link/> should navigate back after reload",
-      "Client Navigation with <Link/> should navigate forwards after reload",
-      "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided",
-      "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
-      "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
-      "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
-      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with URL objects should handle undefined in router.push",
-      "Client Navigation with URL objects should work with \"Router.push\"",
-      "Client Navigation with URL objects should work with <Link/>",
-      "Client Navigation with URL objects should work with the \"replace\" prop",
-      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link with as prop",
-      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link without the as prop",
-      "Client Navigation with asPath with next/link should detect asPath query changes correctly",
-      "Client Navigation with asPath with next/link should use pushState with same href and different asPath",
-      "Client Navigation with asPath with next/router should navigate an absolute local url on push",
-      "Client Navigation with asPath with next/router should navigate an absolute local url on replace",
-      "Client Navigation with asPath with next/router should navigate an absolute url on push",
-      "Client Navigation with asPath with next/router should navigate an absolute url on replace",
-      "Client Navigation with asPath with next/router should show the correct asPath",
-      "Client Navigation with different types of urls should not work with /index page",
-      "Client Navigation with different types of urls should work with / page",
-      "Client Navigation with different types of urls should work with dir/ page",
-      "Client Navigation with different types of urls should work with normal page",
-      "Client Navigation with empty getInitialProps() should render an error",
-      "Client Navigation with getInitialProp redirect should redirect the page via client side",
-      "Client Navigation with getInitialProp redirect should redirect the page when loading",
-      "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
-      "Client Navigation with hash changes when hash change via A tag should not run getInitialProps",
-      "Client Navigation with hash changes when hash change via Link Should update asPath",
-      "Client Navigation with hash changes when hash change via Link should not run getInitialProps",
-      "Client Navigation with hash changes when hash change via Link should not scroll to hash when scroll={false} is set",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified CJK position to a new page",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page with a name property",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position to a new page",
-      "Client Navigation with hash changes when hash get removed should not run getInitialProps",
-      "Client Navigation with hash changes when hash get removed should not run getInitialProps when removing via back",
-      "Client Navigation with hash changes when hash set to empty should not run getInitialProps",
-      "Client Navigation with hash changes with state when passing state via hash change should increment the history state counter",
-      "Client Navigation with hash changes with state when passing state via hash change should increment the shallow history state counter",
-      "Client Navigation with onClick action should always replace the state and perform additional action",
-      "Client Navigation with onClick action should not reload if default was prevented",
-      "Client Navigation with onClick action should reload the page and perform additional action",
-      "Client Navigation with querystring relative urls router.replace with shallow=true shall not throw route cancelled errors",
-      "Client Navigation with querystring relative urls should work with Link",
-      "Client Navigation with querystring relative urls should work with router.push",
-      "Client Navigation with querystring relative urls should work with router.replace",
-      "Client Navigation with shallow routing should handle the back button and should not run getInitialProps",
-      "Client Navigation with shallow routing should keep the scroll position on shallow routing",
-      "Client Navigation with shallow routing should run getInitialProps always when rending the page to the screen",
-      "Client Navigation with shallow routing should update the url without running getInitialProps",
-      "Client Navigation with the HOC based router should navigate as expected",
-      "Client Navigation with the current url should always replace the state",
-      "Client Navigation with the current url should reload the page",
-      "Client Navigation with the same page but different querystring should navigate the page",
-      "Client Navigation with the same page but different querystring should remove querystring",
-      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/pages-dir/custom-app-hmr/index.test.ts": {
-    "passed": [
-      "custom-app-hmr should not do full reload when simply editing _app.js"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/project-directory-with-styled-jsx-suffix/index.test.ts": {
-    "passed": ["project directory with styled-jsx suffix should work"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/repeated-dev-edits/repeated-dev-edits.test.ts": {
-    "passed": ["repeated-dev-edits should not break the hydration "],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/start-no-build/start-no-build.test.ts": {
-    "passed": [
-      "next start without next build should show error when there is no production build"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/tsconfig-path-reloading/index.test.ts": {
-    "passed": [
-      "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
-      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [
-      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
-      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error"
-    ],
-    "runtimeError": false
-  },
-  "test/development/typescript-auto-install/index.test.ts": {
-    "passed": [
-      "typescript-auto-install should detect TypeScript being added and auto setup",
-      "typescript-auto-install should work"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/watch-config-file/index.test.ts": {
-    "passed": ["watch-config-file should output config file change"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/webpack-issuer-deprecation-warning/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "webpack-issuer-deprecation-warning should not appear deprecation warning about webpack module issuer"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/404-page-router/index.test.ts": {
-    "passed": [
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of true and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false should not throw any errors when re-fetching the route info"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
-    "passed": [],
-    "failed": [
-      "app-dir edge runtime config should warn the legacy object config export"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts": {
-    "passed": [
-      "_allow-underscored-root-directory should not serve app path with underscore",
-      "_allow-underscored-root-directory should pages path with a underscore at the root",
-      "_allow-underscored-root-directory should serve app path with %5F"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4551,6 +4275,148 @@
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser",
       "app dir - rsc basics should support webpack loader rules"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/compilation-and-prefixing/compilation-and-prefixing.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support Production only CSS Compilation and Prefixing should've compiled and prefixed",
+      "SCSS Support Production only CSS Compilation and Prefixing should've emitted a source map"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/dynamic-route-module/dynamic-route-module.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Dynamic Route CSS Module Usage production mode should apply styles correctly"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/external-url/external-url.test.ts": {
+    "passed": [
+      "SCSS Support loader handling External imports should include font on the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-global-module/invalid-global-module.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Global Module Usage in node_modules production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid Global CSS with Custom App production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["Invalid Global CSS production only should fail to build"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid SCSS in _document production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-module/invalid-module.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Module Usage in node_modules production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/npm-import-bad/npm-import-bad.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "CSS Import from node_modules production only should fail the build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/npm-import-tilde/npm-import-tilde.test.ts": {
+    "passed": [
+      "Good CSS Import from node_modules with tilde should render the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/npm-import/npm-import.test.ts": {
+    "passed": ["Good CSS Import from node_modules should render the page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/unused/unused.test.ts": {
+    "passed": [
+      "unused scss Body is not hidden when broken in Development development only should have body visible",
+      "unused scss Body is not hidden when unused in Development development only should have body visible"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/url-global-asset-prefix-1/url-global-asset-prefix-1.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (1) should render the page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/url-global-asset-prefix-2/url-global-asset-prefix-2.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (2) should render the page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support production only Friendly Webpack Error should be a friendly error successfully"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7530,6 +7396,7 @@
       "CLI Usage dev should not throw UnhandledPromiseRejectionWarning",
       "CLI Usage dev should warn when unknown argument provided",
       "CLI Usage export --help",
+      "CLI Usage export run export command",
       "CLI Usage info --help",
       "CLI Usage info -h",
       "CLI Usage info should print output",
