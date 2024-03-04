@@ -527,7 +527,7 @@ export async function continueFizzStream(
     isStaticGeneration,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
-    validateRootLayout = true,
+    validateRootLayout,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
