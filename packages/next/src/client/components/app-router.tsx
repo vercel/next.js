@@ -57,7 +57,7 @@ import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
-import { createInfinitePromise } from './infinite-promise'
+import { unresolvedThenable } from './unresolved-thenable'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
@@ -183,6 +183,7 @@ export function createEmptyCacheNode(): CacheNode {
     rsc: null,
     prefetchRsc: null,
     parallelRoutes: new Map(),
+    lazyDataResolved: false,
   }
 }
 
@@ -224,15 +225,38 @@ function useChangeByServerResponse(
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, shouldScroll) => {
-      const url = new URL(addBasePath(href), location.href)
+      const navigateWrapper = process.env.__NEXT_NAVIGATION_RAF
+        ? (cb: () => void) => {
+            let finished = false
 
-      return dispatch({
-        type: ACTION_NAVIGATE,
-        url,
-        isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
-        shouldScroll: shouldScroll ?? true,
-        navigateType,
+            // if the frame is hidden or requestAnimationFrame
+            // is delayed too long add upper bound timeout
+            setTimeout(() => {
+              if (!finished) {
+                finished = true
+                cb()
+              }
+            }, 1000)
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                finished = true
+                cb()
+              }, 1)
+            })
+          }
+        : (cb: () => void) => cb()
+
+      navigateWrapper(() => {
+        const url = new URL(addBasePath(href), location.href)
+
+        return dispatch({
+          type: ACTION_NAVIGATE,
+          url,
+          isExternalUrl: isExternalURL(url),
+          locationSearch: location.search,
+          shouldScroll: shouldScroll ?? true,
+          navigateType,
+        })
       })
     },
     [dispatch]
@@ -489,7 +513,7 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    use(createInfinitePromise())
+    use(unresolvedThenable)
   }
 
   useEffect(() => {
@@ -578,7 +602,6 @@ function Router({
         return
       }
 
-      // @ts-ignore useTransition exists
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {

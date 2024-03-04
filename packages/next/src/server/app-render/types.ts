@@ -150,6 +150,7 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
   }
   postponed?: string
+  isStaticGeneration?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

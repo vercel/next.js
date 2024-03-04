@@ -1498,20 +1498,32 @@ export default class Router implements BaseRouter {
     const isErrorRoute = this.pathname === '/404' || this.pathname === '/_error'
 
     try {
-      let routeInfo = await this.getRouteInfo({
-        route,
-        pathname,
-        query,
-        as,
-        resolvedAs,
-        routeProps,
-        locale: nextState.locale,
-        isPreview: nextState.isPreview,
-        hasMiddleware: isMiddlewareMatch,
-        unstable_skipClientCache: options.unstable_skipClientCache,
-        isQueryUpdating: isQueryUpdating && !this.isFallback,
-        isMiddlewareRewrite,
-      })
+      let [routeInfo] = await Promise.all([
+        this.getRouteInfo({
+          route,
+          pathname,
+          query,
+          as,
+          resolvedAs,
+          routeProps,
+          locale: nextState.locale,
+          isPreview: nextState.isPreview,
+          hasMiddleware: isMiddlewareMatch,
+          unstable_skipClientCache: options.unstable_skipClientCache,
+          isQueryUpdating: isQueryUpdating && !this.isFallback,
+          isMiddlewareRewrite,
+        }),
+        process.env.__NEXT_NAVIGATION_RAF
+          ? new Promise((resolve) => {
+              // if the frame is hidden or requestAnimationFrame
+              // is delayed too long add upper bound timeout
+              setTimeout(resolve, 1000)
+              requestAnimationFrame(() => {
+                setTimeout(resolve, 1)
+              })
+            })
+          : Promise.resolve(),
+      ])
 
       if (!isQueryUpdating && !options.shallow) {
         await this._bfl(
@@ -1943,12 +1955,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined
