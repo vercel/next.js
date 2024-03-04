@@ -155,9 +155,6 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 export function hydrate() {
   const actionQueue = createMutableActionQueue()
 
-  const rootLayoutMissingTags = (self as any)
-    .__next_root_layout_missing_tags as ('html' | 'body')[] | undefined
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
@@ -170,8 +167,10 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
-  const isError = document.documentElement.id === '__next_error__'
+  const isError =
+    document.documentElement.id === '__next_error__' || rootLayoutMissingTags
 
   if (process.env.NODE_ENV !== 'production') {
     // Patch console.error to collect information about hydration errors
@@ -183,7 +182,7 @@ export function hydrate() {
     }
   }
 
-  if (isError || rootLayoutMissingTags) {
+  if (isError) {
     if (process.env.NODE_ENV !== 'production') {
       // if an error is thrown while rendering an RSC stream, this will catch it in dev
       // and show the error overlay

@@ -44,7 +44,14 @@ declare module '*.module.scss' {
 
 interface Window {
   MSInputMethodContext?: unknown
+  /** @internal */
   __NEXT_HMR_CB?: null | ((message?: string) => void)
+  /**
+   * @internal
+   * If the user's Root Layout is missing the `html` or `body` tags, we throw an error to help them understand why their content might not be styled as expected.
+   * This is sent to t he client in a `<script>` tag that we use to throw an error in the browser, showing the user the error message in the error overlay.
+   */
+  __next_root_layout_missing_tags?: ('html' | 'body')[]
 }
 
 interface NextFetchRequestConfig {

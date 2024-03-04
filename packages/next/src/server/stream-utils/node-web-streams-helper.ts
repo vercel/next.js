@@ -429,6 +429,11 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
+/*
+ * Checks if the root layout is missing the html or body tags
+ * and if so, it will inject a script tag to throw an error in the browser, showing the user
+ * the error message in the error overlay.
+ */
 export function createRootLayoutValidatorStream(): TransformStream<
   Uint8Array,
   Uint8Array
@@ -465,13 +470,12 @@ export function createRootLayoutValidatorStream(): TransformStream<
         }
       }
 
-      // If html or body tag is missing, we need to inject a script to notify
-      // the client.
-      const missingTags: string[] = []
+      const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
       if (!missingTags.length) return
+
       controller.enqueue(
         encoder.encode(
           `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
