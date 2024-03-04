@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        "react-native": "react-native-web",
+      },
+    },
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
