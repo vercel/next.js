@@ -520,6 +520,7 @@ export type ContinueStreamOptions = {
    * Suffix to inject after the buffered data, but before the close tags.
    */
   suffix?: string | undefined
+  validateLayout?: boolean
 }
 
 export async function continueFizzStream(
@@ -530,6 +531,7 @@ export async function continueFizzStream(
     isStaticGeneration,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
+    validateLayout = true,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -559,7 +561,7 @@ export async function continueFizzStream(
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
-    createRootLayoutValidatorStream(),
+    validateLayout ? createRootLayoutValidatorStream() : null,
 
     // Close tags should always be deferred to the end
     createMoveSuffixStream(closeTag),
