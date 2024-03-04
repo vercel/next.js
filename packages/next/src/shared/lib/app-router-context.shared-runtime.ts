@@ -126,11 +126,6 @@ export interface AppRouterInstance {
    */
   refresh(): void
   /**
-   * Refresh the current page. Use in development only.
-   * @internal
-   */
-  fastRefresh(): void
-  /**
    * Navigate to the provided href.
    * Pushes a new history entry.
    */

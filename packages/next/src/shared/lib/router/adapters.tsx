@@ -1,4 +1,7 @@
-import type { AppRouterInstance } from '../app-router-context.shared-runtime'
+import type {
+  AppRouterInstance,
+  NavigateOptions,
+} from '../app-router-context.shared-runtime'
 import type { Params } from './utils/route-matcher'
 import type { NextRouter } from './router'
 
@@ -8,29 +11,33 @@ import { isDynamicRoute } from './utils'
 import { asPathToSearchParams } from './utils/as-path-to-search-params'
 import { getRouteRegex } from './utils/route-regex'
 
-/** It adapts a Pages Router (`NextRouter`) to the App Router Instance. */
+/**
+ * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
+ *
+ * @param router the NextRouter to adapt
+ * @returns an AppRouterInstance
+ */
 export function adaptForAppRouterInstance(
-  pagesRouter: NextRouter
+  router: NextRouter
 ): AppRouterInstance {
   return {
-    back() {
-      pagesRouter.back()
+    back(): void {
+      router.back()
     },
-    forward() {
-      pagesRouter.forward()
+    forward(): void {
+      router.forward()
     },
-    refresh() {
-      pagesRouter.reload()
+    refresh(): void {
+      router.reload()
     },
-    fastRefresh() {},
-    push(href, { scroll } = {}) {
-      void pagesRouter.push(href, undefined, { scroll })
+    push(href: string, { scroll }: NavigateOptions = {}): void {
+      void router.push(href, undefined, { scroll })
     },
-    replace(href, { scroll } = {}) {
-      void pagesRouter.replace(href, undefined, { scroll })
+    replace(href: string, { scroll }: NavigateOptions = {}): void {
+      void router.replace(href, undefined, { scroll })
     },
-    prefetch(href) {
-      void pagesRouter.prefetch(href)
+    prefetch(href: string): void {
+      void router.prefetch(href)
     },
   }
 }
