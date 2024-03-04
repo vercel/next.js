@@ -1,14 +1,13 @@
-#!/usr/bin/env node
 import { cyan } from '../lib/picocolors'
-import * as Log from '../build/output/log'
-import type { CliCommand } from '../lib/commands'
+import { error } from '../build/output/log'
 
-const nextExport: CliCommand = () => {
-  Log.error(`
-    The "next export" command has been removed in favor of "output: export" in next.config.js. Learn more: ${cyan(
-      'https://nextjs.org/docs/advanced-features/static-html-export'
+const nextExport = () => {
+  error(`
+    \`next export\` has been removed in favor of 'output: export' in next.config.js.\nLearn more: ${cyan(
+      'https://nextjs.org/docs/app/building-your-application/deploying/static-exports'
     )}
   `)
+
   process.exit(1)
 }
 

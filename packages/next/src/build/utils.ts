@@ -52,7 +52,10 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   WEBPACK_LAYERS,
 } from '../lib/constants'
-import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
+import {
+  MODERN_BROWSERSLIST_TARGET,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+} from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -688,7 +691,10 @@ export async function printTreeView(
   })
 
   // If there's no app /_notFound page present, then the 404 is still using the pages/404
-  if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
+  if (
+    !lists.pages.includes('/404') &&
+    !lists.app?.includes(UNDERSCORE_NOT_FOUND_ROUTE)
+  ) {
     lists.pages = [...lists.pages, '/404']
   }
 

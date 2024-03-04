@@ -784,17 +784,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await cleanup()
   })
 
-  test('useless frames are hidden in stack trace for pages error', async () => {
+  test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
         [
           'pages/index.js',
+          // TODO: repro stringify (<anonymous>)
           outdent`
           export default function Page() {
             const e = new Error("Client error!");
             e.stack += \`
-              // REVIEW: how to reliably test the presence of these stack frames?
               at stringify (<anonymous>)
               at <unknown> (<anonymous>)
               at foo (bar:1:1)\`;
@@ -814,26 +814,38 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(texts).not.toContain('<unknown>\n<anonymous>')
     expect(texts).toContain('foo\nbar (1:1)')
 
-    // Test that node:internal errors should be hidden
+    await cleanup()
+  })
 
-    next.patchFile(
-      'pages/index.js',
-      // Node.js will throw an error about the invalid URL since it happens server-side
-      outdent`
+  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/index.js',
+          // Node.js will throw an error about the invalid URL since it happens server-side
+          outdent`
       export default function Page() {}
       
       export function getServerSideProps() {
         new URL("/", "invalid");
         return { props: {} };
-      }`
+      }`,
+        ],
+      ])
     )
-
     expect(await session.hasRedbox()).toBe(true)
     await expandCallStack(browser)
-    callStackFrames = await browser.elementsByCss(
+
+    // Should still show the errored line in source code
+    const source = await session.getRedboxSource()
+    expect(source).toContain('pages/index.js')
+    expect(source).toContain(`new URL("/", "invalid")`)
+
+    const callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
-    texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
 
     expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
 
