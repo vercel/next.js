@@ -17,9 +17,7 @@ plugin = ["turbopack-binding/__swc_core_binding_wasm_plugin"]
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-once_cell = { workspace = true }
-serde = { workspace = true }
+anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
 next-custom-transforms = { workspace = true }
 serde_json = "1"
@@ -32,8 +30,8 @@ turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_wasm",
   "__feature_mdx_rs",
 ] }
-swc_core = { workspace = true, features = ["ecma_ast_serde", "common", "ecma_visit_path"] }
-regex = "1.5"
+swc_core = { workspace = true, features = ["ecma_ast_serde", "common"] }
+
 
 # Workaround a bug
 [package.metadata.wasm-pack.profile.release]
