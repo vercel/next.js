@@ -15,6 +15,7 @@ import {
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
 import { isObjWithMissingTags } from '../server/stream-utils/node-web-streams-helper'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -228,7 +229,9 @@ export function hydrate() {
           return
         }
 
-        if (obj.action === 'serverComponentChanges') {
+        if (
+          obj.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+        ) {
           window.location.reload()
         }
       }

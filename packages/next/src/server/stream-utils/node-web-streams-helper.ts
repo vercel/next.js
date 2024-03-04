@@ -460,12 +460,8 @@ export function createRootLayoutValidatorStream(): TransformStream<
       // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
         content += decoder.decode(chunk, { stream: true })
-        if (!foundHtml && content.includes('<html')) {
-          foundHtml = true
-        }
-        if (!foundBody && content.includes('<body')) {
-          foundBody = true
-        }
+        if (!foundHtml && content.includes('<html')) foundHtml = true
+        if (!foundBody && content.includes('<body')) foundBody = true
       }
       controller.enqueue(chunk)
     },
