@@ -6,6 +6,7 @@ import postcss from "@vercel/turbopack/postcss";
 import importedConfig from "CONFIG";
 import { relative, isAbsolute, sep } from "path";
 import type { Ipc } from "../ipc/evaluate";
+import type { IpcInfoMessage, IpcRequestMessage } from "./webpack-loaders";
 
 const contextDir = process.cwd();
 
@@ -19,11 +20,9 @@ function toPath(file: string) {
   return sep !== "/" ? relPath.replaceAll(sep, "/") : relPath;
 }
 
-export default async function transform(
-  ipc: Ipc,
-  cssContent: string,
-  name: string
-) {
+let processor: any;
+
+export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
   let config = importedConfig;
   if (typeof config === "function") {
     config = await config({ env: "development" });
@@ -67,7 +66,14 @@ export default async function transform(
     return plugin;
   });
 
-  const processor = postcss(loadedPlugins);
+  processor = postcss(loadedPlugins);
+};
+
+export default async function transform(
+  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
+  cssContent: string,
+  name: string
+) {
   const { css, map, messages } = await processor.process(cssContent, {
     from: name,
     to: name,
@@ -92,26 +98,26 @@ export default async function transform(
         break;
       case "file-dependency":
       case "missing-dependency":
-        ipc.send({
+        ipc.sendInfo({
           type: "fileDependency",
           path: toPath(msg.file),
         });
         break;
       case "build-dependency":
-        ipc.send({
+        ipc.sendInfo({
           type: "buildDependency",
           path: toPath(msg.file),
         });
         break;
       case "dir-dependency":
-        ipc.send({
+        ipc.sendInfo({
           type: "dirDependency",
           path: toPath(msg.dir),
           glob: msg.glob,
         });
         break;
       case "context-dependency":
-        ipc.send({
+        ipc.sendInfo({
           type: "dirDependency",
           path: toPath(msg.file),
           glob: "**",
