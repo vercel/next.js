@@ -585,7 +585,8 @@ export async function continueFizzStream(
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
-  }: ContinueStreamOptions
+  }: ContinueStreamOptions,
+  details: any
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
 
@@ -598,7 +599,10 @@ export async function continueFizzStream(
     await renderStream.allReady
   }
 
-  const perfController = new TransformStreamPerformanceController('fizz stream')
+  const perfController = new TransformStreamPerformanceController(
+    'fizz stream',
+    details
+  )
 
   return chainTransformers(renderStream, [
     perfController.initiator,

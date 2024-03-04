@@ -1155,17 +1155,21 @@ async function renderToHTMLOrFlightImpl(
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: await continueFizzStream(stream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                dataStream,
-                nonce,
-                formState
-              ),
-              isStaticGeneration: isStaticGeneration || generateStaticHTML,
-              getServerInsertedHTML,
-              serverInsertedHTMLToHead: true,
-              validateRootLayout,
-            }),
+            stream: await continueFizzStream(
+              stream,
+              {
+                inlinedDataStream: createInlinedDataReadableStream(
+                  dataStream,
+                  nonce,
+                  formState
+                ),
+                isStaticGeneration: isStaticGeneration || generateStaticHTML,
+                getServerInsertedHTML,
+                serverInsertedHTMLToHead: true,
+                validateRootLayout,
+              },
+              { pagePath }
+            ),
           }
         }
       } catch (err) {
@@ -1281,25 +1285,29 @@ async function renderToHTMLOrFlightImpl(
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
             err,
-            stream: await continueFizzStream(fizzStream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                // This is intentionally using the readable datastream from the
-                // main render rather than the flight data from the error page
-                // render
-                dataStream,
-                nonce,
-                formState
-              ),
-              isStaticGeneration,
-              getServerInsertedHTML: makeGetServerInsertedHTML({
-                polyfills,
-                renderServerInsertedHTML,
-                serverCapturedErrors: [],
-                basePath: renderOpts.basePath,
-              }),
-              serverInsertedHTMLToHead: true,
-              validateRootLayout,
-            }),
+            stream: await continueFizzStream(
+              fizzStream,
+              {
+                inlinedDataStream: createInlinedDataReadableStream(
+                  // This is intentionally using the readable datastream from the
+                  // main render rather than the flight data from the error page
+                  // render
+                  dataStream,
+                  nonce,
+                  formState
+                ),
+                isStaticGeneration,
+                getServerInsertedHTML: makeGetServerInsertedHTML({
+                  polyfills,
+                  renderServerInsertedHTML,
+                  serverCapturedErrors: [],
+                  basePath: renderOpts.basePath,
+                }),
+                serverInsertedHTMLToHead: true,
+                validateRootLayout,
+              },
+              { pagePath }
+            ),
           }
         } catch (finalErr: any) {
           if (

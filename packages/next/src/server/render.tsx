@@ -1346,18 +1346,22 @@ export async function renderToHTMLImpl(
     const createBodyResult = getTracer().wrap(
       RenderSpan.createBodyResult,
       (initialStream: ReactReadableStream, suffix?: string) => {
-        return continueFizzStream(initialStream, {
-          suffix,
-          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
-          isStaticGeneration: true,
-          // this must be called inside bodyResult so appWrappers is
-          // up to date when `wrapApp` is called
-          getServerInsertedHTML: () => {
-            return renderToString(styledJsxInsertedHTML())
+        return continueFizzStream(
+          initialStream,
+          {
+            suffix,
+            inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
+            isStaticGeneration: true,
+            // this must be called inside bodyResult so appWrappers is
+            // up to date when `wrapApp` is called
+            getServerInsertedHTML: () => {
+              return renderToString(styledJsxInsertedHTML())
+            },
+            serverInsertedHTMLToHead: false,
+            validateRootLayout: undefined,
           },
-          serverInsertedHTMLToHead: false,
-          validateRootLayout: undefined,
-        })
+          { pagePath: pathname }
+        )
       }
     )
 
