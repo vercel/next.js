@@ -14,6 +14,7 @@ import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
+import { isWindowWithMissingTags } from '../server/stream-utils/node-web-streams-helper'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -167,7 +168,10 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
+  const rootLayoutMissingTags = isWindowWithMissingTags(window)
+    ? window.__next_root_layout_missing_tags
+    : undefined
+
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || rootLayoutMissingTags

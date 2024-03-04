@@ -429,6 +429,17 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
+type MissingTag = 'html' | 'body'
+
+export function isWindowWithMissingTags(
+  window: any
+): window is { __next_root_layout_missing_tags: MissingTag[] } {
+  return (
+    '__next_root_layout_missing_tags' in window &&
+    Array.isArray(window.__next_root_layout_missing_tags)
+  )
+}
+
 /*
  * Checks if the root layout is missing the html or body tags
  * and if so, it will inject a script tag to throw an error in the browser, showing the user
@@ -470,7 +481,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
         }
       }
 
-      const missingTags: typeof window.__next_root_layout_missing_tags = []
+      const missingTags: MissingTag[] = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
@@ -478,7 +489,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
 
       controller.enqueue(
         encoder.encode(
-          `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
+          `<script>window.__next_root_layout_missing_tags=${JSON.stringify(
             missingTags
           )}</script>`
         )
