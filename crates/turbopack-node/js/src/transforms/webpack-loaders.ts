@@ -6,6 +6,7 @@ import type { Ipc } from "../ipc/evaluate";
 import {
   relative,
   isAbsolute,
+  join,
   sep,
   dirname,
   resolve as pathResolve,
@@ -14,6 +15,34 @@ import {
   StackFrame,
   parse as parseStackTrace,
 } from "../compiled/stacktrace-parser";
+import { type StructuredError } from "src/ipc";
+
+export type IpcInfoMessage =
+  | {
+      type: "fileDependency";
+      path: string;
+    }
+  | {
+      type: "buildDependency";
+      path: string;
+    }
+  | {
+      type: "dirDependency";
+      path: string;
+      glob: string;
+    }
+  | {
+      type: "emittedError";
+      severity: "warning" | "error";
+      error: StructuredError;
+    };
+
+export type IpcRequestMessage = {
+  type: "resolve";
+  options: any;
+  lookupPath: string;
+  request: string;
+};
 
 type LoaderConfig =
   | string
@@ -38,6 +67,9 @@ const toPath = (file: string) => {
     );
   }
   return sep !== "/" ? relPath.replaceAll(sep, "/") : relPath;
+};
+const fromPath = (path: string) => {
+  return join(contextDir, sep !== "/" ? path.replaceAll("/", sep) : path);
 };
 
 const LogType = Object.freeze({
@@ -95,8 +127,48 @@ class DummySpan {
   }
 }
 
+type ResolveOptions = {
+  dependencyType?: string;
+  alias?: Record<string, string[]> | unknown[];
+  aliasFields?: string[];
+  cacheWithContext?: boolean;
+  conditionNames?: string[];
+  descriptionFiles?: string[];
+  enforceExtension?: boolean;
+  extensionAlias: Record<string, string[]>;
+  extensions?: string[];
+  fallback?: Record<string, string[]>;
+  mainFields?: string[];
+  mainFiles?: string[];
+  exportsFields?: string[];
+  modules?: string[];
+  plugins?: unknown[];
+  symlinks?: boolean;
+  unsafeCache?: boolean;
+  useSyncFileSystemCalls?: boolean;
+  preferRelative?: boolean;
+  preferAbsolute?: boolean;
+  restrictions?: unknown[];
+  roots?: string[];
+  importFields?: string[];
+};
+const SUPPORTED_RESOLVE_OPTIONS = new Set([
+  "alias",
+  "aliasFields",
+  "conditionNames",
+  "descriptionFiles",
+  "extensions",
+  "exportsFields",
+  "mainFields",
+  "mainFiles",
+  "modules",
+  "restrictions",
+  "preferRelative",
+  "dependencyType",
+]);
+
 const transform = (
-  ipc: Ipc,
+  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
   content: string,
   name: string,
   loaders: LoaderConfig[]
@@ -121,9 +193,138 @@ const transform = (
               ? entry.options
               : {};
           },
-          getResolve: () => ({
-            // [TODO] this is incomplete
-          }),
+          getResolve: (options: ResolveOptions) => {
+            const rustOptions = {
+              noAlias: false,
+              aliasFields: undefined as undefined | string[],
+              conditionNames: undefined as undefined | string[],
+              noPackageJson: false,
+              extensions: undefined as undefined | string[],
+              mainFields: undefined as undefined | string[],
+              noExportsField: false,
+              mainFiles: undefined as undefined | string[],
+              noModules: false,
+              preferRelative: false,
+            };
+            if (options.alias) {
+              if (!Array.isArray(options.alias) || options.alias.length > 0) {
+                throw new Error("alias resolve option is not supported");
+              }
+              rustOptions.noAlias = true;
+            }
+            if (options.aliasFields) {
+              if (!Array.isArray(options.aliasFields)) {
+                throw new Error("aliasFields resolve option must be an array");
+              }
+              rustOptions.aliasFields = options.aliasFields;
+            }
+            if (options.conditionNames) {
+              if (!Array.isArray(options.conditionNames)) {
+                throw new Error(
+                  "conditionNames resolve option must be an array"
+                );
+              }
+              rustOptions.conditionNames = options.conditionNames;
+            }
+            if (options.descriptionFiles) {
+              if (
+                !Array.isArray(options.descriptionFiles) ||
+                options.descriptionFiles.length > 0
+              ) {
+                throw new Error(
+                  "descriptionFiles resolve option is not supported"
+                );
+              }
+              rustOptions.noPackageJson = true;
+            }
+            if (options.extensions) {
+              if (!Array.isArray(options.extensions)) {
+                throw new Error("extensions resolve option must be an array");
+              }
+              rustOptions.extensions = options.extensions;
+            }
+            if (options.mainFields) {
+              if (!Array.isArray(options.mainFields)) {
+                throw new Error("mainFields resolve option must be an array");
+              }
+              rustOptions.mainFields = options.mainFields;
+            }
+            if (options.exportsFields) {
+              if (
+                !Array.isArray(options.exportsFields) ||
+                options.exportsFields.length > 0
+              ) {
+                throw new Error(
+                  "exportsFields resolve option is not supported"
+                );
+              }
+              rustOptions.noExportsField = true;
+            }
+            if (options.mainFiles) {
+              if (!Array.isArray(options.mainFiles)) {
+                throw new Error("mainFiles resolve option must be an array");
+              }
+              rustOptions.mainFiles = options.mainFiles;
+            }
+            if (options.modules) {
+              if (
+                !Array.isArray(options.modules) ||
+                options.modules.length > 0
+              ) {
+                throw new Error("modules resolve option is not supported");
+              }
+              rustOptions.noModules = true;
+            }
+            if (options.restrictions) {
+              // TODO This is ignored for now
+            }
+            if (options.dependencyType) {
+              // TODO This is ignored for now
+            }
+            if (options.preferRelative) {
+              if (typeof options.preferRelative !== "boolean") {
+                throw new Error(
+                  "preferRelative resolve option must be a boolean"
+                );
+              }
+              rustOptions.preferRelative = options.preferRelative;
+            }
+            return (
+              lookupPath: string,
+              request: string,
+              callback?: (err?: Error, result?: string) => void
+            ) => {
+              const promise = ipc
+                .sendRequest({
+                  type: "resolve",
+                  options: rustOptions,
+                  lookupPath: toPath(lookupPath),
+                  request,
+                })
+                .then((unknownResult) => {
+                  let result = unknownResult as { path: string };
+                  if (result && typeof result.path === "string") {
+                    return fromPath(result.path);
+                  } else {
+                    throw Error(
+                      "Expected { path: string } from resolve request"
+                    );
+                  }
+                });
+              if (callback) {
+                promise
+                  .then(
+                    (result) => callback(undefined, result),
+                    (err) => callback(err)
+                  )
+                  .catch((err) => {
+                    ipc.sendError(err);
+                  });
+              } else {
+                return promise;
+              }
+            };
+          },
           emitWarning: makeErrorEmitter("warning", ipc),
           emitError: makeErrorEmitter("error", ipc),
           getLogger(name: unknown) {
@@ -164,14 +365,14 @@ const transform = (
       (err, result) => {
         if (err) return reject(err);
         for (const dep of result.contextDependencies) {
-          ipc.send({
+          ipc.sendInfo({
             type: "dirDependency",
             path: toPath(dep),
             glob: "**",
           });
         }
         for (const dep of result.fileDependencies) {
-          ipc.send({
+          ipc.sendInfo({
             type: "fileDependency",
             path: toPath(dep),
           });
@@ -186,9 +387,12 @@ const transform = (
 
 export { transform as default };
 
-function makeErrorEmitter(severity: "warning" | "error", ipc: Ipc) {
+function makeErrorEmitter(
+  severity: "warning" | "error",
+  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>
+) {
   return function (error: Error | string) {
-    ipc.send({
+    ipc.sendInfo({
       type: "emittedError",
       severity: severity,
       error:
