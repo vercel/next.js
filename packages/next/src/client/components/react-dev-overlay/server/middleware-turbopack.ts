@@ -19,7 +19,7 @@ interface Project {
 }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
-async function batchedTraceSource(project: Project, frame: StackFrame) {
+export async function batchedTraceSource(project: Project, frame: StackFrame) {
   const file = frame.file ? decodeURIComponent(frame.file) : undefined
   if (!file) return
 

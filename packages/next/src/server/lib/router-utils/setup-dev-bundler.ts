@@ -1064,7 +1064,8 @@ async function traceTurbopackErrorStack(
         const traced = await batchedTraceSource(project, {
           file: f.file!,
           methodName: f.methodName,
-          line: f.lineNumber ?? 0,
+          lineNumber: f.lineNumber ?? 0,
+          arguments: f.arguments,
           column: f.column,
           isServer: true,
         })
