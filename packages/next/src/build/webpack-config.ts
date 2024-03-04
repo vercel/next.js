@@ -1897,7 +1897,10 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      !dev && isClient && new MergeCssChunksPlugin(),
+      !dev &&
+        isClient &&
+        config.experimental.mergeCssChunks &&
+        new MergeCssChunksPlugin(),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

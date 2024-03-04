@@ -124,14 +124,14 @@ describe('CLI Usage', () => {
         const help = await runNextCommand(['start', '--help'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(/Starts the application in production mode/)
+        expect(help.stdout).toMatch(/Starts Next.js in production mode/)
       })
 
       test('-h', async () => {
         const help = await runNextCommand(['start', '-h'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(/Starts the application in production mode/)
+        expect(help.stdout).toMatch(/Starts Next.js in production mode/)
       })
 
       test('should format IPv6 addresses correctly', async () => {
@@ -167,7 +167,7 @@ describe('CLI Usage', () => {
         const { stderr } = await runNextCommand(['start', '--random'], {
           stderr: true,
         })
-        expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
       })
       test('should not throw UnhandledPromiseRejectionWarning', async () => {
         const { stderr } = await runNextCommand(['start', '--random'], {
@@ -211,7 +211,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).toContain(
-          'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'string' is invalid. 'string' is not a non-negative number.`
         )
       })
 
@@ -223,7 +223,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).toContain(
-          'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '-100' is invalid. '-100' is not a non-negative number.`
         )
       })
 
@@ -235,7 +235,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).toContain(
-          'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'Infinity' is invalid. 'Infinity' is not a non-negative number.`
         )
       })
 
@@ -247,7 +247,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).not.toContain(
-          'Invalid keep alive timeout provided, expected a non negative number'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '100' is invalid. '100' is not a non-negative number.`
         )
       })
 
@@ -283,25 +283,21 @@ describe('CLI Usage', () => {
         const help = await runNextCommand(['telemetry', '--help'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(
-          /Allows you to control Next\.js' telemetry collection/
-        )
+        expect(help.stdout).toMatch(/Allows you to enable or disable Next\.js'/)
       })
 
       test('-h', async () => {
         const help = await runNextCommand(['telemetry', '-h'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(
-          /Allows you to control Next\.js' telemetry collection/
-        )
+        expect(help.stdout).toMatch(/Allows you to enable or disable Next\.js'/)
       })
 
       test('should warn when unknown argument provided', async () => {
         const { stderr } = await runNextCommand(['telemetry', '--random'], {
           stderr: true,
         })
-        expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
       })
       test('should not throw UnhandledPromiseRejectionWarning', async () => {
         const { stderr } = await runNextCommand(['telemetry', '--random'], {
@@ -316,25 +312,21 @@ describe('CLI Usage', () => {
         const help = await runNextCommand(['build', '--help'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(
-          /Compiles the application for production deployment/
-        )
+        expect(help.stdout).toMatch(/Creates an optimized production build/)
       })
 
       test('-h', async () => {
         const help = await runNextCommand(['build', '-h'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(
-          /Compiles the application for production deployment/
-        )
+        expect(help.stdout).toMatch(/Creates an optimized production build/)
       })
 
       test('should warn when unknown argument provided', async () => {
         const { stderr } = await runNextCommand(['build', '--random'], {
           stderr: true,
         })
-        expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
       })
       test('should not throw UnhandledPromiseRejectionWarning', async () => {
         const { stderr } = await runNextCommand(['build', '--random'], {
@@ -367,14 +359,18 @@ describe('CLI Usage', () => {
       const help = await runNextCommand(['--help'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Usage/)
+      expect(help.stdout).toMatch(
+        /The Next.js CLI allows you to develop, build, start/
+      )
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['-h'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Usage/)
+      expect(help.stdout).toMatch(
+        /The Next.js CLI allows you to develop, build, start/
+      )
     })
 
     test('--version', async () => {
@@ -429,14 +425,14 @@ describe('CLI Usage', () => {
       const help = await runNextCommand(['dev', '--help'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Starts the application in development mode/)
+      expect(help.stdout).toMatch(/Starts Next.js in development mode/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['dev', '-h'], {
         stdout: true,
       })
-      expect(help.stdout).toMatch(/Starts the application in development mode/)
+      expect(help.stdout).toMatch(/Starts Next.js in development mode/)
     })
 
     test('custom directory', async () => {
@@ -732,7 +728,7 @@ describe('CLI Usage', () => {
       const { stderr } = await runNextCommand(['dev', '--random'], {
         stderr: true,
       })
-      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+      expect(stderr).toEqual(`error: unknown option '--random'\n`)
     })
     test('should not throw UnhandledPromiseRejectionWarning', async () => {
       const { stderr } = await runNextCommand(['dev', '--random'], {
@@ -767,7 +763,18 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(help.stderr).toMatch(
-        'The "next export" command has been removed in favor of "output: export" in next.config.js'
+        `error: unknown option '--help'\n(Did you mean --help?)`
+      )
+      expect(help.code).toBe(1)
+    })
+
+    test('run export command', async () => {
+      const help = await runNextCommand(['export'], {
+        stdout: true,
+        stderr: true,
+      })
+      expect(help.stderr).toMatch(
+        `\`next export\` has been removed in favor of 'output: export' in next.config.js`
       )
       expect(help.code).toBe(1)
     })
@@ -805,7 +812,7 @@ Next.js Config:
         stdout: true,
       })
       expect(help.stdout).toMatch(
-        /Prints relevant details about the current system which can be used to report Next\.js bugs/
+        /Prints relevant details about the current system which can be used to report/
       )
     })
 
@@ -814,7 +821,7 @@ Next.js Config:
         stdout: true,
       })
       expect(help.stdout).toMatch(
-        /Prints relevant details about the current system which can be used to report Next\.js bugs/
+        /Prints relevant details about the current system which can be used to report/
       )
     })
 

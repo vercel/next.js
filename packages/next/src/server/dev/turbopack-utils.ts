@@ -118,13 +118,26 @@ export function formatIssue(issue: Issue) {
 }
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
-type IssuesMap = Map<IssueKey, Issue>
+export type IssuesMap = Map<IssueKey, Issue>
 export type EntryIssuesMap = Map<EntryKey, IssuesMap>
+export type TopLevelIssuesMap = IssuesMap
 
 function getIssueKey(issue: Issue): IssueKey {
   return `${issue.severity}-${issue.filePath}-${JSON.stringify(
     issue.title
   )}-${JSON.stringify(issue.description)}`
+}
+
+export function processTopLevelIssues(
+  currentTopLevelIssues: TopLevelIssuesMap,
+  result: TurbopackResult
+) {
+  currentTopLevelIssues.clear()
+
+  for (const issue of result.issues) {
+    const issueKey = getIssueKey(issue)
+    currentTopLevelIssues.set(issueKey, issue)
+  }
 }
 
 export function processIssues(
@@ -143,9 +156,6 @@ export function processIssues(
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
-
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
 
     relevantIssues.add(formatted)
   }

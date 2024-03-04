@@ -99,10 +99,7 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import {
-  isDynamicMetadataRoute,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -664,6 +661,8 @@ async function getBuildId(
     .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
+const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -672,14 +671,14 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate'
 ): Promise<void> {
-  const isCompileMode = buildMode === 'experimental-compile'
-  const isGenerateMode = buildMode === 'experimental-generate'
+  const isCompileMode = experimentalBuildMode === 'compile'
+  const isGenerateMode = experimentalBuildMode === 'generate'
 
   try {
     const nextBuildSpan = trace('next-build', undefined, {
-      buildMode: buildMode,
+      buildMode: experimentalBuildMode,
       isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
@@ -749,13 +748,14 @@ export default async function build(
       const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
-
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
+
+      const binding = await loadBindings(config?.experimental?.useWasmBinary)
 
       const enabledDirectories: NextEnabledDirectories = {
         app: typeof appDir === 'string',
@@ -946,7 +946,10 @@ export default async function build(
               rootDir,
             })
 
-            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
+            const isDynamic = await binding.analysis.isDynamicMetadataRoute(
+              pageFilePath
+            )
+
             if (!isDynamic) {
               delete mappedAppPages[pageKey]
               mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
@@ -1015,18 +1018,21 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      const numConflictingAppPaths = conflictingAppPagePaths.length
-      if (mappedAppPages && numConflictingAppPaths > 0) {
-        Log.error(
-          `Conflicting app and page file${
-            numConflictingAppPaths === 1 ? ' was' : 's were'
-          } found, please remove the conflicting files to continue:`
-        )
-        for (const [pagePath, appPath] of conflictingAppPagePaths) {
-          Log.error(`  "${pagePath}" - "${appPath}"`)
+      // Turbopack already handles conflicting app and page routes.
+      if (!IS_TURBOPACK_BUILD) {
+        const numConflictingAppPaths = conflictingAppPagePaths.length
+        if (mappedAppPages && numConflictingAppPaths > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflictingAppPaths === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const [pagePath, appPath] of conflictingAppPagePaths) {
+            Log.error(`  "${pagePath}" - "${appPath}"`)
+          }
+          await telemetry.flush()
+          process.exit(1)
         }
-        await telemetry.flush()
-        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
@@ -1329,12 +1335,10 @@ export default async function build(
         duration: number
         buildTraceContext: undefined
       }> {
-        if (!(process.env.TURBOPACK && process.env.TURBOPACK_BUILD)) {
+        if (!IS_TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
 
-        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
-        // This is caused by Turbopack not having the production build option yet.
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1351,7 +1355,6 @@ export default async function build(
             allowedRevalidateHeaderKeys: undefined,
             clientRouterFilters: undefined,
             config,
-            // When passing `false` you get `react.jsxDEV is not a function`
             dev,
             distDir,
             fetchCacheKeyPrefix: undefined,
@@ -1410,6 +1413,23 @@ export default async function build(
         entrypointsSubscription.return?.().catch(() => {})
 
         const entrypoints = entrypointsResult.value
+
+        const topLevelErrors: {
+          message: string
+        }[] = []
+        for (const issue of entrypoints.issues) {
+          topLevelErrors.push({
+            message: formatIssue(issue),
+          })
+        }
+
+        if (topLevelErrors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${
+              topLevelErrors.length
+            } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
+          )
+        }
 
         await handleEntrypoints({
           entrypoints,
