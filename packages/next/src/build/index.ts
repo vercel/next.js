@@ -99,10 +99,7 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import {
-  isDynamicMetadataRoute,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -751,13 +748,14 @@ export default async function build(
       const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
-
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
+
+      const binding = await loadBindings(config?.experimental?.useWasmBinary)
 
       const enabledDirectories: NextEnabledDirectories = {
         app: typeof appDir === 'string',
@@ -948,7 +946,10 @@ export default async function build(
               rootDir,
             })
 
-            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
+            const isDynamic = await binding.analysis.isDynamicMetadataRoute(
+              pageFilePath
+            )
+
             if (!isDynamic) {
               delete mappedAppPages[pageKey]
               mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
