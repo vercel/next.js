@@ -5,6 +5,19 @@ module.exports = {
       resolveAlias: {
         "react-native": "react-native-web",
       },
+      resolveExtensions: [
+        ".web.js",
+        ".web.jsx",
+        ".web.ts",
+        ".web.tsx",
+        ".mdx",
+        ".tsx",
+        ".ts",
+        ".jsx",
+        ".js",
+        ".mjs",
+        ".json",
+      ],
     },
   },
   webpack: (config) => {
