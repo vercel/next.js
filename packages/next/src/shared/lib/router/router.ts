@@ -323,30 +323,17 @@ async function withMiddlewareEffects<T extends FetchDataOutput>(
     return null
   }
 
-  try {
-    const data = await options.fetchData()
+  const data = await options.fetchData()
 
-    const effect = await getMiddlewareData(
-      data.dataHref,
-      data.response,
-      options
-    )
+  const effect = await getMiddlewareData(data.dataHref, data.response, options)
 
-    return {
-      dataHref: data.dataHref,
-      json: data.json,
-      response: data.response,
-      text: data.text,
-      cacheKey: data.cacheKey,
-      effect,
-    }
-  } catch {
-    /**
-     * TODO: Revisit this in the future.
-     * For now we will not consider middleware data errors to be fatal.
-     * maybe we should revisit in the future.
-     */
-    return null
+  return {
+    dataHref: data.dataHref,
+    json: data.json,
+    response: data.response,
+    text: data.text,
+    cacheKey: data.cacheKey,
+    effect,
   }
 }
 
@@ -1956,12 +1943,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined
@@ -2403,7 +2390,7 @@ export default class Router implements BaseRouter {
                   locale,
                 }),
                 hasMiddleware: true,
-                isServerRender: this.isSsr,
+                isServerRender: false,
                 parseJSON: true,
                 inflightCache: this.sdc,
                 persistCache: !this.isPreview,

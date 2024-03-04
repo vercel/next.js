@@ -816,9 +816,9 @@ describe('Middleware Rewrite', () => {
       const element = await browser.elementByCss('.title')
       expect(await element.text()).toEqual('Parts page')
       const logs = await browser.log()
-      expect(
-        logs.every((log) => log.source === 'log' || log.source === 'info')
-      ).toEqual(true)
+      expect(logs).toSatisfyAll(
+        (log) => log.source === 'log' || log.source === 'info'
+      )
     })
 
     it('should not have unexpected errors', async () => {

@@ -149,7 +149,7 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/hello.js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
@@ -181,7 +181,7 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/blog/[slug].js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
@@ -206,7 +206,7 @@ describe('server-side dev errors', () => {
       const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-rejection.js') &&
-        (err.includes('7:19') || err.includes('7:5')) &&
+        err.includes('7:20') &&
         err.includes('getServerSideProps') &&
         err.includes('catch this rejection')
         ? 'success'
@@ -222,7 +222,7 @@ describe('server-side dev errors', () => {
       const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
 
       return cleanStderr.includes('pages/uncaught-empty-rejection.js') &&
-        (cleanStderr.includes('7:19') || cleanStderr.includes('7:5')) &&
+        cleanStderr.includes('7:20') &&
         cleanStderr.includes('getServerSideProps') &&
         cleanStderr.includes('new Error()')
         ? 'success'
@@ -238,7 +238,7 @@ describe('server-side dev errors', () => {
       const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-exception.js') &&
-        (err.includes('7:10') || err.includes('7:5')) &&
+        err.includes('7:11') &&
         err.includes('getServerSideProps') &&
         err.includes('catch this exception')
         ? 'success'
@@ -254,7 +254,7 @@ describe('server-side dev errors', () => {
       const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
 
       return cleanStderr.includes('pages/uncaught-empty-exception.js') &&
-        (cleanStderr.includes('7:10') || cleanStderr.includes('7:5')) &&
+        cleanStderr.includes('7:11') &&
         cleanStderr.includes('getServerSideProps') &&
         cleanStderr.includes('new Error()')
         ? 'success'

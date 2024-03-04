@@ -116,6 +116,11 @@ createNextDescribe(
           expect(pageServerChunk).not.toContain('ssr-false-client-module-text')
         }
       })
+
+      it('should support dynamic import with accessing named exports from client component', async () => {
+        const $ = await next.render$('/dynamic/named-export')
+        expect($('#client-button').text()).toBe('this is a client button')
+      })
     })
   }
 )
