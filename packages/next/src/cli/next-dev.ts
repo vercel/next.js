@@ -179,9 +179,8 @@ const nextDev = async (options: NextDevOptions, directory?: string) => {
     printAndExit(getReservedPortExplanation(port), 1)
   }
 
-  // If neither --port nor PORT were specified, it's okay to retry new ports.
-  const allowRetry =
-    options.port === undefined && process.env.PORT === undefined
+  // If a non-3000 port (the default value is 3000) is specified, it's okay to retry new ports.
+  const allowRetry = options.port === 3000 || process.env.PORT === '3000'
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
