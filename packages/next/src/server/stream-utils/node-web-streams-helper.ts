@@ -1,5 +1,3 @@
-import type { FlightRouterState } from '../app-render/types'
-
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
@@ -431,10 +429,10 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
-export function createRootLayoutValidatorStream(
-  assetPrefix = '',
-  getTree: () => FlightRouterState
-): TransformStream<Uint8Array, Uint8Array> {
+export function createRootLayoutValidatorStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
   let foundHtml = false
   let foundBody = false
 
@@ -473,15 +471,14 @@ export function createRootLayoutValidatorStream(
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
-      if (missingTags.length > 0) {
-        controller.enqueue(
-          encoder.encode(
-            `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
-              { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
-            )}</script>`
-          )
+      if (!missingTags.length) return
+      controller.enqueue(
+        encoder.encode(
+          `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
+            missingTags
+          )}</script>`
         )
-      }
+      )
     },
   })
 }
@@ -504,12 +501,6 @@ export type ContinueStreamOptions = {
   isStaticGeneration: boolean
   getServerInsertedHTML: (() => Promise<string>) | undefined
   serverInsertedHTMLToHead: boolean
-  validateRootLayout:
-    | {
-        assetPrefix: string | undefined
-        getTree: () => FlightRouterState
-      }
-    | undefined
   /**
    * Suffix to inject after the buffered data, but before the close tags.
    */
@@ -524,7 +515,6 @@ export async function continueFizzStream(
     isStaticGeneration,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
-    validateRootLayout,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
@@ -554,6 +544,7 @@ export async function continueFizzStream(
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
+    createRootLayoutValidatorStream(),
 
     // Close tags should always be deferred to the end
     createMoveSuffixStream(closeTag),
@@ -563,13 +554,6 @@ export async function continueFizzStream(
     // hydration errors. Remove this once it's ready to be handled by react itself.
     getServerInsertedHTML && serverInsertedHTMLToHead
       ? createHeadInsertionTransformStream(getServerInsertedHTML)
-      : null,
-
-    validateRootLayout
-      ? createRootLayoutValidatorStream(
-          validateRootLayout.assetPrefix,
-          validateRootLayout.getTree
-        )
       : null,
   ])
 }

@@ -7,7 +7,6 @@ import React, { use } from 'react'
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
@@ -154,60 +153,14 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 }
 
 export function hydrate() {
-  if (process.env.NODE_ENV !== 'production') {
-    const rootLayoutMissingTagsError = (self as any)
-      .__next_root_layout_missing_tags_error
-    const HotReload: typeof import('./components/react-dev-overlay/app/hot-reloader-client').default =
-      require('./components/react-dev-overlay/app/hot-reloader-client')
-        .default as typeof import('./components/react-dev-overlay/app/hot-reloader-client').default
-
-    // Don't try to hydrate if root layout is missing required tags, render error instead
-    if (rootLayoutMissingTagsError) {
-      const reactRootElement = document.createElement('div')
-      document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
-        onRecoverableError,
-      })
-
-      reactRoot.render(
-        <GlobalLayoutRouterContext.Provider
-          value={{
-            buildId: 'development',
-            tree: rootLayoutMissingTagsError.tree,
-            changeByServerResponse: () => {},
-            focusAndScrollRef: {
-              apply: false,
-              onlyHashChange: false,
-              hashFragment: null,
-              segmentPaths: [],
-            },
-            nextUrl: null,
-          }}
-        >
-          <HotReload
-            assetPrefix={rootLayoutMissingTagsError.assetPrefix}
-            // initialState={{
-            //   rootLayoutMissingTagsError: {
-            //     missingTags: rootLayoutMissingTagsError.missingTags,
-            //   },
-            // }}
-          />
-        </GlobalLayoutRouterContext.Provider>
-      )
-
-      return
-    }
-  }
-
   const actionQueue = createMutableActionQueue()
+
+  const rootLayoutMissingTags = (self as any)
+    .__next_root_layout_missing_tags as ('html' | 'body')[] | undefined
 
   const reactEl = (
     <StrictModeIfEnabled>
-      <HeadManagerContext.Provider
-        value={{
-          appDir: true,
-        }}
-      >
+      <HeadManagerContext.Provider value={{ appDir: true }}>
         <ActionQueueContext.Provider value={actionQueue}>
           <Root>
             <ServerRoot />
@@ -217,9 +170,7 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const options = {
-    onRecoverableError,
-  }
+  const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
   const isError = document.documentElement.id === '__next_error__'
 
   if (process.env.NODE_ENV !== 'production') {
@@ -232,7 +183,7 @@ export function hydrate() {
     }
   }
 
-  if (isError) {
+  if (isError || rootLayoutMissingTags) {
     if (process.env.NODE_ENV !== 'production') {
       // if an error is thrown while rendering an RSC stream, this will catch it in dev
       // and show the error overlay
@@ -247,9 +198,17 @@ export function hydrate() {
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
           .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
 
+      const MissingTags = () => {
+        throw new Error(
+          `The following tags are missing in the Root Layout: ${rootLayoutMissingTags?.join(
+            ', '
+          )}.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags`
+        )
+      }
+
       let errorTree = (
         <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
-          {reactEl}
+          {rootLayoutMissingTags ? <MissingTags /> : reactEl}
         </ReactDevOverlay>
       )
       const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')

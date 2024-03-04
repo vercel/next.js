@@ -819,18 +819,6 @@ async function renderToHTMLOrFlightImpl(
     nonce = getScriptNonceFromHeader(csp)
   }
 
-  const validateRootLayout = dev
-    ? {
-        assetPrefix: renderOpts.assetPrefix,
-        getTree: () =>
-          createFlightRouterStateFromLoaderTree(
-            loaderTree,
-            getDynamicParamFromSegment,
-            query
-          ),
-      }
-    : undefined
-
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
 
@@ -1140,7 +1128,6 @@ async function renderToHTMLOrFlightImpl(
               isStaticGeneration: isStaticGeneration || generateStaticHTML,
               getServerInsertedHTML,
               serverInsertedHTMLToHead: true,
-              validateRootLayout,
             }),
           }
         }
@@ -1274,7 +1261,6 @@ async function renderToHTMLOrFlightImpl(
                 basePath: renderOpts.basePath,
               }),
               serverInsertedHTMLToHead: true,
-              validateRootLayout,
             }),
           }
         } catch (finalErr: any) {
