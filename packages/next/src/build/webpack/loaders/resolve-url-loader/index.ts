@@ -52,7 +52,7 @@ export default async function resolveUrlLoader(
 
   let sourceMapConsumer
   if (sourceMap) {
-    sourceMapConsumer = new SourceMapConsumer(sourceMap)
+    sourceMapConsumer = await new SourceMapConsumer(sourceMap)
   }
 
   const callback = this.async()

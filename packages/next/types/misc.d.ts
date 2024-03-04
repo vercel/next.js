@@ -264,10 +264,6 @@ declare module 'next/dist/compiled/source-map' {
   import m from 'source-map'
   export = m
 }
-declare module 'next/dist/compiled/source-map08' {
-  import m from 'source-map08'
-  export = m
-}
 declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m

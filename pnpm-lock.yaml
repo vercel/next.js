@@ -1356,11 +1356,8 @@ importers:
         specifier: 1.7.3
         version: 1.7.3
       source-map:
-        specifier: 0.6.1
-        version: 0.6.1
-      source-map08:
-        specifier: npm:source-map@0.8.0-beta.0
-        version: /source-map@0.8.0-beta.0
+        specifier: 0.8.0-beta.0
+        version: 0.8.0-beta.0
       stacktrace-parser:
         specifier: 0.1.10
         version: 0.1.10
