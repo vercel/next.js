@@ -747,70 +747,6 @@ function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
   return '';
 }
 
-var loggedTypeFailures = {};
-var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
-
-function setCurrentlyValidatingElement$1(element) {
-  {
-    if (element) {
-      var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
-      ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
-    } else {
-      ReactDebugCurrentFrame$1.setExtraStackFrame(null);
-    }
-  }
-}
-
-function checkPropTypes(typeSpecs, values, location, componentName, element) {
-  {
-    // $FlowFixMe[incompatible-use] This is okay but Flow doesn't know it.
-    var has = Function.call.bind(hasOwnProperty);
-
-    for (var typeSpecName in typeSpecs) {
-      if (has(typeSpecs, typeSpecName)) {
-        var error$1 = void 0; // Prop type validation may throw. In case they do, we don't want to
-        // fail the render phase where it didn't fail before. So we log it.
-        // After these have been cleaned up, we'll let them throw.
-
-        try {
-          // This is intentionally an invariant that gets caught. It's the same
-          // behavior as without this statement except with a better message.
-          if (typeof typeSpecs[typeSpecName] !== 'function') {
-            // eslint-disable-next-line react-internal/prod-error-codes
-            var err = Error((componentName || 'React class') + ': ' + location + ' type `' + typeSpecName + '` is invalid; ' + 'it must be a function, usually from the `prop-types` package, but received `' + typeof typeSpecs[typeSpecName] + '`.' + 'This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.');
-            err.name = 'Invariant Violation';
-            throw err;
-          }
-
-          error$1 = typeSpecs[typeSpecName](values, typeSpecName, componentName, location, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED');
-        } catch (ex) {
-          error$1 = ex;
-        }
-
-        if (error$1 && !(error$1 instanceof Error)) {
-          setCurrentlyValidatingElement$1(element);
-
-          error('%s: type specification of %s' + ' `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', location, typeSpecName, typeof error$1);
-
-          setCurrentlyValidatingElement$1(null);
-        }
-
-        if (error$1 instanceof Error && !(error$1.message in loggedTypeFailures)) {
-          // Only monitor this failure once because there tends to be a lot of the
-          // same error.
-          loggedTypeFailures[error$1.message] = true;
-          setCurrentlyValidatingElement$1(element);
-
-          error('Failed %s type: %s', location, error$1.message);
-
-          setCurrentlyValidatingElement$1(null);
-        }
-      }
-    }
-  }
-}
-
 var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
@@ -884,19 +820,21 @@ function defineKeyPropWarningGetter(props, displayName) {
 
 function defineRefPropWarningGetter(props, displayName) {
   {
-    var warnAboutAccessingRef = function () {
-      if (!specialPropRefWarningShown) {
-        specialPropRefWarningShown = true;
+    {
+      var warnAboutAccessingRef = function () {
+        if (!specialPropRefWarningShown) {
+          specialPropRefWarningShown = true;
 
-        error('%s: `ref` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://reactjs.org/link/special-props)', displayName);
-      }
-    };
+          error('%s: `ref` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://reactjs.org/link/special-props)', displayName);
+        }
+      };
 
-    warnAboutAccessingRef.isReactWarning = true;
-    Object.defineProperty(props, 'ref', {
-      get: warnAboutAccessingRef,
-      configurable: true
-    });
+      warnAboutAccessingRef.isReactWarning = true;
+      Object.defineProperty(props, 'ref', {
+        get: warnAboutAccessingRef,
+        configurable: true
+      });
+    }
   }
 }
 /**
@@ -921,18 +859,30 @@ function defineRefPropWarningGetter(props, displayName) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
-  var element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: owner
-  };
+function ReactElement(type, key, _ref, self, source, owner, props) {
+  var ref;
+
+  {
+    ref = _ref;
+  }
+
+  var element;
+
+  {
+    // In prod, `ref` is a regular property. It will be removed in a
+    // future release.
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      // Built-in properties that belong on the element
+      type: type,
+      key: key,
+      ref: ref,
+      props: props,
+      // Record the component responsible for creating this element.
+      _owner: owner
+    };
+  }
 
   {
     // The validation flag is currently mutative. We put it on
@@ -985,14 +935,6 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
 
       if (type === undefined || typeof type === 'object' && type !== null && Object.keys(type).length === 0) {
         info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and named imports.";
-      }
-
-      var sourceInfo = getSourceInfoErrorAddendum(source);
-
-      if (sourceInfo) {
-        info += sourceInfo;
-      } else {
-        info += getDeclarationErrorAddendum();
       }
 
       var typeString;
@@ -1082,15 +1024,17 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
     }
 
     if (hasValidRef(config)) {
-      ref = config.ref;
+      {
+        ref = config.ref;
+      }
+
       warnIfStringRefCannotBeAutoConverted(config, self);
     } // Remaining properties are added to a new props object
 
 
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
-      propName !== 'ref') {
+      propName !== 'key' && (propName !== 'ref')) {
         props[propName] = config[propName];
       }
     } // Resolve default props
@@ -1122,8 +1066,6 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
 
     if (type === REACT_FRAGMENT_TYPE) {
       validateFragmentProps(element);
-    } else {
-      validatePropTypes(element);
     }
 
     return element;
@@ -1138,18 +1080,6 @@ function getDeclarationErrorAddendum() {
       if (name) {
         return '\n\nCheck the render method of `' + name + '`.';
       }
-    }
-
-    return '';
-  }
-}
-
-function getSourceInfoErrorAddendum(source) {
-  {
-    if (source !== undefined) {
-      var fileName = source.fileName.replace(/^.*[\\\/]/, '');
-      var lineNumber = source.lineNumber;
-      return '\n\nCheck your code at ' + fileName + ':' + lineNumber + '.';
     }
 
     return '';
@@ -1296,6 +1226,7 @@ function getCurrentComponentErrorInfo(parentType) {
 
 
 function validateFragmentProps(fragment) {
+  // TODO: Move this to render phase instead of at element creation.
   {
     var keys = Object.keys(fragment.props);
 
@@ -1318,56 +1249,6 @@ function validateFragmentProps(fragment) {
       error('Invalid attribute `ref` supplied to `React.Fragment`.');
 
       setCurrentlyValidatingElement(null);
-    }
-  }
-}
-
-var propTypesMisspellWarningShown = false;
-/**
- * Given an element, validate that its props follow the propTypes definition,
- * provided by the type.
- *
- * @param {ReactElement} element
- */
-
-function validatePropTypes(element) {
-  {
-    var type = element.type;
-
-    if (type === null || type === undefined || typeof type === 'string') {
-      return;
-    }
-
-    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
-      return;
-    }
-
-    var propTypes;
-
-    if (typeof type === 'function') {
-      propTypes = type.propTypes;
-    } else if (typeof type === 'object' && (type.$$typeof === REACT_FORWARD_REF_TYPE || // Note: Memo only checks outer props here.
-    // Inner props are checked in the reconciler.
-    type.$$typeof === REACT_MEMO_TYPE)) {
-      propTypes = type.propTypes;
-    } else {
-      return;
-    }
-
-    if (propTypes) {
-      // Intentionally inside to avoid triggering lazy initializers:
-      var name = getComponentNameFromType(type);
-      checkPropTypes(propTypes, element.props, 'prop', name, element);
-    } else if (type.PropTypes !== undefined && !propTypesMisspellWarningShown) {
-      propTypesMisspellWarningShown = true; // Intentionally inside to avoid triggering lazy initializers:
-
-      var _name = getComponentNameFromType(type);
-
-      error('Component %s declared `PropTypes` instead of `propTypes`. Did you misspell the property assignment?', _name || 'Unknown');
-    }
-
-    if (typeof type.getDefaultProps === 'function' && !type.getDefaultProps.isReactClassApproved) {
-      error('getDefaultProps is only used on classic React.createClass ' + 'definitions. Use a static property named `defaultProps` instead.');
     }
   }
 }

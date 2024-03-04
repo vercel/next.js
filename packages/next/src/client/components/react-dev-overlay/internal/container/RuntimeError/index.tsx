@@ -4,7 +4,6 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -16,7 +15,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           !(
             f.sourceStackFrame.file === '<anonymous>' &&
             ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
-          )
+          ) && !f.sourceStackFrame.file?.startsWith('node:internal')
       )
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
@@ -76,18 +75,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           />
         </React.Fragment>
       ) : undefined}
-
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
-        </>
-      ) : null}
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
@@ -199,5 +186,28 @@ export const styles = css`
   }
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
+  }
+
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+  }
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--diff-add] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff-remove] {
+    color: var(--color-ansi-red);
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-error] {
+    color: var(--color-ansi-red);
+    font-weight: bold;
   }
 `

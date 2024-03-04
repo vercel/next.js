@@ -839,12 +839,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace', async () => {
+  test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
         [
           'app/page.js',
+          // TODO: repro stringify (<anonymous>)
           outdent`
         export default function Page() {
           const e = new Error("Boom!");
@@ -860,13 +861,48 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     expect(await session.hasRedbox()).toBe(true)
     await expandCallStack(browser)
+    let callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    let texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    expect(texts).not.toContain('stringify\n<anonymous>')
+    expect(texts).not.toContain('<unknown>\n<anonymous>')
+    expect(texts).toContain('foo\nbar (1:1)')
+
+    await cleanup()
+  })
+
+  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          // Node.js will throw an error about the invalid URL since this is a server component
+          outdent`
+          export default function Page() {
+            new URL("/", "invalid");
+          }`,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+
+    // Should still show the errored line in source code
+    const source = await session.getRedboxSource()
+    expect(source).toContain('app/page.js')
+    expect(source).toContain(`new URL("/", "invalid")`)
+
+    await expandCallStack(browser)
     const callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
     const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
-    expect(texts).not.toContain('stringify\n<anonymous>')
-    expect(texts).not.toContain('<unknown>\n<anonymous>')
-    expect(texts).toContain('foo\nbar (1:1)')
+
+    expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
+
     await cleanup()
   })
 

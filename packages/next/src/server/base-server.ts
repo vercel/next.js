@@ -49,8 +49,9 @@ import {
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
-import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
@@ -755,13 +756,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
+    const rsc = isRSCRequestCheck(req) ? 'RSC ' : ''
 
     const tracer = getTracer()
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method} ${req.url}`,
+          spanName: `${rsc}${method} ${req.url}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -792,7 +794,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             const route = rootSpanAttributes.get('next.route')
             if (route) {
-              const newName = `${method} ${route}`
+              const newName = `${rsc}${method} ${route}`
               span.setAttributes({
                 'next.route': route,
                 'http.route': route,
@@ -1163,36 +1165,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             return this.renderError(null, req, res, '/_error', {})
           }
           throw err
-        }
-      }
-
-      if (
-        // Edge runtime always has minimal mode enabled.
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        !this.minimalMode &&
-        defaultLocale
-      ) {
-        const { getLocaleRedirect } =
-          require('../shared/lib/i18n/get-locale-redirect') as typeof import('../shared/lib/i18n/get-locale-redirect')
-        const redirect = getLocaleRedirect({
-          defaultLocale,
-          domainLocale,
-          headers: req.headers,
-          nextConfig: this.nextConfig,
-          pathLocale: pathnameInfo.locale,
-          urlParsed: {
-            ...url,
-            pathname: pathnameInfo.locale
-              ? `/${pathnameInfo.locale}${url.pathname}`
-              : url.pathname,
-          },
-        })
-
-        if (redirect) {
-          return res
-            .redirect(redirect, RedirectStatusCode.TemporaryRedirect)
-            .body(redirect)
-            .send()
         }
       }
 
@@ -1728,9 +1700,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     resolvedPathname: string
   ): void {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`
-    const isRSCRequest =
-      req.headers[RSC_HEADER.toLowerCase()] === '1' ||
-      getRequestMeta(req, 'isRSCRequest')
+    const isRSCRequest = isRSCRequestCheck(req)
 
     let addedNextUrlToVary = false
 
@@ -1758,7 +1728,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<ResponsePayload | null> {
     const is404Page =
       // For edge runtime 404 page, /_not-found needs to be treated as 404 page
-      (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
+      (process.env.NEXT_RUNTIME === 'edge' &&
+        pathname === UNDERSCORE_NOT_FOUND_ROUTE) ||
       pathname === '/404'
 
     // Strip the internal headers.
@@ -1895,10 +1866,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isRSCRequest =
-      (Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
-        getRequestMeta(req, 'isRSCRequest')) ??
-      false
+    const isRSCRequest = isRSCRequestCheck(req)
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2155,9 +2123,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       postponed: string | undefined
     }) => Promise<ResponseCacheEntry | null>
 
+    // allow debugging the skeleton in dev with PPR
+    // instead of continuing to resume stream right away
+    const debugPPRSkeleton = Boolean(
+      this.nextConfig.experimental.ppr &&
+        this.renderOpts.dev &&
+        query.__nextppronly
+    )
+
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML: boolean =
+      let supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
         // support dynamic HTML.
         (!isDataReq && opts.dev === true) ||
@@ -2227,6 +2203,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+      }
+
+      if (debugPPRSkeleton) {
+        supportsDynamicHTML = false
+        renderOpts.nextExport = true
+        renderOpts.supportsDynamicHTML = false
+        renderOpts.isStaticGeneration = true
+        renderOpts.isRevalidate = true
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2887,6 +2871,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
+      if (debugPPRSkeleton) {
+        return {
+          type: 'html',
+          body,
+          revalidate: 0,
+        }
+      }
+
       // This request has postponed, so let's create a new transformer that the
       // dynamic data can pipe to that will attach the dynamic data to the end
       // of the response.
@@ -2997,6 +2989,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       shouldEnsure: false,
     })
     if (result) {
+      getTracer().getRootSpanAttributes()?.set('next.route', pathname)
       try {
         return await this.renderToResponseWithComponents(ctx, result)
       } catch (err) {
@@ -3268,7 +3261,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.enabledDirectories.app) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
             query,
             params: {},
             isAppPath: true,
@@ -3473,4 +3466,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
+}
+
+function isRSCRequestCheck(req: BaseNextRequest): boolean {
+  return (
+    req.headers[RSC_HEADER.toLowerCase()] === '1' ||
+    Boolean(getRequestMeta(req, 'isRSCRequest'))
+  )
 }
