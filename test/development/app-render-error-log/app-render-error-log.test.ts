@@ -17,7 +17,7 @@ createNextDescribe(
       await check(() => cliOutput, /digest:/)
       expect(cliOutput).toInclude('Error: boom')
       expect(cliOutput).toInclude('at fn2 (./app/fn.ts')
-      expect(cliOutput).toInclude('at fn1 (./app/fn.ts')
+      expect(cliOutput).toMatch(/at (Module\.)?fn1 \(\.\/app\/fn\.ts/)
       expect(cliOutput).toInclude('at Page (./app/page.tsx')
 
       expect(cliOutput).not.toInclude('webpack-internal')

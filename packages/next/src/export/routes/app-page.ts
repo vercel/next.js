@@ -1,3 +1,4 @@
+import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
@@ -7,11 +8,6 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
-import {
-  RSC_HEADER,
-  NEXT_URL,
-  NEXT_ROUTER_PREFETCH_HEADER,
-} from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -21,65 +17,14 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
   FLIGHT = 'FLIGHT',
+  PREFETCH_FLIGHT = 'PREFETCH_FLIGHT',
   META = 'META',
   POSTPONED = 'POSTPONED',
-}
-
-async function generatePrefetchRsc(
-  req: MockedRequest,
-  path: string,
-  res: MockedResponse,
-  pathname: string,
-  htmlFilepath: string,
-  renderOpts: RenderOpts,
-  fileWriter: FileWriter
-): Promise<boolean> {
-  // TODO: Re-enable once this is better supported client-side
-  // It's currently not reliable to generate these prefetches because the client router
-  // depends on the RSC payload being generated with FlightRouterState. When we generate these prefetches
-  // without router state, it causes mismatches on client-side nav, resulting in subtle navigation bugs
-  // like unnecessarily re-rendering layouts.
-  return false
-
-  // When we're in PPR, the RSC payload is emitted as the prefetch payload, so
-  // attempting to generate a prefetch RSC is an error.
-  if (renderOpts.experimental.ppr) {
-    throw new Error(
-      'Invariant: explicit prefetch RSC cannot be generated with PPR enabled'
-    )
-  }
-
-  req.headers[RSC_HEADER.toLowerCase()] = '1'
-  req.headers[NEXT_URL.toLowerCase()] = path
-  req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-
-  renderOpts.supportsDynamicHTML = true
-  renderOpts.isPrefetch = true
-  delete renderOpts.isRevalidate
-
-  const prefetchRenderResult = await lazyRenderAppPage(
-    req,
-    res,
-    pathname,
-    {},
-    renderOpts
-  )
-
-  const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
-
-  if ((renderOpts as any).store.staticPrefetchBailout) return false
-
-  await fileWriter(
-    ExportedAppPageFiles.FLIGHT,
-    htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-    prefetchRscData
-  )
-
-  return true
 }
 
 export async function exportAppPage(
@@ -93,31 +38,15 @@ export async function exportAppPage(
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  isAppPrefetch: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
   if (page === '/_not-found') {
     pathname = '/404'
   }
 
   try {
-    if (isAppPrefetch) {
-      const generated = await generatePrefetchRsc(
-        req,
-        path,
-        res,
-        pathname,
-        htmlFilepath,
-        renderOpts,
-        fileWriter
-      )
-
-      if (generated) {
-        return { revalidate: 0 }
-      }
-    }
-
     const result = await lazyRenderAppPage(
       req,
       res,
@@ -128,10 +57,8 @@ export async function exportAppPage(
 
     const html = result.toUnchunkedString()
 
-    const {
-      metadata: { pageData, revalidate = false, postponed, fetchTags },
-    } = result
     const { metadata } = result
+    const { flightData, revalidate = false, postponed, fetchTags } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.ppr) {
@@ -144,19 +71,6 @@ export async function exportAppPage(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
         )
       }
-
-      if (!(renderOpts as any).store.staticPrefetchBailout) {
-        await generatePrefetchRsc(
-          req,
-          path,
-          res,
-          pathname,
-          htmlFilepath,
-          renderOpts,
-          fileWriter
-        )
-      }
-
       const { staticBailoutInfo = {} } = metadata
 
       if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
@@ -169,6 +83,11 @@ export async function exportAppPage(
 
       return { revalidate: 0 }
     }
+    // If page data isn't available, it means that the page couldn't be rendered
+    // properly.
+    else if (!flightData) {
+      throw new Error(`Invariant: failed to get page data for ${path}`)
+    }
     // If PPR is enabled, we want to emit a prefetch rsc file for the page
     // instead of the standard rsc. This is because the standard rsc will
     // contain the dynamic data.
@@ -176,20 +95,26 @@ export async function exportAppPage(
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
-        ExportedAppPageFiles.FLIGHT,
+        ExportedAppPageFiles.PREFETCH_FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-        pageData
+        flightData
       )
     } else {
       // Writing the RSC payload to a file if we don't have PPR enabled.
       await fileWriter(
         ExportedAppPageFiles.FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
-        pageData
+        flightData
       )
     }
 
-    const headers = { ...metadata.headers }
+    const headers: OutgoingHttpHeaders = { ...metadata.headers }
+
+    // When PPR is enabled, we should grab the headers from the mocked response
+    // and add it to the headers.
+    if (renderOpts.experimental.ppr) {
+      Object.assign(headers, res.getHeaders())
+    }
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
@@ -205,7 +130,10 @@ export async function exportAppPage(
 
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
-      status: undefined,
+      // When PPR is enabled, we don't always send 200 for routes that have been
+      // pregenerated, so we should grab the status code from the mocked
+      // response.
+      status: renderOpts.experimental.ppr ? res.statusCode : undefined,
       headers,
       postponed,
     }
@@ -223,8 +151,17 @@ export async function exportAppPage(
       hasPostponed: Boolean(postponed),
       revalidate,
     }
-  } catch (err: any) {
+  } catch (err) {
     if (!isDynamicUsageError(err)) {
+      throw err
+    }
+
+    // If enabled, we should fail rendering if a client side rendering bailout
+    // occurred at the page level.
+    if (
+      renderOpts.experimental.missingSuspenseWithCSRBailout &&
+      isBailoutToCSRError(err)
+    ) {
       throw err
     }
 

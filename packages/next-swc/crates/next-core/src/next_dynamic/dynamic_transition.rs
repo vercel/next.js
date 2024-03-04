@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
-    core::{module::Module, reference_type::ReferenceType, source::Source},
+    core::{context::ProcessResult, reference_type::ReferenceType, source::Source},
     turbopack::{
         transition::{ContextTransition, Transition},
         ModuleAssetContext,
@@ -39,15 +39,21 @@ impl Transition for NextDynamicTransition {
         source: Vc<Box<dyn Source>>,
         context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<ProcessResult>> {
         let context = self.process_context(context);
 
         let this = self.await?;
 
-        let client_module =
-            this.client_transition
-                .process(source, context, Value::new(ReferenceType::Undefined));
-
-        Ok(Vc::upcast(NextDynamicEntryModule::new(client_module)))
+        Ok(match *this
+            .client_transition
+            .process(source, context, Value::new(ReferenceType::Undefined))
+            .await?
+        {
+            ProcessResult::Module(client_module) => {
+                ProcessResult::Module(Vc::upcast(NextDynamicEntryModule::new(client_module)))
+            }
+            ProcessResult::Ignore => ProcessResult::Ignore,
+        }
+        .cell())
     }
 }

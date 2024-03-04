@@ -60,9 +60,8 @@ async function main() {
   const remoteUrl =
     eventData?.head?.repo?.full_name ||
     process.env.GITHUB_REPOSITORY ||
-    (await exec('git remote get-url origin').stdout)
+    (await exec('git remote get-url origin')).stdout
 
-  let changedFilesOutput = ''
   const isCanary =
     branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
 
@@ -85,7 +84,7 @@ async function main() {
     }
   )
   console.error({ branchName, remoteUrl, isCanary, changesResult })
-  changedFilesOutput = changesResult.stdout
+  const changedFilesOutput = changesResult.stdout
 
   const typeIndex = process.argv.indexOf('--type')
   const type = typeIndex > -1 && process.argv[typeIndex + 1]

@@ -48,20 +48,34 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/
     )
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+
+    if (process.env.TURBOPACK) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./components/Comp.js:1:1
+        Ecmascript file had an error
+        > 1 | import { cookies } from 'next/headers'
+            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          2 |
+          3 | export default function Page() {
+          4 |   return <p>hello world</p>
+
+        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
+      `)
+    } else {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
         "./components/Comp.js
-        ReactServerComponentsError:
-
-        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
-
+        Error: 
+          x You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+          | react-essentials#server-components
+          | 
+          | 
            ,-[TEST_DIR/components/Comp.js:1:1]
          1 | import { cookies } from 'next/headers'
            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -71,10 +85,10 @@ describe('Error Overlay for server components compiler errors in pages', () => {
            \`----
 
         Import trace for requested module:
-          ./components/Comp.js
-          ./pages/index.js"
+        ./components/Comp.js
+        ./pages/index.js"
       `)
-    )
+    }
 
     await cleanup()
   })
@@ -85,7 +99,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     await next.patchFile(
       'components/Comp.js',
       outdent`
-        import 'server-only' 
+        import 'server-only'
 
         export default function Page() {
           return 'hello world'
@@ -93,22 +107,36 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/
     )
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+
+    if (process.env.TURBOPACK) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./components/Comp.js:1:1
+        Ecmascript file had an error
+        > 1 | import 'server-only'
+            | ^^^^^^^^^^^^^^^^^^^^
+          2 |
+          3 | export default function Page() {
+          4 |   return 'hello world'
+
+        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
+      `)
+    } else {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
         "./components/Comp.js
-        ReactServerComponentsError:
-
-        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components
-
+        Error: 
+          x You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+          | react-essentials#server-components
+          | 
+          | 
            ,-[TEST_DIR/components/Comp.js:1:1]
-         1 | import 'server-only' 
+         1 | import 'server-only'
            : ^^^^^^^^^^^^^^^^^^^^
          2 | 
          3 | export default function Page() {
@@ -116,11 +144,10 @@ describe('Error Overlay for server components compiler errors in pages', () => {
            \`----
 
         Import trace for requested module:
-          ./components/Comp.js
-          ./pages/index.js"
+        ./components/Comp.js
+        ./pages/index.js"
       `)
-    )
-
+    }
     await cleanup()
   })
 })

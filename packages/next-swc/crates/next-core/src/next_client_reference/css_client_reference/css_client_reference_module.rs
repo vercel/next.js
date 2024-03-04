@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::{
@@ -72,10 +72,9 @@ impl ParseCss for CssClientReferenceModule {
 impl ProcessCss for CssClientReferenceModule {
     #[turbo_tasks::function]
     async fn get_css_with_placeholder(&self) -> Result<Vc<CssWithPlaceholderResult>> {
-        let Some(imp) = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module).await?
-        else {
-            bail!("CSS client reference client module must be CSS processable");
-        };
+        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
+            .await?
+            .context("CSS client reference client module must be CSS processable")?;
 
         Ok(imp.get_css_with_placeholder())
     }
@@ -85,10 +84,9 @@ impl ProcessCss for CssClientReferenceModule {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<FinalCssResult>> {
-        let Some(imp) = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module).await?
-        else {
-            bail!("CSS client reference client module must be CSS processable");
-        };
+        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
+            .await?
+            .context("CSS client reference client module must be CSS processable")?;
 
         Ok(imp.finalize_css(chunking_context))
     }

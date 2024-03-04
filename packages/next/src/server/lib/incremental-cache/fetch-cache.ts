@@ -106,6 +106,10 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
+  public resetRequestCache(): void {
+    memoryCache?.reset()
+  }
+
   public async revalidateTag(tag: string) {
     if (this.debug) {
       console.log('revalidateTag', tag)
@@ -120,7 +124,9 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
+        `${
+          this.cacheEndpoint
+        }/v1/suspense-cache/revalidate?tags=${encodeURIComponent(tag)}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -157,13 +163,10 @@ export default class FetchCache implements CacheHandler {
       return null
     }
 
+    // memory cache is cleared at the end of each request
+    // so that revalidate events are pulled from upstream
+    // on successive requests
     let data = memoryCache?.get(key)
-
-    // memory cache data is only leveraged for up to 1 seconds
-    // so that revalidation events can be pulled from source
-    if (Date.now() - (data?.lastModified || 0) > 2000) {
-      data = undefined
-    }
 
     // get data from fetch cache
     if (!data && this.cacheEndpoint) {

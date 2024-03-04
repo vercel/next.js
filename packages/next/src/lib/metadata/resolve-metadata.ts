@@ -14,6 +14,8 @@ import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { ParsedUrlQuery } from 'querystring'
+
 import {
   createDefaultMetadata,
   createDefaultViewport,
@@ -39,7 +41,7 @@ import {
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
@@ -65,6 +67,14 @@ type TitleTemplates = {
 
 type BuildState = {
   warnings: Set<string>
+}
+
+type LayoutProps = {
+  params: { [key: string]: any }
+}
+type PageProps = {
+  params: { [key: string]: any }
+  searchParams: { [key: string]: any }
 }
 
 function hasIconsProperty(
@@ -462,7 +472,7 @@ export async function resolveMetadataItems({
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  searchParams: { [key: string]: any }
+  searchParams: ParsedUrlQuery
   errorConvention: 'not-found' | undefined
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
@@ -484,9 +494,16 @@ export async function resolveMetadataItems({
       : // Pass through parent params to children
         parentParams
 
-  const layerProps = {
-    params: currentParams,
-    ...(isPage && { searchParams }),
+  let layerProps: LayoutProps | PageProps
+  if (isPage) {
+    layerProps = {
+      params: currentParams,
+      searchParams,
+    }
+  } else {
+    layerProps = {
+      params: currentParams,
+    }
   }
 
   await collectMetadata({

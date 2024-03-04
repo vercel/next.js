@@ -17,7 +17,7 @@ description: Enable fast client-side navigation with the built-in `next/link` co
 
 </PagesOnly>
 
-`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
 <AppOnly>
 
@@ -77,12 +77,27 @@ export default Home
 
 Here's a summary of the props available for the Link Component:
 
+<PagesOnly>
+
 | Prop                     | Example             | Type             | Required |
 | ------------------------ | ------------------- | ---------------- | -------- |
 | [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
 | [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
 | [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
 | [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean          | -        |
+
+</PagesOnly>
+
+<AppOnly>
+
+| Prop                     | Example             | Type             | Required |
+| ------------------------ | ------------------- | ---------------- | -------- |
+| [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
+| [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
+| [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
+| [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean or null  | -        |
+
+</AppOnly>
 
 > **Good to know**: `<a>` tag attributes such as `className` or `target="_blank"` can be added to `<Link>` as props and will be passed to the underlying `<a>` element.
 
@@ -166,9 +181,13 @@ export default function Page() {
 
 ### `prefetch`
 
-**Defaults to `true`.** When `true`, `next/link` will prefetch the page (denoted by the `href`) in the background. This is useful for improving the performance of client-side navigations. Any `<Link />` in the viewport (initially or through scroll) will be preloaded.
+<AppOnly>
 
-Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
+Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) and its data in the background to improve the performance of client-side navigations. Prefetching is only enabled in production.
+
+- **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
+- `true`: The full route will be prefetched for both static and dynamic routes.
+- `false`: Prefetching will never happen both on entering the viewport and on hover.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -194,7 +213,38 @@ export default function Page() {
 }
 ```
 
+</AppOnly>
+
 <PagesOnly>
+
+Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) and data in the background to improve the performance of client-side navigations. Prefetching is only enabled in production.
+
+- **`true` (default)**: The full route and its data will be prefetched.
+- `false`: Prefetching will not happen when entering the viewport, but will happen on hover. If you want to completely remove fetching on hover as well, consider using an `<a>` tag or [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router, which enables disabling prefetching on hover too.
+
+```tsx filename="pages/index.tsx" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/dashboard" prefetch={false}>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+```jsx filename="pages/index.js" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/dashboard" prefetch={false}>
+      Dashboard
+    </Link>
+  )
+}
+```
 
 ## Other Props
 
@@ -273,8 +323,6 @@ function Page({ posts }) {
 ```
 
 </AppOnly>
-
-<PagesOnly>
 
 ### If the child is a custom component that wraps an `<a>` tag
 
@@ -405,8 +453,6 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
 </Link>
 ```
 
-</PagesOnly>
-
 ### Middleware
 
 It's common to use [Middleware](/docs/app/building-your-application/routing/middleware) for authentication or other purposes that involve rewriting the user to a different page. In order for the `<Link />` component to properly prefetch links with rewrites via Middleware, you need to tell Next.js both the URL to display and the URL to prefetch. This is required to avoid un-necessary fetches to middleware to know the correct route to prefetch.
@@ -434,7 +480,7 @@ import useIsAuthed from './hooks/useIsAuthed'
 
 export default function Page() {
   const isAuthed = useIsAuthed()
-  const path = isAuthed ? '/auth/dashboard' : '/dashboard'
+  const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
     <Link as="/dashboard" href={path}>
       Dashboard
@@ -445,7 +491,7 @@ export default function Page() {
 
 <PagesOnly>
 
-> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
+> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/authed/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
 
 </PagesOnly>
 

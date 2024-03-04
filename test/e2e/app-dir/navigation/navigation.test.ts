@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
-import type { Request } from 'playwright-chromium'
+import { retry, waitFor } from 'next-test-utils'
+import type { Response } from 'playwright'
 
 createNextDescribe(
   'app dir - navigation',
@@ -15,11 +15,12 @@ createNextDescribe(
           `""`
         )
 
-        browser.elementById('set-query').click()
+        await browser.elementById('set-query').click()
 
-        await check(
-          async () => await browser.elementById('query').text(),
-          'a=b&c=d'
+        await retry(() =>
+          expect(browser.elementById('query').text()).resolves.toEqual(
+            'a=b&c=d'
+          )
         )
 
         const url = new URL(await browser.url())
@@ -27,32 +28,37 @@ createNextDescribe(
       })
 
       it('should handle unicode search params', async () => {
-        const requests = []
+        const requests: Array<{
+          pathname: string
+          ok: boolean
+          headers: Record<string, string>
+        }> = []
 
-        const browser = await next.browser('/search-params?name=名')
-        browser.on('request', async (req: Request) => {
-          const res = await req.response()
-          requests.push([
-            new URL(req.url()).pathname,
-            res.ok(),
-            await res.headers(),
-          ])
+        const browser = await next.browser('/search-params?name=名', {
+          beforePageLoad(page) {
+            page.on('response', async (res: Response) => {
+              requests.push({
+                pathname: new URL(res.url()).pathname,
+                ok: res.ok(),
+                headers: res.headers(),
+              })
+            })
+          },
         })
+
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#set-query')
 
-        await check(async () => {
-          return requests.some((requestPair) => {
-            const [pathname, ok, headers] = requestPair
-            return (
-              pathname === '/' &&
-              ok &&
-              headers['content-type'] === 'text/x-component'
-            )
+        await retry(() =>
+          expect(requests).toContainEqual({
+            pathname: '/',
+            ok: true,
+            headers: expect.objectContaining({
+              'content-type': 'text/x-component',
+            }),
           })
-            ? 'success'
-            : JSON.stringify(requests)
-        }, 'success')
+        )
       })
 
       it('should not reset shallow url updates on prefetch', async () => {
@@ -67,51 +73,76 @@ createNextDescribe(
       })
 
       describe('useParams identity between renders', () => {
-        async function runTests(page: string) {
-          const browser = await next.browser(page)
+        it.each([
+          {
+            router: 'app',
+            pathname: '/search-params/foo',
+            // App Router doesn't re-render on initial load (the params are baked
+            // server side). In development, effects will render twice.
 
-          await check(
-            async () => JSON.stringify(await browser.log()),
-            /params changed/
-          )
+            // experimental react is having issues with this use effect
+            // @acdlite will take a look
+            // TODO: remove this PPR cond after react fixes the issue in experimental build.
+            waitForNEffects:
+              isNextDev && !process.env.__NEXT_EXPERIMENTAL_PPR ? 2 : 1,
+          },
+          {
+            router: 'pages',
+            pathname: '/search-params-pages/foo',
+            // Pages Router re-renders on initial load and after hydration, the
+            // params when initially loaded are null.
+            waitForNEffects: 2,
+          },
+        ])(
+          'should be stable in $router',
+          async ({ pathname, waitForNEffects }) => {
+            const browser = await next.browser(pathname)
 
-          let outputIndex = (await browser.log()).length
+            // Expect to see the params changed message at least twice.
+            let lastLogIndex = await retry(async () => {
+              const logs: Array<{ message: string }> = await browser.log()
 
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
+              expect(
+                logs.filter(({ message }) => message === 'params changed')
+              ).toHaveLength(waitForNEffects)
 
-          await check(async () => {
-            return browser.elementById('rerender-button').text()
-          }, 'Re-Render 3')
+              return logs.length
+            })
 
-          await check(async () => {
-            const logs = await browser.log()
-            return JSON.stringify(logs.slice(outputIndex)).includes(
-              'params changed'
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
+
+            await retry(async () => {
+              const rerender = await browser
+                .elementById('rerender-button')
+                .text()
+
+              expect(rerender).toBe('Re-Render 3')
+            })
+
+            let logs: Array<{ message: string }> = await browser.log()
+            expect(logs.slice(lastLogIndex)).not.toContainEqual(
+              expect.objectContaining({
+                message: 'params changed',
+              })
             )
-              ? 'fail'
-              : 'success'
-          }, 'success')
 
-          outputIndex = (await browser.log()).length
+            lastLogIndex = logs.length
 
-          await browser.elementById('change-params-button').click()
+            await browser.elementById('change-params-button').click()
 
-          await check(
-            async () =>
-              JSON.stringify((await browser.log()).slice(outputIndex)),
-            /params changed/
-          )
-        }
+            await retry(async () => {
+              logs = await browser.log()
 
-        it('should be stable in app', async () => {
-          await runTests('/search-params/foo')
-        })
-
-        it('should be stable in pages', async () => {
-          await runTests('/search-params-pages/foo')
-        })
+              expect(logs.slice(lastLogIndex)).toContainEqual(
+                expect.objectContaining({
+                  message: 'params changed',
+                })
+              )
+            })
+          }
+        )
       })
     })
 
@@ -124,15 +155,11 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(
-            async () => {
-              const val = await browser.eval('window.pageYOffset')
-              return val.toString()
-            },
-            expectedScroll.toString(),
-            true,
-            // Try maximum of 15 seconds
-            15
+
+          await retry(() =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            )
           )
         }
 
@@ -166,15 +193,10 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(
-            async () => {
-              const val = await browser.eval('window.pageYOffset')
-              return val.toString()
-            },
-            expectedScroll.toString(),
-            true,
-            // Try maximum of 15 seconds
-            15
+          await retry(() =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            )
           )
         }
 
@@ -197,15 +219,10 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(
-            async () => {
-              const val = await browser.eval('window.pageYOffset')
-              return val.toString()
-            },
-            expectedScroll.toString(),
-            true,
-            // Try maximum of 15 seconds
-            15
+          await retry(() =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            )
           )
         }
 
@@ -224,15 +241,8 @@ createNextDescribe(
           // Wait for hash-link-back-to-same-page to load
           .waitForElementByCss('#to-other-page')
 
-        await check(
-          async () => {
-            const val = await browser.eval('window.pageYOffset')
-            return val.toString()
-          },
-          (0).toString(),
-          true,
-          // Try maximum of 15 seconds
-          15
+        await retry(() =>
+          expect(browser.eval('window.pageYOffset')).resolves.toEqual(0)
         )
       })
     })
@@ -244,49 +254,71 @@ createNextDescribe(
         const browser = await next.browser(pathname)
         await browser.elementByCss('#link-to-h1-hash-only').click()
 
-        await check(() => browser.url(), next.url + pathname + '#h1')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(next.url + pathname + '#h1')
+        )
       })
 
       it('should work with a hash-only `router.push(...)`', async () => {
         const browser = await next.browser(pathname)
         await browser.elementByCss('#button-to-h3-hash-only').click()
 
-        await check(() => browser.url(), next.url + pathname + '#h3')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(next.url + pathname + '#h3')
+        )
       })
 
       it('should work with a query-only href', async () => {
         const browser = await next.browser(pathname)
         await browser.elementByCss('#link-to-dummy-query').click()
 
-        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2'
+          )
+        )
       })
 
       it('should work with both relative hashes and queries', async () => {
         const browser = await next.browser(pathname)
         await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
 
-        await check(() => browser.url(), next.url + pathname + '?here=ok#h2')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?here=ok#h2'
+          )
+        )
 
         // Only update hash
         await browser.elementByCss('#link-to-h1-hash-only').click()
-        await check(() => browser.url(), next.url + pathname + '?here=ok#h1')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?here=ok#h1'
+          )
+        )
 
         // Replace all with new query
         await browser.elementByCss('#link-to-dummy-query').click()
-        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2'
+          )
+        )
 
         // Add hash to existing query
         await browser.elementByCss('#link-to-h1-hash-only').click()
-        await check(
-          () => browser.url(),
-          next.url + pathname + '?foo=1&bar=2#h1'
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2#h1'
+          )
         )
 
         // Update hash again via `router.push(...)`
         await browser.elementByCss('#button-to-h3-hash-only').click()
-        await check(
-          () => browser.url(),
-          next.url + pathname + '?foo=1&bar=2#h3'
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2#h3'
+          )
         )
       })
     })
@@ -563,7 +595,11 @@ createNextDescribe(
           .elementByCss('#link-to-pages-router')
           .click()
           .waitForElementByCss('#link-to-app')
-        await check(() => browser.url(), next.url + '/some#non-existent')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + '/some#non-existent'
+          )
+        )
       })
 
       if (!isNextDev) {
@@ -572,7 +608,7 @@ createNextDescribe(
         // it doesn't repeatedly initiate the mpa navigation request
         it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
           let requestCount = 0
-          const browser = await next.browser('/mpa-nav-test', {
+          await next.browser('/mpa-nav-test', {
             beforePageLoad(page) {
               page.on('request', (request) => {
                 const url = new URL(request.url())
@@ -583,8 +619,6 @@ createNextDescribe(
               })
             },
           })
-
-          await browser.waitForElementByCss('#link-to-slow-page')
 
           // wait a few seconds since prefetches are triggered in 1s intervals in the page component
           await waitFor(5000)
@@ -730,6 +764,121 @@ createNextDescribe(
             ).toBe(`${subcategory}`)
           }
         }
+      })
+    })
+
+    describe('scroll restoration', () => {
+      it('should restore original scroll position when navigating back', async () => {
+        const browser = await next.browser('/scroll-restoration', {
+          // throttling the CPU to rule out flakiness based on how quickly the page loads
+          cpuThrottleRate: 6,
+        })
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('Item 50')
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        expect(await body.text()).toContain('Item 200')
+
+        // scroll to the bottom of the page
+        await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+
+        // grab the current position
+        const scrollPosition = await browser.eval('window.pageYOffset')
+
+        await browser.elementByCss("[href='/scroll-restoration/other']").click()
+        await browser.elementById('back-button').click()
+
+        const newScrollPosition = await browser.eval('window.pageYOffset')
+
+        // confirm that the scroll position was restored
+        expect(newScrollPosition).toEqual(scrollPosition)
+      })
+    })
+
+    describe('navigating to a page with async metadata', () => {
+      it('should render the final state of the page with correct metadata', async () => {
+        const browser = await next.browser('/metadata-await-promise')
+
+        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+        } else {
+          const loadingText = await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
+
+          expect(loadingText).toBe('Loading')
+        }
+
+        await retry(async () => {
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Content'
+          )
+
+          expect(await browser.elementByCss('title').text()).toBe('Async Title')
+        })
+      })
+    })
+
+    describe('navigating to dynamic params & changing the casing', () => {
+      it('should load the page correctly', async () => {
+        const browser = await next.browser('/dynamic-param-casing-change')
+
+        // note the casing here capitalizes `ParamA`
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+          .click()
+
+        // note the `paramA` casing has now changed
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'noParam page'
+          )
+        })
+
+        await browser.back()
+
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            '[paramB] page'
+          )
+        })
+      })
+    })
+
+    describe('browser back to a revalidated page', () => {
+      it('should load the page', async () => {
+        const browser = await next.browser('/popstate-revalidate')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        await browser.elementByCss("[href='/popstate-revalidate/foo']").click()
+        await browser.waitForElementByCss('#submit-button')
+        expect(await browser.elementByCss('h1').text()).toBe('Form')
+        await browser.elementById('submit-button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Form Submitted.'
+          )
+        })
+
+        await browser.back()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
       })
     })
   }

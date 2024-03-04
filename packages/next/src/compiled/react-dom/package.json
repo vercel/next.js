@@ -3,7 +3,7 @@
   "main": "index.js",
   "exports": {
     ".": {
-      "react-server": "./react-dom.shared-subset.js",
+      "react-server": "./react-dom.react-server.js",
       "default": "./index.js"
     },
     "./client": "./client.js",
@@ -41,10 +41,10 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.24.0-canary-2c338b16f-20231116"
+    "scheduler": "0.24.0-canary-6c3b8dbfe-20240226"
   },
   "peerDependencies": {
-    "react": "18.3.0-canary-2c338b16f-20231116"
+    "react": "18.3.0-canary-6c3b8dbfe-20240226"
   },
   "browser": {
     "./server.js": "./server.browser.js",

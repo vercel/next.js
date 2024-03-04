@@ -24,6 +24,18 @@ describe('getNamedRouteRegex', () => {
     expect(regex.re.test('/photos/(.)next/123')).toBe(true)
   })
 
+  it('should match named routes correctly when interception markers are adjacent to dynamic segments', () => {
+    let regex = getNamedRouteRegex('/(.)[author]/[id]', true)
+    let namedRegexp = new RegExp(regex.namedRegex)
+    expect(namedRegexp.test('/[author]/[id]')).toBe(false)
+    expect(namedRegexp.test('/(.)[author]/[id]')).toBe(true)
+
+    regex = getNamedRouteRegex('/(..)(..)[author]/[id]', true)
+    namedRegexp = new RegExp(regex.namedRegex)
+    expect(namedRegexp.test('/[author]/[id]')).toBe(false)
+    expect(namedRegexp.test('/(..)(..)[author]/[id]')).toBe(true)
+  })
+
   it('should handle multi-level interception markers', () => {
     const regex = getNamedRouteRegex('/photos/(..)(..)[author]/[id]', true)
 

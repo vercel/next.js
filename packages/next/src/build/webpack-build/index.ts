@@ -31,15 +31,10 @@ function deepMerge(target: any, source: any) {
 }
 
 async function webpackBuildWithWorker(
-  compilerNames: typeof ORDERED_COMPILER_NAMES = ORDERED_COMPILER_NAMES
+  compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
 ) {
-  const {
-    config,
-    telemetryPlugin,
-    buildSpinner,
-    nextBuildSpan,
-    ...prunedBuildContext
-  } = NextBuildContext
+  const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
+  const { nextBuildSpan, ...prunedBuildContext } = NextBuildContext
 
   prunedBuildContext.pluginState = pluginState
 
@@ -63,7 +58,7 @@ async function webpackBuildWithWorker(
     }[]) {
       worker._child.on('exit', (code, signal) => {
         if (code || (signal && signal !== 'SIGINT')) {
-          console.error(
+          debug(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
         }
@@ -100,6 +95,10 @@ async function webpackBuildWithWorker(
     pluginState = deepMerge(pluginState, curResult.pluginState)
     prunedBuildContext.pluginState = pluginState
 
+    if (curResult.telemetryState) {
+      NextBuildContext.telemetryState = curResult.telemetryState
+    }
+
     combinedResult.duration += curResult.duration
 
     if (curResult.buildTraceContext?.entriesTrace) {
@@ -127,24 +126,22 @@ async function webpackBuildWithWorker(
   }
 
   if (compilerNames.length === 3) {
-    buildSpinner?.stopAndPersist()
     Log.event('Compiled successfully')
   }
 
   return combinedResult
 }
 
-export async function webpackBuild(
-  compilerNames?: typeof ORDERED_COMPILER_NAMES
-) {
-  const config = NextBuildContext.config!
-
-  if (config.experimental.webpackBuildWorker) {
+export function webpackBuild(
+  withWorker: boolean,
+  compilerNames: typeof ORDERED_COMPILER_NAMES | null
+): ReturnType<typeof webpackBuildWithWorker> {
+  if (withWorker) {
     debug('using separate compiler workers')
-    return await webpackBuildWithWorker(compilerNames)
+    return webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return await webpackBuildImpl()
+    return webpackBuildImpl(null, null)
   }
 }

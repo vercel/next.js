@@ -359,6 +359,7 @@ createNextDescribe(
           'yandex-verification': 'yandex',
           me: ['my-email', 'my-link'],
         })
+        expect($('meta[name="me"]').length).toBe(2)
       })
 
       it('should support appLinks tags', async () => {
@@ -433,7 +434,7 @@ createNextDescribe(
         await matchMultiDom('meta', 'property', 'content', {
           'og:title': 'My custom title',
           'og:description': 'My custom description',
-          'og:url': 'https://example.com/',
+          'og:url': 'https://example.com',
           'og:site_name': 'My custom site name',
           'og:locale': 'en-US',
           'og:type': 'website',

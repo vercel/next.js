@@ -8,6 +8,8 @@
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
+  APP_CLIENT_INTERNALS,
+  BARREL_OPTIMIZATION_PREFIX,
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
@@ -18,6 +20,8 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import { formatBarrelOptimizedResource } from '../utils'
+import type { ChunkGroup } from 'webpack'
 
 interface Options {
   dev: boolean
@@ -125,12 +129,19 @@ function getAppPathRequiredChunks(
 // - app/foo/page -> app/foo
 // - app/(group)/@named/foo/page -> app/foo
 // - app/(.)foo/(..)bar/loading -> app/bar
+// - app/[...catchAll]/page -> app
+// - app/foo/@slot/[...catchAll]/page -> app/foo
 function entryNameToGroupName(entryName: string) {
   let groupName = entryName
     .slice(0, entryName.lastIndexOf('/'))
+    // Remove slots
     .replace(/\/@[^/]+/g, '')
     // Remove the group with lookahead to make sure it's not interception route
     .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
+    // Remove catch-all routes since they should be part of the parent group that the catch-all would apply to.
+    // This is necessary to support parallel routes since multiple page components can be rendered on the same page.
+    // In order to do that, we need to ensure that the manifests are merged together by putting them in the same group.
+    .replace(/\/\[?\[\.\.\.[^\]]*\]\]?/g, '')
 
   // Interception routes
   groupName = groupName
@@ -234,9 +245,16 @@ export class ClientReferenceManifestPlugin {
         }
       })
 
-    compilation.chunkGroups.forEach((chunkGroup) => {
-      // By default it's the shared chunkGroup (main-app) for every page.
-      let entryName = ''
+    for (let [entryName, entrypoint] of compilation.entrypoints) {
+      if (
+        entryName === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
+        entryName === APP_CLIENT_INTERNALS
+      ) {
+        entryName = ''
+      } else if (!/^app[\\/]/.test(entryName)) {
+        continue
+      }
+
       const manifest: ClientReferenceManifest = {
         moduleLoading: {
           prefix,
@@ -248,29 +266,18 @@ export class ClientReferenceManifestPlugin {
         entryCSSFiles: {},
       }
 
-      if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {
-        // Absolute path without the extension
-        const chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
-          /[\\/]/g,
-          path.sep
-        )
-        manifest.entryCSSFiles[chunkEntryName] = chunkGroup
-          .getFiles()
-          .filter(
-            (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-          )
+      // Absolute path without the extension
+      const chunkEntryName = (this.appDirBase + entryName).replace(
+        /[\\/]/g,
+        path.sep
+      )
+      manifest.entryCSSFiles[chunkEntryName] = entrypoint
+        .getFiles()
+        .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
 
-        entryName = chunkGroup.name
-      }
-
-      const requiredChunks = getAppPathRequiredChunks(chunkGroup, rootMainFiles)
+      const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
-        // Skip all modules from the pages folder.
-        if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) {
-          return
-        }
-
-        const resource =
+        let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
@@ -305,6 +312,18 @@ export class ClientReferenceManifestPlugin {
               '/next/dist/esm/'.replace(/\//g, path.sep)
             )
           : null
+
+        // An extra query param is added to the resource key when it's optimized
+        // through the Barrel Loader. That's because the same file might be created
+        // as multiple modules (depending on what you import from it).
+        // See also: webpack/loaders/next-flight-loader/index.ts.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          ssrNamedModuleId = formatBarrelOptimizedResource(
+            ssrNamedModuleId,
+            mod.matchResource
+          )
+          resource = formatBarrelOptimizedResource(resource, mod.matchResource)
+        }
 
         function addClientReference() {
           const exportName = resource
@@ -361,57 +380,74 @@ export class ClientReferenceManifestPlugin {
         manifest.edgeSSRModuleMapping = edgeModuleIdMapping
       }
 
-      // Only apply following logic to client module requests from client entry,
-      // or if the module is marked as client module. That's because other
-      // client modules don't need to be in the manifest at all as they're
-      // never be referenced by the server/client boundary.
-      // This saves a lot of bytes in the manifest.
-      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-        const entryMods =
-          compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
-        for (const mod of entryMods) {
-          if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
+      const checkedChunkGroups = new Set()
+      const checkedChunks = new Set()
 
-          const request = (mod as webpack.NormalModule).request
+      function recordChunkGroup(chunkGroup: ChunkGroup) {
+        // Ensure recursion is stopped if we've already checked this chunk group.
+        if (checkedChunkGroups.has(chunkGroup)) return
+        checkedChunkGroups.add(chunkGroup)
+        // Only apply following logic to client module requests from client entry,
+        // or if the module is marked as client module. That's because other
+        // client modules don't need to be in the manifest at all as they're
+        // never be referenced by the server/client boundary.
+        // This saves a lot of bytes in the manifest.
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Ensure recursion is stopped if we've already checked this chunk.
+          if (checkedChunks.has(chunk)) return
+          checkedChunks.add(chunk)
+          const entryMods =
+            compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
+          for (const mod of entryMods) {
+            if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
 
-          if (
-            !request ||
-            !request.includes('next-flight-client-entry-loader.js?')
-          ) {
-            continue
-          }
+            const request = (mod as webpack.NormalModule).request
 
-          const connections =
-            compilation.moduleGraph.getOutgoingConnections(mod)
+            if (
+              !request ||
+              !request.includes('next-flight-client-entry-loader.js?')
+            ) {
+              continue
+            }
 
-          for (const connection of connections) {
-            const dependency = connection.dependency
-            if (!dependency) continue
+            const connections =
+              compilation.moduleGraph.getOutgoingConnections(mod)
 
-            const clientEntryMod = compilation.moduleGraph.getResolvedModule(
-              dependency
-            ) as webpack.NormalModule
-            const modId = compilation.chunkGraph.getModuleId(clientEntryMod) as
-              | string
-              | number
-              | null
+            for (const connection of connections) {
+              const dependency = connection.dependency
+              if (!dependency) continue
 
-            if (modId !== null) {
-              recordModule(modId, clientEntryMod)
-            } else {
-              // If this is a concatenation, register each child to the parent ID.
-              if (
-                connection.module?.constructor.name === 'ConcatenatedModule'
-              ) {
-                const concatenatedMod = connection.module
-                const concatenatedModId =
-                  compilation.chunkGraph.getModuleId(concatenatedMod)
-                recordModule(concatenatedModId, clientEntryMod)
+              const clientEntryMod = compilation.moduleGraph.getResolvedModule(
+                dependency
+              ) as webpack.NormalModule
+              const modId = compilation.chunkGraph.getModuleId(
+                clientEntryMod
+              ) as string | number | null
+
+              if (modId !== null) {
+                recordModule(modId, clientEntryMod)
+              } else {
+                // If this is a concatenation, register each child to the parent ID.
+                if (
+                  connection.module?.constructor.name === 'ConcatenatedModule'
+                ) {
+                  const concatenatedMod = connection.module
+                  const concatenatedModId =
+                    compilation.chunkGraph.getModuleId(concatenatedMod)
+                  recordModule(concatenatedModId, clientEntryMod)
+                }
               }
             }
           }
+        })
+
+        // Walk through all children chunk groups too.
+        for (const child of chunkGroup.childrenIterable) {
+          recordChunkGroup(child)
         }
-      })
+      }
+
+      recordChunkGroup(entrypoint)
 
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
@@ -420,19 +456,12 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
-      // Special case for the root not-found page.
-      // dev: app/not-found
-      // prod: app/_not-found
-      if (/^app\/_?not-found(\.[^.]+)?$/.test(entryName)) {
-        manifestEntryFiles.push(this.dev ? 'app/not-found' : 'app/_not-found')
-      }
-
       const groupName = entryNameToGroupName(entryName)
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
       manifestsPerGroup.get(groupName)!.push(manifest)
-    })
+    }
 
     // Generate per-page manifests.
     for (const pageName of manifestEntryFiles) {
@@ -467,16 +496,6 @@ export class ClientReferenceManifestPlugin {
           pagePath.slice('app'.length)
         )}]=${json}`
       ) as unknown as webpack.sources.RawSource
-
-      if (pagePath === 'app/not-found') {
-        // Create a separate special manifest for the root not-found page.
-        assets['server/app/_not-found_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
-          new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              '/_not-found'
-            )}]=${json}`
-          ) as unknown as webpack.sources.RawSource
-      }
     }
 
     pluginState.ASYNC_CLIENT_MODULES = []

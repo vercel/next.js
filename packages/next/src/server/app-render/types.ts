@@ -5,6 +5,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { SwrDelta } from '../lib/revalidate'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -73,7 +74,7 @@ export type CacheNodeSeedData = [
   segment: Segment,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
-  } | null,
+  },
   node: React.ReactNode | null
 ]
 
@@ -111,6 +112,7 @@ export interface RenderOptsPartial {
   dev?: boolean
   buildId: string
   basePath: string
+  trailingSlash: boolean
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
@@ -142,8 +144,13 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  experimental: { ppr: boolean }
+  experimental: {
+    ppr: boolean
+    missingSuspenseWithCSRBailout: boolean
+    swrDelta: SwrDelta | undefined
+  }
   postponed?: string
+  isStaticGeneration?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

@@ -23,7 +23,6 @@ use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
     loader_tree::LoaderTreeModule,
-    mode::NextMode,
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -52,13 +51,8 @@ pub async fn get_app_page_entry(
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
-    let loader_tree = LoaderTreeModule::build(
-        loader_tree,
-        context,
-        server_component_transition,
-        NextMode::Build,
-    )
-    .await?;
+    let loader_tree =
+        LoaderTreeModule::build(loader_tree, context, server_component_transition).await?;
 
     let LoaderTreeModule {
         inner_assets,
@@ -103,13 +97,20 @@ pub async fn get_app_page_entry(
 
     result.concat(source_content);
 
-    let file = File::from(result.build());
-    let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
+    let query = qstring::QString::new(vec![("page", page.to_string())]);
 
-    let mut rsc_entry = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    let file = File::from(result.build());
+    let source = VirtualSource::new_with_ident(
+        source.ident().with_query(Vc::cell(query.to_string())),
+        AssetContent::file(file.into()),
     );
+
+    let mut rsc_entry = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     if is_edge {
         rsc_entry = wrap_edge_page(
@@ -190,10 +191,12 @@ async fn wrap_edge_page(
         INNER.to_string() => entry
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(wrap_edge_entry(
         context,

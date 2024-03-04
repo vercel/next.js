@@ -91,6 +91,8 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
+  public resetRequestCache(): void {}
+
   private loadTagsManifest() {
     if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
@@ -187,7 +189,7 @@ export default class FileSystemCache implements CacheHandler {
         const fileData = await this.fs.readFile(filePath, 'utf8')
         const { mtime } = await this.fs.stat(filePath)
 
-        if (kind === 'fetch') {
+        if (kind === 'fetch' && this.flushToDisk) {
           const lastModified = mtime.getTime()
           const parsedData: CachedFetchValue = JSON.parse(fileData)
           data = {

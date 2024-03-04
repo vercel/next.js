@@ -30,6 +30,49 @@ function readFinalStringChunk(decoder, buffer) {
   return decoder.decode(buffer);
 }
 
+// This flips color using ANSI, then sets a color styling, then resets.
+var badgeFormat = '\x1b[0m\x1b[7m%c%s\x1b[0m%c '; // Same badge styling as DevTools.
+
+var badgeStyle = // We use a fixed background if light-dark is not supported, otherwise
+// we use a transparent background.
+'background: #e6e6e6;' + 'background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));' + 'color: #000000;' + 'color: light-dark(#000000, #ffffff);' + 'border-radius: 2px';
+var resetStyle = '';
+var pad = ' ';
+function printToConsole(methodName, args, badgeName) {
+  var offset = 0;
+
+  switch (methodName) {
+    case 'dir':
+    case 'dirxml':
+    case 'groupEnd':
+    case 'table':
+      {
+        // These methods cannot be colorized because they don't take a formatting string.
+        // eslint-disable-next-line react-internal/no-production-logging
+        console[methodName].apply(console, args);
+        return;
+      }
+
+    case 'assert':
+      {
+        // assert takes formatting options as the second argument.
+        offset = 1;
+      }
+  }
+
+  var newArgs = args.slice(0);
+
+  if (typeof newArgs[offset] === 'string') {
+    newArgs.splice(offset, 1, badgeFormat + newArgs[offset], badgeStyle, pad + badgeName + pad, resetStyle);
+  } else {
+    newArgs.splice(offset, 0, badgeFormat, badgeStyle, pad + badgeName + pad, resetStyle);
+  } // eslint-disable-next-line react-internal/no-production-logging
+
+
+  console[methodName].apply(console, newArgs);
+  return;
+}
+
 // This is the parsed shape of the wire format which is why it is
 // condensed to only the essentialy information
 var ID = 0;
@@ -325,7 +368,7 @@ function dispatchHint(code, model) {
         }
     }
   }
-} // Flow is having troulbe refining the HintModels so we help it a bit.
+} // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
 
 function refineModel(code, model) {
@@ -386,14 +429,12 @@ function printWarning(level, format, args) {
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
-var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -506,6 +547,10 @@ function describeValueForErrorMessage(value) {
           return '[...]';
         }
 
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
         var name = objectName(value);
 
         if (name === 'Object') {
@@ -516,7 +561,15 @@ function describeValueForErrorMessage(value) {
       }
 
     case 'function':
-      return 'function';
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var _name = value.displayName || value.name;
+
+        return _name ? 'function ' + _name : 'function';
+      }
 
     default:
       // eslint-disable-next-line react-internal/safe-string-coercion
@@ -560,6 +613,12 @@ function describeElementType(type) {
   }
 
   return '';
+}
+
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
 }
 
 function describeObjectForErrorMessage(objectOrArray, expandedName) {
@@ -640,6 +699,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
     } else if (jsxPropsParents.has(objectOrArray)) {
       // Print JSX
       var _type = jsxPropsParents.get(objectOrArray);
@@ -690,9 +751,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _name = _names[_i3];
-        str += describeKeyForErrorMessage(_name) + ': ';
-        var _value3 = _object[_name];
+        var _name2 = _names[_i3];
+        str += describeKeyForErrorMessage(_name2) + ': ';
+        var _value3 = _object[_name2];
 
         var _substr3 = void 0;
 
@@ -702,7 +763,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           _substr3 = describeValueForErrorMessage(_value3);
         }
 
-        if (_name === expandedName) {
+        if (_name2 === expandedName) {
           start = str.length;
           length = _substr3.length;
           str += _substr3;
@@ -927,7 +988,7 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (value.$$typeof === REACT_LAZY_TYPE) {
           error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
+        } else if (value.$$typeof === (REACT_PROVIDER_TYPE)) {
           error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (objectName(value) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
@@ -1060,7 +1121,7 @@ function encodeFormData(reference) {
   return thenable;
 }
 
-function encodeFormAction(identifierPrefix) {
+function defaultEncodeFormAction(identifierPrefix) {
   var reference = knownServerReferences.get(this);
 
   if (!reference) {
@@ -1108,6 +1169,22 @@ function encodeFormAction(identifierPrefix) {
     encType: 'multipart/form-data',
     data: data
   };
+}
+
+function customEncodeFormAction(proxy, identifierPrefix, encodeFormAction) {
+  var reference = knownServerReferences.get(proxy);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  var boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    boundPromise = Promise.resolve([]);
+  }
+
+  return encodeFormAction(reference.id, boundPromise);
 }
 
 function isSignatureEqual(referenceId, numberOfBoundArgs) {
@@ -1171,14 +1248,17 @@ function isSignatureEqual(referenceId, numberOfBoundArgs) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
   // Expose encoder for use by SSR, as well as a special bind that can be used to
   // keep server capabilities.
   {
     // Only expose this in builds that would actually use it. Not needed on the client.
+    var $$FORM_ACTION = encodeFormAction === undefined ? defaultEncodeFormAction : function (identifierPrefix) {
+      return customEncodeFormAction(this, identifierPrefix, encodeFormAction);
+    };
     Object.defineProperties(proxy, {
       $$FORM_ACTION: {
-        value: encodeFormAction
+        value: $$FORM_ACTION
       },
       $$IS_SIGNATURE_EQUAL: {
         value: isSignatureEqual
@@ -1202,6 +1282,17 @@ function bind() {
   var reference = knownServerReferences.get(this);
 
   if (reference) {
+    {
+      var thisBind = arguments[0];
+
+      if (thisBind != null) {
+        // This doesn't warn in browser environments since it's not instrumented outside
+        // usedWithSSR. This makes this an SSR only warning which we don't generally do.
+        // TODO: Consider a DEV only instrumentation in the browser.
+        error('Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().');
+      }
+    }
+
     var args = ArraySlice.call(arguments, 1);
     var boundPromise = null;
 
@@ -1211,9 +1302,26 @@ function bind() {
       });
     } else {
       boundPromise = Promise.resolve(args);
+    } // Expose encoder for use by SSR, as well as a special bind that can be used to
+    // keep server capabilities.
+
+
+    {
+      // Only expose this in builds that would actually use it. Not needed on the client.
+      Object.defineProperties(newFn, {
+        $$FORM_ACTION: {
+          value: this.$$FORM_ACTION
+        },
+        $$IS_SIGNATURE_EQUAL: {
+          value: isSignatureEqual
+        },
+        bind: {
+          value: bind
+        }
+      });
     }
 
-    registerServerReference(newFn, {
+    knownServerReferences.set(newFn, {
       id: reference.id,
       bound: boundPromise
     });
@@ -1222,7 +1330,7 @@ function bind() {
   return newFn;
 }
 
-function createServerReference$1(id, callServer) {
+function createServerReference$1(id, callServer, encodeFormAction) {
   var proxy = function () {
     // $FlowFixMe[method-unbinding]
     var args = Array.prototype.slice.call(arguments);
@@ -1232,59 +1340,8 @@ function createServerReference$1(id, callServer) {
   registerServerReference(proxy, {
     id: id,
     bound: null
-  });
+  }, encodeFormAction);
   return proxy;
-}
-
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
-function getOrCreateServerContext(globalName) {
-  if (!ContextRegistry[globalName]) {
-    var context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      context._currentRenderer = null;
-      context._currentRenderer2 = null;
-      Object.defineProperties(context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = context;
-  }
-
-  return ContextRegistry[globalName];
 }
 
 var ROW_ID = 0;
@@ -1305,6 +1362,10 @@ function Chunk(status, value, reason, response) {
   this.value = value;
   this.reason = reason;
   this._response = response;
+
+  {
+    this._debugInfo = null;
+  }
 } // We subclass Promise.prototype so that we get other methods like .catch
 
 
@@ -1585,18 +1646,29 @@ function reportGlobalError(response, error) {
   });
 }
 
+function nullRefGetter() {
+  {
+    return null;
+  }
+}
+
 function createElement(type, key, props) {
-  var element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  var element;
+
+  {
+    // `ref` is non-enumerable in dev
+    element = {
+      $$typeof: REACT_ELEMENT_TYPE,
+      type: type,
+      key: key,
+      props: props,
+      _owner: null
+    };
+    Object.defineProperty(element, 'ref', {
+      enumerable: false,
+      get: nullRefGetter
+    });
+  }
 
   {
     // We don't really need to add any of these but keeping them for good measure.
@@ -1609,17 +1681,12 @@ function createElement(type, key, props) {
       writable: true,
       value: true // This element has already been validated on the server.
 
-    });
-    Object.defineProperty(element, '_self', {
+    }); // debugInfo contains Server Component debug information.
+
+    Object.defineProperty(element, '_debugInfo', {
       configurable: false,
       enumerable: false,
-      writable: false,
-      value: null
-    });
-    Object.defineProperty(element, '_source', {
-      configurable: false,
-      enumerable: false,
-      writable: false,
+      writable: true,
       value: null
     });
   }
@@ -1633,6 +1700,13 @@ function createLazyChunkWrapper(chunk) {
     _payload: chunk,
     _init: readChunk
   };
+
+  {
+    // Ensure we have a live array to track future debug info.
+    var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
+    lazyType._debugInfo = chunkDebugInfo;
+  }
+
   return lazyType;
 }
 
@@ -1715,7 +1789,7 @@ function createServerReferenceProxy(response, metaData) {
     });
   };
 
-  registerServerReference(proxy, metaData);
+  registerServerReference(proxy, metaData, response._encodeFormAction);
   return proxy;
 }
 
@@ -1768,6 +1842,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(function () {});
+          }
+
           var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
@@ -1779,12 +1858,6 @@ function parseModelString(response, parentObject, key, value) {
         {
           // Symbol
           return Symbol.for(value.slice(2));
-        }
-
-      case 'P':
-        {
-          // Server Context Provider
-          return getOrCreateServerContext(value.slice(2)).Provider;
         }
 
       case 'F':
@@ -1856,6 +1929,23 @@ function parseModelString(response, parentObject, key, value) {
           return BigInt(value.slice(2));
         }
 
+      case 'E':
+        {
+          {
+            // In DEV mode we allow indirect eval to produce functions for logging.
+            // This should not compile to eval() because then it has local scope access.
+            try {
+              // eslint-disable-next-line no-eval
+              return (0, eval)(value.slice(2));
+            } catch (x) {
+              // We currently use this to express functions so we fail parsing it,
+              // let's just return a blank function as a place holder.
+              return function () {};
+            }
+          } // Fallthrough
+
+        }
+
       default:
         {
           // We assume that anything else is a reference ID.
@@ -1876,7 +1966,29 @@ function parseModelString(response, parentObject, key, value) {
 
           switch (_chunk2.status) {
             case INITIALIZED:
-              return _chunk2.value;
+              var chunkValue = _chunk2.value;
+
+              if (_chunk2._debugInfo) {
+                // If we have a direct reference to an object that was rendered by a synchronous
+                // server component, it might have some debug info about how it was rendered.
+                // We forward this to the underlying object. This might be a React Element or
+                // an Array fragment.
+                // If this was a string / number return value we lose the debug info. We choose
+                // that tradeoff to allow sync server components to return plain values and not
+                // use them as React Nodes necessarily. We could otherwise wrap them in a Lazy.
+                if (typeof chunkValue === 'object' && chunkValue !== null && (Array.isArray(chunkValue) || chunkValue.$$typeof === REACT_ELEMENT_TYPE) && !chunkValue._debugInfo) {
+                  // We should maybe use a unique symbol for arrays but this is a React owned array.
+                  // $FlowFixMe[prop-missing]: This should be added to elements.
+                  Object.defineProperty(chunkValue, '_debugInfo', {
+                    configurable: false,
+                    enumerable: false,
+                    writable: true,
+                    value: _chunk2._debugInfo
+                  });
+                }
+              }
+
+              return chunkValue;
 
             case PENDING:
             case BLOCKED:
@@ -1913,12 +2025,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -2039,6 +2152,24 @@ function resolveHint(response, code, model) {
   dispatchHint(code, hintModel);
 }
 
+function resolveDebugInfo(response, id, debugInfo) {
+
+  var chunk = getChunk(response, id);
+  var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
+  chunkDebugInfo.push(debugInfo);
+}
+
+function resolveConsoleEntry(response, value) {
+
+  var payload = parseModel(response, value);
+  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
+  // const stackTrace = payload[1];
+
+  var env = payload[2];
+  var args = payload.slice(3);
+  printToConsole(methodName, args, env);
+}
+
 function mergeBuffer(buffer, lastChunk) {
   var l = buffer.length; // Count the bytes we'll need
 
@@ -2135,8 +2266,8 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveTypedArray(response, id, buffer, chunk, Float32Array, 4);
         return;
 
-      case 68
-      /* "D" */
+      case 100
+      /* "d" */
       :
         resolveTypedArray(response, id, buffer, chunk, Float64Array, 8);
         return;
@@ -2207,6 +2338,28 @@ function processFullRow(response, id, tag, buffer, chunk) {
       {
         resolveText(response, id, row);
         return;
+      }
+
+    case 68
+    /* "D" */
+    :
+      {
+        {
+          var debugInfo = JSON.parse(row);
+          resolveDebugInfo(response, id, debugInfo);
+          return;
+        } // Fallthrough to share the error with Console entries.
+
+      }
+
+    case 87
+    /* "W" */
+    :
+      {
+        {
+          resolveConsoleEntry(response, row);
+          return;
+        }
       }
 
     case 80
@@ -2287,8 +2440,8 @@ function processBinaryChunk(response, chunk) {
           /* "l" */
           || resolvedRowTag === 70
           /* "F" */
-          || resolvedRowTag === 68
-          /* "D" */
+          || resolvedRowTag === 100
+          /* "d" */
           || resolvedRowTag === 78
           /* "N" */
           || resolvedRowTag === 109
@@ -2428,7 +2581,7 @@ function createServerReference(id, callServer) {
 }
 
 function createResponseFromOptions(options) {
-  return createResponse(options.ssrManifest.moduleMap, options.ssrManifest.moduleLoading, noServerCall, typeof options.nonce === 'string' ? options.nonce : undefined);
+  return createResponse(options.ssrManifest.moduleMap, options.ssrManifest.moduleLoading, noServerCall, options.encodeFormAction, typeof options.nonce === 'string' ? options.nonce : undefined);
 }
 
 function startReadingFromStream(response, stream) {

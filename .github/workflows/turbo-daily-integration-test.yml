@@ -12,15 +12,11 @@ on:
         type: string
         default: 'canary'
 
-      post_to_slack:
-        description: Post test results to Slack
-        type: boolean
-        default: false
-
 jobs:
   # Trigger actual next.js integration tests.
   next_js_integration:
     name: Execute Next.js integration workflow
+    if: github.repository_owner == 'vercel'
     permissions:
       pull-requests: write
     uses: ./.github/workflows/nextjs-integration-test.yml
@@ -28,40 +24,11 @@ jobs:
     with:
       diff_base: 'none'
       version: ${{ inputs.version || 'canary' }}
-      skip_post_to_slack: ${{ github.event_name != 'schedule' && inputs.post_to_slack != true }}
 
-  # Upload test results to branch.
+  # Upload test results to KV, but only for scheduled runs.
   upload_test_results:
     name: Upload test results
     needs: [next_js_integration]
-    if: ${{ github.event_name == 'schedule' }} && always()
+    if: github.repository_owner == 'vercel' && ${{ github.event_name == 'schedule' }} && always()
     uses: ./.github/workflows/upload-nextjs-integration-test-results.yml
     secrets: inherit
-    with:
-      is_main_branch: true
-
-  # post_to_slack:
-  #   needs: [next_js_integration]
-  #   name: Post results to Slack
-  #   runs-on: ubuntu-latest
-  #   if: always()
-  #   steps:
-  #     - name: Download summary.md artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: test-results
-  #     - name: Check if summary file was generated
-  #       id: summary_check
-  #       run: |
-  #         if stat slack-payload.json; then
-  #           echo "should_continue=true" >> $GITHUB_OUTPUT
-  #         else
-  #           echo "should_continue=false" >> $GITHUB_OUTPUT
-  #         fi
-  #     - name: Send test data to Slack workflow
-  #       if: steps.summary_check.outputs.should_continue == 'true'
-  #       uses: slackapi/slack-github-action@v1.23.0
-  #       with:
-  #         payload-file-path: './slack-payload.json'
-  #       env:
-  #         SLACK_WEBHOOK_URL: ${{ secrets.NEXT_TURBO_INTEGRATION_SLACK_WEBHOOK_URL }}

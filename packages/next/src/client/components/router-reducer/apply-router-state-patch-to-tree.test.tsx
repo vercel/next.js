@@ -3,7 +3,7 @@ import type {
   FlightData,
   FlightRouterState,
 } from '../../../server/app-render/types'
-import { applyRouterStatePatchToTree } from './apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTreeSkipDefault } from './apply-router-state-patch-to-tree'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -33,7 +33,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -55,7 +55,7 @@ describe('applyRouterStatePatchToTree', () => {
     const [treePatch /*, cacheNodeSeedData, head*/] = flightDataPath.slice(-3)
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
-    const newRouterStateTree = applyRouterStatePatchToTree(
+    const newRouterStateTree = applyRouterStatePatchToTreeSkipDefault(
       ['', ...flightSegmentPath],
       initialRouterStateTree,
       treePatch

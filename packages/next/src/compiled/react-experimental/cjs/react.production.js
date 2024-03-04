@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-2c338b16f-20231116';
+var ReactVersion = '18.3.0-experimental-6c3b8dbfe-20240226';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -21,9 +21,8 @@ const REACT_PORTAL_TYPE = Symbol.for('react.portal');
 const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
-const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+const REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
 const REACT_CONTEXT_TYPE = Symbol.for('react.context');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 const REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -32,7 +31,6 @@ const REACT_LAZY_TYPE = Symbol.for('react.lazy');
 const REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 const REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 const REACT_CACHE_TYPE = Symbol.for('react.cache');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -164,7 +162,7 @@ Component.prototype.isReactComponent = {};
 
 Component.prototype.setState = function (partialState, callback) {
   if (typeof partialState !== 'object' && typeof partialState !== 'function' && partialState != null) {
-    throw new Error('setState(...): takes an object of state variables to update or a ' + 'function which returns an object of state variables.');
+    throw new Error('takes an object of state variables to update or a ' + 'function which returns an object of state variables.');
   }
 
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
@@ -225,8 +223,40 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
-// $FlowFixMe[method-unbinding]
-const hasOwnProperty = Object.prototype.hasOwnProperty;
+// -----------------------------------------------------------------------------
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to true for easier skimming.
+// -----------------------------------------------------------------------------
+
+const __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+// as a normal prop instead of stripping it from the props object.
+// Passes `ref` as a normal prop instead of stripping it from the props object
+// during element creation.
+
+const enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+
+/**
+ * Keeps track of the current dispatcher.
+ */
+const ReactCurrentDispatcher = {
+  current: null
+};
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+const ReactCurrentCache = {
+  current: null
+};
+
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+const ReactCurrentBatchConfig = {
+  transition: null
+};
 
 /**
  * Keeps track of the current owner.
@@ -234,7 +264,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
  * The current owner is the component who should own any components that are
  * currently being constructed.
  */
-const ReactCurrentOwner = {
+const ReactCurrentOwner$1 = {
   /**
    * @internal
    * @type {ReactComponent}
@@ -242,12 +272,17 @@ const ReactCurrentOwner = {
   current: null
 };
 
-const RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
+const ReactSharedInternals = {
+  ReactCurrentDispatcher,
+  ReactCurrentCache,
+  ReactCurrentBatchConfig,
+  ReactCurrentOwner: ReactCurrentOwner$1
 };
+
+// $FlowFixMe[method-unbinding]
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 
 function hasValidRef(config) {
 
@@ -280,18 +315,38 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: owner
-  };
+function ReactElement(type, key, _ref, self, source, owner, props) {
+  let ref;
+
+  {
+    // When enableRefAsProp is on, ignore whatever was passed as the ref
+    // argument and treat `props.ref` as the source of truth. The only thing we
+    // use this for is `element.ref`, which will log a deprecation warning on
+    // access. In the next release, we can remove `element.ref` as well as the
+    // `ref` argument.
+    const refProp = props.ref; // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+    ref = refProp !== undefined ? refProp : null;
+  }
+
+  let element;
+
+  {
+    // In prod, `ref` is a regular property. It will be removed in a
+    // future release.
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      // Built-in properties that belong on the element
+      type,
+      key,
+      ref,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: owner
+    };
+  }
 
   return element;
 }
@@ -300,30 +355,29 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
-function createElement$1(type, config, children) {
+function createElement(type, config, children) {
+
   let propName; // Reserved names are extracted
 
   const props = {};
   let key = null;
   let ref = null;
-  let self = null;
-  let source = null;
 
   if (config != null) {
-    if (hasValidRef(config)) {
-      ref = config.ref;
-    }
 
     if (hasValidKey(config)) {
 
       key = '' + config.key;
-    }
+    } // Remaining properties are added to a new props object
 
-    self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && (enableRefAsProp ) && // Even though we don't use these anymore in the runtime, we don't want
+      // them to appear as props, so in createElement we filter them out.
+      // We don't have to do this in the jsx() runtime because the jsx()
+      // transform never passed these as props; it used separate arguments.
+      propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
     }
@@ -356,35 +410,39 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+  const element = ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
+
+  return element;
 }
 /**
  * Return a function that produces ReactElements of a given type.
  * See https://reactjs.org/docs/react-api.html#createfactory
  */
 
-function createFactory$1(type) {
-  const factory = createElement$1.bind(null, type); // Expose the type on the factory and the prototype so that it can be
+function createFactory(type) {
+  const factory = createElement.bind(null, type); // Expose the type on the factory and the prototype so that it can be
   // easily accessed on elements. E.g. `<Foo />.type === Foo`.
   // This should not be named `constructor` since this may not be the function
   // that created the element, and it may not even be a constructor.
   // Legacy hook: remove it
 
   factory.type = type;
+
   return factory;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
-  return newElement;
+  return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
+  // exists to avoid the `ref` access warning.
+  null , undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
 
-function cloneElement$1(element, config, children) {
+function cloneElement(element, config, children) {
   if (element === null || element === undefined) {
-    throw new Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
+    throw new Error("The argument must be a React element, but you passed " + element + ".");
   }
 
   let propName; // Original props are copied
@@ -392,20 +450,13 @@ function cloneElement$1(element, config, children) {
   const props = assign({}, element.props); // Reserved names are extracted
 
   let key = element.key;
-  let ref = element.ref; // Self is preserved since the owner is preserved.
-
-  const self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
-  // transpiler, and the original source is probably a better indicator of the
-  // true owner.
-
-  const source = element._source; // Owner will be preserved, unless ref is overridden
+  let ref = null ; // Owner will be preserved, unless ref is overridden
 
   let owner = element._owner;
 
   if (config != null) {
     if (hasValidRef(config)) {
-      // Silently steal the ref from the parent.
-      ref = config.ref;
+
       owner = ReactCurrentOwner.current;
     }
 
@@ -422,7 +473,17 @@ function cloneElement$1(element, config, children) {
     }
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && (enableRefAsProp ) && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source' && // Undefined `ref` is ignored by cloneElement. We treat it the same as
+      // if the property were missing. This is mostly for
+      // backwards compatibility.
+      !(propName === 'ref' && config.ref === undefined)) {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -449,7 +510,9 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, self, source, owner, props);
+  const clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props);
+
+  return clonedElement;
 }
 /**
  * Verifies the object is a ReactElement.
@@ -458,6 +521,7 @@ function cloneElement$1(element, config, children) {
  * @return {boolean} True if `object` is a ReactElement.
  * @final
  */
+
 
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
@@ -509,6 +573,72 @@ function getElementKey(element, index) {
   return index.toString(36);
 }
 
+function noop$1() {}
+
+function resolveThenable(thenable) {
+  switch (thenable.status) {
+    case 'fulfilled':
+      {
+        const fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
+    case 'rejected':
+      {
+        const rejectedError = thenable.reason;
+        throw rejectedError;
+      }
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          // Attach a dummy listener, to ensure that any lazy initialization can
+          // happen. Flight lazily parses JSON when the value is actually awaited.
+          thenable.then(noop$1, noop$1);
+        } else {
+          // This is an uncached thenable that we haven't seen before.
+          // TODO: Detect infinite ping loops caused by uncached promises.
+          const pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(fulfilledValue => {
+            if (thenable.status === 'pending') {
+              const fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, error => {
+            if (thenable.status === 'pending') {
+              const rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Check one more time in case the thenable resolved synchronously.
+
+
+        switch (thenable.status) {
+          case 'fulfilled':
+            {
+              const fulfilledThenable = thenable;
+              return fulfilledThenable.value;
+            }
+
+          case 'rejected':
+            {
+              const rejectedThenable = thenable;
+              const rejectedError = rejectedThenable.reason;
+              throw rejectedError;
+            }
+        }
+      }
+  }
+
+  throw thenable;
+}
+
 function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
   const type = typeof children;
 
@@ -533,6 +663,12 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
+            break;
+
+          case REACT_LAZY_TYPE:
+            const payload = children._payload;
+            const init = children._init;
+            return mapIntoArray(init(payload), array, escapedPrefix, nameSoFar, callback);
         }
 
     }
@@ -598,7 +734,11 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
         subtreeCount += mapIntoArray(child, array, escapedPrefix, nextName, callback);
       }
     } else if (type === 'object') {
-      // eslint-disable-next-line react-internal/safe-string-coercion
+      if (typeof children.then === 'function') {
+        return mapIntoArray(resolveThenable(children), array, escapedPrefix, nameSoFar, callback);
+      } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
       const childrenString = String(children);
       throw new Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
     }
@@ -724,18 +864,18 @@ function createContext(defaultValue) {
     _threadCount: 0,
     // These are circular
     Provider: null,
-    Consumer: null,
-    // Add these to use same hidden class in VM as ServerContext
-    _defaultValue: null,
-    _globalName: null
-  };
-  context.Provider = {
-    $$typeof: REACT_PROVIDER_TYPE,
-    _context: context
+    Consumer: null
   };
 
   {
-    context.Consumer = context;
+    context.Provider = {
+      $$typeof: REACT_PROVIDER_TYPE,
+      _context: context
+    };
+
+    {
+      context.Consumer = context;
+    }
   }
 
   return context;
@@ -825,13 +965,6 @@ function memo(type, compare) {
   return elementType;
 }
 
-/**
- * Keeps track of the current Cache dispatcher.
- */
-const ReactCurrentCache = {
-  current: null
-};
-
 const UNTERMINATED = 0;
 const TERMINATED = 1;
 const ERRORED = 2;
@@ -853,7 +986,7 @@ function createCacheNode() {
   };
 }
 
-function cache(fn) {
+function cache$1(fn) {
   return function () {
     const dispatcher = ReactCurrentCache.current;
 
@@ -937,19 +1070,14 @@ function cache(fn) {
   };
 }
 
+const cache = cache$1;
+
 function postpone(reason) {
   // eslint-disable-next-line react-internal/prod-error-codes
   const postponeInstance = new Error(reason);
   postponeInstance.$$typeof = REACT_POSTPONE_TYPE;
   throw postponeInstance;
 }
-
-/**
- * Keeps track of the current dispatcher.
- */
-const ReactCurrentDispatcher = {
-  current: null
-};
 
 function resolveDispatcher() {
   const dispatcher = ReactCurrentDispatcher.current;
@@ -1072,88 +1200,44 @@ function useOptimistic(passthrough, reducer) {
   return dispatcher.useOptimistic(passthrough, reducer);
 }
 
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-const ReactCurrentBatchConfig = {
-  transition: null
-};
-
-const ContextRegistry = {};
-
-const ReactSharedInternals = {
-  ReactCurrentDispatcher,
-  ReactCurrentCache,
-  ReactCurrentBatchConfig,
-  ReactCurrentOwner
-};
-
-{
-  ReactSharedInternals.ContextRegistry = ContextRegistry;
-}
-
-function createServerContext(globalName, defaultValue) {
-
-  let wasDefined = true;
-
-  if (!ContextRegistry[globalName]) {
-    wasDefined = false;
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: defaultValue,
-      _currentValue2: defaultValue,
-      _defaultValue: defaultValue,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  const context = ContextRegistry[globalName];
-
-  if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-    context._defaultValue = defaultValue;
-
-    if (context._currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = defaultValue;
-    }
-
-    if (context._currentValue2 === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue2 = defaultValue;
-    }
-  } else if (wasDefined) {
-    throw new Error("ServerContext: " + globalName + " already defined");
-  }
-
-  return context;
-}
-
 function startTransition(scope, options) {
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = {};
+  const prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  // the scope function. This is used to implement async actions.
 
-  try {
-    scope();
-  } finally {
-    ReactCurrentBatchConfig.transition = prevTransition;
+  const callbacks = new Set();
+  const transition = {
+    _callbacks: callbacks
+  };
+  ReactCurrentBatchConfig.transition = transition;
+  const currentTransition = ReactCurrentBatchConfig.transition;
+
+  {
+    try {
+      const returnValue = scope();
+
+      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+        callbacks.forEach(callback => callback(currentTransition, returnValue));
+        returnValue.then(noop, onError);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      ReactCurrentBatchConfig.transition = prevTransition;
+    }
   }
 }
+
+function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
+// the default for onRecoverableError.
+
+
+const onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : error => {
+  // In older browsers and test environments, fallback to console.error.
+  // eslint-disable-next-line react-internal/no-production-logging
+  console['error'](error);
+};
 
 function act(callback) {
   {
@@ -1161,9 +1245,6 @@ function act(callback) {
   }
 }
 
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
-const createFactory = createFactory$1;
 const Children = {
   map: mapChildren,
   forEach: forEachChildren,
@@ -1185,13 +1266,13 @@ exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.act = act;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createContext = createContext;
 exports.createElement = createElement;
 exports.createFactory = createFactory;
 exports.createRef = createRef;
-exports.createServerContext = createServerContext;
 exports.experimental_useEffectEvent = useEffectEvent;
 exports.experimental_useOptimistic = experimental_useOptimistic;
 exports.forwardRef = forwardRef;
@@ -1203,7 +1284,6 @@ exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
 exports.unstable_Cache = REACT_CACHE_TYPE;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_act = act;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.unstable_postpone = postpone;

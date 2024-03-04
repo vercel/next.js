@@ -48,6 +48,7 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 - [Imgix](#imgix)
 - [Thumbor](#thumbor)
 - [Sanity](#sanity)
+- [Sirv](#sirv)
 - [Supabase](#supabase)
 
 ### Akamai
@@ -168,6 +169,20 @@ export default function sanityLoader({ src, width, quality }) {
   if (quality) {
     url.searchParams.set('q', quality.toString())
   }
+  return url.href
+}
+```
+
+### Sirv
+
+```js
+// Docs: https://sirv.com/help/articles/dynamic-imaging/
+export default function sirvLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  const params = url.searchParams
+  params.set('format', params.getAll('format').join(',') || 'optimal')
+  params.set('w', params.get('w') || width.toString())
+  params.set('q', (quality || 85).toString())
   return url.href
 }
 ```

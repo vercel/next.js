@@ -1,6 +1,6 @@
-import Joi from 'joi'
-import connect from 'next-connect'
-import { validate } from '../../../server/api/middlewares/validate'
+import Joi from "joi";
+import connect from "next-connect";
+import { validate } from "../../../server/api/middlewares/validate";
 
 export default connect().get(
   validate({
@@ -9,12 +9,12 @@ export default connect().get(
     }),
   }),
   (req, res) => {
-    const id = req.query.id
+    const id = req.query.id;
 
     return res.status(200).json({
       data: {
         id,
       },
-    })
-  }
-)
+    });
+  },
+);

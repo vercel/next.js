@@ -40,7 +40,7 @@ npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
 
 <AppOnly>
 
-Create a `mdx-components.tsx` file at the root of your application (the parent folder of `app/` or `src/`):
+Create a `mdx-components.tsx` file at the root of your application (`src/` or the parent folder of `app/`):
 
 > **Good to know**: `mdx-components.tsx` is required to use MDX with App Router and will not work without it.
 
@@ -130,12 +130,7 @@ Navigating to the `/my-mdx-page` route should display your rendered MDX.
 
 ## Remote MDX
 
-If your markdown or MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else.
-
-There are two popular community packages for fetching MDX content:
-
-- [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support)
-- [`contentlayer`](https://www.contentlayer.dev/)
+If your markdown or MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
 
 > **Good to know**: Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
 
@@ -302,6 +297,7 @@ export default withMDX(nextConfig)
 Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as:
 
 - [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter)
+- [remark-mdx-frontmatter](https://github.com/remcohaszing/remark-mdx-frontmatter)
 - [gray-matter](https://github.com/jonschlinkert/gray-matter).
 
 To access page metadata with `@next/mdx`, you can export a metadata object from within the `.mdx` file:
@@ -354,7 +350,7 @@ To do this, create a `mdx-components.tsx` file at the root of your application (
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
-import Image from 'next/image'
+import Image, { ImageProps } from 'next/image'
 
 // This file allows you to provide custom React components
 // to be used in MDX files. You can import and use any
@@ -369,7 +365,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       <Image
         sizes="100vw"
         style={{ width: '100%', height: 'auto' }}
-        {...props}
+        {...(props as ImageProps)}
       />
     ),
     ...components,
@@ -450,3 +446,4 @@ module.exports = withMDX({
 - [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
 - [remark](https://github.com/remarkjs/remark)
 - [rehype](https://github.com/rehypejs/rehype)
+- [Markdoc](https://markdoc.dev/docs/nextjs)

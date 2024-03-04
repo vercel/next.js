@@ -1,0 +1,19 @@
+{
+  "name": "upload-turboyet-data-action",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "ncc build src/main.js -o dist --source-map"
+  },
+  "dependencies": {
+    "@vercel/kv": "^0.2.3"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.36.0"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "pnpm": "8.15.1"
+  },
+  "packageManager": "pnpm@8.15.1"
+}

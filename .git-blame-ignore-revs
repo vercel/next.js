@@ -1,0 +1,6 @@
+# All revisions specified in the `.git-blame-ignore-revs` file, are hidden from the blame
+# when running `git blame --ignore-revs-file .git-blame-ignore-revs`.
+# https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#ignore-commits-in-the-blame-view
+
+# chore(examples): use default prettier for examples/templates (#60530)
+4466ba436b996263307171d344cca199e8087744

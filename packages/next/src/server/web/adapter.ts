@@ -18,6 +18,7 @@ import { RequestAsyncStorageWrapper } from '../async-storage/request-async-stora
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
+import { MiddlewareSpan } from '../lib/trace/constants'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -57,9 +58,34 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
 }
 
+let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
+  request,
+  fn
+) => {
+  const tracer = getTracer()
+  return tracer.withPropagatedContext(request.headers, fn, headersGetter)
+}
+
+let testApisIntercepted = false
+
+function ensureTestApisIntercepted() {
+  if (!testApisIntercepted) {
+    testApisIntercepted = true
+    if (process.env.NEXT_PRIVATE_TEST_PROXY === 'true') {
+      const {
+        interceptTestApis,
+        wrapRequestHandler,
+      } = require('next/dist/experimental/testmode/server-edge')
+      interceptTestApis()
+      propagator = wrapRequestHandler(propagator)
+    }
+  }
+}
+
 export async function adapter(
   params: AdapterOptions
 ): Promise<FetchEventResult> {
+  ensureTestApisIntercepted()
   await ensureInstrumentationRegistered()
 
   // TODO-APP: use explicit marker for this
@@ -183,37 +209,43 @@ export async function adapter(
   let response
   let cookiesFromResponse
 
-  const tracer = getTracer()
-  response = await tracer.withPropagatedContext(
-    request.headers,
-    () => {
-      // we only care to make async storage available for middleware
-      const isMiddleware =
-        params.page === '/middleware' || params.page === '/src/middleware'
-      if (isMiddleware) {
-        return RequestAsyncStorageWrapper.wrap(
-          requestAsyncStorage,
-          {
-            req: request,
-            renderOpts: {
-              onUpdateCookies: (cookies) => {
-                cookiesFromResponse = cookies
-              },
-              // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
-              previewProps: prerenderManifest?.preview || {
-                previewModeId: 'development-id',
-                previewModeEncryptionKey: '',
-                previewModeSigningKey: '',
+  response = await propagator(request, () => {
+    // we only care to make async storage available for middleware
+    const isMiddleware =
+      params.page === '/middleware' || params.page === '/src/middleware'
+    if (isMiddleware) {
+      return getTracer().trace(
+        MiddlewareSpan.execute,
+        {
+          spanName: `middleware ${request.method} ${request.nextUrl.pathname}`,
+          attributes: {
+            'http.target': request.nextUrl.pathname,
+            'http.method': request.method,
+          },
+        },
+        () =>
+          RequestAsyncStorageWrapper.wrap(
+            requestAsyncStorage,
+            {
+              req: request,
+              renderOpts: {
+                onUpdateCookies: (cookies) => {
+                  cookiesFromResponse = cookies
+                },
+                // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
+                previewProps: prerenderManifest?.preview || {
+                  previewModeId: 'development-id',
+                  previewModeEncryptionKey: '',
+                  previewModeSigningKey: '',
+                },
               },
             },
-          },
-          () => params.handler(request, event)
-        )
-      }
-      return params.handler(request, event)
-    },
-    headersGetter
-  )
+            () => params.handler(request, event)
+          )
+      )
+    }
+    return params.handler(request, event)
+  })
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {

@@ -14,7 +14,7 @@ import path from 'path'
 import http from 'http'
 import https from 'https'
 import os from 'os'
-import Watchpack from 'watchpack'
+import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
@@ -33,7 +33,7 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
-  hostname: string
+  hostname?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
@@ -59,7 +59,7 @@ export async function getRequestHandlers({
   port: number
   isDev: boolean
   server?: import('http').Server
-  hostname: string
+  hostname?: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
@@ -246,12 +246,13 @@ export async function startServer(
 
       // expose the main port to render workers
       process.env.PORT = port + ''
+      process.env.__NEXT_PRIVATE_HOST = `${actualHostname}:${port}`
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let expFeatureInfo: string[] | undefined
       if (isDev) {
-        const startServerInfo = await getStartServerInfo(dir)
+        const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
       }
@@ -264,10 +265,9 @@ export async function startServer(
       })
 
       try {
-        const cleanup = (code: number | null) => {
+        const cleanup = () => {
           debug('start-server process cleanup')
-          server.close()
-          process.exit(code ?? 0)
+          server.close(() => process.exit(0))
         }
         const exception = (err: Error) => {
           if (isPostpone(err)) {
@@ -279,10 +279,12 @@ export async function startServer(
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', (code) => cleanup(code))
-        // callback value is signal string, exit with 0
-        process.on('SIGINT', () => cleanup(0))
-        process.on('SIGTERM', () => cleanup(0))
+        // Make sure commands gracefully respect termination signals (e.g. from Docker)
+        // Allow the graceful termination to be manually configurable
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          process.on('SIGINT', cleanup)
+          process.on('SIGTERM', cleanup)
+        }
         process.on('rejectionHandled', () => {
           // It is ok to await a Promise late in Next.js as it allows for better
           // prefetching patterns to avoid waterfalls. We ignore loggining these.

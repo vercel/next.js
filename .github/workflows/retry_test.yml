@@ -16,7 +16,7 @@ permissions:
 jobs:
   retry-on-failure:
     name: retry failed jobs
-    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt < 3 }}
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt < 3 && github.repository == 'vercel/next.js' }}
     runs-on: ubuntu-latest
     steps:
       - name: send retry request to GitHub API
@@ -31,11 +31,11 @@ jobs:
 
   report-failure:
     name: report failure to slack
-    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt >= 3 }}
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt >= 3 && !github.event.workflow_run.head_repository.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: send webhook
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v1.25.0
         with:
           # These urls are intentionally missing the protocol,
           # allowing them to be transformed into actual links in the Slack workflow

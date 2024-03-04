@@ -1,6 +1,6 @@
 /* eslint-disable no-use-before-define */
 // eslint-disable-next-line import/no-extraneous-dependencies
-import React from 'react'
+import React from "react";
 
 const Icon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
@@ -13,6 +13,6 @@ const Icon = () => (
       fill="currentColor"
     />
   </svg>
-)
+);
 
-export default Icon
+export default Icon;

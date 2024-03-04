@@ -42,7 +42,11 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
 }
 ```
 
-`npm run dev` can be replaced with `yarn dev` if you're using Yarn. If you're [changing the port number](/docs/pages/api-reference/next-cli#development) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
+`npm run dev` can be replaced with `yarn dev` if you're using Yarn or `pnpm dev` if you're using pnpm.
+
+If you're [changing the port number](/docs/pages/api-reference/next-cli#development) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
+
+If you're running Next.js from a directory other than root (for example, if you're using Turborepo) then you need to add `cwd` to the server-side and full stack debugging tasks. For example, `"cwd": "${workspaceFolder}/apps/web"`.
 
 Now go to the Debug panel (`Ctrl+Shift+D` on Windows/Linux, `⇧+⌘+D` on macOS), select a launch configuration, then press `F5` or select **Debug: Start Debugging** from the Command Palette to start your debugging session.
 

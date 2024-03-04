@@ -1,12 +1,12 @@
-import * as React from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import type {
   UnhandledErrorAction,
   UnhandledRejectionAction,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import {
   Dialog,
   DialogBody,
@@ -18,19 +18,25 @@ import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
 import { getErrorByType } from '../helpers/getErrorByType'
 import type { ReadyRuntimeError } from '../helpers/getErrorByType'
-import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
+import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
+import {
+  isHtmlTagsWarning,
+  type HydrationErrorState,
+} from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
   id: number
   event: UnhandledErrorAction | UnhandledRejectionAction
 }
 export type ErrorsProps = {
+  isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
@@ -56,16 +62,17 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-export const Errors: React.FC<ErrorsProps> = function Errors({
+export function Errors({
+  isAppDir,
   errors,
   initialDisplayState,
   versionInfo,
-}) {
-  const [lookups, setLookups] = React.useState(
+}: ErrorsProps) {
+  const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
 
-  const [readyErrors, nextError] = React.useMemo<
+  const [readyErrors, nextError] = useMemo<
     [ReadyErrorEvent[], SupportedErrorEvent | null]
   >(() => {
     let ready: ReadyErrorEvent[] = []
@@ -95,17 +102,17 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     return [ready, next]
   }, [errors, lookups])
 
-  const isLoading = React.useMemo<boolean>(() => {
+  const isLoading = useMemo<boolean>(() => {
     return readyErrors.length < 1 && Boolean(errors.length)
   }, [errors.length, readyErrors.length])
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (nextError == null) {
       return
     }
     let mounted = true
 
-    getErrorByType(nextError).then(
+    getErrorByType(nextError, isAppDir).then(
       (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
@@ -122,33 +129,31 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     return () => {
       mounted = false
     }
-  }, [nextError])
+  }, [nextError, isAppDir])
 
   const [displayState, setDisplayState] =
-    React.useState<DisplayState>(initialDisplayState)
-  const [activeIdx, setActiveIndex] = React.useState<number>(0)
-  const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setActiveIndex((v) => Math.max(0, v - 1))
-  }, [])
-  const next = React.useCallback(
-    (e?: MouseEvent | TouchEvent) => {
-      e?.preventDefault()
+    useState<DisplayState>(initialDisplayState)
+  const [activeIdx, setActiveIndex] = useState<number>(0)
+  const previous = useCallback(
+    () => setActiveIndex((v) => Math.max(0, v - 1)),
+    []
+  )
+  const next = useCallback(
+    () =>
       setActiveIndex((v) =>
         Math.max(0, Math.min(readyErrors.length - 1, v + 1))
-      )
-    },
+      ),
     [readyErrors.length]
   )
 
-  const activeError = React.useMemo<ReadyErrorEvent | null>(
+  const activeError = useMemo<ReadyErrorEvent | null>(
     () => readyErrors[activeIdx] ?? null,
     [activeIdx, readyErrors]
   )
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but lets handle it.
-  React.useEffect(() => {
+  useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
       setDisplayState('hidden')
@@ -156,21 +161,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     }
   }, [errors.length])
 
-  const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('minimized')
-  }, [])
-  const hide = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('hidden')
-  }, [])
-  const fullscreen = React.useCallback(
-    (e?: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e?.preventDefault()
-      setDisplayState('fullscreen')
-    },
-    []
-  )
+  const minimize = useCallback(() => setDisplayState('minimized'), [])
+  const hide = useCallback(() => setDisplayState('hidden'), [])
+  const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
@@ -226,9 +219,23 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     )
   }
 
+  const error = activeError.error
   const isServerError = ['server', 'edge-server'].includes(
-    getErrorSource(activeError.error) || ''
+    getErrorSource(error) || ''
   )
+
+  const errorDetails: HydrationErrorState = (error as any).details || {}
+  const [warningTemplate, serverContent, clientContent] =
+    errorDetails.warning || [null, '', '']
+
+  const isHtmlTagsWarningTemplate = isHtmlTagsWarning(warningTemplate)
+  const hydrationWarning = warningTemplate
+    ? warningTemplate
+        .replace('%s', serverContent)
+        .replace('%s', clientContent)
+        .replace('%s', '') // remove the last %s for stack
+        .replace(/^Warning: /, '')
+    : null
 
   return (
     <Overlay>
@@ -247,7 +254,10 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
-                <span>{readyErrors.length}</span> unhandled error
+                <span data-nextjs-dialog-header-total-count>
+                  {readyErrors.length}
+                </span>{' '}
+                unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
@@ -255,10 +265,26 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
-            <p id="nextjs__container_errors_desc">
-              {activeError.error.name}:{' '}
-              <HotlinkedText text={activeError.error.message} />
+            <p
+              id="nextjs__container_errors_desc"
+              className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+            >
+              {error.name}: <HotlinkedText text={error.message} />
             </p>
+            {hydrationWarning && activeError.componentStackFrames && (
+              <>
+                <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
+                <PseudoHtmlDiff
+                  className="nextjs__container_errors__extra_code"
+                  hydrationMismatchType={
+                    isHtmlTagsWarningTemplate ? 'tag' : 'text'
+                  }
+                  componentStackFrames={activeError.componentStackFrames}
+                  serverContent={serverContent}
+                  clientContent={clientContent}
+                />
+              </>
+            )}
             {isServerError ? (
               <div>
                 <small>
@@ -293,15 +319,23 @@ export const styles = css`
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
-  .nextjs-container-errors-header > p {
+  .nextjs-container-errors-header p {
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
     margin-top: var(--size-gap-half);
-    color: var(--color-ansi-red);
     white-space: pre-wrap;
+  }
+  .nextjs__container_errors_desc--error {
+    color: var(--color-ansi-red);
+  }
+  .nextjs__container_errors__extra {
+    margin: 20px 0;
+  }
+  nextjs__container_errors__extra__code {
+    margin: 10px 0;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
@@ -318,7 +352,12 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-
+  .nextjs__container_errors__extra_code {
+    margin: 20px 0;
+    padding: 12px 32px;
+    color: var(--color-ansi-fg);
+    background: var(--color-ansi-bg);
+  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;

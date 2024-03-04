@@ -34,6 +34,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -58,18 +59,20 @@ import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-provide
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
-import { NextBuildContext } from '../../build/build-context'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
+import { buildCustomRoute } from '../../lib/build-custom-route'
+import { decorateServerError } from '../../shared/lib/error-source'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
+      require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
@@ -103,7 +106,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch: typeof fetch
+  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
@@ -153,11 +156,11 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.originalFetch = global.fetch
+    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
-    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
+    this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
@@ -165,12 +168,9 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths).length
       },
     })
-    ;(this.renderOpts as any).ampSkipValidation =
+    this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    ;(this.renderOpts as any).ampValidator = (
-      html: string,
-      pathname: string
-    ) => {
+    this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
@@ -198,11 +198,12 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
+          url: pathname,
         })
       },
     }
@@ -281,8 +282,14 @@ export default class DevServer extends Server {
       .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
+    // Store globals again to preserve changes made by the instrumentation hook.
+    this.storeGlobals()
+
     this.ready?.resolve()
     this.ready = undefined
+
+    // In dev, this needs to be called after prepare because the build entries won't be known in the constructor
+    this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -392,7 +399,7 @@ export default class DevServer extends Server {
       }
 
       const err = getProperError(error)
-      ;(err as any).middleware = true
+      decorateServerError(err, COMPILER_NAMES.edgeServer)
       const { request, response, parsedUrl } = params
 
       /**
@@ -540,6 +547,15 @@ export default class DevServer extends Server {
     )
   }
 
+  protected getinterceptionRoutePatterns(): RegExp[] {
+    const rewrites = generateInterceptionRoutesRewrites(
+      Object.keys(this.appPathRoutes ?? {}),
+      this.nextConfig.basePath
+    ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
+
+    return rewrites ?? []
+  }
+
   protected getMiddleware() {
     // We need to populate the match
     // field as it isn't serializable
@@ -559,11 +575,12 @@ export default class DevServer extends Server {
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware() {
+  protected async ensureMiddleware(url: string) {
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -578,8 +595,6 @@ export default class DevServer extends Server {
         .then(() => true)
         .catch(() => false))
     ) {
-      NextBuildContext!.hasInstrumentationHook = true
-
       try {
         const instrumentationHook = await require(pathJoin(
           this.distDir,
@@ -597,15 +612,18 @@ export default class DevServer extends Server {
   protected async ensureEdgeFunction({
     page,
     appPaths,
+    url,
   }: {
     page: string
     appPaths: string[] | null
+    url: string
   }) {
     return this.ensurePage({
       page,
       appPaths,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -693,11 +711,10 @@ export default class DevServer extends Server {
           page,
           isAppPath,
           requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: this.nextConfig.cacheHandler,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
@@ -753,8 +770,12 @@ export default class DevServer extends Server {
     return nextInvoke as NonNullable<typeof result>
   }
 
+  private storeGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
   private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch
+    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {
@@ -762,6 +783,7 @@ export default class DevServer extends Server {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }
@@ -773,6 +795,7 @@ export default class DevServer extends Server {
     isAppPath,
     appPaths = null,
     shouldEnsure,
+    url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -781,6 +804,7 @@ export default class DevServer extends Server {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    url?: string
   }): Promise<FindComponentsResult | null> {
     await this.ready?.promise
 
@@ -796,6 +820,7 @@ export default class DevServer extends Server {
           appPaths,
           clientOnly: false,
           definition: undefined,
+          url,
         })
       }
 
@@ -812,6 +837,7 @@ export default class DevServer extends Server {
         params,
         isAppPath,
         shouldEnsure,
+        url,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
@@ -821,8 +847,10 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.bundlerService.getFallbackErrorComponents()
+  protected async getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null> {
+    await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
 

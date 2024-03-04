@@ -2,83 +2,73 @@ import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
-import type { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
-import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
-const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  error,
-}) {
-  const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
-    return error.frames.findIndex(
-      (entry) =>
-        entry.expanded &&
-        Boolean(entry.originalCodeFrame) &&
-        Boolean(entry.originalStackFrame)
-    )
-  }, [error.frames])
-  const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
-    return error.frames[firstFirstPartyFrameIndex] ?? null
-  }, [error.frames, firstFirstPartyFrameIndex])
+export function RuntimeError({ error }: RuntimeErrorProps) {
+  const { firstFrame, allLeadingFrames, allCallStackFrames } =
+    React.useMemo(() => {
+      const filteredFrames = error.frames.filter(
+        (f) =>
+          !(
+            f.sourceStackFrame.file === '<anonymous>' &&
+            ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
+          ) && !f.sourceStackFrame.file?.startsWith('node:internal')
+      )
 
-  const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
-    () =>
-      firstFirstPartyFrameIndex < 0
-        ? []
-        : error.frames.slice(0, firstFirstPartyFrameIndex),
-    [error.frames, firstFirstPartyFrameIndex]
-  )
+      const firstFirstPartyFrameIndex = filteredFrames.findIndex(
+        (entry) =>
+          entry.expanded &&
+          Boolean(entry.originalCodeFrame) &&
+          Boolean(entry.originalStackFrame)
+      )
+
+      return {
+        firstFrame: filteredFrames[firstFirstPartyFrameIndex] ?? null,
+        allLeadingFrames:
+          firstFirstPartyFrameIndex < 0
+            ? []
+            : filteredFrames.slice(0, firstFirstPartyFrameIndex),
+        allCallStackFrames: filteredFrames.slice(firstFirstPartyFrameIndex + 1),
+      }
+    }, [error.frames])
 
   const [all, setAll] = React.useState(firstFrame == null)
-  const toggleAll = React.useCallback(() => {
-    setAll((v) => !v)
-  }, [])
 
-  const leadingFrames = React.useMemo(
-    () => allLeadingFrames.filter((f) => f.expanded || all),
-    [all, allLeadingFrames]
-  )
-  const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
-    [error.frames, firstFirstPartyFrameIndex]
-  )
-  const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => allCallStackFrames.filter((f) => f.expanded || all),
-    [all, allCallStackFrames]
-  )
-
-  const canShowMore = React.useMemo<boolean>(() => {
-    return (
-      allCallStackFrames.length !== visibleCallStackFrames.length ||
-      (all && firstFrame != null)
+  const {
+    canShowMore,
+    leadingFramesGroupedByFramework,
+    stackFramesGroupedByFramework,
+  } = React.useMemo(() => {
+    const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
+    const visibleCallStackFrames = allCallStackFrames.filter(
+      (f) => f.expanded || all
     )
-  }, [
-    all,
-    allCallStackFrames.length,
-    firstFrame,
-    visibleCallStackFrames.length,
-  ])
 
-  const stackFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByFramework(visibleCallStackFrames),
-    [visibleCallStackFrames]
-  )
+    return {
+      canShowMore:
+        allCallStackFrames.length !== visibleCallStackFrames.length ||
+        (all && firstFrame != null),
+
+      stackFramesGroupedByFramework:
+        groupStackFramesByFramework(allCallStackFrames),
+
+      leadingFramesGroupedByFramework:
+        groupStackFramesByFramework(leadingFrames),
+    }
+  }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
 
   return (
     <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
           <h2>Source</h2>
-          {leadingFrames.map((frame, index) => (
-            <CallStackFrame
-              key={`leading-frame-${index}-${all}`}
-              frame={frame}
-            />
-          ))}
+          <GroupedStackFrames
+            groupedStackFrames={leadingFramesGroupedByFramework}
+            show={all}
+          />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
             codeFrame={firstFrame.originalCodeFrame!}
@@ -86,24 +76,12 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
         </React.Fragment>
       ) : undefined}
 
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
-        </>
-      ) : null}
-
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
           <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            all={all}
+            show={all}
           />
         </React.Fragment>
       ) : undefined}
@@ -113,7 +91,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             tabIndex={10}
             data-nextjs-data-runtime-error-collapsed-action
             type="button"
-            onClick={toggleAll}
+            onClick={() => setAll(!all)}
           >
             {all ? 'Hide' : 'Show'} collapsed frames
           </button>
@@ -158,7 +136,7 @@ export const styles = css`
     color: #999;
   }
   [data-nextjs-call-stack-frame] > div > svg,
-  [data-nextjs-component-stack-frame] > div > svg {
+  [data-nextjs-component-stack-frame] > [role='link'] > svg {
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
@@ -168,15 +146,15 @@ export const styles = css`
   }
 
   [data-nextjs-call-stack-frame] > div[data-has-source],
-  [data-nextjs-component-stack-frame] > div {
+  [data-nextjs-component-stack-frame] > [role='link'] {
     cursor: pointer;
   }
   [data-nextjs-call-stack-frame] > div[data-has-source]:hover,
-  [data-nextjs-component-stack-frame] > div:hover {
+  [data-nextjs-component-stack-frame] > [role='link']:hover {
     text-decoration: underline dotted;
   }
   [data-nextjs-call-stack-frame] > div[data-has-source] > svg,
-  [data-nextjs-component-stack-frame] > div > svg {
+  [data-nextjs-component-stack-frame] > [role='link'] > svg {
     display: unset;
   }
 
@@ -196,7 +174,7 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] summary {
     display: flex;
     align-items: center;
-    margin: var(--size-gap-double) 0;
+    margin-bottom: var(--size-gap);
     list-style: none;
   }
   [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
@@ -209,6 +187,27 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
   }
-`
 
-export { RuntimeError }
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+  }
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--diff-add] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff-remove] {
+    color: var(--color-ansi-red);
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-error] {
+    color: var(--color-ansi-red);
+    font-weight: bold;
+  }
+`

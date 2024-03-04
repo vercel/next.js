@@ -15,7 +15,8 @@ Hydration errors can occur from:
 1. Incorrect nesting of HTML tags
    1. `<p>` nested in another `<p>` tag
    2. `<div>` nested in a `<p>` tag
-   3. [Interactive Content](https://html.spec.whatwg.org/#interactive-content-2) cannot be nested (`<a>` nested in a `<a>` tag, `<button>` nested in a `<button>` tag, etc)
+   3. `<ul>` or `<ol>` nested in a `<p>` tag
+   4. [Interactive Content](https://html.spec.whatwg.org/#interactive-content-2) cannot be nested (`<a>` nested in a `<a>` tag, `<button>` nested in a `<button>` tag, etc)
 2. Using checks like `typeof window !== 'undefined'` in your rendering logic
 3. Using browser-only APIs like `window` or `localStorage` in your rendering logic
 4. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML

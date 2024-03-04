@@ -1,4 +1,7 @@
-use std::fmt::Write;
+use std::{
+    fmt::Write,
+    mem::{replace, take},
+};
 
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -22,7 +25,6 @@ use crate::{
         get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
         MetadataWithAltItem,
     },
-    mode::NextMode,
     next_app::{
         metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
@@ -36,7 +38,6 @@ pub struct LoaderTreeBuilder {
     imports: Vec<String>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
-    mode: NextMode,
     server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
 }
@@ -70,7 +71,6 @@ impl LoaderTreeBuilder {
     fn new(
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
-        mode: NextMode,
     ) -> Self {
         LoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -79,7 +79,6 @@ impl LoaderTreeBuilder {
             loader_tree_code: String::new(),
             context,
             server_component_transition,
-            mode,
             pages: Vec::new(),
         }
     }
@@ -104,51 +103,29 @@ impl LoaderTreeBuilder {
             let i = self.unique_number();
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
-            match self.mode {
-                NextMode::Development => {
-                    let chunks_identifier =
-                        magic_identifier::mangle(&format!("chunks of {name} #{i}"));
-                    writeln!(
-                        self.loader_tree_code,
-                        "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + \
-                         '.js'],",
-                        name = StringifyJs(name)
-                    )?;
-                    self.imports.push(formatdoc!(
-                        r#"
-                            import {}, {{ chunks as {} }} from "COMPONENT_{}";
-                        "#,
-                        identifier,
-                        chunks_identifier,
-                        i
-                    ));
-                }
-                NextMode::Build => {
-                    writeln!(
-                        self.loader_tree_code,
-                        "  {name}: [() => {identifier}, {path}],",
-                        name = StringifyJs(name),
-                        path = StringifyJs(&component.to_string().await?)
-                    )?;
-
-                    self.imports.push(formatdoc!(
-                        r#"
-                        import {} from "COMPONENT_{}";
-                        "#,
-                        identifier,
-                        i
-                    ));
-                }
-            }
-
             let source = Vc::upcast(FileSource::new(component));
             let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
                 EcmaScriptModulesReferenceSubType::Undefined,
             ));
+            let module = self
+                .server_component_transition
+                .process(source, self.context, reference_ty)
+                .module();
 
-            let module =
-                self.server_component_transition
-                    .process(source, self.context, reference_ty);
+            writeln!(
+                self.loader_tree_code,
+                "  {name}: [() => {identifier}, {path}],",
+                name = StringifyJs(name),
+                path = StringifyJs(&module.ident().path().to_string().await?)
+            )?;
+
+            self.imports.push(formatdoc!(
+                r#"
+                    import {} from "COMPONENT_{}";
+                    "#,
+                identifier,
+                i
+            ));
 
             self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
@@ -268,15 +245,16 @@ impl LoaderTreeBuilder {
                     app_page.clone(),
                 );
 
-                self.inner_assets.insert(
-                    inner_module_id,
-                    self.context.process(
+                let module = self
+                    .context
+                    .process(
                         source,
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
                         )),
-                    ),
-                );
+                    )
+                    .module();
+                self.inner_assets.insert(inner_module_id, module);
 
                 let s = "      ";
                 writeln!(self.loader_tree_code, "{s}{identifier},")?;
@@ -346,15 +324,16 @@ impl LoaderTreeBuilder {
             let inner_module_id = format!("METADATA_ALT_{i}");
             self.imports
                 .push(format!("import {identifier} from \"{inner_module_id}\";"));
-            self.inner_assets.insert(
-                inner_module_id,
-                self.context.process(
+            let module = self
+                .context
+                .process(
                     Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
                         alt_path,
                     )))),
                     Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                ),
-            );
+                )
+                .module();
+            self.inner_assets.insert(inner_module_id, module);
 
             writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
         }
@@ -381,13 +360,9 @@ impl LoaderTreeBuilder {
             "[{segment}, {{",
             segment = StringifyJs(segment)
         )?;
-        // add parallel_routes
-        for (key, &parallel_route) in parallel_routes.iter() {
-            write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
-            self.walk_tree(parallel_route, false).await?;
-            writeln!(self.loader_tree_code, ",")?;
-        }
-        writeln!(self.loader_tree_code, "}}, {{")?;
+
+        // Components need to be referenced first
+        let temp_loader_tree_code = take(&mut self.loader_tree_code);
         // add components
         let Components {
             page,
@@ -400,17 +375,28 @@ impl LoaderTreeBuilder {
             metadata,
             route: _,
         } = &*components.await?;
+        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Page, *page).await?;
         self.write_component(ComponentType::DefaultPage, *default)
             .await?;
         self.write_component(ComponentType::Error, *error).await?;
-        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Loading, *loading)
             .await?;
         self.write_component(ComponentType::Template, *template)
             .await?;
         self.write_component(ComponentType::NotFound, *not_found)
             .await?;
+        let components_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
+
+        // add parallel_routes
+        for (key, &parallel_route) in parallel_routes.iter() {
+            write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
+            self.walk_tree(parallel_route, false).await?;
+            writeln!(self.loader_tree_code, ",")?;
+        }
+        writeln!(self.loader_tree_code, "}}, {{")?;
+
+        self.loader_tree_code += &components_code;
 
         // Ensure global metadata being written only once at the root level
         // Otherwise child pages will have redundant metadata
@@ -449,9 +435,8 @@ impl LoaderTreeModule {
         loader_tree: Vc<LoaderTree>,
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
-        mode: NextMode,
     ) -> Result<Self> {
-        LoaderTreeBuilder::new(context, server_component_transition, mode)
+        LoaderTreeBuilder::new(context, server_component_transition)
             .build(loader_tree)
             .await
     }
