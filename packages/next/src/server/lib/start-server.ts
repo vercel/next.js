@@ -264,6 +264,8 @@ export async function startServer(
         maxExperimentalFeatures: 3,
       })
 
+      Log.event(`Starting`)
+
       try {
         const cleanup = () => {
           debug('start-server process cleanup')
