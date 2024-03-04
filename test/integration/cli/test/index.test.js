@@ -582,24 +582,20 @@ describe('CLI Usage', () => {
     test('Allow retry if port 3000 is already in use', async () => {
       const port = 3000
       let output = ''
+      let appOne
+      let appTwo
 
-      const appOne = await runNextCommandDev(
-        [dirBasic, '-p', port],
-        undefined,
-        {}
-      )
-      const appTwo = await runNextCommandDev(
-        [dirBasic, '-p', port],
-        undefined,
-        {
+      try {
+        appOne = await runNextCommandDev([dirBasic, '-p', port], undefined, {})
+        appTwo = await runNextCommandDev([dirBasic, '-p', port], undefined, {
           onStderr(msg) {
             output += stripAnsi(msg)
           },
-        }
-      )
-
-      await killApp(appOne)
-      await killApp(appTwo)
+        })
+      } finally {
+        await killApp(appOne).catch(console.error)
+        await killApp(appTwo).catch(console.error)
+      }
 
       expect(output).toMatch('⚠ Port 3000 is in use, trying 3001 instead.')
     })
