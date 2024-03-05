@@ -228,6 +228,12 @@ createNextDescribe(
           'dns-prefetch': '/dns-prefetch-url',
         })
 
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
+        })
+
         await matchDom('meta', 'name="theme-color"', {
           media: '(prefers-color-scheme: dark)',
           content: 'cyan',
@@ -237,6 +243,7 @@ createNextDescribe(
       it('should support other basic tags (edge)', async () => {
         const browser = await next.browser('/basic-edge')
         const matchMultiDom = createMultiDomMatcher(browser)
+        const matchDom = createDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
           generator: 'next.js',
@@ -254,6 +261,12 @@ createNextDescribe(
           preconnect: '/preconnect-url',
           preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
+        })
+
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
         })
       })
 
@@ -880,6 +893,7 @@ createNextDescribe(
       })
 
       it('should support static manifest.webmanifest', async () => {
+        const $ = await next.render$('/')
         const res = await next.fetch('/manifest.webmanifest')
         expect(res.headers.get('content-type')).toBe(
           'application/manifest+json'
