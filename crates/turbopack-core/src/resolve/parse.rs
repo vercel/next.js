@@ -356,6 +356,87 @@ impl Request {
     }
 
     #[turbo_tasks::function]
+    pub async fn append_path(self: Vc<Self>, suffix: String) -> Result<Vc<Self>> {
+        Ok(match &*self.await? {
+            Request::Raw {
+                path,
+                query,
+                force_in_lookup_dir,
+            } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::raw(Value::new(pat), *query, *force_in_lookup_dir)
+            }
+            Request::Relative {
+                path,
+                query,
+                force_in_lookup_dir,
+            } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::relative(Value::new(pat), *query, *force_in_lookup_dir)
+            }
+            Request::Module {
+                module,
+                path,
+                query,
+            } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::module(module.clone(), Value::new(pat), *query)
+            }
+            Request::ServerRelative { path, query } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::ServerRelative {
+                    path: pat,
+                    query: *query,
+                }
+                .cell()
+            }
+            Request::Windows { path, query } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::Windows {
+                    path: pat,
+                    query: *query,
+                }
+                .cell()
+            }
+            Request::Empty => Self::parse(Value::new(suffix.into())),
+            Request::PackageInternal { path } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::PackageInternal { path: pat }.cell()
+            }
+            Request::Uri {
+                protocol,
+                remainder,
+            } => {
+                let remainder = format!("{}{}", remainder, suffix);
+                Self::Uri {
+                    protocol: protocol.clone(),
+                    remainder,
+                }
+                .cell()
+            }
+            Request::Unknown { path } => {
+                let mut pat = Pattern::concat([path.clone(), suffix.into()]);
+                pat.normalize();
+                Self::Unknown { path: pat }.cell()
+            }
+            Request::Dynamic => self,
+            Request::Alternatives { requests } => {
+                let requests = requests
+                    .iter()
+                    .map(|req| req.append_path(suffix.clone()))
+                    .collect();
+                Request::Alternatives { requests }.cell()
+            }
+        })
+    }
+
+    #[turbo_tasks::function]
     pub fn query(&self) -> Vc<String> {
         match self {
             Request::Raw { query, .. } => *query,
