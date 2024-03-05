@@ -72,7 +72,7 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
-  const decoder = new TextDecoder()
+  const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
   // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
