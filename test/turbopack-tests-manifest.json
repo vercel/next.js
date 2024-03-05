@@ -1514,11 +1514,10 @@
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
     "passed": [
-      "app-render-error-log should log the correct values on app-render error"
-    ],
-    "failed": [
+      "app-render-error-log should log the correct values on app-render error",
       "app-render-error-log should log the correct values on app-render error with edge runtime"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
