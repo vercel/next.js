@@ -1,12 +1,12 @@
 use anyhow::Result;
 use swc_core::{
-    common::DUMMY_SP,
+    common::{Span, SyntaxContext},
     ecma::{
         ast::{
-            ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Prop,
-            PropName, Str,
+            ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Number, Prop,
+            PropName, SeqExpr, Str,
         },
-        visit::fields::PropField,
+        visit::fields::{CalleeField, PropField},
     },
 };
 use turbo_tasks::Vc;
@@ -55,22 +55,42 @@ impl CodeGenerateable for EsmBinding {
         let mut visitors = Vec::new();
         let imported_module = this.reference.get_referenced_asset();
 
-        fn make_expr(imported_module: &str, export: Option<&str>) -> Expr {
+        fn make_expr(
+            imported_module: &str,
+            export: Option<&str>,
+            span: Span,
+            in_call: bool,
+        ) -> Expr {
+            let span = span.with_ctxt(SyntaxContext::empty());
             if let Some(export) = export {
-                Expr::Member(MemberExpr {
-                    span: DUMMY_SP,
-                    obj: Box::new(Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP))),
+                let mut expr = Expr::Member(MemberExpr {
+                    span,
+                    obj: Box::new(Expr::Ident(Ident::new(imported_module.into(), span))),
                     prop: MemberProp::Computed(ComputedPropName {
-                        span: DUMMY_SP,
+                        span,
                         expr: Box::new(Expr::Lit(Lit::Str(Str {
-                            span: DUMMY_SP,
+                            span,
                             value: export.into(),
                             raw: None,
                         }))),
                     }),
-                })
+                });
+                if in_call {
+                    expr = Expr::Seq(SeqExpr {
+                        exprs: vec![
+                            Box::new(Expr::Lit(Lit::Num(Number {
+                                span,
+                                value: 0.0,
+                                raw: None,
+                            }))),
+                            Box::new(expr),
+                        ],
+                        span,
+                    });
+                }
+                expr
             } else {
-                Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP))
+                Expr::Ident(Ident::new(imported_module.into(), span))
             }
         }
 
@@ -88,7 +108,10 @@ impl CodeGenerateable for EsmBinding {
                             if let Prop::Shorthand(ident) = prop {
                                 // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
                                 if let Some(imported_ident) = imported_module.as_deref() {
-                                    *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: Box::new(make_expr(imported_ident, this.export.as_deref()))});
+                                    *prop = Prop::KeyValue(KeyValueProp {
+                                        key: PropName::Ident(ident.clone()),
+                                        value: Box::new(make_expr(imported_ident, this.export.as_deref(), ident.span, false))
+                                    });
                                 }
                             }
                         }),
@@ -98,10 +121,17 @@ impl CodeGenerateable for EsmBinding {
                 // Any other expression can be replaced with the import accessor.
                 Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
                     ast_path.pop();
+                    let in_call = matches!(
+                        ast_path.last(),
+                        Some(swc_core::ecma::visit::AstParentKind::Callee(
+                            CalleeField::Expr
+                        ))
+                    );
                     visitors.push(
                         create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
                             if let Some(ident) = imported_module.as_deref() {
-                                *expr = make_expr(ident, this.export.as_deref());
+                                use swc_core::common::Spanned;
+                                *expr = make_expr(ident, this.export.as_deref(), expr.span(), in_call);
                             }
                             // If there's no identifier for the imported module,
                             // resolution failed and will insert code that throws

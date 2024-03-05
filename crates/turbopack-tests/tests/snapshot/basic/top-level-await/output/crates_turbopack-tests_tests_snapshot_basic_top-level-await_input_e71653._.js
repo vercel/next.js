@@ -43,7 +43,7 @@ var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__([
 const createUser = async (name)=>{
     const command = `CREATE USER ${name}`;
     // This is a normal await, because it's in an async function
-    await __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$top$2d$level$2d$await$2f$input$2f$db$2d$connection$2e$js__$5b$test$5d$__$28$ecmascript$29$__["dbCall"]({
+    await (0, __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$top$2d$level$2d$await$2f$input$2f$db$2d$connection$2e$js__$5b$test$5d$__$28$ecmascript$29$__["dbCall"])({
         command
     });
 };
