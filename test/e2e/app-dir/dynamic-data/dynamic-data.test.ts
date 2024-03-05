@@ -160,14 +160,16 @@ createNextDescribe(
       expect($('#searchparams .foo').text()).toBe('foosearch')
     })
 
-    it('should track dynamic apis when rendering app routes', async () => {
-      expect(next.cliOutput).toContain(
-        `Caught Error: Dynamic server usage: Route /routes/url couldn't be rendered statically because it accessed \`request.url\`.`
-      )
-      expect(next.cliOutput).toContain(
-        `Caught Error: Dynamic server usage: Route /routes/next-url couldn't be rendered statically because it accessed \`nextUrl.toString\`.`
-      )
-    })
+    if (!isNextDev) {
+      it('should track dynamic apis when rendering app routes', async () => {
+        expect(next.cliOutput).toContain(
+          `Caught Error: Dynamic server usage: Route /routes/url couldn't be rendered statically because it accessed \`request.url\`.`
+        )
+        expect(next.cliOutput).toContain(
+          `Caught Error: Dynamic server usage: Route /routes/next-url couldn't be rendered statically because it accessed \`nextUrl.toString\`.`
+        )
+      })
+    }
   }
 )
 
