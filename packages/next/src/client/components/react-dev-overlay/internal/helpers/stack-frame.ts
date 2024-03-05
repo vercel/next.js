@@ -1,5 +1,7 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrameResponse } from '../../server/shared'
+import type {
+  OriginalStackFrameResponse,
+  StackFrame,
+} from '../../server/shared'
 
 export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
