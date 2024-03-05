@@ -40,7 +40,7 @@ export function getRedirectError(
  *
  * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
  *
- * @note `redirect()` throws an Error instance with `NEXT_REDIRECT` as the error message. Make sure to not catch this error in your code.
+ * @note `redirect()` throws an Error instance with `NEXT_REDIRECT` as the error message.
  */
 export function redirect(
   /** The URL to redirect to */
