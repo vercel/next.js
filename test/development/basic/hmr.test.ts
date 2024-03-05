@@ -955,13 +955,28 @@ describe.each([[''], ['/docs']])(
           let redboxSource = await getRedboxSource(browser)
 
           redboxSource = redboxSource.replace(`${next.testDir}`, '.')
-          redboxSource = redboxSource.substring(
-            0,
-            redboxSource.indexOf('`----')
-          )
+          if (process.env.TURBOPACK) {
+            expect(next.normalizeTestDirContent(redboxSource))
+              .toMatchInlineSnapshot(`
+              "./components/parse-error.js:3:1
+              Parsing ecmascript source code failed
+                1 | This
+                2 | is
+              > 3 | }}}
+                  | ^
+                4 | invalid
+                5 | js
 
-          expect(next.normalizeTestDirContent(redboxSource))
-            .toMatchInlineSnapshot(`
+              Expression expected"
+            `)
+          } else {
+            redboxSource = redboxSource.substring(
+              0,
+              redboxSource.indexOf('`----')
+            )
+
+            expect(next.normalizeTestDirContent(redboxSource))
+              .toMatchInlineSnapshot(`
               "./components/parse-error.js
               Error: 
                 x Expression expected
@@ -974,6 +989,7 @@ describe.each([[''], ['/docs']])(
                5 | js
                  "
             `)
+          }
 
           await next.patchFile(aboutPage, aboutContent)
 
