@@ -500,9 +500,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
       enableTainting: this.nextConfig.experimental.taint,
-      crossOrigin: this.nextConfig.crossOrigin
-        ? this.nextConfig.crossOrigin
-        : undefined,
+      crossOrigin:
+        this.nextConfig.crossOrigin === false
+          ? undefined
+          : this.nextConfig.crossOrigin,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
       // Only the `publicRuntimeConfig` key is exposed to the client side
       // It'll be rendered as part of __NEXT_DATA__ on the client side
