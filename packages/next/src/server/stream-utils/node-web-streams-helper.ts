@@ -429,17 +429,6 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
-type MissingTag = 'html' | 'body'
-
-export function isObjWithMissingTags(
-  obj: any
-): obj is { __next_root_layout_missing_tags: MissingTag[] } {
-  return (
-    '__next_root_layout_missing_tags' in obj &&
-    Array.isArray(obj.__next_root_layout_missing_tags)
-  )
-}
-
 /*
  * Checks if the root layout is missing the html or body tags
  * and if so, it will inject a script tag to throw an error in the browser, showing the user
@@ -460,15 +449,6 @@ export function createRootLayoutValidatorStream(): TransformStream<
       // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
         content += decoder.decode(chunk, { stream: true })
-        if (!foundHtml && content.includes('<html')) foundHtml = true
-        if (!foundBody && content.includes('<body')) foundBody = true
-      }
-      controller.enqueue(chunk)
-    },
-    flush(controller) {
-      // Flush the decoder.
-      if (!foundHtml || !foundBody) {
-        content += decoder.decode()
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
         }
@@ -476,8 +456,17 @@ export function createRootLayoutValidatorStream(): TransformStream<
           foundBody = true
         }
       }
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      // Flush the decoder.
+      if (!foundHtml || !foundBody) {
+        content += decoder.decode()
+        if (!foundHtml && content.includes('<html')) foundHtml = true
+        if (!foundBody && content.includes('<body')) foundBody = true
+      }
 
-      const missingTags: MissingTag[] = []
+      const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
@@ -557,6 +546,8 @@ export async function continueFizzStream(
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
+
+    // Validate the root layout for missing html or body tags
     validateRootLayout ? createRootLayoutValidatorStream() : null,
 
     // Close tags should always be deferred to the end

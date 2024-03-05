@@ -14,7 +14,6 @@ import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
-import { isObjWithMissingTags } from '../server/stream-utils/node-web-streams-helper'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
@@ -131,7 +130,7 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   ? React.StrictMode
   : React.Fragment
 
-function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+function Root({ children }: React.PropsWithChildren<{}>) {
   // TODO: remove in the next major version
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -144,14 +143,11 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
+      window.__NEXT_HYDRATED_CB?.()
     }, [])
   }
 
-  return children as React.ReactElement
+  return children
 }
 
 export function hydrate() {
@@ -169,9 +165,7 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = isObjWithMissingTags(window)
-    ? window.__next_root_layout_missing_tags
-    : undefined
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
 
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
   const isError =
