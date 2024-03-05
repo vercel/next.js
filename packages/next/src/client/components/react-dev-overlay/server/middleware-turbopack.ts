@@ -29,7 +29,7 @@ const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
-) {
+): Promise<{ frame: StackFrame; source: string | null } | undefined> {
   const file = frame.file ? decodeURIComponent(frame.file) : undefined
   if (!file) return
 
@@ -59,7 +59,7 @@ export async function batchedTraceSource(
   return {
     frame: {
       file: sourceFrame.file,
-      line: sourceFrame.line,
+      lineNumber: sourceFrame.line,
       column: sourceFrame.column,
       methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
@@ -93,7 +93,7 @@ export function getOverlayMiddleware(project: Project) {
     const frame = {
       file: searchParams.get('file') as string,
       methodName: searchParams.get('methodName') ?? '<unknown>',
-      line: parseInt(searchParams.get('line') ?? '0', 10) || 0,
+      line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
       isServer: searchParams.get('isServer') === 'true',
       arguments: searchParams.getAll('arguments').filter(Boolean),
