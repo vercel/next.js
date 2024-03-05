@@ -24,7 +24,7 @@ interface TurbopackStackFrame {
 }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
-async function batchedTraceSource(
+export async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
 ) {

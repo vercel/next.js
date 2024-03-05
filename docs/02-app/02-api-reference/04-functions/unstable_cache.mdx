@@ -35,7 +35,7 @@ const data = unstable_cache(fetchData, keyParts, options)()
 - `keyParts`: This is an array that identifies the cached key. It must contain globally unique values that together identify the key of the data being cached. The cache key also includes the arguments passed to the function.
 - `options`: This is an object that controls how the cache behaves. It can contain the following properties:
   - `tags`: An array of tags that can be used to control cache invalidation.
-  - `revalidate`: The number of seconds after which the cache should be revalidated.
+  - `revalidate`: The number of seconds after which the cache should be revalidated. Omit or pass `false` to cache indefinitely or until matching `revalidateTag()` or `revalidatePath()` methods are called.
 
 ## Returns
 

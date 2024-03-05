@@ -129,12 +129,13 @@ createNextDescribe(
                         ],
                       },
                       {
-                        name: 'fetch GET https://vercel.com/',
+                        name: 'fetch GET https://example.vercel.sh/',
                         attributes: {
                           'http.method': 'GET',
-                          'http.url': 'https://vercel.com/',
-                          'net.peer.name': 'vercel.com',
-                          'next.span_name': 'fetch GET https://vercel.com/',
+                          'http.url': 'https://example.vercel.sh/',
+                          'net.peer.name': 'example.vercel.sh',
+                          'next.span_name':
+                            'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
                         },
                         kind: 2,
@@ -265,14 +266,15 @@ createNextDescribe(
                         ],
                       },
                       {
-                        name: 'fetch GET https://vercel.com/',
+                        name: 'fetch GET https://example.vercel.sh/',
                         kind: 2,
                         attributes: {
-                          'next.span_name': 'fetch GET https://vercel.com/',
+                          'next.span_name':
+                            'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
-                          'http.url': 'https://vercel.com/',
+                          'http.url': 'https://example.vercel.sh/',
                           'http.method': 'GET',
-                          'net.peer.name': 'vercel.com',
+                          'net.peer.name': 'example.vercel.sh',
                         },
                         status: { code: 0 },
                       },
@@ -329,6 +331,36 @@ createNextDescribe(
                     status: { code: 0 },
                   },
                 ],
+              },
+            ])
+          })
+
+          it('should handle RSC with fetch in RSC mode', async () => {
+            await next.fetch('/app/param/rsc-fetch', {
+              ...env.fetchInit,
+              headers: {
+                ...env.fetchInit?.headers,
+                Rsc: '1',
+              },
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'RSC GET /app/[param]/rsc-fetch',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/rsc-fetch',
+                  'http.status_code': 200,
+                  'http.target': '/app/param/rsc-fetch',
+                  'next.route': '/app/[param]/rsc-fetch',
+                  'next.span_name': 'RSC GET /app/[param]/rsc-fetch',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
               },
             ])
           })
@@ -433,6 +465,43 @@ createNextDescribe(
                     status: { code: 0 },
                   },
                 ],
+              },
+            ])
+          })
+
+          it('should trace middleware', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                runtime: 'edge',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET /behind-middleware',
+                  'next.span_type': 'Middleware.execute',
+                },
+                status: { code: 0 },
+                spans: [],
+              },
+
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
               },
             ])
           })

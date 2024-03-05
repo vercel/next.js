@@ -1,5 +1,25 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        "react-native": "react-native-web",
+      },
+      resolveExtensions: [
+        ".web.js",
+        ".web.jsx",
+        ".web.ts",
+        ".web.tsx",
+        ".mdx",
+        ".tsx",
+        ".ts",
+        ".jsx",
+        ".js",
+        ".mjs",
+        ".json",
+      ],
+    },
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
