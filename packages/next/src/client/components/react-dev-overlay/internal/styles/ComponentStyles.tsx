@@ -1,5 +1,3 @@
-import * as React from 'react'
-
 import { styles as codeFrame } from '../components/CodeFrame/styles'
 import { styles as dialog } from '../components/Dialog'
 import { styles as leftRightDialogHeader } from '../components/LeftRightDialogHeader/styles'
