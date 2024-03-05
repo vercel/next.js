@@ -893,7 +893,6 @@ createNextDescribe(
       })
 
       it('should support static manifest.webmanifest', async () => {
-        const $ = await next.render$('/')
         const res = await next.fetch('/manifest.webmanifest')
         expect(res.headers.get('content-type')).toBe(
           'application/manifest+json'
