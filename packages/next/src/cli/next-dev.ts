@@ -46,6 +46,8 @@ type NextDevOptions = {
   experimentalTestProxy?: boolean
 }
 
+type PortSource = 'cli' | 'default' | 'env'
+
 let dir: string
 let child: undefined | ChildProcess
 let config: NextConfigComplete
@@ -127,7 +129,11 @@ process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
 
-const nextDev = async (options: NextDevOptions, directory?: string) => {
+const nextDev = async (
+  options: NextDevOptions,
+  portSource: PortSource,
+  directory?: string
+) => {
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
   // Check if pages dir exists and warn if not
@@ -179,8 +185,8 @@ const nextDev = async (options: NextDevOptions, directory?: string) => {
     printAndExit(getReservedPortExplanation(port), 1)
   }
 
-  // If a 3000 port (the default value is 3000) is given, it's okay to retry new ports.
-  const allowRetry = options.port === 3000 || process.env.PORT === '3000'
+  // If neither --port nor PORT were specified, it's okay to retry new ports.
+  const allowRetry = portSource === 'default'
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
