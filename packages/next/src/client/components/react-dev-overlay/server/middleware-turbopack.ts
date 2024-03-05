@@ -13,18 +13,26 @@ import {
 import fs, { constants as FS } from 'fs/promises'
 import { launchEditor } from '../internal/helpers/launchEditor'
 
+export interface TurbopackStackFrame extends StackFrame {
+  isInternal?: boolean
+  line: number | null
+}
+
 interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
-  traceSource(stackFrame: StackFrame): Promise<StackFrame | null>
+  traceSource(
+    stackFrame: TurbopackStackFrame
+  ): Promise<TurbopackStackFrame | null>
 }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
-export async function batchedTraceSource(project: Project, frame: StackFrame) {
+export async function batchedTraceSource(
+  project: Project,
+  frame: TurbopackStackFrame
+) {
   const file = frame.file ? decodeURIComponent(frame.file) : undefined
   if (!file) return
 
-  // @ts-expect-error Turbopack uses `line` instead of `lineNumber`, should align.
-  frame.line ??= frame.lineNumber
   const sourceFrame = await project.traceSource(frame)
   if (!sourceFrame) return
 
@@ -51,8 +59,7 @@ export async function batchedTraceSource(project: Project, frame: StackFrame) {
   return {
     frame: {
       file: sourceFrame.file,
-      // @ts-expect-error Turbopack uses `line` instead of `lineNumber`, should align.
-      lineNumber: sourceFrame.lineNumber ?? sourceFrame.line,
+      line: sourceFrame.line,
       column: sourceFrame.column,
       methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
@@ -63,7 +70,7 @@ export async function batchedTraceSource(project: Project, frame: StackFrame) {
 
 export async function createOriginalStackFrame(
   project: Project,
-  frame: StackFrame
+  frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
   const traced = await batchedTraceSource(project, frame)
   if (!traced) {
@@ -86,11 +93,11 @@ export function getOverlayMiddleware(project: Project) {
     const frame = {
       file: searchParams.get('file') as string,
       methodName: searchParams.get('methodName') ?? '<unknown>',
-      lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+      line: parseInt(searchParams.get('line') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
       isServer: searchParams.get('isServer') === 'true',
       arguments: searchParams.getAll('arguments').filter(Boolean),
-    } satisfies StackFrame
+    } satisfies TurbopackStackFrame
 
     if (pathname === '/__nextjs_original-stack-frame') {
       let originalStackFrame: OriginalStackFrameResponse | null
@@ -116,7 +123,7 @@ export function getOverlayMiddleware(project: Project) {
       if (!fileExists) return noContent(res)
 
       try {
-        launchEditor(frame.file, frame.lineNumber ?? 1, frame.column ?? 1)
+        launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         return internalServerError(res)

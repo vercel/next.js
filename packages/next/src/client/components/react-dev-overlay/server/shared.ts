@@ -7,14 +7,16 @@ export interface StackFrame {
   file: string | null
   methodName: '<unknown>' | string
   arguments: string[]
-  lineNumber: number | null
+  /**
+   * Specific to Webpack. Turbopack uses `line` instead.
+   * TODO: Try to align these.
+   */
+  lineNumber?: number | null
   column: number | null
   isEdgeServer?: boolean
   isServer?: boolean
   isAppDirectory?: boolean
   errorMessage?: string
-  /** Specific to Turbopack */
-  isInternal?: boolean
 }
 
 export interface OriginalStackFrameResponse {
