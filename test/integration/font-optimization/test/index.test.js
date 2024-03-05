@@ -296,7 +296,7 @@ describe('Font Optimization', () => {
           )
           expect(inlineStyleMultiple.length).toBe(1)
           expect(inlineStyleMultiple.html()).toContain(
-            '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
+            '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:75.41%;descent-override:20.99%;line-gap-override:0.00%;size-adjust:128.63%;src:local("Times New Roman")}'
           )
           expect(inlineStyleMultiple.html()).toContain(
             '@font-face{font-family:"Open Sans Fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
