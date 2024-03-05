@@ -336,7 +336,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 );
             }
         }
-        let path = result.ident().path();
+        let path = result.ident().path().resolve().await?;
         let file_type = get_file_type(path, &*path.await?).await?;
 
         match (file_type, is_esm) {
