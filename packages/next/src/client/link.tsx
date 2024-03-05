@@ -21,7 +21,10 @@ import type {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
-import { PrefetchKind } from './components/router-reducer/router-reducer-types'
+import {
+  PREFETCH_STALE_TIME,
+  PrefetchKind,
+} from './components/router-reducer/router-reducer-types'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -307,7 +310,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
      * - false: we will not prefetch if in the viewport at all
      */
     const appPrefetchKind =
-      prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
+      // If the prefetch staletime is 0, then a full prefetch would be wasteful, as it'd never get used.
+      // These get switched into "auto" so at least the loading state can be re-used.
+      prefetchProp === null || PREFETCH_STALE_TIME === 0
+        ? PrefetchKind.AUTO
+        : PrefetchKind.FULL
 
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {

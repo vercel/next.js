@@ -282,3 +282,11 @@ export function isThenable(value: any): value is Promise<AppRouterState> {
     typeof value.then === 'function'
   )
 }
+
+/**
+ * Time (in ms) that a prefetch entry can be reused by the client router cache.
+ */
+export const PREFETCH_STALE_TIME =
+  typeof process.env.__NEXT_CLIENT_ROUTER_CACHE_STALETIME_MS !== 'undefined'
+    ? parseInt(process.env.__NEXT_CLIENT_ROUTER_CACHE_STALETIME_MS, 10)
+    : 30 * 1000 // thirty seconds (in ms)

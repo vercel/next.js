@@ -247,6 +247,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             validator: z.string().optional(),
           })
           .optional(),
+        clientRouterCache: z.boolean().optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),

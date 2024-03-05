@@ -187,6 +187,13 @@ export interface ExperimentalConfig {
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  /**
+   * Used to control the router cache "stale time" value. This value is used to determine
+   * if a cache entry can be re-used, and for how long. `true` means "forever" (implemented as
+   * one year), `false` means "never" (will always fetch from the server), and undefined will use
+   * the existing heuristics (30s for dynamic routes, 5min for static routes)
+   */
+  clientRouterCache?: boolean
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -926,6 +933,7 @@ export const defaultConfig: NextConfig = {
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
+    clientRouterCache: undefined,
   },
 }
 
