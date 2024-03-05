@@ -906,8 +906,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       '@edge-runtime/cookies':
-        specifier: 4.0.2
-        version: 4.0.2
+        specifier: 4.1.0
+        version: 4.1.0
       '@edge-runtime/ponyfill':
         specifier: 2.4.1
         version: 2.4.1
@@ -3537,8 +3537,8 @@ packages:
     engines: {node: '>=10.0.0'}
     dev: false
 
-  /@edge-runtime/cookies@4.0.2:
-    resolution: {integrity: sha512-BphVamVz/yt9FN1b60ZXp+iTJVRLUHI0POxKYZG3gn+RsP+M0phqS87Z9JnDn2YOsPx9SRhhrN9AB7yhpexNEw==}
+  /@edge-runtime/cookies@4.1.0:
+    resolution: {integrity: sha512-yygdcJ7Icc38Y3oVGXhb1Xz4dl8YDkYfvtEdfQlmt3gf4daRJfKkTMP0WOhN59CIcjFkCKrwhjwpuNZMvcYiYg==}
     engines: {node: '>=16'}
     dev: true
 
