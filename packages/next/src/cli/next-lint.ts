@@ -99,7 +99,7 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
 
   await verifyTypeScriptSetup({
     dir: baseDir,
-    distDir: distDir,
+    distDir: nextConfig.distDir,
     intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
