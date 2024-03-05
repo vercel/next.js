@@ -292,7 +292,7 @@ describe('Font Optimization', () => {
           )
           expect(inlineStyle.length).toBe(1)
           expect(inlineStyle.html()).toContain(
-            '@font-face{font-family:"Roboto Fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
+            '@font-face{font-family:"Roboto Fallback";ascent-override:92.98%;descent-override:24.47%;line-gap-override:0.00%;size-adjust:99.78%;src:local("Arial")}'
           )
           expect(inlineStyleMultiple.length).toBe(1)
           expect(inlineStyleMultiple.html()).toContain(
@@ -330,7 +330,7 @@ describe('Font Optimization', () => {
           )
           expect(inlineStyle.length).toBe(1)
           expect(inlineStyle.html()).toContain(
-            '@font-face{font-family:"Roboto Fallback";ascent-override:91.92%;descent-override:24.19%;line-gap-override:0.00%;size-adjust:100.92%;src:local("Arial")}'
+            '@font-face{font-family:"Roboto Fallback";ascent-override:92.98%;descent-override:24.47%;line-gap-override:0.00%;size-adjust:99.78%;src:local("Arial")}'
           )
           expect(inlineStyleMultiple.length).toBe(1)
           expect(inlineStyleMultiple.html()).toContain(
