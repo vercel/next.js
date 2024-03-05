@@ -34,7 +34,6 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
-  UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
