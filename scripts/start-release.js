@@ -56,7 +56,7 @@ async function main() {
   const child = execa(
     isCanary
       ? `pnpm lerna version prerelease --preid canary --force-publish -y && release --pre --skip-questions --show-url`
-      : `lerna version ${semverType} --force-publish -y`,
+      : `pnpm lerna version ${semverType} --force-publish -y`,
     {
       stdio: 'pipe',
       shell: true,
