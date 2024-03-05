@@ -379,18 +379,29 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     false
                 };
 
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
-                        if resolves_equal {
-                            ExternalType::CommonJs
-                        } else {
-                            ExternalType::EcmaScriptModule
-                        },
+                // When resolves_equal is set this is weird edge case. There are different
+                // results for CJS and ESM resolving, but ESM resolving points to a CJS file.
+                // While this might be valid, there is a good chance that this is a invalid
+                // packages, where `type: module` or `.mjs` is missing and would fail in
+                // Node.js. So when this wasn't an explicit opt-in we avoid making it external
+                // to be safe.
+                if !resolves_equal && !must_be_external {
+                    // bundle it to be safe. No error since `must_be_external` is not set.
+                    Ok(ResolveResultOption::none())
+                } else {
+                    // mark as external
+                    Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::External(
+                            request_str,
+                            if resolves_equal {
+                                ExternalType::CommonJs
+                            } else {
+                                ExternalType::EcmaScriptModule
+                            },
+                        ))
+                        .cell(),
                     ))
-                    .cell(),
-                ))
+                }
             }
             (FileType::EcmaScriptModule, true) => {
                 // mark as external
