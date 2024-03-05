@@ -1744,6 +1744,12 @@ async fn resolve_into_folder(
                         }
                         let request = Request::parse(Value::new(normalized_request.into()));
 
+                        // main field will always resolve not fully specified
+                        let options = if options_value.fully_specified {
+                            options.with_fully_specified(false).resolve().await?
+                        } else {
+                            options
+                        };
                         let result = &*resolve_internal_inline(package_path, request, options)
                             .await?
                             .await?;
@@ -2035,8 +2041,6 @@ async fn resolve_module_request(
         .into());
     }
 
-    let package_options = options.with_fully_specified(false).resolve().await?;
-
     // There may be more than one package with the same name. For instance, in a
     // TypeScript project, `compilerOptions.baseUrl` can declare a path where to
     // resolve packages. A request to "foo/bar" might resolve to either
@@ -2049,7 +2053,7 @@ async fn resolve_module_request(
                     Value::new(path.clone()),
                     package_path,
                     query,
-                    package_options,
+                    options,
                 ));
             }
             FindPackageItem::PackageFile(package_path) => {
@@ -2112,8 +2116,6 @@ async fn resolve_into_package(
     let is_root_match = path.is_match("") || path.is_match("/");
     let could_match_others = path.could_match_others("");
 
-    let mut has_match = false;
-
     for resolve_into_package in options_value.into_package.iter() {
         match resolve_into_package {
             // handled by the `resolve_into_folder` call below
@@ -2155,14 +2157,13 @@ async fn resolve_into_package(
 
                 // other options do not apply anymore when an exports
                 // field exist
-                has_match = true;
-                break;
+                return Ok(merge_results(results));
             }
         }
     }
 
     // apply main field(s) or fallback to index.js if there's no subpath
-    if is_root_match && !has_match {
+    if is_root_match {
         results.push(resolve_into_folder(package_path, options));
     }
 

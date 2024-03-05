@@ -288,6 +288,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 .cell(),
             )],
             browser: true,
+            module: true,
             ..Default::default()
         }
         .cell(),

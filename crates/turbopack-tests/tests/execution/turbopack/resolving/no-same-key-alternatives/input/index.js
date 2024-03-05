@@ -41,16 +41,34 @@ it("should not bundle the other exports conditions", () => {
 });
 
 it("should not bundle the other alternatives", () => {
-  require("package-with-exports/entry3");
+  require("package-without-exports/entry3");
   const modules = Object.keys(__turbopack_modules__);
   expect(modules).toContainEqual(
     expect.stringMatching(
-      /input\/node_modules\/package-with-exports\/entry3\.js/
+      /input\/node_modules\/package-without-exports\/entry3\.js/
     )
   );
   expect(modules).not.toContainEqual(
     expect.stringMatching(
-      /input\/node_modules\/package-with-exports\/entry3\/index/
+      /input\/node_modules\/package-without-exports\/entry3\/index/
     )
+  );
+});
+
+it("should not bundle the other alternatives", () => {
+  require("package-without-exports");
+  const modules = Object.keys(__turbopack_modules__);
+  expect(modules).toContainEqual(
+    expect.stringMatching(
+      /input\/node_modules\/package-without-exports\/module\.js/
+    )
+  );
+  expect(modules).not.toContainEqual(
+    expect.stringMatching(
+      /input\/node_modules\/package-without-exports\/main\.js/
+    )
+  );
+  expect(modules).not.toContainEqual(
+    expect.stringMatching(/input\/node_modules\/package-without-exports\/index/)
   );
 });
