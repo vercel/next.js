@@ -383,6 +383,7 @@ export async function printTreeView(
     middlewareManifest,
     useStaticPages404,
     gzipSize = true,
+    firstLoadBudget
   }: {
     distPath: string
     buildId: string
@@ -393,15 +394,21 @@ export async function printTreeView(
     middlewareManifest: MiddlewareManifest
     useStaticPages404: boolean
     gzipSize?: boolean
+    firstLoadBudget?: {
+      good: number
+      needsImprovement: number
+      poor: number
+    }
   }
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    // green for 0-130kb
-    if (_size < 130 * 1000) return green(bold(size))
-    // yellow for 130-170kb
-    if (_size < 170 * 1000) return yellow(bold(size))
-    // red for >= 170kb
+    
+    if(!firstLoadBudget) return white(bold(size))
+
+    if (_size < firstLoadBudget.good * 1000) return green(bold(size))
+    if (_size < firstLoadBudget.needsImprovement * 1000) return yellow(bold(size))
+    
     return red(bold(size))
   }
 
