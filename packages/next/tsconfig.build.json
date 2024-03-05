@@ -1,5 +1,12 @@
 {
   "extends": "./tsconfig.base.json",
+  "include": [
+    "src",
+    "font",
+    "types/index.d.ts",
+    "types/global.d.ts",
+    "types/compiled.d.ts"
+  ],
   "exclude": [
     "dist",
     "./*.d.ts",
@@ -7,7 +14,6 @@
     "image-types/global.d.ts",
     "compat/*.d.ts",
     "legacy/*.d.ts",
-    "types/compiled.d.ts",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
     "experimental/**/*.d.ts"

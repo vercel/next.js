@@ -79,7 +79,7 @@
     "release": "taskr release",
     "build": "pnpm release",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "types": "tsc --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
+    "types": "tsc --declaration --emitDeclarationOnly --stripInternal --declarationDir dist --project tsconfig.build.json",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "ncc cache clean && taskr ncc"
   },
