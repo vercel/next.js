@@ -55,7 +55,7 @@ async function main() {
   console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const child = execa(
     isCanary
-      ? `pnpm lerna version prerelease --preid canary --force-publish -y && release --pre --skip-questions --show-url`
+      ? `pnpm lerna version prerelease --preid canary --force-publish -y && pnpm release --pre --skip-questions --show-url`
       : `pnpm lerna version ${semverType} --force-publish -y`,
     {
       stdio: 'pipe',
