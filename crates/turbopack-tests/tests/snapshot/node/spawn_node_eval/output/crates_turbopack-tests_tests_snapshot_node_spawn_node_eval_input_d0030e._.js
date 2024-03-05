@@ -7,7 +7,7 @@ __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node$2f$spawn_node_eval$2f$input$2f$node_modules$2f$child_process$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/node/spawn_node_eval/input/node_modules/child_process/index.js [test] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-let x = __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node$2f$spawn_node_eval$2f$input$2f$node_modules$2f$child_process$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["spawn"](process.argv[0], [
+let x = (0, __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node$2f$spawn_node_eval$2f$input$2f$node_modules$2f$child_process$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["spawn"])(process.argv[0], [
     "-e",
     "console.log('foo');"
 ]);

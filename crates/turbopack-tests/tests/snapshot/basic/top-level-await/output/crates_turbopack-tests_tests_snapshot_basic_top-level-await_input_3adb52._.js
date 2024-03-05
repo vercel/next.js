@@ -30,7 +30,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 (async ()=>{
-    await __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$top$2d$level$2d$await$2f$input$2f$Actions$2e$js__$5b$test$5d$__$28$ecmascript$29$__["CreateUserAction"]("John");
+    await (0, __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$top$2d$level$2d$await$2f$input$2f$Actions$2e$js__$5b$test$5d$__$28$ecmascript$29$__["CreateUserAction"])("John");
     console.log("created user John");
 })();
 

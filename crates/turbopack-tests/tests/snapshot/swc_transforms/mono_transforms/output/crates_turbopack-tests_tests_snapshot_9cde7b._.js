@@ -10,7 +10,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 function MyApp() {
-    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         children: "App"
     }, void 0, false, {
         fileName: "[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js",
