@@ -196,17 +196,6 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             Ok(FileType::UnsupportedExtension)
         }
 
-        let node_resolve_options = if is_esm {
-            node_esm_resolve_options(context.root())
-        } else {
-            node_cjs_resolve_options(context.root())
-        };
-        let node_resolved = resolve(
-            self.project_path,
-            reference_type.clone(),
-            request,
-            node_resolve_options,
-        );
         let unable_to_externalize = |reason: &str| {
             if must_be_external {
                 UnableToExternalize {
@@ -219,14 +208,11 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
             Ok(ResolveResultOption::none())
         };
-        let Some(result) = *node_resolved.first_source().await? else {
-            // this can't resolve with node.js from the project directory, so bundle it
-            return unable_to_externalize(
-                "The request could not be resolved by Node.js from the project \
-                 directory.\nPackages that should be external need to be installed in the project \
-                 directory, so they can be resolved from the output files.\nTry to install the \
-                 package into the project directory.",
-            );
+
+        let node_resolve_options = if is_esm {
+            node_esm_resolve_options(context.root())
+        } else {
+            node_cjs_resolve_options(context.root())
         };
         let node_resolved_from_original_location = resolve(
             context,
@@ -239,9 +225,29 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         else {
             // this can't resolve with node.js from the original location, so bundle it
             return unable_to_externalize(
-                "The request could not be resolved by Node.js from the importing module.",
+                "The request could not be resolved by Node.js from the importing module. The way \
+                 Node.js resolves modules is slightly different from the way Next.js resolves \
+                 modules. Next.js was able to resolve it, while Node.js would not be. Try to \
+                 remove this package from serverComponentsExtenalPackages.",
             );
         };
+        let node_resolved = resolve(
+            self.project_path,
+            reference_type.clone(),
+            request,
+            node_resolve_options,
+        );
+
+        let Some(result) = *node_resolved.first_source().await? else {
+            // this can't resolve with node.js from the project directory, so bundle it
+            return unable_to_externalize(
+                "The request could not be resolved by Node.js from the project \
+                 directory.\nPackages that should be external need to be installed in the project \
+                 directory, so they can be resolved from the output files.\nTry to install the \
+                 package into the project directory.",
+            );
+        };
+
         let result = result.resolve().await?;
         let result_from_original_location = result_from_original_location.resolve().await?;
         if result_from_original_location != result {
@@ -323,13 +329,50 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // invalid package.json, bundle it
                 unable_to_externalize("The package.json can't be found or parsed.")
             }
-            (FileType::CommonJs, _) => {
+            (FileType::CommonJs, false) => {
                 if let Some(request) = request.await?.request() {
                     // mark as external
                     Ok(ResolveResultOption::some(
                         ResolveResult::primary(ResolveResultItem::External(
                             request,
                             ExternalType::CommonJs,
+                        ))
+                        .cell(),
+                    ))
+                } else {
+                    // unsupported request, bundle it
+                    unable_to_externalize("There is not known request to work with.")
+                }
+            }
+            (FileType::CommonJs, true) => {
+                if let Some(request_str) = request.await?.request() {
+                    // It would be more efficient to use an CJS external instead of an ESM external,
+                    // but we need to verify if that would be correct (as in resolves to the same
+                    // file).
+                    let node_resolve_options = node_cjs_resolve_options(context.root());
+                    let node_resolved = resolve(
+                        self.project_path,
+                        reference_type.clone(),
+                        request,
+                        node_resolve_options,
+                    );
+                    let resolves_equal = if let Some(result) = *node_resolved.first_source().await?
+                    {
+                        let cjs_path = result.ident().path();
+                        cjs_path.resolve().await? == path
+                    } else {
+                        false
+                    };
+
+                    // mark as external
+                    Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::External(
+                            request_str,
+                            if resolves_equal {
+                                ExternalType::CommonJs
+                            } else {
+                                ExternalType::EcmaScriptModule
+                            },
                         ))
                         .cell(),
                     ))
