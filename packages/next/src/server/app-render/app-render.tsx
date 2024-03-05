@@ -1264,7 +1264,7 @@ async function renderToHTMLOrFlightImpl(
                 basePath: renderOpts.basePath,
               }),
               serverInsertedHTMLToHead: true,
-              validateRootLayout: true,
+              validateRootLayout,
             }),
           }
         } catch (finalErr: any) {
