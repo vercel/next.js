@@ -579,7 +579,7 @@ describe('CLI Usage', () => {
       expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
-    test('Allow retry if port 3000 is already in use', async () => {
+    test('Allow retry if default port is already in use', async () => {
       let output = ''
       let appOne
       let appTwo
