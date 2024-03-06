@@ -606,9 +606,9 @@ export interface TurbopackStackFrame {
   isInternal?: boolean
   file: string
   /** 1-indexed, unlike source map tokens */
-  line: number | null
+  line?: number
   /** 1-indexed, unlike source map tokens */
-  column: number | null
+  column?: number
   methodName?: string
 }
 
