@@ -80,6 +80,7 @@ impl ModuleOptions {
             ref rules,
             esm_url_rewrite_behavior,
             import_externals,
+            ignore_dynamic_requests,
             use_lightningcss,
             ..
         } = *module_options_context.await?;
@@ -118,6 +119,7 @@ impl ModuleOptions {
             tree_shaking_mode,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
+            ignore_dynamic_requests,
             ..Default::default()
         };
 

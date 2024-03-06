@@ -261,6 +261,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                 ..Default::default()
             })),
             preset_env_versions: Some(env),
+            ignore_dynamic_requests: true,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
                 ModuleOptionsContext {
