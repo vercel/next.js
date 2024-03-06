@@ -153,6 +153,10 @@ pub struct ModuleOptionsContext {
     /// References to externals from ESM imports should use `import()` and make
     /// async modules.
     pub import_externals: bool,
+    /// Ignore very dynamic requests which doesn't have any static known part.
+    /// If false, they will reference the whole directory. If true, they won't
+    /// reference anything and lead to an runtime error instead.
+    pub ignore_dynamic_requests: bool,
 
     pub use_lightningcss: bool,
 }

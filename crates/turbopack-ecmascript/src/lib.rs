@@ -131,6 +131,10 @@ pub struct EcmascriptOptions {
     /// External imports should used `__turbopack_import__` instead of
     /// `__turbopack_require__` and become async module references.
     pub import_externals: bool,
+    /// Ignore very dynamic requests which doesn't have any static known part.
+    /// If false, they will reference the whole directory. If true, they won't
+    /// reference anything and lead to an runtime error instead.
+    pub ignore_dynamic_requests: bool,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]

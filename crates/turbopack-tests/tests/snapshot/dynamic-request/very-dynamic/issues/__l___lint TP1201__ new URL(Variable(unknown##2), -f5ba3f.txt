@@ -1,0 +1,10 @@
+warning - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:17:0  lint TP1201 new URL(Variable(unknown##2), import.meta.url) is very dynamic
+  
+      13 | 
+      14 | fs.readFileSync(unknown);
+      15 | readFileSync(unknown);
+      16 | 
+         + v-------------------------------v
+      17 + new URL(unknown, import.meta.url);
+         + ^-------------------------------^
+      18 |
