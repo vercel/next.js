@@ -20,7 +20,11 @@ use swc_core::{
     base::sourcemap::SourceMapBuilder,
     common::{BytePos, FileName, LineCol, Span},
     css::{
-        ast::{SubclassSelector, TypeSelector, UrlValue},
+        ast::{
+            ComplexSelector, ComplexSelectorChildren, CompoundSelector, ForgivingComplexSelector,
+            ForgivingRelativeSelector, PseudoClassSelectorChildren, PseudoElementSelectorChildren,
+            RelativeSelector, SubclassSelector, TypeSelector, UrlValue,
+        },
         codegen::{writer::basic::BasicCssWriter, CodeGenerator},
         modules::{CssClassName, TransformConfig},
         visit::{VisitMut, VisitMutWith, VisitWith},
@@ -707,26 +711,100 @@ const CSS_MODULE_ERROR: &str =
 
 /// We only vist top-level selectors.
 impl swc_core::css::visit::Visit for CssValidator {
-    fn visit_complex_selector(&mut self, n: &swc_core::css::ast::ComplexSelector) {
-        if n.children.iter().all(|sel| match sel {
-            swc_core::css::ast::ComplexSelectorChildren::CompoundSelector(sel) => {
-                sel.subclass_selectors.iter().all(|sel| {
-                    matches!(
-                        sel,
-                        SubclassSelector::Attribute { .. }
-                            | SubclassSelector::PseudoClass(..)
-                            | SubclassSelector::PseudoElement(..)
-                    )
-                }) && match &sel.type_selector.as_deref() {
-                    Some(TypeSelector::TagName(tag)) => {
-                        !matches!(&*tag.name.value.value, "html" | "body")
-                    }
-                    Some(TypeSelector::Universal(..)) => true,
-                    None => true,
-                }
+    fn visit_complex_selector(&mut self, n: &ComplexSelector) {
+        fn is_complex_not_pure(sel: &ComplexSelector) -> bool {
+            sel.children.iter().all(|sel| match sel {
+                ComplexSelectorChildren::CompoundSelector(sel) => is_compound_not_pure(sel),
+                ComplexSelectorChildren::Combinator(_) => true,
+            })
+        }
+
+        fn is_forgiving_selector_not_pure(sel: &ForgivingComplexSelector) -> bool {
+            match sel {
+                ForgivingComplexSelector::ComplexSelector(sel) => is_complex_not_pure(sel),
+                ForgivingComplexSelector::ListOfComponentValues(_) => false,
             }
-            swc_core::css::ast::ComplexSelectorChildren::Combinator(_) => true,
-        }) {
+        }
+
+        fn is_forgiving_relative_selector_not_pure(sel: &ForgivingRelativeSelector) -> bool {
+            match sel {
+                ForgivingRelativeSelector::RelativeSelector(sel) => {
+                    is_relative_selector_not_pure(sel)
+                }
+                ForgivingRelativeSelector::ListOfComponentValues(_) => false,
+            }
+        }
+
+        fn is_relative_selector_not_pure(sel: &RelativeSelector) -> bool {
+            is_complex_not_pure(&sel.selector)
+        }
+
+        fn is_compound_not_pure(sel: &CompoundSelector) -> bool {
+            sel.subclass_selectors.iter().all(|sel| match sel {
+                SubclassSelector::Attribute { .. } => true,
+                SubclassSelector::PseudoClass(cls) => {
+                    cls.name.value == "not"
+                        || cls.name.value == "has"
+                        || if let Some(c) = &cls.children {
+                            c.iter().all(|c| match c {
+                                PseudoClassSelectorChildren::ComplexSelector(sel) => {
+                                    is_complex_not_pure(sel)
+                                }
+
+                                PseudoClassSelectorChildren::CompoundSelector(sel) => {
+                                    is_compound_not_pure(sel)
+                                }
+
+                                PseudoClassSelectorChildren::SelectorList(sels) => {
+                                    sels.children.iter().all(is_complex_not_pure)
+                                }
+                                PseudoClassSelectorChildren::ForgivingSelectorList(sels) => {
+                                    sels.children.iter().all(is_forgiving_selector_not_pure)
+                                }
+                                PseudoClassSelectorChildren::CompoundSelectorList(sels) => {
+                                    sels.children.iter().all(is_compound_not_pure)
+                                }
+                                PseudoClassSelectorChildren::RelativeSelectorList(sels) => {
+                                    sels.children.iter().all(is_relative_selector_not_pure)
+                                }
+                                PseudoClassSelectorChildren::ForgivingRelativeSelectorList(
+                                    sels,
+                                ) => sels
+                                    .children
+                                    .iter()
+                                    .all(is_forgiving_relative_selector_not_pure),
+
+                                PseudoClassSelectorChildren::Ident(_)
+                                | PseudoClassSelectorChildren::Str(_)
+                                | PseudoClassSelectorChildren::Delimiter(_)
+                                | PseudoClassSelectorChildren::PreservedToken(_)
+                                | PseudoClassSelectorChildren::AnPlusB(_) => false,
+                            })
+                        } else {
+                            true
+                        }
+                }
+                SubclassSelector::PseudoElement(el) => match &el.children {
+                    Some(c) => c.iter().all(|c| match c {
+                        PseudoElementSelectorChildren::CompoundSelector(sel) => {
+                            is_compound_not_pure(sel)
+                        }
+
+                        _ => false,
+                    }),
+                    None => true,
+                },
+                _ => false,
+            }) && match &sel.type_selector.as_deref() {
+                Some(TypeSelector::TagName(tag)) => {
+                    !matches!(&*tag.name.value.value, "html" | "body")
+                }
+                Some(TypeSelector::Universal(..)) => true,
+                None => true,
+            }
+        }
+
+        if is_complex_not_pure(n) {
             self.errors
                 .push(CssError::SwcSelectorInModuleNotPure { span: n.span });
         }
@@ -747,9 +825,12 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
         &mut self,
         selector: &mut lightningcss::selector::Selector<'_>,
     ) -> Result<(), Self::Error> {
-        if selector
-            .iter_raw_parse_order_from(0)
-            .all(|component| match component {
+        fn is_selector_problematic(sel: &lightningcss::selector::Selector) -> bool {
+            sel.iter_raw_parse_order_from(0).all(is_problematic)
+        }
+
+        fn is_problematic(c: &lightningcss::selector::Component) -> bool {
+            match c {
                 parcel_selectors::parser::Component::ID(..)
                 | parcel_selectors::parser::Component::Class(..) => false,
 
@@ -760,13 +841,19 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
                 | parcel_selectors::parser::Component::ExplicitUniversalType
                 | parcel_selectors::parser::Component::Negation(..) => true,
 
+                parcel_selectors::parser::Component::Where(sel) => {
+                    sel.iter().all(is_selector_problematic)
+                }
+
                 parcel_selectors::parser::Component::LocalName(local) => {
                     // Allow html and body. They are not pure selectors but are allowed.
                     !matches!(&*local.name.0, "html" | "body")
                 }
                 _ => false,
-            })
-        {
+            }
+        }
+
+        if is_selector_problematic(selector) {
             self.errors
                 .push(CssError::LightningCssSelectorInModuleNotPure {
                     selector: format!("{selector:?}"),
@@ -1069,6 +1156,18 @@ mod tests {
         }",
         );
 
+        assert_lint_success(
+            ":where(.main > *) {
+            color: red;
+        }",
+        );
+
+        assert_lint_success(
+            ":where(.main > *, .root > *) {
+            color: red;
+        }",
+        );
+
         assert_lint_failure(
             "div {
             color: red;
@@ -1126,6 +1225,18 @@ mod tests {
         assert_lint_failure(
             ":not(div) {
             --foo: 1;
+        }",
+        );
+
+        assert_lint_failure(
+            ":where(div > *) {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            ":where(div) {
+            color: red;
         }",
         );
     }
