@@ -1,6 +1,6 @@
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
-import type { StackFrame } from '../../../server/shared'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'

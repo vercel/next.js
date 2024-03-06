@@ -7,29 +7,12 @@ import {
   json,
   noContent,
   type OriginalStackFrameResponse,
-  type StackFrame,
 } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
 import { launchEditor } from '../internal/helpers/launchEditor'
-
-/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
-export interface TurbopackStackFrame
-  extends Pick<StackFrame, 'file' | 'methodName'> {
-  isServer: boolean
-  isInternal?: boolean
-  /** 1-indexed, unlike source map tokens */
-  line: number | null
-  /** 1-indexed, unlike source map tokens */
-  column: number | null
-}
-
-interface Project {
-  getSourceForAsset(filePath: string): Promise<string | null>
-  traceSource(
-    stackFrame: TurbopackStackFrame
-  ): Promise<TurbopackStackFrame | null>
-}
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { Project, TurbopackStackFrame } from '../../../../build/swc'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(

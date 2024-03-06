@@ -13,7 +13,6 @@ import { isDeepStrictEqual } from 'util'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
-import type { TurbopackStackFrame } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -613,6 +612,18 @@ export type UpdateMessage =
 export interface UpdateInfo {
   duration: number
   tasks: number
+}
+
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+export interface TurbopackStackFrame {
+  isServer: boolean
+  isInternal?: boolean
+  file: string
+  /** 1-indexed, unlike source map tokens */
+  line: number | null
+  /** 1-indexed, unlike source map tokens */
+  column: number | null
+  methodName?: string
 }
 
 export interface Project {

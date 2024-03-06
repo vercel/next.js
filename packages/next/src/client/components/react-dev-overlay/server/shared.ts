@@ -2,7 +2,6 @@ import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
-export type { StackFrame }
 export type SourcePackage = 'react' | 'next'
 
 export interface OriginalStackFrameResponse {
