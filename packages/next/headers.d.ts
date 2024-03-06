@@ -1,1 +1,1 @@
-export * from './dist/client/components/headers'
+export * from 'next/dist/client/components/headers'

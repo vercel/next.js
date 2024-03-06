@@ -1,1 +1,1 @@
-export * from './dist/build/babel/preset'
+export * from 'next/dist/build/babel/preset'

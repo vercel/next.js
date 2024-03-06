@@ -1,1 +1,1 @@
-export * from '../../dist/experimental/testmode/playwright'
+export * from 'next/dist/experimental/testmode/playwright'

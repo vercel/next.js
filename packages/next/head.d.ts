@@ -1,3 +1,3 @@
-import Head from './dist/shared/lib/head'
-export * from './dist/shared/lib/head'
+import Head from 'next/dist/shared/lib/head'
+export * from 'next/dist/shared/lib/head'
 export default Head

@@ -1,1 +1,1 @@
-export * from '../../dist/experimental/testmode/proxy'
+export * from 'next/dist/experimental/testmode/proxy'

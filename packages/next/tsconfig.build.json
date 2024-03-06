@@ -1,14 +1,13 @@
 {
   "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "next/dist/compiled/*": ["./dist/compiled/*"],
+      "next/dist/esm/*": ["./src/*"],
+      "next/dist/*": ["./src/*"]
+    }
+  },
   "include": [
-    "src",
-    "font",
-    "types/index.d.ts",
-    "types/global.d.ts",
-    "types/compiled.d.ts"
-  ],
-  "exclude": [
-    "dist",
     "./*.d.ts",
     "future/*.d.ts",
     "image-types/global.d.ts",
@@ -16,6 +15,12 @@
     "legacy/*.d.ts",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
-    "experimental/**/*.d.ts"
-  ]
+    "experimental/**/*.d.ts",
+    "font",
+    "types/index.d.ts",
+    "types/global.d.ts",
+    "types/compiled.d.ts",
+    "types/compiled-shared.d.ts"
+  ],
+  "exclude": ["dist"]
 }

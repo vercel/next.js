@@ -1,1 +1,1 @@
-export * from './dist/client/index'
+export * from 'next/dist/client/index'

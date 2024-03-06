@@ -1,3 +1,3 @@
-import dynamic from './dist/shared/lib/dynamic'
-export * from './dist/shared/lib/dynamic'
+import dynamic from 'next/dist/shared/lib/dynamic'
+export * from 'next/dist/shared/lib/dynamic'
 export default dynamic

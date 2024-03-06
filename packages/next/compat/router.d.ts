@@ -1,1 +1,1 @@
-export * from '../dist/client/compat/router'
+export * from 'next/dist/client/compat/router'

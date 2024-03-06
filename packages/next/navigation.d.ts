@@ -1,1 +1,1 @@
-export * from './dist/client/components/navigation'
+export * from 'next/dist/client/components/navigation'

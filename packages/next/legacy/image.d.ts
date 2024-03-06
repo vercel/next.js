@@ -1,3 +1,3 @@
-import Image from '../dist/client/legacy/image'
-export * from '../dist/client/legacy/image'
+import Image from 'next/dist/client/legacy/image'
+export * from 'next/dist/client/legacy/image'
 export default Image
