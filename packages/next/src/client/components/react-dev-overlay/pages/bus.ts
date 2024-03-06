@@ -1,5 +1,6 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { ComponentStackFrame } from '../internal/helpers/parse-component-stack'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
 export const TYPE_BUILD_OK = 'build-ok'
 export const TYPE_BUILD_ERROR = 'build-error'
@@ -7,6 +8,7 @@ export const TYPE_REFRESH = 'fast-refresh'
 export const TYPE_BEFORE_REFRESH = 'before-fast-refresh'
 export const TYPE_UNHANDLED_ERROR = 'unhandled-error'
 export const TYPE_UNHANDLED_REJECTION = 'unhandled-rejection'
+export const TYPE_VERSION_INFO = 'version-info'
 
 export type BuildOk = { type: typeof TYPE_BUILD_OK }
 export type BuildError = {
@@ -26,6 +28,12 @@ export type UnhandledRejection = {
   reason: Error
   frames: StackFrame[]
 }
+
+export type VersionInfoEvent = {
+  type: typeof TYPE_VERSION_INFO
+  versionInfo: VersionInfo
+}
+
 export type BusEvent =
   | BuildOk
   | BuildError
@@ -33,6 +41,7 @@ export type BusEvent =
   | BeforeFastRefresh
   | UnhandledError
   | UnhandledRejection
+  | VersionInfoEvent
 
 export type BusEventHandler = (ev: BusEvent) => void
 
