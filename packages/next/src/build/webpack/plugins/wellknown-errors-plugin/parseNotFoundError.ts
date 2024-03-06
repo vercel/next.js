@@ -49,18 +49,21 @@ async function getSourceFrame(
   compilation: any
 ): Promise<{ frame: string; lineNumber: string; column: string }> {
   try {
-    const loc = input.loc
-      ? input.loc
-      : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
+    const loc =
+      input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
     const originalSource = input.module.originalSource()
 
     const result = await createOriginalStackFrame({
-      line: loc.start.line,
-      column: loc.start.column,
       source: originalSource,
       rootDirectory: compilation.options.context!,
       modulePath: fileName,
-      frame: {},
+      frame: {
+        arguments: [],
+        file: fileName,
+        methodName: '',
+        lineNumber: loc.start.line,
+        column: loc.start.column,
+      },
     })
 
     return {

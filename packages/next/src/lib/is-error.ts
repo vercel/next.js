@@ -6,6 +6,7 @@ export interface NextError extends Error {
   page?: string
   code?: string | number
   cancelled?: boolean
+  digest?: number
 }
 
 export default function isError(err: unknown): err is NextError {
