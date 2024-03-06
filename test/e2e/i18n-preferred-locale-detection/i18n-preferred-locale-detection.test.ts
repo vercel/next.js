@@ -1,4 +1,4 @@
-import type { Request } from 'playwright'
+import type { Request } from 'playwright-chromium'
 import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
