@@ -65,8 +65,8 @@ export async function batchedTraceSource(
   return {
     frame: {
       file: sourceFrame.file,
-      lineNumber: sourceFrame.line ?? 0,
-      column: sourceFrame.column ?? 0,
+      lineNumber: sourceFrame.line,
+      column: sourceFrame.column,
       methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
     },
