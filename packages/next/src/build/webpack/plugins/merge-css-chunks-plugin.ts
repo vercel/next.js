@@ -135,19 +135,29 @@ export class MergeCssChunksPlugin {
            */
           function updateInfoForMerging(removedChunk: Chunk, newChunk: Chunk) {
             const info = cssChunkInfo.get(removedChunk)!
+            const newInfo = cssChunkInfo.get(newChunk)!
             for (const [entrypoint, entryInfo] of info.entrypoints) {
-              if (entryInfo.prev === newChunk) {
-                const prevInfo = cssChunkInfo.get(entryInfo.prev)!
-                prevInfo.entrypoints.get(entrypoint)!.next = entryInfo.next
-              } else if (entryInfo.prev) {
-                const prevInfo = cssChunkInfo.get(entryInfo.prev)!
+              const prev = entryInfo.prev !== newChunk ? entryInfo.prev : null
+              const next = entryInfo.next !== newChunk ? entryInfo.next : null
+              if (prev) {
+                const prevInfo = cssChunkInfo.get(prev)!
                 prevInfo.entrypoints.get(entrypoint)!.next = newChunk
               }
-              if (entryInfo.next) {
-                const nextInfo = cssChunkInfo.get(entryInfo.next)!
+              if (next) {
+                const nextInfo = cssChunkInfo.get(next)!
                 nextInfo.entrypoints.get(entrypoint)!.prev = newChunk
               }
               cssChunksForChunkGroup.get(entrypoint)!.delete(removedChunk)
+              let newEntryInfo = newInfo.entrypoints.get(entrypoint)
+              if (newEntryInfo !== undefined) {
+                newEntryInfo.prev =
+                  newEntryInfo.prev === removedChunk ? prev : newEntryInfo.prev
+                newEntryInfo.next =
+                  newEntryInfo.next === removedChunk ? next : newEntryInfo.next
+              } else {
+                newEntryInfo = { prev, next }
+                newInfo.entrypoints.set(entrypoint, newEntryInfo)
+              }
             }
             cssChunkInfo.delete(removedChunk)
             return info
