@@ -579,6 +579,26 @@ describe('CLI Usage', () => {
       expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
+    test('Allow retry if port 3000 is already in use', async () => {
+      let output = ''
+      let appOne
+      let appTwo
+
+      try {
+        appOne = await runNextCommandDev([dirBasic], undefined, {})
+        appTwo = await runNextCommandDev([dirBasic], undefined, {
+          onStderr(msg) {
+            output += stripAnsi(msg)
+          },
+        })
+      } finally {
+        await killApp(appOne).catch(console.error)
+        await killApp(appTwo).catch(console.error)
+      }
+
+      expect(output).toMatch('⚠ Port 3000 is in use, trying 3001 instead.')
+    })
+
     test('-p reserved', async () => {
       const TCP_MUX_PORT = 1
       const { stderr, stdout } = await runAndCaptureOutput({
