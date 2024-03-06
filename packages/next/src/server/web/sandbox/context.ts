@@ -425,6 +425,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       Object.assign(context, wasm)
 
+      context.performance = performance
+
       context.AsyncLocalStorage = AsyncLocalStorage
 
       // @ts-ignore the timeouts have weird types in the edge runtime
