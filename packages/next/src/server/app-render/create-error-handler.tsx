@@ -5,7 +5,7 @@ import { isAbortError } from '../pipe-readable'
 import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
 
 declare global {
-  const __next_log_error__: undefined | ((err: unknown) => void)
+  var __next_log_error__: undefined | ((err: unknown) => void)
 }
 
 export type ErrorHandler = (
