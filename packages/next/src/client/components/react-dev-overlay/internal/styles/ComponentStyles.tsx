@@ -5,7 +5,6 @@ import { styles as overlay } from '../components/Overlay/styles'
 import { styles as terminal } from '../components/Terminal/styles'
 import { styles as toast } from '../components/Toast'
 import { styles as versionStaleness } from '../components/VersionStalenessInfo'
-import { styles as turbopackIndicatorStyles } from '../components/TurbopackIndicator'
 import { styles as buildErrorStyles } from '../container/BuildError'
 import { styles as containerErrorStyles } from '../container/Errors'
 import { styles as containerRuntimeErrorStyles } from '../container/RuntimeError'
@@ -26,7 +25,6 @@ export function ComponentStyles() {
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
-        ${turbopackIndicatorStyles}
       `}
     </style>
   )

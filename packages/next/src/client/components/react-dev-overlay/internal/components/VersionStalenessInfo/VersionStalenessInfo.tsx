@@ -37,7 +37,7 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
   switch (staleness) {
     case 'newer-than-npm':
     case 'fresh':
-      text = versionLabel
+      text = `${versionLabel} ${process.env.TURBOPACK ? ' (turbo)' : ''}`
       title = `Latest available version is detected (${installed}).`
       indicatorClass = 'fresh'
       break
