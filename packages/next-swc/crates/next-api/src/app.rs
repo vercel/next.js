@@ -822,6 +822,7 @@ impl AppEndpoint {
             this.app_project.app_dir(),
             &app_entry.original_name,
             &app_entry.original_name,
+            &app_entry.original_name,
             client_assets,
             true,
         )

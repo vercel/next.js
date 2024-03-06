@@ -9,7 +9,6 @@ import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
 import { Errors } from '../internal/container/Errors'
 import type { SupportedErrorEvent } from '../internal/container/Errors'
-import { RootLayoutError } from '../internal/container/RootLayoutError'
 import { parseStack } from '../internal/helpers/parseStack'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
@@ -52,12 +51,7 @@ class ReactDevOverlay extends React.PureComponent<
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-    const rootLayoutMissingTagsError = state.rootLayoutMissingTagsError
-    const isMounted =
-      hasBuildError ||
-      hasRuntimeErrors ||
-      reactError ||
-      rootLayoutMissingTagsError
+    const isMounted = hasBuildError || hasRuntimeErrors || reactError
 
     return (
       <>
@@ -75,11 +69,7 @@ class ReactDevOverlay extends React.PureComponent<
             <Base />
             <ComponentStyles />
 
-            {rootLayoutMissingTagsError ? (
-              <RootLayoutError
-                missingTags={rootLayoutMissingTagsError.missingTags}
-              />
-            ) : hasBuildError ? (
+            {hasBuildError ? (
               <BuildError
                 message={state.buildError!}
                 versionInfo={state.versionInfo}
