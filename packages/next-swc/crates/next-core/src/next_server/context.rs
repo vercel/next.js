@@ -407,6 +407,15 @@ pub async fn get_server_module_options_context(
         get_styled_components_transform_rule(next_config).await?;
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
+    let module_options_context = ModuleOptionsContext {
+        execution_context: Some(execution_context),
+        use_lightningcss,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        import_externals: *next_config.import_externals().await?,
+        ignore_dynamic_requests: true,
+        ..Default::default()
+    };
+
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
@@ -440,12 +449,8 @@ pub async fn get_server_module_options_context(
             );
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -503,11 +508,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -579,11 +580,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -623,10 +620,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
@@ -671,10 +665,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
