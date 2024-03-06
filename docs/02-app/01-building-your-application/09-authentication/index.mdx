@@ -332,15 +332,22 @@ Once a user is authenticated, you'll need to ensure the user is allowed to visit
 
 Here's how to implement Middleware for authentication in Next.js:
 
-1. **Setting Up Middleware:**
-   - Create a `middleware.ts` or `.js` file in your project's root directory.
-   - Include logic to authorize user access, such as checking for authentication tokens.
-2. **Defining Protected Routes:**
-   - Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
-3. **Middleware Logic:**
-   - Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
-4. **Handling Unauthorized Access:**
-   - Redirect unauthorized users to a login or error page as appropriate.
+#### Setting Up Middleware:
+
+- Create a `middleware.ts` or `.js` file in your project's root directory.
+- Include logic to authorize user access, such as checking for authentication tokens.
+
+#### Defining Protected Routes:
+
+- Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
+
+#### Middleware Logic:
+
+- Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
+
+#### Handling Unauthorized Access:**
+
+- Redirect unauthorized users to a login or error page as appropriate.
 
 Example Middleware file:
 
