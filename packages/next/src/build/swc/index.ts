@@ -600,12 +600,16 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
-interface TurbopackStackFrame {
-  column: number | null
-  file: string
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+export interface TurbopackStackFrame {
   isServer: boolean
-  line: number
-  methodName: string | null
+  isInternal?: boolean
+  file: string
+  /** 1-indexed, unlike source map tokens */
+  line?: number
+  /** 1-indexed, unlike source map tokens */
+  column?: number | null
+  methodName?: string
 }
 
 export type UpdateMessage =

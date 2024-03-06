@@ -299,6 +299,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly enabledDirectories: NextEnabledDirectories
   protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
 
+  protected readonly experimentalTestProxy?: boolean
+
   protected abstract findPageComponents(params: {
     page: string
     query: NextParsedUrlQuery
@@ -387,8 +389,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       customServer = true,
       hostname,
       port,
+      experimentalTestProxy,
     } = options
 
+    this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
     this.dir =
@@ -2127,7 +2131,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // instead of continuing to resume stream right away
     const debugPPRSkeleton = Boolean(
       this.nextConfig.experimental.ppr &&
-        this.renderOpts.dev &&
+        (this.renderOpts.dev || this.experimentalTestProxy) &&
         query.__nextppronly
     )
 

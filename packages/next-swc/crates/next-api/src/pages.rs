@@ -1020,6 +1020,7 @@ impl PageEndpoint {
             this.pages_project.pages_dir(),
             &original_name,
             &get_asset_prefix_from_pathname(&pathname),
+            &pathname,
             client_assets,
             false,
         )
