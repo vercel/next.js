@@ -12,6 +12,7 @@ import {
   ACTION_REFRESH,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
+  ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
@@ -131,7 +132,7 @@ function onBeforeRefresh() {
 }
 
 function onVersionInfo(versionInfo: VersionInfo) {
-  Bus.emit({ type: 'version-info', versionInfo })
+  Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'
