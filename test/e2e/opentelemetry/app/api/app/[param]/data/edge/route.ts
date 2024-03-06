@@ -1,4 +1,7 @@
 export async function GET() {
+  // ensure performance is available in edge
+  console.log(performance.now())
+
   return new Response(JSON.stringify({ test: 'data-edge' }))
 }
 
