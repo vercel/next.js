@@ -10,12 +10,12 @@ function version(major: number, minor = 0, patch = 0): number {
 }
 
 function parseVersion(v: string) {
-  return v.split('.').reduce((acc, v) => {
+  return v.split('.').reduce((acc, val) => {
     if (!acc) {
       return null
     }
 
-    const parsed = parseInt(v, 10)
+    const parsed = parseInt(val, 10)
     if (isNaN(parsed)) {
       return null
     }
