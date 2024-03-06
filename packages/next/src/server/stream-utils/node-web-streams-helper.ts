@@ -474,7 +474,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
 
       controller.enqueue(
         encoder.encode(
-          `<script>window.__next_root_layout_missing_tags=${JSON.stringify(
+          `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
             missingTags
           )}</script>`
         )

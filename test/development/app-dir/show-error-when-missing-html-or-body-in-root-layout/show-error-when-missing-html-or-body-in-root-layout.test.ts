@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { getRedboxDescription, hasRedbox } from 'next-test-utils'
 
 describe('show error when missing html or body in root layout', () => {
   const { next } = nextTestSetup({ files: __dirname })
@@ -8,11 +8,8 @@ describe('show error when missing html or body in root layout', () => {
     const browser = await next.browser('/')
 
     expect(await hasRedbox(browser)).toBe(true)
-    expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-      "1 of 1 unhandled error
-      Unhandled Runtime Error
-
-      Error: The following tags are missing in the Root Layout: html, body.
+    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
+      "Error: The following tags are missing in the Root Layout: html, body.
       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
     `)
     await next.patchFile('app/layout.tsx', (code) =>
@@ -20,11 +17,8 @@ describe('show error when missing html or body in root layout', () => {
     )
 
     expect(await hasRedbox(browser)).toBe(true)
-    expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-      "1 of 1 unhandled error
-      Unhandled Runtime Error
-
-      Error: The following tags are missing in the Root Layout: html.
+    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
+      "Error: The following tags are missing in the Root Layout: html.
       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
     `)
     await next.patchFile('app/layout.tsx', (code) =>
