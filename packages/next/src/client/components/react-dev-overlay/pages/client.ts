@@ -5,6 +5,7 @@ import {
   hydrationErrorState,
   patchConsoleError,
 } from '../internal/helpers/hydration-error-info'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()
@@ -121,6 +122,10 @@ function onBeforeRefresh() {
   Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
 }
 
+function onVersionInfo(versionInfo: VersionInfo) {
+  Bus.emit({ type: Bus.TYPE_VERSION_INFO, versionInfo })
+}
+
 export { getErrorByType } from '../internal/helpers/getErrorByType'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './ReactDevOverlay'
@@ -131,4 +136,5 @@ export {
   unregister,
   onBeforeRefresh,
   onRefresh,
+  onVersionInfo,
 }

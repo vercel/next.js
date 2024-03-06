@@ -264,6 +264,12 @@ async function createModuleContext(options: ModuleContextOptions) {
         },
       })
 
+      if (process.env.NODE_ENV !== 'production') {
+        context.__next_log_error__ = function (err: unknown) {
+          options.onError(err)
+        }
+      }
+
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
         if (!warnedEvals.has(key)) {
@@ -458,6 +464,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
 interface ModuleContextOptions {
   moduleName: string
+  onError: (err: unknown) => void
   onWarning: (warn: Error) => void
   useCache: boolean
   distDir: string

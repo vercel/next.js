@@ -2,7 +2,6 @@ import type { FlightRouterState } from '../app-render/types'
 import { ReadableStream, TransformStream, WritableStream } from 'stream/web'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { createDecodeTransformStream } from './encode-decode'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
 
@@ -73,20 +72,17 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
-  let buffer = ''
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  let string = ''
 
-  await stream
-    // Decode the streamed chunks to turn them into strings.
-    .pipeThrough(createDecodeTransformStream())
-    .pipeTo(
-      new WritableStream<string>({
-        write(chunk) {
-          buffer += chunk
-        },
-      })
-    )
+  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
+  for await (const chunk of stream) {
+    string += decoder.decode(chunk, { stream: true })
+  }
 
-  return buffer
+  string += decoder.decode()
+
+  return string
 }
 
 export function createBufferedTransformStream(): TransformStream<
@@ -431,10 +427,15 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
-export function createRootLayoutValidatorStream(
-  assetPrefix = '',
-  getTree: () => FlightRouterState
-): TransformStream<Uint8Array, Uint8Array> {
+/*
+ * Checks if the root layout is missing the html or body tags
+ * and if so, it will inject a script tag to throw an error in the browser, showing the user
+ * the error message in the error overlay.
+ */
+export function createRootLayoutValidatorStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
   let foundHtml = false
   let foundBody = false
 
@@ -459,29 +460,23 @@ export function createRootLayoutValidatorStream(
       // Flush the decoder.
       if (!foundHtml || !foundBody) {
         content += decoder.decode()
-        if (!foundHtml && content.includes('<html')) {
-          foundHtml = true
-        }
-        if (!foundBody && content.includes('<body')) {
-          foundBody = true
-        }
+        if (!foundHtml && content.includes('<html')) foundHtml = true
+        if (!foundBody && content.includes('<body')) foundBody = true
       }
 
-      // If html or body tag is missing, we need to inject a script to notify
-      // the client.
-      const missingTags: string[] = []
+      const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
-      if (missingTags.length > 0) {
-        controller.enqueue(
-          encoder.encode(
-            `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
-              { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
-            )}</script>`
-          )
+      if (!missingTags.length) return
+
+      controller.enqueue(
+        encoder.encode(
+          `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
+            missingTags
+          )}</script>`
         )
-      }
+      )
     },
   })
 }
@@ -504,12 +499,7 @@ export type ContinueStreamOptions = {
   isStaticGeneration: boolean
   getServerInsertedHTML: (() => Promise<string>) | undefined
   serverInsertedHTMLToHead: boolean
-  validateRootLayout:
-    | {
-        assetPrefix: string | undefined
-        getTree: () => FlightRouterState
-      }
-    | undefined
+  validateRootLayout?: boolean
   /**
    * Suffix to inject after the buffered data, but before the close tags.
    */
@@ -555,6 +545,9 @@ export async function continueFizzStream(
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
 
+    // Validate the root layout for missing html or body tags
+    validateRootLayout ? createRootLayoutValidatorStream() : null,
+
     // Close tags should always be deferred to the end
     createMoveSuffixStream(closeTag),
 
@@ -563,13 +556,6 @@ export async function continueFizzStream(
     // hydration errors. Remove this once it's ready to be handled by react itself.
     getServerInsertedHTML && serverInsertedHTMLToHead
       ? createHeadInsertionTransformStream(getServerInsertedHTML)
-      : null,
-
-    validateRootLayout
-      ? createRootLayoutValidatorStream(
-          validateRootLayout.assetPrefix,
-          validateRootLayout.getTree
-        )
       : null,
   ])
 }
