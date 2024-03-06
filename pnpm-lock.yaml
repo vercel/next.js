@@ -2154,7 +2154,6 @@ packages:
   /@babel/plugin-proposal-dynamic-import@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-I8SW9Ho3/8DRSdmDdH3gORdyUuYnk1m4cMxUAdu5oy4n3OfN8flDEH+d60iG7dUfi0KkYwSvoalHzzdRzpWHTg==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-dynamic-import instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2166,7 +2165,6 @@ packages:
   /@babel/plugin-proposal-export-namespace-from@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-ZxdtqDXLRGBL64ocZcs7ovt71L3jhC1RGSyR996svrCi3PYqHNkb3SwPJCs8RIzD86s+WPpt2S73+EHCGO+NUA==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-export-namespace-from instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2190,7 +2188,6 @@ packages:
   /@babel/plugin-proposal-logical-assignment-operators@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-K3XzyZJGQCr00+EtYtrDjmwX7o7PLK6U9bi1nCwkQioRFVUv6dJoxbQjtWVtP+bCPy82bONBKG8NPyQ4+i6yjg==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-logical-assignment-operators instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2202,7 +2199,6 @@ packages:
   /@babel/plugin-proposal-nullish-coalescing-operator@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-aUOrYU3EVtjf62jQrCj63pYZ7k6vns2h/DQvHPWGmsJRYzWXZ6/AsfgpiRy6XiuIDADhJzP2Q9MwSMKauBQ+UQ==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2213,7 +2209,6 @@ packages:
   /@babel/plugin-proposal-numeric-separator@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-vQgPMknOIgiuVqbokToyXbkY/OmmjAzr/0lhSIbG/KmnzXPGwW/AdhdKpi+O4X/VkWiWjnkKOBiqJrTaC98VKw==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2252,7 +2247,6 @@ packages:
   /@babel/plugin-proposal-optional-chaining@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-eC3xy+ZrUcBtP7x+sq62Q/HYd674pPTb/77XZMb5wbDPGWIdUbSr4Agr052+zaUPSb+gGRnjxXfKFvx5iMJ+DA==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2264,7 +2258,6 @@ packages:
   /@babel/plugin-proposal-private-methods@7.16.11(@babel/core@7.22.5):
     resolution: {integrity: sha512-F/2uAkPlXDr8+BHpZvo19w3hLFKge+k75XUprE6jaqKxjGkSYcK+4c+bup5PdW/7W/Rpjwql7FTVEDW+fRAQsw==}
     engines: {node: '>=6.9.0'}
-    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-methods instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -8492,7 +8485,7 @@ packages:
     engines: {node: '>= 8.0.0'}
     dependencies:
       find-babel-config: 1.2.0
-      glob: 7.1.7
+      glob: 7.1.6
       pkg-up: 3.1.0
       reselect: 4.1.8
       resolve: 1.22.4
@@ -12409,7 +12402,7 @@ packages:
     engines: {node: '>= 10.17.0'}
     hasBin: true
     dependencies:
-      debug: 4.1.1
+      debug: 4.3.4
       get-stream: 5.1.0
       yauzl: 2.10.0
     optionalDependencies:
