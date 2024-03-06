@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, startTransition, useMemo } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../../../dev/error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
@@ -31,7 +31,7 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../../../dev/error-overlay/messages'
+import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
 
 let mostRecentCompilationHash: any = null

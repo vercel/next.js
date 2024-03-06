@@ -1,4 +1,4 @@
-import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../../../server/dev/hot-reloader-types'
 
 let source: WebSocket
 

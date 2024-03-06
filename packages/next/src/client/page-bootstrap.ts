@@ -3,7 +3,10 @@ import initOnDemandEntries from './dev/on-demand-entries-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import type { ShowHideHandler } from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
-import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
+import {
+  connectHMR,
+  addMessageListener,
+} from './components/react-dev-overlay/pages/websocket'
 import {
   assign,
   urlQueryToSearchParams,
