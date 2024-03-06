@@ -1,11 +1,10 @@
-import React from 'react'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   getFrameSource,
   type OriginalStackFrame,
 } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { HotlinkedText } from '../../components/hot-linked-text'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
