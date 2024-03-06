@@ -104,7 +104,7 @@ function writePackageManifest(
       cwd: dirname(bundleRequire.resolve(packageName)),
     })
   }
-  let { name, author, license } = require(packagePath)
+  let { name, author, license, version } = require(packagePath)
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
   if (existsSync(potentialLicensePath)) {
@@ -141,6 +141,7 @@ function writePackageManifest(
           {
             name: packageJsonName ?? name,
             main: `${basename(main, '.' + extname(main))}`,
+            version,
           },
           author ? { author } : undefined,
           license ? { license } : undefined,

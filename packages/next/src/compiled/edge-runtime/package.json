@@ -1,5 +1,6 @@
 {
   "name": "edge-runtime",
   "main": "index.js",
+  "version": "2.5.4",
   "license": "MPL-2.0"
 }

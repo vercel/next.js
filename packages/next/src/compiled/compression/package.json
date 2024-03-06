@@ -1,5 +1,6 @@
 {
   "name": "compression",
   "main": "index.js",
+  "version": "1.7.4",
   "license": "MIT"
 }

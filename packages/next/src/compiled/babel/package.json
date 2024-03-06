@@ -1,6 +1,7 @@
 {
   "name": "@babel/core",
   "main": "bundle.js",
+  "version": "7.22.5",
   "author": "The Babel Team (https://babel.dev/team)",
   "license": "MIT",
   "types": "index.d.ts"

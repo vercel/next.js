@@ -1,6 +1,7 @@
 {
   "name": "@mswjs/interceptors",
   "main": "index.js",
+  "version": "0.23.0",
   "author": "Artem Zakharchenko",
   "license": "MIT"
 }

@@ -1,6 +1,7 @@
 {
   "name": "comment-json",
   "main": "index.js",
+  "version": "3.0.3",
   "author": "kaelzhang",
   "license": "MIT"
 }

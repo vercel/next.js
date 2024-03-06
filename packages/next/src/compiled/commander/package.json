@@ -1,1 +1,8 @@
-{"name":"commander","main":"index.js","author":"TJ Holowaychuk <tj@vision-media.ca>","license":"MIT"}
+{
+  "name": "commander",
+  "main": "index.js",
+  "version": "12.0.0",
+  "author": "TJ Holowaychuk <tj@vision-media.ca>",
+  "license": "MIT",
+  "types": "typings/index.d.ts"
+}

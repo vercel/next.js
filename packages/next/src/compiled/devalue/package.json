@@ -1,6 +1,7 @@
 {
   "name": "devalue",
   "main": "devalue.umd.js",
+  "version": "2.0.1",
   "license": "MIT",
   "types": "types/index.d.ts"
 }

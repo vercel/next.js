@@ -1,6 +1,7 @@
 {
   "name": "postcss-modules-local-by-default",
   "main": "index.js",
+  "version": "4.0.4",
   "author": "Mark Dalgleish",
   "license": "MIT"
 }

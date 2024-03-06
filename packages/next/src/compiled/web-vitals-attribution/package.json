@@ -1,6 +1,7 @@
 {
   "name": "web-vitals",
   "main": "web-vitals.attribution.js",
+  "version": "3.0.0",
   "author": {
     "name": "Philip Walton",
     "email": "philip@philipwalton.com",

@@ -1,6 +1,7 @@
 {
   "name": "browserslist",
   "main": "index.js",
+  "version": "4.22.2",
   "author": "Andrey Sitnik <andrey@sitnik.ru>",
   "license": "MIT",
   "types": "./index.d.ts"

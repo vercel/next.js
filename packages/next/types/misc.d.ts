@@ -9,27 +9,6 @@ declare namespace NodeJS {
   }
 }
 
-// TODO: try to replace with built in types?
-declare module 'next/dist/compiled/node-fetch' {
-  import fetch from 'node-fetch'
-  export * from 'node-fetch'
-  export default fetch
-}
-
-declare module 'next/dist/compiled/commander' {
-  import commander from 'commander'
-  export * from 'commander'
-  export default commander
-}
-
-declare module 'next/dist/compiled/node-html-parser' {
-  export * from 'node-html-parser'
-}
-
-declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
-  export * from '@mswjs/interceptors/ClientRequest'
-}
-
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
@@ -48,6 +27,27 @@ declare module 'next/dist/compiled/babel/core' {
   export * from '@babel/core'
 }
 
+declare module 'next/dist/compiled/edge-runtime' {
+  import m from 'edge-runtime'
+  export = m
+}
+
+// TODO: try to replace with built in types?
+declare module 'next/dist/compiled/node-fetch' {
+  import fetch from 'node-fetch'
+  export * from 'node-fetch'
+  export default fetch
+}
+
+// TODO: try to remove the following declarations
+
+declare module 'next/dist/compiled/node-html-parser' {
+  export * from 'node-html-parser'
+}
+
+declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
+  export * from '@mswjs/interceptors/ClientRequest'
+}
 declare module 'next/dist/compiled/compression' {
   import m from 'compression'
   export = m
@@ -78,10 +78,6 @@ declare module 'next/dist/compiled/tar' {
 }
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
-  export = m
-}
-declare module 'next/dist/compiled/edge-runtime' {
-  import m from 'edge-runtime'
   export = m
 }
 

@@ -1,6 +1,7 @@
 {
   "name": "tar",
   "main": "index.js",
+  "version": "6.1.15",
   "author": "GitHub Inc.",
   "license": "ISC"
 }

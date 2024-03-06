@@ -1,6 +1,7 @@
 {
   "name": "watchpack",
   "main": "watchpack.js",
+  "version": "2.4.0",
   "author": "Tobias Koppers @sokra",
   "license": "MIT"
 }

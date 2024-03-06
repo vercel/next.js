@@ -1,6 +1,7 @@
 {
   "name": "acorn",
   "main": "acorn.js",
+  "version": "8.5.0",
   "license": "MIT",
   "types": "dist/acorn.d.ts"
 }

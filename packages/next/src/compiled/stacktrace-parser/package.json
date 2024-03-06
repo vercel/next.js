@@ -1,6 +1,7 @@
 {
   "name": "stacktrace-parser",
   "main": "stack-trace-parser.cjs.js",
+  "version": "0.1.10",
   "author": "Georg Tavonius <g.tavonius@gmail.com> (http://jaz-lounge.com)",
   "license": "MIT"
 }

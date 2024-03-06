@@ -1,6 +1,7 @@
 {
   "name": "postcss-modules-values",
   "main": "index.js",
+  "version": "4.0.0",
   "author": "Glen Maddern",
   "license": "ISC"
 }

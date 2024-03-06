@@ -1,6 +1,7 @@
 {
   "name": "postcss-preset-env",
   "main": "index.cjs",
+  "version": "7.4.3",
   "author": "Jonathan Neal <jonathantneal@hotmail.com>",
   "license": "CC0-1.0",
   "types": "dist/index.cjs"

@@ -1,6 +1,7 @@
 {
   "name": "buffer",
   "main": "index.js",
+  "version": "5.6.0",
   "author": {
     "name": "Feross Aboukhadijeh",
     "email": "feross@feross.org",

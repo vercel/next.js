@@ -1,6 +1,7 @@
 {
   "name": "node-fetch",
   "main": "index.js",
+  "version": "2.6.7",
   "author": "David Frank",
   "license": "MIT"
 }

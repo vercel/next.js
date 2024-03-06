@@ -1,6 +1,7 @@
 {
   "name": "strip-ansi",
   "main": "index.js",
+  "version": "6.0.0",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

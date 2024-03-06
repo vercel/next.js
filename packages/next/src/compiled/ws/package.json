@@ -1,6 +1,7 @@
 {
   "name": "ws",
   "main": "index.js",
+  "version": "8.2.3",
   "author": "Einar Otto Stangvik <einaros@gmail.com> (http://2x.io)",
   "license": "MIT",
   "types": "index.d.ts"

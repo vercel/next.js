@@ -1,6 +1,7 @@
 {
   "name": "events",
   "main": "events.js",
+  "version": "3.3.0",
   "author": "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com)",
   "license": "MIT",
   "types": "index"

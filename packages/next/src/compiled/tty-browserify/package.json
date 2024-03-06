@@ -1,6 +1,7 @@
 {
   "name": "tty-browserify",
   "main": "index.js",
+  "version": "0.0.1",
   "author": {
     "name": "James Halliday",
     "email": "mail@substack.net",

@@ -1,6 +1,7 @@
 {
   "name": "http-proxy",
   "main": "index.js",
+  "version": "1.18.1",
   "author": "Charlie Robbins <charlie.robbins@gmail.com>",
   "license": "MIT",
   "types": "index.d.ts"

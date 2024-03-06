@@ -1,6 +1,7 @@
 {
   "name": "shell-quote",
   "main": "index.js",
+  "version": "1.7.3",
   "author": {
     "name": "James Halliday",
     "email": "mail@substack.net",

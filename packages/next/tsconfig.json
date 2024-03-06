@@ -10,6 +10,7 @@
     "types/compiled.d.ts",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
-    "experimental/**/*.d.ts"
+    "experimental/**/*.d.ts",
+    "src/compiled"
   ]
 }

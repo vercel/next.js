@@ -1,6 +1,7 @@
 {
   "name": "webpack",
   "main": "bundle5.js",
+  "version": "5.90.0",
   "author": "Tobias Koppers @sokra",
   "license": "MIT"
 }

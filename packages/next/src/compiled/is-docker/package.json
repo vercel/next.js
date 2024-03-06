@@ -1,6 +1,7 @@
 {
   "name": "is-docker",
   "main": "index.js",
+  "version": "2.0.0",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

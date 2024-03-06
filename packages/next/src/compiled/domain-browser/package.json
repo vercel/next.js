@@ -1,6 +1,7 @@
 {
   "name": "domain-browser",
   "main": "index.js",
+  "version": "4.19.0",
   "author": "2013+ Bevry Pty Ltd <us@bevry.me> (http://bevry.me)",
   "license": "MIT"
 }

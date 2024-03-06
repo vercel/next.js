@@ -1,9 +1,17 @@
+// =============================================================================
+// Replaced modules.
+// =============================================================================
+
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
 
 declare module 'next/package.json'
+
+// =============================================================================
+// Empty types.
+// =============================================================================
 
 declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
@@ -42,32 +50,9 @@ declare module 'react-server-dom-webpack/server.edge'
 declare module 'react-server-dom-webpack/server.node'
 declare module 'react-server-dom-webpack/client.edge'
 
-declare module 'next/dist/compiled/arg' {
-  function arg<T extends arg.Spec>(
-    spec: T,
-    options?: { argv?: string[]; permissive?: boolean }
-  ): arg.Result<T>
-
-  namespace arg {
-    export type Handler = (value: string) => any
-
-    export interface Spec {
-      [key: string]: string | Handler | [Handler]
-    }
-
-    export type Result<T extends Spec> = { _: string[] } & {
-      [K in keyof T]: T[K] extends string
-        ? never
-        : T[K] extends Handler
-        ? ReturnType<T[K]>
-        : T[K] extends [Handler]
-        ? Array<ReturnType<T[K][0]>>
-        : never
-    }
-  }
-
-  export = arg
-}
+// =============================================================================
+// Custom types.
+// =============================================================================
 
 declare module 'next/dist/compiled/babel/preset-env' {
   const anyType: any
@@ -82,19 +67,6 @@ declare module 'next/dist/compiled/cssnano-simple' {
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
 }
-
-// declare module 'next/dist/compiled/text-table' {
-//   function textTable(
-//     rows: Array<Array<{}>>,
-//     opts?: {
-//       hsep?: string
-//       align?: Array<'l' | 'r' | 'c' | '.'>
-//       stringLength?(str: string): number
-//     }
-//   ): string
-//
-//   export = textTable
-// }
 
 declare module 'next/dist/compiled/watchpack' {
   import { EventEmitter } from 'events'

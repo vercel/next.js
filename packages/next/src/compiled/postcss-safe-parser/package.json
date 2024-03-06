@@ -1,6 +1,7 @@
 {
   "name": "postcss-safe-parser",
   "main": "safe-parse.js",
+  "version": "6.0.0",
   "author": "Andrey Sitnik <andrey@sitnik.ru>",
   "license": "MIT"
 }

@@ -1,6 +1,7 @@
 {
   "name": "jest-worker",
   "main": "index.js",
+  "version": "27.5.1",
   "license": "MIT",
   "types": "./build/index.d.ts"
 }

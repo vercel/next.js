@@ -1,6 +1,7 @@
 {
   "name": "async-sema",
   "main": "index.js",
+  "version": "3.0.0",
   "author": "Olli Vanhoja",
   "license": "MIT",
   "types": "lib/index.d.ts"

@@ -1,6 +1,7 @@
 {
   "name": "stream-browserify",
   "main": "index.js",
+  "version": "3.0.0",
   "author": {
     "name": "James Halliday",
     "email": "mail@substack.net",

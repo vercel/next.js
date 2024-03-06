@@ -1,6 +1,7 @@
 {
   "name": "zod",
   "main": "index.js",
+  "version": "3.22.3",
   "author": "Colin McDonnell <colin@colinhacks.com>",
   "license": "MIT"
 }

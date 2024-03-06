@@ -1,6 +1,7 @@
 {
   "name": "https-proxy-agent",
   "main": "index.js",
+  "version": "5.0.1",
   "author": "Nathan Rajlich <nathan@tootallnate.net> (http://n8.io/)",
   "license": "MIT"
 }

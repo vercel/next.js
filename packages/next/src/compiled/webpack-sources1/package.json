@@ -1,6 +1,7 @@
 {
   "name": "webpack-sources",
   "main": "index.js",
+  "version": "1.4.3",
   "author": "Tobias Koppers @sokra",
   "license": "MIT"
 }

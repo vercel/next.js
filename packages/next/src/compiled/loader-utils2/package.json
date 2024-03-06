@@ -1,6 +1,7 @@
 {
   "name": "loader-utils",
   "main": "index.js",
+  "version": "2.0.0",
   "author": "Tobias Koppers @sokra",
   "license": "MIT"
 }

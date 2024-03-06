@@ -1,6 +1,7 @@
 {
   "name": "browserify-zlib",
   "main": "index.js",
+  "version": "0.2.0",
   "author": "Devon Govett <devongovett@gmail.com>",
   "license": "MIT"
 }

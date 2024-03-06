@@ -1,6 +1,7 @@
 {
   "name": "ci-info",
   "main": "index.js",
+  "version": "2.0.0",
   "author": "Thomas Watson Steen <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "types": "index"

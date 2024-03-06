@@ -1,6 +1,7 @@
 {
   "name": "postcss-flexbugs-fixes",
   "main": "index.js",
+  "version": "5.0.2",
   "author": "Luis Rudge <luis@luisrudge.net>",
   "license": "MIT"
 }

@@ -1,6 +1,7 @@
 {
   "name": "p-limit",
   "main": "index.js",
+  "version": "3.1.0",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

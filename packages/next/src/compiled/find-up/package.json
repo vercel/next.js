@@ -1,6 +1,7 @@
 {
   "name": "find-up",
   "main": "index.js",
+  "version": "4.1.0",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

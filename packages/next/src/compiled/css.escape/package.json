@@ -1,6 +1,7 @@
 {
   "name": "css.escape",
   "main": "css.escape.js",
+  "version": "1.5.1",
   "author": {
     "name": "Mathias Bynens",
     "url": "https://mathiasbynens.be/"

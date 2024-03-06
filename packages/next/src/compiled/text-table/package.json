@@ -1,6 +1,7 @@
 {
   "name": "text-table",
   "main": "index.js",
+  "version": "0.2.0",
   "author": {
     "name": "James Halliday",
     "email": "mail@substack.net",

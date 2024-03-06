@@ -1,6 +1,7 @@
 {
   "name": "platform",
   "main": "platform.js",
+  "version": "1.3.6",
   "author": "Benjamin Tan <demoneaux@gmail.com>",
   "license": "MIT",
   "types": "index.d.ts"

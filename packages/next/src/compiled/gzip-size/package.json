@@ -1,6 +1,7 @@
 {
   "name": "gzip-size",
   "main": "index.js",
+  "version": "5.1.1",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

@@ -188,7 +188,7 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
     case 'stack':
       return string.value.map(renderStyledStringToErrorAnsi).join('\n')
     default:
-      throw new Error('Unknown StyledString type', string)
+      throw new Error(`Unknown StyledString type ${string}`)
   }
 }
 

@@ -1,6 +1,7 @@
 {
   "name": "source-map",
   "main": "source-map.js",
+  "version": "0.6.1",
   "author": "Nick Fitzgerald <nfitzgerald@mozilla.com>",
   "license": "BSD-3-Clause",
   "types": "source-map"

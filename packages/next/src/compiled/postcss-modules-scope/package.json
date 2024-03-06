@@ -1,6 +1,7 @@
 {
   "name": "postcss-modules-scope",
   "main": "index.js",
+  "version": "3.0.0",
   "author": "Glen Maddern",
   "license": "ISC"
 }

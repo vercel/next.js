@@ -1,6 +1,7 @@
 {
   "name": "sass-loader",
   "main": "cjs.js",
+  "version": "12.4.0",
   "author": "J. Tangelder",
   "license": "MIT"
 }

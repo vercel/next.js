@@ -1,5 +1,6 @@
 {
   "name": "neo-async",
   "main": "async.js",
+  "version": "2.6.1",
   "license": "MIT"
 }

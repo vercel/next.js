@@ -1,6 +1,7 @@
 {
   "name": "is-animated",
   "main": "index.js",
+  "version": "2.0.2",
   "author": "Józef Sokołowski <j.k.sokolowski@gmail.com>",
   "license": "MIT"
 }

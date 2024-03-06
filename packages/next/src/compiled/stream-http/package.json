@@ -1,6 +1,7 @@
 {
   "name": "stream-http",
   "main": "index.js",
+  "version": "3.1.1",
   "author": "John Hiesey",
   "license": "MIT"
 }

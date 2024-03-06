@@ -1,6 +1,7 @@
 {
   "name": "schema-utils",
   "main": "index.js",
+  "version": "3.2.0",
   "author": "webpack Contrib (https://github.com/webpack-contrib)",
   "license": "MIT"
 }

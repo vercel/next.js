@@ -1,6 +1,7 @@
 {
   "name": "image-size",
   "main": "index.js",
+  "version": "1.0.0",
   "author": "netroy <aditya@netroy.in> (http://netroy.in/)",
   "license": "MIT",
   "types": "dist/index.d.ts"

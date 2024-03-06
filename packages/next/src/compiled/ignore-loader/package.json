@@ -1,4 +1,5 @@
 {
   "name": "ignore-loader",
-  "main": "index.js"
+  "main": "index.js",
+  "version": "0.1.2"
 }

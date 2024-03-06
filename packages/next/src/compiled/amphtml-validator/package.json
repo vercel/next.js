@@ -1,6 +1,7 @@
 {
   "name": "amphtml-validator",
   "main": "index.js",
+  "version": "1.0.35",
   "author": "The AMP HTML Authors",
   "license": "Apache-2.0"
 }

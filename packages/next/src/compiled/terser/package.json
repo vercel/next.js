@@ -1,6 +1,7 @@
 {
   "name": "terser",
   "main": "bundle.min.js",
+  "version": "5.27.0",
   "author": "Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)",
   "license": "BSD-2-Clause"
 }

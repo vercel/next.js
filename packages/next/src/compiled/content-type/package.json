@@ -1,6 +1,7 @@
 {
   "name": "content-type",
   "main": "index.js",
+  "version": "1.0.4",
   "author": "Douglas Christopher Wilson <doug@somethingdoug.com>",
   "license": "MIT",
   "types": "index"

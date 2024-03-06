@@ -1,6 +1,7 @@
 {
   "name": "cross-spawn",
   "main": "index.js",
+  "version": "7.0.3",
   "author": "André Cruz <andre@moxy.studio>",
   "license": "MIT"
 }

@@ -1,6 +1,7 @@
 {
   "name": "nanoid",
   "main": "index.cjs",
+  "version": "3.1.32",
   "author": "Andrey Sitnik <andrey@sitnik.ru>",
   "license": "MIT",
   "types": "./index.d.ts"

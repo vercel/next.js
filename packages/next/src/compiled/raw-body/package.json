@@ -1,6 +1,7 @@
 {
   "name": "raw-body",
   "main": "index.js",
+  "version": "2.4.1",
   "author": "Jonathan Ong <me@jongleberry.com> (http://jongleberry.com)",
   "license": "MIT"
 }

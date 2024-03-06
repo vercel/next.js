@@ -1,6 +1,7 @@
 {
   "name": "conf",
   "main": "index.js",
+  "version": "5.0.0",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

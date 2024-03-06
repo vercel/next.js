@@ -1,6 +1,7 @@
 {
   "name": "native-url",
   "main": "index.js",
+  "version": "0.3.4",
   "author": "Janicklas Ralph",
   "license": "Apache-2.0"
 }

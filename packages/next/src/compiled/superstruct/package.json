@@ -1,6 +1,7 @@
 {
   "name": "superstruct",
   "main": "index.cjs",
+  "version": "1.0.3",
   "license": "MIT",
   "types": "./dist/index.d.ts"
 }

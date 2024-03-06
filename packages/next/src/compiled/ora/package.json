@@ -1,6 +1,7 @@
 {
   "name": "ora",
   "main": "index.js",
+  "version": "4.0.4",
   "author": {
     "name": "Sindre Sorhus",
     "email": "sindresorhus@gmail.com",

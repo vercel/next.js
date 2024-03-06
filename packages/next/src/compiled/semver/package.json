@@ -1,6 +1,7 @@
 {
   "name": "semver",
   "main": "index.js",
+  "version": "7.3.2",
   "license": "ISC",
   "types": "index.d.ts"
 }

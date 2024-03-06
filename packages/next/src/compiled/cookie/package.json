@@ -1,6 +1,7 @@
 {
   "name": "cookie",
   "main": "index.js",
+  "version": "0.4.1",
   "author": "Roman Shtylman <shtylman@gmail.com>",
   "license": "MIT",
   "types": "index"

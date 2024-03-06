@@ -1,6 +1,7 @@
 {
   "name": "crypto-browserify",
   "main": "index.js",
+  "version": "3.12.0",
   "author": "Dominic Tarr <dominic.tarr@gmail.com> (dominictarr.com)",
   "license": "MIT"
 }

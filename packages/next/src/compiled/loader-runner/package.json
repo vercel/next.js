@@ -1,6 +1,7 @@
 {
   "name": "loader-runner",
   "main": "LoaderRunner.js",
+  "version": "4.3.0",
   "author": "Tobias Koppers @sokra",
   "license": "MIT"
 }

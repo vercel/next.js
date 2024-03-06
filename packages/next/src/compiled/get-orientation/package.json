@@ -1,6 +1,7 @@
 {
   "name": "get-orientation",
   "main": "index.js",
+  "version": "1.1.2",
   "author": "MooYeol Prescott Lee <mooyoul@gmail.com>",
   "license": "MIT",
   "types": "index.d.ts"

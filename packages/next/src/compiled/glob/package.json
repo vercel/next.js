@@ -1,6 +1,7 @@
 {
   "name": "glob",
   "main": "glob.js",
+  "version": "7.1.7",
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
   "license": "ISC"
 }

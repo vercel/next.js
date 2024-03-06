@@ -1,6 +1,7 @@
 {
   "name": "@opentelemetry/api",
   "main": "index.js",
+  "version": "1.6.0",
   "author": "OpenTelemetry Authors",
   "license": "Apache-2.0",
   "types": "build/src/index.d.ts"

@@ -1,5 +1,6 @@
 {
   "name": "assert",
   "main": "assert.js",
+  "version": "2.0.0",
   "license": "MIT"
 }

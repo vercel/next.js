@@ -1,6 +1,7 @@
 {
   "name": "@hapi/accept",
   "main": "index.js",
+  "version": "5.0.2",
   "license": "BSD-3-Clause",
   "types": "lib/index.d.ts"
 }

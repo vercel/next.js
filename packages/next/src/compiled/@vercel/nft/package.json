@@ -1,6 +1,7 @@
 {
   "name": "@vercel/nft",
   "main": "index.js",
+  "version": "0.26.4",
   "license": "MIT",
   "types": "./out/index.d.ts"
 }

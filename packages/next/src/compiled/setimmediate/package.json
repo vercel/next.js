@@ -1,6 +1,7 @@
 {
   "name": "setimmediate",
   "main": "setImmediate.js",
+  "version": "1.0.5",
   "author": "YuzuJS",
   "license": "MIT"
 }

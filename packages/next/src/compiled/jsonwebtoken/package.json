@@ -1,6 +1,7 @@
 {
   "name": "jsonwebtoken",
   "main": "index.js",
+  "version": "9.0.0",
   "author": "auth0",
   "license": "MIT",
   "types": "index.d.ts"

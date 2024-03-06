@@ -1,6 +1,7 @@
 {
   "name": "process",
   "main": "browser.js",
+  "version": "0.11.10",
   "author": "Roman Shtylman <shtylman@gmail.com>",
   "license": "MIT"
 }

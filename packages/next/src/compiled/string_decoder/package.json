@@ -1,5 +1,6 @@
 {
   "name": "string_decoder",
   "main": "string_decoder.js",
+  "version": "1.3.0",
   "license": "MIT"
 }

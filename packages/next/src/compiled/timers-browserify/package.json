@@ -1,6 +1,7 @@
 {
   "name": "timers-browserify",
   "main": "main.js",
+  "version": "2.0.12",
   "author": "J. Ryan Stinnett <jryans@gmail.com> (https://convolv.es/)",
   "license": "MIT"
 }

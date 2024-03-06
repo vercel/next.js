@@ -1,6 +1,7 @@
 {
   "name": "anser",
   "main": "index.js",
+  "version": "1.4.9",
   "author": "Ionică Bizău <bizauionica@gmail.com> (https://ionicabizau.net)",
   "license": "MIT",
   "types": "lib/index.d.ts"

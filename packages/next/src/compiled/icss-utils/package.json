@@ -1,6 +1,7 @@
 {
   "name": "icss-utils",
   "main": "index.js",
+  "version": "5.1.0",
   "author": "Glen Maddern",
   "license": "ISC"
 }
