@@ -6307,8 +6307,8 @@
     "runtimeError": false
   },
   "test/e2e/next-font/basepath.test.ts": {
-    "passed": [],
-    "failed": ["next/font/google basepath preload correct files"],
+    "passed": ["next/font/google basepath preload correct files"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
