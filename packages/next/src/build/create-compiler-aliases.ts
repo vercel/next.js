@@ -148,7 +148,7 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
 
     [RSC_ACTION_PROXY_ALIAS]:
-      'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+      'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
     [RSC_ACTION_ENCRYPTION_ALIAS]:
       'next/dist/server/app-render/action-encryption',
@@ -220,10 +220,14 @@ export function createNextApiEsmAliases() {
   return aliasMap
 }
 
-export function createAppRouterApiAliases() {
-  const mapping = {
+export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
+  const mapping: Record<string, string> = {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
+  }
+
+  if (isServerOnlyLayer) {
+    mapping['navigation'] = 'next/dist/api/navigation.react-server'
   }
 
   const aliasMap: Record<string, string> = {}

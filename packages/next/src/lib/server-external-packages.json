@@ -40,6 +40,7 @@
   "prettier",
   "prisma",
   "puppeteer",
+  "puppeteer-core",
   "rimraf",
   "sharp",
   "shiki",
@@ -49,5 +50,6 @@
   "typescript",
   "vscode-oniguruma",
   "webpack",
-  "websocket"
+  "websocket",
+  "zeromq"
 ]

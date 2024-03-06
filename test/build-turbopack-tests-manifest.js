@@ -32,9 +32,6 @@ const SKIPPED_TEST_SUITES = {
     'ReactRefreshRequire app propagates hot update to all inverse dependencies',
     'ReactRefreshRequire app re-runs accepted modules',
   ],
-  'test/development/acceptance/ReactRefreshLogBox.test.ts': [
-    'ReactRefreshLogBox turbo conversion to class component (1)',
-  ],
   'test/development/acceptance/ReactRefreshRequire.test.ts': [
     'ReactRefreshRequire propagates a hot update to closest accepted module',
     'ReactRefreshRequire propagates hot update to all inverse dependencies',
@@ -71,9 +68,6 @@ const SKIPPED_TEST_SUITES = {
     'app dir - metadata twitter should support default twitter player card',
     'app dir - metadata twitter should support twitter card summary_large_image when image present',
     'app dir - metadata viewport should support dynamic viewport export',
-  ],
-  'test/e2e/app-dir/navigation/navigation.test.ts': [
-    'app dir - navigation query string useParams identity between renders should be stable in pages',
   ],
   'test/e2e/basepath.test.ts': [
     'basePath should 404 when manually adding basePath with router.push',

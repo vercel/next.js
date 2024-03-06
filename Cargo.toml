@@ -30,18 +30,18 @@ next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.90.7", features = [
+swc_core = { version = "0.90.12", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.18" }
+testing = { version = "0.35.19" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240213.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240305.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240213.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240305.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240213.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240305.2" }
 
 # General Deps
 
@@ -92,11 +92,14 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.50", features = [
+lightningcss = { version = "=1.0.0-alpha.54", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
+lightningcss-napi = { version = "0.1.0", default-features = false, features = [
+  "visitor"
+]}
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
 once_cell = "1.17.1"

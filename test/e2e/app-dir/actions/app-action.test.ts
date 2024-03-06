@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
-import { Request, Response, Route } from 'playwright-chromium'
+import { check, waitFor, getRedboxSource, hasRedbox } from 'next-test-utils'
+import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -508,6 +508,73 @@ createNextDescribe(
     }
 
     if (isNextDev) {
+      describe('"use server" export values', () => {
+        it('should error when exporting non async functions at build time', async () => {
+          const filePath = 'app/server/actions.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await next.browser('/server')
+
+            const cnt = await browser.elementByCss('h1').text()
+            expect(cnt).toBe('0')
+
+            // This can be caught by SWC directly
+            await next.patchFile(
+              filePath,
+              origContent + '\n\nexport const foo = 1'
+            )
+
+            expect(await hasRedbox(browser)).toBe(true)
+            expect(await getRedboxSource(browser)).toContain(
+              'Only async functions are allowed to be exported in a "use server" file.'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should error when exporting non async functions during runtime', async () => {
+          const logs: string[] = []
+          next.on('stdout', (log) => {
+            logs.push(log)
+          })
+          next.on('stderr', (log) => {
+            logs.push(log)
+          })
+
+          const filePath = 'app/server/actions.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await next.browser('/server')
+
+            const cnt = await browser.elementByCss('h1').text()
+            expect(cnt).toBe('0')
+
+            // This requires the runtime to catch
+            await next.patchFile(
+              filePath,
+              origContent + '\n\nconst f = () => {}\nexport { f }'
+            )
+
+            await check(
+              () =>
+                logs.some((log) =>
+                  log.includes(
+                    'Error: A "use server" file can only export async functions. Found "f" that is not an async function.'
+                  )
+                )
+                  ? 'true'
+                  : '',
+              'true'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+      })
+
       describe('HMR', () => {
         it('should support updating the action', async () => {
           const filePath = 'app/server/actions-3.js'
@@ -1026,6 +1093,7 @@ createNextDescribe(
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+        expect(html).not.toContain('some-module-level-encryption-value')
       })
     })
 
@@ -1091,6 +1159,22 @@ createNextDescribe(
         // verify that the POST request was only made to the action handler
         expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
         expect(responseCodes).toEqual([303])
+      })
+
+      it('displays searchParams correctly when redirecting with SearchParams', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+        await browser.refresh()
+        expect(await browser.elementByCss('h2').text()).toBe('baz=')
+
+        // redirect with search params
+        await browser.elementById('redirect-with-search-params').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
+
+        // verify that the search params was set correctly
+        expect(await browser.elementByCss('h2').text()).toBe('baz=1')
       })
 
       it('merges cookies correctly when redirecting', async () => {

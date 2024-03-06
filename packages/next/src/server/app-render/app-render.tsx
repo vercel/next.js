@@ -38,6 +38,7 @@ import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
+  NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
@@ -50,7 +51,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { addImplicitTags } from '../lib/patch-fetch'
-import { AppRenderSpan } from '../lib/trace/constants'
+import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -100,6 +101,11 @@ import {
   usedDynamicAPIs,
   createPostponedAbortSignal,
 } from './dynamic-rendering'
+import {
+  getClientComponentLoaderMetrics,
+  wrapClientComponentLoader,
+} from '../client-component-renderer-logger'
+import { createServerModuleMap } from './action-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -285,6 +291,7 @@ async function generateFlight(
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       pathname: urlPathname,
+      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
@@ -408,6 +415,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
@@ -429,6 +437,13 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     missingSlots,
   })
 
+  // When the `vary` response header is present with `Next-URL`, that means there's a chance
+  // it could respond differently if there's an interception route. We provide this information
+  // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
+  const varyHeader = ctx.res.getHeader('vary')
+  const couldBeIntercepted =
+    typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
+
   return (
     <>
       {styles}
@@ -440,6 +455,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         initialTree={initialTree}
         // This is the tree of React nodes that are seeded into the cache
         initialSeedData={seedData}
+        couldBeIntercepted={couldBeIntercepted}
         initialHead={
           <>
             {ctx.res.statusCode > 400 && (
@@ -486,6 +502,7 @@ async function ReactServerError({
   const [MetadataTree] = createMetadataComponents({
     tree,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     errorType,
     query,
     getDynamicParamFromSegment,
@@ -595,11 +612,33 @@ async function renderToHTMLOrFlightImpl(
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
+    const instrumented = wrapClientComponentLoader(ComponentMod)
     // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app__.require
+    globalThis.__next_require__ = instrumented.require
+    // @ts-ignore
+    globalThis.__next_chunk_load__ = instrumented.loadChunk
+  }
 
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
+  if (typeof req.on === 'function') {
+    req.on('end', () => {
+      if ('performance' in globalThis) {
+        const metrics = getClientComponentLoaderMetrics({ reset: true })
+        if (metrics) {
+          getTracer()
+            .startSpan(NextNodeServerSpan.clientComponentLoading, {
+              startTime: metrics.clientComponentLoadStart,
+              attributes: {
+                'next.clientComponentLoadCount':
+                  metrics.clientComponentLoadCount,
+              },
+            })
+            .end(
+              metrics.clientComponentLoadStart +
+                metrics.clientComponentLoadTimes
+            )
+        }
+      }
+    })
   }
 
   const metadata: AppPageRenderResultMetadata = {}
@@ -609,27 +648,10 @@ async function renderToHTMLOrFlightImpl(
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
 
-  const workerName = 'app' + renderOpts.page
-  const serverModuleMap: {
-    [id: string]: {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  } = new Proxy(
-    {},
-    {
-      get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[workerName],
-          name: id,
-          chunks: [],
-        }
-      },
-    }
-  )
+  const serverModuleMap = createServerModuleMap({
+    serverActionsManifest,
+    pageName: renderOpts.page,
+  })
 
   setReferenceManifestsSingleton({
     clientReferenceManifest,
@@ -919,6 +941,7 @@ async function renderToHTMLOrFlightImpl(
         polyfills,
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
+        basePath: renderOpts.basePath,
       })
 
       const renderer = createStaticRenderer({
@@ -1146,8 +1169,8 @@ async function renderToHTMLOrFlightImpl(
         // a suspense boundary.
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
+          const stack = getStackWithoutErrorMessage(err)
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
-            const stack = getStackWithoutErrorMessage(err)
             error(
               `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
             )
@@ -1156,7 +1179,7 @@ async function renderToHTMLOrFlightImpl(
           }
 
           warn(
-            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering`
+            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering\n${stack}`
           )
         }
 
@@ -1248,6 +1271,7 @@ async function renderToHTMLOrFlightImpl(
                 polyfills,
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
+                basePath: renderOpts.basePath,
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,

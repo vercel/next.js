@@ -1,13 +1,13 @@
 import { createNextDescribe } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request } from 'playwright-chromium'
+import type { Response } from 'playwright'
 
 createNextDescribe(
   'app dir - navigation',
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy, isNextStart }) => {
+  ({ next, isNextDev, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await next.browser('/')
@@ -15,7 +15,7 @@ createNextDescribe(
           `""`
         )
 
-        browser.elementById('set-query').click()
+        await browser.elementById('set-query').click()
 
         await retry(() =>
           expect(browser.elementById('query').text()).resolves.toEqual(
@@ -34,19 +34,21 @@ createNextDescribe(
           headers: Record<string, string>
         }> = []
 
-        const browser = await next.browser('/search-params?name=名')
-        browser.on('request', async (req: Request) => {
-          const res = await req.response()
-          if (!res) return
-
-          requests.push({
-            pathname: new URL(req.url()).pathname,
-            ok: res.ok(),
-            headers: res.headers(),
-          })
+        const browser = await next.browser('/search-params?name=名', {
+          beforePageLoad(page) {
+            page.on('response', async (res: Response) => {
+              requests.push({
+                pathname: new URL(res.url()).pathname,
+                ok: res.ok(),
+                headers: res.headers(),
+              })
+            })
+          },
         })
+
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#set-query')
 
         await retry(() =>
           expect(requests).toContainEqual({
@@ -77,7 +79,12 @@ createNextDescribe(
             pathname: '/search-params/foo',
             // App Router doesn't re-render on initial load (the params are baked
             // server side). In development, effects will render twice.
-            waitForNEffects: isNextDev ? 2 : 1,
+
+            // experimental react is having issues with this use effect
+            // @acdlite will take a look
+            // TODO: remove this PPR cond after react fixes the issue in experimental build.
+            waitForNEffects:
+              isNextDev && !process.env.__NEXT_EXPERIMENTAL_PPR ? 2 : 1,
           },
           {
             router: 'pages',
@@ -601,7 +608,7 @@ createNextDescribe(
         // it doesn't repeatedly initiate the mpa navigation request
         it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
           let requestCount = 0
-          const browser = await next.browser('/mpa-nav-test', {
+          await next.browser('/mpa-nav-test', {
             beforePageLoad(page) {
               page.on('request', (request) => {
                 const url = new URL(request.url())
@@ -612,8 +619,6 @@ createNextDescribe(
               })
             },
           })
-
-          await browser.waitForElementByCss('#link-to-slow-page')
 
           // wait a few seconds since prefetches are triggered in 1s intervals in the page component
           await waitFor(5000)
@@ -850,6 +855,29 @@ createNextDescribe(
           expect(await browser.elementByCss('body').text()).toContain(
             '[paramB] page'
           )
+        })
+      })
+    })
+
+    describe('browser back to a revalidated page', () => {
+      it('should load the page', async () => {
+        const browser = await next.browser('/popstate-revalidate')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        await browser.elementByCss("[href='/popstate-revalidate/foo']").click()
+        await browser.waitForElementByCss('#submit-button')
+        expect(await browser.elementByCss('h1').text()).toBe('Form')
+        await browser.elementById('submit-button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Form Submitted.'
+          )
+        })
+
+        await browser.back()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
         })
       })
     })

@@ -28,16 +28,17 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getServerError
-let decorateServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').decorateServerError
+let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware = require('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
   getServerError = middleware.getServerError
-  decorateServerError = middleware.decorateServerError
+  decorateServerError =
+    require('../../../shared/lib/error-source').decorateServerError
 } else {
   getServerError = (error: Error, _: string) => error
-  decorateServerError = (error: Error, _: string) => error
+  decorateServerError = (_: Error, __: string) => {}
 }
 
 /**
@@ -263,6 +264,12 @@ async function createModuleContext(options: ModuleContextOptions) {
         },
       })
 
+      if (process.env.NODE_ENV !== 'production') {
+        context.__next_log_error__ = function (err: unknown) {
+          options.onError(err)
+        }
+      }
+
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
         if (!warnedEvals.has(key)) {
@@ -457,6 +464,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
 interface ModuleContextOptions {
   moduleName: string
+  onError: (err: unknown) => void
   onWarning: (warn: Error) => void
   useCache: boolean
   distDir: string
