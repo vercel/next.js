@@ -608,7 +608,7 @@ export interface TurbopackStackFrame {
   /** 1-indexed, unlike source map tokens */
   line?: number
   /** 1-indexed, unlike source map tokens */
-  column?: number
+  column?: number | null
   methodName?: string
 }
 

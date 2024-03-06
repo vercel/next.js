@@ -1,6 +1,6 @@
+import type { StackFrame } from 'stacktrace-parser'
 import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 export type SourcePackage = 'react' | 'next'
 
