@@ -1,1 +1,6 @@
-{"name":"crypto-browserify","main":"index.js","author":"Dominic Tarr <dominic.tarr@gmail.com> (dominictarr.com)","license":"MIT"}
+{
+  "name": "crypto-browserify",
+  "main": "index.js",
+  "author": "Dominic Tarr <dominic.tarr@gmail.com> (dominictarr.com)",
+  "license": "MIT"
+}

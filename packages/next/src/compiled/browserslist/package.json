@@ -1,1 +1,7 @@
-{"name":"browserslist","main":"index.js","author":"Andrey Sitnik <andrey@sitnik.ru>","license":"MIT"}
+{
+  "name": "browserslist",
+  "main": "index.js",
+  "author": "Andrey Sitnik <andrey@sitnik.ru>",
+  "license": "MIT",
+  "types": "./index.d.ts"
+}

@@ -1,1 +1,6 @@
-{"name":"icss-utils","main":"index.js","author":"Glen Maddern","license":"ISC"}
+{
+  "name": "icss-utils",
+  "main": "index.js",
+  "author": "Glen Maddern",
+  "license": "ISC"
+}

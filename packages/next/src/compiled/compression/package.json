@@ -1,1 +1,5 @@
-{"name":"compression","main":"index.js","license":"MIT"}
+{
+  "name": "compression",
+  "main": "index.js",
+  "license": "MIT"
+}

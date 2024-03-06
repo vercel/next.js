@@ -1,1 +1,7 @@
-{"name":"anser","main":"index.js","author":"Ionică Bizău <bizauionica@gmail.com> (https://ionicabizau.net)","license":"MIT"}
+{
+  "name": "anser",
+  "main": "index.js",
+  "author": "Ionică Bizău <bizauionica@gmail.com> (https://ionicabizau.net)",
+  "license": "MIT",
+  "types": "lib/index.d.ts"
+}

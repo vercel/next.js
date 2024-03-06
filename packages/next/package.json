@@ -53,6 +53,7 @@
     "types/index.d.ts",
     "types/global.d.ts",
     "types/compiled.d.ts",
+    "types/compiled-shared.d.ts",
     "image-types/global.d.ts",
     "navigation-types/navigation.d.ts",
     "navigation-types/compat/navigation.d.ts",

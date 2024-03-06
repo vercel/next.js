@@ -1,1 +1,7 @@
-{"name":"get-orientation","main":"index.js","author":"MooYeol Prescott Lee <mooyoul@gmail.com>","license":"MIT"}
+{
+  "name": "get-orientation",
+  "main": "index.js",
+  "author": "MooYeol Prescott Lee <mooyoul@gmail.com>",
+  "license": "MIT",
+  "types": "index.d.ts"
+}

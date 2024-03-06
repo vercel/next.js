@@ -1,1 +1,7 @@
-{"name":"postcss-scss","main":"scss-syntax.js","author":"Andrey Sitnik <andrey@sitnik.ru>","license":"MIT"}
+{
+  "name": "postcss-scss",
+  "main": "scss-syntax.js",
+  "author": "Andrey Sitnik <andrey@sitnik.ru>",
+  "license": "MIT",
+  "types": "lib/scss-syntax.d.ts"
+}

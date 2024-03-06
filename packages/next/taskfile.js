@@ -1,3 +1,5 @@
+/** @typedef {import('./types/taskr.d.ts').Task} Task */
+
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
@@ -86,6 +88,7 @@ export async function ncc_node_html_parser(task, opts) {
       packageName: 'node-html-parser',
       externals,
       target: 'es5',
+      types: false,
     })
     .target('src/compiled/node-html-parser')
 }
@@ -102,6 +105,7 @@ export async function ncc_mswjs_interceptors(task, opts) {
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
+      types: false,
     })
     .target('src/compiled/@mswjs/interceptors/ClientRequest')
 }
@@ -217,26 +221,22 @@ export async function copy_vercel_og(task, opts) {
     })
     .target('src/compiled/@vercel/og')
 
-  await writeJson(
-    join(__dirname, 'src/compiled/@vercel/og/package.json'),
-    {
-      name: '@vercel/og',
-      version: require('@vercel/og/package.json').version,
-      LICENSE: 'MLP-2.0',
-      type: 'module',
-      main: './index.node.js',
-      exports: {
-        '.': {
-          'edge-light': './index.edge.js',
-          import: './index.node.js',
-          node: './index.node.js',
-          default: './index.node.js',
-        },
-        './package.json': './package.json',
+  await writeJson(join(__dirname, 'src/compiled/@vercel/og/package.json'), {
+    name: '@vercel/og',
+    version: require('@vercel/og/package.json').version,
+    LICENSE: 'MLP-2.0',
+    type: 'module',
+    main: './index.node.js',
+    exports: {
+      '.': {
+        'edge-light': './index.edge.js',
+        import: './index.node.js',
+        node: './index.node.js',
+        default: './index.node.js',
       },
+      './package.json': './package.json',
     },
-    { spaces: 2 }
-  )
+  })
 }
 
 // eslint-disable-next-line camelcase
@@ -244,7 +244,7 @@ externals['node-fetch'] = 'next/dist/compiled/node-fetch'
 export async function ncc_node_fetch(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-fetch')))
-    .ncc({ packageName: 'node-fetch', externals })
+    .ncc({ packageName: 'node-fetch', externals, types: false })
     .target('src/compiled/node-fetch')
 }
 
@@ -263,7 +263,7 @@ externals['next/dist/compiled/stacktrace-parser'] =
 export async function ncc_node_stacktrace_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('stacktrace-parser')))
-    .ncc({ packageName: 'stacktrace-parser', externals })
+    .ncc({ packageName: 'stacktrace-parser', externals, types: false })
     .target('src/compiled/stacktrace-parser')
 }
 
@@ -459,7 +459,7 @@ export async function ncc_edge_runtime(task, opts) {
 
   await task
     .source(relative(__dirname, require.resolve('edge-runtime')))
-    .ncc({ packageName: 'edge-runtime', externals })
+    .ncc({ packageName: 'edge-runtime', externals, types: false })
     .target('src/compiled/edge-runtime')
 
   const outputFile = join(__dirname, 'src/compiled/edge-runtime/index.js')
@@ -583,7 +583,7 @@ export async function ncc_react_refresh_utils(task, opts) {
   await rmrf(destDir)
   await fs.mkdir(destDir, { recursive: true })
 
-  const files = glob.sync('**/*.{js,json}', { cwd: srcDir })
+  const files = glob.sync('**/*.{js,json,d.ts}', { cwd: srcDir })
 
   for (const file of files) {
     if (file === 'tsconfig.json') continue
@@ -733,6 +733,15 @@ export async function ncc_buffer(task, opts) {
 export async function copy_react_is(task, opts) {
   await task
     .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
+    .target('src/compiled/react-is')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@types/react-is/package.json')),
+        '**/*.d.ts'
+      )
+    )
     .target('src/compiled/react-is')
 }
 
@@ -1015,6 +1024,7 @@ export async function ncc_async_retry(task, opts) {
     .ncc({
       packageName: 'async-retry',
       externals,
+      types: false,
     })
     .target('src/compiled/async-retry')
 }
@@ -1129,6 +1139,12 @@ export async function ncc_cssnano_simple_bundle(task, opts) {
 
 // eslint-disable-next-line camelcase
 externals['bytes'] = 'next/dist/compiled/bytes'
+
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function ncc_bytes(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('bytes')))
@@ -1170,7 +1186,7 @@ externals['compression'] = 'next/dist/compiled/compression'
 export async function ncc_compression(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('compression')))
-    .ncc({ packageName: 'compression', externals })
+    .ncc({ packageName: 'compression', externals, types: false })
     .target('src/compiled/compression')
 }
 // eslint-disable-next-line camelcase
@@ -1178,7 +1194,7 @@ externals['conf'] = 'next/dist/compiled/conf'
 export async function ncc_conf(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('conf')))
-    .ncc({ packageName: 'conf', externals })
+    .ncc({ packageName: 'conf', externals, types: false })
     .target('src/compiled/conf')
 }
 // eslint-disable-next-line camelcase
@@ -1235,7 +1251,7 @@ externals['find-up'] = 'next/dist/compiled/find-up'
 export async function ncc_find_up(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('find-up')))
-    .ncc({ packageName: 'find-up', externals })
+    .ncc({ packageName: 'find-up', externals, types: false })
     .target('src/compiled/find-up')
 }
 // eslint-disable-next-line camelcase
@@ -1251,7 +1267,7 @@ externals['glob'] = 'next/dist/compiled/glob'
 export async function ncc_glob(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('glob')))
-    .ncc({ packageName: 'glob', externals })
+    .ncc({ packageName: 'glob', externals, types: false })
     .target('src/compiled/glob')
 }
 // eslint-disable-next-line camelcase
@@ -1385,6 +1401,7 @@ export async function ncc_native_url(task, opts) {
         querystring: 'next/dist/compiled/querystring-es3',
       },
       target: 'es5',
+      types: false,
     })
     .target('src/compiled/native-url')
 }
@@ -1402,7 +1419,7 @@ externals['ora'] = 'next/dist/compiled/ora'
 export async function ncc_ora(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ora')))
-    .ncc({ packageName: 'ora', externals })
+    .ncc({ packageName: 'ora', externals, types: false })
     .target('src/compiled/ora')
 }
 // eslint-disable-next-line camelcase
@@ -1808,6 +1825,7 @@ export async function ncc_schema_utils2(task, opts) {
       packageName: 'schema-utils',
       bundleName: 'schema-utils2',
       externals,
+      types: false,
     })
     .target('src/compiled/schema-utils2')
 }
@@ -1820,6 +1838,7 @@ export async function ncc_schema_utils3(task, opts) {
       packageName: 'schema-utils',
       bundleName: 'schema-utils3',
       externals,
+      types: false,
     })
     .target('src/compiled/schema-utils3')
 }
@@ -1835,7 +1854,7 @@ externals['send'] = 'next/dist/compiled/send'
 export async function ncc_send(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('send')))
-    .ncc({ packageName: 'send', externals })
+    .ncc({ packageName: 'send', externals, types: false })
     .target('src/compiled/send')
 }
 // eslint-disable-next-line camelcase
@@ -1895,7 +1914,7 @@ externals['tar'] = 'next/dist/compiled/tar'
 export async function ncc_tar(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('tar')))
-    .ncc({ packageName: 'tar', externals })
+    .ncc({ packageName: 'tar', externals, types: false })
     .target('src/compiled/tar')
 }
 
@@ -1904,7 +1923,7 @@ externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('terser')))
-    .ncc({ packageName: 'terser', externals })
+    .ncc({ packageName: 'terser', externals, types: false })
     .target('src/compiled/terser')
 }
 // eslint-disable-next-line camelcase
@@ -1918,10 +1937,14 @@ export async function ncc_text_table(task, opts) {
 // eslint-disable-next-line camelcase
 externals['unistore'] = 'next/dist/compiled/unistore'
 export async function ncc_unistore(task, opts) {
+  const dest = 'src/compiled/unistore'
+
   await task
     .source(relative(__dirname, require.resolve('unistore')))
-    .ncc({ packageName: 'unistore', externals })
-    .target('src/compiled/unistore')
+    .ncc({ packageName: 'unistore', externals, types: false })
+    .target(dest)
+
+  await fs.cp(require.resolve('unistore/index.d.ts'), join(dest, 'index.d.ts'))
 }
 
 // eslint-disable-next-line camelcase
@@ -1937,7 +1960,7 @@ externals['zod'] = 'next/dist/compiled/zod'
 export async function ncc_zod(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('zod')))
-    .ncc({ packageName: 'zod', externals })
+    .ncc({ packageName: 'zod', externals, types: false })
     .target('src/compiled/zod')
 }
 
@@ -1981,7 +2004,12 @@ externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
 export async function ncc_webpack_sources1(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('webpack-sources1')))
-    .ncc({ packageName: 'webpack-sources1', externals, target: 'es5' })
+    .ncc({
+      packageName: 'webpack-sources1',
+      externals,
+      target: 'es5',
+      types: false,
+    })
     .target('src/compiled/webpack-sources1')
 }
 // eslint-disable-next-line camelcase
@@ -2082,6 +2110,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       },
       externals: bundleExternals,
       target: 'es5',
+      types: false,
     })
     .target('src/compiled/webpack')
 }
@@ -2112,9 +2141,16 @@ export async function ncc_ws(task, opts) {
 
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
+  const dest = 'dist/compiled/path-to-regexp'
+
   await task
     .source(relative(__dirname, require.resolve('path-to-regexp')))
-    .target('dist/compiled/path-to-regexp')
+    .target(dest)
+
+  await fs.cp(
+    require.resolve('path-to-regexp/dist/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -2133,7 +2169,7 @@ externals['http-proxy-agent'] = 'next/dist/compiled/http-proxy-agent'
 export async function ncc_http_proxy_agent(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('http-proxy-agent')))
-    .ncc({ packageName: 'http-proxy-agent', externals })
+    .ncc({ packageName: 'http-proxy-agent', externals, types: false })
     .target('src/compiled/http-proxy-agent')
 }
 
@@ -2142,7 +2178,7 @@ externals['https-proxy-agent'] = 'next/dist/compiled/https-proxy-agent'
 export async function ncc_https_proxy_agent(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('https-proxy-agent')))
-    .ncc({ packageName: 'https-proxy-agent', externals })
+    .ncc({ packageName: 'https-proxy-agent', externals, types: false })
     .target('src/compiled/https-proxy-agent')
 }
 
@@ -2165,9 +2201,14 @@ export async function copy_ncced(task) {
   await task.source('src/compiled/**/*').target('dist/compiled')
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function ncc(task, opts) {
   await task
-    .clear('compiled')
+    .clear('src/compiled')
     .parallel(
       [
         'ncc_node_html_parser',
@@ -2678,10 +2719,20 @@ export async function experimental_testmode(task, opts) {
     .target('dist/experimental/testmode')
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function release(task) {
   await task.clear('dist').start('build')
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_app_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2693,6 +2744,11 @@ export async function next_bundle_app_turbo(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_app_prod(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2704,6 +2760,11 @@ export async function next_bundle_app_prod(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_app_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2715,6 +2776,11 @@ export async function next_bundle_app_dev(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_app_turbo_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2727,6 +2793,11 @@ export async function next_bundle_app_turbo_experimental(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_app_prod_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2739,6 +2810,11 @@ export async function next_bundle_app_prod_experimental(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_app_dev_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2751,6 +2827,11 @@ export async function next_bundle_app_dev_experimental(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_pages_prod(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2762,6 +2843,11 @@ export async function next_bundle_pages_prod(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_pages_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2773,6 +2859,11 @@ export async function next_bundle_pages_dev(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_pages_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2784,6 +2875,11 @@ export async function next_bundle_pages_turbo(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle_server(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2795,6 +2891,11 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
+/**
+ * @param {Task} task
+ * @param {object} opts
+ * @return {Promise<void>}
+ */
 export async function next_bundle(task, opts) {
   await task.parallel(
     [
@@ -2817,7 +2918,7 @@ export async function next_bundle(task, opts) {
   )
 }
 
-function writeJson(file, obj, { spaces = 0 } = {}) {
+function writeJson(file, obj, { spaces = 2 } = {}) {
   return fs.writeFile(
     file,
     JSON.stringify(obj, null, spaces) + (spaces === 0 ? '\n' : '')
@@ -2828,6 +2929,11 @@ function rmrf(path, options) {
   return fs.rm(path, { recursive: true, force: true, ...options })
 }
 
+/**
+ *
+ * @param {string} path
+ * @return {Promise<Record<string, any>>}
+ */
 function readJson(path) {
   return fs.readFile(path, 'utf8').then((content) => JSON.parse(content))
 }

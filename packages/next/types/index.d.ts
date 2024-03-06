@@ -18,20 +18,20 @@ import {
   NextApiRequest,
   NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/shared/lib/utils'
+} from 'next/dist/shared/lib/utils'
 
 import type {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/server/api-utils'
+} from 'next/dist/server/api-utils'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-import next from '../dist/server/next'
+import next from 'next/dist/server/next'
 
 export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-export { NextConfig } from '../dist/server/config'
+export { NextConfig } from 'next/dist/server/config'
 
 export type {
   Metadata,
@@ -42,7 +42,7 @@ export type {
   ResolvingViewport,
   ResolvedViewport,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/lib/metadata/types/metadata-interface'
+} from 'next/dist/lib/metadata/types/metadata-interface'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run

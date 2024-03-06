@@ -1,1 +1,6 @@
-{"name":"tar","main":"index.js","author":"GitHub Inc.","license":"ISC"}
+{
+  "name": "tar",
+  "main": "index.js",
+  "author": "GitHub Inc.",
+  "license": "ISC"
+}

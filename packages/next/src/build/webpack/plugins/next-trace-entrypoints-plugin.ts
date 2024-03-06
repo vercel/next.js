@@ -4,6 +4,7 @@ import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
+import type { Job } from 'next/dist/compiled/@vercel/nft/out/node-file-trace'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
@@ -288,7 +289,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     doResolve: (
       request: string,
       parent: string,
-      job: import('@vercel/nft/out/node-file-trace').Job,
+      job: Job,
       isEsmRequested: boolean
     ) => Promise<string>,
     readlink: any,
@@ -635,11 +636,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         const getResolve = (options: any) => {
           const curResolver = resolver.withOptions(options)
 
-          return (
-            parent: string,
-            request: string,
-            job: import('@vercel/nft/out/node-file-trace').Job
-          ) =>
+          return (parent: string, request: string, job: Job) =>
             new Promise<[string, boolean]>((resolve, reject) => {
               const context = nodePath.dirname(parent)
 
@@ -741,7 +738,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         const doResolve = async (
           request: string,
           parent: string,
-          job: import('@vercel/nft/out/node-file-trace').Job,
+          job: Job,
           isEsmRequested: boolean
         ): Promise<string> => {
           const context = nodePath.dirname(parent)

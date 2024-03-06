@@ -1,1 +1,6 @@
-{"name":"semver","main":"index.js","license":"ISC"}
+{
+  "name": "semver",
+  "main": "index.js",
+  "license": "ISC",
+  "types": "index.d.ts"
+}

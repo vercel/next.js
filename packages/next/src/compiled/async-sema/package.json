@@ -1,1 +1,7 @@
-{"name":"async-sema","main":"index.js","author":"Olli Vanhoja","license":"MIT"}
+{
+  "name": "async-sema",
+  "main": "index.js",
+  "author": "Olli Vanhoja",
+  "license": "MIT",
+  "types": "lib/index.d.ts"
+}

@@ -1,1 +1,6 @@
-{"name":"jest-worker","main":"index.js","license":"MIT"}
+{
+  "name": "jest-worker",
+  "main": "index.js",
+  "license": "MIT",
+  "types": "./build/index.d.ts"
+}

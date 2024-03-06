@@ -1,1 +1,9 @@
-{"name":"css.escape","main":"css.escape.js","author":{"name":"Mathias Bynens","url":"https://mathiasbynens.be/"},"license":"MIT"}
+{
+  "name": "css.escape",
+  "main": "css.escape.js",
+  "author": {
+    "name": "Mathias Bynens",
+    "url": "https://mathiasbynens.be/"
+  },
+  "license": "MIT"
+}

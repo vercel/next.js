@@ -1,1 +1,7 @@
-{"name":"content-disposition","main":"index.js","author":"Douglas Christopher Wilson <doug@somethingdoug.com>","license":"MIT"}
+{
+  "name": "content-disposition",
+  "main": "index.js",
+  "author": "Douglas Christopher Wilson <doug@somethingdoug.com>",
+  "license": "MIT",
+  "types": "index.d.ts"
+}

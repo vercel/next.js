@@ -1,1 +1,7 @@
-{"name":"arg","main":"index.js","author":"Josh Junon <junon@zeit.co>","license":"MIT"}
+{
+  "name": "arg",
+  "main": "index.js",
+  "author": "Josh Junon <junon@zeit.co>",
+  "license": "MIT",
+  "types": "index.d.ts"
+}

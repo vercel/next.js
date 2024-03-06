@@ -1,1 +1,6 @@
-{"name":"acorn","main":"acorn.js","license":"MIT"}
+{
+  "name": "acorn",
+  "main": "acorn.js",
+  "license": "MIT",
+  "types": "dist/acorn.d.ts"
+}

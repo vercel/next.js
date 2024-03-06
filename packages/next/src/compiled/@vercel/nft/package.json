@@ -1,1 +1,6 @@
-{"name":"@vercel/nft","main":"index.js","license":"MIT"}
+{
+  "name": "@vercel/nft",
+  "main": "index.js",
+  "license": "MIT",
+  "types": "./out/index.d.ts"
+}

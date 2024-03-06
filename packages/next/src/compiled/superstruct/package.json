@@ -1,1 +1,6 @@
-{"name":"superstruct","main":"index.cjs","license":"MIT"}
+{
+  "name": "superstruct",
+  "main": "index.cjs",
+  "license": "MIT",
+  "types": "./dist/index.d.ts"
+}

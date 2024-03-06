@@ -1,1 +1,7 @@
-{"name":"nanoid","main":"index.cjs","author":"Andrey Sitnik <andrey@sitnik.ru>","license":"MIT"}
+{
+  "name": "nanoid",
+  "main": "index.cjs",
+  "author": "Andrey Sitnik <andrey@sitnik.ru>",
+  "license": "MIT",
+  "types": "./index.d.ts"
+}

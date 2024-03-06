@@ -1,1 +1,6 @@
-{"name":"zod","main":"index.js","author":"Colin McDonnell <colin@colinhacks.com>","license":"MIT"}
+{
+  "name": "zod",
+  "main": "index.js",
+  "author": "Colin McDonnell <colin@colinhacks.com>",
+  "license": "MIT"
+}

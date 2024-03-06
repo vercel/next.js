@@ -1,1 +1,7 @@
-{"name":"image-size","main":"index.js","author":"netroy <aditya@netroy.in> (http://netroy.in/)","license":"MIT"}
+{
+  "name": "image-size",
+  "main": "index.js",
+  "author": "netroy <aditya@netroy.in> (http://netroy.in/)",
+  "license": "MIT",
+  "types": "dist/index.d.ts"
+}

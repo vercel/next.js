@@ -1,1 +1,5 @@
-{"name":"assert","main":"assert.js","license":"MIT"}
+{
+  "name": "assert",
+  "main": "assert.js",
+  "license": "MIT"
+}

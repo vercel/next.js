@@ -1,1 +1,6 @@
-{"name":"postcss-modules-scope","main":"index.js","author":"Glen Maddern","license":"ISC"}
+{
+  "name": "postcss-modules-scope",
+  "main": "index.js",
+  "author": "Glen Maddern",
+  "license": "ISC"
+}
