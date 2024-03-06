@@ -13,9 +13,15 @@ import {
 import fs, { constants as FS } from 'fs/promises'
 import { launchEditor } from '../internal/helpers/launchEditor'
 
-export interface TurbopackStackFrame extends StackFrame {
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+export interface TurbopackStackFrame
+  extends Pick<StackFrame, 'file' | 'methodName'> {
+  isServer: boolean
   isInternal?: boolean
+  /** 1-indexed, unlike source map tokens */
   line: number | null
+  /** 1-indexed, unlike source map tokens */
+  column: number | null
 }
 
 interface Project {
@@ -59,8 +65,8 @@ export async function batchedTraceSource(
   return {
     frame: {
       file: sourceFrame.file,
-      lineNumber: sourceFrame.line,
-      column: sourceFrame.column,
+      lineNumber: sourceFrame.line ?? 0,
+      column: sourceFrame.column ?? 0,
       methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
     },
@@ -96,7 +102,6 @@ export function getOverlayMiddleware(project: Project) {
       line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
       isServer: searchParams.get('isServer') === 'true',
-      arguments: searchParams.getAll('arguments').filter(Boolean),
     } satisfies TurbopackStackFrame
 
     if (pathname === '/__nextjs_original-stack-frame') {

@@ -95,6 +95,7 @@ export async function createOriginalStackFrame({
   modulePath,
   rootDirectory,
   frame,
+  errorMessage,
   compilation,
 }: {
   source: any
@@ -102,9 +103,10 @@ export async function createOriginalStackFrame({
   modulePath?: string
   rootDirectory: string
   frame: StackFrame
+  errorMessage?: string
   compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber, column, errorMessage } = frame
+  const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
     if (moduleNotFound) {
@@ -219,14 +221,13 @@ export function getOverlayMiddleware(options: {
       lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
       arguments: searchParams.getAll('arguments').filter(Boolean),
-      isServer: searchParams.get('isServer') === 'true',
-      isEdgeServer: searchParams.get('isEdgeServer') === 'true',
-      isAppDirectory: searchParams.get('isAppDirectory') === 'true',
-      errorMessage: searchParams.get('errorMessage') ?? undefined,
     } satisfies StackFrame
 
+    const isServer = searchParams.get('isServer') === 'true'
+    const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
+    const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
+
     if (pathname === '/__nextjs_original-stack-frame') {
-      const { isAppDirectory, isEdgeServer, isServer } = frame
       const isClient = !isServer && !isEdgeServer
 
       let sourcePackage = findSourcePackage(frame)

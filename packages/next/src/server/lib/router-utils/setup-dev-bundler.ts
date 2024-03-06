@@ -899,7 +899,6 @@ async function startWatcher(opts: SetupOpts) {
                   line: frame.lineNumber ?? 0,
                   column: frame.column,
                   isServer: true,
-                  arguments: frame.arguments,
                 }
               )
             } catch {}
@@ -931,7 +930,8 @@ async function startWatcher(opts: SetupOpts) {
             try {
               originalFrame = await createOriginalStackFrame({
                 source,
-                frame: { ...frame, errorMessage: err.message },
+                frame,
+                errorMessage: err.message,
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
@@ -1065,7 +1065,6 @@ async function traceTurbopackErrorStack(
           file: f.file!,
           methodName: f.methodName,
           line: f.lineNumber ?? 0,
-          arguments: f.arguments,
           column: f.column,
           isServer: true,
         })

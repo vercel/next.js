@@ -1,23 +1,9 @@
 import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
+export type { StackFrame }
 export type SourcePackage = 'react' | 'next'
-
-export interface StackFrame {
-  file: string | null
-  methodName: '<unknown>' | string
-  arguments: string[]
-  /**
-   * Specific to Webpack. Turbopack uses `line` instead.
-   * TODO: Try to align these.
-   */
-  lineNumber?: number | null
-  column: number | null
-  isEdgeServer?: boolean
-  isServer?: boolean
-  isAppDirectory?: boolean
-  errorMessage?: string
-}
 
 export interface OriginalStackFrameResponse {
   originalStackFrame?: StackFrame | null
