@@ -74,7 +74,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
-import type { StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -929,20 +929,15 @@ async function startWatcher(opts: SetupOpts) {
 
             try {
               originalFrame = await createOriginalStackFrame({
-                line: frame.lineNumber,
-                column: frame.column,
                 source,
                 frame,
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
                 errorMessage: err.message,
-                serverCompilation: isEdgeCompiler
-                  ? undefined
-                  : hotReloader.serverStats?.compilation,
-                edgeCompilation: isEdgeCompiler
+                compilation: isEdgeCompiler
                   ? hotReloader.edgeServerStats?.compilation
-                  : undefined,
+                  : hotReloader.serverStats?.compilation,
               })
             } catch {}
           }

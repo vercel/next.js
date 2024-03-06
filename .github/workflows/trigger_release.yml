@@ -53,6 +53,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+          persist-credentials: false # to allow start-release to override the git credentials
 
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
