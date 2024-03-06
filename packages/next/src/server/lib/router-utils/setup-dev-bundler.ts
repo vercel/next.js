@@ -931,10 +931,10 @@ async function startWatcher(opts: SetupOpts) {
               originalFrame = await createOriginalStackFrame({
                 source,
                 frame,
-                errorMessage: err.message,
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
+                errorMessage: err.message,
                 compilation: isEdgeCompiler
                   ? hotReloader.edgeServerStats?.compilation
                   : hotReloader.serverStats?.compilation,
