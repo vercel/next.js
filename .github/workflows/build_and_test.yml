@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.11.3
+  TURBO_VERSION: 1.12.2
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -64,6 +64,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipInstallBuild: 'yes'
+      stepName: 'build-native'
     secrets: inherit
 
   build-next:
@@ -71,6 +72,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
+      stepName: 'build-next'
     secrets: inherit
 
   lint:
@@ -80,13 +82,14 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm lint-no-typescript && pnpm check-examples
+      stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: corepack enable
@@ -103,6 +106,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm types-and-precompiled
+      stepName: 'types-and-precompiled'
     secrets: inherit
 
   test-cargo-unit:
@@ -117,6 +121,7 @@ jobs:
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
       mold: 'yes'
+      stepName: 'test-cargo-unit'
     secrets: inherit
 
   rust-check:
@@ -130,6 +135,21 @@ jobs:
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run rust-check
+      stepName: 'rust-check'
+    secrets: inherit
+
+  rust-doc-check:
+    name: rustdoc check
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: ./scripts/deploy-turbopack-docs.sh
+      stepName: 'rust-doc-check'
     secrets: inherit
 
   test-turbopack-dev:
@@ -144,6 +164,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      stepName: 'test-turbopack-dev-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-integration:
@@ -159,6 +180,7 @@ jobs:
     with:
       nodeVersion: 18.17.0
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-turbopack-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -168,7 +190,20 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      stepName: 'test-next-swc-wasm'
+    secrets: inherit
+
+  #[NOTE] currently this only checks building wasi target
+  test-next-swc-napi-wasi:
+    name: test next-swc wasi
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: rustup target add wasm32-wasi-preview1-threads && turbo run build-native-wasi
+      stepName: 'test-next-swc-napi-wasi'
     secrets: inherit
 
   test-unit:
@@ -185,6 +220,7 @@ jobs:
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
 
@@ -200,6 +236,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      stepName: 'test-dev-${{ matrix.group }}'
     secrets: inherit
 
   test-prod:
@@ -214,6 +251,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-prod-${{ matrix.group }}'
     secrets: inherit
 
   test-integration:
@@ -241,6 +279,7 @@ jobs:
     with:
       nodeVersion: 18.17.0
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-firefox-safari:
@@ -251,6 +290,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+      stepName: 'test-firefox-safari'
     secrets: inherit
 
   # TODO: remove these jobs once PPR is the default
@@ -266,6 +306,7 @@ jobs:
     with:
       nodeVersion: 18.17.0
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-ppr-integration'
     secrets: inherit
 
   test-ppr-dev:
@@ -280,6 +321,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      stepName: 'test-ppr-dev-${{ matrix.group }}'
     secrets: inherit
 
   test-ppr-prod:
@@ -294,6 +336,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 
   report-test-results:
@@ -317,10 +360,11 @@ jobs:
     steps:
       - name: Download test report artifacts
         id: download-test-reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: test-reports
+          pattern: test-reports-*
           path: test
+          merge-multiple: true
 
       - name: Upload test report to datadog
         run: |

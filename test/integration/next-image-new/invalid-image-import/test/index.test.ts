@@ -23,7 +23,7 @@ function runTests({ isDev }) {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
       expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toBe('Failed to compile')
+      expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
         expect(source).toMatchInlineSnapshot(`

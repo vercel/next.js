@@ -4,13 +4,14 @@
 mod app;
 mod dynamic_imports;
 pub mod entrypoints;
+mod font;
 mod instrumentation;
 mod middleware;
 mod pages;
+pub mod paths;
 pub mod project;
 pub mod route;
 mod server_actions;
-pub mod server_paths;
 mod versioned_content_map;
 
 // Declare build-time information variables generated in build.rs

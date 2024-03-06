@@ -147,7 +147,6 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
               />
             </svg>
           </button>
-          &nbsp;
           {children}
         </nav>
         {close ? (
