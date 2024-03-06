@@ -728,11 +728,9 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-                      Error: The default export is not a React Component in page: "/hmr/about5"
-
-                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
-                  `)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: The default export is not a React Component in page: "/hmr/about5"`
+          )
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -828,11 +826,9 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-                      Error: The default export is not a React Component in page: "/hmr/about7"
-
-                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
-                  `)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: The default export is not a React Component in page: "/hmr/about7"`
+          )
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -1014,9 +1010,9 @@ describe.each([[''], ['/docs']])(
           await browser.elementByCss('#error-in-gip-link').click()
 
           expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-            Error: an-expected-error-in-gip"
-          `)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: an-expected-error-in-gip"`
+          )
 
           await next.patchFile(
             erroredPage,
@@ -1055,11 +1051,9 @@ describe.each([[''], ['/docs']])(
           browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
           expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-                      Error: an-expected-error-in-gip
-
-                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
-                  `)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: an-expected-error-in-gip"`
+          )
 
           const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
 
