@@ -1,26 +1,13 @@
+import { ReadableStream } from 'node:stream/web'
 import { streamFromString, streamToString } from './node-web-streams-helper'
 
 describe('node-web-stream-helpers', () => {
-  describe('streamFromString', () => {
-    it('should return a ReadableStream containing the input string', async () => {
-      const input = 'abcdef'
-
-      const stream = streamFromString(input)
-
-      let actual = ''
-
-      const decoder = new TextDecoder()
-
-      // @ts-ignore
-      for await (const chunk of stream) {
-        actual += decoder.decode(chunk, { stream: true })
-      }
-
-      actual += decoder.decode()
-
-      expect(actual).toBe(input)
-    })
+  it('streamFromString and streamToString should be reflective', async () => {
+    const input = 'abcdefghijklmnopqrstuvwxyz'
+    const stream = streamFromString(input)
+    expect(stream).toBeInstanceOf(ReadableStream)
+    const output = await streamToString(stream)
+    expect(typeof output).toBe('string')
+    expect(output).toBe(input)
   })
-
-  describe('streamToString', () => {})
 })
