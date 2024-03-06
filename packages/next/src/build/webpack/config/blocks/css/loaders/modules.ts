@@ -47,9 +47,10 @@ export function getCssModuleLoader(
         // Generate a friendly production-ready name so it's
         // reasonably understandable. The same name is used for
         // development.
-        // TODO: Consider making production reduce this to a single
-        // character?
-        getLocalIdent: getCssModuleLocalIdent,
+        getLocalIdent: getCssModuleLocalIdent(
+          ctx.isProduction &&
+            ctx.experimental.minifiedCSSClassNamesForCSSModules
+        ),
       },
     },
   })
