@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { ACTION_UNHANDLED_ERROR, type OverlayState } from '../shared'
 
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
@@ -8,11 +9,6 @@ import { parseStack } from '../internal/helpers/parseStack'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
-import {
-  ACTION_UNHANDLED_ERROR,
-  type OverlayState,
-  type UnhandledErrorAction,
-} from '../shared'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -28,17 +24,17 @@ export default class ReactDevOverlay extends React.PureComponent<
   state = { reactError: null }
 
   static getDerivedStateFromError(error: Error): ReactDevOverlayState {
-    const e = error
-    const event: UnhandledErrorAction = {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-      frames: parseStack(e.stack!),
+    if (!error.stack) return { reactError: null }
+    return {
+      reactError: {
+        id: 0,
+        event: {
+          type: ACTION_UNHANDLED_ERROR,
+          reason: error,
+          frames: parseStack(error.stack),
+        },
+      },
     }
-    const errorEvent: SupportedErrorEvent = {
-      id: 0,
-      event,
-    }
-    return { reactError: errorEvent }
   }
 
   componentDidCatch(componentErr: Error) {

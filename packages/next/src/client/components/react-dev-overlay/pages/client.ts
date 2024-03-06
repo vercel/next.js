@@ -82,7 +82,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   })
 }
 
-function register() {
+export function register() {
   if (isRegistered) {
     return
   }
@@ -98,7 +98,7 @@ function register() {
   window.addEventListener('unhandledrejection', onUnhandledRejection)
 }
 
-function unregister() {
+export function unregister() {
   if (!isRegistered) {
     return
   }
@@ -115,35 +115,26 @@ function unregister() {
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
 }
 
-function onBuildOk() {
+export function onBuildOk() {
   Bus.emit({ type: ACTION_BUILD_OK })
 }
 
-function onBuildError(message: string) {
+export function onBuildError(message: string) {
   Bus.emit({ type: ACTION_BUILD_ERROR, message })
 }
 
-function onRefresh() {
+export function onRefresh() {
   Bus.emit({ type: ACTION_REFRESH })
 }
 
-function onBeforeRefresh() {
+export function onBeforeRefresh() {
   Bus.emit({ type: ACTION_BEFORE_REFRESH })
 }
 
-function onVersionInfo(versionInfo: VersionInfo) {
+export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './ReactDevOverlay'
-export {
-  onBuildOk,
-  onBuildError,
-  register,
-  unregister,
-  onBeforeRefresh,
-  onRefresh,
-  onVersionInfo,
-}

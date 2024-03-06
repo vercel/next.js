@@ -33,6 +33,13 @@ import type {
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
+interface Dispatcher {
+  onBuildOk(): void
+  onBuildError(message: string): void
+  onVersionInfo(versionInfo: VersionInfo): void
+  onBeforeRefresh(): void
+  onRefresh(): void
+}
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -446,14 +453,6 @@ function processMessage(
     default: {
     }
   }
-}
-
-interface Dispatcher {
-  onBuildOk(): void
-  onBuildError(message: string): void
-  onVersionInfo(versionInfo: VersionInfo): void
-  onBeforeRefresh(): void
-  onRefresh(): void
 }
 
 export default function HotReload({

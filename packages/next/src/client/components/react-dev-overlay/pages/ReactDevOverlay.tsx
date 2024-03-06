@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import * as React from 'react'
 import * as Bus from './bus'
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
@@ -34,14 +34,14 @@ export default function ReactDevOverlay({
 }: ReactDevOverlayProps) {
   const [state, dispatch] = useErrorOverlayReducer()
 
-  useEffect(() => {
+  React.useEffect(() => {
     Bus.on(dispatch)
     return function () {
       Bus.off(dispatch)
     }
   }, [dispatch])
 
-  const onComponentError = useCallback(
+  const onComponentError = React.useCallback(
     (_error: Error, _componentStack: string | null) => {
       // TODO: special handling
     },
