@@ -7,7 +7,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
-import { useErrorOverlayReducer, type OverlayState } from '../shared'
+import { useErrorOverlayReducer } from '../shared'
 
 type ErrorType = 'runtime' | 'build'
 
