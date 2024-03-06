@@ -1,5 +1,5 @@
 import findUp from 'next/dist/compiled/find-up'
-import fs from 'fs'
+import { readFile } from 'fs/promises'
 import JSON5 from 'next/dist/compiled/json5'
 
 type RecursivePartial<T> = {
@@ -52,7 +52,7 @@ export async function findConfig<T>(
 
     // We load JSON contents with JSON5 to allow users to comment in their
     // configuration file. This pattern was popularized by TypeScript.
-    const fileContents = fs.readFileSync(filePath, 'utf8')
+    const fileContents = await readFile(filePath, 'utf8')
     return JSON5.parse(fileContents)
   }
 
