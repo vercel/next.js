@@ -34,6 +34,7 @@ import {
   onBuildOk,
   onBeforeRefresh,
   onRefresh,
+  onVersionInfo,
 } from '../../components/react-dev-overlay/pages/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
@@ -258,7 +259,7 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
-// Handle messages from the server.
+/** Handles messages from the sevrer for the Pages Router. */
 function processMessage(obj: HMR_ACTION_TYPES) {
   if (!('action' in obj)) {
     return
@@ -273,11 +274,13 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
-      if (obj.hash) {
-        handleAvailableHash(obj.hash)
-      }
+      if (obj.hash) handleAvailableHash(obj.hash)
 
       const { errors, warnings } = obj
+
+      // Is undefined when it's a 'built' event
+      if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
         sendMessage(

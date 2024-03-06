@@ -32,9 +32,7 @@ function getOriginalStackFrame(
         `${
           process.env.__NEXT_ROUTER_BASEPATH || ''
         }/__nextjs_original-stack-frame?${params.toString()}`,
-        {
-          signal: controller.signal,
-        }
+        { signal: controller.signal }
       )
       .finally(() => {
         clearTimeout(tm)

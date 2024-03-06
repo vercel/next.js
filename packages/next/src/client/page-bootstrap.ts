@@ -29,79 +29,86 @@ export function pageBootrap(assetPrefix: string) {
     addMessageListener((payload) => {
       if (reloading) return
       if ('action' in payload) {
-        if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR) {
-          const { stack, message } = JSON.parse(payload.errorJSON)
-          const error = new Error(message)
-          error.stack = stack
-          throw error
-        } else if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
-          reloading = true
-          window.location.reload()
-        } else if (
-          payload.action ===
-          HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
-        ) {
-          fetch(
-            `${assetPrefix}/_next/static/development/_devPagesManifest.json`
-          )
-            .then((res) => res.json())
-            .then((manifest) => {
-              window.__DEV_PAGES_MANIFEST = manifest
-            })
-            .catch((err) => {
-              console.log(`Failed to fetch devPagesManifest`, err)
-            })
+        switch (payload.action) {
+          case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
+            const { stack, message } = JSON.parse(payload.errorJSON)
+            const error = new Error(message)
+            error.stack = stack
+            throw error
+          }
+          case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
+            reloading = true
+            window.location.reload()
+            break
+          }
+          case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
+            fetch(
+              `${assetPrefix}/_next/static/development/_devPagesManifest.json`
+            )
+              .then((res) => res.json())
+              .then((manifest) => {
+                window.__DEV_PAGES_MANIFEST = manifest
+              })
+              .catch((err) => {
+                console.log(`Failed to fetch devPagesManifest`, err)
+              })
+            break
+          }
+          default:
+            break
         }
       } else if ('event' in payload) {
-        if (payload.event === HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES) {
-          return window.location.reload()
-        } else if (
-          payload.event === HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
-        ) {
-          const isOnErrorPage = window.next.router.pathname === '/_error'
-          // On the error page we want to reload the page when a page was changed
-          if (isOnErrorPage) {
+        switch (payload.event) {
+          case HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES: {
             return window.location.reload()
           }
-        } else if (
-          payload.event === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
-        ) {
-          const { pages } = payload
-
-          // Make sure to reload when the dev-overlay is showing for an
-          // API route
-          // TODO: Fix `__NEXT_PAGE` type
-          if (pages.includes(router.query.__NEXT_PAGE as string)) {
-            return window.location.reload()
+          case HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES: {
+            const isOnErrorPage = window.next.router.pathname === '/_error'
+            // On the error page we want to reload the page when a page was changed
+            if (isOnErrorPage) return window.location.reload()
+            break
           }
+          case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES: {
+            const { pages } = payload
 
-          if (!router.clc && pages.includes(router.pathname)) {
-            console.log('Refreshing page data due to server-side change')
+            // Make sure to reload when the dev-overlay is showing for an
+            // API route
+            // TODO: Fix `__NEXT_PAGE` type
+            if (pages.includes(router.query.__NEXT_PAGE as string)) {
+              return window.location.reload()
+            }
 
-            buildIndicatorHandler?.show()
+            if (!router.clc && pages.includes(router.pathname)) {
+              console.log('Refreshing page data due to server-side change')
 
-            const clearIndicator = () => buildIndicatorHandler?.hide()
+              buildIndicatorHandler?.show()
 
-            router
-              .replace(
-                router.pathname +
-                  '?' +
-                  String(
-                    assign(
-                      urlQueryToSearchParams(router.query),
-                      new URLSearchParams(location.search)
-                    )
-                  ),
-                router.asPath,
-                { scroll: false }
-              )
-              .catch(() => {
-                // trigger hard reload when failing to refresh data
-                // to show error overlay properly
-                location.reload()
-              })
-              .finally(clearIndicator)
+              const clearIndicator = () => buildIndicatorHandler?.hide()
+
+              router
+                .replace(
+                  router.pathname +
+                    '?' +
+                    String(
+                      assign(
+                        urlQueryToSearchParams(router.query),
+                        new URLSearchParams(location.search)
+                      )
+                    ),
+                  router.asPath,
+                  { scroll: false }
+                )
+                .catch(() => {
+                  // trigger hard reload when failing to refresh data
+                  // to show error overlay properly
+                  location.reload()
+                })
+                .finally(clearIndicator)
+            }
+            break
           }
+          default:
+            break
         }
       }
     })

@@ -1,27 +1,18 @@
 import type { ReactNode } from 'react'
-import React, {
-  useCallback,
-  useEffect,
-  useReducer,
-  useMemo,
-  startTransition,
-} from 'react'
+import { useCallback, useEffect, startTransition, useMemo } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
-  ACTION_VERSION_INFO,
-  INITIAL_OVERLAY_STATE,
-  errorOverlayReducer,
-} from './error-overlay-reducer'
-import {
-  ACTION_BUILD_OK,
-  ACTION_BUILD_ERROR,
   ACTION_BEFORE_REFRESH,
+  ACTION_BUILD_ERROR,
+  ACTION_BUILD_OK,
   ACTION_REFRESH,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from './error-overlay-reducer'
+  ACTION_VERSION_INFO,
+  useErrorOverlayReducer,
+} from '../shared'
 import { parseStack } from '../internal/helpers/parseStack'
 import ReactDevOverlay from './ReactDevOverlay'
 import { useErrorHandler } from '../internal/helpers/use-error-handler'
@@ -42,14 +33,6 @@ import type {
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../../../dev/error-overlay/messages'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
-
-interface Dispatcher {
-  onBuildOk(): void
-  onBuildError(message: string): void
-  onVersionInfo(versionInfo: VersionInfo): void
-  onBeforeRefresh(): void
-  onRefresh(): void
-}
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -244,6 +227,7 @@ function tryApplyUpdates(
     )
 }
 
+/** Handles messages from the sevrer for the App Router. */
 function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
@@ -314,9 +298,8 @@ function processMessage(
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) {
-        dispatcher.onVersionInfo(obj.versionInfo)
-      }
+      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
+
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
       if (hasErrors) {
@@ -465,6 +448,14 @@ function processMessage(
   }
 }
 
+interface Dispatcher {
+  onBuildOk(): void
+  onBuildError(message: string): void
+  onVersionInfo(versionInfo: VersionInfo): void
+  onBeforeRefresh(): void
+  onRefresh(): void
+}
+
 export default function HotReload({
   assetPrefix,
   children,
@@ -472,10 +463,8 @@ export default function HotReload({
   assetPrefix: string
   children?: ReactNode
 }) {
-  const [state, dispatch] = useReducer(
-    errorOverlayReducer,
-    INITIAL_OVERLAY_STATE
-  )
+  const [state, dispatch] = useErrorOverlayReducer()
+
   const dispatcher = useMemo((): Dispatcher => {
     return {
       onBuildOk() {
@@ -496,30 +485,36 @@ export default function HotReload({
     }
   }, [dispatch])
 
-  const handleOnUnhandledError = useCallback((error: Error): void => {
-    const errorDetails = (error as any).details as
-      | HydrationErrorState
-      | undefined
-    // Component stack is added to the error in use-error-handler in case there was a hydration errror
-    const componentStack = errorDetails?.componentStack
-    const warning = errorDetails?.warning
-    dispatch({
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-      frames: parseStack(error.stack!),
-      componentStackFrames: componentStack
-        ? parseComponentStack(componentStack)
-        : undefined,
-      warning,
-    })
-  }, [])
-  const handleOnUnhandledRejection = useCallback((reason: Error): void => {
-    dispatch({
-      type: ACTION_UNHANDLED_REJECTION,
-      reason: reason,
-      frames: parseStack(reason.stack!),
-    })
-  }, [])
+  const handleOnUnhandledError = useCallback(
+    (error: Error): void => {
+      const errorDetails = (error as any).details as
+        | HydrationErrorState
+        | undefined
+      // Component stack is added to the error in use-error-handler in case there was a hydration errror
+      const componentStack = errorDetails?.componentStack
+      const warning = errorDetails?.warning
+      dispatch({
+        type: ACTION_UNHANDLED_ERROR,
+        reason: error,
+        frames: parseStack(error.stack!),
+        componentStackFrames: componentStack
+          ? parseComponentStack(componentStack)
+          : undefined,
+        warning,
+      })
+    },
+    [dispatch]
+  )
+  const handleOnUnhandledRejection = useCallback(
+    (reason: Error): void => {
+      dispatch({
+        type: ACTION_UNHANDLED_REJECTION,
+        reason: reason,
+        frames: parseStack(reason.stack!),
+      })
+    },
+    [dispatch]
+  )
   const handleOnReactError = useCallback(() => {
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])

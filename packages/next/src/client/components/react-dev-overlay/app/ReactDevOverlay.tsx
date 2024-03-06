@@ -1,9 +1,4 @@
 import * as React from 'react'
-import { ACTION_UNHANDLED_ERROR } from './error-overlay-reducer'
-import type {
-  OverlayState,
-  UnhandledErrorAction,
-} from './error-overlay-reducer'
 
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
@@ -13,11 +8,16 @@ import { parseStack } from '../internal/helpers/parseStack'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
+import {
+  ACTION_UNHANDLED_ERROR,
+  type OverlayState,
+  type UnhandledErrorAction,
+} from '../shared'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
 }
-class ReactDevOverlay extends React.PureComponent<
+export default class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
     children: React.ReactNode
@@ -95,5 +95,3 @@ class ReactDevOverlay extends React.PureComponent<
     )
   }
 }
-
-export default ReactDevOverlay

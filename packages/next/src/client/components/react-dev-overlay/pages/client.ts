@@ -5,6 +5,15 @@ import {
   hydrationErrorState,
   patchConsoleError,
 } from '../internal/helpers/hydration-error-info'
+import {
+  ACTION_BEFORE_REFRESH,
+  ACTION_BUILD_ERROR,
+  ACTION_BUILD_OK,
+  ACTION_REFRESH,
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
+} from '../shared'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()
@@ -45,7 +54,7 @@ function onUnhandledError(ev: ErrorEvent) {
   // This is to avoid same error as different type showing up on client to cause flashing.
   if (e.name !== 'ModuleBuildError' && e.name !== 'ModuleNotFoundError') {
     Bus.emit({
-      type: Bus.TYPE_UNHANDLED_ERROR,
+      type: ACTION_UNHANDLED_ERROR,
       reason: error,
       frames: parseStack(e.stack!),
       componentStackFrames,
@@ -66,7 +75,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
 
   const e = reason
   Bus.emit({
-    type: Bus.TYPE_UNHANDLED_REJECTION,
+    type: ACTION_UNHANDLED_REJECTION,
     reason: reason,
     frames: parseStack(e.stack!),
   })
@@ -106,19 +115,23 @@ function unregister() {
 }
 
 function onBuildOk() {
-  Bus.emit({ type: Bus.TYPE_BUILD_OK })
+  Bus.emit({ type: ACTION_BUILD_OK })
 }
 
 function onBuildError(message: string) {
-  Bus.emit({ type: Bus.TYPE_BUILD_ERROR, message })
+  Bus.emit({ type: ACTION_BUILD_ERROR, message })
 }
 
 function onRefresh() {
-  Bus.emit({ type: Bus.TYPE_REFRESH })
+  Bus.emit({ type: ACTION_REFRESH })
 }
 
 function onBeforeRefresh() {
-  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
+  Bus.emit({ type: ACTION_BEFORE_REFRESH })
+}
+
+function onVersionInfo(versionInfo: VersionInfo) {
+  Bus.emit({ type: 'version-info', versionInfo })
 }
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'
@@ -131,4 +144,5 @@ export {
   unregister,
   onBeforeRefresh,
   onRefresh,
+  onVersionInfo,
 }
