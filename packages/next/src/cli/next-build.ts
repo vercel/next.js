@@ -20,8 +20,8 @@ type NextBuildOptions = {
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(128 + 15))
-  process.on('SIGINT', () => process.exit(128 + 2))
+  process.on('SIGTERM', () => process.exit(143))
+  process.on('SIGINT', () => process.exit(130))
 
   const {
     debug,
