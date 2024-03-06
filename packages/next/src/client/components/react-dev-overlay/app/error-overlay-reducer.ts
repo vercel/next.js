@@ -64,9 +64,6 @@ export interface OverlayState {
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
-  rootLayoutMissingTagsError?: {
-    missingTags: string[]
-  }
   refreshState: FastRefreshState
   versionInfo: VersionInfo
   notFound: boolean
