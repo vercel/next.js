@@ -28,6 +28,7 @@ import {
   isHtmlTagsWarning,
   type HydrationErrorState,
 } from '../helpers/hydration-error-info'
+import { TurbopackIndicator } from '../components/TurbopackIndicator'
 
 export type SupportedErrorEvent = {
   id: number
@@ -294,6 +295,7 @@ export function Errors({
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             <RuntimeError key={activeError.id.toString()} error={activeError} />
+            <TurbopackIndicator />
           </DialogBody>
         </DialogContent>
       </Dialog>

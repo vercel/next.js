@@ -10,6 +10,7 @@ import { Overlay } from '../components/Overlay'
 import { Terminal } from '../components/Terminal'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { noop as css } from '../helpers/noop-template'
+import { TurbopackIndicator } from '../components/TurbopackIndicator'
 
 export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
 
@@ -41,6 +42,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
                 </small>
               </p>
             </footer>
+            <TurbopackIndicator />
           </DialogBody>
         </DialogContent>
       </Dialog>
