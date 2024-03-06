@@ -729,7 +729,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-            `"Error: The default export is not a React Component in page: "/hmr/about5"`
+            `"Error: The default export is not a React Component in page: "/hmr/about5""`
           )
 
           await next.patchFile(aboutPage, aboutContent)
@@ -827,7 +827,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-            `"Error: The default export is not a React Component in page: "/hmr/about7"`
+            `"Error: The default export is not a React Component in page: "/hmr/about7""`
           )
 
           await next.patchFile(aboutPage, aboutContent)
