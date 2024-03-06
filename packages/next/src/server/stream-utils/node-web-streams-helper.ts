@@ -1,5 +1,5 @@
 import type { FlightRouterState } from '../app-render/types'
-
+import { ReadableStream, TransformStream, WritableStream } from 'stream/web'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
@@ -35,7 +35,7 @@ export function chainStreams<T>(
     return streams[0]
   }
 
-  const { readable, writable } = new TransformStream()
+  const { readable, writable } = new TransformStream<T, T>()
 
   // We always initiate pipeTo immediately. We know we have at least 2 streams
   // so we need to avoid closing the writable when this one finishes.
@@ -169,8 +169,8 @@ export function renderToInitialFizzStream({
   ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
   streamOptions?: any
-}): Promise<ReactReadableStream> {
-  return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
+}): ReturnType<typeof ReactDOMServer.renderToReadableStream> {
+  return getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
 }
