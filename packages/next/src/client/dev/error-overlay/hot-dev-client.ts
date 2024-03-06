@@ -34,6 +34,7 @@ import {
   onBuildOk,
   onBeforeRefresh,
   onRefresh,
+  onVersionInfo,
 } from '../../components/react-dev-overlay/pages/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
@@ -278,6 +279,10 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       }
 
       const { errors, warnings } = obj
+
+      // Is undefined when it's a 'built' event
+      if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
         sendMessage(
