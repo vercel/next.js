@@ -2,10 +2,10 @@ import * as Bus from './bus'
 import { parseStack } from '../internal/helpers/parseStack'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
-  hydrationErrorComponentStack,
-  hydrationErrorWarning,
+  hydrationErrorState,
   patchConsoleError,
 } from '../internal/helpers/hydration-error-info'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()
@@ -23,18 +23,23 @@ function onUnhandledError(ev: ErrorEvent) {
   if (
     error.message.match(/(hydration|content does not match|did not match)/i)
   ) {
-    if (hydrationErrorWarning) {
+    if (hydrationErrorState.warning) {
       // The patched console.error found hydration errors logged by React
       // Append the logged warning to the error message
-      error.message += '\n\n' + hydrationErrorWarning
+
+      ;(error as any).details = {
+        ...(error as any).details,
+        // It contains the warning, component stack, server and client tag names
+        ...hydrationErrorState,
+      }
     }
-    error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
+    error.message += `\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
   }
 
   const e = error
   const componentStackFrames =
-    typeof hydrationErrorComponentStack === 'string'
-      ? parseComponentStack(hydrationErrorComponentStack)
+    typeof hydrationErrorState.componentStack === 'string'
+      ? parseComponentStack(hydrationErrorState.componentStack)
       : undefined
 
   // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
@@ -117,6 +122,10 @@ function onBeforeRefresh() {
   Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
 }
 
+function onVersionInfo(versionInfo: VersionInfo) {
+  Bus.emit({ type: Bus.TYPE_VERSION_INFO, versionInfo })
+}
+
 export { getErrorByType } from '../internal/helpers/getErrorByType'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './ReactDevOverlay'
@@ -127,4 +136,5 @@ export {
   unregister,
   onBeforeRefresh,
   onRefresh,
+  onVersionInfo,
 }

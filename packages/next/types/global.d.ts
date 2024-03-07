@@ -44,7 +44,10 @@ declare module '*.module.scss' {
 
 interface Window {
   MSInputMethodContext?: unknown
+  /** @internal */
   __NEXT_HMR_CB?: null | ((message?: string) => void)
+  /** @internal */
+  __next_root_layout_missing_tags?: ('html' | 'body')[]
 }
 
 interface NextFetchRequestConfig {

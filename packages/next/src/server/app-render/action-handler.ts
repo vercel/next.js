@@ -179,11 +179,15 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const host = originalHost.value
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
+
+    // For standalone or the serverful mode, use the internal hostname directly
+    // other than the headers from the request.
+    const host = process.env.__NEXT_PRIVATE_HOST || originalHost.value
+
     const fetchUrl = new URL(
-      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`
+      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {

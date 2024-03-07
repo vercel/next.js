@@ -1,4 +1,4 @@
-import type arg from 'next/dist/compiled/arg/index.js'
+import { InvalidArgumentError } from 'next/dist/compiled/commander'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {
@@ -28,17 +28,14 @@ export function getNodeOptionsWithoutInspect() {
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')
 }
 
-export function getPort(args: arg.Result<arg.Spec>): number {
-  if (typeof args['--port'] === 'number') {
-    return args['--port']
-  }
+export function myParseInt(value: string) {
+  // parseInt takes a string and a radix
+  const parsedValue = parseInt(value, 10)
 
-  const parsed = process.env.PORT && parseInt(process.env.PORT, 10)
-  if (typeof parsed === 'number' && !Number.isNaN(parsed)) {
-    return parsed
+  if (isNaN(parsedValue) || !isFinite(parsedValue) || parsedValue < 0) {
+    throw new InvalidArgumentError(`'${value}' is not a non-negative number.`)
   }
-
-  return 3000
+  return parsedValue
 }
 
 export const RESTART_EXIT_CODE = 77

@@ -167,6 +167,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
@@ -191,6 +192,11 @@ export interface ExperimentalConfig {
   swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
+  /**
+   * This will enable a plugin that attempts to keep CSS entries below a certain amount
+   * by merging smaller chunks into larger ones
+   */
+  mergeCssChunks?: boolean
   /**
    * @deprecated use config.cacheHandler instead
    */
@@ -404,6 +410,11 @@ export interface ExperimentalConfig {
    * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
+
+  /**
+   * Enables early import feature for app router modules
+   */
+  useEarlyImport?: boolean
 }
 
 export type ExportPathMap = {
@@ -832,6 +843,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    prerenderEarlyExit: false,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
@@ -894,6 +906,8 @@ export const defaultConfig: NextConfig = {
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: false,
+    useEarlyImport: false,
+    mergeCssChunks: true,
   },
 }
 

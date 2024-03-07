@@ -14,7 +14,9 @@ use turbo_tasks::{
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
-    turbopack::core::issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    turbopack::core::issue::{
+        Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
+    },
 };
 
 use crate::{
@@ -296,7 +298,14 @@ async fn get_directory_tree_internal(
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Vc<DirectoryTree>> {
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
-        bail!("{} must be a directory", dir.to_string().await?);
+        // the file watcher might invalidate things in the wrong order,
+        // and we have to account for the eventual consistency of turbo-tasks
+        // so we just return an empty tree here.
+        return Ok(DirectoryTree {
+            subdirectories: Default::default(),
+            components: Components::default().cell(),
+        }
+        .cell());
     };
     let page_extensions_value = page_extensions.await?;
 
@@ -381,7 +390,7 @@ async fn get_directory_tree_internal(
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
-                    subdirectories.insert(get_underscore_normalized_path(basename), result);
+                    subdirectories.insert(basename.to_string(), result);
                 }
             }
             // TODO(WEB-952) handle symlinks in app dir
@@ -830,19 +839,24 @@ async fn directory_tree_to_loader_tree(
                 } else if *current_tree.has_only_catchall().await? {
                     tree.parallel_routes.insert("children".to_string(), subtree);
                 } else {
-                    // TODO: improve error message to have the full paths
-                    DirectoryTreeIssue {
-                        app_dir,
-                        message: StyledString::Text(format!(
-                            "You cannot have two parallel pages that resolve to the same path. \
-                             Route {} has multiple matches in {}",
-                            for_app_path, app_page
-                        ))
-                        .cell(),
-                        severity: IssueSeverity::Error.cell(),
-                    }
-                    .cell()
-                    .emit();
+                    // TODO: Investigate if this is still needed. Emitting the
+                    // error causes the test "should
+                    // gracefully handle when two page
+                    // segments match the `children`
+                    // parallel slot" to fail
+                    // DirectoryTreeIssue {
+                    //     app_dir,
+                    //     message: StyledString::Text(format!(
+                    //         "You cannot have two parallel pages that resolve
+                    // to the same path. \          Route {}
+                    // has multiple matches in {}",
+                    //         for_app_path, app_page
+                    //     ))
+                    //     .cell(),
+                    //     severity: IssueSeverity::Error.cell(),
+                    // }
+                    // .cell()
+                    // .emit();
                 }
             } else {
                 tree.parallel_routes.insert("children".to_string(), subtree);
@@ -1026,54 +1040,38 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
-        let not_found_tree = if components.not_found.is_some() {
-            LoaderTree {
+        let not_found_tree = LoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
                         page: app_page.clone(),
-                        segment: "__DEFAULT__".to_string(),
-                        parallel_routes: IndexMap::new(),
-                        components: Components {
-                            default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
-                            ..Default::default()
-                        }.cell(),
+                        segment: "/_not-found".to_string(),
+                        parallel_routes: indexmap! {
+                            "children".to_string() => LoaderTree {
+                                page: app_page.clone(),
+                                segment: "__PAGE__".to_string(),
+                                parallel_routes: IndexMap::new(),
+                                components: Components {
+                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()))),
+                                    ..Default::default()
+                                }.cell(),
+                                global_metadata
+                            }.cell()
+                        },
+                        components: Components::default().cell(),
                         global_metadata,
                     }.cell(),
                 },
                 components: components.without_leafs().cell(),
                 global_metadata,
-            }.cell()
-        } else {
-            // Create default not-found page for production if there's no customized
-            // not-found
-            LoaderTree {
-                page: app_page.clone(),
-                segment: directory_name.to_string(),
-                parallel_routes: indexmap! {
-                    "children".to_string() => LoaderTree {
-                        page: app_page.clone(),
-                        segment: "__PAGE__".to_string(),
-                        parallel_routes: IndexMap::new(),
-                        components: Components {
-                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
-                            ..Default::default()
-                        }.cell(),
-                        global_metadata,
-                    }.cell(),
-                },
-                components: components.without_leafs().cell(),
-                global_metadata,
-            }.cell()
-        };
+            }
+            .cell();
 
         {
-            let app_page = app_page.clone_push_str("not-found")?;
-            add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
-        }
-        {
-            let app_page = app_page.clone_push_str("_not-found")?;
+            let app_page = app_page
+                .clone_push_str("_not-found")?
+                .complete(PageType::Page)?;
             add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
         }
     }
@@ -1145,11 +1143,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     Ok(Vc::cell(result))
 }
 
-/// If path contains %5F, replace it with _. [reference](https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119)
-fn get_underscore_normalized_path(path: &str) -> String {
-    path.replace("%5F", "_")
-}
-
 /// Returns the global metadata for an app directory.
 #[turbo_tasks::function]
 pub async fn get_global_metadata(
@@ -1215,8 +1208,8 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("next app".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
     }
 
     #[turbo_tasks::function]

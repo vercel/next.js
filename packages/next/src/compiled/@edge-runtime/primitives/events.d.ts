@@ -313,7 +313,6 @@ declare namespace Event$1 {
 declare const EventTargetConstructor: typeof EventTarget
 declare const EventConstructor: typeof Event
 
-
 declare class FetchEvent {
   request: Request
   response: Response | null

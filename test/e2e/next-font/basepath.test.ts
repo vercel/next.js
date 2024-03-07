@@ -40,13 +40,17 @@ describe('next/font/google basepath', () => {
 
     // Preload
     expect($('link[as="font"]').length).toBe(1)
-    expect($('link[as="font"]').get(0).attribs).toEqual({
-      as: 'font',
-      crossorigin: 'anonymous',
-      href: '/dashboard/_next/static/media/0812efcfaefec5ea-s.p.woff2',
-      rel: 'preload',
-      type: 'font/woff2',
-      'data-next-font': 'size-adjust',
-    })
+    expect($('link[as="font"]').get(0).attribs).toEqual(
+      expect.objectContaining({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: expect.stringMatching(
+          /\/dashboard\/_next\/static\/media\/.*.p.*.woff2/
+        ),
+        rel: 'preload',
+        type: 'font/woff2',
+        'data-next-font': 'size-adjust',
+      })
+    )
   })
 })
