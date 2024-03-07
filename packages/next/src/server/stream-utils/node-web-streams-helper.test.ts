@@ -1,6 +1,7 @@
 import { setImmediate } from 'timers/promises'
 import {
   chainStreams,
+  createDeferredSuffixStream,
   streamFromString,
   streamToString,
 } from './node-web-streams-helper'
@@ -182,7 +183,24 @@ describe('node-web-stream-helpers', () => {
   describe('createInsertedHTMLStream', () => {})
   describe('renderToInitialFizzStream', () => {})
   describe('createHeadInsertionTransformStream', () => {})
-  describe('createDeferredSuffixStream', () => {})
+  describe('createDeferredSuffixStream', () => {
+    it('should append suffix to end of input stream', async () => {
+      const encoder = new TextEncoder()
+      const input = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('<fuzz>buzz</fuzz>'))
+          controller.close()
+        },
+      })
+
+      const stream = createDeferredSuffixStream('<foo>bar</foo>')
+      const output = input.pipeThrough(stream)
+      await processReadableStream(output, [
+        encoder.encode('<fuzz>buzz</fuzz>'),
+        encoder.encode('<foo>bar</foo>'),
+      ])
+    })
+  })
   describe('createMergedTransformStream', () => {})
   describe('createMoveSuffixStream', () => {})
   describe('createStripDocumentClosingTagsTransform', () => {})

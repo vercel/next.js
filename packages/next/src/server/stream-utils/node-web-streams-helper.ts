@@ -244,7 +244,7 @@ function createHeadInsertionTransformStream(
 
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-function createDeferredSuffixStream(
+export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
