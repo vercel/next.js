@@ -199,6 +199,29 @@ describe('node-web-stream-helpers', () => {
         ]),
       ])
     })
+    it('should buffer between microtasks and around tasks', async () => {
+      const bigChunks = [
+        new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+        new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+      ]
+      const input = new ReadableStream({
+        async pull(controller) {
+          for (let i = 0; i < 16; i += 4) {
+            controller.enqueue(bigChunks[0].slice(i, i + 4))
+            await Promise.resolve()
+          }
+          await setImmediate()
+          for (let i = 0; i < 16; i += 4) {
+            controller.enqueue(bigChunks[1].slice(i, i + 4))
+            await Promise.resolve()
+          }
+          controller.close()
+        },
+      })
+      const stream = createBufferedTransformStream()
+      const output = input.pipeThrough(stream)
+      await processReadableStream(output, bigChunks)
+    })
   })
 
   describe('createInsertedHTMLStream', () => {})
