@@ -1,6 +1,7 @@
 import { setImmediate } from 'timers/promises'
 import {
   chainStreams,
+  createInsertedHTMLStream,
   streamFromString,
   streamToString,
 } from './node-web-streams-helper'
@@ -179,7 +180,26 @@ describe('node-web-stream-helpers', () => {
   })
 
   describe('createBufferedTransformStream', () => {})
-  describe('createInsertedHTMLStream', () => {})
+  describe('createInsertedHTMLStream', () => {
+    it('should insert data into the start of the transform', async () => {
+      const encoder = new TextEncoder()
+      function getServerInsertedHTML() {
+        return Promise.resolve('<foo>bar</foo>')
+      }
+      const input = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('<fuzz>buzz</fuzz>'))
+          controller.close()
+        },
+      })
+      const transform = createInsertedHTMLStream(getServerInsertedHTML)
+      const output = input.pipeThrough(transform)
+      await processReadableStream(output, [
+        encoder.encode('<foo>bar</foo>'),
+        encoder.encode('<fuzz>buzz</fuzz>'),
+      ])
+    })
+  })
   describe('renderToInitialFizzStream', () => {})
   describe('createHeadInsertionTransformStream', () => {})
   describe('createDeferredSuffixStream', () => {})

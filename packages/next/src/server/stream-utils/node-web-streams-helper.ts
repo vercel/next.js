@@ -155,7 +155,7 @@ export function createBufferedTransformStream(): TransformStream<
   })
 }
 
-function createInsertedHTMLStream(
+export function createInsertedHTMLStream(
   getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
