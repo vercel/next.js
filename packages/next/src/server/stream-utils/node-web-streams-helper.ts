@@ -32,7 +32,7 @@ export function chainStreams<T>(
     return streams[0]
   }
 
-  const { readable, writable } = new TransformStream<T, T>()
+  const { readable, writable } = new TransformStream()
 
   // We always initiate pipeTo immediately. We know we have at least 2 streams
   // so we need to avoid closing the writable when this one finishes.
@@ -163,8 +163,8 @@ export function renderToInitialFizzStream({
   ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
   streamOptions?: any
-}): ReturnType<typeof ReactDOMServer.renderToReadableStream> {
-  return getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
+}): Promise<ReactReadableStream> {
+  return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
 }
