@@ -17,6 +17,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   notFound: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+  rootLayoutMissingTags: null,
 }
 
 interface BuildOkAction {
@@ -38,6 +39,7 @@ export interface UnhandledErrorAction {
   reason: Error
   frames: StackFrame[]
   componentStackFrames?: ComponentStackFrame[]
+  warning?: [string, string, string]
 }
 export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
@@ -63,9 +65,7 @@ export interface OverlayState {
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
-  rootLayoutMissingTagsError?: {
-    missingTags: string[]
-  }
+  rootLayoutMissingTags: string[] | null
   refreshState: FastRefreshState
   versionInfo: VersionInfo
   notFound: boolean

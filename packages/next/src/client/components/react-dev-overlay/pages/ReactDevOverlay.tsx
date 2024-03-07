@@ -9,6 +9,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
 type RefreshState =
   | {
@@ -27,6 +28,7 @@ type OverlayState = {
   buildError: string | null
   errors: SupportedErrorEvent[]
   refreshState: RefreshState
+  versionInfo: VersionInfo
 }
 
 function pushErrorFilterDuplicates(
@@ -102,6 +104,9 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
           return state
       }
     }
+    case Bus.TYPE_VERSION_INFO: {
+      return { ...state, versionInfo: ev.versionInfo }
+    }
     default: {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = ev
@@ -139,6 +144,7 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
       refreshState: {
         type: 'idle',
       },
+      versionInfo: { installed: '0.0.0', staleness: 'unknown' },
     })
 
     React.useEffect(() => {
@@ -182,12 +188,16 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
             <ComponentStyles />
 
             {displayPrevented ? null : hasBuildError ? (
-              <BuildError message={state.buildError!} />
+              <BuildError
+                message={state.buildError!}
+                versionInfo={state.versionInfo}
+              />
             ) : hasRuntimeErrors ? (
               <Errors
                 isAppDir={false}
                 errors={state.errors}
                 initialDisplayState={'fullscreen'}
+                versionInfo={state.versionInfo}
               />
             ) : undefined}
           </ShadowPortal>

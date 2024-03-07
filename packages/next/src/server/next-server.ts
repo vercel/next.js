@@ -40,6 +40,7 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -1306,25 +1307,23 @@ export default class NextNodeServer extends BaseServer {
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
-
       if (this.renderOpts.dev) {
         await this.ensurePage({
-          page: notFoundPathname,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           clientOnly: false,
           url: req.url,
         }).catch(() => {})
       }
 
-      if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
+      if (
+        this.getEdgeFunctionsPages().includes(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY)
+      ) {
         await this.runEdgeFunction({
           req: req as BaseNextRequest,
           res: res as BaseNextResponse,
           query: query || {},
           params: {},
-          page: notFoundPathname,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           appPaths: null,
         })
         return null
@@ -1816,6 +1815,7 @@ export default class NextNodeServer extends BaseServer {
     page: string
     appPaths: string[] | null
     match?: RouteMatch
+    onError?: (err: unknown) => void
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     if (process.env.NEXT_MINIMAL) {
@@ -1891,6 +1891,7 @@ export default class NextNodeServer extends BaseServer {
         ),
       },
       useCache: true,
+      onError: params.onError,
       onWarning: params.onWarning,
       incrementalCache:
         (globalThis as any).__incrementalCache ||

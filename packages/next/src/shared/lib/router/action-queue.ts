@@ -140,8 +140,8 @@ function dispatchAction(
   const newAction: ActionQueueNode = {
     payload,
     next: null,
-    resolve: resolvers!.resolve,
-    reject: resolvers!.reject,
+    resolve: resolvers.resolve,
+    reject: resolvers.reject,
   }
 
   // Check if the queue is empty
