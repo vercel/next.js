@@ -32,7 +32,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssetExt, EvaluatableAssets,
+        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -53,7 +53,7 @@ use turbopack_ecmascript_plugins::transform::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::ProcessEnvAsset;
-use turbopack_nodejs::{MinifyType, NodeJsChunkingContext};
+use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 

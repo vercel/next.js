@@ -6,7 +6,7 @@ use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkingContext, ModuleId},
+    chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -18,7 +18,7 @@ use turbopack_ecmascript::{
 };
 
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
-use crate::{chunking_context::MinifyType, ecmascript::minify::minify, NodeJsChunkingContext};
+use crate::{ecmascript::minify::minify, NodeJsChunkingContext};
 
 #[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkContent {

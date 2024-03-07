@@ -1,6 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::{Upcast, Value, ValueToString, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
@@ -10,6 +12,28 @@ use crate::{
     module::Module,
     output::{OutputAsset, OutputAssets},
 };
+
+#[derive(
+    Debug,
+    Default,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+)]
+pub enum MinifyType {
+    #[default]
+    Minify,
+    NoMinify,
+}
 
 #[turbo_tasks::value(shared)]
 pub struct ChunkGroupResult {

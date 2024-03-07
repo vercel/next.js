@@ -2,11 +2,14 @@ use anyhow::{bail, Result};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
-use turbopack_core::{chunk::ModuleId, code_builder::Code, version::Version};
+use turbopack_core::{
+    chunk::{MinifyType, ModuleId},
+    code_builder::Code,
+    version::Version,
+};
 use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
 use super::content::chunk_items;
-use crate::MinifyType;
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
