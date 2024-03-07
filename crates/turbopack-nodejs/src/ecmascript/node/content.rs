@@ -14,11 +14,12 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt},
+    minify::minify,
     utils::StringifyJs,
 };
 
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
-use crate::{ecmascript::minify::minify, NodeJsChunkingContext};
+use crate::NodeJsChunkingContext;
 
 #[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkContent {

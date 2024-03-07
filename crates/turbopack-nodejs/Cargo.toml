@@ -26,11 +26,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }
 sourcemap = { workspace = true }
-swc_core = { workspace = true, features = [
-  "__parser",
-  "ecma_minifier",
-  "ecma_minifier_concurrent",
-] }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 
