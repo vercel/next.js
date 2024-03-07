@@ -185,8 +185,16 @@ describe('node-web-stream-helpers', () => {
   describe('createHeadInsertionTransformStream', () => {
     it('should insert text into head tag', async () => {
       const encoder = new TextEncoder()
-      function insert() {
-        return Promise.resolve('<foo>bar</foo>')
+      const insertionInput = new ReadableStream({
+        start(controller) {
+          controller.enqueue('<foo>bar</foo>')
+          controller.close()
+        },
+      })
+      const reader = insertionInput.getReader()
+      async function insert() {
+        const { value } = await reader.read()
+        return value
       }
       const input = new ReadableStream({
         start(controller) {
@@ -202,7 +210,6 @@ describe('node-web-stream-helpers', () => {
         encoder.encode(
           '<head><fuzz>buzz</fuzz><foo>bar</foo></head><body></body>'
         ),
-        encoder.encode('<foo>bar</foo>'),
       ])
     })
   })
