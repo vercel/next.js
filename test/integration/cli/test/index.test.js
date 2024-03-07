@@ -52,6 +52,7 @@ const runAndCaptureOutput = async ({ port }) => {
 const testExitSignal = async (
   killSignal = '',
   args = [],
+  expectedCode = 0,
   readyRegex = /Creating an optimized production/
 ) => {
   let instance
@@ -76,7 +77,7 @@ const testExitSignal = async (
   // See: https://nodejs.org/api/process.html#process_signal_events
   const expectedExitSignal = process.platform === `win32` ? killSignal : null
   expect(signal).toBe(expectedExitSignal)
-  expect(code).toBe(0)
+  expect(code).toBe(expectedCode)
 }
 
 describe('CLI Usage', () => {
@@ -336,11 +337,11 @@ describe('CLI Usage', () => {
       })
 
       test('should exit when SIGINT is signalled', async () => {
-        await testExitSignal('SIGINT', ['build', dirBasic])
+        await testExitSignal('SIGINT', ['build', dirBasic], 130)
       })
 
       test('should exit when SIGTERM is signalled', async () => {
-        await testExitSignal('SIGTERM', ['build', dirBasic])
+        await testExitSignal('SIGTERM', ['build', dirBasic], 143)
       })
 
       test('invalid directory', async () => {
