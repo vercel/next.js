@@ -29,16 +29,16 @@ turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
-turbopack-build = { workspace = true, features = ["test"] }
+turbopack-browser = { workspace = true, features = ["test"] }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true, features = ["issue_path"] }
-turbopack-dev = { workspace = true, features = ["test"] }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",
 ] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
+turbopack-nodejs = { workspace = true, features = ["test"] }
 turbopack-resolve = { workspace = true }
 turbopack-test-utils = { workspace = true }
 

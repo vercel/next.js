@@ -10,7 +10,6 @@ use turbo_tasks::{TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::ecmascript::EcmascriptModuleAsset;
-use turbopack_build::{MinifyType, NodeJsChunkingContext};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
@@ -30,6 +29,7 @@ use turbopack_core::{
 };
 use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
+use turbopack_nodejs::{MinifyType, NodeJsChunkingContext};
 
 use crate::{
     arguments::BuildArguments,

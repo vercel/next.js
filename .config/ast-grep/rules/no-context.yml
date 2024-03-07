@@ -21,7 +21,7 @@ rule:
 ignores:
   - "./crates/turbopack-css/**"
   - "./crates/turbopack-dev-server/**"
-  - "./crates/turbopack-dev/**"
+  - "./crates/turbopack-browser/**"
   - "./crates/turbopack-ecmascript-hmr-protocol/**"
   - "./crates/turbopack-ecmascript-plugins/**"
   - "./crates/turbopack-ecmascript-runtime/**"
