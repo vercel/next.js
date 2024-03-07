@@ -7,13 +7,20 @@ describe('import trace dynamic eval', () => {
     })
     expect(output.code).toBe(1)
     expect(output.stderr).toMatchInlineSnapshot(`
-      "
-      > Build error occurred
-      Error: > Couldn't find any \`pages\` or \`app\` directory. Please create one under the project root
-          at findPagesDir (/home/balazs/projects/vercel/next.js/packages/next/dist/lib/find-pages-dir.js:42:15)
-          at /home/balazs/projects/vercel/next.js/packages/next/dist/build/index.js:388:73
-          at async Span.traceAsyncFn (/home/balazs/projects/vercel/next.js/packages/next/dist/trace/trace.js:151:20)
-          at async build (/home/balazs/projects/vercel/next.js/packages/next/dist/build/index.js:350:9)
+      "Failed to compile.
+
+      ./lib/foo.ts
+      Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime
+      Learn More: https://nextjs.org/docs/messages/dynamic-code-evaluation-error
+
+      The error was caused by importing 'ajv/dist/ajv.js' in './lib/foo.ts'.
+
+      Import trace for requested module:
+        ./lib/foo.ts
+        ./middleware.ts
+
+
+      > Build failed because of webpack errors
       "
     `)
   })
