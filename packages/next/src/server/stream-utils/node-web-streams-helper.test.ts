@@ -1,6 +1,7 @@
 import { setImmediate } from 'timers/promises'
 import {
   chainStreams,
+  createBufferedTransformStream,
   streamFromString,
   streamToString,
 } from './node-web-streams-helper'
@@ -178,7 +179,28 @@ describe('node-web-stream-helpers', () => {
     })
   })
 
-  describe('createBufferedTransformStream', () => {})
+  describe('createBufferedTransformStream', () => {
+    it('should return a TransformStream that buffers input chunks', async () => {
+      const stream = createBufferedTransformStream()
+      const input = new ReadableStream({
+        start(controller) {
+          // enquque 3 chunks of data
+          controller.enqueue(new Uint8Array([97, 98, 99, 100]))
+          controller.enqueue(new Uint8Array([101, 102, 103, 104]))
+          controller.enqueue(new Uint8Array([105, 106, 107, 108]))
+          controller.close()
+        },
+      })
+      const output = input.pipeThrough(stream)
+      // expect 3 input chunks to be buffered into single chunk output
+      await processReadableStream(output, [
+        new Uint8Array([
+          97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108,
+        ]),
+      ])
+    })
+  })
+
   describe('createInsertedHTMLStream', () => {})
   describe('renderToInitialFizzStream', () => {})
   describe('createHeadInsertionTransformStream', () => {})
