@@ -48,7 +48,7 @@ export default class ReactDevOverlay extends React.PureComponent<
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-    const hasMissingTags = Boolean(state.rootLayoutMissingTags)
+    const hasMissingTags = Boolean(state.rootLayoutMissingTags?.length)
     const isMounted =
       hasBuildError || hasRuntimeErrors || reactError || hasMissingTags
 
