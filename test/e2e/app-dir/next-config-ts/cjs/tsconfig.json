@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "module": "CommonJS",
+    "noEmit": true
+  }
+}
