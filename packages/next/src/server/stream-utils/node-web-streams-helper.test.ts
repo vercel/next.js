@@ -47,28 +47,25 @@ describe('node-web-stream-helpers', () => {
       const actual = chainStreams(stream)
       expect(actual).toStrictEqual(stream)
     })
-    it('should chain streams together', async () => {
-      const r1 = new ReadableStream({
-        start(controller) {
-          controller.enqueue('abcd')
-          controller.close()
-        },
-      })
-      const r2 = new ReadableStream({
-        start(controller) {
-          controller.enqueue('efgh')
-          controller.close()
-        },
-      })
-      const chained = chainStreams(r1, r2)
-      const reader = chained.getReader()
-      let { done, value } = await reader.read()
-      expect(done).toStrictEqual(false)
-      expect(value).toStrictEqual('abcd')
-      ;({ done, value } = await reader.read())
-      expect(done).toStrictEqual(false)
-      expect(value).toStrictEqual('efgh')
-      ;({ done, value } = await reader.read())
+    it('should chain streams in order', async () => {
+      const createReadableStream = (data: string) => {
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(data)
+            controller.close()
+          },
+        })
+      }
+      const inputs = ['abcd', 'efgh', 'ijkl', 'mnop', 'qrst', 'uvwx', 'yz00']
+      const streams = inputs.map((input) => createReadableStream(input))
+      const stream = chainStreams(...streams)
+      const reader = stream.getReader()
+      for (let i = 0; i < inputs.length; i++) {
+        const { done, value } = await reader.read()
+        expect(done).toStrictEqual(false)
+        expect(value).toStrictEqual(inputs[i])
+      }
+      const { done, value } = await reader.read()
       expect(done).toStrictEqual(true)
       expect(value).toStrictEqual(undefined)
     })
