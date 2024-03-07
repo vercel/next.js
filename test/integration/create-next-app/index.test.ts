@@ -139,7 +139,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/layout.tsx',
+          'app/page.tsx',
           '.gitignore',
           'node_modules/next',
         ],
