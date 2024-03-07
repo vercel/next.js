@@ -391,7 +391,6 @@ function Router({
           })
         })
       },
-      // @ts-ignore we don't want to expose this method at all
       fastRefresh: () => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
