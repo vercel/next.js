@@ -18,6 +18,20 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
 // when handling streaming data
 const encoder = new TextEncoder()
 
+/**
+ * Attention: ReadableStreams passed to this function will **not** be used
+ * until the output ReadableStream is completely read from. The output
+ * ReadableStream is not _connected_ to the input streams, meaning that closing
+ * an input will cause an error once the output is read from. Furthermore,
+ * closing the output will not close any of the inputs.
+ *
+ * Considering this function is used strictly by `server/render.tsx` and
+ * `server/app-render.tsx` at the moment, we see no need to fix it. This
+ * message is meant as a warning if this function is ever changed/used
+ * elsewhere.
+ *
+ * Ping @Ethan-Arrowood or @gnoff for more information.
+ */
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
@@ -73,7 +87,7 @@ export async function streamToString(
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
-  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
+  // @ts-expect-error Unfortunately, the DOM types for global streams are incorrect and are missing the async iterator definition even though it is apart of the spec https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#async_iteration
   for await (const chunk of stream) {
     string += decoder.decode(chunk, { stream: true })
   }
