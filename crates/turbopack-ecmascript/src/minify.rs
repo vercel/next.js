@@ -25,7 +25,8 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     source_map::GenerateSourceMap,
 };
-use turbopack_ecmascript::ParseResultSourceMap;
+
+use crate::ParseResultSourceMap;
 
 #[turbo_tasks::function]
 pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {

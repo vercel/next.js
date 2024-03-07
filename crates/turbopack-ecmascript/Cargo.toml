@@ -41,6 +41,7 @@ turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 url = { workspace = true }
+urlencoding = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -50,6 +51,8 @@ swc_core = { workspace = true, features = [
   "common_sourcemap",
   "ecma_codegen",
   "ecma_lints",
+  "ecma_minifier",
+  "ecma_minifier_concurrent",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",

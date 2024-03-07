@@ -14,6 +14,7 @@ pub mod code_gen;
 mod errors;
 pub mod magic_identifier;
 pub mod manifest;
+pub mod minify;
 pub mod parse;
 mod path_visitor;
 pub mod references;

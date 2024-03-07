@@ -7,7 +7,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets,
-        ModuleId,
+        MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -67,6 +67,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
+        self.chunking_context.minify_type = minify_type;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::new(Value::new(self.chunking_context))
     }
@@ -107,6 +112,8 @@ pub struct BrowserChunkingContext {
     environment: Vc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
+    /// Whether to minify resulting chunks
+    minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
 }
@@ -134,6 +141,7 @@ impl BrowserChunkingContext {
                 enable_hot_module_replacement: false,
                 environment,
                 runtime_type: Default::default(),
+                minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
             },
         }
@@ -152,6 +160,11 @@ impl BrowserChunkingContext {
     /// Returns the asset base path.
     pub fn chunk_base_path(&self) -> Vc<Option<String>> {
         self.chunk_base_path
+    }
+
+    /// Returns the minify type.
+    pub fn minify_type(&self) -> MinifyType {
+        self.minify_type
     }
 }
 

@@ -6,13 +6,13 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, ModuleId},
+    chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, utils::StringifyJs};
+use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
 use super::{
     chunk::EcmascriptDevChunk, content_entry::EcmascriptDevChunkContentEntries,
@@ -70,7 +70,8 @@ impl EcmascriptDevChunkContent {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let output_root = this.chunking_context.output_root().await?;
-        let chunk_path = this.chunk.ident().path().await?;
+        let chunk_path_vc = this.chunk.ident().path();
+        let chunk_path = chunk_path_vc.await?;
         let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
@@ -114,7 +115,15 @@ impl EcmascriptDevChunkContent {
             )?;
         }
 
-        Ok(code.build().cell())
+        let code = code.build().cell();
+        if matches!(
+            this.chunking_context.await?.minify_type(),
+            MinifyType::Minify
+        ) {
+            return Ok(minify(chunk_path_vc, code));
+        }
+
+        Ok(code)
     }
 }
 
