@@ -294,7 +294,11 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
     }
 }
 
-pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
+pub fn subscribe<
+    T: 'static + Send + Sync + std::fmt::Debug,
+    F: Future<Output = Result<T>> + Send,
+    V: ToNapiValue,
+>(
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
@@ -306,6 +310,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         let func = func.clone();
         Box::pin(async move {
             let result = handler().await;
+            dbg!(&result);
 
             let status = func.call(
                 result.map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string())),
