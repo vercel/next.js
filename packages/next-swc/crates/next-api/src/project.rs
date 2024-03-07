@@ -33,7 +33,7 @@ use turbopack_binding::{
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem},
     },
     turbopack::{
-        build::BuildChunkingContext,
+        browser::BrowserChunkingContext,
         core::{
             changed::content_changed,
             compile_time_info::CompileTimeInfo,
@@ -48,9 +48,9 @@ use turbopack_binding::{
             version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
-        dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
+        nodejs::NodeJsChunkingContext,
         turbopack::{evaluate_context::node_build_environment, ModuleAssetContext},
     },
 };
@@ -497,7 +497,7 @@ impl Project {
         let node_root = self.node_root();
 
         let node_execution_chunking_context = Vc::upcast(
-            DevChunkingContext::builder(
+            BrowserChunkingContext::builder(
                 self.project_path(),
                 node_root,
                 node_root,
@@ -555,7 +555,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<NodeJsChunkingContext> {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),

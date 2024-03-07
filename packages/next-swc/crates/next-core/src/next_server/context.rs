@@ -8,8 +8,8 @@ use turbopack_binding::{
         tasks_fs::FileSystemPath,
     },
     turbopack::{
-        build::{BuildChunkingContext, MinifyType},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -22,6 +22,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        nodejs::NodeJsChunkingContext,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -733,11 +734,11 @@ pub fn get_server_chunking_context(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<BuildChunkingContext> {
+) -> Vc<NodeJsChunkingContext> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    BuildChunkingContext::builder(
+    NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,

@@ -7,7 +7,9 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
+        browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -16,7 +18,6 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
         node::{
             execution_context::ExecutionContext,
@@ -336,7 +337,7 @@ pub async fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let mut builder = DevChunkingContext::builder(
+    let mut builder = BrowserChunkingContext::builder(
         project_path,
         client_root,
         client_root,
@@ -345,6 +346,7 @@ pub async fn get_client_chunking_context(
         environment,
     )
     .chunk_base_path(asset_prefix)
+    .minify_type(MinifyType::Minify)
     .asset_base_path(asset_prefix);
 
     if mode.await?.is_development() {

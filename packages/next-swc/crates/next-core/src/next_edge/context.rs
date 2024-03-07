@@ -4,7 +4,9 @@ use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
+        browser::BrowserChunkingContext,
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -12,7 +14,6 @@ use turbopack_binding::{
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
-        dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
         node::{debug::should_debug, execution_context::ExecutionContext},
         turbopack::resolve_options_context::ResolveOptionsContext,
@@ -157,7 +158,7 @@ pub fn get_edge_chunking_context(
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
     let output_root = node_root.join("server/edge".to_string());
     Vc::upcast(
-        DevChunkingContext::builder(
+        BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
@@ -167,6 +168,7 @@ pub fn get_edge_chunking_context(
         )
         .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
+        .minify_type(MinifyType::Minify)
         .build(),
     )
 }
