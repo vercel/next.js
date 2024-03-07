@@ -31,7 +31,7 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
-import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parseDynamicCodeEvalutationError'
+import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
