@@ -100,14 +100,29 @@ async function main() {
     )
   )
 
-  await execa('vercel', ['--scope', process.env.VERCEL_TEST_TEAM, '-y'], {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      TOKEN: process.env.VERCEL_TEST_TOKEN,
-    },
-    cwd: deployDir,
-  })
+  const child = execa(
+    'vercel',
+    ['--scope', process.env.VERCEL_TEST_TEAM, '-y'],
+    {
+      env: {
+        ...process.env,
+        TOKEN: process.env.VERCEL_TEST_TOKEN,
+      },
+      cwd: deployDir,
+    }
+  )
+  let deployOutput = ''
+  const handleData = (type) => (chunk) => {
+    process[type].write(chunk)
+    deployOutput += chunk.toString()
+  }
+  child.stdout.on('data', handleData('stdout'))
+  child.stderr.on('data', handleData('stderr'))
+
+  await child
+
+  const deployUrl = deployOutput.match(/Preview: (https.*?) /)?.[0]
+  console.log(`\n\nNext.js tarball: ${deployUrl.trim()}/next.tgz`)
 }
 
 main().catch(console.error)
