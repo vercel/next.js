@@ -96,7 +96,8 @@ const pluginState = getProxiedPluginState({
   // Collect modules from server/edge compiler in client layer,
   // and detect if it's been used, and mark it as `async: true` for react.
   // So that react could unwrap the async module from promise and render module itself.
-  ASYNC_CLIENT_MODULES: new Set() as Set<string[]>,
+  // Use an object to simulate Set lookup
+  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -234,11 +235,11 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        if (mod && !isWebpackServerOnlyLayer(mod.layer)) {
+        if (mod && mod.resource && !isWebpackServerOnlyLayer(mod.layer)) {
           if (compilation.moduleGraph.isAsync(mod)) {
             // The module must has resolved resource path so it's not a new entry created with loader.
             // Checking the module layer to make sure it's from client layers (SSR or browser, not RSC).
-            if (mod.resource) pluginState.ASYNC_CLIENT_MODULES.add(mod.resource)
+            pluginState.ASYNC_CLIENT_MODULES[mod.resource] = true
           }
         }
 
