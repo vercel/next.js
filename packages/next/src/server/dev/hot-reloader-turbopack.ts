@@ -389,7 +389,18 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
+        console.log('subscribeToHmrEvents', data)
         processIssues(state.clientIssues, key, data)
+
+        if (data.issues.length === 0) {
+          sendToClient(client, {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+            errors: [],
+            hash: '',
+            warnings: [],
+          })
+        }
+
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
