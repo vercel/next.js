@@ -1,17 +1,15 @@
 use std::iter::once;
 
 use anyhow::{bail, Context, Result};
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, ValueToString, Vc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::DeterministicHash;
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets,
-        ModuleId,
+        MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -28,28 +26,6 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use crate::ecmascript::node::{
     chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
 };
-
-#[derive(
-    Debug,
-    Default,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-)]
-pub enum MinifyType {
-    #[default]
-    Minify,
-    NoMinify,
-}
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
 pub struct NodeJsChunkingContextBuilder {
@@ -146,6 +122,7 @@ impl NodeJsChunkingContext {
         self.runtime_type
     }
 
+    /// Returns the minify type.
     pub fn minify_type(&self) -> MinifyType {
         self.minify_type
     }

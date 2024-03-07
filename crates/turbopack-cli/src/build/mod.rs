@@ -14,7 +14,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
+        EvaluatableAssets, MinifyType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
@@ -29,7 +30,7 @@ use turbopack_core::{
 };
 use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
-use turbopack_nodejs::{MinifyType, NodeJsChunkingContext};
+use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     arguments::BuildArguments,
