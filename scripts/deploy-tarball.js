@@ -100,14 +100,34 @@ async function main() {
     )
   )
 
+  if (process.env.VERCEL_TEST_TOKEN) {
+    const vercelConfigDir = path.join(cwd, '.vercel')
+    await fs.mkdir(vercelConfigDir)
+    await fs.writeFile(
+      path.join(vercelConfigDir, 'auth.json'),
+      JSON.stringify({
+        token: process.env.VERCEL_TEST_TOKEN,
+      })
+    )
+    await fs.writeFile(
+      path.join(vercelConfigDir, 'config.json'),
+      JSON.stringify({})
+    )
+    console.log('wrote config to', vercelConfigDir)
+  }
+  const whoami = await execa('vercel', ['whoami'], { cwd: deployDir })
+  console.log(whoami.stderr, whoami.stderr)
+
   const child = execa(
     'vercel',
-    ['--scope', process.env.VERCEL_TEST_TEAM, '-y'],
+    [
+      '--scope',
+      process.env.VERCEL_TEST_TEAM,
+      '--global-config',
+      path.join(cwd, '.vercel'),
+      '-y',
+    ],
     {
-      env: {
-        ...process.env,
-        TOKEN: process.env.VERCEL_TEST_TOKEN,
-      },
       cwd: deployDir,
     }
   )
@@ -125,4 +145,7 @@ async function main() {
   console.log(`\n\nNext.js tarball: ${deployUrl.trim()}/next.tgz`)
 }
 
-main().catch(console.error)
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
