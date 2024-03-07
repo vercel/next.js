@@ -67,7 +67,7 @@ export default class ReactDevOverlay extends React.PureComponent<
             <CssReset />
             <Base />
             <ComponentStyles />
-            {state.rootLayoutMissingTags ? (
+            {state.rootLayoutMissingTags?.length ? (
               <RootLayoutMissingTagsError
                 missingTags={state.rootLayoutMissingTags}
               />
