@@ -1,5 +1,5 @@
 [package]
-name = "turbopack-build"
+name = "turbopack-browser"
 version = "0.1.0"
 description = "TBD"
 license = "MPL-2.0"
@@ -25,22 +25,20 @@ indoc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }
-sourcemap = { workspace = true }
-swc_core = { workspace = true, features = [
-  "__parser",
-  "ecma_minifier",
-  "ecma_minifier_concurrent",
-] }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-runtime = { workspace = true }
+turbopack-resolve = { workspace = true }
+
+swc_core = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

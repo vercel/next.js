@@ -27,7 +27,7 @@ use turbopack::{
     },
     ModuleAssetContext,
 };
-use turbopack_build::{MinifyType, NodeJsChunkingContext};
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -47,13 +47,13 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
-use turbopack_dev::BrowserChunkingContext;
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
     styled_components::{StyledComponentsTransformConfig, StyledComponentsTransformer},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::ProcessEnvAsset;
+use turbopack_nodejs::{MinifyType, NodeJsChunkingContext};
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
@@ -64,8 +64,8 @@ fn register() {
     turbo_tasks_env::register();
     turbo_tasks_fs::register();
     turbopack::register();
-    turbopack_build::register();
-    turbopack_dev::register();
+    turbopack_nodejs::register();
+    turbopack_browser::register();
     turbopack_env::register();
     turbopack_ecmascript_plugins::register();
     turbopack_ecmascript_runtime::register();

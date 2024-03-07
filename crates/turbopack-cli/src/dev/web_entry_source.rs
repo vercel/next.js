@@ -3,6 +3,7 @@ use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ecmascript::EcmascriptModuleAsset;
+use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext},
@@ -14,7 +15,6 @@ use turbopack_core::{
         parse::Request,
     },
 };
-use turbopack_dev::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{asset_graph::AssetGraphContentSource, ContentSource},

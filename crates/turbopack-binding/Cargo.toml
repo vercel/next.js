@@ -112,18 +112,18 @@ __turbo_updater = ["__turbo", "turbo-updater"]
 
 __turbopack = ["turbopack"]
 __turbopack_bench = ["__turbopack", "turbopack-bench"]
-__turbopack_build = ["__turbopack", "turbopack-build"]
-__turbopack_build_dynamic_embed_contents = [
-  "turbopack-build/dynamic_embed_contents",
+__turbopack_nodejs = ["__turbopack", "turbopack-nodejs"]
+__turbopack_nodejs_dynamic_embed_contents = [
+  "turbopack-nodejs/dynamic_embed_contents",
 ]
 __turbopack_cli_utils = ["__turbopack", "turbopack-cli-utils"]
 __turbopack_core = ["__turbopack", "turbopack-core"]
 __turbopack_core_issue_path = ["turbopack-core/issue_path"]
 __turbopack_create_test_app = ["__turbopack", "turbopack-create-test-app"]
 __turbopack_css = ["__turbopack", "turbopack-css"]
-__turbopack_dev = ["__turbopack", "turbopack-dev"]
-__turbopack_dev_dynamic_embed_contents = [
-  "turbopack-dev/dynamic_embed_contents",
+__turbopack_browser = ["__turbopack", "turbopack-browser"]
+__turbopack_browser_dynamic_embed_contents = [
+  "turbopack-browser/dynamic_embed_contents",
 ]
 __turbopack_dev_server = ["__turbopack", "turbopack-dev-server"]
 __turbopack_ecmascript = ["__turbopack", "turbopack-ecmascript"]
@@ -220,12 +220,11 @@ turbo-tasks-testing = { optional = true, workspace = true }
 turbo-updater = { optional = true, workspace = true }
 turbopack = { optional = true, workspace = true }
 turbopack-bench = { optional = true, workspace = true }
-turbopack-build = { optional = true, workspace = true }
+turbopack-browser = { optional = true, workspace = true }
 turbopack-cli-utils = { optional = true, workspace = true }
 turbopack-core = { optional = true, workspace = true }
 turbopack-create-test-app = { optional = true, workspace = true }
 turbopack-css = { optional = true, workspace = true }
-turbopack-dev = { optional = true, workspace = true }
 turbopack-dev-server = { optional = true, workspace = true }
 turbopack-ecmascript = { optional = true, workspace = true }
 turbopack-ecmascript-hmr-protocol = { optional = true, workspace = true }
@@ -236,6 +235,7 @@ turbopack-image = { optional = true, workspace = true }
 turbopack-json = { optional = true, workspace = true }
 turbopack-mdx = { optional = true, workspace = true }
 turbopack-node = { optional = true, workspace = true }
+turbopack-nodejs = { optional = true, workspace = true }
 turbopack-static = { optional = true, workspace = true }
 turbopack-swc-utils = { optional = true, workspace = true }
 turbopack-test-utils = { optional = true, workspace = true }
