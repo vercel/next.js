@@ -19,11 +19,12 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
 const encoder = new TextEncoder()
 
 /**
- * Attention: ReadableStreams passed to this function will **not** be used
- * until the output ReadableStream is completely read from. The output
- * ReadableStream is not _connected_ to the input streams, meaning that closing
- * an input will cause an error once the output is read from. Furthermore,
- * closing the output will not close any of the inputs.
+ * Attention: ReadableStreams passed to this function will **not** be _read_
+ * until the output ReadableStream is completely read. This leads to some
+ * unexpected behavior. For example, cancelling or reading an input stream
+ * _before_ the output stream is read from will cause the output stream read
+ * operation to hang indefinitely. See the test `chainStreams failure cases`
+ * for more details.
  *
  * Considering this function is used strictly by `server/render.tsx` and
  * `server/app-render.tsx` at the moment, we see no need to fix it. This
