@@ -301,7 +301,7 @@ const nextDev = async (
           }
           return startServer(startServerOptions)
         }
-        await handleSessionStop(code, signal)
+        await handleSessionStop(code || 1, signal)
       })
     })
   }
