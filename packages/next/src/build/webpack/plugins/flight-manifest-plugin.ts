@@ -300,8 +300,7 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const modResource = mod.resourceResolveData?.path || ''
-        const isAsyncModule = pluginState.ASYNC_CLIENT_MODULES.has(modResource)
+        const isAsyncModule = pluginState.ASYNC_CLIENT_MODULES.has(mod.resource)
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.

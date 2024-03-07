@@ -238,12 +238,11 @@ export class FlightClientEntryPlugin {
           if (compilation.moduleGraph.isAsync(mod)) {
             // The module must has resolved resource path so it's not a new entry created with loader.
             // Checking the module layer to make sure it's from client layers (SSR or browser, not RSC).
-            const modPath = mod.resourceResolveData?.path
-            if (modPath) pluginState.ASYNC_CLIENT_MODULES.add(modPath)
+            if (mod.resource) pluginState.ASYNC_CLIENT_MODULES.add(mod.resource)
           }
         }
 
-        recordModule(modId, mod)
+        if (modId) recordModule(modId, mod)
       })
     })
 
@@ -545,8 +544,8 @@ export class FlightClientEntryPlugin {
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
-        let modRequest: string | undefined =
-          modPath + mod.resourceResolveData?.query
+        let modRequest: string =
+          modPath + (mod.resourceResolveData?.query || '')
 
         // For the barrel optimization, we need to use the match resource instead
         // because there will be 2 modules for the same file (same resource path)
@@ -949,6 +948,7 @@ export class FlightClientEntryPlugin {
       if (
         chunkGroup.name &&
         mod.request &&
+        modId &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
         const fromClient = /&__client_imported__=true/.test(mod.request)
