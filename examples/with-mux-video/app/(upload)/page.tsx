@@ -7,7 +7,10 @@ const mux = new Mux();
 
 const createUpload = async () => {
   const upload = await mux.video.uploads.create({
-    new_asset_settings: { playback_policy: ["public"] },
+    new_asset_settings: {
+      playback_policy: ["public"],
+      encoding_tier: "baseline",
+    },
     // in production, you'll want to change this origin to your-domain.com
     cors_origin: "*",
   });
