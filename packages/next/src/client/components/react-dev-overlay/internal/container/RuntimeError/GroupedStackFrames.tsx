@@ -1,6 +1,6 @@
 import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
-import { FrameworkIcon } from './FrameworkIcon'
+import { FrameworkIcon } from '../../components/FrameworkIcon'
 
 export function CollapseIcon(
   { collapsed }: { collapsed?: boolean } = { collapsed: false }
