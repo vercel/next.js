@@ -2,8 +2,10 @@ import { setImmediate } from 'timers/promises'
 import {
   chainStreams,
   createBufferedTransformStream,
+  continueFizzStream,
   streamFromString,
   streamToString,
+  type ReactReadableStream,
 } from './node-web-streams-helper'
 
 async function processReadableStream(
@@ -20,6 +22,28 @@ async function processReadableStream(
   ;({ done, value } = await reader.read())
   expect(done).toStrictEqual(true)
   expect(value).toStrictEqual(undefined)
+}
+
+const createMockReadableStream = ({
+  input,
+  byteCount = 4,
+  encode = true,
+}: {
+  input: string
+  byteCount?: number
+  encode?: boolean
+}) => {
+  const encoder = new TextEncoder()
+  const chunks = encode ? encoder.encode(input) : input
+  return new ReadableStream({
+    async pull(controller) {
+      for (let i = 0; i < chunks.length; i += byteCount) {
+        controller.enqueue(chunks.slice(i, i + byteCount))
+        await Promise.resolve() // await one microtask
+      }
+      controller.close()
+    },
+  })
 }
 
 describe('node-web-stream-helpers', () => {
@@ -224,7 +248,75 @@ describe('node-web-stream-helpers', () => {
     })
   })
 
-  describe('continueFizzStream', () => {})
+  describe('continueFizzStream', () => {
+    const encoder = new TextEncoder()
+
+    const defaultInlinedDataStreamFactory = () =>
+      createMockReadableStream({ input: '<data>inlined data</data>' })
+
+    const defaultGetServerInsertedHTMLFactory = () => {
+      const serverInsertedHTMLStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue('<server-html>Server HTML</server-html>')
+          controller.close()
+        },
+      })
+      const reader = serverInsertedHTMLStream.getReader()
+      return async () => {
+        const { value } = await reader.read()
+        return value
+      }
+    }
+    describe('pages router', () => {
+      const defaultSuffix = '<suffix>suffix</suffix>'
+      // values hardcoded based on usage of `continueFizzStream` in `server/render.tsx`
+      const defaultOptionsFactory = () => ({
+        isStaticGeneration: true, // always true
+        serverInsertedHTMLToHead: false, // always false
+        validateRootLayout: undefined, // always undefined
+        inlinedDataStream: defaultInlinedDataStreamFactory(),
+        getServerInsertedHTML: defaultGetServerInsertedHTMLFactory(),
+        suffix: defaultSuffix,
+      })
+      const defaultReactReadableStreamFactory = () =>
+        createMockReadableStream({
+          input: `<html><head><title>My Website</title></head><body><div><h1>My Website</h1></div></body></html>`,
+          byteCount: 8,
+        })
+      it('should continue fizz stream operation using default arguments', async () => {
+        const input: ReactReadableStream = defaultReactReadableStreamFactory()
+        // TODO: Somehow spy on `input.allReady` and assert it gets awaited
+        const output = await continueFizzStream(input, defaultOptionsFactory())
+        const expected = encoder.encode(
+          '<server-html>Server HTML</server-html><html><head><title>My Website</title></head><body><div><h1>My Website</h1></div><data>inlined data</data><suffix>suffix</suffix></body></html>'
+        )
+        const actual = new Uint8Array(expected.length)
+        let i = 0
+        const reader = output.getReader()
+        let { done, value } = await reader.read()
+        while (!done && value) {
+          actual.set(value, i)
+          i += value.length
+          ;({ done, value } = await reader.read())
+        }
+        expect(actual).toStrictEqual(expected)
+      })
+    })
+    describe('app router', () => {
+      const defaultOptionsFactory = () => ({
+        inlinedDataStream: defaultInlinedDataStreamFactory(),
+        getServerInsertedHTML: defaultGetServerInsertedHTMLFactory(),
+        serverInsertedHTMLToHead: true,
+      })
+
+      it.todo('dev mode - (validateRootLayout = true)', () => {
+        const options = {
+          ...defaultOptionsFactory(),
+          validateRootLayout: true,
+        }
+      })
+    })
+  })
   describe('continueDynamicPrerender', () => {})
   describe('continueStaticPrerender', () => {})
   describe('continueDynamicHTMLResume', () => {})
