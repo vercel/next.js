@@ -22,7 +22,6 @@ import {
   DEFAULT_RUNTIME_WEBPACK,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
   getActions,
@@ -40,6 +39,7 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { getProxiedPluginState } from '../../build-context'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 import { PAGE_TYPES } from '../../../lib/page-types'
+import { isWebpackServerOnlyLayer } from '../../utils'
 
 interface Options {
   dev: boolean
@@ -95,7 +95,7 @@ const pluginState = getProxiedPluginState({
   // Collect modules from server/edge compiler in client layer,
   // and detect if it's been used, and mark it as `async: true` for react.
   // So that react could unwrap the async module from promise and render module itself.
-  ASYNC_CLIENT_MODULES: [] as string[],
+  ASYNC_CLIENT_MODULES: new Set() as Set<string[]>,
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -233,15 +233,16 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        // The module must has request, and resource so it's not a new entry created with loader.
-        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
-        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+        if (mod && !isWebpackServerOnlyLayer(mod.layer)) {
           if (compilation.moduleGraph.isAsync(mod)) {
-            pluginState.ASYNC_CLIENT_MODULES.push(mod.resource)
+            // The module must has resolved resource path so it's not a new entry created with loader.
+            // Checking the module layer to make sure it's from client layers (SSR or browser, not RSC).
+            const modPath = mod.resourceResolveData?.path
+            if (modPath) pluginState.ASYNC_CLIENT_MODULES.add(modPath)
           }
         }
 
-        recordModule(String(modId), mod)
+        recordModule(modId, mod)
       })
     })
 
@@ -334,23 +335,6 @@ export class FlightClientEntryPlugin {
           bundlePath,
           absolutePagePath: entryRequest,
         })
-
-        // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
-        // It needs the file in order to write the reference manifest for the path in the `.next/server` folder.
-        // TODO-APP: This could be better handled, however Turbopack does not have the same problem as we resolve client components in a single graph.
-        if (
-          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
-          bundlePath === 'app/not-found'
-        ) {
-          clientEntriesToInject.push({
-            compiler,
-            compilation,
-            entryName: name,
-            clientComponentImports: {},
-            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            absolutePagePath: entryRequest,
-          })
-        }
       }
 
       // Make sure CSS imports are deduplicated before injecting the client entry
@@ -539,11 +523,12 @@ export class FlightClientEntryPlugin {
       const collectActionsInDep = (mod: webpack.NormalModule): void => {
         if (!mod) return
 
+        const modPath: string = mod.resourceResolveData?.path || ''
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
         let modRequest: string | undefined =
-          mod.resourceResolveData?.path + mod.resourceResolveData?.query
+          modPath + mod.resourceResolveData?.query
 
         // For the barrel optimization, we need to use the match resource instead
         // because there will be 2 modules for the same file (same resource path)
@@ -633,11 +618,12 @@ export class FlightClientEntryPlugin {
 
       const isCSS = isCSSMod(mod)
 
+      const modPath: string = mod.resourceResolveData?.path || ''
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
       let modRequest: string | undefined =
-        mod.resourceResolveData?.path + mod.resourceResolveData?.query
+        modPath + mod.resourceResolveData?.query
 
       // Context modules don't have a resource path, we use the identifier instead.
       if (mod.constructor.name === 'ContextModule') {
