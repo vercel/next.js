@@ -3,13 +3,25 @@ const execa = require('execa')
 const fs = require('fs/promises')
 
 const cwd = process.cwd()
-const deployUrl = process.env.VERCEL_URL
 
 async function main() {
   const deployDir = path.join(cwd, 'files')
   const publicDir = path.join(deployDir, 'public')
-
   await fs.mkdir(publicDir, { recursive: true })
+  await fs.writeFile(
+    path.join(deployDir, 'package.json'),
+    JSON.stringify({
+      name: 'files',
+      dependencies: {},
+      scripts: {
+        build: 'node inject-deploy-url.js',
+      },
+    })
+  )
+  await fs.copyFile(
+    path.join(cwd, 'scripts/inject-deploy-url.js'),
+    path.join(deployDir, 'inject-deploy-url.js')
+  )
 
   let nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
   let platforms = (await fs.readdir(nativePackagesDir)).filter(
@@ -49,7 +61,7 @@ async function main() {
         path.join(cwd, tarballName),
         path.join(publicDir, tarballName)
       )
-      optionalDeps[pkg.name] = new URL(`/${tarballName}`, deployUrl).toString()
+      optionalDeps[pkg.name] = `https://DEPLOY_URL/${tarballName}`
     })
   )
 
@@ -60,16 +72,32 @@ async function main() {
 
   await fs.writeFile(nextPkgJsonPath, JSON.stringify(nextPkg, null, 2))
 
-  const { stdout: nextPackStdout } = await execa(
-    `npm`,
-    [`pack`, `${path.join(cwd, 'packages/next')}`],
-    { stdio: 'inherit' }
-  )
+  const { stdout: nextPackStdout } = await execa(`npm`, [
+    `pack`,
+    `${path.join(cwd, 'packages/next')}`,
+  ])
   process.stdout.write(nextPackStdout)
   const nextTarballName = nextPackStdout.split('\n').pop().trim()
   await fs.rename(
     path.join(cwd, nextTarballName),
     path.join(publicDir, nextTarballName)
+  )
+
+  await fs.writeFile(
+    path.join(deployDir, 'vercel.json'),
+    JSON.stringify(
+      {
+        version: 2,
+        rewrites: [
+          {
+            source: '/next.tgz',
+            destination: `/${nextTarballName}`,
+          },
+        ],
+      },
+      null,
+      2
+    )
   )
 
   await execa('vercel', ['--scope', process.env.VERCEL_TEST_TEAM, '-y'], {
