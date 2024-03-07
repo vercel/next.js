@@ -149,15 +149,16 @@ pub async fn get_edge_resolve_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_chunking_context(
+pub async fn get_edge_chunking_context(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
-    Vc::upcast(
+    Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
@@ -168,7 +169,11 @@ pub fn get_edge_chunking_context(
         )
         .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
-        .minify_type(MinifyType::Minify)
+        .minify_type(if mode.await?.should_minify() {
+            MinifyType::Minify
+        } else {
+            MinifyType::NoMinify
+        })
         .build(),
-    )
+    ))
 }

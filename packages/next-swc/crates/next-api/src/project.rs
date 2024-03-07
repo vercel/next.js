@@ -555,25 +555,31 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<NodeJsChunkingContext> {
-        get_server_chunking_context(
+    pub(super) async fn server_chunking_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<NodeJsChunkingContext>> {
+        Ok(get_server_chunking_context(
+            self.next_mode(),
             self.project_path(),
             self.node_root(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        get_edge_chunking_context(
+    pub(super) fn edge_chunking_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+        Ok(get_edge_chunking_context(
+            self.next_mode(),
             self.project_path(),
             self.node_root(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.edge_compile_time_info().environment(),
-        )
+        ))
     }
 
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)

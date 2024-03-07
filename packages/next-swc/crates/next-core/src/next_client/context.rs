@@ -337,6 +337,7 @@ pub async fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+    let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         project_path,
         client_root,
@@ -346,10 +347,14 @@ pub async fn get_client_chunking_context(
         environment,
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(MinifyType::Minify)
+    .minify_type(if next_mode.should_minify() {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .asset_base_path(asset_prefix);
 
-    if mode.await?.is_development() {
+    if next_mode.is_development() {
         builder = builder.hot_module_replacement();
     }
 
