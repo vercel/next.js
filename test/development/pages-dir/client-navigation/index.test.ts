@@ -1114,6 +1114,22 @@ createNextDescribe(
           await browser.close()
         }
       })
+
+      it('router.replace with shallow=true shall not throw route cancelled errors', async () => {
+        const browser = await webdriver(next.appPort, '/nav/query-only-shallow')
+        try {
+          await browser.elementByCss('#router-replace').click()
+          // the error occurs on every replace() after the first one
+          await browser.elementByCss('#router-replace').click()
+
+          await check(
+            () => browser.waitForElementByCss('#routeState').text(),
+            '{"completed":2,"errors":0}'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     describe('with getInitialProp redirect', () => {
@@ -1385,7 +1401,7 @@ createNextDescribe(
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(
-            /pages[\\/]error-inside-browser-page\.js \(5:12\)/
+            /pages[\\/]error-inside-browser-page\.js \(5:13\)/
           )
         } finally {
           if (browser) {
@@ -1404,7 +1420,7 @@ createNextDescribe(
           expect(await hasRedbox(browser)).toBe(true)
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
-          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
+          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
         } finally {
           if (browser) {
             await browser.close()
@@ -1783,17 +1799,17 @@ createNextDescribe(
 
       await browser.elementByCss('a').click()
 
-      browser.waitForElementByCss('#relative-1')
+      await browser.waitForElementByCss('#relative-1')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative 1/)
       await browser.elementByCss('a').click()
 
-      browser.waitForElementByCss('#relative-2')
+      await browser.waitForElementByCss('#relative-2')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative 2/)
 
       await browser.elementByCss('button').click()
-      browser.waitForElementByCss('#relative')
+      await browser.waitForElementByCss('#relative')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative index/)
 

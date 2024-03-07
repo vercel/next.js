@@ -1,4 +1,4 @@
-name: Notify about the top 15 issues (most reacted) in the last month
+name: Notify about the top 15 issues (most reacted) in the last 90 days
 
 on:
   schedule:
@@ -10,8 +10,8 @@ jobs:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: corepack enable

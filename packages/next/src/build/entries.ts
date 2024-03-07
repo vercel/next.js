@@ -5,6 +5,7 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
+  MiddlewareConfigParsed,
   MiddlewareConfig,
   MiddlewareMatcher,
   PageStaticInfo,
@@ -24,7 +25,11 @@ import {
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
-import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
+import {
+  APP_CLIENT_INTERNALS,
+  RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -242,7 +247,9 @@ export function createPagesMapping({
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
-        pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
+        if (pageKey === '/not-found') {
+          pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+        }
       }
 
       const normalizedPath = normalizePathSep(
@@ -276,7 +283,8 @@ export function createPagesMapping({
         // If there's any app pages existed, add a default not-found page.
         // If there's any custom not-found page existed, it will override the default one.
         ...(hasAppPages && {
-          '/_not-found': 'next/dist/client/components/not-found-error',
+          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
+            'next/dist/client/components/not-found-error',
         }),
         ...pages,
       }
@@ -332,7 +340,7 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<MiddlewareConfigParsed>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
@@ -581,6 +589,7 @@ export async function createEntrypoints(
           : pagesType === PAGE_TYPES.APP
           ? posix.join('app', bundleFile)
           : bundleFile.slice(1)
+
       const absolutePagePath = mappings[page]
 
       // Handle paths that have aliases
@@ -646,6 +655,8 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              nextConfigExperimentalUseEarlyImport:
+                config.experimental.useEarlyImport,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })

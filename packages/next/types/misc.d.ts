@@ -36,18 +36,6 @@ declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
-  export * from '@next/react-dev-overlay/dist/client'
-}
-
-declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
-  export * from '@next/react-dev-overlay/dist/middleware'
-}
-
-declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
-  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
-}
-
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
@@ -57,6 +45,12 @@ declare module 'next/dist/compiled/node-fetch' {
   import fetch from 'node-fetch'
   export * from 'node-fetch'
   export default fetch
+}
+
+declare module 'next/dist/compiled/commander' {
+  import commander from 'commander'
+  export * from 'commander'
+  export default commander
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
@@ -122,32 +116,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-declare module 'next/dist/compiled/arg/index.js' {
-  function arg<T extends arg.Spec>(
-    spec: T,
-    options?: { argv?: string[]; permissive?: boolean }
-  ): arg.Result<T>
-
-  namespace arg {
-    export type Handler = (value: string) => any
-
-    export interface Spec {
-      [key: string]: string | Handler | [Handler]
-    }
-
-    export type Result<T extends Spec> = { _: string[] } & {
-      [K in keyof T]: T[K] extends string
-        ? never
-        : T[K] extends Handler
-        ? ReturnType<T[K]>
-        : T[K] extends [Handler]
-        ? Array<ReturnType<T[K][0]>>
-        : never
-    }
-  }
-
-  export = arg
 }
 
 declare module 'next/dist/compiled/babel/code-frame' {
@@ -415,7 +383,7 @@ declare module 'next/dist/compiled/css.escape' {
 }
 
 declare module 'next/dist/compiled/data-uri-to-buffer' {
-  import * as m from 'data-uri-to-buffer'
+  import m from 'data-uri-to-buffer'
   export = m
 }
 

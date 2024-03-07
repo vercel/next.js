@@ -3,12 +3,10 @@
 import type {
   FocusAndScrollRef,
   PrefetchKind,
+  RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
-import type {
-  FlightRouterState,
-  FlightData,
-} from '../../server/app-render/types'
+import type { FlightRouterState } from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -19,6 +17,11 @@ export type ChildSegmentMap = Map<string, CacheNode>
 export type CacheNode = ReadyCacheNode | LazyCacheNode
 
 export type LazyCacheNode = {
+  /**
+   * Whether the lazy cache node data promise has been resolved.
+   * This value is only true after we've called `use` on the promise (and applied the data to the tree).
+   */
+  lazyDataResolved?: boolean
   /**
    * When rsc is null, this is a lazily-initialized cache node.
    *
@@ -61,6 +64,11 @@ export type LazyCacheNode = {
 }
 
 export type ReadyCacheNode = {
+  /**
+   * Whether the lazy cache node data promise has been resolved.
+   * This value is only true after we've called `use` on the promise (and applied the data to the tree).
+   */
+  lazyDataResolved?: boolean
   /**
    * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
@@ -118,6 +126,11 @@ export interface AppRouterInstance {
    */
   refresh(): void
   /**
+   * Refresh the current page. Use in development only.
+   * @internal
+   */
+  fastRefresh(): void
+  /**
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
@@ -140,15 +153,12 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-}>(null as any)
+} | null>(null)
+
 export const GlobalLayoutRouterContext = React.createContext<{
   buildId: string
   tree: FlightRouterState
-  changeByServerResponse: (
-    previousTree: FlightRouterState,
-    flightData: FlightData,
-    overrideCanonicalUrl: URL | undefined
-  ) => void
+  changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
 }>(null as any)

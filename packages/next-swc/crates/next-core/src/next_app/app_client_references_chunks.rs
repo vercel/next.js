@@ -45,7 +45,7 @@ pub struct ClientReferencesChunks {
 pub async fn get_app_client_references_chunks(
     app_client_references: Vc<ClientReferenceGraphResult>,
     client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    ssr_chunking_context: Option<Vc<Box<dyn EcmascriptChunkingContext>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
         // TODO Reconsider this. Maybe it need to be true in production.
@@ -69,9 +69,11 @@ pub async fn get_app_client_references_chunks(
                                     client_chunking_context.root_chunk_group_assets(Vc::upcast(
                                         ecmascript_client_reference_ref.client_module,
                                     )),
-                                    Some(ssr_chunking_context.root_chunk_group_assets(Vc::upcast(
-                                        ecmascript_client_reference_ref.ssr_module,
-                                    ))),
+                                    ssr_chunking_context.map(|ssr_chunking_context| {
+                                        ssr_chunking_context.root_chunk_group_assets(Vc::upcast(
+                                            ecmascript_client_reference_ref.ssr_module,
+                                        ))
+                                    }),
                                 )
                             }
                             ClientReferenceType::CssClientReference(css_client_reference) => {
@@ -172,10 +174,12 @@ pub async fn get_app_client_references_chunks(
                         layout_segment = display(&server_component_path),
                     )
                     .entered();
-                    Some(ssr_chunking_context.chunk_group(
-                        Vc::upcast(ssr_entry_module),
-                        Value::new(current_ssr_availability_info),
-                    ))
+                    ssr_chunking_context.map(|ssr_chunking_context| {
+                        ssr_chunking_context.chunk_group(
+                            Vc::upcast(ssr_entry_module),
+                            Value::new(current_ssr_availability_info),
+                        )
+                    })
                 } else {
                     None
                 };

@@ -1,3 +1,4 @@
+import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
@@ -40,6 +41,7 @@ export async function exportAppPage(
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
   if (page === '/_not-found') {
     pathname = '/404'
   }
@@ -106,7 +108,13 @@ export async function exportAppPage(
       )
     }
 
-    const headers = { ...metadata.headers }
+    const headers: OutgoingHttpHeaders = { ...metadata.headers }
+
+    // When PPR is enabled, we should grab the headers from the mocked response
+    // and add it to the headers.
+    if (renderOpts.experimental.ppr) {
+      Object.assign(headers, res.getHeaders())
+    }
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
@@ -122,7 +130,10 @@ export async function exportAppPage(
 
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
-      status: undefined,
+      // When PPR is enabled, we don't always send 200 for routes that have been
+      // pregenerated, so we should grab the status code from the mocked
+      // response.
+      status: renderOpts.experimental.ppr ? res.statusCode : undefined,
       headers,
       postponed,
     }
