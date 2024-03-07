@@ -16,6 +16,9 @@ export interface OverlayState {
   buildError: string | null
   errors: SupportedErrorEvent[]
   refreshState: FastRefreshState
+  rootLayoutMissingTags: NonNullable<
+    typeof window.__next_root_layout_missing_tags
+  >
   versionInfo: VersionInfo
   notFound: boolean
 }
@@ -88,6 +91,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   errors: [],
   notFound: false,
   refreshState: { type: 'idle' },
+  rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
 }
 
