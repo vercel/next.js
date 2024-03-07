@@ -12,8 +12,6 @@ env:
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
-  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
 
 jobs:
   build:
@@ -402,6 +400,9 @@ jobs:
       - build
       - build-wasm
       - build-native
+    env:
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - name: Setup node
         uses: actions/setup-node@v4
