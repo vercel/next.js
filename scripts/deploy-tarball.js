@@ -99,9 +99,9 @@ async function main() {
       2
     )
   )
+  const vercelConfigDir = path.join(cwd, '.vercel')
 
   if (process.env.VERCEL_TEST_TOKEN) {
-    const vercelConfigDir = path.join(cwd, '.vercel')
     await fs.mkdir(vercelConfigDir)
     await fs.writeFile(
       path.join(vercelConfigDir, 'auth.json'),
@@ -115,7 +115,11 @@ async function main() {
     )
     console.log('wrote config to', vercelConfigDir)
   }
-  const whoami = await execa('vercel', ['whoami'], { cwd: deployDir })
+  const whoami = await execa(
+    'vercel',
+    ['whoami', '--global-config', vercelConfigDir],
+    { cwd: deployDir }
+  )
   console.log(whoami.stderr, whoami.stderr)
 
   const child = execa(
@@ -124,7 +128,7 @@ async function main() {
       '--scope',
       process.env.VERCEL_TEST_TEAM,
       '--global-config',
-      path.join(cwd, '.vercel'),
+      vercelConfigDir,
       '-y',
     ],
     {
