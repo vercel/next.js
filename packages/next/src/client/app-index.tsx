@@ -165,8 +165,8 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags ?? []
-  const hasMissingTags = !!rootLayoutMissingTags.length
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
+  const hasMissingTags = !!rootLayoutMissingTags?.length
 
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
   const isError =

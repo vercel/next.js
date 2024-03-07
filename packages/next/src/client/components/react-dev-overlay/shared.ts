@@ -16,9 +16,7 @@ export interface OverlayState {
   buildError: string | null
   errors: SupportedErrorEvent[]
   refreshState: FastRefreshState
-  rootLayoutMissingTags: NonNullable<
-    typeof window.__next_root_layout_missing_tags
-  >
+  rootLayoutMissingTags: typeof window.__next_root_layout_missing_tags
   versionInfo: VersionInfo
   notFound: boolean
 }
