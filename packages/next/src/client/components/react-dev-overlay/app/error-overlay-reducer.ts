@@ -17,6 +17,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   notFound: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+  rootLayoutMissingTags: null,
 }
 
 interface BuildOkAction {
@@ -64,6 +65,7 @@ export interface OverlayState {
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
+  rootLayoutMissingTags: string[] | null
   refreshState: FastRefreshState
   versionInfo: VersionInfo
   notFound: boolean
