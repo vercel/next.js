@@ -185,6 +185,11 @@ const transform = (
       {
         resource,
         context: {
+          _module: {
+            // For debugging purpose, if someone find context is not full compatible to
+            // webpack they can guess this comes from turbopack
+            __reserved: "TurbopackContext",
+          },
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
           getOptions() {
