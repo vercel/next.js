@@ -12,6 +12,8 @@ env:
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
 
 jobs:
   build:
@@ -391,6 +393,58 @@ jobs:
         with:
           name: wasm-binaries-${{matrix.target}}
           path: packages/next-swc/crates/wasm/pkg-*
+
+  deployTarball:
+    if: ${{ needs.build.outputs.isRelease != 'true' }}
+    name: Deploy tarball
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - build-wasm
+      - build-native
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: next-swc-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/native
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wasm-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/crates/wasm
+
+      - name: check for docs only change
+        id: docs-change
+        run: |
+          echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
+          echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - run: npm i -g vercel@latest
+        if: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
+
+      - run: node ./scripts/deploy-tarball.js
+        if: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
 
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
