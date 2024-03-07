@@ -23,14 +23,14 @@ use turbopack_ecmascript::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::DevChunkingContext;
+use crate::BrowserChunkingContext;
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack dev runtime code; and
 /// * Evaluates a list of runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevEvaluateChunk {
-    chunking_context: Vc<DevChunkingContext>,
+    chunking_context: Vc<BrowserChunkingContext>,
     ident: Vc<AssetIdent>,
     other_chunks: Vc<OutputAssets>,
     evaluatable_assets: Vc<EvaluatableAssets>,
@@ -41,7 +41,7 @@ impl EcmascriptDevEvaluateChunk {
     /// Creates a new [`Vc<EcmascriptDevEvaluateChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<DevChunkingContext>,
+        chunking_context: Vc<BrowserChunkingContext>,
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,

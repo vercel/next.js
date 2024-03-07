@@ -13,12 +13,12 @@ use turbopack_core::{
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
 use super::content::EcmascriptBuildNodeChunkContent;
-use crate::BuildChunkingContext;
+use crate::NodeJsChunkingContext;
 
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeChunk {
-    chunking_context: Vc<BuildChunkingContext>,
+    chunking_context: Vc<NodeJsChunkingContext>,
     chunk: Vc<EcmascriptChunk>,
 }
 
@@ -26,7 +26,10 @@ pub(crate) struct EcmascriptBuildNodeChunk {
 impl EcmascriptBuildNodeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<BuildChunkingContext>, chunk: Vc<EcmascriptChunk>) -> Vc<Self> {
+    pub fn new(
+        chunking_context: Vc<NodeJsChunkingContext>,
+        chunk: Vc<EcmascriptChunk>,
+    ) -> Vc<Self> {
         EcmascriptBuildNodeChunk {
             chunking_context,
             chunk,

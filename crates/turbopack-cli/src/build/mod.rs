@@ -10,7 +10,7 @@ use turbo_tasks::{TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::ecmascript::EcmascriptModuleAsset;
-use turbopack_build::{BuildChunkingContext, MinifyType};
+use turbopack_build::{MinifyType, NodeJsChunkingContext};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
@@ -181,7 +181,7 @@ async fn build_internal(
     let build_output_root = output_fs.root().join("dist".to_string());
 
     let chunking_context = Vc::upcast(
-        BuildChunkingContext::builder(
+        NodeJsChunkingContext::builder(
             project_path,
             build_output_root,
             build_output_root,
@@ -248,7 +248,7 @@ async fn build_internal(
                     Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(entry_module).await?
                 {
                     Vc::cell(vec![
-                        Vc::try_resolve_downcast_type::<BuildChunkingContext>(chunking_context)
+                        Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
                             .await?
                             .unwrap()
                             .entry_chunk_group(

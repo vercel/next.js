@@ -6,7 +6,7 @@ pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;
 
 pub use chunking_context::{
-    BuildChunkingContext, BuildChunkingContextBuilder, EntryChunkGroupResult, MinifyType,
+    EntryChunkGroupResult, MinifyType, NodeJsChunkingContext, NodeJsChunkingContextBuilder,
 };
 
 pub fn register() {

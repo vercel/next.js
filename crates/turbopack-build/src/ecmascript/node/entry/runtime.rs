@@ -15,19 +15,19 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::StringifyJs;
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::BuildChunkingContext;
+use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that contains the Node.js runtime code.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
-    chunking_context: Vc<BuildChunkingContext>,
+    chunking_context: Vc<NodeJsChunkingContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<BuildChunkingContext>) -> Vc<Self> {
+    pub fn new(chunking_context: Vc<NodeJsChunkingContext>) -> Vc<Self> {
         EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
     }
 
