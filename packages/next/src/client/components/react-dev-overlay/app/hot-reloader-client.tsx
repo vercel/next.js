@@ -400,7 +400,6 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        // @ts-ignore it exists, it's just hidden
         router.fastRefresh()
         dispatcher.onRefresh()
       })
@@ -425,17 +424,10 @@ function processMessage(
       reloading = true
       return window.location.reload()
     }
+    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
-      // TODO-APP: potentially only refresh if the currently viewed page was removed.
-      // @ts-ignore it exists, it's just hidden
-      router.fastRefresh()
-      return
-    }
-    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE: {
-      // TODO-APP: potentially only refresh if the currently viewed page was added.
-      // @ts-ignore it exists, it's just hidden
-      router.fastRefresh()
-      return
+      // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
+      return router.fastRefresh()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
@@ -464,7 +456,7 @@ export default function HotReload({
 }) {
   const [state, dispatch] = useErrorOverlayReducer()
 
-  const dispatcher = useMemo((): Dispatcher => {
+  const dispatcher = useMemo<Dispatcher>(() => {
     return {
       onBuildOk() {
         dispatch({ type: ACTION_BUILD_OK })
@@ -527,6 +519,9 @@ export default function HotReload({
   const router = useRouter()
 
   useEffect(() => {
+    const websocket = webSocketRef.current
+    if (!websocket) return
+
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
@@ -544,12 +539,8 @@ export default function HotReload({
       }
     }
 
-    const websocket = webSocketRef.current
-    if (websocket) {
-      websocket.addEventListener('message', handler)
-    }
-
-    return () => websocket && websocket.removeEventListener('message', handler)
+    websocket.addEventListener('message', handler)
+    return () => websocket.removeEventListener('message', handler)
   }, [sendMessage, router, webSocketRef, dispatcher, processTurbopackMessage])
 
   return (

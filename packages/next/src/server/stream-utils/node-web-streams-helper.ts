@@ -1,6 +1,5 @@
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { createDecodeTransformStream } from './encode-decode'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
 
@@ -71,20 +70,17 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
-  let buffer = ''
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  let string = ''
 
-  await stream
-    // Decode the streamed chunks to turn them into strings.
-    .pipeThrough(createDecodeTransformStream())
-    .pipeTo(
-      new WritableStream<string>({
-        write(chunk) {
-          buffer += chunk
-        },
-      })
-    )
+  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
+  for await (const chunk of stream) {
+    string += decoder.decode(chunk, { stream: true })
+  }
 
-  return buffer
+  string += decoder.decode()
+
+  return string
 }
 
 export function createBufferedTransformStream(): TransformStream<
