@@ -677,6 +677,9 @@ export async function createHotReloaderTurbopack(
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)
 
+      currentEntryIssues.delete(getEntryKey('app', 'server', '_error'))
+      currentEntryIssues.delete(getEntryKey('pages', 'server', '_error'))
+
       const topLevelIssues = currentTopLevelIssues.values()
 
       const thisEntryIssues =
