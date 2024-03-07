@@ -2389,11 +2389,10 @@
       "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
-      "app dir - basepath should support `basePath`"
-    ],
-    "failed": [
+      "app dir - basepath should support `basePath`",
       "app dir - basepath should prefix metadata og image with basePath"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
