@@ -14,7 +14,7 @@ use turbopack_core::{
         parse::Request,
     },
 };
-use turbopack_dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext};
+use turbopack_dev::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{asset_graph::AssetGraphContentSource, ContentSource},
@@ -36,7 +36,7 @@ pub fn get_client_chunking_context(
     environment: Vc<Environment>,
 ) -> Vc<Box<dyn ChunkingContext>> {
     Vc::upcast(
-        DevChunkingContext::builder(
+        BrowserChunkingContext::builder(
             project_path,
             server_root,
             server_root,

@@ -25,7 +25,7 @@ use turbopack_core::{
     resolve::parse::Request,
     server_fs::ServerFileSystem,
 };
-use turbopack_dev::DevChunkingContext;
+use turbopack_dev::BrowserChunkingContext;
 use turbopack_dev_server::{
     introspect::IntrospectionSource,
     source::{
@@ -248,7 +248,7 @@ async fn source(
     let env = load_env(project_path);
     let build_output_root = output_fs.root().join(".turbopack/build".to_string());
 
-    let build_chunking_context = DevChunkingContext::builder(
+    let build_chunking_context = BrowserChunkingContext::builder(
         project_path,
         build_output_root,
         build_output_root,

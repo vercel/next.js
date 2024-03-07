@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 
 use super::content::EcmascriptDevChunkListContent;
-use crate::DevChunkingContext;
+use crate::BrowserChunkingContext;
 
 /// An asset that represents a list of chunks that exist together in a chunk
 /// group, and should be *updated* together.
@@ -26,7 +26,7 @@ use crate::DevChunkingContext;
 /// * changing a chunk's path.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunkList {
-    pub(super) chunking_context: Vc<DevChunkingContext>,
+    pub(super) chunking_context: Vc<BrowserChunkingContext>,
     pub(super) ident: Vc<AssetIdent>,
     pub(super) evaluatable_assets: Vc<EvaluatableAssets>,
     pub(super) chunks: Vc<OutputAssets>,
@@ -38,7 +38,7 @@ impl EcmascriptDevChunkList {
     /// Creates a new [`Vc<EcmascriptDevChunkList>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<DevChunkingContext>,
+        chunking_context: Vc<BrowserChunkingContext>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         chunks: Vc<OutputAssets>,

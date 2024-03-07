@@ -51,12 +51,12 @@ pub enum MinifyType {
     NoMinify,
 }
 
-/// A builder for [`Vc<BuildChunkingContext>`].
-pub struct BuildChunkingContextBuilder {
-    chunking_context: BuildChunkingContext,
+/// A builder for [`Vc<NodeJsChunkingContext>`].
+pub struct NodeJsChunkingContextBuilder {
+    chunking_context: NodeJsChunkingContext,
 }
 
-impl BuildChunkingContextBuilder {
+impl NodeJsChunkingContextBuilder {
     pub fn asset_prefix(mut self, asset_prefix: Vc<Option<String>>) -> Self {
         self.chunking_context.asset_prefix = asset_prefix;
         self
@@ -78,15 +78,15 @@ impl BuildChunkingContextBuilder {
     }
 
     /// Builds the chunking context.
-    pub fn build(self) -> Vc<BuildChunkingContext> {
-        BuildChunkingContext::new(Value::new(self.chunking_context))
+    pub fn build(self) -> Vc<NodeJsChunkingContext> {
+        NodeJsChunkingContext::new(Value::new(self.chunking_context))
     }
 }
 
 /// A chunking context for build mode.
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash, PartialOrd, Ord)]
-pub struct BuildChunkingContext {
+pub struct NodeJsChunkingContext {
     /// This path get stripped off of chunk paths before generating output asset
     /// paths.
     context_path: Vc<FileSystemPath>,
@@ -110,7 +110,7 @@ pub struct BuildChunkingContext {
     manifest_chunks: bool,
 }
 
-impl BuildChunkingContext {
+impl NodeJsChunkingContext {
     /// Creates a new chunking context builder.
     pub fn builder(
         context_path: Vc<FileSystemPath>,
@@ -119,9 +119,9 @@ impl BuildChunkingContext {
         chunk_root_path: Vc<FileSystemPath>,
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
-    ) -> BuildChunkingContextBuilder {
-        BuildChunkingContextBuilder {
-            chunking_context: BuildChunkingContext {
+    ) -> NodeJsChunkingContextBuilder {
+        NodeJsChunkingContextBuilder {
+            chunking_context: NodeJsChunkingContext {
                 context_path,
                 output_root,
                 client_root,
@@ -137,10 +137,10 @@ impl BuildChunkingContext {
     }
 }
 
-impl BuildChunkingContext {
+impl NodeJsChunkingContext {
     /// Returns the kind of runtime to include in output chunks.
     ///
-    /// This is defined directly on `BuildChunkingContext` so it is zero-cost
+    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
     /// when `RuntimeType` has a single variant.
     pub fn runtime_type(&self) -> RuntimeType {
         self.runtime_type
@@ -158,9 +158,9 @@ pub struct EntryChunkGroupResult {
 }
 
 #[turbo_tasks::value_impl]
-impl BuildChunkingContext {
+impl NodeJsChunkingContext {
     #[turbo_tasks::function]
-    fn new(this: Value<BuildChunkingContext>) -> Vc<Self> {
+    fn new(this: Value<NodeJsChunkingContext>) -> Vc<Self> {
         this.into_value().cell()
     }
 
@@ -240,7 +240,7 @@ impl BuildChunkingContext {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkingContext for BuildChunkingContext {
+impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn context_path(&self) -> Vc<FileSystemPath> {
         self.context_path
@@ -414,4 +414,4 @@ impl ChunkingContext for BuildChunkingContext {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkingContext for BuildChunkingContext {}
+impl EcmascriptChunkingContext for NodeJsChunkingContext {}

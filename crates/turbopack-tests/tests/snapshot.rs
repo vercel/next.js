@@ -27,7 +27,7 @@ use turbopack::{
     },
     ModuleAssetContext,
 };
-use turbopack_build::{BuildChunkingContext, MinifyType};
+use turbopack_build::{MinifyType, NodeJsChunkingContext};
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -47,7 +47,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
-use turbopack_dev::DevChunkingContext;
+use turbopack_dev::BrowserChunkingContext;
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
     styled_components::{StyledComponentsTransformConfig, StyledComponentsTransformer},
@@ -302,7 +302,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Dev => Vc::upcast(
-            DevChunkingContext::builder(
+            BrowserChunkingContext::builder(
                 project_root,
                 path,
                 path,
@@ -314,7 +314,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             .build(),
         ),
         Runtime::Build => Vc::upcast(
-            BuildChunkingContext::builder(
+            NodeJsChunkingContext::builder(
                 project_root,
                 path,
                 path,
@@ -355,7 +355,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             ),
             Runtime::Build => {
                 Vc::cell(vec![
-                    Vc::try_resolve_downcast_type::<BuildChunkingContext>(chunking_context)
+                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
                         .await?
                         .unwrap()
                         .entry_chunk_group(

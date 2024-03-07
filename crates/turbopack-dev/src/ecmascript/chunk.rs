@@ -12,12 +12,12 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
-use crate::{ecmascript::content::EcmascriptDevChunkContent, DevChunkingContext};
+use crate::{ecmascript::content::EcmascriptDevChunkContent, BrowserChunkingContext};
 
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunk {
-    chunking_context: Vc<DevChunkingContext>,
+    chunking_context: Vc<BrowserChunkingContext>,
     chunk: Vc<EcmascriptChunk>,
 }
 
@@ -25,7 +25,10 @@ pub(crate) struct EcmascriptDevChunk {
 impl EcmascriptDevChunk {
     /// Creates a new [`Vc<EcmascriptDevChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<DevChunkingContext>, chunk: Vc<EcmascriptChunk>) -> Vc<Self> {
+    pub fn new(
+        chunking_context: Vc<BrowserChunkingContext>,
+        chunk: Vc<EcmascriptChunk>,
+    ) -> Vc<Self> {
         EcmascriptDevChunk {
             chunking_context,
             chunk,

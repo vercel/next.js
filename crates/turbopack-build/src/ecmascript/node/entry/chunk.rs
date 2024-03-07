@@ -15,14 +15,14 @@ use turbopack_core::{
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 
 use super::runtime::EcmascriptBuildNodeRuntimeChunk;
-use crate::BuildChunkingContext;
+use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
 /// runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
     path: Vc<FileSystemPath>,
-    chunking_context: Vc<BuildChunkingContext>,
+    chunking_context: Vc<NodeJsChunkingContext>,
     other_chunks: Vc<OutputAssets>,
     evaluatable_assets: Vc<EvaluatableAssets>,
     exported_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -34,7 +34,7 @@ impl EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     pub fn new(
         path: Vc<FileSystemPath>,
-        chunking_context: Vc<BuildChunkingContext>,
+        chunking_context: Vc<NodeJsChunkingContext>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         exported_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,

@@ -27,11 +27,11 @@ use crate::ecmascript::{
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
 
-pub struct DevChunkingContextBuilder {
-    chunking_context: DevChunkingContext,
+pub struct BrowserChunkingContextBuilder {
+    chunking_context: BrowserChunkingContext,
 }
 
-impl DevChunkingContextBuilder {
+impl BrowserChunkingContextBuilder {
     pub fn hot_module_replacement(mut self) -> Self {
         self.chunking_context.enable_hot_module_replacement = true;
         self
@@ -67,8 +67,8 @@ impl DevChunkingContextBuilder {
         self
     }
 
-    pub fn build(self) -> Vc<DevChunkingContext> {
-        DevChunkingContext::new(Value::new(self.chunking_context))
+    pub fn build(self) -> Vc<BrowserChunkingContext> {
+        BrowserChunkingContext::new(Value::new(self.chunking_context))
     }
 }
 
@@ -79,7 +79,7 @@ impl DevChunkingContextBuilder {
 /// during development
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash, PartialOrd, Ord)]
-pub struct DevChunkingContext {
+pub struct BrowserChunkingContext {
     /// This path get stripped off of chunk paths before generating output asset
     /// paths.
     context_path: Vc<FileSystemPath>,
@@ -111,7 +111,7 @@ pub struct DevChunkingContext {
     manifest_chunks: bool,
 }
 
-impl DevChunkingContext {
+impl BrowserChunkingContext {
     pub fn builder(
         context_path: Vc<FileSystemPath>,
         output_root: Vc<FileSystemPath>,
@@ -119,9 +119,9 @@ impl DevChunkingContext {
         chunk_root_path: Vc<FileSystemPath>,
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
-    ) -> DevChunkingContextBuilder {
-        DevChunkingContextBuilder {
-            chunking_context: DevChunkingContext {
+    ) -> BrowserChunkingContextBuilder {
+        BrowserChunkingContextBuilder {
+            chunking_context: BrowserChunkingContext {
                 context_path,
                 output_root,
                 client_root,
@@ -140,11 +140,11 @@ impl DevChunkingContext {
     }
 }
 
-impl DevChunkingContext {
+impl BrowserChunkingContext {
     /// Returns the kind of runtime to include in output chunks.
     ///
-    /// This is defined directly on `DevChunkingContext` so it is zero-cost when
-    /// `RuntimeType` has a single variant.
+    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
     pub fn runtime_type(&self) -> RuntimeType {
         self.runtime_type
     }
@@ -156,9 +156,9 @@ impl DevChunkingContext {
 }
 
 #[turbo_tasks::value_impl]
-impl DevChunkingContext {
+impl BrowserChunkingContext {
     #[turbo_tasks::function]
-    fn new(this: Value<DevChunkingContext>) -> Vc<Self> {
+    fn new(this: Value<BrowserChunkingContext>) -> Vc<Self> {
         this.into_value().cell()
     }
 
@@ -216,7 +216,7 @@ impl DevChunkingContext {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkingContext for DevChunkingContext {
+impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn context_path(&self) -> Vc<FileSystemPath> {
         self.context_path
@@ -462,7 +462,7 @@ impl ChunkingContext for DevChunkingContext {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkingContext for DevChunkingContext {
+impl EcmascriptChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn has_react_refresh(&self) -> Vc<bool> {
         Vc::cell(true)

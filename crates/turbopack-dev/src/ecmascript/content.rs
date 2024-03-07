@@ -18,12 +18,12 @@ use super::{
     chunk::EcmascriptDevChunk, content_entry::EcmascriptDevChunkContentEntries,
     merged::merger::EcmascriptDevChunkContentMerger, version::EcmascriptDevChunkVersion,
 };
-use crate::DevChunkingContext;
+use crate::BrowserChunkingContext;
 
 #[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptDevChunkContent {
     pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
-    pub(super) chunking_context: Vc<DevChunkingContext>,
+    pub(super) chunking_context: Vc<BrowserChunkingContext>,
     pub(super) chunk: Vc<EcmascriptDevChunk>,
 }
 
@@ -31,7 +31,7 @@ pub struct EcmascriptDevChunkContent {
 impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn new(
-        chunking_context: Vc<DevChunkingContext>,
+        chunking_context: Vc<BrowserChunkingContext>,
         chunk: Vc<EcmascriptDevChunk>,
         content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
