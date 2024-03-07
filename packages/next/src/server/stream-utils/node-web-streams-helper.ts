@@ -184,7 +184,7 @@ export function renderToInitialFizzStream({
   )
 }
 
-function createHeadInsertionTransformStream(
+export function createHeadInsertionTransformStream(
   insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
