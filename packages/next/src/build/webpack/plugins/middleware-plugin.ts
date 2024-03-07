@@ -31,6 +31,7 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parseDynamicCodeEvalutationError'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
@@ -662,18 +663,20 @@ function getExtractMetadata(params: {
               rootDir
             )
           ) {
+            const message = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
+              typeof buildInfo.usingIndirectEval !== 'boolean'
+                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                    ', '
+                  )}`
+                : ''
+            }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`
             compilation.errors.push(
-              buildWebpackError({
-                message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
-                  typeof buildInfo.usingIndirectEval !== 'boolean'
-                    ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                        ', '
-                      )}`
-                    : ''
-                }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`,
-                entryModule: module,
+              getDynamicCodeEvaluationError(
+                message,
+                module,
                 compilation,
-              })
+                compiler
+              )
             )
           }
         }
