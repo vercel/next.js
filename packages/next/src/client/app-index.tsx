@@ -197,7 +197,7 @@ export function hydrate() {
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
           .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
 
-      const Root = hasMissingTags
+      const FallbackLayout = hasMissingTags
         ? ({ children }: { children: React.ReactNode }) => (
             <html id="__next_error__">
               <body>{children}</body>
@@ -205,7 +205,7 @@ export function hydrate() {
           )
         : React.Fragment
       const errorTree = (
-        <Root>
+        <FallbackLayout>
           <ReactDevOverlay
             state={{
               ...INITIAL_OVERLAY_STATE,
@@ -215,7 +215,7 @@ export function hydrate() {
           >
             {reactEl}
           </ReactDevOverlay>
-        </Root>
+        </FallbackLayout>
       )
       const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
       const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
