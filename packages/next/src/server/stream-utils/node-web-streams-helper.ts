@@ -1,4 +1,3 @@
-import { ReadableStream, TransformStream, WritableStream } from 'stream/web'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -74,6 +73,7 @@ export async function streamToString(
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
+  // @ts-expect-error Unfortunately, the DOM types for global streams are incorrect and are missing the async iterator definition even though it is apart of the spec https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#async_iteration
   for await (const chunk of stream) {
     string += decoder.decode(chunk, { stream: true })
   }
