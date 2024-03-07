@@ -10,8 +10,8 @@ describe('import trace dynamic eval', () => {
       "Failed to compile.
 
       ./lib/foo.ts
-      Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime
-      Learn More: https://nextjs.org/docs/messages/dynamic-code-evaluation-error
+      Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime 
+      Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
 
       The error was caused by importing 'ajv/dist/ajv.js' in './lib/foo.ts'.
 
