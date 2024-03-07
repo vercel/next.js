@@ -170,9 +170,12 @@ program
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
   .addOption(new Option('--experimental-test-proxy').hideHelp())
-  .action((directory, options) =>
-    import('../cli/next-dev.js').then((mod) => mod.nextDev(options, directory))
-  )
+  .action((directory, options, { _optionValueSources }) => {
+    const portSource = _optionValueSources.port
+    import('../cli/next-dev.js').then((mod) =>
+      mod.nextDev(options, portSource, directory)
+    )
+  })
   .usage('[directory] [options]')
 
 program
