@@ -1,4 +1,5 @@
 export function GET() {
+  if (Math.random() < 0) dynamic()
   return new Response('Hello World')
 }
 
