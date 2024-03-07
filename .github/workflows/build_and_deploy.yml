@@ -433,18 +433,9 @@ jobs:
           merge-multiple: true
           path: packages/next-swc/crates/wasm
 
-      - name: check for docs only change
-        id: docs-change
-        run: |
-          echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
-          echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
-          echo 'EOF' >> $GITHUB_OUTPUT
-
       - run: npm i -g vercel@latest
-        if: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
 
       - run: node ./scripts/deploy-tarball.js
-        if: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
 
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
