@@ -6,6 +6,7 @@ import type {
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
+import type { PrefetchCacheEntry } from './router-reducer-types'
 
 /**
  * Fill cache with rsc based on flightDataPath
@@ -14,7 +15,7 @@ export function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightDataPath: FlightDataPath,
-  hasReusablePrefetch?: boolean
+  prefetchEntry?: PrefetchCacheEntry
 ): void {
   const isLastEntry = flightDataPath.length <= 5
   const [parallelRouteKey, segment] = flightDataPath
@@ -71,7 +72,7 @@ export function fillCacheWithNewSubTreeData(
         flightDataPath[2],
         seedData,
         flightDataPath[4],
-        hasReusablePrefetch
+        prefetchEntry
       )
 
       childSegmentMap.set(cacheKey, childCacheNode)
@@ -99,6 +100,6 @@ export function fillCacheWithNewSubTreeData(
     childCacheNode,
     existingChildCacheNode,
     flightDataPath.slice(2),
-    hasReusablePrefetch
+    prefetchEntry
   )
 }
