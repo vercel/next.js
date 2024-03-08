@@ -2,7 +2,7 @@ import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 async function testDev(browser, errorRegex) {
-  expect(await hasRedbox(browser, true)).toBe(true)
+  expect(await hasRedbox(browser)).toBe(true)
   expect(await getRedboxHeader(browser)).toMatch(errorRegex)
 }
 

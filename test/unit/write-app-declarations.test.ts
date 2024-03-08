@@ -34,7 +34,7 @@ describe('find config', () => {
       baseDir: fixtureDir,
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: false,
+      hasAppDir: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -59,7 +59,7 @@ describe('find config', () => {
       baseDir: fixtureDir,
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: false,
+      hasAppDir: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -82,7 +82,7 @@ describe('find config', () => {
       baseDir: fixtureDir,
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: false,
+      hasAppDir: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -92,7 +92,7 @@ describe('find config', () => {
       baseDir: fixtureDir,
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: true,
+      hasAppDir: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -103,7 +103,7 @@ describe('find config', () => {
       baseDir: fixtureDir,
       imageImportsEnabled,
       hasPagesDir: true,
-      isAppDirEnabled: true,
+      hasAppDir: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(

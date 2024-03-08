@@ -1,5 +1,5 @@
 import type { SpanTypes } from './constants'
-import { NextVanillaSpanAllowlist } from './constants'
+import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -141,8 +141,10 @@ interface NextTracer {
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
+  | 'next.clientComponentLoadCount'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
@@ -228,6 +230,8 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
+    const spanName = options.spanName ?? type
+
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -235,8 +239,6 @@ class NextTracerImpl implements NextTracer {
     ) {
       return fn()
     }
-
-    const spanName = options.spanName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
@@ -264,9 +266,33 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
+          const startTime =
+            'performance' in globalThis
+              ? globalThis.performance.now()
+              : undefined
+
           const onCleanup = () => {
             rootSpanAttributesStore.delete(spanId)
+            if (
+              startTime &&
+              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
+              LogSpanAllowList.includes(type || ('' as any))
+            ) {
+              performance.measure(
+                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                  type.split('.').pop() || ''
+                ).replace(
+                  /[A-Z]/g,
+                  (match: string) => '-' + match.toLowerCase()
+                )}`,
+                {
+                  start: startTime,
+                  end: performance.now(),
+                }
+              )
+            }
           }
+
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,

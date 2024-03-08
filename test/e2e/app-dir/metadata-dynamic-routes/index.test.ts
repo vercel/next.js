@@ -197,7 +197,7 @@ createNextDescribe(
       })
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2]
+        const ids = ['child0', 'child1', 'child2', 'child3']
         function fetchSitemap(id) {
           return next
             .fetch(
@@ -323,7 +323,7 @@ createNextDescribe(
     it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
       const $ = await next.render$('/')
       const canonicalUrl = $('link[rel="canonical"]').attr('href')
-      expect(canonicalUrl).toBe('https://mydomain.com/')
+      expect(canonicalUrl).toBe('https://mydomain.com')
     })
 
     it('should inject dynamic metadata properly to head', async () => {
@@ -558,7 +558,7 @@ createNextDescribe(
       })
 
       it('should generate static paths of dynamic sitemap in production', async () => {
-        const sitemapPaths = [0, 1, 2].map(
+        const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
           (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
         )
         const promises = sitemapPaths.map(async (filePath) => {

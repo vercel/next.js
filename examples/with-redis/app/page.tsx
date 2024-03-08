@@ -30,27 +30,32 @@ function VercelLogo(props: React.SVGProps<SVGSVGElement>) {
 }
 
 async function getFeatures() {
-  let itemIds = await kv.zrange("items_by_score", 0, 100, {
-    rev: true,
-  });
+  try {
+    let itemIds = await kv.zrange("items_by_score", 0, 100, {
+      rev: true,
+    });
 
-  if (!itemIds.length) {
+    if (!itemIds.length) {
+      return [];
+    }
+
+    let multi = kv.multi();
+    itemIds.forEach((id) => {
+      multi.hgetall(`item:${id}`);
+    });
+
+    let items: Feature[] = await multi.exec();
+    return items.map((item) => {
+      return {
+        ...item,
+        score: item.score,
+        created_at: item.created_at,
+      };
+    });
+  } catch (error) {
+    console.error(error);
     return [];
   }
-
-  let multi = kv.multi();
-  itemIds.forEach((id) => {
-    multi.hgetall(`item:${id}`);
-  });
-
-  let items: Feature[] = await multi.exec();
-  return items.map((item) => {
-    return {
-      ...item,
-      score: item.score,
-      created_at: item.created_at,
-    };
-  });
 }
 
 export default async function Page() {

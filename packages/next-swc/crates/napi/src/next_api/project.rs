@@ -33,7 +33,7 @@ use turbopack_binding::{
             diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
             issue::PlainIssue,
-            source_map::{GenerateSourceMap, Token},
+            source_map::Token,
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
@@ -91,8 +91,8 @@ pub struct NapiProjectOptions {
     /// time.
     pub define_env: NapiDefineEnv,
 
-    /// The address of the dev server.
-    pub server_addr: String,
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -125,8 +125,8 @@ pub struct NapiPartialProjectOptions {
     /// time.
     pub define_env: Option<NapiDefineEnv>,
 
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[napi(object)]
@@ -157,7 +157,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
-            server_addr: val.server_addr,
+            dev: val.dev,
         }
     }
 }
@@ -174,7 +174,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
-            server_addr: val.server_addr,
+            dev: val.dev,
         }
     }
 }
@@ -306,12 +306,26 @@ pub async fn project_update(
 
 #[napi(object)]
 #[derive(Default)]
-struct NapiRoute {
+struct AppPageNapiRoute {
     /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
+
+    pub html_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+}
+
+#[napi(object)]
+#[derive(Default)]
+struct NapiRoute {
+    /// The router path
     pub pathname: String,
+    /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
 
     /// The type of route, eg a Page or App
     pub r#type: &'static str,
+
+    pub pages: Option<Vec<AppPageNapiRoute>>,
 
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
@@ -349,18 +363,27 @@ impl NapiRoute {
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::AppPage {
-                html_endpoint,
-                rsc_endpoint,
-            } => NapiRoute {
+            Route::AppPage(pages) => NapiRoute {
                 pathname,
                 r#type: "app-page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                rsc_endpoint: convert_endpoint(rsc_endpoint),
+                pages: Some(
+                    pages
+                        .into_iter()
+                        .map(|page_route| AppPageNapiRoute {
+                            original_name: Some(page_route.original_name),
+                            html_endpoint: convert_endpoint(page_route.html_endpoint),
+                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                        })
+                        .collect(),
+                ),
                 ..Default::default()
             },
-            Route::AppRoute { endpoint } => NapiRoute {
+            Route::AppRoute {
+                original_name,
+                endpoint,
+            } => NapiRoute {
                 pathname,
+                original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
@@ -481,8 +504,8 @@ pub fn project_entrypoints_subscribe(
                     routes: entrypoints
                         .routes
                         .iter()
-                        .map(|(pathname, &route)| {
-                            NapiRoute::from_route(pathname.clone(), route, &turbo_tasks)
+                        .map(|(pathname, route)| {
+                            NapiRoute::from_route(pathname.clone(), route.clone(), &turbo_tasks)
                         })
                         .collect::<Vec<_>>(),
                     middleware: entrypoints
@@ -696,6 +719,32 @@ pub fn project_hmr_identifiers_subscribe(
     )
 }
 
+enum UpdateMessage {
+    Start,
+    End(UpdateInfo),
+}
+
+#[napi(object)]
+struct NapiUpdateMessage {
+    pub update_type: String,
+    pub value: Option<NapiUpdateInfo>,
+}
+
+impl From<UpdateMessage> for NapiUpdateMessage {
+    fn from(update_message: UpdateMessage) -> Self {
+        match update_message {
+            UpdateMessage::Start => NapiUpdateMessage {
+                update_type: "start".to_string(),
+                value: None,
+            },
+            UpdateMessage::End(info) => NapiUpdateMessage {
+                update_type: "end".to_string(),
+                value: Some(info.into()),
+            },
+        }
+    }
+}
+
 #[napi(object)]
 struct NapiUpdateInfo {
     pub duration: u32,
@@ -711,23 +760,54 @@ impl From<UpdateInfo> for NapiUpdateInfo {
     }
 }
 
+/// Subscribes to lifecycle events of the compilation.
+/// Emits an [UpdateMessage::Start] event when any computation starts.
+/// Emits an [UpdateMessage::End] event when there was no computation for the
+/// specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
+/// information about the computations that happened since the
+/// [UpdateMessage::Start] event. It contains the duration of the computation
+/// (excluding the idle time that was spend waiting for `aggregation_ms`), and
+/// the number of tasks that were executed.
+///
+/// The signature of the `func` is `(update_message: UpdateMessage) => void`.
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
-    let func: ThreadsafeFunction<UpdateInfo> = func.create_threadsafe_function(0, |ctx| {
-        let update_info = ctx.value;
-        Ok(vec![NapiUpdateInfo::from(update_info)])
+    let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
+        let message = ctx.value;
+        Ok(vec![NapiUpdateMessage::from(message)])
     })?;
     let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
         loop {
             let update_info = turbo_tasks
-                .get_or_wait_aggregated_update_info(Duration::from_secs(1))
+                .aggregated_update_info(Duration::ZERO, Duration::ZERO)
                 .await;
 
-            let status = func.call(Ok(update_info), ThreadsafeFunctionCallMode::NonBlocking);
+            func.call(
+                Ok(UpdateMessage::Start),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
+            let update_info = match update_info {
+                Some(update_info) => update_info,
+                None => {
+                    turbo_tasks
+                        .get_or_wait_aggregated_update_info(Duration::from_millis(
+                            aggregation_ms.into(),
+                        ))
+                        .await
+                }
+            };
+
+            let status = func.call(
+                Ok(UpdateMessage::End(update_info)),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
                 eprintln!("{}", error);
@@ -742,10 +822,13 @@ pub fn project_update_info_subscribe(
 #[derive(Debug)]
 #[napi(object)]
 pub struct StackFrame {
-    pub column: Option<u32>,
-    pub file: String,
     pub is_server: bool,
-    pub line: u32,
+    pub is_internal: Option<bool>,
+    pub file: String,
+    // 1-indexed, unlike source map tokens
+    pub line: Option<u32>,
+    // 1-indexed, unlike source map tokens
+    pub column: Option<u32>,
     pub method_name: Option<String>,
 }
 
@@ -757,12 +840,16 @@ pub async fn project_trace_source(
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let file = match Url::parse(&frame.file) {
+            let (file, module) = match Url::parse(&frame.file) {
                 Ok(url) => match url.scheme() {
-                    "file" => urlencoding::decode(url.path())?.to_string(),
+                    "file" => {
+                        let path = urlencoding::decode(url.path())?.to_string();
+                        let module = url.query_pairs().find(|(k, _)| k == "id");
+                        (path, module.map(|(_, m)| m.into_owned()))
+                    }
                     _ => bail!("Unknown url scheme"),
                 },
-                Err(_) => frame.file.to_string(),
+                Err(_) => (frame.file.to_string(), None),
             };
 
             let Some(chunk_base) = file.strip_prefix(
@@ -776,54 +863,76 @@ pub async fn project_trace_source(
                 return Ok(None);
             };
 
-            let path = if frame.is_server {
-                project
-                    .container
-                    .project()
-                    .node_root()
-                    .join(chunk_base.to_owned())
-            } else {
-                project
-                    .container
-                    .project()
-                    .client_relative_path()
-                    .join(chunk_base.to_owned())
-            };
+            let server_path = project
+                .container
+                .project()
+                .node_root()
+                .join(chunk_base.to_owned());
 
-            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
-                project.container.get_versioned_content(path),
-            )
-            .await?
-            else {
-                bail!("Could not GenerateSourceMap")
-            };
+            let client_path = project
+                .container
+                .project()
+                .client_relative_path()
+                .join(chunk_base.to_owned());
 
-            let map = versioned
-                .generate_source_map()
-                .await?
-                .context("Chunk is missing a sourcemap")?;
+            let mut map_result = project
+                .container
+                .get_source_map(server_path, module.clone())
+                .await;
+            if map_result.is_err() {
+                // If the chunk doesn't exist as a server chunk, try a client chunk.
+                // TODO: Properly tag all server chunks and use the `isServer` query param.
+                // Currently, this is inaccurate as it does not cover RSC server
+                // chunks.
+                map_result = project.container.get_source_map(client_path, module).await;
+            }
+            let map = map_result?.context("chunk/module is missing a sourcemap")?;
 
-            let token = map
-                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
-                .await?
-                .clone_value()
-                .context("Unable to trace token from sourcemap")?;
-
-            let Token::Original(token) = token else {
+            let Some(line) = frame.line else {
                 return Ok(None);
             };
 
-            let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
-            else {
-                bail!("Original file outside project")
+            let token = map
+                .lookup_token(
+                    (line as usize).saturating_sub(1),
+                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                )
+                .await?;
+
+            let (original_file, line, column, name) = match &*token {
+                Token::Original(token) => (
+                    &token.original_file,
+                    // JS stack frames are 1-indexed, source map tokens are 0-indexed
+                    Some(token.original_line as u32 + 1),
+                    Some(token.original_column as u32 + 1),
+                    token.name.clone(),
+                ),
+                Token::Synthetic(token) => {
+                    let Some(file) = &token.guessed_original_file else {
+                        return Ok(None);
+                    };
+                    (file, None, None, None)
+                }
             };
+
+            let Some(source_file) = original_file.strip_prefix("/turbopack/") else {
+                bail!("Original file ({}) outside project", original_file)
+            };
+
+            let (source_file, is_internal) =
+                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                    (source_file, false)
+                } else {
+                    (source_file, true)
+                };
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
-                method_name: token.name,
-                line: token.original_line as u32,
-                column: Some(token.original_column as u32),
+                method_name: name,
+                line,
+                column,
                 is_server: frame.is_server,
+                is_internal: Some(is_internal),
             }))
         })
         .await

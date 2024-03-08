@@ -3,6 +3,7 @@ import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-
 import type { AppConfig } from '../../../../build/utils'
 import type { NextRequest } from '../../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../../build'
+import type { NextURL } from '../../../web/next-url'
 
 import {
   RouteModule,
@@ -26,23 +27,28 @@ import { addImplicitTags, patchFetch } from '../../../lib/patch-fetch'
 import { getTracer } from '../../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
-import { proxyRequest } from './helpers/proxy-request'
 import { resolveHandlerError } from './helpers/resolve-handler-error'
 import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
-import { getNonStaticMethods } from './helpers/get-non-static-methods'
-import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
+import {
+  appendMutableCookies,
+  type ReadonlyRequestCookies,
+} from '../../../web/spec-extension/adapters/request-cookies'
+import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
+import { RequestCookiesAdapter } from '../../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 
 import * as serverHooks from '../../../../client/components/hooks-server-context'
-import * as headerHooks from '../../../../client/components/headers'
-import { staticGenerationBailout } from '../../../../client/components/static-generation-bailout'
+import { DynamicServerError } from '../../../../client/components/hooks-server-context'
 
 import { requestAsyncStorage } from '../../../../client/components/request-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../../lib/server-action-request-meta'
+import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
+import { cleanURL } from './helpers/clean-url'
+import { StaticGenBailoutError } from '../../../../client/components/static-generation-bailout'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -135,18 +141,6 @@ export class AppRouteRouteModule extends RouteModule<
    */
   public readonly serverHooks = serverHooks
 
-  /**
-   * An interface to call header hooks which interact with the underlying
-   * request storage.
-   */
-  public readonly headerHooks = headerHooks
-
-  /**
-   * An interface to call static generation bailout hooks which interact with
-   * the underlying static generation storage.
-   */
-  public readonly staticGenerationBailout = staticGenerationBailout
-
   public static readonly sharedModules = sharedModules
 
   /**
@@ -159,7 +153,7 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
-  private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
+  private readonly hasNonStaticMethods: boolean
   private readonly dynamic: AppRouteUserlandModule['dynamic']
 
   constructor({
@@ -178,7 +172,7 @@ export class AppRouteRouteModule extends RouteModule<
     this.methods = autoImplementMethods(userland)
 
     // Get the non-static methods for this route.
-    this.nonStaticMethods = getNonStaticMethods(userland)
+    this.hasNonStaticMethods = hasNonStaticMethods(userland)
 
     // Get the dynamic property from the userland module.
     this.dynamic = this.userland.dynamic
@@ -244,15 +238,15 @@ export class AppRouteRouteModule extends RouteModule<
    * Executes the route handler.
    */
   private async execute(
-    request: NextRequest,
+    rawRequest: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     // Get the handler function for the given method.
-    const handler = this.resolve(request.method)
+    const handler = this.resolve(rawRequest.method)
 
     // Get the context for the request.
     const requestContext: RequestContext = {
-      req: request,
+      req: rawRequest,
     }
 
     // TODO: types for renderOpts should include previewProps
@@ -262,7 +256,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
-      urlPathname: request.nextUrl.pathname,
+      urlPathname: rawRequest.nextUrl.pathname,
       renderOpts: context.renderOpts,
     }
 
@@ -275,7 +269,7 @@ export class AppRouteRouteModule extends RouteModule<
     const response: unknown = await this.actionAsyncStorage.run(
       {
         isAppRoute: true,
-        isAction: getIsServerAction(request),
+        isAction: getIsServerAction(rawRequest),
       },
       () =>
         RequestAsyncStorageWrapper.wrap(
@@ -288,36 +282,81 @@ export class AppRouteRouteModule extends RouteModule<
               (staticGenerationStore) => {
                 // Check to see if we should bail out of static generation based on
                 // having non-static methods.
-                if (this.nonStaticMethods) {
-                  this.staticGenerationBailout(
-                    `non-static methods used ${this.nonStaticMethods.join(
-                      ', '
-                    )}`
-                  )
+                const isStaticGeneration =
+                  staticGenerationStore.isStaticGeneration
+
+                if (this.hasNonStaticMethods) {
+                  if (isStaticGeneration) {
+                    const err = new DynamicServerError(
+                      'Route is configured with methods that cannot be statically generated.'
+                    )
+                    staticGenerationStore.dynamicUsageDescription = err.message
+                    staticGenerationStore.dynamicUsageStack = err.stack
+                    throw err
+                  } else {
+                    // We aren't statically generating but since this route has non-static methods
+                    // we still need to set the default caching to no cache by setting revalidate = 0
+                    // @TODO this type of logic is too indirect. we need to refactor how we set fetch cache
+                    // behavior. Prior to the most recent refactor this logic was buried deep in staticGenerationBailout
+                    // so it is possible it was unintentional and then tests were written to assert the current behavior
+                    staticGenerationStore.revalidate = 0
+                  }
                 }
 
+                // We assume we can pass the original request through however we may end up
+                // proxying it in certain circumstances based on execution type and configuraiton
+                let request = rawRequest
+
                 // Update the static generation store based on the dynamic property.
-                switch (this.dynamic) {
-                  case 'force-dynamic':
-                    // The dynamic property is set to force-dynamic, so we should
-                    // force the page to be dynamic.
-                    staticGenerationStore.forceDynamic = true
-                    this.staticGenerationBailout(`force-dynamic`, {
-                      dynamic: this.dynamic,
-                    })
-                    break
-                  case 'force-static':
+                if (isStaticGeneration) {
+                  switch (this.dynamic) {
+                    case 'force-dynamic':
+                      // We should never be in this case but since it can happen based on the way our build/execution is structured
+                      // We defend against it for the time being
+                      throw new Error(
+                        'Invariant: `dynamic-error` during static generation not expected for app routes. This is a bug in Next.js'
+                      )
+                      break
+                    case 'force-static':
+                      // The dynamic property is set to force-static, so we should
+                      // force the page to be static.
+                      staticGenerationStore.forceStatic = true
+                      // We also Proxy the request to replace dynamic data on the request
+                      // with empty stubs to allow for safely executing as static
+                      request = new Proxy(
+                        rawRequest,
+                        forceStaticRequestHandlers
+                      )
+                      break
+                    case 'error':
+                      // The dynamic property is set to error, so we should throw an
+                      // error if the page is being statically generated.
+                      staticGenerationStore.dynamicShouldError = true
+                      if (isStaticGeneration)
+                        request = new Proxy(
+                          rawRequest,
+                          requireStaticRequestHandlers
+                        )
+                      break
+                    default:
+                      // When we are statically generating a route we want to bail out if anything dynamic
+                      // is accessed. We only create this proxy in the staticGenerationCase because it is overhead
+                      // for dynamic runtime executions
+                      request = new Proxy(
+                        rawRequest,
+                        staticGenerationRequestHandlers
+                      )
+                  }
+                } else {
+                  // Generally if we are in a dynamic render we don't have to modify much however for
+                  // force-static specifically we ensure the dynamic and static behavior is consistent
+                  // by proxying the request in the same way in both cases
+                  if (this.dynamic === 'force-static') {
                     // The dynamic property is set to force-static, so we should
                     // force the page to be static.
                     staticGenerationStore.forceStatic = true
-                    break
-                  case 'error':
-                    // The dynamic property is set to error, so we should throw an
-                    // error if the page is being statically generated.
-                    staticGenerationStore.dynamicShouldError = true
-                    break
-                  default:
-                    break
+                    request = new Proxy(rawRequest, forceStaticRequestHandlers)
+                  }
                 }
 
                 // If the static generation store does not have a revalidate value
@@ -325,18 +364,6 @@ export class AppRouteRouteModule extends RouteModule<
                 // module or default to false.
                 staticGenerationStore.revalidate ??=
                   this.userland.revalidate ?? false
-
-                // Wrap the request so we can add additional functionality to cases
-                // that might change it's output or affect the rendering.
-                const wrappedRequest = proxyRequest(
-                  request,
-                  { dynamic: this.dynamic },
-                  {
-                    headerHooks: this.headerHooks,
-                    serverHooks: this.serverHooks,
-                    staticGenerationBailout: this.staticGenerationBailout,
-                  }
-                )
 
                 // TODO: propagate this pathname from route matcher
                 const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
@@ -356,7 +383,7 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
                     })
-                    const res = await handler(wrappedRequest, {
+                    const res = await handler(request, {
                       params: context.params
                         ? parsedUrlQueryToParams(context.params)
                         : undefined,
@@ -472,3 +499,342 @@ export class AppRouteRouteModule extends RouteModule<
 }
 
 export default AppRouteRouteModule
+
+/**
+ * Gets all the method names for handlers that are not considered static.
+ *
+ * @param handlers the handlers from the userland module
+ * @returns the method names that are not considered static or false if all
+ *          methods are static
+ */
+export function hasNonStaticMethods(handlers: AppRouteHandlers): boolean {
+  if (
+    // Order these by how common they are to be used
+    handlers.POST ||
+    handlers.POST ||
+    handlers.DELETE ||
+    handlers.PATCH ||
+    handlers.OPTIONS
+  ) {
+    return true
+  }
+  return false
+}
+
+// These symbols will be used to stash cached values on Proxied requests without requiring
+// additional closures or storage such as WeakMaps.
+const nextURLSymbol = Symbol('nextUrl')
+const requestCloneSymbol = Symbol('clone')
+const urlCloneSymbol = Symbol('clone')
+const searchParamsSymbol = Symbol('searchParams')
+const hrefSymbol = Symbol('href')
+const toStringSymbol = Symbol('toString')
+const headersSymbol = Symbol('headers')
+const cookiesSymbol = Symbol('cookies')
+
+type RequestSymbolTarget = {
+  [headersSymbol]?: Headers
+  [cookiesSymbol]?: RequestCookies | ReadonlyRequestCookies
+  [nextURLSymbol]?: NextURL
+  [requestCloneSymbol]?: () => NextRequest
+}
+
+type UrlSymbolTarget = {
+  [searchParamsSymbol]?: URLSearchParams
+  [hrefSymbol]?: string
+  [toStringSymbol]?: () => string
+  [urlCloneSymbol]?: () => NextURL
+}
+
+/**
+ * The general technique with these proxy handlers is to prioritize keeping them static
+ * by stashing computed values on the Proxy itself. This is safe because the Proxy is
+ * inaccessible to the consumer since all operations are forwarded
+ */
+const forceStaticRequestHandlers = {
+  get(
+    target: NextRequest & RequestSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
+    switch (prop) {
+      case 'headers':
+        return (
+          target[headersSymbol] ||
+          (target[headersSymbol] = HeadersAdapter.seal(new Headers({})))
+        )
+      case 'cookies':
+        return (
+          target[cookiesSymbol] ||
+          (target[cookiesSymbol] = RequestCookiesAdapter.seal(
+            new RequestCookies(new Headers({}))
+          ))
+        )
+      case 'nextUrl':
+        return (
+          target[nextURLSymbol] ||
+          (target[nextURLSymbol] = new Proxy(
+            target.nextUrl,
+            forceStaticNextUrlHandlers
+          ))
+        )
+      case 'url':
+        // we don't need to separately cache this we can just read the nextUrl
+        // and return the href since we know it will have been stripped of any
+        // dynamic parts. We access via the receiver to trigger the get trap
+        return receiver.nextUrl.href
+      case 'geo':
+      case 'ip':
+        return undefined
+      case 'clone':
+        return (
+          target[requestCloneSymbol] ||
+          (target[requestCloneSymbol] = () =>
+            new Proxy(
+              // This is vaguely unsafe but it's required since NextRequest does not implement
+              // clone. The reason we might expect this to work in this context is the Proxy will
+              // respond with static-amenable values anyway somewhat restoring the interface.
+              // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
+              // sophisticated to adequately represent themselves in all contexts. A better approach is
+              // to probably embed the static generation logic into the class itself removing the need
+              // for any kind of proxying
+              target.clone() as NextRequest,
+              forceStaticRequestHandlers
+            ))
+        )
+      default:
+        const result = Reflect.get(target, prop, receiver)
+        if (typeof result === 'function') {
+          return result.bind(target)
+        }
+        return result
+    }
+  },
+  // We don't need to proxy set because all the properties we proxy are ready only
+  // and will be ignored
+}
+
+const forceStaticNextUrlHandlers = {
+  get(
+    target: NextURL & UrlSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
+    switch (prop) {
+      // URL properties
+      case 'search':
+        return ''
+      case 'searchParams':
+        return (
+          target[searchParamsSymbol] ||
+          (target[searchParamsSymbol] = new URLSearchParams())
+        )
+      case 'href':
+        return (
+          target[hrefSymbol] ||
+          (target[hrefSymbol] = cleanURL(target.href).href)
+        )
+      case 'toJSON':
+      case 'toString':
+        return (
+          target[toStringSymbol] ||
+          (target[toStringSymbol] = () => receiver.href)
+        )
+
+      // NextUrl properties
+      case 'url':
+        // Currently nextURL does not expose url but our Docs indicate that it is an available property
+        // I am forcing this to undefined here to avoid accidentally exposing a dynamic value later if
+        // the underlying nextURL ends up adding this property
+        return undefined
+      case 'clone':
+        return (
+          target[urlCloneSymbol] ||
+          (target[urlCloneSymbol] = () =>
+            new Proxy(target.clone(), forceStaticNextUrlHandlers))
+        )
+      default:
+        const result = Reflect.get(target, prop, receiver)
+        if (typeof result === 'function') {
+          return result.bind(target)
+        }
+        return result
+    }
+  },
+}
+
+const staticGenerationRequestHandlers = {
+  get(
+    target: NextRequest & RequestSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
+    switch (prop) {
+      case 'nextUrl':
+        return (
+          target[nextURLSymbol] ||
+          (target[nextURLSymbol] = new Proxy(
+            target.nextUrl,
+            staticGenerationNextUrlHandlers
+          ))
+        )
+      case 'headers':
+      case 'cookies':
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
+        throw new DynamicServerError(
+          `Route couldn't be rendered statically because it accessed \`request.${prop}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+      case 'clone':
+        return (
+          target[requestCloneSymbol] ||
+          (target[requestCloneSymbol] = () =>
+            new Proxy(
+              // This is vaguely unsafe but it's required since NextRequest does not implement
+              // clone. The reason we might expect this to work in this context is the Proxy will
+              // respond with static-amenable values anyway somewhat restoring the interface.
+              // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
+              // sophisticated to adequately represent themselves in all contexts. A better approach is
+              // to probably embed the static generation logic into the class itself removing the need
+              // for any kind of proxying
+              target.clone() as NextRequest,
+              staticGenerationRequestHandlers
+            ))
+        )
+      default:
+        const result = Reflect.get(target, prop, receiver)
+        if (typeof result === 'function') {
+          return result.bind(target)
+        }
+        return result
+    }
+  },
+  // We don't need to proxy set because all the properties we proxy are ready only
+  // and will be ignored
+}
+
+const staticGenerationNextUrlHandlers = {
+  get(
+    target: NextURL & UrlSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
+    switch (prop) {
+      case 'search':
+      case 'searchParams':
+      case 'url':
+      case 'href':
+      case 'toJSON':
+      case 'toString':
+      case 'origin':
+        throw new DynamicServerError(
+          `Route couldn't be rendered statically because it accessed \`nextUrl.${prop}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+      case 'clone':
+        return (
+          target[urlCloneSymbol] ||
+          (target[urlCloneSymbol] = () =>
+            new Proxy(target.clone(), staticGenerationNextUrlHandlers))
+        )
+      default:
+        const result = Reflect.get(target, prop, receiver)
+        if (typeof result === 'function') {
+          return result.bind(target)
+        }
+        return result
+    }
+  },
+}
+
+const requireStaticRequestHandlers = {
+  get(
+    target: NextRequest & RequestSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
+    switch (prop) {
+      case 'nextUrl':
+        return (
+          target[nextURLSymbol] ||
+          (target[nextURLSymbol] = new Proxy(
+            target.nextUrl,
+            requireStaticNextUrlHandlers
+          ))
+        )
+      case 'headers':
+      case 'cookies':
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
+        throw new StaticGenBailoutError(
+          `Route with \`dynamic = "error"\` couldn't be rendered statically because it accessed \`request.${prop}\`.`
+        )
+      case 'clone':
+        return (
+          target[requestCloneSymbol] ||
+          (target[requestCloneSymbol] = () =>
+            new Proxy(
+              // This is vaguely unsafe but it's required since NextRequest does not implement
+              // clone. The reason we might expect this to work in this context is the Proxy will
+              // respond with static-amenable values anyway somewhat restoring the interface.
+              // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
+              // sophisticated to adequately represent themselves in all contexts. A better approach is
+              // to probably embed the static generation logic into the class itself removing the need
+              // for any kind of proxying
+              target.clone() as NextRequest,
+              requireStaticRequestHandlers
+            ))
+        )
+      default:
+        const result = Reflect.get(target, prop, receiver)
+        if (typeof result === 'function') {
+          return result.bind(target)
+        }
+        return result
+    }
+  },
+  // We don't need to proxy set because all the properties we proxy are ready only
+  // and will be ignored
+}
+
+const requireStaticNextUrlHandlers = {
+  get(
+    target: NextURL & UrlSymbolTarget,
+    prop: string | symbol,
+    receiver: any
+  ): unknown {
+    switch (prop) {
+      case 'search':
+      case 'searchParams':
+      case 'url':
+      case 'href':
+      case 'toJSON':
+      case 'toString':
+      case 'origin':
+        throw new StaticGenBailoutError(
+          `Route with \`dynamic = "error"\` couldn't be rendered statically because it accessed \`nextUrl.${prop}\`.`
+        )
+      case 'clone':
+        return (
+          target[urlCloneSymbol] ||
+          (target[urlCloneSymbol] = () =>
+            new Proxy(target.clone(), requireStaticNextUrlHandlers))
+        )
+      default:
+        const result = Reflect.get(target, prop, receiver)
+        if (typeof result === 'function') {
+          return result.bind(target)
+        }
+        return result
+    }
+  },
+}

@@ -11,9 +11,10 @@ use crate::{
     next_shared::transforms::{
         get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
         get_next_modularize_imports_rule, get_next_pages_transforms_rule,
-        get_server_actions_transform_rule,
-        next_react_server_components::get_next_react_server_components_transform_rule,
-        server_actions::ActionsTransform,
+        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
+        next_cjs_optimizer::get_next_cjs_optimizer_rule,
+        next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
+        next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
 };
 
@@ -22,7 +23,8 @@ use crate::{
 pub async fn get_next_server_transforms_rules(
     next_config: Vc<NextConfig>,
     context_ty: ServerContextType,
-    mode: NextMode,
+    mode: Vc<NextMode>,
+    foreign_code: bool,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -38,17 +40,34 @@ pub async fn get_next_server_transforms_rules(
 
     let (is_server_components, pages_dir) = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
+            if !foreign_code {
+                rules.push(get_next_disallow_export_all_in_page_rule(
+                    mdx_rs,
+                    pages_dir.await?,
+                ));
+            }
             (false, Some(pages_dir))
         }
         ServerContextType::PagesData { pages_dir } => {
-            rules.push(
-                get_next_pages_transforms_rule(pages_dir, ExportFilter::StripDefaultExport, mdx_rs)
+            if !foreign_code {
+                rules.push(
+                    get_next_pages_transforms_rule(
+                        pages_dir,
+                        ExportFilter::StripDefaultExport,
+                        mdx_rs,
+                    )
                     .await?,
-            );
+                );
+                rules.push(get_next_disallow_export_all_in_page_rule(
+                    mdx_rs,
+                    pages_dir.await?,
+                ));
+            }
             (false, Some(pages_dir))
         }
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
+            // need to apply to foreign code too
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
                 mdx_rs,
@@ -61,10 +80,6 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
-            ));
-
-            rules.push(get_next_react_server_components_transform_rule(
-                true, mdx_rs,
             ));
 
             if let Some(client_transition) = client_transition {
@@ -80,12 +95,23 @@ pub async fn get_next_server_transforms_rules(
         }
     };
 
-    rules.push(
-        get_next_dynamic_transform_rule(true, is_server_components, pages_dir, mode, mdx_rs)
-            .await?,
-    );
+    if !foreign_code {
+        rules.push(
+            get_next_dynamic_transform_rule(true, is_server_components, pages_dir, mode, mdx_rs)
+                .await?,
+        );
 
-    rules.push(get_next_image_rule());
+        rules.push(get_next_amp_attr_rule(mdx_rs));
+        rules.push(get_next_cjs_optimizer_rule(mdx_rs));
+        rules.push(get_next_pure_rule(mdx_rs));
+
+        // [NOTE]: this rule only works in prod config
+        // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
+        // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
+        // optimize_use_state))
+
+        rules.push(get_next_image_rule());
+    }
 
     Ok(rules)
 }

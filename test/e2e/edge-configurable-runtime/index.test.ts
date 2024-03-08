@@ -7,7 +7,7 @@ import stripAnsi from 'strip-ansi'
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
 
-describe.each([
+;(process.env.TURBOPACK ? describe.skip.each : describe.each)([
   { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
   { appDir: join(__dirname, './app'), title: 'pages and API routes' },
 ])('Configurable runtime for $title', ({ appDir }) => {

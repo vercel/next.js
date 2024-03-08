@@ -99,6 +99,14 @@ In the `Posts` folder, create a new entry.
 
 - **Name** can be anything.
 
+After creating the entry, click **Define schema**.
+
+- Add a key called `title`. Then click `title` and set the **Type** as **Text**
+- Add a key called `image`. Then click `title` and set the **Type** as **Text**
+- Add a key called `intro`. Then click `title` and set the **Type** as **Text**
+- Add a key called `long_text`. Then click `title` and set the **Type** as **Richtext**
+- Add a key called `author`. Then click `title` and set the **Type** as **Single-Option** and set **Source** as **Stories** and **Restrict to content type** as **author**
+
 Now, populate each field.
 
 - **Title** can be any text.
@@ -128,7 +136,34 @@ Then set each variable on `.env.local`:
 - `STORYBLOK_API_KEY` should be the API key you just copied.
 - `STORYBLOK_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
-### Step 7. Run Next.js in development mode
+### Step 9. Configure Image Optimization
+
+To safely allow optimizing images, define a list of supported URL patterns in `next.config.js`. Use the following configuration to allow Storyblok assets and Unspash image URL's
+
+```
+module.exports = {
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: 'a.storyblok.com',
+          port: '',
+          pathname: '**',
+        },
+        {
+          protocol: 'https',
+          hostname: 'images.unsplash.com',
+          port: '',
+          pathname: '**',
+        },
+       ],
+    },
+  }
+```
+
+Read more about image optimization in the [Documentation](https://nextjs.org/docs/pages/building-your-application/optimizing/images)
+
+### Step 8. Run Next.js in development mode
 
 ```bash
 npm install
@@ -142,7 +177,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, you can post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-### Step 8. Try preview mode
+### Step 9. Try preview mode
 
 To try preview mode, create another post like before (you can try duplicating), but **do not publish it - just save it**:
 
@@ -159,7 +194,7 @@ http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
 
 You should now be able to see the draft post. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-### Step 9. Deploy on Vercel
+### Step 10. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 

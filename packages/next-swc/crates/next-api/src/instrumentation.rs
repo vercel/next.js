@@ -1,19 +1,19 @@
 use anyhow::{bail, Result};
 use next_core::{
     all_assets_from_entries,
-    mode::NextMode,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
-    next_server::{get_server_chunking_context, get_server_runtime_entries, ServerContextType},
+    next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
     turbopack::{
+        build::EntryChunkGroupResult,
         core::{
             asset::AssetContent,
-            chunk::ChunkingContext,
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -26,10 +26,11 @@ use turbopack_binding::{
 };
 
 use crate::{
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    paths::{
+        all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -77,7 +78,7 @@ impl InstrumentationEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware),
-            NextMode::Development,
+            self.project.next_mode(),
         )
         .resolve_entries(self.context)
         .await?
@@ -96,21 +97,18 @@ impl InstrumentationEndpoint {
 
         let edge_chunking_context = self.project.edge_chunking_context();
 
-        let edge_files = edge_chunking_context
-            .evaluated_chunk_group(module.ident(), Vc::cell(evaluatable_assets));
+        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+            module.ident(),
+            Vc::cell(evaluatable_assets),
+            Value::new(AvailabilityInfo::Root),
+        );
 
         Ok(edge_files)
     }
 
     #[turbo_tasks::function]
     async fn node_chunk(&self) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let chunking_context = get_server_chunking_context(
-            self.project.project_path(),
-            self.project.node_root(),
-            self.project.client_relative_path(),
-            self.project.next_config().computed_asset_prefix(),
-            self.project.server_compile_time_info().environment(),
-        );
+        let chunking_context = self.project.server_chunking_context();
 
         let userland_module = self
             .context
@@ -124,17 +122,20 @@ impl InstrumentationEndpoint {
             bail!("Entry module must be evaluatable");
         };
 
-        let chunk = chunking_context.entry_chunk_group(
-            self.project
-                .node_root()
-                .join("server/instrumentation.js".to_string()),
-            module,
-            get_server_runtime_entries(
-                Value::new(ServerContextType::Instrumentation),
-                NextMode::Development,
+        let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
+            .entry_chunk_group(
+                self.project
+                    .node_root()
+                    .join("server/instrumentation.js".to_string()),
+                module,
+                get_server_runtime_entries(
+                    Value::new(ServerContextType::Instrumentation),
+                    self.project.next_mode(),
+                )
+                .resolve_entries(self.context),
+                Value::new(AvailabilityInfo::Root),
             )
-            .resolve_entries(self.context),
-        );
+            .await?;
         Ok(chunk)
     }
 
@@ -202,7 +203,11 @@ impl Endpoint for InstrumentationEndpoint {
                 .await?
                 .clone_value();
 
-            Ok(WrittenEndpoint::Edge { server_paths }.cell())
+            Ok(WrittenEndpoint::Edge {
+                server_paths,
+                client_paths: vec![],
+            }
+            .cell())
         }
         .instrument(span)
         .await

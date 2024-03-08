@@ -36,6 +36,7 @@ export function normalizeCatchAllRoutes(
         0,
         normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
+
       if (
         // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
@@ -43,10 +44,20 @@ export function normalizeCatchAllRoutes(
         !appPaths[appPath].some((path) =>
           hasMatchedSlots(path, catchAllRoute)
         ) &&
-        // check if the catch-all is not already matched by a default route
-        !appPaths[`${appPath}/default`]
+        // check if appPath is a catch-all OR is not more specific than the catch-all
+        (isCatchAllRoute(appPath) || !isMoreSpecific(appPath, catchAllRoute))
       ) {
-        appPaths[appPath].push(catchAllRoute)
+        if (isOptionalCatchAll(catchAllRoute)) {
+          // optional catch-all routes should match both the root segment and any segment after it
+          // for example, `/[[...slug]]` should match `/` and `/foo` and `/foo/bar`
+          appPaths[appPath].push(catchAllRoute)
+        } else if (isCatchAll(catchAllRoute)) {
+          // regular catch-all (single bracket) should only match segments after it
+          // for example, `/[...slug]` should match `/foo` and `/foo/bar` but not `/`
+          if (normalizedCatchAllRouteBasePath !== appPath) {
+            appPaths[appPath].push(catchAllRoute)
+          }
+        }
       }
     }
   }
@@ -79,5 +90,20 @@ function isMatchableSlot(segment: string): boolean {
 const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
-  return pathname.includes('[...') || pathname.includes('[[...')
+  return isOptionalCatchAll(pathname) || isCatchAll(pathname)
+}
+
+function isOptionalCatchAll(pathname: string): boolean {
+  return pathname.includes('[[...')
+}
+
+function isCatchAll(pathname: string): boolean {
+  return pathname.includes('[...')
+}
+
+// test to see if a path is more specific than a catch-all route
+function isMoreSpecific(pathname: string, catchAllRoute: string): boolean {
+  const pathnameDepth = pathname.split('/').length
+  const catchAllRouteDepth = catchAllRoute.split('/').length - 1
+  return pathnameDepth > catchAllRouteDepth
 }

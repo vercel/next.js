@@ -313,6 +313,106 @@ export function middleware(request) {
 
 > **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
+### CORS
+
+You can set CORS headers in Middleware to allow cross-origin requests, including [simple](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests) and [preflighted](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests) requests.
+
+```tsx filename="middleware.ts" switcher
+import { NextRequest, NextResponse } from 'next/server'
+
+const allowedOrigins = ['https://acme.com', 'https://my-app.org']
+
+const corsOptions = {
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export function middleware(request: NextRequest) {
+  // Check the origin from the request
+  const origin = request.headers.get('origin') ?? ''
+  const isAllowedOrigin = allowedOrigins.includes(origin)
+
+  // Handle preflighted requests
+  const isPreflight = request.method === 'OPTIONS'
+
+  if (isPreflight) {
+    const preflightHeaders = {
+      ...(isAllowedOrigin && { 'Access-Control-Allow-Origin': origin }),
+      ...corsOptions,
+    }
+    return NextResponse.json({}, { headers: preflightHeaders })
+  }
+
+  // Handle simple requests
+  const response = NextResponse.next()
+
+  if (isAllowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  }
+
+  Object.entries(corsOptions).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+
+  return response
+}
+
+export const config = {
+  matcher: '/api/:path*',
+}
+```
+
+```jsx filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+const allowedOrigins = ['https://acme.com', 'https://my-app.org']
+
+const corsOptions = {
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export function middleware(request) {
+  // Check the origin from the request
+  const origin = request.headers.get('origin') ?? ''
+  const isAllowedOrigin = allowedOrigins.includes(origin)
+
+  // Handle preflighted requests
+  const isPreflight = request.method === 'OPTIONS'
+
+  if (isPreflight) {
+    const preflightHeaders = {
+      ...(isAllowedOrigin && { 'Access-Control-Allow-Origin': origin }),
+      ...corsOptions,
+    }
+    return NextResponse.json({}, { headers: preflightHeaders })
+  }
+
+  // Handle simple requests
+  const response = NextResponse.next()
+
+  if (isAllowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  }
+
+  Object.entries(corsOptions).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+
+  return response
+}
+
+export const config = {
+  matcher: '/api/:path*',
+}
+```
+
+<AppOnly>
+
+> **Good to know:** You can configure CORS headers for individual routes in [Route Handlers](/docs/app/building-your-application/routing/route-handlers#cors).
+
+</AppOnly>
+
 ## Producing a Response
 
 You can respond from Middleware directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-middleware))
@@ -413,7 +513,7 @@ export default async function middleware(req) {
 }
 ```
 
-`skipMiddlewareUrlNormalize` allows disabling the URL normalizing Next.js does to make handling direct visits and client-transitions the same. There are some advanced cases where you need full control using the original URL which this unlocks.
+`skipMiddlewareUrlNormalize` allows for disabling the URL normalization in Next.js to make handling direct visits and client-transitions the same. In some advanced cases, this option provides full control by using the original URL.
 
 ```js filename="next.config.js"
 module.exports = {

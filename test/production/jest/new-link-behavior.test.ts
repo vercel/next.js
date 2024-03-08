@@ -41,11 +41,12 @@ describe('next/jest newLinkBehavior', () => {
       },
       packageJson: {
         scripts: {
-          build: 'next build && yarn jest --forceExit test/index.test.jsx',
+          build: 'next build && jest --forceExit test/index.test.jsx',
         },
       },
+      installCommand: 'pnpm i',
       skipStart: true,
-      buildCommand: `yarn build`,
+      buildCommand: `pnpm build`,
     })
   })
 
