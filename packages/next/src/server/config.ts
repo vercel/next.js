@@ -1106,6 +1106,18 @@ export default async function loadConfig(
       userConfig.experimental.turbo.rules = rules
     }
 
+    if (userConfig.experimental?.useLightningcss) {
+      const { loadBindings } = require('next/dist/build/swc')
+      const isLightningSupported = (await loadBindings())?.css?.lightning
+
+      if (!isLightningSupported) {
+        curLog.warn(
+          `experimental.useLightningcss is set, but the setting is disabled because next-swc/wasm does not support it yet.`
+        )
+        userConfig.experimental.useLightningcss = false
+      }
+    }
+
     onLoadUserConfig?.(userConfig)
     const completeConfig = assignDefaults(
       dir,

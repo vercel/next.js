@@ -582,7 +582,12 @@ async fn fetch_from_google_fonts(
     url: Vc<String>,
     virtual_path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
-    let result = fetch(url, Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned()))).await?;
+    let result = fetch(
+        url,
+        Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
+        Vc::cell(None),
+    )
+    .await?;
 
     Ok(match &*result {
         Ok(r) => Some(r.await?.body),

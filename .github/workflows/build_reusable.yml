@@ -72,7 +72,7 @@ env:
 
 jobs:
   build:
-    timeout-minutes: 15
+    timeout-minutes: 30
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -171,6 +171,7 @@ jobs:
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
+        timeout-minutes: 15
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

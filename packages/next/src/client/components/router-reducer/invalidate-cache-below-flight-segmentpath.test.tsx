@@ -84,7 +84,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     cache.rsc = existingCache.rsc
     cache.prefetchRsc = existingCache.prefetchRsc
     // Create a copy of the existing cache with the rsc applied.
-    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
 
     // Invalidate the cache below the flight segment path. This should remove the 'about' node.
     invalidateCacheBelowFlightSegmentPath(
