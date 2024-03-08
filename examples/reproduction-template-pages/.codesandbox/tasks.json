@@ -1,17 +1,18 @@
 {
-  // These tasks will run in order when initializing your CodeSandbox project.
   "setupTasks": [
     {
+      "name": "Remove outdated lockfile",
+      "command": "rm yarn.lock"
+    },
+    {
       "name": "Install Dependencies",
-      "command": "pnpm install"
+      "command": "yarn install"
     }
   ],
-
-  // These tasks can be run from CodeSandbox. Running one will open a log in the app.
   "tasks": {
     "dev": {
       "name": "dev",
-      "command": "pnpm dev",
+      "command": "yarn dev",
       "runAtStart": true
     }
   }
