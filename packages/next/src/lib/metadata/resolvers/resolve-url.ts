@@ -95,25 +95,24 @@ function resolveAbsoluteUrlWithPathname(
     resolvedUrl = result.pathname === '/' ? result.origin : result.href
   }
 
-  let isRelative = resolvedUrl.startsWith('/')
-  let isExternal = false
-  let hasQuery = resolvedUrl.includes('?')
-  if (!isRelative) {
-    try {
-      const parsedUrl = new URL(resolvedUrl)
-      isExternal =
-        metadataBase != null && parsedUrl.origin !== metadataBase.origin
-    } catch {
-      // If it's not a valid URL, treat it as external
-      isExternal = true
-    }
-  }
-
   // Add trailing slash if it's enabled for urls matches the condition
   // - Not external, same origin with metadataBase
   // - Doesn't have query
-  if (!isExternal && !hasQuery && trailingSlash && !resolvedUrl.endsWith('/')) {
-    return `${resolvedUrl}/`
+  if (trailingSlash && !resolvedUrl.endsWith('/')) {
+    let isRelative = resolvedUrl.startsWith('/')
+    let isExternal = false
+    let hasQuery = resolvedUrl.includes('?')
+    if (!isRelative) {
+      try {
+        const parsedUrl = new URL(resolvedUrl)
+        isExternal =
+          metadataBase != null && parsedUrl.origin !== metadataBase.origin
+      } catch {
+        // If it's not a valid URL, treat it as external
+        isExternal = true
+      }
+      if (!isExternal && !hasQuery) return `${resolvedUrl}/`
+    }
   }
 
   return resolvedUrl

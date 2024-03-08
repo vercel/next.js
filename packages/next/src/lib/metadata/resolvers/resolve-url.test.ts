@@ -50,14 +50,12 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       trailingSlash: false,
       pathname: '/',
     }
+    const resolver = (url: string | URL) =>
+      resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
     it('should resolve absolute internal url', () => {
-      const url = 'https://example.com/foo'
-      const resolvedUrl = resolveAbsoluteUrlWithPathname(
-        url,
-        metadataBase,
-        opts
+      expect(resolver('https://example.com/foo')).toBe(
+        'https://example.com/foo'
       )
-      expect(resolvedUrl).toBe('https://example.com/foo')
     })
   })
 
@@ -67,54 +65,44 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       trailingSlash: true,
       pathname: '/',
     }
+    const resolver = (url: string | URL) =>
+      resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
     it('should add trailing slash to relative url', () => {
-      const url = '/foo'
-      const resolvedUrl = resolveAbsoluteUrlWithPathname(
-        url,
-        metadataBase,
-        opts
-      )
-      expect(resolvedUrl).toBe('https://example.com/foo/')
+      expect(resolver('/foo')).toBe('https://example.com/foo/')
     })
 
     it('should add trailing slash to absolute internal url', () => {
-      const url = 'https://example.com/foo'
-      const resolvedUrl = resolveAbsoluteUrlWithPathname(
-        url,
-        metadataBase,
-        opts
+      expect(resolver('https://example.com/foo')).toBe(
+        'https://example.com/foo/'
       )
-      expect(resolvedUrl).toBe('https://example.com/foo/')
+      expect(resolver(new URL('https://example.com/foo'))).toBe(
+        'https://example.com/foo/'
+      )
     })
 
     it('should not add trailing slash to external url', () => {
-      const url = 'https://external.org/foo'
-      const resolvedUrl = resolveAbsoluteUrlWithPathname(
-        url,
-        metadataBase,
-        opts
+      expect(resolver('https://external.org/foo')).toBe(
+        'https://external.org/foo'
       )
-      expect(resolvedUrl).toBe('https://external.org/foo')
+      expect(resolver(new URL('https://external.org/foo'))).toBe(
+        'https://external.org/foo'
+      )
     })
 
     it('should not add trailing slash to absolute internal url with query', () => {
-      const url = 'https://example.com/foo?bar'
-      const resolvedUrl = resolveAbsoluteUrlWithPathname(
-        url,
-        metadataBase,
-        opts
+      expect(resolver('https://example.com/foo?bar')).toBe(
+        'https://example.com/foo?bar'
       )
-      expect(resolvedUrl).toBe('https://example.com/foo?bar')
+      expect(resolver(new URL('https://example.com/foo?bar'))).toBe(
+        'https://example.com/foo?bar'
+      )
     })
 
     it('should not add trailing slash to relative url with query', () => {
-      const url = '/foo?bar'
-      const resolvedUrl = resolveAbsoluteUrlWithPathname(
-        url,
-        metadataBase,
-        opts
+      expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
+      expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
+        'https://example.com/foo?bar'
       )
-      expect(resolvedUrl).toBe('https://example.com/foo?bar')
     })
   })
 })
