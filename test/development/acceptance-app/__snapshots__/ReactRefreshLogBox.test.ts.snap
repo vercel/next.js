@@ -11,9 +11,10 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
-"./app/module.js (1:0)
+"./app/module.js:1:1
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import "non-existing-module"
+    | ^
 
 https://nextjs.org/docs/messages/module-not-found
 
@@ -22,37 +23,37 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (3:10) @ default
+"index.js (3:11) @ default
 
   1 | export default () => {
-  2 | if (typeof window !== 'undefined') {
-> 3 |   throw new Error('test')
-    |        ^
-  4 | }
+  2 |   if (typeof window !== 'undefined') {
+> 3 |     throw new Error('test')
+    |           ^
+  4 |   }
   5 |
-  6 | return null"
+  6 |   return null"
 `;
 
 exports[`ReactRefreshLogBox app default boundaries 1`] = `
-"FunctionDefault.js (1:50) @ FunctionDefault
+"FunctionDefault.js (1:51) @ FunctionDefault
 
 > 1 | export default function FunctionDefault() { throw new Error('no'); }
-    |                                                  ^"
+    |                                                   ^"
 `;
 
 exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = `
-"Child.js (4:10) @ ClickCount.render
+"Child.js (4:11) @ ClickCount.render
 
   2 | export default class ClickCount extends Component {
-  3 | render() {
-> 4 |   throw new Error()
-    |        ^
-  5 | }
+  3 |   render() {
+> 4 |     throw new Error()
+    |           ^
+  5 |   }
   6 | }"
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
-"./index.module.css (1:1)
+"./index.module.css:1:1
 Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button {}
@@ -76,25 +77,122 @@ exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 
 exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
 exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
-"index.js (3:6) @ eval
+"index.js (3:7) @ eval
 
   1 | // top offset for snapshot
   2 | import * as React from 'react';
 > 3 | throw new Error('no')
-    |    ^
+    |       ^
   4 | class ClassDefault extends React.Component {
-  5 | render() {
-  6 |   return <h1>Default Export</h1>;"
+  5 |   render() {
+  6 |     return <h1>Default Export</h1>;"
 `;
 
 exports[`ReactRefreshLogBox app default should strip whitespace correctly with newline 1`] = `
-"index.js (8:26) @ onClick
+"index.js (7:15) @ onClick
 
-   6 |
-   7 | <a onClick={() => {
->  8 |   throw new Error('idk')
-     |        ^
-   9 | }}>
-  10 |   click me
-  11 | </a>"
+   5 |
+   6 |       <a onClick={() => {
+>  7 |         throw new Error('idk')
+     |               ^
+   8 |       }}>
+   9 |         click me
+  10 |       </a>"
+`;
+
+exports[`ReactRefreshLogBox app turbo Can't resolve @import in CSS file 1`] = `
+"./app/styles2.css:1:9
+Module not found: Can't resolve './boom.css'
+> 1 | @import "./boom.css"
+    |         ^^^^^^^^^^^^
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app turbo Import trace when module not found in layout 1`] = `
+"./app/module.js:1:1
+Module not found: Can't resolve 'non-existing-module'
+> 1 | import "non-existing-module"
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
+"index.js (3:11) @ {default export}
+
+  1 | export default () => {
+  2 |   if (typeof window !== 'undefined') {
+> 3 |     throw new Error('test')
+    |           ^
+  4 |   }
+  5 |
+  6 |   return null"
+`;
+
+exports[`ReactRefreshLogBox app turbo boundaries 1`] = `
+"FunctionDefault.js (1:51) @ FunctionDefault
+
+> 1 | export default function FunctionDefault() { throw new Error('no'); }
+    |                                                   ^"
+`;
+
+exports[`ReactRefreshLogBox app turbo conversion to class component (1) 1`] = `
+"Child.js (4:11) @ ClickCount.render
+
+  2 | export default class ClickCount extends Component {
+  3 |   render() {
+> 4 |     throw new Error()
+    |           ^
+  5 |   }
+  6 | }"
+`;
+
+exports[`ReactRefreshLogBox app turbo css syntax errors 1`] = `
+"./index.module.css:1:1
+Parsing css source code failed
+> 1 | button {}
+    | ^^^^^^
+
+Selector is not pure (pure selectors must contain at least one local class or id)"
+`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+
+exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
+"index.js (3:7) @ <unknown>
+
+  1 | // top offset for snapshot
+  2 | import * as React from 'react';
+> 3 | throw new Error('no')
+    |       ^
+  4 | class ClassDefault extends React.Component {
+  5 |   render() {
+  6 |     return <h1>Default Export</h1>;"
+`;
+
+exports[`ReactRefreshLogBox app turbo should strip whitespace correctly with newline 1`] = `
+"index.js (7:15) @ onClick
+
+   5 |
+   6 |       <a onClick={() => {
+>  7 |         throw new Error('idk')
+     |               ^
+   8 |       }}>
+   9 |         click me
+  10 |       </a>"
 `;

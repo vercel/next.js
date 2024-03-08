@@ -8,6 +8,7 @@ import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { loadEntrypoint } from '../../../load-entrypoint'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -21,12 +22,15 @@ export type EdgeSSRLoaderQuery = {
   page: string
   stringifiedConfig: string
   appDirLoader?: string
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   sriEnabled: boolean
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
 }
 
 /*
@@ -72,10 +76,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       appDirLoader: appDirLoaderBase64,
       pagesType,
       sriEnabled,
-      incrementalCacheHandlerPath,
+      cacheHandler,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
-      serverActionsBodySizeLimit,
+      serverActions,
     } = this.getOptions()
 
     const middlewareConfig: MiddlewareConfig = JSON.parse(
@@ -148,13 +152,13 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           nextConfig: stringifiedConfig,
           isServerComponent: JSON.stringify(isServerComponent),
           dev: JSON.stringify(dev),
-          serverActionsBodySizeLimit:
-            typeof serverActionsBodySizeLimit === 'undefined'
+          serverActions:
+            typeof serverActions === 'undefined'
               ? 'undefined'
-              : JSON.stringify(serverActionsBodySizeLimit),
+              : JSON.stringify(serverActions),
         },
         {
-          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
+          incrementalCacheHandler: cacheHandler ?? null,
         }
       )
     } else {
@@ -183,7 +187,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           userland500Page: userland500Path,
-          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
+          incrementalCacheHandler: cacheHandler ?? null,
         }
       )
     }

@@ -36,7 +36,6 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
-import { createRequestResponseMocks } from '../mock-request'
 import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:resolve-routes')
@@ -49,7 +48,7 @@ export function getResolveRoutes(
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
-  ensureMiddleware?: () => Promise<void>
+  ensureMiddleware?: (url?: string) => Promise<void>
 ) {
   type Route = {
     /**
@@ -137,7 +136,7 @@ export function getResolveRoutes(
     // TODO: inherit this from higher up
     const protocol =
       (req?.socket as TLSSocket)?.encrypted ||
-      req.headers['x-forwarded-proto'] === 'https'
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 
@@ -294,11 +293,14 @@ export function getResolveRoutes(
     }
 
     const normalizers = {
-      basePath: new BasePathPathnameNormalizer(config.basePath),
+      basePath:
+        config.basePath && config.basePath !== '/'
+          ? new BasePathPathnameNormalizer(config.basePath)
+          : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
-      postponed: new PostponedPathnameNormalizer(
-        config.experimental.ppr === true
-      ),
+      postponed: config.experimental.ppr
+        ? new PostponedPathnameNormalizer()
+        : undefined,
     }
 
     async function handleRoute(
@@ -356,9 +358,12 @@ export function getResolveRoutes(
       }
 
       if (params) {
-        if (fsChecker.interceptionRoutes && route.name === 'before_files_end') {
-          for (const interceptionRoute of fsChecker.interceptionRoutes) {
-            const result = await handleRoute(interceptionRoute)
+        if (
+          fsChecker.exportPathMapRoutes &&
+          route.name === 'before_files_end'
+        ) {
+          for (const exportPathMapRoute of fsChecker.exportPathMapRoutes) {
+            const result = await handleRoute(exportPathMapRoute)
 
             if (result) {
               return result
@@ -371,8 +376,8 @@ export function getResolveRoutes(
             let normalized = parsedUrl.pathname
 
             // Remove the base path if it exists.
-            const hadBasePath = normalizers.basePath.match(parsedUrl.pathname)
-            if (hadBasePath) {
+            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+            if (hadBasePath && normalizers.basePath) {
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
@@ -381,7 +386,7 @@ export function getResolveRoutes(
               updated = true
               parsedUrl.query.__nextDataReq = '1'
               normalized = normalizers.data.normalize(normalized, true)
-            } else if (normalizers.postponed.match(normalized)) {
+            } else if (normalizers.postponed?.match(normalized)) {
               updated = true
               normalized = normalizers.postponed.normalize(normalized, true)
             }
@@ -441,12 +446,12 @@ export function getResolveRoutes(
           const match = fsChecker.getMiddlewareMatchers()
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) &&
-            (!ensureMiddleware ||
-              (await ensureMiddleware?.()
-                .then(() => true)
-                .catch(() => false)))
+            match?.(parsedUrl.pathname, req, parsedUrl.query)
           ) {
+            if (ensureMiddleware) {
+              await ensureMiddleware(req.url)
+            }
+
             const serverResult = await renderServer?.initialize(
               renderServerOpts
             )
@@ -468,21 +473,6 @@ export function getResolveRoutes(
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
             try {
-              let readableController: ReadableStreamController<Buffer>
-              const { res: mockedRes } = await createRequestResponseMocks({
-                url: req.url || '/',
-                method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-                resWriter(chunk) {
-                  readableController.enqueue(Buffer.from(chunk))
-                  return true
-                },
-              })
-
-              mockedRes.on('close', () => {
-                readableController.close()
-              })
-
               try {
                 await serverResult.requestHandler(req, res, parsedUrl)
               } catch (err: any) {

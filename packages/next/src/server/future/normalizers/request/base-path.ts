@@ -1,32 +1,16 @@
-import type { Normalizer } from '../normalizer'
+import type { PathnameNormalizer } from './pathname-normalizer'
 
-export class BasePathPathnameNormalizer implements Normalizer {
-  private readonly basePath?: string
+import { PrefixPathnameNormalizer } from './prefix'
+
+export class BasePathPathnameNormalizer
+  extends PrefixPathnameNormalizer
+  implements PathnameNormalizer
+{
   constructor(basePath: string) {
-    // A basePath of `/` is not a basePath.
-    if (!basePath || basePath === '/') return
+    if (!basePath || basePath === '/') {
+      throw new Error('Invariant: basePath must be set and cannot be "/"')
+    }
 
-    this.basePath = basePath
-  }
-
-  public match(pathname: string) {
-    // If there's no basePath, we don't match.
-    if (!this.basePath) return false
-
-    // If the pathname doesn't start with the basePath, we don't match.
-    if (pathname !== this.basePath && !pathname.startsWith(this.basePath + '/'))
-      return false
-
-    return true
-  }
-
-  public normalize(pathname: string, matched?: boolean): string {
-    // If there's no basePath, we don't need to normalize.
-    if (!this.basePath) return pathname
-
-    // If we're not matched and we don't match, we don't need to normalize.
-    if (!matched && !this.match(pathname)) return pathname
-
-    return pathname.substring(this.basePath.length)
+    super(basePath)
   }
 }

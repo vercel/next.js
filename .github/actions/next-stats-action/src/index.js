@@ -133,7 +133,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcVersion: isMainRepo ? mainNextSwcVersion : undefined,
+        nextSwcVersion: isMainRepo ? mainNextSwcVersion : null,
       })
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths

@@ -1,16 +1,10 @@
-# Reusable workflow to upload next.js integration test result to specific branch `nextjs-integration-test-data`
-# This workflow assumes `next-integration-test` workflow has been executed and test results are stored in `test-results/main` directory.
+# Reusable workflow to upload next.js integration test results to KV for https://areweturboyet.com/
+# This workflow assumes the `next-integration-test` workflow has been executed
+# and test reports have been uploaded to the `test-results` artifact.
 name: Update next.js integration test results
 
 on:
   workflow_call:
-    inputs:
-      # Boolean flag to indicate if this workflow is triggered by default branch update.
-      # If this flag is set to true, then the workflow will upload test results to subpath `/main`.
-      # Otherwise, the workflow will upload test results to subpath `/${nextjs-version}`.
-      is_main_branch:
-        required: true
-        type: boolean
   workflow_dispatch:
 
 jobs:
@@ -19,52 +13,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          ref: nextjs-integration-test-data
+        uses: actions/checkout@v4
 
-      - name: Git pull
-        run: |
-          git pull --depth=1 --no-tags origin nextjs-integration-test-data
-
-      # First, grab test results into `test-results/main` directory from artifact stored by `next-integration-test`.
-      - name: Grab test results
-        uses: actions/download-artifact@v3
+      # Download test results into the `test-results` directory from the artifact created by `nextjs-integration-test`.
+      - name: Download test results artifact
+        uses: actions/download-artifact@v4
         with:
           name: test-results
-          path: test-results/main
+          path: test-results
 
       # Read next.js version from test results, set necessary environment variables.
       - name: Print test results
         run: |
-          rm -rf ./test-results/main/slack-payload.json
-          ls -al ./test-results/main
-          echo "Print failed test path list:"
-          cat ./test-results/main/failed-test-path-list.json
-          echo "Print passed test path list:"
-          cat ./test-results/main/passed-test-path-list.json
-          echo "NEXTJS_VERSION=$(cat ./test-results/main/nextjs-test-results.json | jq .nextjsVersion | tr -d '"' | cut -d ' ' -f2)" >> $GITHUB_ENV
-          echo "SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "RESULT_SUBPATH=$(if ${{ inputs.is_main_branch }}; then echo 'main'; else echo ${{ env.NEXTJS_VERSION }}; fi)" >> $GITHUB_ENV
+          echo "::group::Passed test paths"
+          cat ./test-results/passed-test-path-list.json
+          echo "::endgroup::"
 
-      # Copy test results to `${date}-${nextjs-version}-${sha-short}.json`.
-      # If workflow is not coming from main branch update, then we need to move test results to subpath `/${nextjs-version}`.
-      - name: Congifure subpath
-        run: |
-          echo "Configured test result subpath for ${{ env.RESULT_SUBPATH }} / ${{ env.NEXTJS_VERSION }} / ${{ env.SHA_SHORT }}"
-          mkdir -p test-results/${{ env.RESULT_SUBPATH }}
-          cp -v test-results/main/nextjs-test-results.json test-results/${{ env.RESULT_SUBPATH }}/$(date '+%Y%m%d%H%M')-${{ env.NEXTJS_VERSION }}-${{ env.SHA_SHORT }}.json
-          mv -fvn test-results/main/failed-test-path-list.json test-results/${{ env.RESULT_SUBPATH }}/failed-test-path-list.json
-          ls -al ./test-results
-          ls -al ./test-results/${{ env.RESULT_SUBPATH }}
+          echo "::group::Failed test paths"
+          cat ./test-results/failed-test-path-list.json
+          echo "::endgroup::"
 
-      - name: Push data to branch
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          file_pattern: test-results/**
-          commit_message: 'test(integration): Integration test results for ${{ env.NEXTJS_VERSION }} (${{ env.SHA_SHORT }})'
-
-      - name: 'Upload Are We Turbo Yet data'
+      - name: 'Upload results to "Are We Turbo Yet" KV'
         env:
           TURBOYET_KV_REST_API_URL: ${{ secrets.TURBOYET_KV_REST_API_URL }}
           TURBOYET_KV_REST_API_TOKEN: ${{ secrets.TURBOYET_KV_REST_API_TOKEN }}

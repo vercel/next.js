@@ -18,8 +18,7 @@ import { dirname, join, resolve, sep } from 'path'
 import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
-import createSpinner from '../build/spinner'
-import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import { RSC_SUFFIX, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
   BUILD_ID_FILE,
@@ -54,93 +53,9 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
-
-function divideSegments(number: number, segments: number): number[] {
-  const result = []
-  while (number > 0 && segments > 0) {
-    const dividedNumber =
-      number < segments ? number : Math.floor(number / segments)
-
-    number -= dividedNumber
-    segments--
-    result.push(dividedNumber)
-  }
-  return result
-}
-
-const createProgress = (total: number, label: string) => {
-  const segments = divideSegments(total, 4)
-
-  if (total === 0) {
-    throw new Error('invariant: progress total can not be zero')
-  }
-  let currentSegmentTotal = segments.shift()
-  let currentSegmentCount = 0
-  let lastProgressOutput = Date.now()
-  let curProgress = 0
-  let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
-    spinner: {
-      frames: [
-        '[    ]',
-        '[=   ]',
-        '[==  ]',
-        '[=== ]',
-        '[ ===]',
-        '[  ==]',
-        '[   =]',
-        '[    ]',
-        '[   =]',
-        '[  ==]',
-        '[ ===]',
-        '[====]',
-        '[=== ]',
-        '[==  ]',
-        '[=   ]',
-      ],
-      interval: 200,
-    },
-  })
-
-  return () => {
-    curProgress++
-
-    // Make sure we only log once
-    // - per fully generated segment, or
-    // - per minute
-    // when not showing the spinner
-    if (!progressSpinner) {
-      currentSegmentCount++
-
-      if (currentSegmentCount === currentSegmentTotal) {
-        currentSegmentTotal = segments.shift()
-        currentSegmentCount = 0
-      } else if (lastProgressOutput + 60000 > Date.now()) {
-        return
-      }
-
-      lastProgressOutput = Date.now()
-    }
-
-    const isFinished = curProgress === total
-    // Use \r to reset current line with spinner.
-    // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
-    const newText = `\r ${
-      isFinished ? Log.prefixes.event : Log.prefixes.info
-    } ${label} (${curProgress}/${total}) ${
-      isFinished ? '' : process.stdout.isTTY ? '\n' : '\r'
-    }`
-    if (progressSpinner) {
-      progressSpinner.text = newText
-    } else {
-      console.log(newText)
-    }
-
-    if (isFinished && progressSpinner) {
-      progressSpinner.stop()
-      console.log(newText)
-    }
-  }
-}
+import { validateRevalidate } from '../server/lib/patch-fetch'
+import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
+import { createProgress } from '../build/progress'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -214,6 +129,8 @@ export async function exportAppImpl(
 
   // attempt to load global env values so they are available in next.config.js
   span.traceChild('load-dotenv').traceFn(() => loadEnvConfig(dir, false, Log))
+
+  const { enabledDirectories } = options
 
   const nextConfig =
     options.nextConfig ||
@@ -444,7 +361,7 @@ export async function exportAppImpl(
   }
 
   let serverActionsManifest
-  if (options.hasAppDir) {
+  if (enabledDirectories.app) {
     serverActionsManifest = require(join(
       distDir,
       SERVER_DIRECTORY,
@@ -471,6 +388,7 @@ export async function exportAppImpl(
     distDir,
     dev: false,
     basePath: nextConfig.basePath,
+    trailingSlash: nextConfig.trailingSlash,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
@@ -481,35 +399,39 @@ export async function exportAppImpl(
     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     // Exported pages do not currently support dynamic HTML.
     supportsDynamicHTML: false,
-    crossOrigin: nextConfig.crossOrigin || '',
+    crossOrigin: nextConfig.crossOrigin,
     optimizeCss: nextConfig.experimental.optimizeCss,
     nextConfigOutput: nextConfig.output,
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
     optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-    serverComponents: options.hasAppDir,
-    serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActions?.bodySizeLimit,
+    serverActions: nextConfig.experimental.serverActions,
+    serverComponents: enabledDirectories.app,
     nextFontManifest: require(join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.json`
     )),
     images: nextConfig.images,
-    ...(options.hasAppDir
+    ...(enabledDirectories.app
       ? {
           serverActionsManifest,
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
-    ppr: nextConfig.experimental.ppr === true,
+    experimental: {
+      ppr: nextConfig.experimental.ppr === true,
+      missingSuspenseWithCSRBailout:
+        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+      swrDelta: nextConfig.experimental.swrDelta,
+    },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (Object.keys(publicRuntimeConfig).length > 0) {
-    ;(renderOpts as any).runtimeConfig = publicRuntimeConfig
+    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.
@@ -557,9 +479,10 @@ export async function exportAppImpl(
   ]
 
   const filteredPaths = exportPaths.filter(
-    // Remove API routes
     (route) =>
-      exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
+      exportPathMap[route]._isAppDir ||
+      // Remove API routes
+      !isAPIRoute(exportPathMap[route].page)
   )
 
   if (filteredPaths.length !== exportPaths.length) {
@@ -631,10 +554,7 @@ export async function exportAppImpl(
 
   const progress =
     !options.silent &&
-    createProgress(
-      filteredPaths.length,
-      `${options.statusMessage || 'Exporting'}`
-    )
+    createProgress(filteredPaths.length, options.statusMessage || 'Exporting')
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
@@ -690,17 +610,25 @@ export async function exportAppImpl(
           optimizeCss: nextConfig.experimental.optimizeCss,
           disableOptimizedLoading:
             nextConfig.experimental.disableOptimizedLoading,
-          parentSpanId: pageExportSpan.id,
+          parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
-          isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
           fetchCache: true,
           fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-          incrementalCacheHandlerPath:
-            nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: nextConfig.cacheHandler,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
+          enabledDirectories,
         })
       })
+
+      if (nextConfig.experimental.prerenderEarlyExit) {
+        if (result && 'error' in result) {
+          throw new Error(
+            `Export encountered an error on ${path}, exiting due to prerenderEarlyExit: true being set`
+          )
+        }
+      }
 
       if (progress) progress()
 
@@ -716,12 +644,22 @@ export async function exportAppImpl(
     byPath: new Map(),
     byPage: new Map(),
     ssgNotFoundPaths: new Set(),
+    turborepoAccessTraceResults: new Map(),
   }
 
   for (const { result, path } of results) {
     if (!result) continue
 
     const { page } = exportPathMap[path]
+
+    if (result.turborepoAccessTraceResult) {
+      collector.turborepoAccessTraceResults?.set(
+        path,
+        TurborepoAccessTraceResult.fromSerialized(
+          result.turborepoAccessTraceResult
+        )
+      )
+    }
 
     // Capture any render errors.
     if ('error' in result) {
@@ -742,7 +680,7 @@ export async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+        info.revalidate = validateRevalidate(result.revalidate, path)
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
@@ -773,6 +711,12 @@ export async function exportAppImpl(
   }
 
   const endWorkerPromise = workers.end()
+
+  // Export mode provide static outputs that are not compatible with PPR mode.
+  if (!options.buildExport && nextConfig.experimental.ppr) {
+    // TODO: add message
+    throw new Error('Invariant: PPR cannot be enabled in export mode')
+  }
 
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
@@ -836,7 +780,7 @@ export async function exportAppImpl(
         await fs.mkdir(dirname(jsonDest), { recursive: true })
 
         const htmlSrc = `${orig}.html`
-        const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
+        const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
 
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)

@@ -91,7 +91,7 @@ export type ImageConfigComplete = {
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   contentDispositionType: 'inline' | 'attachment'
 
-  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
+  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
   remotePatterns: RemotePattern[]
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */

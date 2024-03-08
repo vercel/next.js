@@ -135,6 +135,32 @@ const env = process.env
 setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
 ```
 
+### Runtime Environment Variables
+
+Next.js can support both build time and runtime environment variables.
+
+**By default, environment variables are only available on the server**. To expose an environment variable to the browser, it must be prefixed with `NEXT_PUBLIC_`. However, these public environment variables will be inlined into the JavaScript bundle during `next build`.
+
+To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration). With the App Router, we can safely read environment variables on the server during dynamic rendering. This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
+
+```jsx
+import { unstable_noStore as noStore } from 'next/cache'
+
+export default function Component() {
+  noStore()
+  // cookies(), headers(), and other dynamic functions
+  // will also opt into dynamic rendering, making
+  // this env variable is evaluated at runtime
+  const value = process.env.MY_VALUE
+  // ...
+}
+```
+
+**Good to know:**
+
+- You can run code on server startup using the [`register` function](/docs/app/building-your-application/optimizing/instrumentation).
+- We do not recommend using the [runtimeConfig](/docs/pages/api-reference/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
+
 ## Default Environment Variables
 
 In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
@@ -147,7 +173,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 ## Environment Variables on Vercel
 
-When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/concepts/projects/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website).
 
 All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/concepts/projects/environment-variables#development-environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) afterwards.
 
@@ -156,6 +182,8 @@ If you've configured [Development Environment Variables](https://vercel.com/docs
 ```bash filename="Terminal"
 vercel env pull .env.local
 ```
+
+> **Good to know**: When deploying your Next.js application to [Vercel](https://vercel.com), your environment variables in `.env*` files will not be made available to Edge Runtime, unless their name are prefixed with `NEXT_PUBLIC_`. We strongly recommend managing your environment variables in [Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website) instead, from where all environment variables are available.
 
 ## Test Environment Variables
 

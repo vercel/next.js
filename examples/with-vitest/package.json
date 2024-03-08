@@ -13,15 +13,12 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "6.1.2",
-    "@testing-library/react": "14.0.0",
-    "@testing-library/user-event": "14.4.3",
-    "@types/node": "20.5.9",
-    "@types/react": "18.2.8",
-    "@types/testing-library__jest-dom": "6.0.0",
-    "@vitejs/plugin-react": "4.0.4",
-    "jsdom": "^22.1.0",
-    "typescript": "5.2.2",
-    "vitest": "0.34.3"
+    "@testing-library/react": "14.1.2",
+    "@types/node": "20.10.4",
+    "@types/react": "18.2.45",
+    "@vitejs/plugin-react": "^4.2.1",
+    "jsdom": "^23.0.1",
+    "typescript": "5.3.3",
+    "vitest": "1.0.4"
   }
 }

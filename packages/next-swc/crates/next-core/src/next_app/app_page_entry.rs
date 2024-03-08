@@ -23,7 +23,6 @@ use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
     loader_tree::LoaderTreeModule,
-    mode::NextMode,
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -52,13 +51,10 @@ pub async fn get_app_page_entry(
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
-    let loader_tree = LoaderTreeModule::build(
-        loader_tree,
-        context,
-        server_component_transition,
-        NextMode::Build,
-    )
-    .await?;
+    let base_path = next_config.await?.base_path.clone();
+    let loader_tree =
+        LoaderTreeModule::build(loader_tree, context, server_component_transition, base_path)
+            .await?;
 
     let LoaderTreeModule {
         inner_assets,
@@ -103,13 +99,20 @@ pub async fn get_app_page_entry(
 
     result.concat(source_content);
 
-    let file = File::from(result.build());
-    let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
+    let query = qstring::QString::new(vec![("page", page.to_string())]);
 
-    let mut rsc_entry = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    let file = File::from(result.build());
+    let source = VirtualSource::new_with_ident(
+        source.ident().with_query(Vc::cell(query.to_string())),
+        AssetContent::file(file.into()),
     );
+
+    let mut rsc_entry = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     if is_edge {
         rsc_entry = wrap_edge_page(
@@ -155,13 +158,7 @@ async fn wrap_edge_page(
     // TODO(timneutkens): remove this
     let is_server_component = true;
 
-    //    let server_actions_body_size_limit =
-    // &next_config.experimental.server_actions.body_size_limit;
-    let server_actions_body_size_limit = next_config
-        .experimental
-        .server_actions
-        .as_ref()
-        .and_then(|sa| sa.body_size_limit.as_ref());
+    let server_actions = next_config.experimental.server_actions.as_ref();
 
     let sri_enabled = !dev
         && next_config
@@ -184,7 +181,7 @@ async fn wrap_edge_page(
             "nextConfig" => serde_json::to_string(next_config)?,
             "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
             "dev" => serde_json::Value::Bool(dev).to_string(),
-            "serverActionsBodySizeLimit" => serde_json::to_string(&server_actions_body_size_limit)?
+            "serverActions" => serde_json::to_string(&server_actions)?
         },
         indexmap! {
             "incrementalCacheHandler" => None,
@@ -196,10 +193,12 @@ async fn wrap_edge_page(
         INNER.to_string() => entry
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(wrap_edge_entry(
         context,

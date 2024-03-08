@@ -6,7 +6,7 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -39,7 +39,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     await session.patch('index.js', `export default () => <div/`)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       'export default () => <div/'
     )
@@ -67,7 +67,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       /Count: 1/
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
   })
@@ -104,19 +104,32 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "index.js (7:10) @ eval
+    expect(await session.hasRedbox()).toBe(true)
+    if (isTurbopack) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "index.js (7:11) @ <unknown>
 
-         5 | const increment = useCallback(() => {
-         6 |   setCount(c => c + 1)
-      >  7 |   throw new Error('oops')
-           |        ^
-         8 | }, [setCount])
-         9 | return (
-        10 |   <main>"
-    `)
+           5 |   const increment = useCallback(() => {
+           6 |     setCount(c => c + 1)
+        >  7 |     throw new Error('oops')
+             |           ^
+           8 |   }, [setCount])
+           9 |   return (
+          10 |     <main>"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "index.js (7:11) @ eval
 
+           5 |   const increment = useCallback(() => {
+           6 |     setCount(c => c + 1)
+        >  7 |     throw new Error('oops')
+             |           ^
+           8 |   }, [setCount])
+           9 |   return (
+          10 |     <main>"
+      `)
+    }
     await session.patch(
       'index.js',
       outdent`
@@ -135,7 +148,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -145,7 +158,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
   })
@@ -191,7 +204,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       'export default function Child()'
     )
@@ -206,7 +219,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -252,7 +265,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default ClassDefault;
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     // Now change the code to introduce a runtime error without fixing the syntax error:
     await session.patch(
@@ -270,7 +283,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default ClassDefault;
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     // Now fix the syntax error:
     await session.patch(
@@ -288,7 +301,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default ClassDefault;
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     await check(async () => {
       const source = await session.getRedboxSource()
@@ -345,7 +358,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     // We get an error because Foo didn't import React. Fair.
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       "return React.createElement('h1', null, 'Foo');"
     )
@@ -362,7 +375,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     // Expected: this fixes the problem
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
   })
@@ -399,7 +412,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -420,57 +433,51 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./index.js
-        Error: 
-          x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:4:1]
-         4 |   i++
-         5 |   throw Error('no ' + i)
-         6 | }, 1000)
-         7 | export default function FunctionNamed() {
-           :                                         ^
-           \`----
+    expect(await session.hasRedbox()).toBe(true)
+    expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+      .toMatchInlineSnapshot(`
+      "./index.js
+      Error: 
+        x Expected '}', got '<eof>'
+         ,-[TEST_DIR/index.js:4:1]
+       4 |   i++
+       5 |   throw Error('no ' + i)
+       6 | }, 1000)
+       7 | export default function FunctionNamed() {
+         :                                         ^
+         \`----
 
-        Caused by:
-            Syntax Error
+      Caused by:
+          Syntax Error
 
-        Import trace for requested module:
-        ./index.js
-        ./pages/index.js"
-      `)
-    )
+      Import trace for requested module:
+      ./index.js
+      ./pages/index.js"
+    `)
 
     // Test that runtime error does not take over:
     await new Promise((resolve) => setTimeout(resolve, 2000))
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./index.js
-        Error: 
-          x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:4:1]
-         4 |   i++
-         5 |   throw Error('no ' + i)
-         6 | }, 1000)
-         7 | export default function FunctionNamed() {
-           :                                         ^
-           \`----
+    expect(await session.hasRedbox()).toBe(true)
+    expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+      .toMatchInlineSnapshot(`
+      "./index.js
+      Error: 
+        x Expected '}', got '<eof>'
+         ,-[TEST_DIR/index.js:4:1]
+       4 |   i++
+       5 |   throw Error('no ' + i)
+       6 | }, 1000)
+       7 | export default function FunctionNamed() {
+         :                                         ^
+         \`----
 
-        Caused by:
-            Syntax Error
+      Caused by:
+          Syntax Error
 
-        Import trace for requested module:
-        ./index.js
-        ./pages/index.js"
-      `)
-    )
+      Import trace for requested module:
+      ./index.js
+      ./pages/index.js"
+    `)
 
     await cleanup()
   })

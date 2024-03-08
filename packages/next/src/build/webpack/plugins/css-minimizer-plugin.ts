@@ -68,7 +68,6 @@ export class CssMinimizerPlugin {
           const cssMinimizerSpan = compilationSpan!.traceChild(
             'css-minimizer-plugin'
           )
-          cssMinimizerSpan.setAttribute('webpackVersion', 5)
 
           return cssMinimizerSpan.traceAsyncFn(async () => {
             const files = Object.keys(assets)

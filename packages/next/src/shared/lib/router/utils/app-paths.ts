@@ -62,20 +62,3 @@ export function normalizeRscURL(url: string) {
     '$1'
   )
 }
-
-/**
- * Strips the `/_next/postponed` prefix if it's in the pathname.
- *
- * @param url the url to normalize
- */
-export function normalizePostponedURL(url: string) {
-  const parsed = new URL(url)
-  const { pathname } = parsed
-  if (pathname && pathname.startsWith('/_next/postponed')) {
-    parsed.pathname = pathname.substring('/_next/postponed'.length) || '/'
-
-    return parsed.toString()
-  }
-
-  return url
-}

@@ -16,6 +16,7 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   ])
   return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
+    trailingSlash: false,
   })
 }
 
@@ -458,6 +459,92 @@ describe('accumulateMetadata', () => {
         },
         twitter: {
           images: undefined,
+        },
+      })
+    })
+
+    it('should inherit metadata title description into openGraph or twitter if they are configured', async () => {
+      const metadataItems1: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            openGraph: {
+              images: 'https://test.com/og.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata1 = await accumulateMetadata(metadataItems1)
+      expect(metadata1).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+      })
+
+      const metadataItems2: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata2 = await accumulateMetadata(metadataItems2)
+      expect(metadata2).toMatchObject({
+        openGraph: null,
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+      })
+
+      // Don't override if there's already a title in twitter
+      const metadataItems3: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              title: 'My twitter title',
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata3 = await accumulateMetadata(metadataItems3)
+      expect(metadata3).toMatchObject({
+        openGraph: null,
+        title: {
+          absolute: 'My title',
+          template: null,
+        },
+        twitter: {
+          title: {
+            absolute: 'My twitter title',
+            template: null,
+          },
+          description: 'My description',
         },
       })
     })

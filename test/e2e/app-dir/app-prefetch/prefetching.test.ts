@@ -301,24 +301,98 @@ createNextDescribe(
       expect(prefetchResponse).toContain('Loading Prefetch Auto')
     })
 
-    it('should not generate static prefetches for layouts that opt into dynamic rendering', async () => {
-      await next.stop()
-      const rootLoading = await next.readFile('./app/loading.js')
-      await next.deleteFile('./app/loading.js')
-      await next.start()
-      expect(
-        await next
-          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
-          .catch(() => false)
-      ).toBeFalsy()
+    describe('dynamic rendering', () => {
+      describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
+        it('should not re-render layout when navigating between sub-pages', async () => {
+          const logStartIndex = next.cliOutput.length
 
-      expect(
-        await next
-          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
-          .catch(() => false)
-      ).toBeFalsy()
+          const browser = await next.browser(`${basePath}/test-page`)
+          let initialRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+          await browser
+            .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
+            .click()
 
-      await next.patchFile('./app/loading', rootLoading)
+          await check(() => browser.hasElementByCssSelector('#sub-page'), true)
+
+          const newRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+
+          expect(initialRandomNumber).toBe(newRandomNumber)
+
+          await check(() => {
+            const logOccurrences =
+              next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
+                .length - 1
+
+            return logOccurrences
+          }, 1)
+        })
+
+        it('should update search params following a link click', async () => {
+          const browser = await next.browser(`${basePath}/search-params`)
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+          await browser
+            .elementByCss(`[href="${basePath}/search-params"]`)
+            .click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+        })
+      })
+
+      it('should not re-fetch cached data when navigating back to a route group', async () => {
+        const browser = await next.browser('/prefetch-auto-route-groups')
+        // once the page has loaded, we expect a data fetch
+        expect(await browser.elementById('count').text()).toBe('1')
+
+        // once navigating to a sub-page, we expect another data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups/sub/foo']")
+          .click()
+
+        // navigating back to the route group page shouldn't trigger any data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups']")
+          .click()
+
+        // confirm that the dashboard page is still rendering the stale fetch count, as it should be cached
+        expect(await browser.elementById('count').text()).toBe('1')
+
+        // navigating to a new sub-page, we expect another data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups/sub/bar']")
+          .click()
+
+        // finally, going back to the route group page shouldn't trigger any data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups']")
+          .click()
+
+        // confirm that the dashboard page is still rendering the stale fetch count, as it should be cached
+        expect(await browser.elementById('count').text()).toBe('1')
+
+        await browser.refresh()
+        // reloading the page, we should now get an accurate total number of fetches
+        // the initial fetch, 2 sub-page fetches, and a final fetch when reloading the page
+        expect(await browser.elementById('count').text()).toBe('4')
+      })
     })
   }
 )

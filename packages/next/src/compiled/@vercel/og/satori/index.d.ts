@@ -24,12 +24,12 @@ type Locale = keyof typeof code;
  */
 
 type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
-type Style$1 = 'normal' | 'italic';
+type FontStyle = 'normal' | 'italic';
 interface FontOptions {
     data: Buffer | ArrayBuffer;
     name: string;
     weight?: Weight;
-    style?: Style$1;
+    style?: FontStyle;
     lang?: string;
 }
 
@@ -170,4 +170,4 @@ type SatoriOptions = ({
 
 declare function satori(element: ReactNode, options: SatoriOptions): Promise<string>;
 
-export { FontOptions as Font, Style$1 as FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default, init };
+export { FontOptions as Font, FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default, init };

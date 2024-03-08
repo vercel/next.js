@@ -9,7 +9,7 @@ import {
   Page,
   ElementHandle,
   devices,
-} from 'playwright-chromium'
+} from 'playwright'
 import path from 'path'
 
 let page: Page
@@ -21,11 +21,23 @@ let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
+// loose global to register teardown functions before quitting the browser instance.
+// This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
+// which can create corrupted state by terminating the context.
+// [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
+const pendingTeardown = []
 export async function quit() {
+  await Promise.all(pendingTeardown.map((fn) => fn()))
   await context?.close()
   await browser?.close()
   context = undefined
   browser = undefined
+}
+
+async function teardown(tearDownFn: () => Promise<void>) {
+  pendingTeardown.push(tearDownFn)
+  await tearDownFn()
+  pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
 }
 
 interface ElementHandleExt extends ElementHandle {
@@ -37,6 +49,51 @@ export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
+  }
+  private async initContextTracing(url: string, context: BrowserContext) {
+    if (!tracePlaywright) {
+      return
+    }
+
+    try {
+      // Clean up if any previous traces are still active
+      await teardown(this.teardownTracing.bind(this))
+
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: true,
+      })
+      this.activeTrace = encodeURIComponent(url)
+    } catch (e) {
+      this.activeTrace = undefined
+    }
+  }
+
+  private async teardownTracing() {
+    if (!this.activeTrace) {
+      return
+    }
+
+    try {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
+        `playwright-${this.activeTrace}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing.stop({
+        path: traceOutputPath,
+      })
+    } catch (e) {
+      require('console').warn('Failed to teardown playwright tracing', e)
+    } finally {
+      this.activeTrace = undefined
+    }
   }
 
   on(event: Event, cb: (...args: any[]) => void) {
@@ -75,6 +132,7 @@ export class Playwright extends BrowserInterface {
     if (browser) {
       if (contextHasJSEnabled !== javaScriptEnabled) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
+        await teardown(this.teardownTracing.bind(this))
         await context?.close()
         context = await browser.newContext({
           locale,
@@ -95,6 +153,11 @@ export class Playwright extends BrowserInterface {
       ...device,
     })
     contextHasJSEnabled = javaScriptEnabled
+  }
+
+  async close(): Promise<void> {
+    await teardown(this.teardownTracing.bind(this))
+    await page?.close()
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
@@ -128,30 +191,21 @@ export class Playwright extends BrowserInterface {
 
   async loadPage(
     url: string,
-    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
-  ) {
-    if (this.activeTrace) {
-      const traceDir = path.join(__dirname, '../../traces')
-      const traceOutputPath = path.join(
-        traceDir,
-        `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
-          .replace(/\//g, '-')}`,
-        `playwright-${this.activeTrace}-${Date.now()}.zip`
-      )
-
-      await fs.remove(traceOutputPath)
-      await context.tracing
-        .stop({
-          path: traceOutputPath,
-        })
-        .catch((err) => console.error('failed to write playwright trace', err))
+    opts?: {
+      disableCache: boolean
+      cpuThrottleRate: number
+      pushErrorAsConsoleLog?: boolean
+      beforePageLoad?: (...args: any[]) => void
     }
+  ) {
+    await this.close()
 
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
+
+    await this.initContextTracing(url, context)
     page = await context.newPage()
 
     // in development compilation can take longer due to
@@ -166,11 +220,15 @@ export class Playwright extends BrowserInterface {
       console.log('browser log:', msg)
       pageLogs.push({ source: msg.type(), message: msg.text() })
     })
-    page.on('crash', (page) => {
+    page.on('crash', () => {
       console.error('page crashed')
     })
     page.on('pageerror', (error) => {
       console.error('page error', error)
+
+      if (opts?.pushErrorAsConsoleLog) {
+        pageLogs.push({ source: 'error', message: error.message })
+      }
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
@@ -180,6 +238,14 @@ export class Playwright extends BrowserInterface {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
       const session = await context.newCDPSession(page)
       session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
+
+    if (opts?.cpuThrottleRate) {
+      const session = await context.newCDPSession(page)
+      // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
+      session.send('Emulation.setCPUThrottlingRate', {
+        rate: opts.cpuThrottleRate,
+      })
     }
 
     page.on('websocket', (ws) => {
@@ -207,13 +273,6 @@ export class Playwright extends BrowserInterface {
 
     opts?.beforePageLoad?.(page)
 
-    if (tracePlaywright) {
-      await context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-      })
-      this.activeTrace = encodeURIComponent(url)
-    }
     await page.goto(url, { waitUntil: 'load' })
   }
 

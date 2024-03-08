@@ -7,6 +7,7 @@ import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -15,7 +16,7 @@ import {
 } from '../../webpack-config'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
@@ -133,6 +134,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private rootDir: string
   private appDir: string | undefined
   private pagesDir: string | undefined
+  private optOutBundlingPackages: string[]
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
@@ -144,6 +146,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     rootDir,
     appDir,
     pagesDir,
+    optOutBundlingPackages,
     appDirEnabled,
     traceIgnores,
     esmExternals,
@@ -153,6 +156,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     rootDir: string
     appDir: string | undefined
     pagesDir: string | undefined
+    optOutBundlingPackages: string[]
     appDirEnabled?: boolean
     traceIgnores?: string[]
     outputFileTracingRoot?: string
@@ -168,6 +172,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
     this.turbotrace = turbotrace
+    this.optOutBundlingPackages = optOutBundlingPackages
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -238,8 +243,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           // include the client reference manifest
           const clientManifestsForPage =
             entrypoint.name.endsWith('/page') ||
-            entrypoint.name === 'app/not-found' ||
-            entrypoint.name === 'app/_not-found'
+            entrypoint.name === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
               ? nodePath.join(
                   outputPath,
                   '..',
@@ -458,8 +462,14 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               ...this.traceIgnores,
               '**/node_modules/**',
             ]
+
+            // pre-compile the ignore matcher to avoid repeating on every ignoreFn call
+            const isIgnoreMatcher = picomatch(ignores, {
+              contains: true,
+              dot: true,
+            })
             const ignoreFn = (path: string) => {
-              return isMatch(path, ignores, { contains: true, dot: true })
+              return isIgnoreMatcher(path)
             }
 
             await finishModulesSpan
@@ -743,6 +753,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             context,
             request,
             isEsmRequested,
+            this.optOutBundlingPackages,
             (options) => (_: string, resRequest: string) => {
               return getResolve(options)(parent, resRequest, job)
             },

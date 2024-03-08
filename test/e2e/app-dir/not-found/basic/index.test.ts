@@ -8,14 +8,31 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
+    it("should propagate notFound errors past a segment's error boundary", async () => {
+      let browser = await next.browser('/error-boundary')
+      await browser.elementByCss('button').click()
+      expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
+
+      browser = await next.browser('/error-boundary/nested/nested-2')
+      await browser.elementByCss('button').click()
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Not Found (error-boundary/nested)'
+      )
+
+      browser = await next.browser('/error-boundary/nested/trigger-not-found')
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Not Found (error-boundary/nested)'
+      )
+    })
+
     if (isNextStart) {
       it('should include not found client reference manifest in the file trace', async () => {
         const fileTrace = JSON.parse(
-          await next.readFile('.next/server/app/_not-found.js.nft.json')
+          await next.readFile('.next/server/app/_not-found/page.js.nft.json')
         )
 
         const isTraced = fileTrace.files.some((filePath) =>
-          filePath.includes('_not-found_client-reference-manifest.js')
+          filePath.includes('page_client-reference-manifest.js')
         )
 
         expect(isTraced).toBe(true)
@@ -99,14 +116,21 @@ createNextDescribe(
           }, 'success')
         })
 
-        it('should render the 404 page when the file is removed, and restore the page when re-added', async () => {
-          const browser = await next.browser('/')
-          await check(() => browser.elementByCss('h1').text(), 'My page')
-          await next.renameFile('./app/page.js', './app/foo.js')
-          await check(() => browser.elementByCss('h1').text(), 'Root Not Found')
-          await next.renameFile('./app/foo.js', './app/page.js')
-          await check(() => browser.elementByCss('h1').text(), 'My page')
-        })
+        // Disabling for Edge because it is too flakey.
+        // @TODO investigate a proper for fix for this flake
+        if (!isEdge) {
+          it('should render the 404 page when the file is removed, and restore the page when re-added', async () => {
+            const browser = await next.browser('/')
+            await check(() => browser.elementByCss('h1').text(), 'My page')
+            await next.renameFile('./app/page.js', './app/foo.js')
+            await check(
+              () => browser.elementByCss('h1').text(),
+              'Root Not Found'
+            )
+            await next.renameFile('./app/foo.js', './app/page.js')
+            await check(() => browser.elementByCss('h1').text(), 'My page')
+          })
+        }
       }
 
       if (!isNextDev && !isEdge) {

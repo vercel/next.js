@@ -3,7 +3,10 @@ import type { PrerenderManifest } from '../../../build'
 import type {
   IncrementalCacheValue,
   IncrementalCacheEntry,
+  IncrementalCache as IncrementalCacheType,
+  IncrementalCacheKindHint,
 } from '../../response-cache'
+
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import path from '../../../shared/lib/isomorphic/path'
@@ -29,7 +32,9 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
+  experimental: { ppr: boolean }
   _appDir: boolean
+  _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
 }
 
@@ -55,11 +60,14 @@ export class CacheHandler {
   ): Promise<void> {}
 
   public async revalidateTag(_tag: string): Promise<void> {}
+
+  public resetRequestCache(): void {}
 }
 
-export class IncrementalCache {
+export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
+  hasCustomCacheHandler: boolean
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   requestProtocol?: 'http' | 'https'
@@ -75,6 +83,7 @@ export class IncrementalCache {
     fs,
     dev,
     appDir,
+    pagesDir,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -86,10 +95,12 @@ export class IncrementalCache {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    experimental,
   }: {
     fs?: CacheFs
     dev: boolean
     appDir?: boolean
+    pagesDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -101,8 +112,10 @@ export class IncrementalCache {
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
+    experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
+    this.hasCustomCacheHandler = Boolean(CurCacheHandler)
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
         if (debug) {
@@ -165,9 +178,11 @@ export class IncrementalCache {
         serverDistDir,
         revalidatedTags,
         maxMemoryCacheSize,
+        _pagesDir: !!pagesDir,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
+        experimental,
       })
     }
   }
@@ -198,6 +213,10 @@ export class IncrementalCache {
 
   _getPathname(pathname: string, fetchCache?: boolean) {
     return fetchCache ? pathname : normalizePagePath(pathname)
+  }
+
+  resetRequestCache() {
+    this.cacheHandler?.resetRequestCache?.()
   }
 
   async unlock(cacheKey: string) {
@@ -282,7 +301,6 @@ export class IncrementalCache {
     // that should bust the cache
     const MAIN_KEY_PREFIX = 'v3'
 
-    let cacheKey: string
     const bodyChunks: string[] = []
 
     const encoder = new TextEncoder()
@@ -385,19 +403,18 @@ export class IncrementalCache {
           .join('')
       }
       const buffer = encoder.encode(cacheString)
-      cacheKey = bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
+      return bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
     } else {
       const crypto = require('crypto') as typeof import('crypto')
-      cacheKey = crypto.createHash('sha256').update(cacheString).digest('hex')
+      return crypto.createHash('sha256').update(cacheString).digest('hex')
     }
-    return cacheKey
   }
 
   // get data from cache if available
   async get(
     cacheKey: string,
     ctx: {
-      fetchCache?: boolean
+      kindHint?: IncrementalCacheKindHint
       revalidate?: number | false
       fetchUrl?: string
       fetchIdx?: number
@@ -425,12 +442,13 @@ export class IncrementalCache {
     // so that getStaticProps is always called for easier debugging
     if (
       this.dev &&
-      (!ctx.fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
+      (ctx.kindHint !== 'fetch' ||
+        this.requestHeaders['cache-control'] === 'no-cache')
     ) {
       return null
     }
 
-    cacheKey = this._getPathname(cacheKey, ctx.fetchCache)
+    cacheKey = this._getPathname(cacheKey, ctx.kindHint === 'fetch')
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
@@ -448,9 +466,7 @@ export class IncrementalCache {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
+      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data
@@ -479,7 +495,7 @@ export class IncrementalCache {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && !ctx.fetchCache
+        this.dev && ctx.kindHint !== 'fetch'
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()
@@ -545,10 +561,19 @@ export class IncrementalCache {
     }
 
     if (this.dev && !ctx.fetchCache) return
-    // fetchCache has upper limit of 2MB per-entry currently
-    if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
+    // FetchCache has upper limit of 2MB per-entry currently
+    const itemSize = JSON.stringify(data).length
+    if (
+      ctx.fetchCache &&
+      // we don't show this error/warning when a custom cache handler is being used
+      // as it might not have this limit
+      !this.hasCustomCacheHandler &&
+      itemSize > 2 * 1024 * 1024
+    ) {
       if (this.dev) {
-        throw new Error(`fetch for over 2MB of data can not be cached`)
+        throw new Error(
+          `Failed to set Next.js data cache, items over 2MB can not be cached (${itemSize} bytes)`
+        )
       }
       return
     }
@@ -561,12 +586,15 @@ export class IncrementalCache {
       // revalidateAfter values so we update this on set
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
         this.prerenderManifest.routes[pathname] = {
+          experimentalPPR: undefined,
           dataRoute: path.posix.join(
             '/_next/data',
             `${normalizePagePath(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: ctx.revalidate,
+          // Pages routes do not have a prefetch data route.
+          prefetchDataRoute: undefined,
         }
       }
       await this.cacheHandler?.set(pathname, data, ctx)

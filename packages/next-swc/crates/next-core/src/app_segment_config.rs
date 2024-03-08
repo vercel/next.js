@@ -3,23 +3,28 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use swc_core::{
-    common::{source_map::Pos, Span, Spanned},
-    ecma::ast::{Expr, Ident, Program},
-};
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        file_source::FileSource,
-        ident::AssetIdent,
-        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
-        source::Source,
+use turbopack_binding::{
+    swc::core::{
+        common::{source_map::Pos, Span, Spanned, GLOBALS},
+        ecma::ast::{Expr, Ident, Program},
     },
-    ecmascript::{
-        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-        parse::{parse, ParseResult},
-        EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    turbopack::{
+        core::{
+            file_source::FileSource,
+            ident::AssetIdent,
+            issue::{
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
+            },
+            source::Source,
+        },
+        ecmascript::{
+            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+            parse::{parse, ParseResult},
+            EcmascriptInputTransforms, EcmascriptModuleAssetType,
+        },
     },
 };
 
@@ -151,7 +156,7 @@ impl NextSegmentConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<String>,
+    detail: Vc<StyledString>,
     source: Vc<IssueSource>,
 }
 
@@ -163,13 +168,13 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -178,17 +183,20 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
-            "The exported configuration object in a source file need to have a very specific \
-             format from which some properties can be statically parsed at compiled-time."
-                .to_string(),
-        )
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "The exported configuration object in a source file need to have a very specific \
+                 format from which some properties can be statically parsed at compiled-time."
+                    .to_string(),
+            )
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 
     #[turbo_tasks::function]
@@ -213,23 +221,30 @@ pub async fn parse_segment_config_from_source(
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
-    if !(path.path.ends_with(".js")
-        || path.path.ends_with(".jsx")
-        || path.path.ends_with(".ts")
-        || path.path.ends_with(".tsx"))
+    if path.path.ends_with("d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
     {
         return Ok(Default::default());
     }
 
     let result = &*parse(
         source,
-        turbo_tasks::Value::new(
-            if path.path.ends_with(".ts") || path.path.ends_with(".tsx") {
-                EcmascriptModuleAssetType::Typescript
-            } else {
-                EcmascriptModuleAssetType::Ecmascript
-            },
-        ),
+        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: false,
+                analyze_types: false,
+            }
+        } else if path.path.ends_with(".tsx") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: true,
+                analyze_types: false,
+            }
+        } else {
+            EcmascriptModuleAssetType::Ecmascript
+        }),
         EcmascriptInputTransforms::empty(),
     )
     .await?;
@@ -237,33 +252,37 @@ pub async fn parse_segment_config_from_source(
     let ParseResult::Ok {
         program: Program::Module(module_ast),
         eval_context,
+        globals,
         ..
     } = result
     else {
         return Ok(Default::default());
     };
 
-    let mut config = NextSegmentConfig::default();
+    let config = GLOBALS.set(globals, || {
+        let mut config = NextSegmentConfig::default();
 
-    for item in &module_ast.body {
-        let Some(decl) = item
-            .as_module_decl()
-            .and_then(|mod_decl| mod_decl.as_export_decl())
-            .and_then(|export_decl| export_decl.decl.as_var())
-        else {
-            continue;
-        };
-
-        for decl in &decl.decls {
-            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+        for item in &module_ast.body {
+            let Some(decl) = item
+                .as_module_decl()
+                .and_then(|mod_decl| mod_decl.as_export_decl())
+                .and_then(|export_decl| export_decl.decl.as_var())
+            else {
                 continue;
             };
 
-            if let Some(init) = decl.init.as_ref() {
-                parse_config_value(source, &mut config, ident, init, eval_context);
+            for decl in &decl.decls {
+                let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+                    continue;
+                };
+
+                if let Some(init) = decl.init.as_ref() {
+                    parse_config_value(source, &mut config, ident, init, eval_context);
+                }
             }
         }
-    }
+        config
+    });
 
     Ok(config.cell())
 }
@@ -284,7 +303,7 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
             source: issue_source(source, span),
         }
         .cell()
