@@ -267,7 +267,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/appbuilding-your-application/optimizing/metadata). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
+Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -408,7 +408,7 @@ export function ClientOnly() {
 }
 ```
 
-This file is a [Client Component](/docs/app/building-your-application/rendering/client-components), defined by the `'use client'` directive. Client Components are still [prerendered to HTML](/docs/appbuilding-your-application/rendering/client-components#how-are-client-components-rendered) on the server before being sent to the client.
+This file is a [Client Component](/docs/app/building-your-application/rendering/client-components), defined by the `'use client'` directive. Client Components are still [prerendered to HTML](/docs/app/building-your-application/rendering/client-components#how-are-client-components-rendered) on the server before being sent to the client.
 
 Since we want a client-only application to start, we can configure Next.js to disable prerendering from the `App` component down.
 
