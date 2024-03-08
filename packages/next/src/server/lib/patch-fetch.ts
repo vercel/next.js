@@ -13,6 +13,7 @@ import {
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
 import { trackDynamicFetch } from '../app-render/dynamic-rendering'
+import type { FetchMetric } from '../base-http'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -135,28 +136,18 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
 
 function trackFetchMetric(
   staticGenerationStore: StaticGenerationStore,
-  ctx: {
-    url: string
-    status: number
-    method: string
-    cacheReason: string
-    cacheStatus: 'hit' | 'miss' | 'skip'
-    start: number
-  }
+  ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
   if (!staticGenerationStore) return
-  if (!staticGenerationStore.fetchMetrics) {
-    staticGenerationStore.fetchMetrics = []
-  }
-  const dedupeFields = ['url', 'status', 'method']
+  staticGenerationStore.fetchMetrics ??= []
+
+  const dedupeFields = ['url', 'status', 'method'] as const
 
   // don't add metric if one already exists for the fetch
   if (
-    staticGenerationStore.fetchMetrics.some((metric) => {
-      return dedupeFields.every(
-        (field) => (metric as any)[field] === (ctx as any)[field]
-      )
-    })
+    staticGenerationStore.fetchMetrics.some((metric) =>
+      dedupeFields.every((field) => metric[field] === ctx[field])
+    )
   ) {
     return
   }
