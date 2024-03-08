@@ -1,6 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor, getRedboxSource, hasRedbox } from 'next-test-utils'
+import {
+  check,
+  waitFor,
+  getRedboxSource,
+  hasRedbox,
+  retry,
+} from 'next-test-utils'
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -23,20 +29,20 @@ createNextDescribe(
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
-      const cnt = await browser.elementByCss('h1').text()
+      const cnt = await browser.elementById('count').text()
       expect(cnt).toBe('0')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '1')
+      await check(() => browser.elementById('count').text(), '1')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '2')
+      await check(() => browser.elementById('count').text(), '2')
 
       await browser.elementByCss('#double').click()
-      await check(() => browser.elementByCss('h1').text(), '4')
+      await check(() => browser.elementById('count').text(), '4')
 
       await browser.elementByCss('#dec').click()
-      await check(() => browser.elementByCss('h1').text(), '3')
+      await check(() => browser.elementById('count').text(), '3')
     })
 
     it('should support headers and cookies', async () => {
@@ -239,20 +245,20 @@ createNextDescribe(
     it('should support importing actions in client components', async () => {
       const browser = await next.browser('/client')
 
-      const cnt = await browser.elementByCss('h1').text()
+      const cnt = await browser.elementById('count').text()
       expect(cnt).toBe('0')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '1')
+      await check(() => browser.elementById('count').text(), '1')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '2')
+      await check(() => browser.elementById('count').text(), '2')
 
       await browser.elementByCss('#double').click()
-      await check(() => browser.elementByCss('h1').text(), '4')
+      await check(() => browser.elementById('count').text(), '4')
 
       await browser.elementByCss('#dec').click()
-      await check(() => browser.elementByCss('h1').text(), '3')
+      await check(() => browser.elementById('count').text(), '3')
     })
 
     it('should support importing the same action module instance in both server and action layers', async () => {
@@ -549,7 +555,7 @@ createNextDescribe(
           try {
             const browser = await next.browser('/server')
 
-            const cnt = await browser.elementByCss('h1').text()
+            const cnt = await browser.elementById('count').text()
             expect(cnt).toBe('0')
 
             // This requires the runtime to catch
@@ -572,6 +578,14 @@ createNextDescribe(
           } finally {
             await next.patchFile(filePath, origContent)
           }
+
+          // verify the error has gone away after the file is reverted
+          const browser = await next.browser('/server')
+          await retry(async () => {
+            expect(await hasRedbox(browser)).toBe(false)
+            const count = await browser.elementById('count').text()
+            expect(count).toBe('0')
+          })
         })
       })
 
@@ -583,11 +597,11 @@ createNextDescribe(
           try {
             const browser = await next.browser('/server')
 
-            const cnt = await browser.elementByCss('h1').text()
+            const cnt = await browser.elementById('count').text()
             expect(cnt).toBe('0')
 
             await browser.elementByCss('#inc').click()
-            await check(() => browser.elementByCss('h1').text(), '1')
+            await check(() => browser.elementById('count').text(), '1')
 
             await next.patchFile(
               filePath,
@@ -596,7 +610,7 @@ createNextDescribe(
 
             await check(async () => {
               await browser.elementByCss('#inc').click()
-              const val = Number(await browser.elementByCss('h1').text())
+              const val = Number(await browser.elementById('count').text())
               return val > 1000 ? 'success' : val
             }, 'success')
           } finally {
@@ -635,20 +649,20 @@ createNextDescribe(
       it('should handle basic actions correctly', async () => {
         const browser = await next.browser('/server/edge')
 
-        const cnt = await browser.elementByCss('h1').text()
+        const cnt = await browser.elementById('count').text()
         expect(cnt).toBe('0')
 
         await browser.elementByCss('#inc').click()
-        await check(() => browser.elementByCss('h1').text(), '1')
+        await check(() => browser.elementById('count').text(), '1')
 
         await browser.elementByCss('#inc').click()
-        await check(() => browser.elementByCss('h1').text(), '2')
+        await check(() => browser.elementById('count').text(), '2')
 
         await browser.elementByCss('#double').click()
-        await check(() => browser.elementByCss('h1').text(), '4')
+        await check(() => browser.elementById('count').text(), '4')
 
         await browser.elementByCss('#dec').click()
-        await check(() => browser.elementByCss('h1').text(), '3')
+        await check(() => browser.elementById('count').text(), '3')
       })
 
       it('should return error response for hoc auth wrappers in edge runtime', async () => {
@@ -718,11 +732,11 @@ createNextDescribe(
       it('should handle unicode search params', async () => {
         const browser = await next.browser('/server?name=名')
 
-        const cnt = await browser.elementByCss('h1').text()
+        const cnt = await browser.elementById('count').text()
         expect(cnt).toBe('0')
 
         await browser.elementByCss('#inc').click()
-        await check(() => browser.elementByCss('h1').text(), '1')
+        await check(() => browser.elementById('count').text(), '1')
       })
     })
 

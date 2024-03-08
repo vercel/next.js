@@ -165,11 +165,12 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags || null
+  const hasMissingTags = !!rootLayoutMissingTags?.length
 
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
   const isError =
-    document.documentElement.id === '__next_error__' || rootLayoutMissingTags
+    document.documentElement.id === '__next_error__' || hasMissingTags
 
   if (process.env.NODE_ENV !== 'production') {
     // Patch console.error to collect information about hydration errors
@@ -196,18 +197,25 @@ export function hydrate() {
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
           .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
 
-      const MissingTags = () => {
-        throw new Error(
-          `The following tags are missing in the Root Layout: ${rootLayoutMissingTags?.join(
-            ', '
-          )}.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags`
-        )
-      }
-
-      let errorTree = (
-        <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
-          {rootLayoutMissingTags ? <MissingTags /> : reactEl}
-        </ReactDevOverlay>
+      const FallbackLayout = hasMissingTags
+        ? ({ children }: { children: React.ReactNode }) => (
+            <html id="__next_error__">
+              <body>{children}</body>
+            </html>
+          )
+        : React.Fragment
+      const errorTree = (
+        <FallbackLayout>
+          <ReactDevOverlay
+            state={{
+              ...INITIAL_OVERLAY_STATE,
+              rootLayoutMissingTags,
+            }}
+            onReactError={() => {}}
+          >
+            {reactEl}
+          </ReactDevOverlay>
+        </FallbackLayout>
       )
       const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
       const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
