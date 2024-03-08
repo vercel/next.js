@@ -34,6 +34,7 @@ import {
   onBuildOk,
   onBeforeRefresh,
   onRefresh,
+  onVersionInfo,
 } from '../../components/react-dev-overlay/pages/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
@@ -44,7 +45,6 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../server/dev/extract-modules-from-turbopack-message'
-import { RuntimeErrorHandler } from '../../components/react-dev-overlay/internal/helpers/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './messages'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -278,6 +278,10 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       }
 
       const { errors, warnings } = obj
+
+      // Is undefined when it's a 'built' event
+      if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
         sendMessage(
@@ -341,7 +345,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
           data: obj.data,
         })
       }
-      if (RuntimeErrorHandler.hadRuntimeError) {
+      if (hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null)
       }
