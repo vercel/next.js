@@ -57,7 +57,7 @@ pub fn register() {
     turbo::tasks_bytes::register();
     turbo::tasks_fs::register();
     turbo::tasks_fetch::register();
-    turbopack::dev::register();
+    turbopack::browser::register();
     turbopack::node::register();
     turbopack::turbopack::register();
     turbopack::image::register();

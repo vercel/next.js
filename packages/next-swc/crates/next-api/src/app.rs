@@ -41,7 +41,6 @@ use turbopack_binding::{
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     },
     turbopack::{
-        build::EntryChunkGroupResult,
         core::{
             asset::{Asset, AssetContent},
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
@@ -50,6 +49,7 @@ use turbopack_binding::{
             output::{OutputAsset, OutputAssets},
             virtual_output::VirtualOutputAsset,
         },
+        nodejs::EntryChunkGroupResult,
         turbopack::{
             module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
             transition::ContextTransition, ModuleAssetContext,

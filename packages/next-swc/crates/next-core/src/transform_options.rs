@@ -3,12 +3,12 @@ use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks_fs::{FileJsonContent, FileSystemPath},
     turbopack::{
+        browser::react_refresh::assert_can_resolve_react_refresh,
         core::{
             file_source::FileSource,
             resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
             source::Source,
         },
-        dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
         turbopack::{
             module_options::{
