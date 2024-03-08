@@ -492,9 +492,9 @@ dependencies = [
 
 [[package]]
 name = "binding_macros"
-version = "0.64.16"
+version = "0.64.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a8d7e4f6e41b2fdd518562e4a68446ba5c69f6f75da31f84eea56711c34b90a"
+checksum = "3a6dce5324435c74a774df03256a70a84ef5a033da96e282ad01467f9b00994f"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -2964,9 +2964,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.8"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "927a765cd3fc26206e66b296465fa9d3e5ab003e651c1b3c060e7956d96b19d2"
+checksum = "a4a650543ca06a924e8b371db273b2756685faae30f8487da1b56505a8f78b0c"
 dependencies = [
  "libc",
  "log",
@@ -4988,12 +4988,12 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.5.4"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4031e820eb552adee9295814c0ced9e5cf38ddf1e8b7d566d6de8e2538ea989e"
+checksum = "05ffd9c0a93b7543e062e759284fcf5f5e3b098501104bfbdde4d404db792871"
 dependencies = [
  "libc",
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5226,9 +5226,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.273.16"
+version = "0.273.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53f27354a56d32d3fb87aadd289b28f2fce58fae6a090c77fac65b9e90350d15"
+checksum = "c5697e6ea7a715dd5d6606f7e131b6b047277efb7ab720998deff7e8dd47fd0f"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -5272,6 +5272,7 @@ dependencies = [
  "swc_plugin_runner",
  "swc_timer",
  "swc_visit",
+ "tokio",
  "tracing",
  "url",
 ]
@@ -5292,9 +5293,9 @@ dependencies = [
 
 [[package]]
 name = "swc_bundler"
-version = "0.225.12"
+version = "0.225.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc0ba0504c82111f14444ad2b452ab9d6d2d723748b059527dbd2c60e86a44a7"
+checksum = "0f5d8dcab6db0bdafb4928cd333464ec3dbc9ae57953910b7a3a05e3a5a3f82c"
 dependencies = [
  "anyhow",
  "crc",
@@ -5371,9 +5372,9 @@ dependencies = [
 
 [[package]]
 name = "swc_compiler_base"
-version = "0.7.13"
+version = "0.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7407e6689312053ec2a9f7cd25a0502d099e70ecef23819d32c7eb50235dcd76"
+checksum = "8ca1146aff9655a17a7958f2484a5ca4f81ba9c641410896c0e7bb80c84db2ab"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -5423,9 +5424,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.90.17"
+version = "0.90.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e2beeec16e40b7a1cf04955916de48f5897c9a0714930d8d71a214348c28139"
+checksum = "9c498fc0c7bc3a81257e6474636ea8dbfeb372371bfc31b3d95918d336df3822"
 dependencies = [
  "binding_macros",
  "swc",
@@ -5912,9 +5913,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.192.13"
+version = "0.192.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a522264a325d65a9b94583edb294ecd15c255d81194376075ec5e54279709a2"
+checksum = "b108f08d487ce79cfb2599c0532fde6ed30738824da7f8d9f25fce527db75395"
 dependencies = [
  "arrayvec",
  "indexmap 2.2.3",
@@ -6455,9 +6456,9 @@ dependencies = [
 
 [[package]]
 name = "swc_plugin_runner"
-version = "0.106.10"
+version = "0.106.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b14361ec99105e0fe4b3d39a7b0a153a2fda4bff4f56c7f7cdf1e4880c7a3b8"
+checksum = "c97d95a259f98f2dbc301ec29fe7204e3008f116a80a2275a8625835e1345966"
 dependencies = [
  "anyhow",
  "enumset",
@@ -6805,9 +6806,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.32.0"
+version = "1.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17ed6077ed6cd6c74735e21f37eb16dc3935f96878b1fe961074089cc80893f9"
+checksum = "61285f6515fa018fb2d1e46eb21223fff441ee8db5d0f1435e8ab4f5cdb80931"
 dependencies = [
  "backtrace",
  "bytes",
@@ -6817,7 +6818,7 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2 0.5.4",
+ "socket2 0.5.6",
  "tokio-macros",
  "tracing",
  "windows-sys 0.48.0",
@@ -6835,9 +6836,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "630bdcf245f78637c13ec01ffae6187cca34625e8c63150d424b59e55af2675e"
+checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
 dependencies = [
  "proc-macro2",
  "quote",
