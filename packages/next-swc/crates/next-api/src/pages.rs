@@ -36,7 +36,6 @@ use turbopack_binding::{
         File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
     },
     turbopack::{
-        build::{BuildChunkingContext, EntryChunkGroupResult},
         core::{
             asset::AssetContent,
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
@@ -57,6 +56,7 @@ use turbopack_binding::{
             resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
+        nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -265,7 +265,9 @@ impl PagesProject {
         Vc::cell(
             [(
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             )]
             .into_iter()
             .collect(),
@@ -658,7 +660,7 @@ impl PageEndpoint {
         project_root: Vc<FileSystemPath>,
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
-        chunking_context: Vc<BuildChunkingContext>,
+        chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
@@ -1020,6 +1022,7 @@ impl PageEndpoint {
             this.pages_project.pages_dir(),
             &original_name,
             &get_asset_prefix_from_pathname(&pathname),
+            &pathname,
             client_assets,
             false,
         )

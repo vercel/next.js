@@ -1,6 +1,6 @@
 {
   "name": "@next/font",
-  "version": "14.1.2-canary.2",
+  "version": "14.2.0-canary.10",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"

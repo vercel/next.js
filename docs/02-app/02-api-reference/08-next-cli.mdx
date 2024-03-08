@@ -101,7 +101,10 @@ Or using the `PORT` environment variable:
 PORT=4000 next dev
 ```
 
-> **Good to know**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+> **Good to know**:
+>
+> - `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+> - Next.js will automatically retry with another port until a port is available if a port is not specified with the CLI option `--port` or the `PORT` environment variable.
 
 You can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
 
@@ -273,8 +276,7 @@ PORT=4000 next start
 
 > **Good to know**:
 >
-> -`PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
->
+> - `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
 > - `next start` cannot be used with `output: 'standalone'` or `output: 'export'`.
 
 ### Keep Alive Timeout

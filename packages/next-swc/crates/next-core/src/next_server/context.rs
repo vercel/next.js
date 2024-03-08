@@ -8,8 +8,8 @@ use turbopack_binding::{
         tasks_fs::FileSystemPath,
     },
     turbopack::{
-        build::{BuildChunkingContext, MinifyType},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -22,6 +22,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        nodejs::NodeJsChunkingContext,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -305,8 +306,10 @@ pub async fn get_server_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
-    let mut base_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
+    let mut next_server_rules =
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+    let mut foreign_next_server_rules =
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true).await?;
     let internal_custom_rules =
         get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
             .await?;
@@ -415,8 +418,6 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
-
             if let ServerContextType::Pages { .. } = ty.into_value() {
                 custom_source_transform_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
@@ -424,8 +425,11 @@ pub async fn get_server_module_options_context(
                 );
             }
 
-            base_next_server_rules.extend(custom_source_transform_rules);
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            next_server_rules.extend(source_transform_rules);
+
+            foreign_next_server_rules.extend(custom_source_transform_rules);
+            foreign_next_server_rules.extend(internal_custom_rules);
 
             let url_rewrite_behavior = Some(
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
@@ -445,9 +449,8 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
-            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: foreign_custom_transform_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -457,7 +460,7 @@ pub async fn get_server_module_options_context(
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
-                custom_rules: foreign_custom_transform_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
 
@@ -478,7 +481,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -489,15 +492,16 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+            foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
 
-            base_next_server_rules.extend(custom_source_transform_rules.clone());
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules.clone());
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
@@ -507,9 +511,8 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
-            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: foreign_custom_transform_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -517,7 +520,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: foreign_custom_transform_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
 
@@ -538,7 +541,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -565,15 +568,16 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
-            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+            foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
 
-            base_next_server_rules.extend(custom_source_transform_rules.clone());
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules.clone());
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
@@ -583,9 +587,8 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
-            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: foreign_custom_transform_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -593,7 +596,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: foreign_custom_transform_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
@@ -613,12 +616,12 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
         ServerContextType::AppRoute { .. } => {
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
@@ -654,7 +657,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -665,8 +668,8 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            base_next_server_rules.extend(custom_source_transform_rules);
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules);
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
@@ -703,7 +706,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -723,7 +726,8 @@ pub fn get_server_runtime_entries(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_chunking_context(
+pub async fn get_server_chunking_context(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
@@ -731,11 +735,11 @@ pub fn get_server_chunking_context(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<BuildChunkingContext> {
+) -> Result<Vc<NodeJsChunkingContext>> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    BuildChunkingContext::builder(
+    Ok(NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
@@ -744,6 +748,10 @@ pub fn get_server_chunking_context(
         environment,
     )
     .asset_prefix(asset_prefix)
-    .minify_type(MinifyType::NoMinify)
-    .build()
+    .minify_type(if mode.await?.should_minify() {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
+    .build())
 }

@@ -2,12 +2,13 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
+import type { PrefetchCacheEntry } from './router-reducer-types'
 
 export function applyFlightData(
   existingCache: CacheNode,
   cache: CacheNode,
   flightDataPath: FlightDataPath,
-  hasReusablePrefetch: boolean = false
+  prefetchEntry?: PrefetchCacheEntry
 ): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
@@ -32,7 +33,7 @@ export function applyFlightData(
       treePatch,
       cacheNodeSeedData,
       head,
-      hasReusablePrefetch
+      prefetchEntry
     )
   } else {
     // Copy rsc for the root node of the cache.
@@ -47,7 +48,7 @@ export function applyFlightData(
       cache,
       existingCache,
       flightDataPath,
-      hasReusablePrefetch
+      prefetchEntry
     )
   }
 
