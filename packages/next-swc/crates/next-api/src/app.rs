@@ -51,8 +51,10 @@ use turbopack_binding::{
         },
         nodejs::EntryChunkGroupResult,
         turbopack::{
-            module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-            transition::ContextTransition, ModuleAssetContext,
+            module_options::ModuleOptionsContext,
+            resolve_options_context::ResolveOptionsContext,
+            transition::{ContextTransition, FullContextTransition},
+            ModuleAssetContext,
         },
     },
 };
@@ -156,13 +158,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
-            self.project().client_compile_time_info(),
-            self.client_module_options_context(),
-            self.client_resolve_options_context(),
-            Vc::cell("app-client".to_string()),
-        )
+    async fn client_transition(self: Vc<Self>) -> Result<Vc<FullContextTransition>> {
+        let module_context = self.client_module_context();
+        Ok(FullContextTransition::new(module_context))
     }
 
     #[turbo_tasks::function]
@@ -204,13 +202,15 @@ impl AppProject {
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    self.client_transition(),
+                    Vc::upcast(self.client_transition()),
                     self.ssr_transition(),
                 )),
             ),
             (
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             ),
             ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
@@ -231,13 +231,15 @@ impl AppProject {
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    self.client_transition(),
+                    Vc::upcast(self.client_transition()),
                     self.edge_ssr_transition(),
                 )),
             ),
             (
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             ),
             (
                 "next-ssr".to_string(),
