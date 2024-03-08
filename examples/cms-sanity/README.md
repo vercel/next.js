@@ -41,7 +41,7 @@ You'll get:
 # Configuration
 
 - [Step 1. Set up the environment](#step-1-set-up-the-environment)
-- [Step 2. Run Next.js locally in development mode](#step-3-run-nextjs-locally-in-development-mode)
+- [Step 2. Run Next.js locally in development mode](#step-2-run-nextjs-locally-in-development-mode)
 - [Step 3. Populate content](#step-3-populate-content)
 - [Step 4. Deploy to production & use Preview Mode from anywhere](#step-4-deploy-to-production--use-preview-mode-from-anywhere)
   - [If you didn't Deploy with Vercel earlier do so now](#if-you-didnt-deploy-with-vercel-earlier-do-so-now)
@@ -88,7 +88,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 Note: This also installs dependencies for Sanity Studio as a post-install step.
 
-## Step 4. Populate content
+## Step 3. Populate content
 
 In another terminal start up the studio:
 
