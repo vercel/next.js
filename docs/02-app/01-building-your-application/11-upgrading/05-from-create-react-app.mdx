@@ -202,6 +202,8 @@ export default function RootLayout({ children }) {
    [meta viewport](https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag) tags, so you
    can safely remove those from your `<head>`:
 
+### Step 5: Add Metadata
+
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
   children,
@@ -333,7 +335,7 @@ convention-based approach built into the framework
 ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you
 to more easily improve your SEO and web shareability of your pages.
 
-### Step 5: Create the Entrypoint Page
+### Step 6: Create the Entrypoint Page
 
 On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The
 closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the
@@ -449,7 +451,7 @@ export default function Page() {
 }
 ```
 
-### Step 6: Update Static Image Imports
+### Step 7: Update Static Image Imports
 
 Next.js handles static image imports slightly different from CRA. With CRA, importing an image
 file will return its public URL as a string:
@@ -502,7 +504,7 @@ Alternatively, you can reference the public URL for the image asset based on the
 > **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src`
 > property. You can safely ignore those for now. They will be fixed by the end of this guide.
 
-### Step 7: Migrate the Environment Variables
+### Step 8: Migrate the Environment Variables
 
 Next.js has support for `.env`
 [environment variables](/docs/app/building-your-application/configuring/environment-variables)
@@ -511,7 +513,7 @@ similar to CRA.
 The main difference is the prefix used to expose environment variables on the
 client-side. Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 
-### Step 8: Update Scripts in `package.json`
+### Step 9: Update Scripts in `package.json`
 
 You should now be able to run your application to test if you successfully migrated to Next.js. But
 before that, you need to update your `scripts` in your `package.json` with Next.js related commands,
@@ -538,7 +540,7 @@ Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000)
 
 > **Example:** Check out [this repository](https://github.com/vercel/cra-to-next) for a working example of a CRA application migrated to Next.js.
 
-### Step 9: Clean Up
+### Step 10: Clean Up
 
 You can now clean up your codebase from Create React App related artifacts:
 
