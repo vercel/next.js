@@ -26,15 +26,15 @@ export function logStartInfo({
     )}${process.env.TURBOPACK ? ' with Turbopack' : ''}`
   )
   if (appUrl) {
-    Log.bootstrap(`– Local:        ${appUrl}`)
+    Log.bootstrap(`- Local:        ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(`– Network:      ${networkUrl}`)
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(`– Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(`– Experiments (use with caution):`)
+    Log.bootstrap(`- Experiments (use with caution):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
       Log.bootstrap(`  · ${exp}`)
