@@ -36,8 +36,7 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
 }
 
 export function bootstrap(...message: any[]) {
-  // pad with "00:00:00:000" amount of spaces
-  console.log('            ', ...message)
+  console.log(' '.repeat(timestamp().length), ...message)
 }
 
 export function wait(...message: any[]) {
