@@ -949,7 +949,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -973,6 +973,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+
+            // If the request does not have the `x-now-route-matches` header,
+            // it means that the request has it's exact path specified in the
+            // `x-matched-path` header. In this case, we should update the
+            // pathname to the matched path.
+            if (!req.headers['x-now-route-matches']) {
+              urlPathname = this.normalizers.postponed.normalize(
+                matchedPath,
+                true
+              )
+            }
           }
 
           matchedPath = this.normalize(matchedPath)
