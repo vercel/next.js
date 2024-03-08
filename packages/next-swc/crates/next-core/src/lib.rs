@@ -9,6 +9,7 @@
 mod app_segment_config;
 pub mod app_structure;
 mod babel;
+pub mod barrel_loader;
 mod bootstrap;
 mod embed_js;
 mod emit;
