@@ -1,4 +1,4 @@
-import { resolveUrl } from './resolve-url'
+import { resolveUrl, resolveAbsoluteUrlWithPathname } from './resolve-url'
 
 // required to be resolved as URL with resolveUrl()
 describe('metadata: resolveUrl', () => {
@@ -40,5 +40,81 @@ describe('metadata: resolveUrl', () => {
     expect(resolveUrl(new URL('https://bar.com/ghi'), metadataBase)).toEqual(
       new URL('https://bar.com/ghi')
     )
+  })
+})
+
+describe('resolveAbsoluteUrlWithPathname', () => {
+  describe('trailingSlash is false', () => {
+    const metadataBase = new URL('https://example.com/')
+    const opts = {
+      trailingSlash: false,
+      pathname: '/',
+    }
+    it('should resolve absolute internal url', () => {
+      const url = 'https://example.com/foo'
+      const resolvedUrl = resolveAbsoluteUrlWithPathname(
+        url,
+        metadataBase,
+        opts
+      )
+      expect(resolvedUrl).toBe('https://example.com/foo')
+    })
+  })
+
+  describe('trailingSlash is true', () => {
+    const metadataBase = new URL('https://example.com/')
+    const opts = {
+      trailingSlash: true,
+      pathname: '/',
+    }
+    it('should add trailing slash to relative url', () => {
+      const url = '/foo'
+      const resolvedUrl = resolveAbsoluteUrlWithPathname(
+        url,
+        metadataBase,
+        opts
+      )
+      expect(resolvedUrl).toBe('https://example.com/foo/')
+    })
+
+    it('should add trailing slash to absolute internal url', () => {
+      const url = 'https://example.com/foo'
+      const resolvedUrl = resolveAbsoluteUrlWithPathname(
+        url,
+        metadataBase,
+        opts
+      )
+      expect(resolvedUrl).toBe('https://example.com/foo/')
+    })
+
+    it('should not add trailing slash to external url', () => {
+      const url = 'https://external.org/foo'
+      const resolvedUrl = resolveAbsoluteUrlWithPathname(
+        url,
+        metadataBase,
+        opts
+      )
+      expect(resolvedUrl).toBe('https://external.org/foo')
+    })
+
+    it('should not add trailing slash to absolute internal url with query', () => {
+      const url = 'https://example.com/foo?bar'
+      const resolvedUrl = resolveAbsoluteUrlWithPathname(
+        url,
+        metadataBase,
+        opts
+      )
+      expect(resolvedUrl).toBe('https://example.com/foo?bar')
+    })
+
+    it('should not add trailing slash to relative url with query', () => {
+      const url = '/foo?bar'
+      const resolvedUrl = resolveAbsoluteUrlWithPathname(
+        url,
+        metadataBase,
+        opts
+      )
+      expect(resolvedUrl).toBe('https://example.com/foo?bar')
+    })
   })
 })

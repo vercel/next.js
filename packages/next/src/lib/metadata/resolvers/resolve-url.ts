@@ -93,10 +93,33 @@ function resolveAbsoluteUrlWithPathname(
     canonicalUrl = result.pathname === '/' ? result.origin : result.href
   }
 
-  // Add trailing slash if it's enabled
-  return trailingSlash && !canonicalUrl.endsWith('/')
-    ? `${canonicalUrl}/`
-    : canonicalUrl
+  let isRelative = canonicalUrl.startsWith('/')
+  let isExternal = false
+  let hasQuery = canonicalUrl.includes('?')
+  if (!isRelative) {
+    try {
+      const parsedUrl = new URL(canonicalUrl)
+      isExternal =
+        metadataBase != null && parsedUrl.origin !== metadataBase.origin
+    } catch {
+      // If it's not a valid URL, treat it as external
+      isExternal = true
+    }
+  }
+
+  // Add trailing slash if it's enabled for urls matches the condition
+  // - Not external, same origin with metadataBase
+  // - Doesn't have query
+  if (
+    !isExternal &&
+    !hasQuery &&
+    trailingSlash &&
+    !canonicalUrl.endsWith('/')
+  ) {
+    return `${canonicalUrl}/`
+  }
+
+  return canonicalUrl
 }
 
 export {
