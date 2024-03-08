@@ -134,6 +134,7 @@ async function getBarrelMapping(
           wildcard: isWildcard,
         },
         jsc: {
+          target: 'esnext',
           parser: {
             syntax: isTypeScript ? 'typescript' : 'ecmascript',
             [isTypeScript ? 'tsx' : 'jsx']: true,
