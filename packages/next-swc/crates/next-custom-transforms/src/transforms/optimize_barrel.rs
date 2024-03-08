@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use swc_core::ecma::visit::FoldWith;
 use turbopack_binding::swc::core::{
     common::DUMMY_SP,
     ecma::{ast::*, utils::private_ident, visit::Fold},
@@ -14,12 +15,23 @@ pub struct Config {
 pub fn optimize_barrel(config: Config) -> impl Fold {
     OptimizeBarrel {
         wildcard: config.wildcard,
+        exports: None,
     }
+}
+
+pub fn apply(program: Program, config: Config) -> (Program, Vec<(String, String, String)>) {
+    let mut v = OptimizeBarrel {
+        wildcard: config.wildcard,
+        exports: Some(vec![]),
+    };
+    let program = program.fold_with(&mut v);
+    (program, v.exports.unwrap())
 }
 
 #[derive(Debug, Default)]
 struct OptimizeBarrel {
     wildcard: bool,
+    exports: Option<Vec<(String, String, String)>>,
 }
 
 impl Fold for OptimizeBarrel {
@@ -235,6 +247,10 @@ impl Fold for OptimizeBarrel {
         if !is_barrel {
             new_items = vec![];
         } else {
+            if let Some(exports) = &mut self.exports {
+                *exports = export_map.clone();
+            }
+
             // Otherwise we export the meta information.
             new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
