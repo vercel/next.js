@@ -8,8 +8,8 @@ use turbopack_binding::{
         tasks_fs::FileSystemPath,
     },
     turbopack::{
-        build::{BuildChunkingContext, MinifyType},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -22,6 +22,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        nodejs::NodeJsChunkingContext,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -725,7 +726,8 @@ pub fn get_server_runtime_entries(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_chunking_context(
+pub async fn get_server_chunking_context(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
@@ -733,11 +735,11 @@ pub fn get_server_chunking_context(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<BuildChunkingContext> {
+) -> Result<Vc<NodeJsChunkingContext>> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    BuildChunkingContext::builder(
+    Ok(NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
@@ -746,6 +748,10 @@ pub fn get_server_chunking_context(
         environment,
     )
     .asset_prefix(asset_prefix)
-    .minify_type(MinifyType::NoMinify)
-    .build()
+    .minify_type(if mode.await?.should_minify() {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
+    .build())
 }
