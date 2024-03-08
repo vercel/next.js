@@ -1,3 +1,4 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use turbo_tasks::Vc;
 use turbopack_binding::{
