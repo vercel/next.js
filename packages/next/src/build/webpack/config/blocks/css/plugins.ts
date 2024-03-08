@@ -1,3 +1,4 @@
+import type { AcceptedPlugin } from 'next/dist/compiled/postcss'
 import { bold, red, underline, yellow } from '../../../../../lib/picocolors'
 import { findConfig } from '../../../../../lib/find-config'
 
@@ -42,9 +43,7 @@ function isIgnoredPlugin(pluginPath: string): boolean {
   return true
 }
 
-const createLazyPostCssPlugin = (
-  fn: () => import('postcss').AcceptedPlugin
-): import('postcss').AcceptedPlugin => {
+const createLazyPostCssPlugin = (fn: () => AcceptedPlugin): AcceptedPlugin => {
   let result: any = undefined
   const plugin = (...args: any[]) => {
     if (result === undefined) result = fn() as any
@@ -63,7 +62,7 @@ async function loadPlugin(
   dir: string,
   pluginName: string,
   options: boolean | object | string
-): Promise<import('postcss').AcceptedPlugin | false> {
+): Promise<AcceptedPlugin | false> {
   if (options === false || isIgnoredPlugin(pluginName)) {
     return false
   }
@@ -113,15 +112,16 @@ function getDefaultPlugins(
   ].filter(Boolean)
 }
 
+export type PostCssPluginsConfig = {
+  plugins: CssPluginCollection
+}
+
 export async function getPostCssPlugins(
   dir: string,
   supportedBrowsers: string[] | undefined,
   disablePostcssPresetEnv: boolean = false
-): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = await findConfig<{ plugins: CssPluginCollection }>(
-    dir,
-    'postcss'
-  )
+): Promise<AcceptedPlugin[]> {
+  let config = await findConfig<PostCssPluginsConfig>(dir, 'postcss')
 
   if (config == null) {
     config = {
@@ -234,9 +234,7 @@ export async function getPostCssPlugins(
   const resolved = await Promise.all(
     parsed.map((p) => loadPlugin(dir, p[0], p[1]))
   )
-  const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
-    Boolean
-  ) as import('postcss').AcceptedPlugin[]
+  const filtered = resolved.filter((p): p is AcceptedPlugin => p !== false)
 
   return filtered
 }
