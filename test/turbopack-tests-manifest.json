@@ -1427,18 +1427,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/multiple-compiles-single-route/multiple-compiles-single-route.test.ts": {
+  "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
-      "multiple-compiles-single-route should not compile additional matching paths"
+      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/show-error-when-missing-html-or-body-in-root-layout/show-error-when-missing-html-or-body-in-root-layout.test.ts": {
+  "test/development/app-dir/multiple-compiles-single-route/multiple-compiles-single-route.test.ts": {
     "passed": [
-      "show error when missing html or body in root layout should show error overlay"
+      "multiple-compiles-single-route should not compile additional matching paths"
     ],
     "failed": [],
     "pending": [],
@@ -2385,12 +2386,12 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
+      "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
-      "app dir - basepath should support `basePath`",
-      "app dir - basepath should prefix metadata og image with basePath"
+      "app dir - basepath should support `basePath`"
     ],
     "failed": [],
     "pending": [],
@@ -4666,13 +4667,6 @@
     "passed": [
       "SCSS Support loader handling Preprocessor loader order should render the module"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
-    "passed": ["Multi Global Support (reversed) should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7427,7 +7421,7 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage $dynamicPage",
+      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-static'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage undefined"
