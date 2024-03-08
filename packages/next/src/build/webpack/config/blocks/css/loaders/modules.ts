@@ -1,3 +1,4 @@
+import type { PostcssInstance } from '../index'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
@@ -6,7 +7,7 @@ import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postcss: any,
+  postcss: () => Promise<PostcssInstance>,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []

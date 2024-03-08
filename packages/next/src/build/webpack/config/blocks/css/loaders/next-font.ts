@@ -1,11 +1,12 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ConfigurationContext } from '../../../utils'
+import type { PostcssInstance } from '../index'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 
 export function getNextFontLoader(
   ctx: ConfigurationContext,
-  postcss: any,
+  postcss: () => Promise<PostcssInstance>,
   fontLoaderPath: string
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
