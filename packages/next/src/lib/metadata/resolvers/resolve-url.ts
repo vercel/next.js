@@ -82,23 +82,25 @@ function resolveAbsoluteUrlWithPathname(
   metadataBase: URL | null,
   { trailingSlash, pathname }: MetadataContext
 ): string {
+  // Resolve url with pathname that always starts with `/`
   url = resolveRelativeUrl(url, pathname)
 
-  // Get canonicalUrl without trailing slash
-  let canonicalUrl = ''
+  // Convert string url or URL instance to absolute url string,
+  // if there's case needs to be resolved with metadataBase
+  let resolvedUrl = ''
   const result = metadataBase ? resolveUrl(url, metadataBase) : url
   if (typeof result === 'string') {
-    canonicalUrl = result
+    resolvedUrl = result
   } else {
-    canonicalUrl = result.pathname === '/' ? result.origin : result.href
+    resolvedUrl = result.pathname === '/' ? result.origin : result.href
   }
 
-  let isRelative = canonicalUrl.startsWith('/')
+  let isRelative = resolvedUrl.startsWith('/')
   let isExternal = false
-  let hasQuery = canonicalUrl.includes('?')
+  let hasQuery = resolvedUrl.includes('?')
   if (!isRelative) {
     try {
-      const parsedUrl = new URL(canonicalUrl)
+      const parsedUrl = new URL(resolvedUrl)
       isExternal =
         metadataBase != null && parsedUrl.origin !== metadataBase.origin
     } catch {
@@ -110,16 +112,11 @@ function resolveAbsoluteUrlWithPathname(
   // Add trailing slash if it's enabled for urls matches the condition
   // - Not external, same origin with metadataBase
   // - Doesn't have query
-  if (
-    !isExternal &&
-    !hasQuery &&
-    trailingSlash &&
-    !canonicalUrl.endsWith('/')
-  ) {
-    return `${canonicalUrl}/`
+  if (!isExternal && !hasQuery && trailingSlash && !resolvedUrl.endsWith('/')) {
+    return `${resolvedUrl}/`
   }
 
-  return canonicalUrl
+  return resolvedUrl
 }
 
 export {
