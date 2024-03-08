@@ -342,11 +342,11 @@ module.exports = {
 
 ### Step 7: Create the Entrypoint Page
 
-On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the entrypoint of your application.
+On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the entry point of your application.
 
 **Create a `[[...slug]]` directory in your `app` directory.**
 
-Since this guide is aiming to first set up our Next.js as an SPA (Single Page Application), you need your page entrypoint to catch all possible routes of your application. For that, create a new `[[...slug]]` directory in your `app` directory.
+Since this guide is aiming to first set up our Next.js as an SPA (Single Page Application), you need your page entry point to catch all possible routes of your application. For that, create a new `[[...slug]]` directory in your `app` directory.
 
 This directory is what is called an [optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments). Next.js uses a file-system based router where [directories are used to define routes](/docs/app/building-your-application/routing/defining-routes#creating-routes). This special directory will make sure that all routes of your application will be directed to its containing `page.tsx` file.
 
