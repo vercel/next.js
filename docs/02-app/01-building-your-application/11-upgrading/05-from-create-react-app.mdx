@@ -367,7 +367,7 @@ module.exports = {
 ### Step 7: Create the Entrypoint Page
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../src/index.css'
+import '../../index.css'
 
 export function generateStaticParams() {
   return [{ slug: [''] }]
@@ -379,7 +379,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../src/index.css'
+import '../../index.css'
 
 export function generateStaticParams() {
   return [{ slug: [''] }]
@@ -404,7 +404,7 @@ Now, let's move the rest of our CRA application which will run client-only.
 import React from 'react'
 import dynamic from 'next/dynamic'
 
-const App = dynamic(() => import('../../src/App'), { ssr: false })
+const App = dynamic(() => import('../../App'), { ssr: false })
 
 export function ClientOnly() {
   return <App />
@@ -417,7 +417,7 @@ export function ClientOnly() {
 import React from 'react'
 import dynamic from 'next/dynamic'
 
-const App = dynamic(() => import('../../src/App'), { ssr: false })
+const App = dynamic(() => import('../../App'), { ssr: false })
 
 export function ClientOnly() {
   return <App />
@@ -436,7 +436,7 @@ const App = dynamic(() => import('../../App'), { ssr: false })
 Now, update your entrypoint page to use the new component:
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../src/index.css'
+import '../../index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
@@ -449,7 +449,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../src/index.css'
+import '../../index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
