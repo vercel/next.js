@@ -7,7 +7,7 @@
     },
     {
       "name": "Install Dependencies",
-      "command": "pnpm install"
+      "command": "yarn install"
     }
   ],
 
@@ -15,7 +15,7 @@
   "tasks": {
     "dev": {
       "name": "dev",
-      "command": "pnpm dev",
+      "command": "yarn dev",
       "runAtStart": true
     }
   }
