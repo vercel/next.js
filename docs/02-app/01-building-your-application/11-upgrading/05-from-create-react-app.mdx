@@ -335,26 +335,36 @@ convention-based approach built into the framework
 ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you
 to more easily improve your SEO and web shareability of your pages.
 
-### Step 6: Create the Entrypoint Page
+### Step 6: Styles
 
-On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The
-closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the
-entrypoint of your application.
+Like Create React App, Next.js has built-in support for [CSS Modules](/docs/app/building-your-application/styling/css-modules).
 
-1. **Create a `[[...slug]]` directory in your `app` directory.**
+If you're using a global CSS file, import it into your `app/layout.tsx` file:
 
-Since this guide is aiming to first set up our Next.js as an SPA (Single Page Application),
-you need your page entrypoint to catch all possible routes of your application. For that, create a
-new `[[...slug]]` directory in your `app` directory.
+```tsx filename="app/layout.tsx" switcher
+import '../index.css'
 
-This directory is what is called an
-[optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments).
-Next.js uses a file-system based router where
-[directories are used to define routes](/docs/app/building-your-application/routing/defining-routes#creating-routes).
-This special directory will make sure that all routes of your application will be directed to its
-containing `page.tsx` file.
+// ...
+```
 
-2. **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
+If you're using Tailwind, you'll need to install `postcss` and `autoprefixer`:
+
+```bash filename="Terminal"
+npm install postcss autoprefixer
+```
+
+Then, create a `postcss.config.js` file at the root of your project:
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+```
+
+### Step 7: Create the Entrypoint Page
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
 import '../../src/index.css'
