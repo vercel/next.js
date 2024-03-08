@@ -10,6 +10,9 @@ import type { DocumentType } from '../../shared/lib/utils'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { PAGE_TYPES } from '../../lib/page-types'
+import { setReferenceManifestsSingleton } from '../../server/app-render/action-encryption-utils'
+import { createServerModuleMap } from '../../server/app-render/action-utils'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -23,12 +26,12 @@ const error500Mod = null
 declare const sriEnabled: boolean
 declare const isServerComponent: boolean
 declare const dev: boolean
-declare const serverActionsBodySizeLimit: any
+declare const serverActions: any
 declare const nextConfig: NextConfigComplete
 // INJECT:sriEnabled
 // INJECT:isServerComponent
 // INJECT:dev
-// INJECT:serverActionsBodySizeLimit
+// INJECT:serverActions
 // INJECT:nextConfig
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
@@ -43,8 +46,22 @@ const subresourceIntegrityManifest = sriEnabled
   : undefined
 const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 
+const interceptionRouteRewrites =
+  maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
+
+if (rscManifest && rscServerManifest) {
+  setReferenceManifestsSingleton({
+    clientReferenceManifest: rscManifest,
+    serverActionsManifest: rscServerManifest,
+    serverModuleMap: createServerModuleMap({
+      serverActionsManifest: rscServerManifest,
+      pageName: 'VAR_PAGE',
+    }),
+  })
+}
+
 const render = getRender({
-  pagesType: 'app',
+  pagesType: PAGE_TYPES.APP,
   dev,
   page: 'VAR_PAGE',
   appMod,
@@ -58,14 +75,13 @@ const render = getRender({
   reactLoadableManifest,
   clientReferenceManifest: isServerComponent ? rscManifest : null,
   serverActionsManifest: isServerComponent ? rscServerManifest : null,
-  serverActionsBodySizeLimit: isServerComponent
-    ? serverActionsBodySizeLimit
-    : undefined,
+  serverActions: isServerComponent ? serverActions : undefined,
   subresourceIntegrityManifest,
   config: nextConfig,
   buildId: 'VAR_BUILD_ID',
   nextFontManifest,
   incrementalCacheHandler,
+  interceptionRouteRewrites,
 })
 
 export const ComponentMod = pageMod

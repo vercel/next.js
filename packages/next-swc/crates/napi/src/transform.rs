@@ -37,7 +37,7 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_swc::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
@@ -58,7 +58,7 @@ pub enum Input {
 pub struct TransformTask {
     pub c: Arc<Compiler>,
     pub input: Input,
-    pub options: Buffer,
+    pub options: Vec<u8>,
 }
 
 #[inline]
@@ -66,12 +66,19 @@ fn skip_filename() -> bool {
     cfg!(debug_assertions)
 }
 
+fn run_in_context<F, Ret>(op: F) -> Ret
+where
+    F: FnOnce() -> Ret,
+{
+    GLOBALS.set(&Default::default(), op)
+}
+
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
 
-    fn compute(&mut self) -> napi::Result<Self::Output> {
-        GLOBALS.set(&Default::default(), || {
+    fn compute(&mut self) -> Result<Self::Output> {
+        run_in_context(|| {
             let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
@@ -161,18 +168,18 @@ impl Task for TransformTask {
         &mut self,
         env: Env,
         (output, eliminated_packages): Self::Output,
-    ) -> napi::Result<Self::JsValue> {
+    ) -> Result<Self::JsValue> {
         complete_output(&env, output, eliminated_packages)
     }
 }
 
 #[napi]
 pub fn transform(
+    env: Env,
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-    signal: Option<AbortSignal>,
-) -> napi::Result<AsyncTask<TransformTask>> {
+) -> Result<Object> {
     let c = get_compiler();
 
     let input = match src {
@@ -183,8 +190,14 @@ pub fn transform(
         Either3::C(_) => Input::FromFilename,
     };
 
-    let task = TransformTask { c, input, options };
-    Ok(AsyncTask::with_optional_signal(task, signal))
+    let options = options.to_vec();
+
+    let mut task = TransformTask { c, input, options };
+
+    env.execute_tokio_future(
+        async move { task.compute() },
+        |env, (output, eliminated_packages)| complete_output(env, output, eliminated_packages),
+    )
 }
 
 #[napi]
@@ -193,7 +206,7 @@ pub fn transform_sync(
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-) -> napi::Result<Object> {
+) -> Result<Object> {
     let c = get_compiler();
 
     let input = match src {
@@ -204,8 +217,12 @@ pub fn transform_sync(
         Either3::C(_) => Input::FromFilename,
     };
 
+    let options = options.to_vec();
+
     let mut task = TransformTask { c, input, options };
-    let output = task.compute()?;
+
+    let output = block_on(async { task.compute() })?;
+
     task.resolve(env, output)
 }
 #[test]

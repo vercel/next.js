@@ -38,10 +38,10 @@ const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
-    async function nextLintTemp(setupCallback) {
+    async function nextLintTemp(setupCallback, isApp = false) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
-      await fs.copy(dirNoConfig, folder)
+      await fs.copy(join(dirNoConfig, isApp ? 'app' : ''), folder)
       await setupCallback?.(folder)
 
       try {
@@ -101,6 +101,23 @@ describe('Next Lint', () => {
         expect(stdout).toContain(packageManger)
         expect(pkgJson.devDependencies).toHaveProperty('eslint')
         expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+
+        // App Router
+        const { stdout: appStdout, pkgJson: appPkgJson } = await nextLintTemp(
+          async (folder) => {
+            await fs.writeFile(join(folder, lockFile), '')
+          },
+          true
+        )
+
+        expect(appStdout).toContain(
+          `Installing devDependencies (${packageManger}):`
+        )
+        expect(appStdout).toContain('eslint')
+        expect(appStdout).toContain('eslint-config-next')
+        expect(appStdout).toContain(packageManger)
+        expect(appPkgJson.devDependencies).toHaveProperty('eslint')
+        expect(appPkgJson.devDependencies).toHaveProperty('eslint-config-next')
       })
     }
 
@@ -111,12 +128,27 @@ describe('Next Lint', () => {
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+
+      // App Router
+      const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
+        await nextLintTemp(null, true)
+
+      expect(appStdout).toContain(
+        'We created the .eslintrc.json file for you and included your selected configuration'
+      )
+      expect(appEslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
     })
 
     test('shows a successful message when completed', async () => {
       const { stdout } = await nextLintTemp()
 
       expect(stdout).toContain(
+        'ESLint has successfully been configured. Run next lint again to view warnings and errors'
+      )
+
+      // App Router
+      const { stdout: appStdout } = await nextLintTemp(null, true)
+      expect(appStdout).toContain(
         'ESLint has successfully been configured. Run next lint again to view warnings and errors'
       )
     })

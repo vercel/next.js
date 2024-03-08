@@ -1,6 +1,6 @@
 type Props = {
-  tags: string[]
-}
+  tags: string[];
+};
 
 export default function Tags({ tags }: Props) {
   return (
@@ -14,5 +14,5 @@ export default function Tags({ tags }: Props) {
         ))}
       </p>
     </div>
-  )
+  );
 }

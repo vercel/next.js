@@ -9,7 +9,6 @@ import {
   launchApp,
   killApp,
   nextBuild,
-  nextStart,
 } from 'next-test-utils'
 
 let app
@@ -114,9 +113,6 @@ describe.each([
       await fs.remove(outdir).catch(() => {})
 
       exportOutput = result.stderr + result.stdout
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
     })
     afterAll(() => nextConfig.delete())
 

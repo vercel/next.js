@@ -1,7 +1,7 @@
 import {
   AxiosDataFetcher,
   AxiosResponse,
-} from '@sitecore-jss/sitecore-jss-nextjs'
+} from "@sitecore-jss/sitecore-jss-nextjs";
 
 /**
  * Implements a data fetcher using Axios - replace with your favorite
@@ -12,7 +12,7 @@ import {
  */
 export function dataFetcher<ResponseType>(
   url: string,
-  data?: unknown
+  data?: unknown,
 ): Promise<AxiosResponse<ResponseType>> {
-  return new AxiosDataFetcher().fetch<ResponseType>(url, data)
+  return new AxiosDataFetcher().fetch<ResponseType>(url, data);
 }

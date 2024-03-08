@@ -14,7 +14,9 @@ import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { getPageFromPath } from '../../../entries'
+import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
+import { getProxiedPluginState } from '../../../build-context'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -30,7 +32,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   typedRoutes: boolean
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
@@ -211,7 +213,12 @@ async function collectNamedSlots(layoutPath: string) {
   const items = await fs.readdir(layoutDir, { withFileTypes: true })
   const slots = []
   for (const item of items) {
-    if (item.isDirectory() && item.name.startsWith('@')) {
+    if (
+      item.isDirectory() &&
+      item.name.startsWith('@') &&
+      // `@children slots are matched to the children prop, and should not be handled separately for type-checking
+      item.name !== '@children'
+    ) {
       slots.push(item.name.slice(1))
     }
   }
@@ -221,23 +228,23 @@ async function collectNamedSlots(layoutPath: string) {
 // By exposing the static route types separately as string literals,
 // editors can provide autocompletion for them. However it's currently not
 // possible to provide the same experience for dynamic routes.
-const routeTypes: Record<
-  'edge' | 'node' | 'extra',
-  Record<'static' | 'dynamic', string>
-> = {
-  edge: {
-    static: '',
-    dynamic: '',
-  },
-  node: {
-    static: '',
-    dynamic: '',
-  },
-  extra: {
-    static: '',
-    dynamic: '',
-  },
-}
+
+const pluginState = getProxiedPluginState({
+  routeTypes: {
+    edge: {
+      static: '',
+      dynamic: '',
+    },
+    node: {
+      static: '',
+      dynamic: '',
+    },
+    extra: {
+      static: '',
+      dynamic: '',
+    },
+  } as Record<'edge' | 'node' | 'extra', Record<'static' | 'dynamic', string>>,
+})
 
 function formatRouteToRouteType(route: string) {
   const isDynamic = isDynamicRoute(route)
@@ -341,7 +348,8 @@ function addRedirectsRewritesRouteTypes(
 
       for (const normalizedRoute of possibleNormalizedRoutes) {
         const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
-        routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
+        pluginState.routeTypes.extra[isDynamic ? 'dynamic' : 'static'] +=
+          routeType
       }
     }
   }
@@ -374,8 +382,8 @@ function createRouteDefinitions() {
   let dynamicRouteTypes = ''
 
   for (const type of ['edge', 'node', 'extra'] as const) {
-    staticRouteTypes += routeTypes[type].static
-    dynamicRouteTypes += routeTypes[type].dynamic
+    staticRouteTypes += pluginState.routeTypes[type].static
+    dynamicRouteTypes += pluginState.routeTypes[type].dynamic
   }
 
   // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string'.
@@ -578,7 +586,7 @@ export class NextTypesPlugin {
 
     const { isDynamic, routeType } = formatRouteToRouteType(route)
 
-    routeTypes[this.isEdgeServer ? 'edge' : 'node'][
+    pluginState.routeTypes[this.isEdgeServer ? 'edge' : 'node'][
       isDynamic ? 'dynamic' : 'static'
     ] += routeType
   }
@@ -667,11 +675,11 @@ export class NextTypesPlugin {
 
           // Clear routes
           if (this.isEdgeServer) {
-            routeTypes.edge.dynamic = ''
-            routeTypes.edge.static = ''
+            pluginState.routeTypes.edge.dynamic = ''
+            pluginState.routeTypes.edge.static = ''
           } else {
-            routeTypes.node.dynamic = ''
-            routeTypes.node.static = ''
+            pluginState.routeTypes.node.dynamic = ''
+            pluginState.routeTypes.node.static = ''
           }
 
           compilation.chunkGroups.forEach((chunkGroup) => {

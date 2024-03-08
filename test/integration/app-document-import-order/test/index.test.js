@@ -83,8 +83,14 @@ describe('development mode', () => {
     respectsSideEffects
   )
 
-  it(
-    '_app chunks should be attached to de dom before page chunks',
-    respectsChunkAttachmentOrder
+  // Test relies on webpack splitChunks overrides.
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'Skipped in Turbopack',
+    () => {
+      it(
+        '_app chunks should be attached to de dom before page chunks',
+        respectsChunkAttachmentOrder
+      )
+    }
   )
 })

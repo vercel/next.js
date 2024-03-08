@@ -17,3 +17,11 @@ export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>
 
 export const requestAsyncStorage: RequestAsyncStorage =
   createAsyncLocalStorage()
+
+export function getExpectedRequestStore(callingExpression: string) {
+  const store = requestAsyncStorage.getStore()
+  if (store) return store
+  throw new Error(
+    `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+  )
+}

@@ -133,7 +133,7 @@ describe('create-next-app --app', () => {
           '--app',
           '--eslint',
           '--src-dir',
-          '--import-alias=@/*',
+          '--no-import-alias',
         ],
         {
           cwd,

@@ -3,6 +3,7 @@ import {
   type AppRouteRouteModuleOptions,
 } from '../../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/future/route-kind'
+import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 
 import * as userland from 'VAR_USERLAND'
 
@@ -31,22 +32,20 @@ const routeModule = new AppRouteRouteModule({
 // Pull out the exports that we need to expose from the module. This should
 // be eliminated when we've moved the other routes to the new format. These
 // are used to hook into the route.
-const {
-  requestAsyncStorage,
-  staticGenerationAsyncStorage,
-  serverHooks,
-  headerHooks,
-  staticGenerationBailout,
-} = routeModule
+const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } =
+  routeModule
 
 const originalPathname = 'VAR_ORIGINAL_PATHNAME'
+
+function patchFetch() {
+  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+}
 
 export {
   routeModule,
   requestAsyncStorage,
   staticGenerationAsyncStorage,
   serverHooks,
-  headerHooks,
-  staticGenerationBailout,
   originalPathname,
+  patchFetch,
 }
