@@ -11,7 +11,7 @@ use next_core::{
     get_edge_resolve_options_context,
     next_app::{
         app_client_references_chunks::get_app_server_reference_modules,
-        get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
+        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
         get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
     next_client::{
@@ -579,17 +579,18 @@ impl AppEndpoint {
         // .await?;
 
         let app_server_reference_modules = if process_client {
-            let client_shared_chunks = get_app_client_shared_chunks(
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 app_entry
                     .rsc_entry
                     .ident()
                     .with_modifier(Vc::cell("client_shared_chunks".to_string())),
                 this.app_project.client_runtime_entries(),
                 this.app_project.project().client_chunking_context(),
-            );
+            )
+            .await?;
 
             let mut client_shared_chunks_paths = vec![];
-            for chunk in client_shared_chunks.await?.iter().copied() {
+            for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
                 client_assets.push(chunk);
 
                 let chunk_path = chunk.ident().path().await?;
@@ -599,6 +600,7 @@ impl AppEndpoint {
                     }
                 }
             }
+            let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
             let client_reference_graph = ClientReferenceGraph::new(Vc::cell(vec![rsc_entry_asset]));
             let client_reference_types = client_reference_graph.types();
@@ -618,6 +620,7 @@ impl AppEndpoint {
             let client_references_chunks = get_app_client_references_chunks(
                 client_references,
                 this.app_project.project().client_chunking_context(),
+                Value::new(client_shared_availability_info),
                 ssr_chunking_context,
             );
             let client_references_chunks_ref = client_references_chunks.await?;
