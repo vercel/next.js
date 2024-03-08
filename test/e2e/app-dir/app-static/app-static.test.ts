@@ -3010,6 +3010,30 @@ createNextDescribe(
       })
     })
 
+    describe('unstable_cache', () => {
+      it('should retrieve same value on second request', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+      })
+
+      it('should not error when retrieving the value undefined', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+      })
+    })
+
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')
       const checkUrl = async () =>
