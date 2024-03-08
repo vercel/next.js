@@ -2,10 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{context::ProcessResult, reference_type::ReferenceType, source::Source},
-    turbopack::{
-        transition::{ContextTransition, Transition},
-        ModuleAssetContext,
-    },
+    turbopack::{transition::Transition, ModuleAssetContext},
 };
 
 use super::NextDynamicEntryModule;
@@ -15,13 +12,13 @@ use super::NextDynamicEntryModule;
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {
-    client_transition: Vc<ContextTransition>,
+    client_transition: Vc<Box<dyn Transition>>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextDynamicTransition {
     #[turbo_tasks::function]
-    pub fn new(client_transition: Vc<ContextTransition>) -> Vc<Self> {
+    pub fn new(client_transition: Vc<Box<dyn Transition>>) -> Vc<Self> {
         NextDynamicTransition { client_transition }.cell()
     }
 }
