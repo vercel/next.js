@@ -7,7 +7,7 @@ export function traverseModules(
     mod: any,
     chunk: webpack.Chunk,
     chunkGroup: (typeof compilation.chunkGroups)[0],
-    modId: string | number
+    modId: string | null
   ) => any,
   filterChunkGroup?: (chunkGroup: webpack.ChunkGroup) => boolean
 ) {
@@ -21,7 +21,7 @@ export function traverseModules(
         // TODO: Update type so that it doesn't have to be cast.
       ) as Iterable<webpack.NormalModule>
       for (const mod of chunkModules) {
-        const modId = compilation.chunkGraph.getModuleId(mod)
+        const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
         callback(mod, chunk, chunkGroup, modId)
         const anyModule = mod as any
         if (anyModule.modules) {

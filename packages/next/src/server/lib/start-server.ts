@@ -33,7 +33,7 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
-  hostname: string
+  hostname?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
@@ -59,7 +59,7 @@ export async function getRequestHandlers({
   port: number
   isDev: boolean
   server?: import('http').Server
-  hostname: string
+  hostname?: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number

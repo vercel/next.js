@@ -7,7 +7,9 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
+        browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -16,7 +18,6 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
         node::{
             execution_context::ExecutionContext,
@@ -246,7 +247,9 @@ pub async fn get_client_module_options_context(
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+    let foreign_next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config).await?,
@@ -286,6 +289,7 @@ pub async fn get_client_module_options_context(
     let foreign_codes_options_context = ModuleOptionsContext {
         enable_webpack_loaders: foreign_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
+        custom_rules: foreign_next_client_rules,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };
@@ -333,7 +337,8 @@ pub async fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let mut builder = DevChunkingContext::builder(
+    let next_mode = mode.await?;
+    let mut builder = BrowserChunkingContext::builder(
         project_path,
         client_root,
         client_root,
@@ -342,9 +347,14 @@ pub async fn get_client_chunking_context(
         environment,
     )
     .chunk_base_path(asset_prefix)
+    .minify_type(if next_mode.should_minify() {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .asset_base_path(asset_prefix);
 
-    if mode.await?.is_development() {
+    if next_mode.is_development() {
         builder = builder.hot_module_replacement();
     }
 
