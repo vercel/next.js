@@ -1365,6 +1365,9 @@ export default async function getBaseWebpackConfig(
                 },
                 use: {
                   loader: 'next-flight-loader',
+                  options: {
+                    appDir,
+                  },
                 },
               },
             ]
