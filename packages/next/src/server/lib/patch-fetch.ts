@@ -136,7 +136,7 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
 
 function trackFetchMetric(
   staticGenerationStore: StaticGenerationStore,
-  ctx: Omit<FetchMetric, 'end' | 'idx'>
+  ctx: Omit<FetchMetric, 'end' | 'idx' | 'file'>
 ) {
   if (!staticGenerationStore) return
   staticGenerationStore.fetchMetrics ??= []
@@ -152,14 +152,10 @@ function trackFetchMetric(
     return
   }
   staticGenerationStore.fetchMetrics.push({
-    url: ctx.url,
-    cacheStatus: ctx.cacheStatus,
-    cacheReason: ctx.cacheReason,
-    status: ctx.status,
-    method: ctx.method,
-    start: ctx.start,
+    ...ctx,
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
+    file: new Error().stack,
   })
 }
 
