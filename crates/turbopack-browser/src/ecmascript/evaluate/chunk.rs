@@ -9,7 +9,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAssets,
-        ModuleId,
+        MinifyType, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -19,6 +19,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
+    minify::minify,
     utils::StringifyJs,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -71,7 +72,8 @@ impl EcmascriptDevEvaluateChunk {
         let environment = this.chunking_context.environment();
 
         let output_root = this.chunking_context.output_root().await?;
-        let chunk_path = self.ident().path().await?;
+        let chunk_path_vc = self.ident().path();
+        let chunk_path = chunk_path_vc.await?;
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
@@ -165,7 +167,15 @@ impl EcmascriptDevEvaluateChunk {
             )?;
         }
 
-        Ok(Code::cell(code.build()))
+        let code = code.build().cell();
+        if matches!(
+            this.chunking_context.await?.minify_type(),
+            MinifyType::Minify
+        ) {
+            return Ok(minify(chunk_path_vc, code));
+        }
+
+        Ok(code)
     }
 }
 
