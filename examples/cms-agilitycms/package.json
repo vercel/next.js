@@ -8,7 +8,7 @@
   "dependencies": {
     "@agility/content-fetch": "^1.1.5",
     "classnames": "^2.3.1",
-    "date-fns": "^2.29.1",
+    "date-fns": "^3.3.1",
     "isomorphic-unfetch": "^3.1.0",
     "next": "latest",
     "react": "^18.2.0",
