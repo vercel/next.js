@@ -772,6 +772,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           attributes: {
             'http.method': method,
             'http.target': req.url,
+            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
