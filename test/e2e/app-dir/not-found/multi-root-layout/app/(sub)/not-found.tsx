@@ -1,3 +1,3 @@
-export default function SubRootNotFound() {
-  return <h1>Sub Root Not Found</h1>
+export default function SubNotFound() {
+  return <h1>Sub Not Found</h1>
 }

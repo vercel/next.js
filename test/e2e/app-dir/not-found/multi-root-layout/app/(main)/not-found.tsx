@@ -1,3 +1,3 @@
-export default function MaiRootNotFound() {
-  return <h1>Main Root Not Found</h1>
+export default function MaiNotFound() {
+  return <h1>Main Not Found</h1>
 }
