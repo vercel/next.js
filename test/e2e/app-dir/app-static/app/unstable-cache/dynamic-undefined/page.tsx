@@ -22,7 +22,7 @@ export default async function Page() {
   return (
     <div>
       <p>random: {Math.random()}</p>
-      <p id="cached-data">cachedData: {cachedData}</p>
+      <p id="cached-data">typeof cachedData: {typeof cachedData}</p>
       <RevalidateButton onClick={revalidate} />
     </div>
   )

@@ -3013,7 +3013,7 @@ createNextDescribe(
     })
 
     describe('unstable_cache', () => {
-      it('should retrieve same value on second request', async () => {
+      it('should retrieve the same value on second request', async () => {
         const res = await next.fetch('/unstable-cache/dynamic')
         const html = await res.text()
         const data = cheerio.load(html)('#cached-data').text()
@@ -3033,6 +3033,7 @@ createNextDescribe(
         const data2 = cheerio.load(html2)('#cached-data').text()
 
         expect(data).toEqual(data2)
+        expect(data).toEqual('typeof cachedData: undefined')
       })
     })
 
