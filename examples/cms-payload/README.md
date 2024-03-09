@@ -1,6 +1,6 @@
 # Next + Payload Serverless Demo
 
-This is a demo showing how to utilize `@payloadcms/next-payload` to deploy Payload serverlessly, in the same repo alongside of a NextJS app.
+This is a demo showing how to utilize `@payloadcms/next-payload` to deploy Payload serverlessly, in the same repo alongside of a Next.js app.
 
 ## Deploy your own
 

@@ -2,7 +2,7 @@ import setPrototypeOf from "./setPrototypeOf.js";
 import isNativeReflectConstruct from "./isNativeReflectConstruct.js";
 export default function _construct(Parent, args, Class) {
   if (isNativeReflectConstruct()) {
-    _construct = Reflect.construct;
+    _construct = Reflect.construct.bind();
   } else {
     _construct = function _construct(Parent, args, Class) {
       var a = [null];
@@ -13,6 +13,5 @@ export default function _construct(Parent, args, Class) {
       return instance;
     };
   }
-
   return _construct.apply(null, arguments);
 }

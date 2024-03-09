@@ -1,9 +1,10 @@
-const {
+// eslint-disable-next-line import/no-extraneous-dependencies
+export {
   renderToReadableStream,
   decodeReply,
   decodeAction,
-  // eslint-disable-next-line import/no-extraneous-dependencies
-} = require('react-server-dom-webpack/server.edge')
+  decodeFormState,
+} from 'react-server-dom-webpack/server.edge'
 
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'
@@ -11,19 +12,30 @@ import RenderFromTemplateContext from '../../client/components/render-from-templ
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
-import { staticGenerationBailout } from '../../client/components/static-generation-bailout'
-import StaticGenerationSearchParamsBailoutProvider from '../../client/components/static-generation-searchparams-bailout-provider'
-import { createSearchParamsBailoutProxy } from '../../client/components/searchparams-bailout-proxy'
+import { ClientPageRoot } from '../../client/components/client-page'
+import {
+  createUntrackedSearchParams,
+  createDynamicallyTrackedSearchParams,
+} from '../../client/components/search-params'
 import * as serverHooks from '../../client/components/hooks-server-context'
+import { NotFoundBoundary } from '../../client/components/not-found-boundary'
+import { patchFetch as _patchFetch } from '../lib/patch-fetch'
+// not being used but needs to be included in the client manifest for /_not-found
+import '../../client/components/error-boundary'
 
 import {
   preloadStyle,
   preloadFont,
   preconnect,
 } from '../../server/app-render/rsc/preloads'
+import { Postpone } from '../../server/app-render/rsc/postpone'
+import { taintObjectReference } from '../../server/app-render/rsc/taint'
 
-const { NotFoundBoundary } =
-  require('next/dist/client/components/not-found-boundary') as typeof import('../../client/components/not-found-boundary')
+// patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
+// in the experimental channel of React, so export it from here so that it comes from the bundled runtime
+function patchFetch() {
+  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+}
 
 export {
   AppRouter,
@@ -32,15 +44,15 @@ export {
   staticGenerationAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
-  staticGenerationBailout,
-  createSearchParamsBailoutProxy,
+  createUntrackedSearchParams,
+  createDynamicallyTrackedSearchParams,
   serverHooks,
-  renderToReadableStream,
-  decodeReply,
-  decodeAction,
   preloadStyle,
   preloadFont,
   preconnect,
-  StaticGenerationSearchParamsBailoutProvider,
+  Postpone,
+  taintObjectReference,
+  ClientPageRoot,
   NotFoundBoundary,
+  patchFetch,
 }

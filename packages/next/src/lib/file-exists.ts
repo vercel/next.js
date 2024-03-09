@@ -1,4 +1,4 @@
-import { constants, promises } from 'fs'
+import { existsSync, promises } from 'fs'
 import isError from './is-error'
 
 export enum FileType {
@@ -17,10 +17,9 @@ export async function fileExists(
     } else if (type === FileType.Directory) {
       const stats = await promises.stat(fileName)
       return stats.isDirectory()
-    } else {
-      await promises.access(fileName, constants.F_OK)
     }
-    return true
+
+    return existsSync(fileName)
   } catch (err) {
     if (
       isError(err) &&

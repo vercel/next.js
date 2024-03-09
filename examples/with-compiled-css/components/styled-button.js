@@ -1,4 +1,4 @@
-import { styled } from '@compiled/react'
+import { styled } from "@compiled/react";
 
 export const Button = styled.button`
   color: ${(props) => props.color};
@@ -8,4 +8,4 @@ export const Button = styled.button`
   width: 100%;
   font-family: sans-serif;
   border: 1px solid ${(props) => props.color};
-`
+`;

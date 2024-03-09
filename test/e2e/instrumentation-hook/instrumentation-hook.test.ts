@@ -10,11 +10,6 @@ const describeCase = (
     caseName,
     {
       files: path.join(__dirname, caseName),
-      nextConfig: {
-        experimental: {
-          instrumentationHook: true,
-        },
-      },
       skipDeployment: true,
     },
     callback

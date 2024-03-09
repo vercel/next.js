@@ -30,7 +30,7 @@ const runTests = () => {
 }
 
 describe('Auto Export _error bail', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
   })
 })

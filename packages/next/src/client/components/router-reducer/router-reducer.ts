@@ -4,11 +4,13 @@ import {
   ACTION_RESTORE,
   ACTION_REFRESH,
   ACTION_PREFETCH,
+  ACTION_FAST_REFRESH,
+  ACTION_SERVER_ACTION,
+} from './router-reducer-types'
+import type {
   ReducerActions,
   ReducerState,
   ReadonlyReducerState,
-  ACTION_FAST_REFRESH,
-  ACTION_SERVER_ACTION,
 } from './router-reducer-types'
 import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'

@@ -1,12 +1,17 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
+use indexmap::indexmap;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, reference_type::ReferenceType,
+            asset::{Asset, AssetContent},
+            context::AssetContext,
+            module::Module,
+            reference_type::ReferenceType,
+            source::Source,
             virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
@@ -17,12 +22,13 @@ use turbopack_binding::{
 use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
-    loader_tree::{LoaderTreeModule, ServerComponentTransition},
-    mode::NextMode,
+    loader_tree::LoaderTreeModule,
     next_app::{AppPage, AppPath},
+    next_config::NextConfig,
+    next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+    util::{file_content_rope, load_next_js_template, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -33,8 +39,9 @@ pub async fn get_app_page_entry(
     loader_tree: Vc<LoaderTree>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
+    let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
@@ -44,13 +51,10 @@ pub async fn get_app_page_entry(
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
-    let loader_tree = LoaderTreeModule::build(
-        loader_tree,
-        context,
-        ServerComponentTransition::Transition(server_component_transition),
-        NextMode::Build,
-    )
-    .await?;
+    let base_path = next_config.await?.base_path.clone();
+    let loader_tree =
+        LoaderTreeModule::build(loader_tree, context, server_component_transition, base_path)
+            .await?;
 
     let LoaderTreeModule {
         inner_assets,
@@ -70,68 +74,55 @@ pub async fn get_app_page_entry(
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
-    let template_file = "app-page.js";
-
     // Load the file from the next.js codebase.
-    let file = load_next_js_template(project_root, template_file.to_string()).await?;
+    let source = load_next_js_template(
+        "app-page.js",
+        project_root,
+        indexmap! {
+            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
+            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
+            // TODO(alexkirsz) Support custom global error.
+            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".to_string(),
+        },
+        indexmap! {
+            "tree" => loader_tree_code,
+            "pages" => StringifyJs(&pages).to_string(),
+            "__next_app_require__" => "__turbopack_require__".to_string(),
+            "__next_app_load_chunk__" => " __turbopack_load__".to_string(),
+        },
+        indexmap! {},
+    )
+    .await?;
 
-    let mut file = file
-        .to_str()?
-        .replace(
-            "\"VAR_DEFINITION_PAGE\"",
-            &StringifyJs(&page.to_string()).to_string(),
-        )
-        .replace(
-            "\"VAR_DEFINITION_PATHNAME\"",
-            &StringifyJs(&pathname).to_string(),
-        )
-        .replace(
-            "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_name).to_string(),
-        )
-        // TODO(alexkirsz) Support custom global error.
-        .replace(
-            "\"VAR_MODULE_GLOBAL_ERROR\"",
-            &StringifyJs("next/dist/client/components/error-boundary").to_string(),
-        )
-        .replace(
-            "// INJECT:tree",
-            format!("const tree = {};", loader_tree_code).as_str(),
-        )
-        .replace(
-            "// INJECT:pages",
-            format!("const pages = {};", StringifyJs(&pages)).as_str(),
-        )
-        .replace(
-            "// INJECT:__next_app_require__",
-            "const __next_app_require__ = __turbopack_require__",
-        )
-        .replace(
-            "// INJECT:__next_app_load_chunk__",
-            "const __next_app_load_chunk__ = __turbopack_load__",
-        );
+    let source_content = &*file_content_rope(source.content().file_content()).await?;
 
-    // Ensure that the last line is a newline.
-    if !file.ends_with('\n') {
-        file.push('\n');
-    }
+    result.concat(source_content);
 
-    result.concat(&file.into());
+    let query = qstring::QString::new(vec![("page", page.to_string())]);
 
     let file = File::from(result.build());
-
-    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
-
-    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
-
-    let rsc_entry = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    let source = VirtualSource::new_with_ident(
+        source.ident().with_query(Vc::cell(query.to_string())),
+        AssetContent::file(file.into()),
     );
 
+    let mut rsc_entry = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
+
     if is_edge {
-        todo!("edge pages are not supported yet")
-    }
+        rsc_entry = wrap_edge_page(
+            Vc::upcast(context),
+            project_root,
+            rsc_entry,
+            page,
+            next_config,
+        );
+    };
 
     let Some(rsc_entry) =
         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
@@ -140,10 +131,79 @@ pub async fn get_app_page_entry(
     };
 
     Ok(AppEntry {
-        pathname: pathname.to_string(),
+        pathname,
         original_name,
         rsc_entry,
         config,
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+async fn wrap_edge_page(
+    context: Vc<Box<dyn AssetContext>>,
+    project_root: Vc<FileSystemPath>,
+    entry: Vc<Box<dyn Module>>,
+    page: AppPage,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<Box<dyn Module>>> {
+    const INNER: &str = "INNER_PAGE_ENTRY";
+
+    let next_config = &*next_config.await?;
+
+    // TODO(WEB-1824): add build support
+    let build_id = "development";
+    let dev = true;
+
+    // TODO(timneutkens): remove this
+    let is_server_component = true;
+
+    let server_actions = next_config.experimental.server_actions.as_ref();
+
+    let sri_enabled = !dev
+        && next_config
+            .experimental
+            .sri
+            .as_ref()
+            .map(|sri| sri.algorithm.as_ref())
+            .is_some();
+
+    let source = load_next_js_template(
+        "edge-ssr-app.js",
+        project_root,
+        indexmap! {
+            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_PAGE" => page.to_string(),
+            "VAR_BUILD_ID" => build_id.to_string(),
+        },
+        indexmap! {
+            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
+            "nextConfig" => serde_json::to_string(next_config)?,
+            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
+            "dev" => serde_json::Value::Bool(dev).to_string(),
+            "serverActions" => serde_json::to_string(&server_actions)?
+        },
+        indexmap! {
+            "incrementalCacheHandler" => None,
+        },
+    )
+    .await?;
+
+    let inner_assets = indexmap! {
+        INNER.to_string() => entry
+    };
+
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
+
+    Ok(wrap_edge_entry(
+        context,
+        project_root,
+        wrapped,
+        AppPath::from(page).to_string(),
+    ))
 }

@@ -98,16 +98,6 @@ export class TerserPlugin {
               return false
             }
 
-            // don't minify _middleware as it can break in some cases
-            // and doesn't provide too much of a benefit as it's server-side
-            if (
-              name.match(
-                /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/
-              )
-            ) {
-              return false
-            }
-
             const { info } = res
 
             // Skip double minimize assets from child compilation
@@ -128,11 +118,11 @@ export class TerserPlugin {
             }
 
             if (debugMinify && debugMinify === '1') {
-              console.dir(
-                {
+              console.log(
+                JSON.stringify({
                   name,
                   source: source.source().toString(),
-                },
+                }),
                 {
                   breakLength: Infinity,
                   maxStringLength: Infinity,

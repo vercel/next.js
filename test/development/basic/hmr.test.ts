@@ -5,12 +5,14 @@ import {
   check,
   getBrowserBodyText,
   getRedboxHeader,
+  getRedboxDescription,
   getRedboxSource,
   hasRedbox,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { outdent } from 'outdent'
 
@@ -21,10 +23,7 @@ describe.each([[''], ['/docs']])(
 
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'hmr/pages')),
-          components: new FileRef(join(__dirname, 'hmr/components')),
-        },
+        files: join(__dirname, 'hmr'),
         nextConfig: {
           basePath,
         },
@@ -483,85 +482,153 @@ describe.each([[''], ['/docs']])(
       })
 
       it('should detect syntax errors and recover', async () => {
-        let browser
+        const browser = await webdriver(next.url, basePath + '/hmr/about2')
         const aboutPage = join('pages', 'hmr', 'about2.js')
         const aboutContent = await next.readFile(aboutPage)
-        try {
-          browser = await webdriver(next.url, basePath + '/hmr/about2')
-          await check(
-            () => getBrowserBodyText(browser),
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
             /This is the about page/
           )
+        })
 
-          await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
+        await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
+        expect(await hasRedbox(browser)).toBe(true)
+        const source = next.normalizeTestDirContent(
+          await getRedboxSource(browser)
+        )
+        if (basePath === '' && !process.env.TURBOPACK) {
+          expect(source).toMatchInlineSnapshot(`
+            "./pages/hmr/about2.js
+            Error: 
+              x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               ,-[TEST_DIR/pages/hmr/about2.js:4:1]
+             4 |       <p>This is the about page.</p>
+             5 |     div
+             6 |   )
+             7 | }
+               : ^
+               \`----
 
-          await next.patchFile(aboutPage, aboutContent)
+              x Unexpected eof
+               ,-[TEST_DIR/pages/hmr/about2.js:5:1]
+             5 |     div
+             6 |   )
+             7 | }
+               \`----
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+            Caused by:
+                Syntax Error
 
-          expect(next.cliOutput).toContain('Compiled /_error')
-        } catch (err) {
-          await next.patchFile(aboutPage, aboutContent)
-          if (browser) {
-            await check(
-              () => getBrowserBodyText(browser),
-              /This is the about page/
-            )
-          }
+            Import trace for requested module:
+            ./pages/hmr/about2.js"
+          `)
+        } else if (basePath === '' && process.env.TURBOPACK) {
+          expect(source).toMatchInlineSnapshot(`
+            "./pages/hmr/about2.js:7:1
+            Parsing ecmascript source code failed
+              5 |     div
+              6 |   )
+            > 7 | }
+                | ^
+              8 |
 
-          throw err
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
+            Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+          `)
+        } else if (basePath === '/docs' && !process.env.TURBOPACK) {
+          expect(source).toMatchInlineSnapshot(`
+            "./pages/hmr/about2.js
+            Error: 
+              x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               ,-[TEST_DIR/pages/hmr/about2.js:4:1]
+             4 |       <p>This is the about page.</p>
+             5 |     div
+             6 |   )
+             7 | }
+               : ^
+               \`----
+
+              x Unexpected eof
+               ,-[TEST_DIR/pages/hmr/about2.js:5:1]
+             5 |     div
+             6 |   )
+             7 | }
+               \`----
+
+            Caused by:
+                Syntax Error
+
+            Import trace for requested module:
+            ./pages/hmr/about2.js"
+          `)
+        } else if (basePath === '/docs' && process.env.TURBOPACK) {
+          expect(source).toMatchInlineSnapshot(`
+            "./pages/hmr/about2.js:7:1
+            Parsing ecmascript source code failed
+              5 |     div
+              6 |   )
+            > 7 | }
+                | ^
+              8 |
+
+            Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+          `)
         }
+
+        await next.patchFile(aboutPage, aboutContent)
+
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
       })
 
-      it('should show the error on all pages', async () => {
-        const aboutPage = join('pages', 'hmr', 'about2.js')
-        const aboutContent = await next.readFile(aboutPage)
-        let browser
-        try {
-          await renderViaHTTP(next.url, basePath + '/hmr/about2')
+      if (!process.env.TURBOPACK) {
+        // Turbopack doesn't have this restriction
+        it('should show the error on all pages', async () => {
+          const aboutPage = join('pages', 'hmr', 'about2.js')
+          const aboutContent = await next.readFile(aboutPage)
+          let browser
+          try {
+            await renderViaHTTP(next.url, basePath + '/hmr/about2')
 
-          await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
+            await next.patchFile(
+              aboutPage,
+              aboutContent.replace('</div>', 'div')
+            )
 
-          // Ensure dev server has time to break:
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+            // Ensure dev server has time to break:
+            await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          browser = await webdriver(next.url, basePath + '/hmr/contact')
+            browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
+            expect(await hasRedbox(browser)).toBe(true)
+            expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
-          await next.patchFile(aboutPage, aboutContent)
+            await next.patchFile(aboutPage, aboutContent)
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the contact page/
-          )
-        } catch (err) {
-          await next.patchFile(aboutPage, aboutContent)
-          if (browser) {
             await check(
               () => getBrowserBodyText(browser),
               /This is the contact page/
             )
-          }
+          } catch (err) {
+            await next.patchFile(aboutPage, aboutContent)
+            if (browser) {
+              await check(
+                () => getBrowserBodyText(browser),
+                /This is the contact page/
+              )
+            }
 
-          throw err
-        } finally {
-          if (browser) {
-            await browser.close()
+            throw err
+          } finally {
+            if (browser) {
+              await browser.close()
+            }
           }
-        }
-      })
+        })
+      }
 
       it('should detect runtime errors on the module scope', async () => {
         let browser
@@ -579,7 +646,7 @@ describe.each([[''], ['/docs']])(
             aboutContent.replace('export', 'aa=20;\nexport')
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -615,7 +682,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -660,15 +727,10 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
-                      Server Error
-
-                      Error: The default export is not a React Component in page: \\"/hmr/about5\\"
-
-                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
-                  `)
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: The default export is not a React Component in page: "/hmr/about5""`
+          )
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -713,7 +775,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           // TODO: Replace this when webpack 5 is the default
           expect(await getRedboxHeader(browser)).toMatch(
             `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -763,15 +825,10 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
-                      Server Error
-
-                      Error: The default export is not a React Component in page: \\"/hmr/about7\\"
-
-                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
-                  `)
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: The default export is not a React Component in page: "/hmr/about7""`
+          )
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -779,7 +836,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
 
@@ -818,10 +875,8 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
-            `"Failed to compile"`
-          )
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
                       Module parse failed: Unexpected token (3:0)
@@ -843,7 +898,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
 
@@ -882,22 +937,33 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
-            `"Failed to compile"`
-          )
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
           let redboxSource = await getRedboxSource(browser)
 
           redboxSource = redboxSource.replace(`${next.testDir}`, '.')
-          redboxSource = redboxSource.substring(
-            0,
-            redboxSource.indexOf('`----')
-          )
+          if (process.env.TURBOPACK) {
+            expect(next.normalizeTestDirContent(redboxSource))
+              .toMatchInlineSnapshot(`
+              "./components/parse-error.js:3:1
+              Parsing ecmascript source code failed
+                1 | This
+                2 | is
+              > 3 | }}}
+                  | ^
+                4 | invalid
+                5 | js
 
-          expect(
-            next.normalizeTestDirContent(redboxSource)
-          ).toMatchInlineSnapshot(
-            next.normalizeSnapshot(`
+              Expression expected"
+            `)
+          } else {
+            redboxSource = redboxSource.substring(
+              0,
+              redboxSource.indexOf('`----')
+            )
+
+            expect(next.normalizeTestDirContent(redboxSource))
+              .toMatchInlineSnapshot(`
               "./components/parse-error.js
               Error: 
                 x Expression expected
@@ -910,7 +976,7 @@ describe.each([[''], ['/docs']])(
                5 | js
                  "
             `)
-          )
+          }
 
           await next.patchFile(aboutPage, aboutContent)
 
@@ -918,7 +984,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
 
@@ -927,10 +993,6 @@ describe.each([[''], ['/docs']])(
               () => getBrowserBodyText(browser),
               /This is the about page/
             )
-          }
-
-          if (!process.env.NEXT_SWC_DEV_BIN) {
-            throw err
           }
         } finally {
           if (browser) {
@@ -947,13 +1009,10 @@ describe.each([[''], ['/docs']])(
           browser = await webdriver(next.url, basePath + '/hmr')
           await browser.elementByCss('#error-in-gip-link').click()
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-            " 1 of 1 unhandled error
-            Unhandled Runtime Error
-
-            Error: an-expected-error-in-gip"
-          `)
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: an-expected-error-in-gip"`
+          )
 
           await next.patchFile(
             erroredPage,
@@ -991,15 +1050,10 @@ describe.each([[''], ['/docs']])(
         try {
           browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
-                      Server Error
-
-                      Error: an-expected-error-in-gip
-
-                      This error happened while generating the page. Any console logs will be displayed in the terminal window."
-                  `)
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+            `"Error: an-expected-error-in-gip"`
+          )
 
           const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
 
@@ -1119,13 +1173,15 @@ describe.each([[''], ['/docs']])(
       })
     })
 
-    it('should have client HMR events in trace file', async () => {
-      const traceData = await next.readFile('.next/trace')
-      expect(traceData).toContain('client-hmr-latency')
-      expect(traceData).toContain('client-error')
-      expect(traceData).toContain('client-success')
-      expect(traceData).toContain('client-full-reload')
-    })
+    if (!process.env.TURBOPACK) {
+      it('should have client HMR events in trace file', async () => {
+        const traceData = await next.readFile('.next/trace')
+        expect(traceData).toContain('client-hmr-latency')
+        expect(traceData).toContain('client-error')
+        expect(traceData).toContain('client-success')
+        expect(traceData).toContain('client-full-reload')
+      })
+    }
 
     it('should have correct compile timing after fixing error', async () => {
       const pageName = 'pages/auto-export-is-ready.js'
@@ -1141,7 +1197,7 @@ describe.each([[''], ['/docs']])(
           pageName,
           `import hello from 'non-existent'\n` + originalContent
         )
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         await waitFor(3000)
         await next.patchFile(pageName, originalContent)
         await check(
@@ -1155,7 +1211,7 @@ describe.each([[''], ['/docs']])(
         ]
         const [, compileTime, timeUnit] = matches
 
-        let compileTimeMs = parseFloat(compileTime[1])
+        let compileTimeMs = parseFloat(compileTime)
         if (timeUnit === 's') {
           compileTimeMs = compileTimeMs * 1000
         }

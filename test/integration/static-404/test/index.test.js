@@ -26,19 +26,22 @@ describe('Static 404 page', () => {
   beforeEach(() => fs.remove(join(appDir, '.next/server')))
 
   describe('With config enabled', () => {
-    it('should export 404 page without custom _error', async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      const html = await renderViaHTTP(appPort, '/non-existent')
-      await killApp(app)
-      expect(html).toContain('This page could not be found')
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('should export 404 page without custom _error', async () => {
+          await nextBuild(appDir)
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+          const html = await renderViaHTTP(appPort, '/non-existent')
+          await killApp(app)
+          expect(html).toContain('This page could not be found')
+        })
 
-    it('should not export 404 page with custom _error GIP', async () => {
-      await fs.writeFile(
-        errorPage,
-        `
+        it('should not export 404 page with custom _error GIP', async () => {
+          await fs.writeFile(
+            errorPage,
+            `
         import Error from 'next/error'
         export default class MyError extends Error {
           static getInitialProps({ statusCode, req }) {
@@ -51,24 +54,26 @@ describe('Static 404 page', () => {
           }
         }
       `
-      )
-      await nextBuild(appDir, undefined, { stderr: true, stdout: true })
-      await fs.remove(errorPage)
-    })
+          )
+          await nextBuild(appDir, undefined, { stderr: true, stdout: true })
+          await fs.remove(errorPage)
+        })
 
-    it('should not export 404 page with getInitialProps in _app', async () => {
-      await fs.writeFile(
-        appPage,
-        `
+        it('should not export 404 page with getInitialProps in _app', async () => {
+          await fs.writeFile(
+            appPage,
+            `
         const Page = ({ Component, pageProps }) => {
           return <Component {...pageProps} />
         }
         Page.getInitialProps = () => ({ hello: 'world', pageProps: {} })
         export default Page
       `
-      )
-      await nextBuild(appDir)
-      await fs.remove(appPage)
-    })
+          )
+          await nextBuild(appDir)
+          await fs.remove(appPage)
+        })
+      }
+    )
   })
 })

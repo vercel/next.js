@@ -6,6 +6,7 @@ related:
   links:
     - app/api-reference/functions/generate-metadata
     - app/api-reference/file-conventions/metadata
+    - app/api-reference/functions/generate-viewport
 ---
 
 Next.js has a Metadata API that can be used to define your application metadata (e.g. `meta` and `link` tags inside your HTML `head` element) for improved SEO and web shareability.
@@ -21,7 +22,7 @@ With both these options, Next.js will automatically generate the relevant `<head
 
 To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a `layout.js` or static `page.js` file.
 
-```tsx filename="layout.tsx / page.tsx" switcher
+```tsx filename="layout.tsx | page.tsx" switcher
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 export default function Page() {}
 ```
 
-```jsx filename="layout.js / page.js" switcher
+```jsx filename="layout.js | page.js" switcher
 export const metadata = {
   title: '...',
   description: '...',
@@ -120,7 +121,7 @@ These special files are available for metadata:
 
 You can use these for static metadata, or you can programmatically generate these files with code.
 
-For implementation and examples, see the [Metadata Files](/docs/app/api-reference/functions/generate-metadata) API Reference and [Dynamic Image Generation](#dynamic-image-generation).
+For implementation and examples, see the [Metadata Files](/docs/app/api-reference/file-conventions/metadata) API Reference and [Dynamic Image Generation](#dynamic-image-generation).
 
 ## Behavior
 
@@ -248,10 +249,10 @@ The `ImageResponse` constructor allows you to generate dynamic images using JSX 
 
 `ImageResponse` uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime), and Next.js automatically adds the correct headers to cached images at the edge, helping improve performance and reducing recomputation.
 
-To use it, you can import `ImageResponse` from `next/server`:
+To use it, you can import `ImageResponse` from `next/og`:
 
 ```jsx filename="app/about/route.js"
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 

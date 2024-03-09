@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import 'flat-map-polyfill'
 import { remove } from 'fs-extra'
 import {
   check,

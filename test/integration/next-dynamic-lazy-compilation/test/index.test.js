@@ -46,32 +46,38 @@ function runTests() {
   })
 }
 
-describe('next/dynamic', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests(true)
-  })
-
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await runNextCommand(['build', appDir])
-
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
+// This test is not needed for Turbopack as it relies on an experimental webpack feature.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'next/dynamic lazy compilation',
+  () => {
+    describe('dev mode', () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
+      afterAll(() => killApp(app))
 
-      server = await startApp(app)
-      appPort = server.address().port
+      runTests(true)
     })
-    afterAll(() => stopApp(server))
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await runNextCommand(['build', appDir])
 
-    runTests()
-  })
-})
+          app = nextServer({
+            dir: appDir,
+            dev: false,
+            quiet: true,
+          })
+
+          server = await startApp(app)
+          appPort = server.address().port
+        })
+        afterAll(() => stopApp(server))
+
+        runTests()
+      }
+    )
+  }
+)

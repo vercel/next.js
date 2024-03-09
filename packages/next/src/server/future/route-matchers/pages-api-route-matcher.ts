@@ -1,4 +1,4 @@
-import { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
+import type { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
 import { LocaleRouteMatcher } from './locale-route-matcher'
 import { RouteMatcher } from './route-matcher'
 

@@ -70,7 +70,7 @@ const runTests = () => {
 }
 
 describe('Revalidate asPath Normalizing', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

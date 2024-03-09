@@ -16,16 +16,6 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react");
 
-var ReactVersion = '18.3.0-canary-2807d781a-20230918';
-
-var Internals = {
-  usingClientEntryPoint: false,
-  Events: null,
-  Dispatcher: {
-    current: null
-  }
-};
-
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 function error(format) {
@@ -63,6 +53,35 @@ function printWarning(level, format, args) {
 
     Function.prototype.apply.call(console[level], console, argsWithFormat);
   }
+}
+
+var ReactVersion = '18.3.0-canary-6c3b8dbfe-20240226';
+
+var Internals = {
+  usingClientEntryPoint: false,
+  Events: null,
+  Dispatcher: {
+    current: null
+  }
+};
+
+function getCrossOriginString(input) {
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+function getCrossOriginStringAs(as, input) {
+  if (as === 'font') {
+    return '';
+  }
+
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
 }
 
 var Dispatcher = Internals.Dispatcher;
@@ -104,7 +123,7 @@ function preconnect(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    var crossOrigin = options ? getCrossOrigin('preconnect', options.crossOrigin) : null;
+    var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
     dispatcher.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -135,7 +154,7 @@ function preload(href, options) {
   if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     dispatcher.preload(href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
@@ -174,7 +193,7 @@ function preloadModule(href, options) {
 
   if (dispatcher && typeof href === 'string') {
     if (options) {
-      var crossOrigin = getCrossOrigin(options.as, options.crossOrigin);
+      var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
       dispatcher.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
@@ -203,7 +222,7 @@ function preinit(href, options) {
 
   if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
@@ -265,21 +284,22 @@ function preinitModule(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    if (options == null || typeof options === 'object' && (options.as == null || options.as === 'script')) {
-      var crossOrigin = options ? getCrossOrigin(undefined, options.crossOrigin) : undefined;
-      dispatcher.preinitModuleScript(href, {
-        crossOrigin: crossOrigin,
-        integrity: options && typeof options.integrity === 'string' ? options.integrity : undefined
-      });
+    if (typeof options === 'object' && options !== null) {
+      if (options.as == null || options.as === 'script') {
+        var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
+        dispatcher.preinitModuleScript(href, {
+          crossOrigin: crossOrigin,
+          integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
+          nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+        });
+      }
+    } else if (options == null) {
+      dispatcher.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
-}
-
-function getCrossOrigin(as, crossOrigin) {
-  return as === 'font' ? '' : typeof crossOrigin === 'string' ? crossOrigin === 'use-credentials' ? 'use-credentials' : '' : undefined;
 }
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
@@ -290,14 +310,37 @@ function getValueDescriptorExpectingEnumForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : typeof thing === 'number' ? '`' + thing + '`' : "something with type \"" + typeof thing + "\"";
 }
 
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher; // Since the "not pending" value is always the same, we can reuse the
+
+function resolveDispatcher() {
+  // Copied from react/src/ReactHooks.js. It's the same thing but in a
+  // different package.
+  var dispatcher = ReactCurrentDispatcher.current;
+
+  {
+    if (dispatcher === null) {
+      error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+    }
+  } // Will result in a null access error if accessed outside render phase. We
+  // intentionally don't throw our own error because this is in a hot path.
+  // Also helps ensure this is inlined.
+
+
+  return dispatcher;
+}
+
 function useFormStatus() {
   {
-    throw new Error('Not implemented.');
+    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] We know this exists because of the feature check above.
+
+    return dispatcher.useHostTransitionStatus();
   }
 }
 function useFormState(action, initialState, permalink) {
   {
-    throw new Error('Not implemented.');
+    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+    return dispatcher.useFormState(action, initialState, permalink);
   }
 }
 
@@ -315,10 +358,25 @@ function batchedUpdates(fn, a) {
   return fn(a);
 }
 
+function experimental_useFormStatus() {
+  {
+    error('useFormStatus is now in canary. Remove the experimental_ prefix. ' + 'The prefixed alias will be removed in an upcoming release.');
+  }
+
+  return useFormStatus();
+}
+function experimental_useFormState(action, initialState, permalink) {
+  {
+    error('useFormState is now in canary. Remove the experimental_ prefix. ' + 'The prefixed alias will be removed in an upcoming release.');
+  }
+
+  return useFormState(action, initialState, permalink);
+}
+
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal;
-exports.experimental_useFormState = useFormState;
-exports.experimental_useFormStatus = useFormStatus;
+exports.experimental_useFormState = experimental_useFormState;
+exports.experimental_useFormStatus = experimental_useFormStatus;
 exports.flushSync = flushSync;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
@@ -327,6 +385,8 @@ exports.preinitModule = preinitModule;
 exports.preload = preload;
 exports.preloadModule = preloadModule;
 exports.unstable_batchedUpdates = batchedUpdates;
+exports.useFormState = useFormState;
+exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
   })();
 }

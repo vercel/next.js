@@ -62,7 +62,7 @@ createNextDescribe(
         '/static/three/data.json',
       ])('responds correctly on %s', async (path) => {
         expect(JSON.parse(await next.render(basePath + path))).toEqual({
-          params: { slug: path.split('/')[2] },
+          params: { slug: path.split('/', 3)[2] },
           now: expect.any(Number),
         })
         if (isNextStart) {
@@ -85,7 +85,7 @@ createNextDescribe(
       ])('revalidates correctly on %s', async (path) => {
         const data = JSON.parse(await next.render(basePath + path))
         expect(data).toEqual({
-          params: { slug: path.split('/')[2] },
+          params: { slug: path.split('/', 3)[2] },
           now: expect.any(Number),
         })
 
@@ -423,6 +423,19 @@ createNextDescribe(
         })
       })
 
+      describe('req.cookies', () => {
+        it('gets the correct values', async () => {
+          const res = await next.fetch(basePath + '/hooks/cookies/req', {
+            headers: cookieWithRequestMeta({ ping: 'pong' }),
+          })
+
+          expect(res.status).toEqual(200)
+
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
+      })
+
       describe('cookies().has()', () => {
         it('gets the correct values', async () => {
           const res = await next.fetch(basePath + '/hooks/cookies/has')
@@ -447,9 +460,30 @@ createNextDescribe(
         })
       })
 
-      describe('notFound', () => {
+      describe('permanentRedirect', () => {
         it('can respond correctly', async () => {
+          const res = await next.fetch(basePath + '/hooks/permanent-redirect', {
+            // "Manually" perform the redirect, we want to inspect the
+            // redirection response, so don't actually follow it.
+            redirect: 'manual',
+          })
+
+          expect(res.status).toEqual(308)
+          expect(res.headers.get('location')).toEqual('https://nextjs.org/')
+          expect(await res.text()).toBeEmpty()
+        })
+      })
+
+      describe('notFound', () => {
+        it('can respond correctly in nodejs', async () => {
           const res = await next.fetch(basePath + '/hooks/not-found')
+
+          expect(res.status).toEqual(404)
+          expect(await res.text()).toBeEmpty()
+        })
+
+        it('can respond correctly in edge', async () => {
+          const res = await next.fetch(basePath + '/hooks/not-found/edge')
 
           expect(res.status).toEqual(404)
           expect(await res.text()).toBeEmpty()
@@ -589,45 +623,25 @@ createNextDescribe(
     })
 
     if (isNextDev) {
-      describe('lowercase exports', () => {
-        it.each([
-          ['get'],
-          ['head'],
-          ['options'],
-          ['post'],
-          ['put'],
-          ['delete'],
-          ['patch'],
-        ])(
-          'should print an error when using lowercase %p in dev',
-          async (method: string) => {
-            await next.fetch(basePath + '/lowercase/' + method)
-
-            await check(() => {
-              expect(next.cliOutput).toContain(
-                `Detected lowercase method '${method}' in`
-              )
-              expect(next.cliOutput).toContain(
-                `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
-              )
-              expect(next.cliOutput).toMatch(
-                /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
-              )
-              return 'yes'
-            }, 'yes')
-          }
-        )
-      })
-
       describe('invalid exports', () => {
+        beforeAll(async () => {
+          await next.patchFile(
+            'app/default/route.ts',
+            `\
+          export { GET as default } from '../../handlers/hello'
+          `
+          )
+        })
+        afterAll(async () => {
+          await next.deleteFile('app/default/route.ts')
+        })
         it('should print an error when exporting a default handler in dev', async () => {
-          const res = await next.fetch(basePath + '/default')
+          await check(async () => {
+            const res = await next.fetch(basePath + '/default')
 
-          // Ensure we get a 405 (Method Not Allowed) response when there is no
-          // exported handler for the GET method.
-          expect(res.status).toEqual(405)
-
-          await check(() => {
+            // Ensure we get a 405 (Method Not Allowed) response when there is no
+            // exported handler for the GET method.
+            expect(res.status).toEqual(405)
             expect(next.cliOutput).toMatch(
               /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
             )
@@ -650,6 +664,13 @@ createNextDescribe(
           )
           return 'yes'
         }, 'yes')
+      })
+    })
+
+    describe('no bundle error', () => {
+      it('should not print bundling warning about React', async () => {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).not.toContain('Attempted import error')
       })
     })
   }

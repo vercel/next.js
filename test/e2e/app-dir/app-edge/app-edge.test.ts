@@ -55,10 +55,20 @@ createNextDescribe(
         next.on('stderr', (log) => {
           logs.push(log)
         })
-        await next.render('app-edge')
+        await next.render('/app-edge')
         expect(
           logs.some((log) => log.includes(`Attempted import error:`))
         ).toBe(false)
+      })
+
+      it('should resolve client component without error', async () => {
+        const logs = []
+        next.on('stderr', (log) => {
+          logs.push(log)
+        })
+        const html = await next.render('/with-client')
+        expect(html).toContain('My Button')
+        expect(logs).toEqual([])
       })
 
       it('should handle edge rsc hmr', async () => {

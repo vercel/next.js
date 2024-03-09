@@ -1,8 +1,8 @@
-import { useUser } from '@auth0/nextjs-auth0/client'
-import Layout from '../components/layout'
+import { useUser } from "@auth0/nextjs-auth0/client";
+import Layout from "../components/layout";
 
 const Home = () => {
-  const { user, isLoading } = useUser()
+  const { user, isLoading } = useUser();
 
   return (
     <Layout user={user} loading={isLoading}>
@@ -32,8 +32,8 @@ const Home = () => {
         </>
       )}
     </Layout>
-  )
-}
+  );
+};
 
 // fast/cached SSR page
-export default Home
+export default Home;

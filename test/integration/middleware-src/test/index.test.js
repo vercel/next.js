@@ -4,17 +4,17 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import {
   fetchViaHTTP,
+  File,
   findPort,
   launchApp,
   killApp,
   nextBuild,
-  nextStart,
-  nextExport,
 } from 'next-test-utils'
 
 let app
 let appPort
 const appDir = join(__dirname, '../')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 const srcHeader = 'X-From-Src-Middleware'
 const rootHeader = 'X-From-Root-Middleware'
 const rootMiddlewareJSFile = join(appDir, 'middleware.js')
@@ -99,37 +99,27 @@ describe.each([
 
     runTest()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let exportOutput = ''
 
     beforeAll(async () => {
-      await nextBuild(appDir)
+      nextConfig.write(`module.exports = { output: 'export' }`)
+      const result = await nextBuild(appDir, [], {
+        stderr: true,
+        stdout: true,
+      })
 
       const outdir = join(__dirname, '..', 'out')
       await fs.remove(outdir).catch(() => {})
 
-      const result = await nextExport(
-        appDir,
-        { outdir },
-        {
-          stderr: true,
-          stdout: true,
-        }
-      )
       exportOutput = result.stderr + result.stdout
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(() => nextConfig.delete())
 
     it('should warn about middleware on export', async () => {
       expect(exportOutput).toContain(
         'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
       )
     })
-
-    runTest()
   })
 })

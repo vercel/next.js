@@ -4,20 +4,18 @@ title: Opt-out of Automatic Static Optimization
 
 #### Why This Warning Occurred
 
-You are using `getInitialProps` in your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app).
+You are using `getInitialProps` in your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) file.
 
-This causes **all non-getStaticProps pages** to be executed on the server -- disabling [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization).
+This causes **all pages** that do not use [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) into Server-side Rendering (at runtime) and disables [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization).
 
 ## Possible Ways to Fix It
 
-Be sure you meant to use `getInitialProps` in `pages/_app`!
-There are some valid use cases for this, but it is often better to handle `getInitialProps` on a _per-page_ basis.
+Verify if you need to use `getInitialProps` in `pages/_app`. There are some valid use cases for this, but it's often better to use `getInitialProps` in individual pages.
 
-Check for any [higher-order components](https://reactjs.org/docs/higher-order-components.html) that may have added `getInitialProps` to your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app).
+- Check for any [higher-order components](https://reactjs.org/docs/higher-order-components.html) that may have added `getInitialProps` to your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app).
+- If you previously copied the [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) example from the old docs, you can remove `getInitialProps`.
 
-If you previously copied the [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) example, you may be able to remove your `getInitialProps`.
-
-The following `getInitialProps` does nothing and may be removed:
+The following `getInitialProps` can be removed:
 
 ```js filename="pages/_app.js"
 class MyApp extends App {

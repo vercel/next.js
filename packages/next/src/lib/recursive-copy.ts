@@ -1,5 +1,6 @@
 import path from 'path'
-import { promises, constants, Dirent, Stats } from 'fs'
+import type { Dirent, Stats } from 'fs'
+import { promises, constants } from 'fs'
 import { Sema } from 'next/dist/compiled/async-sema'
 import isError from './is-error'
 

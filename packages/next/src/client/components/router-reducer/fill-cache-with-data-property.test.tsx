@@ -1,14 +1,12 @@
 import React from 'react'
-import { fetchServerResponse } from './fetch-server-response'
+import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<
-      ReturnType<typeof fetchServerResponse>
+      Promise<FetchServerResponseResult>
     > = jest.fn(() =>
       Promise.resolve([
         /* TODO-APP: replace with actual FlightData */ '',
@@ -24,15 +22,15 @@ describe('fillCacheWithDataProperty', () => {
       .flat()
 
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      lazyData: null,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -40,9 +38,9 @@ describe('fillCacheWithDataProperty', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -50,9 +48,9 @@ describe('fillCacheWithDataProperty', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -71,39 +69,39 @@ describe('fillCacheWithDataProperty', () => {
     )
 
     expect(cache).toMatchInlineSnapshot(`
-      Object {
-        "data": null,
+      {
+        "lazyData": null,
         "parallelRoutes": Map {
           "children" => Map {
-            "linking" => Object {
-              "data": null,
+            "linking" => {
+              "lazyData": null,
               "parallelRoutes": Map {
                 "children" => Map {
-                  "" => Object {
-                    "data": null,
+                  "" => {
+                    "lazyData": null,
                     "parallelRoutes": Map {},
-                    "status": "READY",
-                    "subTreeData": <React.Fragment>
+                    "prefetchRsc": null,
+                    "rsc": <React.Fragment>
                       Page
                     </React.Fragment>,
                   },
                 },
               },
-              "status": "READY",
-              "subTreeData": <React.Fragment>
+              "prefetchRsc": null,
+              "rsc": <React.Fragment>
                 Linking
               </React.Fragment>,
             },
-            "dashboard" => Object {
-              "data": Promise {},
+            "dashboard" => {
+              "lazyData": Promise {},
               "parallelRoutes": Map {},
-              "status": "DATAFETCH",
-              "subTreeData": null,
+              "prefetchRsc": null,
+              "rsc": null,
             },
           },
         },
-        "status": "LAZYINITIALIZED",
-        "subTreeData": null,
+        "prefetchRsc": null,
+        "rsc": null,
       }
     `)
   })

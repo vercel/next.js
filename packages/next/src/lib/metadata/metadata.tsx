@@ -1,3 +1,4 @@
+import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
@@ -6,7 +7,8 @@ import {
   AppleWebAppMeta,
   FormatDetectionMeta,
   ItunesMeta,
-  BasicMetadata,
+  BasicMeta,
+  ViewportMeta,
   VerificationMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
@@ -18,8 +20,14 @@ import {
 import { IconsMetadata } from './generate/icons'
 import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
-import { ResolvedMetadata } from './types/metadata-interface'
-import { createDefaultMetadata } from './default-metadata'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
+import {
+  createDefaultMetadata,
+  createDefaultViewport,
+} from './default-metadata'
 import { isNotFoundError } from '../../client/components/not-found'
 
 // Use a promise to share the status of the metadata resolving,
@@ -31,20 +39,27 @@ import { isNotFoundError } from '../../client/components/not-found'
 export function createMetadataComponents({
   tree,
   pathname,
-  searchParams,
+  trailingSlash,
+  query,
   getDynamicParamFromSegment,
-  appUsingSizeAdjust,
+  appUsingSizeAdjustment,
   errorType,
+  createDynamicallyTrackedSearchParams,
 }: {
   tree: LoaderTree
   pathname: string
-  searchParams: { [key: string]: any }
+  trailingSlash: boolean
+  query: ParsedUrlQuery
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjust: boolean
+  appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
+  createDynamicallyTrackedSearchParams: (
+    searchParams: ParsedUrlQuery
+  ) => ParsedUrlQuery
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
     pathname,
+    trailingSlash,
   }
 
   let resolve: (value: Error | undefined) => void | undefined
@@ -55,22 +70,27 @@ export function createMetadataComponents({
 
   async function MetadataTree() {
     const defaultMetadata = createDefaultMetadata()
+    const defaultViewport = createDefaultViewport()
     let metadata: ResolvedMetadata | undefined = defaultMetadata
+    let viewport: ResolvedViewport | undefined = defaultViewport
     let error: any
-    const errorMetadataItem: [null, null] = [null, null]
+    const errorMetadataItem: [null, null, null] = [null, null, null]
     const errorConvention = errorType === 'redirect' ? undefined : errorType
+    const searchParams = createDynamicallyTrackedSearchParams(query)
 
-    const [resolvedMetadata, resolvedError] = await resolveMetadata({
-      tree,
-      parentParams: {},
-      metadataItems: [],
-      errorMetadataItem,
-      searchParams,
-      getDynamicParamFromSegment,
-      errorConvention,
-      metadataContext,
-    })
+    const [resolvedError, resolvedMetadata, resolvedViewport] =
+      await resolveMetadata({
+        tree,
+        parentParams: {},
+        metadataItems: [],
+        errorMetadataItem,
+        searchParams,
+        getDynamicParamFromSegment,
+        errorConvention,
+        metadataContext,
+      })
     if (!resolvedError) {
+      viewport = resolvedViewport
       metadata = resolvedMetadata
       resolve(undefined)
     } else {
@@ -79,8 +99,8 @@ export function createMetadataComponents({
       // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
       // for not-found error: resolve not-found metadata
       if (!errorType && isNotFoundError(resolvedError)) {
-        const [notFoundMetadata, notFoundMetadataError] = await resolveMetadata(
-          {
+        const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
+          await resolveMetadata({
             tree,
             parentParams: {},
             metadataItems: [],
@@ -89,8 +109,8 @@ export function createMetadataComponents({
             getDynamicParamFromSegment,
             errorConvention: 'not-found',
             metadataContext,
-          }
-        )
+          })
+        viewport = notFoundViewport
         metadata = notFoundMetadata
         error = notFoundMetadataError || error
       }
@@ -98,7 +118,8 @@ export function createMetadataComponents({
     }
 
     const elements = MetaFilter([
-      BasicMetadata({ metadata }),
+      ViewportMeta({ viewport: viewport }),
+      BasicMeta({ metadata }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),
       FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
@@ -110,7 +131,7 @@ export function createMetadataComponents({
       IconsMetadata({ icons: metadata.icons }),
     ])
 
-    if (appUsingSizeAdjust) elements.push(<meta name="next-size-adjust" />)
+    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />)
 
     return (
       <>
@@ -129,6 +150,5 @@ export function createMetadataComponents({
     return null
   }
 
-  // @ts-expect-error async server components
   return [MetadataTree, MetadataOutlet]
 }

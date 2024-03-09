@@ -14,7 +14,10 @@ export type { NextInstance }
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest() ? (240 * 1000) / 4 : 240 * 1000
+let testTimeout = shouldRunTurboDevTest()
+  ? (240 * 1000) / 4
+  : (process.platform === 'win32' ? 240 : 120) * 1000
+
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
   try {
     testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
@@ -196,7 +199,14 @@ export async function createNext(
     try {
       nextInstance.destroy()
     } catch (_) {}
-    process.exit(1)
+
+    if (process.env.NEXT_TEST_CONTINUE_ON_ERROR) {
+      // Other test should continue to create new instance if NEXT_TEST_CONTINUE_ON_ERROR explicitly specified.
+      nextInstance = undefined
+      throw err
+    } else {
+      process.exit(1)
+    }
   } finally {
     flushAllTraces()
   }
@@ -244,6 +254,11 @@ export function nextTestSetup(
 
   const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
     get: function (_target, property) {
+      if (!next) {
+        throw new Error(
+          'next instance is not initialized yet, make sure you call methods on next instance in test body.'
+        )
+      }
       const prop = next[property]
       return typeof prop === 'function' ? prop.bind(next) : prop
     },
@@ -274,6 +289,9 @@ export function nextTestSetup(
   }
 }
 
+/**
+ * @deprecated use `nextTestSetup` directly.
+ */
 export function createNextDescribe(
   name: string,
   options: Parameters<typeof createNext>[0] & {

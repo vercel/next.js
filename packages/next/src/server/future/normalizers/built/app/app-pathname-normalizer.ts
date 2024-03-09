@@ -2,7 +2,7 @@ import { normalizeAppPath } from '../../../../../shared/lib/router/utils/app-pat
 import { Normalizers } from '../../normalizers'
 import { wrapNormalizerFn } from '../../wrap-normalizer-fn'
 import { UnderscoreNormalizer } from '../../underscore-normalizer'
-import { Normalizer } from '../../normalizer'
+import type { Normalizer } from '../../normalizer'
 
 export class AppPathnameNormalizer extends Normalizers {
   constructor() {

@@ -42,8 +42,7 @@ describe('bigint API route support', () => {
 
     runTests()
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
       await nextBuild(appDir)

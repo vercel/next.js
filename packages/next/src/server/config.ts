@@ -4,24 +4,107 @@ import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import {
-  defaultConfig,
-  normalizeConfig,
+import { defaultConfig, normalizeConfig } from './config-shared'
+import type {
   ExperimentalConfig,
   NextConfigComplete,
-  validateConfig,
   NextConfig,
   TurboLoaderItem,
 } from './config-shared'
+
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
+import { imageConfigDefault } from '../shared/lib/image-config'
+import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
+import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
-export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
+import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
+import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
+import { hasNextSupport } from '../telemetry/ci-info'
+
+export { normalizeConfig } from './config-shared'
+export type { DomainLocale, NextConfig } from './config-shared'
+
+function processZodErrorMessage(issue: ZodIssue) {
+  let message = issue.message
+
+  let path = ''
+
+  if (issue.path.length > 0) {
+    if (issue.path.length === 1) {
+      const identifier = issue.path[0]
+      if (typeof identifier === 'number') {
+        // The first identifier inside path is a number
+        path = `index ${identifier}`
+      } else {
+        path = `"${identifier}"`
+      }
+    } else {
+      // joined path to be shown in the error message
+      path = `"${issue.path.reduce<string>((acc, cur) => {
+        if (typeof cur === 'number') {
+          // array index
+          return `${acc}[${cur}]`
+        }
+        if (cur.includes('"')) {
+          // escape quotes
+          return `${acc}["${cur.replaceAll('"', '\\"')}"]`
+        }
+        // dot notation
+        const separator = acc.length === 0 ? '' : '.'
+        return acc + separator + cur
+      }, '')}"`
+    }
+  }
+
+  if (
+    issue.code === 'invalid_type' &&
+    issue.received === ZodParsedType.undefined
+  ) {
+    // missing key in object
+    return `${path} is missing, expected ${issue.expected}`
+  }
+  if (issue.code === 'invalid_enum_value') {
+    // Remove "Invalid enum value" prefix from zod default error message
+    return `Expected ${ZodUtil.joinValues(issue.options)}, received '${
+      issue.received
+    }' at ${path}`
+  }
+
+  return message + (path ? ` at ${path}` : '')
+}
+
+function normalizeZodErrors(
+  error: ZodError<NextConfig>
+): [errorMessages: string[], shouldExit: boolean] {
+  let shouldExit = false
+  return [
+    error.issues.flatMap((issue) => {
+      const messages = [processZodErrorMessage(issue)]
+      if (issue.path[0] === 'images') {
+        // We exit the build when encountering an error in the images config
+        shouldExit = true
+      }
+
+      if ('unionErrors' in issue) {
+        issue.unionErrors
+          .map(normalizeZodErrors)
+          .forEach(([unionMessages, unionShouldExit]) => {
+            messages.push(...unionMessages)
+            // If any of the union results shows exit the build, we exit the build
+            shouldExit = shouldExit || unionShouldExit
+          })
+      }
+
+      return messages
+    }),
+    shouldExit,
+  ]
+}
 
 export function warnOptionHasBeenDeprecated(
   config: NextConfig,
@@ -168,7 +251,26 @@ function assignDefaults(
     {}
   )
 
+  // TODO: remove once we've made PPR default
+  // If this was defaulted to true, it implies that the configuration was
+  // overridden for testing to be defaulted on.
+  if (defaultConfig.experimental?.ppr) {
+    Log.warn(
+      `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = { ...defaultConfig, ...config }
+
+  if (
+    result.experimental?.ppr &&
+    !process.env.__NEXT_VERSION!.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
+  ) {
+    throw new Error(
+      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
+    )
+  }
 
   if (result.output === 'export') {
     if (result.i18n) {
@@ -176,20 +278,23 @@ function assignDefaults(
         'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-i18n'
       )
     }
-    if (result.rewrites) {
-      throw new Error(
-        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
-    }
-    if (result.redirects) {
-      throw new Error(
-        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
-    }
-    if (result.headers) {
-      throw new Error(
-        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
+
+    if (!hasNextSupport) {
+      if (result.rewrites) {
+        Log.warn(
+          'Specified "rewrites" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
+      if (result.redirects) {
+        Log.warn(
+          'Specified "redirects" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
+      if (result.headers) {
+        Log.warn(
+          'Specified "headers" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
     }
   }
 
@@ -263,10 +368,10 @@ function assignDefaults(
       )
     }
 
-    if (images.domains) {
-      if (!Array.isArray(images.domains)) {
+    if (images.remotePatterns) {
+      if (!Array.isArray(images.remotePatterns)) {
         throw new Error(
-          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+          `Specified images.remotePatterns should be an Array received ${typeof images.remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
 
@@ -274,7 +379,33 @@ function assignDefaults(
       // so we need to ensure _next/image allows downloading from
       // this resource
       if (config.assetPrefix?.startsWith('http')) {
-        images.domains.push(new URL(config.assetPrefix).hostname)
+        try {
+          const url = new URL(config.assetPrefix)
+          const hasMatchForAssetPrefix = images.remotePatterns.some((pattern) =>
+            matchRemotePattern(pattern, url)
+          )
+
+          // avoid double-pushing the same remote if it already can be matched
+          if (!hasMatchForAssetPrefix) {
+            images.remotePatterns?.push({
+              hostname: url.hostname,
+              protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
+              port: url.port,
+            })
+          }
+        } catch (error) {
+          throw new Error(
+            `Invalid assetPrefix provided. Original error: ${error}`
+          )
+        }
+      }
+    }
+
+    if (images.domains) {
+      if (!Array.isArray(images.domains)) {
+        throw new Error(
+          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
       }
     }
 
@@ -325,13 +456,56 @@ function assignDefaults(
     }
   }
 
-  // TODO: remove this in next major or minor version after 13.5
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.appDir',
-    'App router is available by default now, `experimental.appDir` option can be safely removed.',
-    silent
-  )
+  if (result.experimental?.incrementalCacheHandlerPath) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.incrementalCacheHandlerPath',
+      'The "experimental.incrementalCacheHandlerPath" option has been renamed to "cacheHandler". Please update your next.config.js.',
+      silent
+    )
+  }
+
+  if (result.experimental?.isrMemoryCacheSize) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.isrMemoryCacheSize',
+      'The "experimental.isrMemoryCacheSize" option has been renamed to "cacheMaxMemorySize". Please update your next.config.js.',
+      silent
+    )
+  }
+
+  if (typeof result.experimental?.serverActions === 'boolean') {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.serverActions',
+      'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+      silent
+    )
+  }
+
+  if (result.swcMinify === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'swcMinify',
+      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
+  if (result.outputFileTracing === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'outputFileTracing',
+      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -368,14 +542,6 @@ function assignDefaults(
     silent
   )
 
-  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
-    if (!silent) {
-      Log.warn(
-        'SWC minify debug option is not supported anymore, please remove it from your config.'
-      )
-    }
-  }
-
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
       Log.warn(
@@ -385,13 +551,15 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+  if (
+    typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
+  ) {
     const value = parseInt(
-      result.experimental.serverActionsBodySizeLimit.toString()
+      result.experimental.serverActions?.bodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }
@@ -438,6 +606,11 @@ function assignDefaults(
       result.experimental = {}
     }
     result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  // can't use this one without the other
+  if (result.experimental?.useDeploymentIdServerActions) {
+    result.experimental.useDeploymentId = true
   }
 
   // use the closest lockfile as tracing root
@@ -655,49 +828,8 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
-    'date-fns': {
-      transform: 'date-fns/{{member}}',
-    },
     lodash: {
       transform: 'lodash/{{member}}',
-    },
-    'lodash-es': {
-      transform: 'lodash-es/{{member}}',
-    },
-    ramda: {
-      transform: 'ramda/es/{{member}}',
-    },
-    'react-bootstrap': {
-      transform: {
-        useAccordionButton:
-          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
-        '*': 'react-bootstrap/{{member}}',
-      },
-    },
-    antd: {
-      transform: 'antd/lib/{{kebabCase member}}',
-    },
-    ahooks: {
-      transform: {
-        createUpdateEffect:
-          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
-        '*': 'ahooks/es/{{member}}',
-      },
-    },
-    '@ant-design/icons': {
-      transform: {
-        IconProvider:
-          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
-        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
-        getTwoToneColor:
-          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
-        setTwoToneColor:
-          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
-        '*': '@ant-design/icons/lib/icons/{{member}}',
-      },
-    },
-    'next/server': {
-      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
 
@@ -710,6 +842,13 @@ function assignDefaults(
     ...new Set([
       ...userProvidedOptimizePackageImports,
       'lucide-react',
+      'date-fns',
+      'lodash-es',
+      'ramda',
+      'antd',
+      'react-bootstrap',
+      'ahooks',
+      '@ant-design/icons',
       '@headlessui/react',
       '@headlessui-float/react',
       '@heroicons/react/20/solid',
@@ -719,9 +858,10 @@ function assignDefaults(
       '@tremor/react',
       'rxjs',
       '@mui/material',
+      '@mui/icons-material',
       'recharts',
-      '@material-ui/core',
       'react-use',
+      '@material-ui/core',
       '@material-ui/icons',
       '@tabler/icons-react',
       'mui-core',
@@ -876,38 +1016,36 @@ export default async function loadConfig(
       userConfigModule.default || userConfigModule
     )
 
-    const validateResult = validateConfig(userConfig)
+    if (!process.env.NEXT_MINIMAL) {
+      // We only validate the config against schema in non minimal mode
+      const { configSchema } =
+        require('./config-schema') as typeof import('./config-schema')
+      const state = configSchema.safeParse(userConfig)
 
-    if (validateResult.errors) {
-      // Only load @segment/ajv-human-errors when invalid config is detected
-      const { AggregateAjvError } =
-        require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
-      const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
-        fieldLabels: 'js',
-      })
+      if (!state.success) {
+        // error message header
+        const messages = [`Invalid ${configFileName} options detected: `]
 
-      let shouldExit = false
-      const messages = [`Invalid ${configFileName} options detected: `]
-
-      for (const error of aggregatedAjvErrors) {
-        messages.push(`    ${error.message}`)
-        if (error.message.startsWith('The value at .images.')) {
-          shouldExit = true
+        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
+        // ident list item
+        for (const error of errorMessages) {
+          messages.push(`    ${error}`)
         }
-      }
 
-      messages.push(
-        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-      )
+        // error message footer
+        messages.push(
+          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+        )
 
-      if (shouldExit) {
-        for (const message of messages) {
-          console.error(message)
-        }
-        await flushAndExit(1)
-      } else {
-        for (const message of messages) {
-          curLog.warn(message)
+        if (shouldExit) {
+          for (const message of messages) {
+            console.error(message)
+          }
+          await flushAndExit(1)
+        } else {
+          for (const message of messages) {
+            curLog.warn(message)
+          }
         }
       }
     }
@@ -947,6 +1085,18 @@ export default async function loadConfig(
       }
 
       userConfig.experimental.turbo.rules = rules
+    }
+
+    if (userConfig.experimental?.useLightningcss) {
+      const { loadBindings } = require('next/dist/build/swc')
+      const isLightningSupported = (await loadBindings())?.css?.lightning
+
+      if (!isLightningSupported) {
+        curLog.warn(
+          `experimental.useLightningcss is set, but the setting is disabled because next-swc/wasm does not support it yet.`
+        )
+        userConfig.experimental.useLightningcss = false
+      }
     }
 
     onLoadUserConfig?.(userConfig)
@@ -1007,8 +1157,9 @@ export function getEnabledExperimentalFeatures(
       userNextConfigExperimental
     ) as (keyof ExperimentalConfig)[]) {
       if (
+        featureName in defaultConfig.experimental &&
         userNextConfigExperimental[featureName] !==
-        defaultConfig.experimental[featureName]
+          defaultConfig.experimental[featureName]
       ) {
         enabledExperiments.push(featureName)
       }

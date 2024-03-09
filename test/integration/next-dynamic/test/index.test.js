@@ -52,8 +52,7 @@ describe('next/dynamic', () => {
 
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await runNextCommand(['build', appDir])
 

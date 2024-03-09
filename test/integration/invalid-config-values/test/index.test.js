@@ -10,29 +10,31 @@ const nextConfigPath = join(appDir, 'next.config.js')
 const cleanUp = () => fs.remove(nextConfigPath)
 
 describe('Handles valid/invalid assetPrefix', () => {
-  beforeAll(() => cleanUp())
-  afterAll(() => cleanUp())
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(() => cleanUp())
+    afterAll(() => cleanUp())
 
-  it('should not error without usage of assetPrefix', async () => {
-    await fs.writeFile(
-      nextConfigPath,
-      `module.exports = {
+    it('should not error without usage of assetPrefix', async () => {
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = {
       }`
-    )
+      )
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).not.toMatch(/Specified assetPrefix is not a string/)
-  })
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      expect(stderr).not.toMatch(/Specified assetPrefix is not a string/)
+    })
 
-  it('should not error when assetPrefix is a string', async () => {
-    await fs.writeFile(
-      nextConfigPath,
-      `module.exports = {
+    it('should not error when assetPrefix is a string', async () => {
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = {
         assetPrefix: '/hello'
       }`
-    )
+      )
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).not.toMatch(/Specified assetPrefix is not a string/)
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      expect(stderr).not.toMatch(/Specified assetPrefix is not a string/)
+    })
   })
 })

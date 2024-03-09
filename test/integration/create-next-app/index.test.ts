@@ -28,7 +28,13 @@ const examplePath = 'examples/basic-css'
 const run = (args: string[], options: execa.Options) => {
   const conf = new Conf({ projectName: 'create-next-app' })
   conf.clear()
-  return execa('node', [cli].concat(args), options)
+  return execa('node', [cli].concat(args), {
+    ...options,
+    env: {
+      ...(options.env || {}),
+      NEXT_PRIVATE_TEST_VERSION: 'canary',
+    } as any,
+  })
 }
 
 describe('create next app', () => {
@@ -133,7 +139,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/next',
         ],
@@ -190,7 +197,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/next',
         ],
@@ -254,7 +262,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/react',
         ],
@@ -287,7 +296,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/react',
         ],

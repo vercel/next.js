@@ -1,22 +1,10 @@
-import { normalizeRscPath } from './app-paths'
+import { normalizeRscURL } from './app-paths'
 
 describe('normalizeRscPath', () => {
-  describe('enabled', () => {
-    it('should normalize url with .rsc', () => {
-      expect(normalizeRscPath('/test.rsc', true)).toBe('/test')
-    })
-    it('should normalize url with .rsc and searchparams', () => {
-      expect(normalizeRscPath('/test.rsc?abc=def', true)).toBe('/test?abc=def')
-    })
+  it('should normalize url with .rsc', () => {
+    expect(normalizeRscURL('/test.rsc')).toBe('/test')
   })
-  describe('disabled', () => {
-    it('should normalize url with .rsc', () => {
-      expect(normalizeRscPath('/test.rsc', false)).toBe('/test.rsc')
-    })
-    it('should normalize url with .rsc and searchparams', () => {
-      expect(normalizeRscPath('/test.rsc?abc=def', false)).toBe(
-        '/test.rsc?abc=def'
-      )
-    })
+  it('should normalize url with .rsc and searchparams', () => {
+    expect(normalizeRscURL('/test.rsc?abc=def')).toBe('/test?abc=def')
   })
 })

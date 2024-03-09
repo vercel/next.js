@@ -6,7 +6,7 @@ use turbopack_binding::{
         core::{
             chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
             context::AssetContext,
-            issue::{IssueSeverity, OptionIssueSource},
+            issue::IssueSeverity,
             module::Module,
             resolve::{origin::PlainResolveOrigin, parse::Request},
             source::Source,
@@ -40,7 +40,7 @@ impl RuntimeEntry {
         let modules = cjs_resolve(
             Vc::upcast(PlainResolveOrigin::new(context, path)),
             request,
-            OptionIssueSource::none(),
+            None,
             IssueSeverity::Error.cell(),
         )
         .primary_modules()

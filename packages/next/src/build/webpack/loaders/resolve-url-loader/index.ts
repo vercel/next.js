@@ -56,7 +56,9 @@ export default async function resolveUrlLoader(
   }
 
   const callback = this.async()
-  const { postcss } = await options.postcss()
+  const { postcss } = options.postcss
+    ? await options.postcss()
+    : { postcss: require('postcss') }
   process(postcss, this.resourcePath, content, {
     outputSourceMap: Boolean(options.sourceMap),
     transformDeclaration: valueProcessor(this.resourcePath, options),
@@ -97,7 +99,7 @@ export default async function resolveUrlLoader(
             (typeof exception === 'string' && exception) ||
               (exception instanceof Error && [
                 exception.message,
-                (exception as any).stack.split('\n')[1].trim(),
+                (exception as any).stack.split('\n', 2)[1].trim(),
               ]) ||
               []
           )

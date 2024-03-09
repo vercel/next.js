@@ -1,3 +1,3 @@
 export default function LeftHalf() {
-  return <span>Modularize</span>
+  return <span>Modularize</span>;
 }

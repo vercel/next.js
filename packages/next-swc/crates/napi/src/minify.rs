@@ -31,8 +31,9 @@ use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    base::{try_with_handler, TransformOutput},
+    base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
+    ecma::minifier::option::terser::{TerserCompressorOptions, TerserInlineOption},
 };
 
 use crate::{get_compiler, util::MapErr};
@@ -100,6 +101,16 @@ impl Task for MinifyTask {
     }
 }
 
+/// **NOTE** `inline: 3` breaks some codes.
+///
+/// <https://github.com/vercel/next.js/pull/57904>
+fn patch_opts(opts: &mut JsMinifyOptions) {
+    opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
+        inline: Some(TerserInlineOption::Num(2)),
+        ..Default::default()
+    });
+}
+
 #[napi]
 pub fn minify(
     input: Buffer,
@@ -107,7 +118,8 @@ pub fn minify(
     signal: Option<AbortSignal>,
 ) -> napi::Result<AsyncTask<MinifyTask>> {
     let code = serde_json::from_slice(&input)?;
-    let opts = serde_json::from_slice(&opts)?;
+    let mut opts = serde_json::from_slice(&opts)?;
+    patch_opts(&mut opts);
 
     let c = get_compiler();
 
@@ -119,7 +131,8 @@ pub fn minify(
 #[napi]
 pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput> {
     let code: MinifyTarget = serde_json::from_slice(&input)?;
-    let opts = serde_json::from_slice(&opts)?;
+    let mut opts = serde_json::from_slice(&opts)?;
+    patch_opts(&mut opts);
 
     let c = get_compiler();
 

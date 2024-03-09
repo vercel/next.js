@@ -4,7 +4,6 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   poweredByHeader: false,
-  cssModules: true,
   serverRuntimeConfig: {
     mySecret: 'secret',
   },
@@ -13,14 +12,5 @@ module.exports = {
   },
   env: {
     customVar: 'hello',
-  },
-  webpack(config, { buildId, webpack }) {
-    config.plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.CONFIG_BUILD_ID': JSON.stringify(buildId),
-      })
-    )
-
-    return config
   },
 }

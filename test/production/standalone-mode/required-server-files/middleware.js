@@ -1,4 +1,5 @@
-import { ImageResponse, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export async function middleware(req) {
   console.log('middleware', req.url)

@@ -17,25 +17,28 @@ import type {
   NextFlightResponse,
 } from '../../../server/app-render/types'
 import {
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
-  RSC,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
-type FetchServerResponseResult = [
+export type FetchServerResponseResult = [
   flightData: FlightData,
-  canonicalUrlOverride: URL | undefined
+  canonicalUrlOverride: URL | undefined,
+  postponed?: boolean,
+  intercepted?: boolean
 ]
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return [urlToUrlWithoutFlightMarker(url).toString(), undefined]
+  return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false, false]
 }
 
 /**
@@ -49,13 +52,13 @@ export async function fetchServerResponse(
   prefetchKind?: PrefetchKind
 ): Promise<FetchServerResponseResult> {
   const headers: {
-    [RSC]: '1'
+    [RSC_HEADER]: '1'
     [NEXT_ROUTER_STATE_TREE]: string
     [NEXT_URL]?: string
-    [NEXT_ROUTER_PREFETCH]?: '1'
+    [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
   } = {
     // Enable flight response
-    [RSC]: '1',
+    [RSC_HEADER]: '1',
     // Provide the current router state
     [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
       JSON.stringify(flightRouterState)
@@ -69,7 +72,7 @@ export async function fetchServerResponse(
    * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
    */
   if (prefetchKind === PrefetchKind.AUTO) {
-    headers[NEXT_ROUTER_PREFETCH] = '1'
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
   if (nextUrl) {
@@ -78,7 +81,7 @@ export async function fetchServerResponse(
 
   const uniqueCacheQuery = hexHash(
     [
-      headers[NEXT_ROUTER_PREFETCH] || '0',
+      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
       headers[NEXT_ROUTER_STATE_TREE],
       headers[NEXT_URL],
     ].join(',')
@@ -109,6 +112,8 @@ export async function fetchServerResponse(
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -122,6 +127,11 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok) {
+      // in case the original URL came with a hash, preserve it before redirecting to the new URL
+      if (url.hash) {
+        responseUrl.hash = url.hash
+      }
+
       return doMpaNavigation(responseUrl.toString())
     }
 
@@ -137,15 +147,15 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    return [flightData, canonicalUrl]
+    return [flightData, canonicalUrl, postponed, interception]
   } catch (err) {
     console.error(
-      'Failed to fetch RSC payload. Falling back to browser navigation.',
+      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
       err
     )
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return [url.toString(), undefined]
+    return [url.toString(), undefined, false, false]
   }
 }

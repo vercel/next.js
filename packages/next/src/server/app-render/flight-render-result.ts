@@ -6,6 +6,6 @@ import RenderResult from '../render-result'
  */
 export class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER, metadata: {} })
   }
 }

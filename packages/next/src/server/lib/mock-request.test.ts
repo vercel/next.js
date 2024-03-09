@@ -1,8 +1,5 @@
 import { MockedRequest, MockedResponse } from './mock-request'
 
-// We use `Headers` here which is provided by the polyfill.
-import '../node-polyfill-fetch'
-
 describe('MockedRequest', () => {
   it('should have the correct properties', () => {
     const req = new MockedRequest({

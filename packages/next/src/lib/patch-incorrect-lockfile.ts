@@ -1,5 +1,4 @@
 import { promises } from 'fs'
-import '../server/node-polyfill-fetch'
 import * as Log from '../build/output/log'
 import findUp from 'next/dist/compiled/find-up'
 // @ts-ignore no-json types

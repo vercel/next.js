@@ -1,4 +1,5 @@
-import { NodePath, PluginObj, types } from 'next/dist/compiled/babel/core'
+import type { NodePath, types } from 'next/dist/compiled/babel/core'
+import type { PluginObj } from 'next/dist/compiled/babel/core'
 import commonjsPlugin from 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 
 // Handle module.exports in user code

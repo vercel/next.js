@@ -3,26 +3,28 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use swc_core::{
-    common::{source_map::Pos, Span, Spanned},
-    ecma::ast::{Expr, Ident, Program},
-};
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        context::AssetContext,
-        file_source::FileSource,
-        ident::AssetIdent,
-        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
-        module::Module,
-        reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        source::Source,
+use turbopack_binding::{
+    swc::core::{
+        common::{source_map::Pos, Span, Spanned, GLOBALS},
+        ecma::ast::{Expr, Ident, Program},
     },
-    ecmascript::{
-        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-        parse::ParseResult,
-        EcmascriptModuleAsset,
+    turbopack::{
+        core::{
+            file_source::FileSource,
+            ident::AssetIdent,
+            issue::{
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
+            },
+            source::Source,
+        },
+        ecmascript::{
+            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+            parse::{parse, ParseResult},
+            EcmascriptInputTransforms, EcmascriptModuleAssetType,
+        },
     },
 };
 
@@ -69,7 +71,7 @@ pub struct NextSegmentConfig {
     pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<String>,
+    pub preferred_region: Option<Vec<String>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -154,7 +156,7 @@ impl NextSegmentConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<String>,
+    detail: Vc<StyledString>,
     source: Vc<IssueSource>,
 }
 
@@ -166,13 +168,13 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -181,17 +183,20 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
-            "The exported configuration object in a source file need to have a very specific \
-             format from which some properties can be statically parsed at compiled-time."
-                .to_string(),
-        )
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "The exported configuration object in a source file need to have a very specific \
+                 format from which some properties can be statically parsed at compiled-time."
+                    .to_string(),
+            )
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 
     #[turbo_tasks::function]
@@ -204,51 +209,80 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        OptionIssueSource::some(self.source)
+        Vc::cell(Some(self.source))
     }
 }
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    module: Vc<Box<dyn Module>>,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    else {
+    let path = source.ident().path().await?;
+
+    // Don't try parsing if it's not a javascript file, otherwise it will emit an
+    // issue causing the build to "fail".
+    if path.path.ends_with("d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
+    {
         return Ok(Default::default());
-    };
+    }
+
+    let result = &*parse(
+        source,
+        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: false,
+                analyze_types: false,
+            }
+        } else if path.path.ends_with(".tsx") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: true,
+                analyze_types: false,
+            }
+        } else {
+            EcmascriptModuleAssetType::Ecmascript
+        }),
+        EcmascriptInputTransforms::empty(),
+    )
+    .await?;
 
     let ParseResult::Ok {
         program: Program::Module(module_ast),
         eval_context,
+        globals,
         ..
-    } = &*ecmascript_asset.parse().await?
+    } = result
     else {
         return Ok(Default::default());
     };
 
-    let mut config = NextSegmentConfig::default();
+    let config = GLOBALS.set(globals, || {
+        let mut config = NextSegmentConfig::default();
 
-    for item in &module_ast.body {
-        let Some(decl) = item
-            .as_module_decl()
-            .and_then(|mod_decl| mod_decl.as_export_decl())
-            .and_then(|export_decl| export_decl.decl.as_var())
-        else {
-            continue;
-        };
-
-        for decl in &decl.decls {
-            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+        for item in &module_ast.body {
+            let Some(decl) = item
+                .as_module_decl()
+                .and_then(|mod_decl| mod_decl.as_export_decl())
+                .and_then(|export_decl| export_decl.decl.as_var())
+            else {
                 continue;
             };
 
-            if let Some(init) = decl.init.as_ref() {
-                parse_config_value(module, source, &mut config, ident, init, eval_context);
+            for decl in &decl.decls {
+                let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+                    continue;
+                };
+
+                if let Some(init) = decl.init.as_ref() {
+                    parse_config_value(source, &mut config, ident, init, eval_context);
+                }
             }
         }
-    }
+        config
+    });
 
     Ok(config.cell())
 }
@@ -258,7 +292,6 @@ fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
 }
 
 fn parse_config_value(
-    module: Vc<Box<dyn Module>>,
     source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
@@ -269,8 +302,8 @@ fn parse_config_value(
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
-            ident: module.ident(),
-            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            ident: source.ident(),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
             source: issue_source(source, span),
         }
         .cell()
@@ -358,12 +391,37 @@ fn parse_config_value(
         }
         "preferredRegion" => {
             let value = eval_context.eval(init);
-            let Some(val) = value.as_str() else {
-                invalid_config("`preferredRegion` needs to be a static string", &value);
-                return;
+
+            let preferred_region = match value {
+                // Single value is turned into a single-element Vec.
+                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string()],
+                // Array of strings is turned into a Vec. If one of the values in not a String it
+                // will error.
+                JsValue::Array { items, .. } => {
+                    let mut regions = Vec::new();
+                    for item in items {
+                        if let JsValue::Constant(ConstantValue::Str(str)) = item {
+                            regions.push(str.to_string());
+                        } else {
+                            invalid_config(
+                                "Values of the `preferredRegion` array need to static strings",
+                                &item,
+                            );
+                            return;
+                        }
+                    }
+                    regions
+                }
+                _ => {
+                    invalid_config(
+                        "`preferredRegion` needs to be a static string or array of static strings",
+                        &value,
+                    );
+                    return;
+                }
             };
 
-            config.preferred_region = Some(val.to_string());
+            config.preferred_region = Some(preferred_region);
         }
         _ => {}
     }
@@ -372,7 +430,6 @@ fn parse_config_value(
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<LoaderTree>,
-    context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = loader_tree.await?;
     let components = loader_tree.components.await?;
@@ -381,7 +438,7 @@ pub async fn parse_segment_config_from_loader_tree(
         .parallel_routes
         .values()
         .copied()
-        .map(|tree| parse_segment_config_from_loader_tree(tree, context))
+        .map(parse_segment_config_from_loader_tree)
         .try_join()
         .await?;
     for tree in parallel_configs {
@@ -392,18 +449,8 @@ pub async fn parse_segment_config_from_loader_tree(
         .flatten()
     {
         let source = Vc::upcast(FileSource::new(component));
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(
-                context.process(
-                    source,
-                    turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                    )),
-                ),
-                source,
-            )
-            .await?,
-        );
+        config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
+
     Ok(config.cell())
 }

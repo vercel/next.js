@@ -1,27 +1,27 @@
-import { VisitorData } from '@fingerprintjs/fingerprintjs-pro-react'
+import { VisitorData } from "@fingerprintjs/fingerprintjs-pro-react";
 
 function VisitorDataPresenter({
   data,
   isLoading,
   error,
 }: {
-  data?: VisitorData
-  isLoading?: boolean
-  error?: Error
+  data?: VisitorData;
+  isLoading?: boolean;
+  error?: Error;
 }) {
   if (error) {
-    return <p>An error occurred: {error.message}</p>
+    return <p>An error occurred: {error.message}</p>;
   }
 
   return (
     <div className="visitor-data">
       <p>
-        <b>Visitor ID:</b>{' '}
+        <b>Visitor ID:</b>{" "}
         {isLoading
-          ? 'Loading...'
+          ? "Loading..."
           : data
           ? data.visitorId
-          : 'not established yet'}
+          : "not established yet"}
       </p>
       {data && (
         <>
@@ -32,7 +32,7 @@ function VisitorDataPresenter({
         </>
       )}
     </div>
-  )
+  );
 }
 
-export default VisitorDataPresenter
+export default VisitorDataPresenter;

@@ -8,7 +8,7 @@ const CACHE_HEADERS = {
   REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
-const hashRegex = /\?\w+$/
+const hashRegex = /\?\w+/
 
 createNextDescribe(
   'app dir - metadata dynamic routes',
@@ -50,8 +50,8 @@ createNextDescribe(
         expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
         expect(text).toMatchInlineSnapshot(`
-          "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>
-          <urlset xmlns=\\"http://www.sitemaps.org/schemas/sitemap/0.9\\">
+          "<?xml version="1.0" encoding="UTF-8"?>
+          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
@@ -152,20 +152,21 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
           })
+
         // slug is id param from generateImageMetadata
         expect(iconUrls).toMatchObject([
           {
-            href: '/dynamic/big/icon-48jo90/small',
+            href: '/dynamic/big/icon-ahg52g/small',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/icon-48jo90/medium',
+            href: '/dynamic/big/icon-ahg52g/medium',
             sizes: '72x72',
             type: 'image/png',
           },
@@ -175,7 +176,7 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
@@ -183,12 +184,12 @@ createNextDescribe(
         // slug is index by default
         expect(appleTouchIconUrls).toEqual([
           {
-            href: '/dynamic/big/apple-icon-48jo90/0',
+            href: '/dynamic/big/apple-icon-ahg52g/0',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/apple-icon-48jo90/1',
+            href: '/dynamic/big/apple-icon-ahg52g/1',
             sizes: '64x64',
             type: 'image/png',
           },
@@ -196,7 +197,7 @@ createNextDescribe(
       })
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2]
+        const ids = ['child0', 'child1', 'child2', 'child3']
         function fetchSitemap(id) {
           return next
             .fetch(
@@ -280,6 +281,25 @@ createNextDescribe(
       })
     })
 
+    if (isNextStart) {
+      describe('route segment config', () => {
+        it('should generate dynamic route if dynamic config is force-dynamic', async () => {
+          const dynamicRoute = '/route-config/sitemap.xml'
+
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)
+          ).toBe(true)
+          // dynamic routes should not have body and meta files
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}.body`)
+          ).toBe(false)
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}.meta`)
+          ).toBe(false)
+        })
+      })
+    }
+
     it('should generate unique path for image routes under group routes', async () => {
       const $ = await next.render$('/blog')
       const ogImageUrl = $('meta[property="og:image"]').attr('content')
@@ -303,7 +323,7 @@ createNextDescribe(
     it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
       const $ = await next.render$('/')
       const canonicalUrl = $('link[rel="canonical"]').attr('href')
-      expect(canonicalUrl).toBe('https://mydomain.com/')
+      expect(canonicalUrl).toBe('https://mydomain.com')
     })
 
     it('should inject dynamic metadata properly to head', async () => {
@@ -396,7 +416,7 @@ createNextDescribe(
       it('should error when id is missing in generateImageMetadata', async () => {
         const iconFilePath = 'app/metadata-base/unset/icon.tsx'
         const contentMissingIdProperty = `
-        import { ImageResponse } from 'next/server'
+        import { ImageResponse } from 'next/og'
         export async function generateImageMetadata() {
           return [
             {
@@ -478,6 +498,33 @@ createNextDescribe(
           await next.fetch('/metadata-base/unset/sitemap.xml/0')
         }
       })
+
+      it('should error if the default export of dynamic image is missing', async () => {
+        const ogImageFilePath = 'app/opengraph-image.tsx'
+        const ogImageFileContent = await next.readFile(ogImageFilePath)
+        const ogImageFileContentWithoutDefaultExport =
+          ogImageFileContent.replace(
+            'export default function',
+            'export function'
+          )
+
+        try {
+          await next.patchFile(
+            ogImageFilePath,
+            ogImageFileContentWithoutDefaultExport
+          )
+          const currentNextCliOutputLength = next.cliOutput.length
+
+          await check(async () => {
+            await next.fetch('/opengraph-image')
+            const output = next.cliOutput.slice(currentNextCliOutputLength)
+            expect(output).toContain(`Default export is missing in`)
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.patchFile(ogImageFilePath, ogImageFileContent)
+        }
+      })
     }
 
     if (isNextStart) {
@@ -505,13 +552,13 @@ createNextDescribe(
           // dynamic
           '/gsp/sitemap/[__metadata_id__]/route':
             'app/gsp/sitemap/[__metadata_id__]/route.js',
-          '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
-            'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route.js',
         })
       })
 
       it('should generate static paths of dynamic sitemap in production', async () => {
-        const sitemapPaths = [0, 1, 2].map(
+        const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
           (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
         )
         const promises = sitemapPaths.map(async (filePath) => {

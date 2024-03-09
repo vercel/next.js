@@ -1,12 +1,18 @@
-export default function Layout({ children }) {
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Next.js with OpenTelemetry",
+  description: "Next.js with OpenTelemetry",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html>
-      <head>
-        <title>Next.js with OpenTelemetry</title>
-      </head>
-      <body>
-        <main>{children}</main>
-      </body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
-  )
+  );
 }

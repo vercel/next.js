@@ -13,7 +13,7 @@ Reduce the amount of data returned from `getStaticProps`, `getServerSideProps`, 
 To inspect the props passed to your page, you can inspect the below element's content in your browser devtools:
 
 ```bash filename="Terminal"
-document.getElementById("__NEXT_DATA__").text
+JSON.parse(document.getElementById("__NEXT_DATA__").textContent)
 ```
 
 ## Useful Links

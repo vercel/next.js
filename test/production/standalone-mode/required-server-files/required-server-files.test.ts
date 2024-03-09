@@ -15,7 +15,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files', () => {
   let next: NextInstance
   let server
   let appPort
@@ -45,9 +45,8 @@ describe('should set-up next', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
-        experimental: {
-          incrementalCacheHandlerPath: './cache-handler.js',
-        },
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -303,14 +302,20 @@ describe('should set-up next', () => {
     ).toContain('"compress":false')
   })
 
-  it('`incrementalCacheHandlerPath` should have correct path', async () => {
+  it('`cacheHandler` should have correct path', async () => {
     expect(
       await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
     ).toBe(true)
 
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
+    ).toContain('"cacheHandler":"../cache-handler.js"')
+  })
+
+  it('`cacheMaxMemorySize` should be disabled by setting to 0', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"cacheMaxMemorySize":0')
   })
 
   it('should output middleware correctly', async () => {

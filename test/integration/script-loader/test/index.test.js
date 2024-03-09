@@ -20,7 +20,7 @@ let appWithPartytownMissingDir = join(__dirname, '../partytown-missing')
 let server
 let appPort
 
-const runTests = (isDev = false) => {
+const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
   // Don't skip the test case for dev mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
@@ -154,8 +154,7 @@ const runTests = (isDev = false) => {
       )
       expect(documentBIScripts.length).toBe(2)
 
-      await browser.waitForElementByCss('[href="/page1"]')
-      await browser.click('[href="/page1"]')
+      await browser.waitForElementByCss('[href="/page1"]').click()
 
       await browser.waitForElementByCss('.container')
 
@@ -179,10 +178,8 @@ const runTests = (isDev = false) => {
       expect(text).toBe('aaabbbccc')
 
       // Navigate to different page and back
-      await browser.waitForElementByCss('[href="/page9"]')
-      await browser.click('[href="/page9"]')
-      await browser.waitForElementByCss('[href="/page4"]')
-      await browser.click('[href="/page4"]')
+      await browser.waitForElementByCss('[href="/page9"]').click()
+      await browser.waitForElementByCss('[href="/page4"]').click()
 
       await browser.waitForElementByCss('#onload-div-1')
       const sameText = await browser.elementById('onload-div-1').text()
@@ -233,12 +230,9 @@ const runTests = (isDev = false) => {
       browser = await webdriver(appPort, '/')
 
       // Navigate away and back to page
-      await browser.waitForElementByCss('[href="/page5"]')
-      await browser.click('[href="/page5"]')
-      await browser.waitForElementByCss('[href="/"]')
-      await browser.click('[href="/"]')
-      await browser.waitForElementByCss('[href="/page5"]')
-      await browser.click('[href="/page5"]')
+      await browser.waitForElementByCss('[href="/page5"]').click()
+      await browser.waitForElementByCss('[href="/"]').click()
+      await browser.waitForElementByCss('[href="/page5"]').click()
 
       await browser.waitForElementByCss('.container')
       await waitFor(1000)
@@ -251,17 +245,23 @@ const runTests = (isDev = false) => {
     }
   })
 
-  it('Error message is shown if Partytown is not installed locally', async () => {
-    const { stdout, stderr } = await nextBuild(appWithPartytownMissingDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    const output = stdout + stderr
+  if (!isDev) {
+    it('Error message is shown if Partytown is not installed locally', async () => {
+      const { stdout, stderr } = await nextBuild(
+        appWithPartytownMissingDir,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+      const output = stdout + stderr
 
-    expect(output.replace(/\n|\r/g, '')).toMatch(
-      /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
-    )
-  })
+      expect(output.replace(/[\n\r]/g, '')).toMatch(
+        /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
+      )
+    })
+  }
 
   it('onReady fires after load event and then on every subsequent re-mount', async () => {
     let browser
@@ -273,10 +273,8 @@ const runTests = (isDev = false) => {
       expect(text).toBe('aaa')
 
       // Navigate to different page and back
-      await browser.waitForElementByCss('[href="/page9"]')
-      await browser.click('[href="/page9"]')
-      await browser.waitForElementByCss('[href="/page8"]')
-      await browser.click('[href="/page8"]')
+      await browser.waitForElementByCss('[href="/page9"]').click()
+      await browser.waitForElementByCss('[href="/page8"]').click()
 
       await browser.waitForElementByCss('.container')
       const sameText = await browser.elementById('text').text()
@@ -317,21 +315,23 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-    const app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
+      const app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
+    })
+    afterAll(async () => {
+      await stopApp(server)
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    runTests(false)
   })
-  afterAll(async () => {
-    await stopApp(server)
-  })
-
-  runTests(false)
 })

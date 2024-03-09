@@ -1,7 +1,7 @@
 import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
+import type { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
 import { RouteKind } from '../route-kind'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import type { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { PagesAPIRouteMatcherProvider } from './pages-api-route-matcher-provider'
 
 describe('PagesAPIRouteMatcherProvider', () => {
@@ -9,7 +9,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
     const loader: ManifestLoader = { load: jest.fn(() => ({})) }
     const provider = new PagesAPIRouteMatcherProvider('<root>', loader)
     expect(await provider.matchers()).toEqual([])
-    expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+    expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
   })
 
   describe('manifest matching', () => {
@@ -60,7 +60,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
         const provider = new PagesAPIRouteMatcherProvider('<root>', loader)
         const matchers = await provider.matchers()
 
-        expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
         expect(matchers).toHaveLength(1)
         expect(matchers[0].definition).toEqual(route)
       }

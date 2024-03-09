@@ -9,7 +9,7 @@
     "@apollo/server": "^4.1.1",
     "@as-integrations/next": "^1.1.0",
     "@graphql-tools/schema": "^9.0.9",
-    "graphql": "16.6.0",
+    "graphql": "16.8.1",
     "graphql-tag": "^2.12.6",
     "next": "latest",
     "react": "^18.2.0",

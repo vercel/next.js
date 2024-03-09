@@ -39,7 +39,7 @@ export function resolveHref(
     ? urlAsString.slice(urlProtoMatch[0].length)
     : urlAsString
 
-  const urlParts = urlAsStringNoProto.split('?')
+  const urlParts = urlAsStringNoProto.split('?', 1)
 
   if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
     console.error(

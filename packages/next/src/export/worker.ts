@@ -1,20 +1,18 @@
-import type { FontConfig } from '../server/font-utils'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type {
+  ExportPageInput,
   ExportPageResult,
+  ExportRouteResult,
+  ExportedPageFile,
+  FileWriter,
   WorkerRenderOpts,
-  WorkerRenderOptsPartial,
 } from './types'
 
-// Polyfill fetch for the export worker.
-import '../server/node-polyfill-fetch'
-import '../server/node-polyfill-web-streams'
 import '../server/node-environment'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
 import { extname, join, dirname, sep } from 'path'
-import fs from 'fs'
+import fs from 'fs/promises'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -34,6 +32,13 @@ import { exportAppPage } from './routes/app-page'
 import { exportPages } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
+import { isPostpone } from '../server/lib/router-utils/is-postpone'
+import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
+import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
+import {
+  turborepoTraceAccess,
+  TurborepoAccessTraceResult,
+} from '../build/turborepo-access-trace'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -41,40 +46,12 @@ const envConfig = require('../shared/lib/runtime-config.external')
   nextExport: true,
 }
 
-type PathMap = ExportPathMap[keyof ExportPathMap]
-
-interface ExportPageInput {
-  path: string
-  pathMap: PathMap
-  distDir: string
-  outDir: string
-  pagesDataDir: string
-  renderOpts: WorkerRenderOptsPartial
-  ampValidatorPath?: string
-  trailingSlash?: boolean
-  buildExport?: boolean
-  serverRuntimeConfig: { [key: string]: any }
-  subFolders?: boolean
-  optimizeFonts: FontConfig
-  optimizeCss: any
-  disableOptimizedLoading: any
-  parentSpanId: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  debugOutput?: boolean
-  isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
-  fetchCache?: boolean
-  incrementalCacheHandlerPath?: string
-  fetchCacheKeyPrefix?: string
-  nextConfigOutput?: NextConfigComplete['output']
-  enableExperimentalReact?: boolean
-}
-
-export interface ExportPageResults extends ExportPageResult {
-  duration: number
-}
-
-async function exportPageImpl(input: ExportPageInput) {
+async function exportPageImpl(
+  input: ExportPageInput,
+  fileWriter: FileWriter
+): Promise<ExportRouteResult | undefined> {
   const {
+    dir,
     path,
     pathMap,
     distDir,
@@ -86,18 +63,16 @@ async function exportPageImpl(input: ExportPageInput) {
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
-    isrMemoryCacheSize,
+    cacheMaxMemorySize,
     fetchCache,
     fetchCacheKeyPrefix,
-    incrementalCacheHandlerPath,
+    cacheHandler,
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
+    enabledDirectories,
   } = input
 
-  if (input.renderOpts.deploymentId) {
-    process.env.NEXT_DEPLOYMENT_ID = input.renderOpts.deploymentId
-  }
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
   }
@@ -108,8 +83,9 @@ async function exportPageImpl(input: ExportPageInput) {
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
-    // Check if this is an `app/` prefix request.
-    _isAppPrefetch: isAppPrefetch = false,
+    // TODO: use this when we've re-enabled app prefetching https://github.com/vercel/next.js/pull/58609
+    // // Check if this is an `app/` prefix request.
+    // _isAppPrefetch: isAppPrefetch = false,
 
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
@@ -203,7 +179,7 @@ async function exportPageImpl(input: ExportPageInput) {
           dl.defaultLocale === locale || dl.locales?.includes(locale || '')
       )
     ) {
-      addRequestMeta(req, '__nextIsLocaleDomain', true)
+      addRequestMeta(req, 'isLocaleDomain', true)
     }
 
     envConfig.setConfig({
@@ -242,18 +218,25 @@ async function exportPageImpl(input: ExportPageInput) {
     const baseDir = join(outDir, dirname(htmlFilename))
     let htmlFilepath = join(outDir, htmlFilename)
 
-    await fs.promises.mkdir(baseDir, { recursive: true })
+    await fs.mkdir(baseDir, { recursive: true })
 
     // If the fetch cache was enabled, we need to create an incremental
     // cache instance for this page.
     const incrementalCache =
       isAppDir && fetchCache
-        ? createIncrementalCache(
-            incrementalCacheHandlerPath,
-            isrMemoryCacheSize,
+        ? await createIncrementalCache({
+            cacheHandler,
+            cacheMaxMemorySize,
             fetchCacheKeyPrefix,
-            distDir
-          )
+            distDir,
+            dir,
+            enabledDirectories,
+            // PPR is not available for Pages.
+            experimental: { ppr: false },
+            // skip writing to disk in minimal mode for now, pending some
+            // changes to better support it
+            flushToDisk: !hasNextSupport,
+          })
         : undefined
 
     // Handle App Routes.
@@ -265,7 +248,8 @@ async function exportPageImpl(input: ExportPageInput) {
         page,
         incrementalCache,
         distDir,
-        htmlFilepath
+        htmlFilepath,
+        fileWriter
       )
     }
 
@@ -283,7 +267,7 @@ async function exportPageImpl(input: ExportPageInput) {
       optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicHTML: false,
       originalPathname: page,
@@ -310,7 +294,7 @@ async function exportPageImpl(input: ExportPageInput) {
         htmlFilepath,
         debugOutput,
         isDynamicError,
-        isAppPrefetch
+        fileWriter
       )
     }
 
@@ -331,13 +315,16 @@ async function exportPageImpl(input: ExportPageInput) {
       isDynamic,
       hasOrigQueryValues,
       renderOpts,
-      components
+      components,
+      fileWriter
     )
   } catch (err) {
     console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-        (isError(err) && err.stack ? err.stack : err)
+      `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
     )
+    if (!isBailoutToCSRError(err)) {
+      console.error(isError(err) && err.stack ? err.stack : err)
+    }
 
     return { error: true }
   }
@@ -345,21 +332,76 @@ async function exportPageImpl(input: ExportPageInput) {
 
 export default async function exportPage(
   input: ExportPageInput
-): Promise<ExportPageResults> {
+): Promise<ExportPageResult | undefined> {
   // Configure the http agent.
   setHttpClientAndAgentOptions({
     httpAgentOptions: input.httpAgentOptions,
   })
 
+  const files: ExportedPageFile[] = []
+  const baseFileWriter: FileWriter = async (
+    type,
+    path,
+    content,
+    encodingOptions = 'utf-8'
+  ) => {
+    await fs.mkdir(dirname(path), { recursive: true })
+    await fs.writeFile(path, content, encodingOptions)
+    files.push({ type, path })
+  }
+
   const exportPageSpan = trace('export-page-worker', input.parentSpanId)
 
   const start = Date.now()
 
+  const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
   // Export the page.
-  const results = await exportPageSpan.traceAsyncFn(async () => {
-    return await exportPageImpl(input)
-  })
+  const result = await exportPageSpan.traceAsyncFn(() =>
+    turborepoTraceAccess(
+      () => exportPageImpl(input, baseFileWriter),
+      turborepoAccessTraceResult
+    )
+  )
 
-  // Return it's results.
-  return { ...results, duration: Date.now() - start }
+  // If there was no result, then we can exit early.
+  if (!result) return
+
+  // If there was an error, then we can exit early.
+  if ('error' in result) {
+    return { error: result.error, duration: Date.now() - start, files: [] }
+  }
+
+  // Otherwise we can return the result.
+  return {
+    duration: Date.now() - start,
+    files,
+    ampValidations: result.ampValidations,
+    revalidate: result.revalidate,
+    metadata: result.metadata,
+    ssgNotFound: result.ssgNotFound,
+    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasPostponed: result.hasPostponed,
+    turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
+  }
 }
+
+process.on('unhandledRejection', (err: unknown) => {
+  // if it's a postpone error, it'll be handled later
+  // when the postponed promise is actually awaited.
+  if (isPostpone(err)) {
+    return
+  }
+
+  // we don't want to log these errors
+  if (isDynamicUsageError(err)) {
+    return
+  }
+
+  console.error(err)
+})
+
+process.on('rejectionHandled', () => {
+  // It is ok to await a Promise late in Next.js as it allows for better
+  // prefetching patterns to avoid waterfalls. We ignore logging these.
+  // We should've already errored in anyway unhandledRejection.
+})

@@ -628,8 +628,8 @@ describe('Middleware Rewrite', () => {
       // node-fetch bundles the cookies as string in the Response
       const cookieArray = res.headers.raw()['set-cookie']
       for (const cookie of cookieArray) {
-        let individualCookieParams = cookie.split(';')
-        let individualCookie = individualCookieParams[0].split('=')
+        let individualCookieParams = cookie.split(';', 1)
+        let individualCookie = individualCookieParams[0].split('=', 2)
         if (individualCookie[0] === cookieName) {
           return individualCookie[1]
         }
@@ -816,9 +816,9 @@ describe('Middleware Rewrite', () => {
       const element = await browser.elementByCss('.title')
       expect(await element.text()).toEqual('Parts page')
       const logs = await browser.log()
-      expect(
-        logs.every((log) => log.source === 'log' || log.source === 'info')
-      ).toEqual(true)
+      expect(logs).toSatisfyAll(
+        (log) => log.source === 'log' || log.source === 'info'
+      )
     })
 
     it('should not have unexpected errors', async () => {

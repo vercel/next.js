@@ -1,5 +1,5 @@
-import { Section, Title } from 'rbx'
-import Layout from '../components/Layout'
+import { Section, Title } from "rbx";
+import Layout from "../components/Layout";
 
 const AboutPage = () => (
   <Layout>
@@ -19,6 +19,6 @@ const AboutPage = () => (
       </ul>
     </Section>
   </Layout>
-)
+);
 
-export default AboutPage
+export default AboutPage;

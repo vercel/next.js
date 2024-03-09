@@ -3,8 +3,11 @@ import type { StaticGenerationStore } from '../../client/components/static-gener
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 
+import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
+
 export type StaticGenerationContext = {
   urlPathname: string
+  postpone?: (reason: string) => never
   renderOpts: {
     originalPathname?: string
     incrementalCache?: IncrementalCache
@@ -16,6 +19,8 @@ export type StaticGenerationContext = {
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
     isServerAction?: boolean
+    waitUntil?: Promise<any>
+    experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -60,6 +65,11 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       !renderOpts.isDraftMode &&
       !renderOpts.isServerAction
 
+    const prerenderState: StaticGenerationStore['prerenderState'] =
+      isStaticGeneration && renderOpts.experimental.ppr
+        ? createPrerenderState()
+        : null
+
     const store: StaticGenerationStore = {
       isStaticGeneration,
       urlPathname,
@@ -74,6 +84,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
+
+      prerenderState,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

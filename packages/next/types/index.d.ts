@@ -7,9 +7,9 @@
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
 
-import React from 'react'
-import { ParsedUrlQuery } from 'querystring'
-import { IncomingMessage, ServerResponse } from 'http'
+import type React from 'react'
+import type { ParsedUrlQuery } from 'querystring'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 import {
   NextPageContext,
@@ -20,7 +20,7 @@ import {
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/shared/lib/utils'
 
-import {
+import type {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/server/api-utils'
@@ -37,12 +37,16 @@ export type {
   Metadata,
   MetadataRoute,
   ResolvedMetadata,
-  ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
+  ResolvingMetadata,
+  Viewport,
+  ResolvingViewport,
+  ResolvedViewport,
+  // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/lib/metadata/types/metadata-interface'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
- * @link https://beta.nextjs.org/docs/configuring/typescript#statically-typed-links
+ * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
  * @example
  * ```ts
  * import type { Route } from 'next'
@@ -83,7 +87,7 @@ export type Redirect =
     }
 
 /**
- * `Page` type, use it as a guide to create `pages`.
+ * `NextPage` type, use it as a guide to create `pages`.
  */
 export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
   NextPageContext,
@@ -136,6 +140,11 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  /**
+   * Configures the longest time in seconds a serverless function can process an HTTP
+   * request before responding.
+   */
+  maxDuration?: number
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
@@ -316,21 +325,6 @@ declare global {
       array: T
     ): T
     randomUUID(): string
-  }
-
-  // TODO: remove this polyfill when it is adopted into the spec.
-  interface PromiseConstructor {
-    /**
-     * Creates a new promise with exposed resolvers to resolve/reject. This will
-     * be adopted into the spec as `Promise.withResolvers`.
-     *
-     * @see https://tc39.es/proposal-promise-with-resolvers/
-     */
-    withResolvers<T>(): {
-      promise: Promise<T>
-      resolve: (value: T | PromiseLike<T>) => void
-      reject: (reason?: unknown) => void
-    }
   }
 
   var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined

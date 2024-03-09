@@ -13,27 +13,27 @@ createNextDescribe(
         )
 
         expect(functionsConfigManifest).toMatchInlineSnapshot(`
-          Object {
-            "functions": Object {
-              "/api/page-route": Object {
+          {
+            "functions": {
+              "/api/page-route": {
                 "maxDuration": 1,
               },
-              "/app-route": Object {
+              "/app-route": {
                 "maxDuration": 1,
               },
-              "/app-route-edge": Object {
+              "/app-route-edge": {
                 "maxDuration": 2,
               },
-              "/app-ssr": Object {
+              "/app-ssr": {
                 "maxDuration": 3,
               },
-              "/app-ssr-edge": Object {
+              "/app-ssr-edge": {
                 "maxDuration": 4,
               },
-              "/page": Object {
+              "/page": {
                 "maxDuration": 2,
               },
-              "/page-ssr": Object {
+              "/page-ssr": {
                 "maxDuration": 3,
               },
             },

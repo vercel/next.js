@@ -5,6 +5,7 @@ import type { RequestStore } from '../../client/components/request-async-storage
 import type { RenderOpts } from '../app-render/types'
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { NextRequest } from '../web/spec-extension/request'
+import type { __ApiPreviewProps } from '../api-utils'
 
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import {
@@ -16,8 +17,8 @@ import {
   RequestCookiesAdapter,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
-import { __ApiPreviewProps } from '../api-utils'
+import type { ResponseCookies } from '../web/spec-extension/cookies'
+import { RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {

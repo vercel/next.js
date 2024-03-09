@@ -1,16 +1,19 @@
 {
   "name": "@next/third-parties",
-  "version": "13.5.2",
-  "private": true,
+  "version": "14.2.0-canary.11",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
   },
   "exports": {
-    "./google": "./dist/google/index.js"
+    "./google": {
+      "types": "./dist/google/index.d.ts",
+      "default": "./dist/google/index.js"
+    }
   },
   "files": [
-    "dist"
+    "dist",
+    "google.d.ts"
   ],
   "license": "MIT",
   "scripts": {
@@ -23,12 +26,12 @@
     "third-party-capital": "1.0.20"
   },
   "devDependencies": {
-    "next": "13.5.2",
+    "next": "14.2.0-canary.11",
     "outdent": "0.8.0",
     "prettier": "2.5.1"
   },
   "peerDependencies": {
-    "next": "^13.0.0",
+    "next": "^13.0.0 || ^14.0.0",
     "react": "^18.2.0"
   }
 }
