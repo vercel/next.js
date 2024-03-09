@@ -14,4 +14,9 @@ describe('not-found-multi-root-layout', () => {
     const browser = await next.browser('/sub')
     expect(await browser.elementByCss('h1').text()).toBe('Sub Not Found')
   })
+
+  it('should render root not-found for uncaught routes', async () => {
+    const browser = await next.browser('/404')
+    expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
+  })
 })
