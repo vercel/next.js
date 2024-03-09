@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
 };
 
@@ -29,6 +29,21 @@ pub struct Config {
     pub enabled: bool,
 }
 
+// Layer     Directive     New Layer  Compile To                Splitted To
+// server -> "use client"  client     create(client reference)  client entry
+// server -> "use cache"   server     create(cache reference)   cache entry
+// server -> "use server"  server     reg(server reference)     -
+// client -> "use server"  server     create(server reference)  server entry
+// client -> "use cache"   server     create(cache reference)   cache entry
+// client -> "use client"  client     reg(client reference)     -
+// cache  -> "use server"  server     create(server reference)  server entry
+// cache  -> "use client"  client     create(client reference)  client entry
+// cache  -> "use cache"   server     reg(cache reference)      -
+pub struct DirectiveConfig {
+    pub register_reference: String,
+    pub create_reference: String,
+}
+
 /// A mapping of hashed action id to the action's exported function name.
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<String, String>;
@@ -43,6 +58,15 @@ pub fn server_actions<C: Comments>(
         comments,
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
+
+        directives: HashMap::from([(
+            "server".to_string(),
+            DirectiveConfig {
+                register_reference: "registerServerReference".to_string(),
+                create_reference: "createServerReference".to_string(),
+            },
+        )]),
+
         in_action_file: false,
         in_export_decl: false,
         in_default_export_decl: false,
@@ -83,8 +107,9 @@ struct ServerActions<C: Comments> {
     config: Config,
     file_name: String,
     comments: C,
-
     start_pos: BytePos,
+
+    directives: HashMap<String, DirectiveConfig>,
     in_action_file: bool,
     in_export_decl: bool,
     in_default_export_decl: bool,
@@ -112,8 +137,8 @@ struct ServerActions<C: Comments> {
 }
 
 impl<C: Comments> ServerActions<C> {
-    // Check if the function or arrow function is an action function
-    fn get_action_info(
+    // Check if the current value is marked by a directive or not
+    fn get_fn_directive_info(
         &mut self,
         maybe_body: Option<&mut BlockStmt>,
         remove_directive: bool,
@@ -127,7 +152,8 @@ impl<C: Comments> ServerActions<C> {
             // Check if the function has `"use server"`
             if let Some(body) = maybe_body {
                 let mut action_span = None;
-                remove_server_directive_index_in_fn(
+                remove_directive_index_in_fn(
+                    "use server",
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
@@ -421,7 +447,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
+        let is_action_fn = self.get_fn_directive_info(f.function.body.as_mut(), true);
 
         let current_declared_idents = self.declared_idents.clone();
         let current_names = self.names.clone();
@@ -504,7 +530,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
+        let is_action_fn = self.get_fn_directive_info(f.function.body.as_mut(), true);
 
         let current_declared_idents = self.declared_idents.clone();
         let current_names = self.names.clone();
@@ -572,7 +598,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let is_action_fn = self.get_action_info(
+        let is_action_fn = self.get_fn_directive_info(
             if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 Some(block)
             } else {
@@ -694,7 +720,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
-        remove_server_directive_index_in_module(
+        remove_directive_index_in_module(
+            "use server",
             stmts,
             &mut self.in_action_file,
             &mut self.has_action,
@@ -882,9 +909,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // If it's a "use server" file, all exports need to be annotated as actions.
         if self.in_action_file {
+            let server_directive_config = self.directives.get("server").expect("server directive");
+
             // If it's compiled in the client layer, each export field needs to be
             // wrapped by a reference creation call.
-            let create_ref_ident = private_ident!("createServerReference");
+            let create_ref_ident =
+                private_ident!(server_directive_config.create_reference.to_string());
             if !self.config.is_react_server_layer {
                 // import { createServerReference } from
                 // 'private-next-rsc-action-client-wrapper'
@@ -1052,11 +1082,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 // Inlined actions are only allowed on the server layer.
                 // import { registerServerReference } from 'private-next-rsc-server-reference'
                 // registerServerReference("action_id")
+
+                let server_directive_config =
+                    self.directives.get("server").expect("server directive");
+
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("registerServerReference"),
+                        local: quote_ident!(server_directive_config.register_reference.to_string()),
                         imported: None,
                         is_type_only: false,
                     })],
@@ -1286,16 +1320,66 @@ fn annotate_ident_as_action(
     }
 }
 
-const DIRECTIVE_TYPOS: &[&str] = &[
-    "use servers",
-    "use-server",
-    "use sevrer",
-    "use srever",
-    "use servre",
-    "user server",
-];
+// Detects if two strings are similar (but not the same).
+// This implementation is fast and simple as it allows only one
+// edit (add, remove, edit, swap), instead of using a N^2 Levenshtein algorithm.
+//
+// Example of similar strings of "use server":
+// "use servers",
+// "use-server",
+// "use sevrer",
+// "use srever",
+// "use servre",
+// "user server",
+//
+// This avoids accidental typos as there's currently no other static analysis
+// tool to help when these mistakes happen.
+fn detect_similar_strings(a: &str, b: &str) -> bool {
+    let mut a = a.chars().collect::<Vec<char>>();
+    let mut b = b.chars().collect::<Vec<char>>();
 
-fn remove_server_directive_index_in_module(
+    if a.len() < b.len() {
+        (a, b) = (b, a);
+    }
+
+    if a.len() == b.len() {
+        // Same length, get the number of character differences.
+        let mut diff = 0;
+        for i in 0..a.len() {
+            if a[i] != b[i] {
+                diff += 1;
+                if diff > 2 {
+                    return false;
+                }
+            }
+        }
+
+        // Should be 1 or 2, but not 0.
+        diff != 0
+    } else {
+        if a.len() - b.len() > 1 {
+            return false;
+        }
+
+        // A has one more character than B.
+        for i in 0..b.len() {
+            if a[i] != b[i] {
+                // This should be the only difference, a[i+1..] should be equal to b[i..].
+                // Otherwise, they're not considered similar.
+                // A: "use srerver"
+                // B: "use server"
+                //          ^
+                return a[i + 1..] == b[i..];
+            }
+        }
+
+        // This happens when the last character of A is an extra character.
+        true
+    }
+}
+
+fn remove_directive_index_in_module(
+    directive: &str,
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
     has_action: &mut bool,
@@ -1309,7 +1393,7 @@ fn remove_server_directive_index_in_module(
                 expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
                 ..
             })) => {
-                if value == "use server" {
+                if value == directive {
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
@@ -1329,21 +1413,25 @@ fn remove_server_directive_index_in_module(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use server\" directive must be at the top of the file.",
+                                    format!(
+                                        "The \"{}\" directive must be at the top of the file.",
+                                        directive
+                                    ).as_str()
                                 )
                                 .emit();
                         });
                     }
                 } else {
                     // Detect typo of "use server"
-                    if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    if detect_similar_strings(value, directive) {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
                                     *span,
                                     format!(
-                                        "Did you mean \"use server\"? \"{}\" is not a supported \
+                                        "Did you mean \"{}\"? \"{}\" is not a supported \
                                          directive name.",
+                                        directive,
                                         value
                                     )
                                     .as_str(),
@@ -1362,15 +1450,17 @@ fn remove_server_directive_index_in_module(
                 span,
                 ..
             })) => {
-                // Match `("use server")`.
-                if value == "use server" || DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                // Match `("use server")` which is likely to be made by Prettier.
+                if value == directive || detect_similar_strings(value, directive) {
                     if is_directive {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use server\" directive cannot be wrapped in \
-                                     parentheses.",
+                                    format!(
+                                        "The \"{}\" directive cannot be wrapped in parentheses.",
+                                        directive
+                                    ).as_str()
                                 )
                                 .emit();
                         })
@@ -1379,8 +1469,8 @@ fn remove_server_directive_index_in_module(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use server\" directive must be at the top of the file, \
-                                     and cannot be wrapped in parentheses.",
+                                    format!(
+                                        "The \"{}\" directive must be at the top of the file, and cannot be wrapped in parentheses.", directive).as_str()
                                 )
                                 .emit();
                         })
@@ -1395,7 +1485,8 @@ fn remove_server_directive_index_in_module(
     });
 }
 
-fn remove_server_directive_index_in_fn(
+fn remove_directive_index_in_fn(
+    directive: &str,
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
@@ -1410,7 +1501,7 @@ fn remove_server_directive_index_in_fn(
             ..
         }) = stmt
         {
-            if value == "use server" {
+            if value == directive{
                 *action_span = Some(*span);
 
                 if is_directive {
@@ -1433,22 +1524,26 @@ fn remove_server_directive_index_in_fn(
                         handler
                             .struct_span_err(
                                 *span,
-                                "The \"use server\" directive must be at the top of the function \
-                                 body.",
+                                format!(
+                                  "The \"{}\" directive must be at the top of the function \
+                                   body.",
+                                    directive
+                                ).as_str()
                             )
                             .emit();
                     });
                 }
             } else {
                 // Detect typo of "use server"
-                if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if detect_similar_strings(value, directive) {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
                                 *span,
                                 format!(
-                                    "Did you mean \"use server\"? \"{}\" is not a supported \
+                                    "Did you mean \"{}\"? \"{}\" is not a supported \
                                      directive name.",
+                                     directive,
                                     value
                                 )
                                 .as_str(),
