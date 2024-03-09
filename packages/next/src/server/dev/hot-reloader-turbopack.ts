@@ -1,13 +1,11 @@
-import type {
-  Endpoint,
-  Route,
-  TurbopackResult,
-  WrittenEndpoint,
-  Issue,
-  StyledString,
-} from '../../build/swc'
 import type { Socket } from 'net'
+import { mkdir, writeFile } from 'fs/promises'
+import { join } from 'path'
+
+import ws from 'next/dist/compiled/ws'
+
 import type { OutputState } from '../../build/output/store'
+import { store as consoleStore } from '../../build/output/store'
 import type {
   CompilationError,
   HMR_ACTION_TYPES,
@@ -16,68 +14,70 @@ import type {
   SyncAction,
   TurbopackConnectedAction,
 } from './hot-reloader-types'
-
-import ws from 'next/dist/compiled/ws'
-import { createDefineEnv } from '../../build/swc'
-import { join } from 'path'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import type { Update as TurbopackUpdate } from '../../build/swc'
+import {
+  createDefineEnv,
+  type Endpoint,
+  type TurbopackResult,
+  type WrittenEndpoint,
+} from '../../build/swc'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { store as consoleStore } from '../../build/output/store'
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
-import { mkdir, writeFile } from 'fs/promises'
+import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../build/swc'
 import { debounce } from '../utils'
 import {
   deleteAppClientCache,
   deleteCache,
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
-import { normalizeMetadataRoute } from '../../lib/metadata/get-metadata-route'
 import {
-  clearModuleContext,
   clearAllModuleContexts,
+  clearModuleContext,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { bold, green, magenta, red } from '../../lib/picocolors'
 import { trace } from '../../trace'
 import type { VersionInfo } from './parse-version-info'
 import {
-  MAGIC_IDENTIFIER_REGEX,
-  decodeMagicIdentifier,
-} from '../../shared/lib/magic-identifier'
-import {
+  AssetMapper,
+  type ChangeSubscriptions,
+  type ClientState,
+  type EntryIssuesMap,
+  formatIssue,
   getTurbopackJsConfig,
-  type BuildManifests,
-  type AppBuildManifests,
-  type PagesManifests,
-  type AppPathsManifests,
-  type MiddlewareManifests,
-  type ActionManifests,
-  type FontManifests,
-  type LoadableManifests,
-  loadMiddlewareManifest,
-  writeManifests,
-  loadBuildManifest,
-  loadPagesManifest,
-  loadLoadableManifest,
-  loadFontManifest,
-  loadAppBuildManifest,
-  loadAppPathManifest,
-  loadActionManifest,
-  type CurrentEntrypoints,
+  handleEntrypoints,
+  handlePagesErrorRoute,
+  handleRouteType,
+  hasEntrypointForKey,
+  msToNs,
+  processIssues,
+  type ReadyIds,
+  renderStyledStringToErrorAnsi,
+  type SendHmr,
+  type StartBuilding,
+  processTopLevelIssues,
+  type TopLevelIssuesMap,
 } from './turbopack-utils'
 import {
   propagateServerField,
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
+import { TurbopackManifestLoader } from './turbopack/manifest-loader'
+import type { Entrypoints } from './turbopack/types'
+import { findPagePathData } from './on-demand-entry-handler'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import {
+  type EntryKey,
+  getEntryKey,
+  splitEntryKey,
+} from './turbopack/entry-key'
+import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
   process.env.NEXT_TEST_MODE ||
@@ -85,125 +85,12 @@ const isTestMode = !!(
   process.env.DEBUG
 )
 
-class ModuleBuildError extends Error {}
-
-function issueKey(issue: Issue): string {
-  return [
-    issue.severity,
-    issue.filePath,
-    JSON.stringify(issue.title),
-    JSON.stringify(issue.description),
-  ].join('-')
-}
-
-function formatIssue(issue: Issue) {
-  const { filePath, title, description, source } = issue
-  let { documentationLink } = issue
-  let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
-    /\n/g,
-    '\n    '
-  )
-
-  // TODO: Use error codes to identify these
-  // TODO: Generalize adapting Turbopack errors to Next.js errors
-  if (formattedTitle.includes('Module not found')) {
-    // For compatiblity with webpack
-    // TODO: include columns in webpack errors.
-    documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
-  }
-
-  let formattedFilePath = filePath
-    .replace('[project]/', './')
-    .replaceAll('/./', '/')
-    .replace('\\\\?\\', '')
-
-  let message
-
-  if (source && source.range) {
-    const { start } = source.range
-    message = `${formattedFilePath}:${start.line + 1}:${
-      start.column + 1
-    }\n${formattedTitle}`
-  } else if (formattedFilePath) {
-    message = `${formattedFilePath}\n${formattedTitle}`
-  } else {
-    message = formattedTitle
-  }
-  message += '\n'
-
-  if (source?.range && source.source.content) {
-    const { start, end } = source.range
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
-
-    message +=
-      codeFrameColumns(
-        source.source.content,
-        {
-          start: {
-            line: start.line + 1,
-            column: start.column + 1,
-          },
-          end: {
-            line: end.line + 1,
-            column: end.column + 1,
-          },
-        },
-        { forceColor: true }
-      ).trim() + '\n\n'
-  }
-
-  if (description) {
-    message += renderStyledStringToErrorAnsi(description) + '\n\n'
-  }
-
-  // TODO: make it possible to enable this for debugging, but not in tests.
-  // if (detail) {
-  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
-  // }
-
-  // TODO: Include a trace from the issue.
-
-  if (documentationLink) {
-    message += documentationLink + '\n\n'
-  }
-
-  return message
-}
-
-type CurrentIssues = Map<string, Map<string, Issue>>
-
-function processIssues(
-  currentIssues: CurrentIssues,
-  name: string,
-  result: TurbopackResult,
-  throwIssue = false
-) {
-  const newIssues = new Map<string, Issue>()
-  currentIssues.set(name, newIssues)
-
-  const relevantIssues = new Set()
-
-  for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
-    const key = issueKey(issue)
-    const formatted = formatIssue(issue)
-    newIssues.set(key, issue)
-
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
-    relevantIssues.add(formatted)
-  }
-
-  if (relevantIssues.size && throwIssue) {
-    throw new ModuleBuildError([...relevantIssues].join('\n\n'))
-  }
-}
-
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
   serverFields: ServerFields,
   distDir: string
 ): Promise<NextJsHotReloaderInterface> {
+  const buildId = 'development'
   const { nextConfig, dir } = opts
 
   const { loadBindings } =
@@ -238,6 +125,7 @@ export async function createHotReloaderTurbopack(
     nextConfig: opts.nextConfig,
     jsConfig: await getTurbopackJsConfig(dir, nextConfig),
     watch: true,
+    dev: true,
     env: process.env as Record<string, string>,
     defineEnv: createDefineEnv({
       isTurbopack: true,
@@ -251,45 +139,50 @@ export async function createHotReloaderTurbopack(
       middlewareMatchers: undefined,
       previewModeId: undefined,
     }),
-    serverAddr: `127.0.0.1:${opts.port}`,
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
-  const currentEntrypoints: CurrentEntrypoints = new Map()
-  const changeSubscriptions: Map<
-    string,
-    Promise<AsyncIterator<any>>
-  > = new Map()
-  let prevMiddleware: boolean | undefined = undefined
-  const globalEntrypoints: {
-    app: Endpoint | undefined
-    document: Endpoint | undefined
-    error: Endpoint | undefined
-  } = {
-    app: undefined,
-    document: undefined,
-    error: undefined,
+
+  const currentEntrypoints: Entrypoints = {
+    global: {
+      app: undefined,
+      document: undefined,
+      error: undefined,
+
+      middleware: undefined,
+      instrumentation: undefined,
+    },
+
+    page: new Map(),
+    app: new Map(),
   }
+
+  const currentTopLevelIssues: TopLevelIssuesMap = new Map()
+  const currentEntryIssues: EntryIssuesMap = new Map()
+
+  const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
+
+  // Dev specific
+  const changeSubscriptions: ChangeSubscriptions = new Map()
+  const serverPathState = new Map<string, string>()
+  const readyIds: ReadyIds = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
   let currentEntriesHandling = new Promise(
     (resolve) => (currentEntriesHandlingResolve = resolve)
   )
-  const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
-  const turbopackUpdates: TurbopackUpdate[] = []
 
-  const currentIssues: CurrentIssues = new Map()
-  const serverPathState = new Map<string, string>()
+  const assetMapper = new AssetMapper()
 
-  async function handleRequireCacheClearing(
-    id: string,
-    result: TurbopackResult<WrittenEndpoint>
-  ): Promise<TurbopackResult<WrittenEndpoint>> {
+  function clearRequireCache(
+    key: EntryKey,
+    writtenEndpoint: WrittenEndpoint
+  ): void {
     // Figure out if the server files have changed
     let hasChange = false
-    for (const { path, contentHash } of result.serverPaths) {
+    for (const { path, contentHash } of writtenEndpoint.serverPaths) {
       // We ignore source maps
       if (path.endsWith('.map')) continue
-      const key = `${id}:${path}`
-      const localHash = serverPathState.get(key)
+      const localKey = `${key}:${path}`
+      const localHash = serverPathState.get(localKey)
       const globalHash = serverPathState.get(path)
       if (
         (localHash && localHash !== contentHash) ||
@@ -309,10 +202,10 @@ export async function createHotReloaderTurbopack(
     }
 
     if (!hasChange) {
-      return result
+      return
     }
 
-    const hasAppPaths = result.serverPaths.some(({ path: p }) =>
+    const hasAppPaths = writtenEndpoint.serverPaths.some(({ path: p }) =>
       p.startsWith('server/app')
     )
 
@@ -320,7 +213,7 @@ export async function createHotReloaderTurbopack(
       deleteAppClientCache()
     }
 
-    const serverPaths = result.serverPaths.map(({ path: p }) =>
+    const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
       join(distDir, p)
     )
 
@@ -329,17 +222,12 @@ export async function createHotReloaderTurbopack(
       deleteCache(file)
     }
 
-    return result
+    return
   }
 
   const buildingIds = new Set()
-  const readyIds = new Set()
 
-  function startBuilding(
-    id: string,
-    requestUrl: string | undefined,
-    forceRebuild: boolean = false
-  ) {
+  const startBuilding: StartBuilding = (id, requestUrl, forceRebuild) => {
     if (!forceRebuild && readyIds.has(id)) {
       return () => {}
     }
@@ -373,104 +261,125 @@ export async function createHotReloaderTurbopack(
 
   let hmrEventHappened = false
   let hmrHash = 0
-  const sendEnqueuedMessages = () => {
-    for (const [, issueMap] of currentIssues) {
+
+  const clients = new Set<ws>()
+  const clientStates = new WeakMap<ws, ClientState>()
+
+  function sendToClient(client: ws, payload: HMR_ACTION_TYPES) {
+    client.send(JSON.stringify(payload))
+  }
+
+  function sendEnqueuedMessages() {
+    for (const [, issueMap] of currentEntryIssues) {
       if (issueMap.size > 0) {
         // During compilation errors we want to delay the HMR events until errors are fixed
         return
       }
     }
-    for (const payload of hmrPayloads.values()) {
-      hotReloader.send(payload)
-    }
-    hmrPayloads.clear()
-    if (turbopackUpdates.length > 0) {
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-        data: turbopackUpdates,
-      })
-      turbopackUpdates.length = 0
+
+    for (const client of clients) {
+      const state = clientStates.get(client)
+      if (!state) {
+        continue
+      }
+
+      for (const [, issueMap] of state.clientIssues) {
+        if (issueMap.size > 0) {
+          // During compilation errors we want to delay the HMR events until errors are fixed
+          return
+        }
+      }
+
+      for (const payload of state.hmrPayloads.values()) {
+        sendToClient(client, payload)
+      }
+      state.hmrPayloads.clear()
+
+      if (state.turbopackUpdates.length > 0) {
+        sendToClient(client, {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: state.turbopackUpdates,
+        })
+        state.turbopackUpdates.length = 0
+      }
     }
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  function sendHmr(id: string, payload: HMR_ACTION_TYPES) {
-    hmrPayloads.set(`${id}`, payload)
+  const sendHmr: SendHmr = (id: string, payload: HMR_ACTION_TYPES) => {
+    for (const client of clients) {
+      clientStates.get(client)?.hmrPayloads.set(id, payload)
+    }
+
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
   function sendTurbopackMessage(payload: TurbopackUpdate) {
-    turbopackUpdates.push(payload)
+    // TODO(PACK-2049): For some reason we end up emitting hundreds of issues messages on bigger apps,
+    //   a lot of which are duplicates.
+    //   They are currently not handled on the client at all, so might as well not send them for now.
+    payload.diagnostics = []
+    payload.issues = []
+
+    for (const client of clients) {
+      clientStates.get(client)?.turbopackUpdates.push(payload)
+    }
+
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
-  const buildManifests: BuildManifests = new Map()
-  const appBuildManifests: AppBuildManifests = new Map()
-  const pagesManifests: PagesManifests = new Map()
-  const appPathsManifests: AppPathsManifests = new Map()
-  const middlewareManifests: MiddlewareManifests = new Map()
-  const actionManifests: ActionManifests = new Map()
-  const fontManifests: FontManifests = new Map()
-  const loadableManifests: LoadableManifests = new Map()
-
-  const clientToHmrSubscription: Map<
-    ws,
-    Map<string, AsyncIterator<any>>
-  > = new Map()
-
-  const clients = new Set<ws>()
-
-  async function changeSubscription(
-    page: string,
-    type: 'client' | 'server',
+  async function subscribeToChanges(
+    key: EntryKey,
     includeIssues: boolean,
-    endpoint: Endpoint | undefined,
+    endpoint: Endpoint,
     makePayload: (
-      page: string,
       change: TurbopackResult
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
   ) {
-    const key = `${page} (${type})`
-    if (!endpoint || changeSubscriptions.has(key)) return
+    if (changeSubscriptions.has(key)) {
+      return
+    }
 
-    const changedPromise = endpoint[`${type}Changed`](includeIssues)
+    const { side } = splitEntryKey(key)
+
+    const changedPromise = endpoint[`${side}Changed`](includeIssues)
     changeSubscriptions.set(key, changedPromise)
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(currentIssues, page, change)
-      const payload = await makePayload(page, change)
+      processIssues(currentEntryIssues, key, change)
+      const payload = await makePayload(change)
       if (payload) {
         sendHmr(key, payload)
       }
     }
   }
 
-  async function clearChangeSubscription(
-    page: string,
-    type: 'server' | 'client'
-  ) {
-    const key = `${page} (${type})`
+  async function unsubscribeFromChanges(key: EntryKey) {
     const subscription = await changeSubscriptions.get(key)
     if (subscription) {
-      subscription.return?.()
+      await subscription.return?.()
       changeSubscriptions.delete(key)
     }
-    currentIssues.delete(key)
+    currentEntryIssues.delete(key)
   }
 
-  async function subscribeToHmrEvents(id: string, client: ws) {
-    let mapping = clientToHmrSubscription.get(client)
-    if (mapping === undefined) {
-      mapping = new Map()
-      clientToHmrSubscription.set(client, mapping)
+  async function subscribeToHmrEvents(client: ws, id: string) {
+    const key = getEntryKey('assets', 'client', id)
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      // maybe throw an error / force the client to reload?
+      return
     }
-    if (mapping.has(id)) return
+
+    const state = clientStates.get(client)
+    if (!state || state.subscriptions.has(id)) {
+      return
+    }
 
     const subscription = project!.hmrEvents(id)
-    mapping.set(id, subscription)
+    state.subscriptions.set(id, subscription)
 
     // The subscription will always emit once, which is the initial
     // computation. This is not a change, so swallow it.
@@ -478,7 +387,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(currentIssues, id, data)
+        processIssues(state.clientIssues, key, data)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -486,233 +395,79 @@ export async function createHotReloaderTurbopack(
     } catch (e) {
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use
-      // `hotReloader.send` since that would force very connected client to
+      // `hotReloader.send` since that would force every connected client to
       // reload, only this client is out of date.
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
       }
-      client.send(JSON.stringify(reloadAction))
+      sendToClient(client, reloadAction)
       client.close()
       return
     }
   }
 
-  function unsubscribeToHmrEvents(id: string, client: ws) {
-    const mapping = clientToHmrSubscription.get(client)
-    const subscription = mapping?.get(id)
-    subscription?.return!()
-  }
-
-  try {
-    async function handleEntrypointsSubscription() {
-      for await (const entrypoints of entrypointsSubscription) {
-        if (!currentEntriesHandlingResolve) {
-          currentEntriesHandling = new Promise(
-            // eslint-disable-next-line no-loop-func
-            (resolve) => (currentEntriesHandlingResolve = resolve)
-          )
-        }
-        globalEntrypoints.app = entrypoints.pagesAppEndpoint
-        globalEntrypoints.document = entrypoints.pagesDocumentEndpoint
-        globalEntrypoints.error = entrypoints.pagesErrorEndpoint
-
-        currentEntrypoints.clear()
-
-        for (const [pathname, route] of entrypoints.routes) {
-          switch (route.type) {
-            case 'page':
-            case 'page-api':
-            case 'app-page':
-            case 'app-route': {
-              currentEntrypoints.set(pathname, route)
-              break
-            }
-            default:
-              Log.info(`skipping ${pathname} (${route.type})`)
-              break
-          }
-        }
-
-        for (const [pathname, subscriptionPromise] of changeSubscriptions) {
-          if (pathname === '') {
-            // middleware is handled below
-            continue
-          }
-
-          if (!currentEntrypoints.has(pathname)) {
-            const subscription = await subscriptionPromise
-            subscription.return?.()
-            changeSubscriptions.delete(pathname)
-          }
-        }
-
-        const { middleware, instrumentation } = entrypoints
-        // We check for explicit true/false, since it's initialized to
-        // undefined during the first loop (middlewareChanges event is
-        // unnecessary during the first serve)
-        if (prevMiddleware === true && !middleware) {
-          // Went from middleware to no middleware
-          await clearChangeSubscription('middleware', 'server')
-          sendHmr('middleware', {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-          })
-        } else if (prevMiddleware === false && middleware) {
-          // Went from no middleware to middleware
-          sendHmr('middleware', {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-          })
-        }
-        if (
-          opts.nextConfig.experimental.instrumentationHook &&
-          instrumentation
-        ) {
-          const processInstrumentation = async (
-            displayName: string,
-            name: string,
-            prop: 'nodeJs' | 'edge'
-          ) => {
-            const writtenEndpoint = await handleRequireCacheClearing(
-              displayName,
-              await instrumentation[prop].writeToDisk()
-            )
-            processIssues(currentIssues, name, writtenEndpoint)
-          }
-          await processInstrumentation(
-            'instrumentation (node.js)',
-            'instrumentation.nodeJs',
-            'nodeJs'
-          )
-          await processInstrumentation(
-            'instrumentation (edge)',
-            'instrumentation.edge',
-            'edge'
-          )
-          await loadMiddlewareManifest(
-            distDir,
-            middlewareManifests,
-            'instrumentation',
-            'instrumentation'
-          )
-          await writeManifests(
-            opts,
-            distDir,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-            currentEntrypoints
-          )
-
-          serverFields.actualInstrumentationHookFile = '/instrumentation'
-          await propagateServerField(
-            opts,
-            'actualInstrumentationHookFile',
-            serverFields.actualInstrumentationHookFile
-          )
-        } else {
-          serverFields.actualInstrumentationHookFile = undefined
-          await propagateServerField(
-            opts,
-            'actualInstrumentationHookFile',
-            serverFields.actualInstrumentationHookFile
-          )
-        }
-        if (middleware) {
-          const processMiddleware = async () => {
-            const writtenEndpoint = await handleRequireCacheClearing(
-              'middleware',
-              await middleware.endpoint.writeToDisk()
-            )
-            processIssues(currentIssues, 'middleware', writtenEndpoint)
-            await loadMiddlewareManifest(
-              distDir,
-              middlewareManifests,
-              'middleware',
-              'middleware'
-            )
-            serverFields.middleware = {
-              match: null as any,
-              page: '/',
-              matchers:
-                middlewareManifests.get('middleware')?.middleware['/'].matchers,
-            }
-          }
-          await processMiddleware()
-
-          changeSubscription(
-            'middleware',
-            'server',
-            false,
-            middleware.endpoint,
-            async () => {
-              const finishBuilding = startBuilding(
-                'middleware',
-                undefined,
-                true
-              )
-              await processMiddleware()
-              await propagateServerField(
-                opts,
-                'actualMiddlewareFile',
-                serverFields.actualMiddlewareFile
-              )
-              await propagateServerField(
-                opts,
-                'middleware',
-                serverFields.middleware
-              )
-              await writeManifests(
-                opts,
-                distDir,
-                buildManifests,
-                appBuildManifests,
-                pagesManifests,
-                appPathsManifests,
-                middlewareManifests,
-                actionManifests,
-                fontManifests,
-                loadableManifests,
-                currentEntrypoints
-              )
-
-              finishBuilding()
-              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-            }
-          )
-          prevMiddleware = true
-        } else {
-          middlewareManifests.delete('middleware')
-          serverFields.actualMiddlewareFile = undefined
-          serverFields.middleware = undefined
-          prevMiddleware = false
-        }
-        await propagateServerField(
-          opts,
-          'actualMiddlewareFile',
-          serverFields.actualMiddlewareFile
-        )
-        await propagateServerField(opts, 'middleware', serverFields.middleware)
-
-        currentEntriesHandlingResolve!()
-        currentEntriesHandlingResolve = undefined
-      }
+  function unsubscribeFromHmrEvents(client: ws, id: string) {
+    const state = clientStates.get(client)
+    if (!state) {
+      return
     }
 
-    handleEntrypointsSubscription().catch((err) => {
-      console.error(err)
-      process.exit(1)
-    })
-  } catch (e) {
-    console.error(e)
+    const subscription = state.subscriptions.get(id)
+    subscription?.return!()
+
+    const key = getEntryKey('assets', 'client', id)
+    state.clientIssues.delete(key)
   }
 
-  // Write empty manifests
+  async function handleEntrypointsSubscription() {
+    for await (const entrypoints of entrypointsSubscription) {
+      if (!currentEntriesHandlingResolve) {
+        currentEntriesHandling = new Promise(
+          // eslint-disable-next-line no-loop-func
+          (resolve) => (currentEntriesHandlingResolve = resolve)
+        )
+      }
+
+      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+
+      await handleEntrypoints({
+        entrypoints,
+
+        currentEntrypoints,
+
+        currentEntryIssues,
+        manifestLoader,
+        nextConfig: opts.nextConfig,
+        rewrites: opts.fsChecker.rewrites,
+
+        dev: {
+          assetMapper,
+          changeSubscriptions,
+          clients,
+          clientStates,
+          serverFields,
+
+          hooks: {
+            handleWrittenEndpoint: (id, result) => {
+              clearRequireCache(id, result)
+            },
+            propagateServerField: propagateServerField.bind(null, opts),
+            sendHmr,
+            startBuilding,
+            subscribeToChanges,
+            unsubscribeFromChanges,
+            unsubscribeFromHmrEvents,
+          },
+        },
+      })
+
+      currentEntriesHandlingResolve!()
+      currentEntriesHandlingResolve = undefined
+    }
+  }
+
   await mkdir(join(distDir, 'server'), { recursive: true })
-  await mkdir(join(distDir, 'static/development'), { recursive: true })
+  await mkdir(join(distDir, 'static', buildId), { recursive: true })
   await writeFile(
     join(distDir, 'package.json'),
     JSON.stringify(
@@ -723,294 +478,10 @@ export async function createHotReloaderTurbopack(
       2
     )
   )
-  await currentEntriesHandling
-  await writeManifests(
-    opts,
-    distDir,
-    buildManifests,
-    appBuildManifests,
-    pagesManifests,
-    appPathsManifests,
-    middlewareManifests,
-    actionManifests,
-    fontManifests,
-    loadableManifests,
-    currentEntrypoints
-  )
   const overlayMiddleware = getOverlayMiddleware(project)
   const versionInfo: VersionInfo = await getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
-
-  async function handleRouteType(
-    page: string,
-    route: Route,
-    requestUrl: string | undefined
-  ) {
-    let finishBuilding: (() => void) | undefined = undefined
-
-    try {
-      switch (route.type) {
-        case 'page': {
-          finishBuilding = startBuilding(page, requestUrl)
-          try {
-            if (globalEntrypoints.app) {
-              const writtenEndpoint = await handleRequireCacheClearing(
-                '_app',
-                await globalEntrypoints.app.writeToDisk()
-              )
-              processIssues(currentIssues, '_app', writtenEndpoint)
-            }
-            await loadBuildManifest(distDir, buildManifests, '_app')
-            await loadPagesManifest(distDir, pagesManifests, '_app')
-
-            if (globalEntrypoints.document) {
-              const writtenEndpoint = await handleRequireCacheClearing(
-                '_document',
-                await globalEntrypoints.document.writeToDisk()
-              )
-              processIssues(currentIssues, '_document', writtenEndpoint)
-            }
-            await loadPagesManifest(distDir, pagesManifests, '_document')
-
-            const writtenEndpoint = await handleRequireCacheClearing(
-              page,
-              await route.htmlEndpoint.writeToDisk()
-            )
-
-            const type = writtenEndpoint?.type
-
-            await loadBuildManifest(distDir, buildManifests, page)
-            await loadPagesManifest(distDir, pagesManifests, page)
-            if (type === 'edge') {
-              await loadMiddlewareManifest(
-                distDir,
-                middlewareManifests,
-                page,
-                'pages'
-              )
-            } else {
-              middlewareManifests.delete(page)
-            }
-            await loadFontManifest(distDir, fontManifests, page, 'pages')
-            await loadLoadableManifest(
-              distDir,
-              loadableManifests,
-              page,
-              'pages'
-            )
-
-            await writeManifests(
-              opts,
-              distDir,
-              buildManifests,
-              appBuildManifests,
-              pagesManifests,
-              appPathsManifests,
-              middlewareManifests,
-              actionManifests,
-              fontManifests,
-              loadableManifests,
-              currentEntrypoints
-            )
-
-            processIssues(currentIssues, page, writtenEndpoint)
-          } finally {
-            changeSubscription(
-              page,
-              'server',
-              false,
-              route.dataEndpoint,
-              (pageName) => {
-                // Report the next compilation again
-                readyIds.delete(page)
-                return {
-                  event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-                  pages: [pageName],
-                }
-              }
-            )
-            changeSubscription(
-              page,
-              'client',
-              false,
-              route.htmlEndpoint,
-              () => {
-                return {
-                  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
-                }
-              }
-            )
-            if (globalEntrypoints.document) {
-              changeSubscription(
-                '_document',
-                'server',
-                false,
-                globalEntrypoints.document,
-                () => {
-                  return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-                }
-              )
-            }
-          }
-
-          break
-        }
-        case 'page-api': {
-          finishBuilding = startBuilding(page, requestUrl)
-          const writtenEndpoint = await handleRequireCacheClearing(
-            page,
-            await route.endpoint.writeToDisk()
-          )
-
-          const type = writtenEndpoint?.type
-
-          await loadPagesManifest(distDir, pagesManifests, page)
-          if (type === 'edge') {
-            await loadMiddlewareManifest(
-              distDir,
-              middlewareManifests,
-              page,
-              'pages'
-            )
-          } else {
-            middlewareManifests.delete(page)
-          }
-          await loadLoadableManifest(distDir, loadableManifests, page, 'pages')
-
-          await writeManifests(
-            opts,
-            distDir,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-            currentEntrypoints
-          )
-
-          processIssues(currentIssues, page, writtenEndpoint)
-
-          break
-        }
-        case 'app-page': {
-          finishBuilding = startBuilding(page, requestUrl)
-          const writtenEndpoint = await handleRequireCacheClearing(
-            page,
-            await route.htmlEndpoint.writeToDisk()
-          )
-
-          changeSubscription(
-            page,
-            'server',
-            true,
-            route.rscEndpoint,
-            (_page, change) => {
-              if (change.issues.some((issue) => issue.severity === 'error')) {
-                // Ignore any updates that has errors
-                // There will be another update without errors eventually
-                return
-              }
-              // Report the next compilation again
-              readyIds.delete(page)
-              return {
-                action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              }
-            }
-          )
-
-          const type = writtenEndpoint?.type
-
-          if (type === 'edge') {
-            await loadMiddlewareManifest(
-              distDir,
-              middlewareManifests,
-              page,
-              'app'
-            )
-          } else {
-            middlewareManifests.delete(page)
-          }
-
-          await loadAppBuildManifest(distDir, appBuildManifests, page)
-          await loadBuildManifest(distDir, buildManifests, page, 'app')
-          await loadAppPathManifest(distDir, appPathsManifests, page, 'app')
-          await loadActionManifest(distDir, actionManifests, page)
-          await loadFontManifest(distDir, fontManifests, page, 'app')
-          await writeManifests(
-            opts,
-            distDir,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-            currentEntrypoints
-          )
-
-          processIssues(currentIssues, page, writtenEndpoint, true)
-
-          break
-        }
-        case 'app-route': {
-          finishBuilding = startBuilding(page, requestUrl)
-          const writtenEndpoint = await handleRequireCacheClearing(
-            page,
-            await route.endpoint.writeToDisk()
-          )
-
-          const type = writtenEndpoint?.type
-
-          await loadAppPathManifest(
-            distDir,
-            appPathsManifests,
-            page,
-            'app-route'
-          )
-          if (type === 'edge') {
-            await loadMiddlewareManifest(
-              distDir,
-              middlewareManifests,
-              page,
-              'app-route'
-            )
-          } else {
-            middlewareManifests.delete(page)
-          }
-
-          await writeManifests(
-            opts,
-            distDir,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-            currentEntrypoints
-          )
-          processIssues(currentIssues, page, writtenEndpoint, true)
-
-          break
-        }
-        default: {
-          throw new Error(
-            `unknown route type ${(route as any).type} for ${page}`
-          )
-        }
-      }
-    } finally {
-      if (finishBuilding) finishBuilding()
-    }
-  }
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -1049,8 +520,25 @@ export async function createHotReloaderTurbopack(
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
     onHMR(req, socket: Socket, head) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
+        const clientIssues: EntryIssuesMap = new Map()
+        const subscriptions: Map<string, AsyncIterator<any>> = new Map()
+
         clients.add(client)
-        client.on('close', () => clients.delete(client))
+        clientStates.set(client, {
+          clientIssues,
+          hmrPayloads: new Map(),
+          turbopackUpdates: [],
+          subscriptions,
+        })
+
+        client.on('close', () => {
+          // Remove active subscriptions
+          for (const subscription of subscriptions.values()) {
+            subscription.return?.()
+          }
+          clientStates.delete(client)
+          clients.delete(client)
+        })
 
         client.addEventListener('message', ({ data }) => {
           const parsedData = JSON.parse(
@@ -1090,6 +578,11 @@ export async function createHotReloaderTurbopack(
             case 'client-reload-page': // { clientId }
             case 'client-removed-page': // { page }
             case 'client-full-reload': // { stackTrace, hadRuntimeError }
+              const { hadRuntimeError } = parsedData
+              if (hadRuntimeError) {
+                Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
+              }
+              break
             case 'client-added-page':
               // TODO
               break
@@ -1104,11 +597,11 @@ export async function createHotReloaderTurbopack(
           // Turbopack messages
           switch (parsedData.type) {
             case 'turbopack-subscribe':
-              subscribeToHmrEvents(parsedData.path, client)
+              subscribeToHmrEvents(client, parsedData.path)
               break
 
             case 'turbopack-unsubscribe':
-              unsubscribeToHmrEvents(parsedData.path, client)
+              unsubscribeFromHmrEvents(client, parsedData.path)
               break
 
             default:
@@ -1121,11 +614,12 @@ export async function createHotReloaderTurbopack(
         const turbopackConnected: TurbopackConnectedAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         }
-        client.send(JSON.stringify(turbopackConnected))
+        sendToClient(client, turbopackConnected)
 
-        const errors = []
-        for (const pageIssues of currentIssues.values()) {
-          for (const issue of pageIssues.values()) {
+        const errors: CompilationError[] = []
+
+        for (const entryIssues of currentEntryIssues.values()) {
+          for (const issue of entryIssues.values()) {
             errors.push({
               message: formatIssue(issue),
             })
@@ -1140,7 +634,7 @@ export async function createHotReloaderTurbopack(
           versionInfo,
         }
 
-        this.send(sync)
+        sendToClient(client, sync)
       })
     },
 
@@ -1162,18 +656,28 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async getCompilationErrors(page) {
-      const thisPageIssues = currentIssues.get(page)
-      if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
+      const appEntryKey = getEntryKey('app', 'server', page)
+      const pagesEntryKey = getEntryKey('pages', 'server', page)
+
+      const topLevelIssues = currentTopLevelIssues.values()
+
+      const thisEntryIssues =
+        currentEntryIssues.get(appEntryKey) ??
+        currentEntryIssues.get(pagesEntryKey)
+      if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...thisPageIssues.values()].map(
+        return [...topLevelIssues, ...thisEntryIssues.values()].map(
           (issue) => new Error(formatIssue(issue))
         )
       }
 
       // Otherwise, return all errors across pages
       const errors = []
-      for (const pageIssues of currentIssues.values()) {
-        for (const issue of pageIssues.values()) {
+      for (const issue of topLevelIssues) {
+        errors.push(new Error(formatIssue(issue)))
+      }
+      for (const entryIssues of currentEntryIssues.values()) {
+        for (const issue of entryIssues.values()) {
           errors.push(new Error(formatIssue(issue)))
         }
       }
@@ -1202,82 +706,56 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
-      const page = definition?.pathname ?? inputPage
+      if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
+        return
+      }
+
+      let routeDef: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
+        definition ??
+        (await findPagePathData(
+          dir,
+          inputPage,
+          nextConfig.pageExtensions,
+          opts.pagesDir,
+          opts.appDir
+        ))
+
+      const page = routeDef.page
+      const pathname = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
-        let finishBuilding = startBuilding(page, requestUrl)
+        let finishBuilding = startBuilding(pathname, requestUrl, false)
         try {
-          if (globalEntrypoints.app) {
-            const writtenEndpoint = await handleRequireCacheClearing(
-              '_app',
-              await globalEntrypoints.app.writeToDisk()
-            )
-            processIssues(currentIssues, '_app', writtenEndpoint)
-          }
-          await loadBuildManifest(distDir, buildManifests, '_app')
-          await loadPagesManifest(distDir, pagesManifests, '_app')
-          await loadFontManifest(distDir, fontManifests, '_app')
+          await handlePagesErrorRoute({
+            currentEntryIssues,
+            entrypoints: currentEntrypoints,
+            manifestLoader,
+            rewrites: opts.fsChecker.rewrites,
 
-          if (globalEntrypoints.document) {
-            const writtenEndpoint = await handleRequireCacheClearing(
-              '_document',
-              await globalEntrypoints.document.writeToDisk()
-            )
-            changeSubscription(
-              '_document',
-              'server',
-              false,
-              globalEntrypoints.document,
-              () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-              }
-            )
-            processIssues(currentIssues, '_document', writtenEndpoint)
-          }
-          await loadPagesManifest(distDir, pagesManifests, '_document')
-
-          if (globalEntrypoints.error) {
-            const writtenEndpoint = await handleRequireCacheClearing(
-              '_error',
-              await globalEntrypoints.error.writeToDisk()
-            )
-            processIssues(currentIssues, page, writtenEndpoint)
-          }
-          await loadBuildManifest(distDir, buildManifests, '_error')
-          await loadPagesManifest(distDir, pagesManifests, '_error')
-          await loadFontManifest(distDir, fontManifests, '_error')
-
-          await writeManifests(
-            opts,
-            distDir,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-            currentEntrypoints
-          )
+            hooks: {
+              subscribeToChanges,
+              handleWrittenEndpoint: (id, result) => {
+                clearRequireCache(id, result)
+                assetMapper.setPathsForKey(id, result.clientPaths)
+              },
+            },
+          })
         } finally {
           finishBuilding()
         }
         return
       }
+
       await currentEntriesHandling
-      const route =
-        currentEntrypoints.get(page) ??
-        currentEntrypoints.get(
-          normalizeAppPath(
-            normalizeMetadataRoute(definition?.page ?? inputPage)
-          )
-        )
+
+      const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
+
+      const route = isInsideAppDir
+        ? currentEntrypoints.app.get(page)
+        : currentEntrypoints.page.get(page)
 
       if (!route) {
         // TODO: why is this entry missing in turbopack?
-        if (page === '/_app') return
-        if (page === '/_document') return
         if (page === '/middleware') return
         if (page === '/src/middleware') return
         if (page === '/instrumentation') return
@@ -1293,11 +771,46 @@ export async function createHotReloaderTurbopack(
         throw new Error(`mis-matched route type: isApp && page for ${page}`)
       }
 
-      await handleRouteType(page, route, requestUrl)
+      const finishBuilding = startBuilding(pathname, requestUrl, false)
+      try {
+        await handleRouteType({
+          dev: true,
+          page,
+          pathname,
+          route,
+          currentEntryIssues,
+          entrypoints: currentEntrypoints,
+          manifestLoader,
+          readyIds,
+          rewrites: opts.fsChecker.rewrites,
+
+          hooks: {
+            subscribeToChanges,
+            handleWrittenEndpoint: (id, result) => {
+              clearRequireCache(id, result)
+              assetMapper.setPathsForKey(id, result.clientPaths)
+            },
+          },
+        })
+      } finally {
+        finishBuilding()
+      }
     },
   }
 
-  ;(async function () {
+  handleEntrypointsSubscription().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+
+  // Write empty manifests
+  await currentEntriesHandling
+  await manifestLoader.writeManifests({
+    rewrites: opts.fsChecker.rewrites,
+    pageEntrypoints: currentEntrypoints.page,
+  })
+
+  async function handleProjectUpdates() {
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
@@ -1307,28 +820,45 @@ export async function createHotReloaderTurbopack(
         case 'end': {
           sendEnqueuedMessages()
 
-          const errors = new Map<string, CompilationError>()
-          for (const [, issueMap] of currentIssues) {
-            for (const [key, issue] of issueMap) {
-              if (errors.has(key)) continue
+          function addErrors(
+            errorsMap: Map<string, CompilationError>,
+            issues: EntryIssuesMap
+          ) {
+            for (const issueMap of issues.values()) {
+              for (const [key, issue] of issueMap) {
+                if (errorsMap.has(key)) continue
 
-              const message = formatIssue(issue)
+                const message = formatIssue(issue)
 
-              errors.set(key, {
-                message,
-                details: issue.detail
-                  ? renderStyledStringToErrorAnsi(issue.detail)
-                  : undefined,
-              })
+                errorsMap.set(key, {
+                  message,
+                  details: issue.detail
+                    ? renderStyledStringToErrorAnsi(issue.detail)
+                    : undefined,
+                })
+              }
             }
           }
 
-          hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-            hash: String(++hmrHash),
-            errors: [...errors.values()],
-            warnings: [],
-          })
+          const errors = new Map<string, CompilationError>()
+          addErrors(errors, currentEntryIssues)
+
+          for (const client of clients) {
+            const state = clientStates.get(client)
+            if (!state) {
+              continue
+            }
+
+            const clientErrors = new Map(errors)
+            addErrors(clientErrors, state.clientIssues)
+
+            sendToClient(client, {
+              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+              hash: String(++hmrHash),
+              errors: [...clientErrors.values()],
+              warnings: [],
+            })
+          }
 
           if (hmrEventHappened) {
             const time = updateMessage.value.duration
@@ -1342,38 +872,12 @@ export async function createHotReloaderTurbopack(
         default:
       }
     }
-  })()
+  }
+
+  handleProjectUpdates().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
 
   return hotReloader
-}
-
-function renderStyledStringToErrorAnsi(string: StyledString): string {
-  function decodeMagicIdentifiers(str: string): string {
-    return str.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
-      try {
-        return magenta(`{${decodeMagicIdentifier(ident)}}`)
-      } catch (e) {
-        return magenta(`{${ident} (decoding failed: ${e})}`)
-      }
-    })
-  }
-
-  switch (string.type) {
-    case 'text':
-      return decodeMagicIdentifiers(string.value)
-    case 'strong':
-      return bold(red(decodeMagicIdentifiers(string.value)))
-    case 'code':
-      return green(decodeMagicIdentifiers(string.value))
-    case 'line':
-      return string.value.map(renderStyledStringToErrorAnsi).join('')
-    case 'stack':
-      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
-    default:
-      throw new Error('Unknown StyledString type', string)
-  }
-}
-
-function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }

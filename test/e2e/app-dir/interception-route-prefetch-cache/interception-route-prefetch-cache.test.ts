@@ -1,7 +1,7 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { join } from 'path'
-import { Response } from 'playwright-chromium'
+import { Response } from 'playwright'
 
 describe('interception-route-prefetch-cache', () => {
   function runTests({ next }: ReturnType<typeof nextTestSetup>) {

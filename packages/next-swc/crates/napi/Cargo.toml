@@ -68,16 +68,18 @@ napi = { version = "2", default-features = false, features = [
   "serde-json",
   "tokio_rt",
   "error_anyhow",
+  # Lightningcss uses this features
+  "napi4",
+  "napi5",
+  "compat-mode"
 ] }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 
-once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
 tracing = { workspace = true }
-tracing-futures = "0.2.5"
 tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 url = {workspace = true}
@@ -85,6 +87,7 @@ urlencoding = {workspace = true}
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks = { workspace = true }
 next-api = { workspace = true }
@@ -92,6 +95,7 @@ next-build = { workspace = true }
 next-core = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
+  "__swc_core_serde",
   "__feature_node_file_trace",
   "__feature_mdx_rs",
   "__turbo",
@@ -105,10 +109,9 @@ turbopack-binding = { workspace = true, features = [
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
 iana-time-zone = { version = "*", features = ["fallback"] }
-#[todo] turbopack-binding should expose serde serializable features
-swc_core = { workspace = true, features = ["ecma_ast_serde"] }
 turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
+  "__swc_core_serde",
   "__feature_mdx_rs",
 ] }
 

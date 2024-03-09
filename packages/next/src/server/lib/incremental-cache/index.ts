@@ -562,15 +562,18 @@ export class IncrementalCache implements IncrementalCacheType {
 
     if (this.dev && !ctx.fetchCache) return
     // FetchCache has upper limit of 2MB per-entry currently
+    const itemSize = JSON.stringify(data).length
     if (
       ctx.fetchCache &&
       // we don't show this error/warning when a custom cache handler is being used
       // as it might not have this limit
       !this.hasCustomCacheHandler &&
-      JSON.stringify(data).length > 2 * 1024 * 1024
+      itemSize > 2 * 1024 * 1024
     ) {
       if (this.dev) {
-        throw new Error(`fetch for over 2MB of data can not be cached`)
+        throw new Error(
+          `Failed to set Next.js data cache, items over 2MB can not be cached (${itemSize} bytes)`
+        )
       }
       return
     }

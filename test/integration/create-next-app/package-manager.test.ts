@@ -90,7 +90,8 @@ it('should use npm as the package manager on supplying --use-npm with example', 
       projectName,
       files: [
         'package.json',
-        'pages/index.tsx',
+        'app/page.tsx',
+        'app/layout.tsx',
         '.gitignore',
         'package-lock.json',
         'node_modules/next',
@@ -168,7 +169,8 @@ it('should use Yarn as the package manager on supplying --use-yarn with example'
       projectName,
       files: [
         'package.json',
-        'pages/index.tsx',
+        'app/page.tsx',
+        'app/layout.tsx',
         '.gitignore',
         'yarn.lock',
         'node_modules/next',
@@ -246,7 +248,8 @@ it('should use pnpm as the package manager on supplying --use-pnpm with example'
       projectName,
       files: [
         'package.json',
-        'pages/index.tsx',
+        'app/page.tsx',
+        'app/layout.tsx',
         '.gitignore',
         'pnpm-lock.yaml',
         'node_modules/next',
@@ -320,7 +323,8 @@ it('should use Bun as the package manager on supplying --use-bun with example', 
       projectName,
       files: [
         'package.json',
-        'pages/index.tsx',
+        'app/page.tsx',
+        'app/layout.tsx',
         '.gitignore',
         'bun.lockb',
         'node_modules/next',
@@ -379,7 +383,8 @@ it('should infer npm as the package manager with example', async () => {
 
     const files = [
       'package.json',
-      'pages/index.tsx',
+      'app/page.tsx',
+      'app/layout.tsx',
       '.gitignore',
       'package-lock.json',
       'node_modules/next',
@@ -462,7 +467,8 @@ it('should infer yarn as the package manager with example', async () => {
 
     const files = [
       'package.json',
-      'pages/index.tsx',
+      'app/page.tsx',
+      'app/layout.tsx',
       '.gitignore',
       'yarn.lock',
       'node_modules/next',
@@ -545,7 +551,8 @@ it('should infer pnpm as the package manager with example', async () => {
 
     const files = [
       'package.json',
-      'pages/index.tsx',
+      'app/page.tsx',
+      'app/layout.tsx',
       '.gitignore',
       'pnpm-lock.yaml',
       'node_modules/next',
@@ -620,7 +627,8 @@ it('should infer Bun as the package manager with example', async () => {
 
     const files = [
       'package.json',
-      'pages/index.tsx',
+      'app/page.tsx',
+      'app/layout.tsx',
       '.gitignore',
       'bun.lockb',
       'node_modules/next',

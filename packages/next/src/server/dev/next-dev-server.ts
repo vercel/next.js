@@ -34,6 +34,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -64,13 +65,14 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
+import { decorateServerError } from '../../shared/lib/error-source'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
+      require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
@@ -158,7 +160,7 @@ export default class DevServer extends Server {
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
-    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
+    this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
@@ -166,12 +168,9 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths).length
       },
     })
-    ;(this.renderOpts as any).ampSkipValidation =
+    this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    ;(this.renderOpts as any).ampValidator = (
-      html: string,
-      pathname: string
-    ) => {
+    this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
@@ -400,7 +399,7 @@ export default class DevServer extends Server {
       }
 
       const err = getProperError(error)
-      ;(err as any).middleware = true
+      decorateServerError(err, COMPILER_NAMES.edgeServer)
       const { request, response, parsedUrl } = params
 
       /**
@@ -433,6 +432,7 @@ export default class DevServer extends Server {
     try {
       return super.runEdgeFunction({
         ...params,
+        onError: (err) => this.logErrorWithOriginalStack(err, 'app-dir'),
         onWarning: (warn) => {
           this.logErrorWithOriginalStack(warn, 'warning')
         },

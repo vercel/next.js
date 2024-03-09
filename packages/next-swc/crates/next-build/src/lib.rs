@@ -2,8 +2,6 @@
 #![feature(arbitrary_self_types)]
 
 pub mod build_options;
-pub(crate) mod next_app;
-pub(crate) mod next_pages;
 
 pub use self::build_options::BuildOptions;
 
@@ -13,8 +11,8 @@ pub fn register() {
     turbopack_binding::turbopack::turbopack::register();
     turbopack_binding::turbopack::core::register();
     turbopack_binding::turbopack::node::register();
-    turbopack_binding::turbopack::dev::register();
-    turbopack_binding::turbopack::build::register();
+    turbopack_binding::turbopack::browser::register();
+    turbopack_binding::turbopack::nodejs::register();
     next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
