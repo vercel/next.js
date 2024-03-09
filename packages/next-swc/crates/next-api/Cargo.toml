@@ -28,13 +28,12 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_env",
   "__turbo_tasks_fs",
   "__turbopack",
-  "__turbopack_build",
+  "__turbopack_nodejs",
   "__turbopack_core",
-  "__turbopack_dev",
+  "__turbopack_browser",
   "__turbopack_env",
   "__turbopack_cli_utils",
   "__turbopack_node",
-  "__turbopack_dev_server",
 ] }
 turbo-tasks = { workspace = true }
 tracing = { workspace = true }

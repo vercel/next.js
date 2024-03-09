@@ -3,6 +3,7 @@ import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
+import type { PrerenderState } from '../../server/app-render/dynamic-rendering'
 
 import { createAsyncLocalStorage } from './async-local-storage'
 
@@ -16,12 +17,8 @@ export interface StaticGenerationStore {
   readonly isRevalidate?: boolean
   readonly isUnstableCacheCallback?: boolean
 
-  /**
-   * If defined, this function when called will throw an error postponing
-   * rendering during the React render phase. This should not be invoked outside
-   * of the React render phase as it'll throw an error.
-   */
-  readonly postpone: ((reason: string) => never) | undefined
+  // When this exists (is not null) it means we are in a Prerender
+  prerenderState: null | PrerenderState
 
   forceDynamic?: boolean
   fetchCache?:
@@ -36,7 +33,6 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
-  postponeWasTriggered?: boolean
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string

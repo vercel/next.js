@@ -11,13 +11,29 @@ related:
 
 There are a few ways you can handle redirects in Next.js. This page will go through each available option, use cases, and how to manage large numbers of redirects.
 
+<AppOnly>
+
 | API                                                            | Purpose                                           | Where                                             | Status Code                            |
 | -------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
 | [`redirect`](#redirect-function)                               | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
 | [`permanentRedirect`](#permanentredirect-function)             | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 308 (Permanent)                        |
 | [`useRouter`](#userouter-hook)                                 | Perform a client-side navigation                  | Event Handlers in Client Components               | N/A                                    |
 | [`redirects` in `next.config.js`](#redirects-in-nextconfigjs)  | Redirect an incoming request based on a path      | `next.config.js` file                             | 307 (Temporary) or 308 (Permanent)     |
-| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware                                        |                                        |
+| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware                                        | Any                                    |
+
+</AppOnly>
+
+<PagesOnly>
+
+| API                                                            | Purpose                                           | Where                 | Status Code                        |
+| -------------------------------------------------------------- | ------------------------------------------------- | --------------------- | ---------------------------------- |
+| [`useRouter`](#userouter-hook)                                 | Perform a client-side navigation                  | Components            | N/A                                |
+| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs)  | Redirect an incoming request based on a path      | `next.config.js` file | 307 (Temporary) or 308 (Permanent) |
+| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware            | Any                                |
+
+</PagesOnly>
+
+<AppOnly>
 
 ## `redirect` function
 
@@ -64,8 +80,9 @@ export async function createPost(id) {
 > **Good to know**:
 >
 > - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
-> - `redirect` internally throws an error so should be called outside of `try/catch` blocks.
+> - `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
+> - `redirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
@@ -115,11 +132,16 @@ export async function updateUsername(username, formData) {
 > **Good to know**:
 >
 > - `permanentRedirect` returns a 308 (permanent redirect) status code by default.
+> - `permanentRedirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
 
 See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/permanentRedirect) for more information.
 
-## `useRouter` hook
+</AppOnly>
+
+## `useRouter()` hook
+
+<AppOnly>
 
 If you need to redirect inside an event handler in a Client Component, you can use the `push` method from the `useRouter` hook. For example:
 
@@ -155,11 +177,57 @@ export default function Page() {
 }
 ```
 
+</AppOnly>
+
+<PagesOnly>
+
+If you need to redirect inside a component, you can use the `push` method from the `useRouter` hook. For example:
+
+```tsx filename="app/page.tsx" switcher
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  return (
+    <button type="button" onClick={() => router.push('/dashboard')}>
+      Dashboard
+    </button>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { useRouter } from 'next/router'
+
+export default function Page() {
+  const router = useRouter()
+
+  return (
+    <button type="button" onClick={() => router.push('/dashboard')}>
+      Dashboard
+    </button>
+  )
+}
+```
+
+</PagesOnly>
+
 > **Good to know**:
 >
-> - If you don't need to programatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component
+> - If you don't need to programatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component.
+
+<AppOnly>
 
 See the [`useRouter` API reference](/docs/app/api-reference/functions/use-router) for more information.
+
+</AppOnly>
+
+<PagesOnly>
+
+See the [`useRouter` API reference](/docs/pages/api-reference/functions/use-router) for more information.
+
+</PagesOnly>
 
 ## `redirects` in `next.config.js`
 
@@ -252,14 +320,16 @@ export const config = {
 
 See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
 
-## Managing redirects at scale (Advanced)
+## Managing redirects at scale (advanced)
 
 To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically without having to redeploy your application.
 
-When handling a large number of redirects, you should consider:
+To do this, you'll need to consider:
 
 1. Creating and storing a redirect map.
 2. Optimizing data lookup performance.
+
+> **Next.js Example**: See our [Middleware with Bloom filter](https://redirects-bloom-filter.vercel.app/) example for an implementation of the recommendations below.
 
 ### 1. Creating and storing a redirect map
 
@@ -330,11 +400,11 @@ export async function middleware(request) {
 Reading a large dataset for every incoming request can be slow and expensive. There are two ways you can optimize data lookup performance:
 
 - Use a database that is optimized for fast reads, such as [Vercel Edge Config](https://vercel.com/docs/storage/edge-config/get-started?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [Redis](https://vercel.com/docs/storage/vercel-kv?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
-- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger redirects file.
+- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger redirects file or database.
 
 Considering the previous example, you can import a generated bloom filter file into Middleware, then, check if the incoming request pathname exists in the bloom filter.
 
-If it does, forward the request to a [Route Handler](/docs/app/building-your-application/routing/route-handlers) which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Middleware, which can slow down every incoming request.
+If it does, forward the request to a <AppOnly>[Route Handler](/docs/app/building-your-application/routing/route-handlers)</AppOnly> <PagesOnly>[API Routes](/docs/pages/building-your-application/routing/api-routes)</PagesOnly> which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Middleware, which can slow down every incoming request.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
@@ -432,6 +502,8 @@ export async function middleware(request) {
 }
 ```
 
+<AppOnly>
+
 Then, in the Route Handler:
 
 ```tsx filename="app/redirects/route.ts" switcher
@@ -484,6 +556,64 @@ export function GET(request) {
   return NextResponse.json(redirect)
 }
 ```
+
+</AppOnly>
+
+<PagesOnly>
+
+Then, in the API Route:
+
+```tsx filename="pages/api/redirects.ts" switcher
+import { NextApiRequest, NextApiResponse } from 'next'
+import redirects from '@/app/redirects/redirects.json'
+
+type RedirectEntry = {
+  destination: string
+  permanent: boolean
+}
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const pathname = req.query.pathname
+  if (!pathname) {
+    return res.status(400).json({ message: 'Bad Request' })
+  }
+
+  // Get the redirect entry from the redirects.json file
+  const redirect = (redirects as Record<string, RedirectEntry>)[pathname]
+
+  // Account for bloom filter false positives
+  if (!redirect) {
+    return res.status(400).json({ message: 'No redirect' })
+  }
+
+  // Return the redirect entry
+  return res.json(redirect)
+}
+```
+
+```js filename="pages/api/redirects.js" switcher
+import redirects from '@/app/redirects/redirects.json'
+
+export default function handler(req, res) {
+  const pathname = req.query.pathname
+  if (!pathname) {
+    return res.status(400).json({ message: 'Bad Request' })
+  }
+
+  // Get the redirect entry from the redirects.json file
+  const redirect = redirects[pathname]
+
+  // Account for bloom filter false positives
+  if (!redirect) {
+    return res.status(400).json({ message: 'No redirect' })
+  }
+
+  // Return the redirect entry
+  return res.json(redirect)
+}
+```
+
+</PagesOnly>
 
 > **Good to know:**
 >

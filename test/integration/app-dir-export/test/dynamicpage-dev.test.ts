@@ -9,7 +9,7 @@ describe('app dir - with output export - dynamic page dev', () => {
       {
         dynamicPage: "'force-dynamic'",
         expectedErrMsg:
-          'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
+          'Page with `dynamic = "force-dynamic"` couldn\'t be exported. `output: "export"` requires all pages be renderable statically',
       },
     ])(
       'should work in dev with dynamicPage $dynamicPage',

@@ -39,6 +39,7 @@ function stringifyCookie(c) {
     "secure" in c && c.secure && "Secure",
     "httpOnly" in c && c.httpOnly && "HttpOnly",
     "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`,
+    "partitioned" in c && c.partitioned && "Partitioned",
     "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
   return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
@@ -74,6 +75,7 @@ function parseSetCookie(setCookie) {
     path,
     samesite,
     secure,
+    partitioned,
     priority
   } = Object.fromEntries(
     attributes.map(([key, value2]) => [key.toLowerCase(), value2])
@@ -88,7 +90,8 @@ function parseSetCookie(setCookie) {
     path,
     ...samesite && { sameSite: parseSameSite(samesite) },
     ...secure && { secure: true },
-    ...priority && { priority: parsePriority(priority) }
+    ...priority && { priority: parsePriority(priority) },
+    ...partitioned && { partitioned: true }
   };
   return compact(cookie);
 }

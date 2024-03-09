@@ -23,10 +23,11 @@ describe('next/jest', () => {
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build: 'next build && yarn jest',
+          build: 'next build && jest',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
       dependencies: {
         '@hashicorp/platform-util': '0.2.0',
         '@types/react': 'latest',

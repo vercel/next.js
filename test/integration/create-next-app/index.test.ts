@@ -139,7 +139,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/next',
         ],
@@ -196,7 +197,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/next',
         ],
@@ -260,7 +262,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/react',
         ],
@@ -293,7 +296,8 @@ describe('create next app', () => {
         projectName,
         files: [
           'package.json',
-          'pages/index.tsx',
+          'app/page.tsx',
+          'app/layout.tsx',
           '.gitignore',
           'node_modules/react',
         ],

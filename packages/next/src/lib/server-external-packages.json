@@ -8,8 +8,7 @@
   "@mikro-orm/core",
   "@mikro-orm/knex",
   "@prisma/client",
-  "@sentry/nextjs",
-  "@sentry/node",
+  "@react-pdf/renderer",
   "@sentry/profiling-node",
   "@swc/core",
   "argon2",
@@ -34,13 +33,13 @@
   "next-seo",
   "node-pty",
   "node-web-audio-api",
-  "payload",
   "pg",
   "playwright",
   "postcss",
   "prettier",
   "prisma",
   "puppeteer",
+  "puppeteer-core",
   "rimraf",
   "sharp",
   "shiki",
@@ -50,5 +49,6 @@
   "typescript",
   "vscode-oniguruma",
   "webpack",
-  "websocket"
+  "websocket",
+  "zeromq"
 ]

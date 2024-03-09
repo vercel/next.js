@@ -30,18 +30,18 @@ next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.87.16", features = [
+swc_core = { version = "0.90.17", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.14" }
+testing = { version = "0.35.20" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240117.3" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240308.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240117.3" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240308.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240117.3" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240308.2" }
 
 # General Deps
 
@@ -49,7 +49,7 @@ turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack
 # If you changed, must verify with ALL build targets with next-swc to ensure
 # it works. next-swc have various platforms, some doesn't support native (using openssl-sys)
 # and some aren't buildable with rustls.
-reqwest = { version = "0.11.14", default-features = false }
+reqwest = { version = "=0.11.17", default-features = false }
 
 chromiumoxide = { version = "0.5.0", features = [
   "tokio-runtime",
@@ -92,10 +92,19 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
+lightningcss = { version = "=1.0.0-alpha.54", features = [
+  "serde",
+  "visitor",
+  "into_owned",
+] }
+lightningcss-napi = { version = "0.1.0", default-features = false, features = [
+  "visitor"
+]}
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
+parcel_selectors = "0.26.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 pin-project-lite = "0.2.9"
