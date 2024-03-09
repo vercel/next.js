@@ -46,6 +46,13 @@ async function cacheNewResult<T>(
   return
 }
 
+function parseCacheBody(value: string | undefined) {
+  if (value === undefined) {
+    return undefined
+  }
+  return JSON.parse(value)
+}
+
 /**
  * This function allows you to cache the results of expensive operations, like database queries, and reuse them across multiple requests.
  *
@@ -186,7 +193,7 @@ export function unstable_cache<T extends Callback>(
           } else {
             // We have a valid cache entry so we will be returning it. We also check to see if we need
             // to background revalidate it by checking if it is stale.
-            const cachedResponse = JSON.parse(cacheEntry.value.data.body)
+            const cachedResponse = parseCacheBody(cacheEntry.value.data.body)
             if (cacheEntry.isStale) {
               // In App Router we return the stale result and revalidate in the background
               if (!store.pendingRevalidates) {
@@ -281,7 +288,7 @@ export function unstable_cache<T extends Callback>(
             // will fall through to generating a new cache entry below
           } else if (!cacheEntry.isStale) {
             // We have a valid cache entry and it is fresh so we return it
-            return JSON.parse(cacheEntry.value.data.body)
+            return parseCacheBody(cacheEntry.value.data.body)
           }
         }
       }

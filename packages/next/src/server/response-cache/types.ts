@@ -25,7 +25,8 @@ export interface CachedFetchValue {
   kind: 'FETCH'
   data: {
     headers: { [k: string]: string }
-    body: string
+    // Body is missing if unstable_cache callback returns undefined
+    body?: string
     url: string
     status?: number
   }

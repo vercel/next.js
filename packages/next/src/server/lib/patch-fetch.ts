@@ -608,7 +608,7 @@ export function patchFetch({
               })
 
               const response = new Response(
-                Buffer.from(resData.body, 'base64'),
+                Buffer.from(resData.body!, 'base64'),
                 {
                   headers: resData.headers,
                   status: resData.status,
