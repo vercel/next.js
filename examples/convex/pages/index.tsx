@@ -1,23 +1,22 @@
-import { FormEvent, useEffect, useState } from 'react'
-import { useMutation, useQuery } from 'convex/react'
-import { api } from '../convex/_generated/api'
+import { FormEvent, useEffect, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
 
 export default function App() {
-  const messages = useQuery(api.messages.list) || []
+  const messages = useQuery(api.messages.list);
+  const sendMessage = useMutation(api.messages.send);
 
-  const [newMessageText, setNewMessageText] = useState('')
-  const sendMessage = useMutation(api.messages.send)
-
-  const [name, setName] = useState('user')
+  const [newMessageText, setNewMessageText] = useState("");
+  const [name, setName] = useState("user");
 
   useEffect(() => {
-    setName('User ' + Math.floor(Math.random() * 10000))
-  }, [])
+    setName("User " + Math.floor(Math.random() * 10000));
+  }, []);
 
   async function handleSendMessage(event: FormEvent) {
-    event.preventDefault()
-    setNewMessageText('')
-    await sendMessage({ body: newMessageText, author: name })
+    event.preventDefault();
+    setNewMessageText("");
+    await sendMessage({ body: newMessageText, author: name });
   }
   return (
     <main>
@@ -26,7 +25,7 @@ export default function App() {
         <span>{name}</span>
       </p>
       <ul>
-        {messages.map((message) => (
+        {messages?.map((message) => (
           <li key={message._id.toString()}>
             <span>{message.author}:</span>
             <span>{message.body}</span>
@@ -43,5 +42,5 @@ export default function App() {
         <input type="submit" value="Send" disabled={!newMessageText} />
       </form>
     </main>
-  )
+  );
 }

@@ -7,6 +7,7 @@ import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import type { MetadataResolver } from '../next-app-loader'
+import type { PageExtensions } from '../../../page-extensions-type'
 
 const METADATA_TYPE = 'metadata'
 
@@ -55,7 +56,7 @@ export async function createStaticMetadataFromRoute(
     segment: string
     metadataResolver: MetadataResolver
     isRootLayoutOrRootPage: boolean
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     basePath: string
   }
 ) {
@@ -124,7 +125,7 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  // Intentially make these serial to reuse directory access cache.
+  // Intentionally make these serial to reuse directory access cache.
   await collectIconModuleIfExists('icon')
   await collectIconModuleIfExists('apple')
   await collectIconModuleIfExists('openGraph')

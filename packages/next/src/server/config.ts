@@ -20,6 +20,7 @@ import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
+import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
@@ -250,6 +251,15 @@ function assignDefaults(
     {}
   )
 
+  // TODO: remove once we've made PPR default
+  // If this was defaulted to true, it implies that the configuration was
+  // overridden for testing to be defaulted on.
+  if (defaultConfig.experimental?.ppr) {
+    Log.warn(
+      `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = { ...defaultConfig, ...config }
 
   if (
@@ -358,10 +368,10 @@ function assignDefaults(
       )
     }
 
-    if (images.domains) {
-      if (!Array.isArray(images.domains)) {
+    if (images.remotePatterns) {
+      if (!Array.isArray(images.remotePatterns)) {
         throw new Error(
-          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+          `Specified images.remotePatterns should be an Array received ${typeof images.remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
 
@@ -369,7 +379,33 @@ function assignDefaults(
       // so we need to ensure _next/image allows downloading from
       // this resource
       if (config.assetPrefix?.startsWith('http')) {
-        images.domains.push(new URL(config.assetPrefix).hostname)
+        try {
+          const url = new URL(config.assetPrefix)
+          const hasMatchForAssetPrefix = images.remotePatterns.some((pattern) =>
+            matchRemotePattern(pattern, url)
+          )
+
+          // avoid double-pushing the same remote if it already can be matched
+          if (!hasMatchForAssetPrefix) {
+            images.remotePatterns?.push({
+              hostname: url.hostname,
+              protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
+              port: url.port,
+            })
+          }
+        } catch (error) {
+          throw new Error(
+            `Invalid assetPrefix provided. Original error: ${error}`
+          )
+        }
+      }
+    }
+
+    if (images.domains) {
+      if (!Array.isArray(images.domains)) {
+        throw new Error(
+          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
       }
     }
 
@@ -418,6 +454,26 @@ function assignDefaults(
       }
       images.loaderFile = absolutePath
     }
+  }
+
+  if (result.experimental?.incrementalCacheHandlerPath) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.incrementalCacheHandlerPath',
+      'The "experimental.incrementalCacheHandlerPath" option has been renamed to "cacheHandler". Please update your next.config.js.',
+      silent
+    )
+  }
+
+  if (result.experimental?.isrMemoryCacheSize) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.isrMemoryCacheSize',
+      'The "experimental.isrMemoryCacheSize" option has been renamed to "cacheMaxMemorySize". Please update your next.config.js.',
+      silent
+    )
   }
 
   if (typeof result.experimental?.serverActions === 'boolean') {
@@ -772,49 +828,8 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
-    'date-fns': {
-      transform: 'date-fns/{{member}}',
-    },
     lodash: {
       transform: 'lodash/{{member}}',
-    },
-    'lodash-es': {
-      transform: 'lodash-es/{{member}}',
-    },
-    ramda: {
-      transform: 'ramda/es/{{member}}',
-    },
-    'react-bootstrap': {
-      transform: {
-        useAccordionButton:
-          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
-        '*': 'react-bootstrap/{{member}}',
-      },
-    },
-    antd: {
-      transform: 'antd/es/{{kebabCase member}}',
-    },
-    ahooks: {
-      transform: {
-        createUpdateEffect:
-          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
-        '*': 'ahooks/es/{{member}}',
-      },
-    },
-    '@ant-design/icons': {
-      transform: {
-        IconProvider:
-          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
-        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
-        getTwoToneColor:
-          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
-        setTwoToneColor:
-          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
-        '*': '@ant-design/icons/lib/icons/{{member}}',
-      },
-    },
-    'next/server': {
-      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
 
@@ -827,6 +842,13 @@ function assignDefaults(
     ...new Set([
       ...userProvidedOptimizePackageImports,
       'lucide-react',
+      'date-fns',
+      'lodash-es',
+      'ramda',
+      'antd',
+      'react-bootstrap',
+      'ahooks',
+      '@ant-design/icons',
       '@headlessui/react',
       '@headlessui-float/react',
       '@heroicons/react/20/solid',
@@ -1063,6 +1085,18 @@ export default async function loadConfig(
       }
 
       userConfig.experimental.turbo.rules = rules
+    }
+
+    if (userConfig.experimental?.useLightningcss) {
+      const { loadBindings } = require('next/dist/build/swc')
+      const isLightningSupported = (await loadBindings())?.css?.lightning
+
+      if (!isLightningSupported) {
+        curLog.warn(
+          `experimental.useLightningcss is set, but the setting is disabled because next-swc/wasm does not support it yet.`
+        )
+        userConfig.experimental.useLightningcss = false
+      }
     }
 
     onLoadUserConfig?.(userConfig)

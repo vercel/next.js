@@ -12,7 +12,6 @@
 
 var util = require('util');
 var ReactDOM = require('react-dom');
-var React = require('react');
 
 function createStringDecoder() {
   return new util.TextDecoder();
@@ -317,7 +316,7 @@ function dispatchHint(code, model) {
         }
     }
   }
-} // Flow is having troulbe refining the HintModels so we help it a bit.
+} // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
 
 function refineModel(code, model) {
@@ -339,10 +338,7 @@ function preinitScriptForSSR(href, nonce, crossOrigin) {
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
 // The Symbol used to tag the ReactElement-like types.
 const REACT_ELEMENT_TYPE = Symbol.for('react.element');
-const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_LAZY_TYPE = Symbol.for('react.lazy');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -665,7 +661,7 @@ function encodeFormData(reference) {
   return thenable;
 }
 
-function encodeFormAction(identifierPrefix) {
+function defaultEncodeFormAction(identifierPrefix) {
   const reference = knownServerReferences.get(this);
 
   if (!reference) {
@@ -713,6 +709,22 @@ function encodeFormAction(identifierPrefix) {
     encType: 'multipart/form-data',
     data: data
   };
+}
+
+function customEncodeFormAction(proxy, identifierPrefix, encodeFormAction) {
+  const reference = knownServerReferences.get(proxy);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  let boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    boundPromise = Promise.resolve([]);
+  }
+
+  return encodeFormAction(reference.id, boundPromise);
 }
 
 function isSignatureEqual(referenceId, numberOfBoundArgs) {
@@ -776,14 +788,17 @@ function isSignatureEqual(referenceId, numberOfBoundArgs) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
   // Expose encoder for use by SSR, as well as a special bind that can be used to
   // keep server capabilities.
   {
     // Only expose this in builds that would actually use it. Not needed on the client.
+    const $$FORM_ACTION = encodeFormAction === undefined ? defaultEncodeFormAction : function (identifierPrefix) {
+      return customEncodeFormAction(this, identifierPrefix, encodeFormAction);
+    };
     Object.defineProperties(proxy, {
       $$FORM_ACTION: {
-        value: encodeFormAction
+        value: $$FORM_ACTION
       },
       $$IS_SIGNATURE_EQUAL: {
         value: isSignatureEqual
@@ -807,6 +822,7 @@ function bind() {
   const reference = knownServerReferences.get(this);
 
   if (reference) {
+
     const args = ArraySlice.call(arguments, 1);
     let boundPromise = null;
 
@@ -814,9 +830,26 @@ function bind() {
       boundPromise = Promise.resolve(reference.bound).then(boundArgs => boundArgs.concat(args));
     } else {
       boundPromise = Promise.resolve(args);
+    } // Expose encoder for use by SSR, as well as a special bind that can be used to
+    // keep server capabilities.
+
+
+    {
+      // Only expose this in builds that would actually use it. Not needed on the client.
+      Object.defineProperties(newFn, {
+        $$FORM_ACTION: {
+          value: this.$$FORM_ACTION
+        },
+        $$IS_SIGNATURE_EQUAL: {
+          value: isSignatureEqual
+        },
+        bind: {
+          value: bind
+        }
+      });
     }
 
-    registerServerReference(newFn, {
+    knownServerReferences.set(newFn, {
       id: reference.id,
       bound: boundPromise
     });
@@ -825,7 +858,7 @@ function bind() {
   return newFn;
 }
 
-function createServerReference$1(id, callServer) {
+function createServerReference$1(id, callServer, encodeFormAction) {
   const proxy = function () {
     // $FlowFixMe[method-unbinding]
     const args = Array.prototype.slice.call(arguments);
@@ -835,42 +868,8 @@ function createServerReference$1(id, callServer) {
   registerServerReference(proxy, {
     id,
     bound: null
-  });
+  }, encodeFormAction);
   return proxy;
-}
-
-const ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-const ContextRegistry = ReactSharedInternals.ContextRegistry;
-function getOrCreateServerContext(globalName) {
-  if (!ContextRegistry[globalName]) {
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  return ContextRegistry[globalName];
 }
 
 const ROW_ID = 0;
@@ -1172,17 +1171,20 @@ function reportGlobalError(response, error) {
 }
 
 function createElement(type, key, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  let element;
+
+  {
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      type,
+      key,
+      ref: null,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: null
+    };
+  }
 
   return element;
 }
@@ -1193,6 +1195,7 @@ function createLazyChunkWrapper(chunk) {
     _payload: chunk,
     _init: readChunk
   };
+
   return lazyType;
 }
 
@@ -1273,7 +1276,7 @@ function createServerReferenceProxy(response, metaData) {
     });
   };
 
-  registerServerReference(proxy, metaData);
+  registerServerReference(proxy, metaData, response._encodeFormAction);
   return proxy;
 }
 
@@ -1326,6 +1329,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(() => {});
+          }
+
           const id = parseInt(value.slice(2), 16);
           const chunk = getChunk(response, id);
           return chunk;
@@ -1335,12 +1343,6 @@ function parseModelString(response, parentObject, key, value) {
         {
           // Symbol
           return Symbol.for(value.slice(2));
-        }
-
-      case 'P':
-        {
-          // Server Context Provider
-          return getOrCreateServerContext(value.slice(2)).Provider;
         }
 
       case 'F':
@@ -1408,6 +1410,8 @@ function parseModelString(response, parentObject, key, value) {
           return BigInt(value.slice(2));
         }
 
+      case 'E':
+
       default:
         {
           // We assume that anything else is a reference ID.
@@ -1427,7 +1431,9 @@ function parseModelString(response, parentObject, key, value) {
 
           switch (chunk.status) {
             case INITIALIZED:
-              return chunk.value;
+              const chunkValue = chunk.value;
+
+              return chunkValue;
 
             case PENDING:
             case BLOCKED:
@@ -1462,12 +1468,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   const chunks = new Map();
   const response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -1678,8 +1685,8 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveTypedArray(response, id, buffer, chunk, Float32Array, 4);
         return;
 
-      case 68
-      /* "D" */
+      case 100
+      /* "d" */
       :
         resolveTypedArray(response, id, buffer, chunk, Float64Array, 8);
         return;
@@ -1750,6 +1757,18 @@ function processFullRow(response, id, tag, buffer, chunk) {
       {
         resolveText(response, id, row);
         return;
+      }
+
+    case 68
+    /* "D" */
+    :
+
+    case 87
+    /* "W" */
+    :
+      {
+
+        throw new Error('Failed to read a RSC payload created by a development version of React ' + 'on the server while using a production version on the client. Always use ' + 'matching versions on the server and the client.');
       }
 
     case 80
@@ -1829,8 +1848,8 @@ function processBinaryChunk(response, chunk) {
           /* "l" */
           || resolvedRowTag === 70
           /* "F" */
-          || resolvedRowTag === 68
-          /* "D" */
+          || resolvedRowTag === 100
+          /* "d" */
           || resolvedRowTag === 78
           /* "N" */
           || resolvedRowTag === 109
@@ -1969,7 +1988,7 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  const response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+  const response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined);
   stream.on('data', chunk => {
     processBinaryChunk(response, chunk);
   });

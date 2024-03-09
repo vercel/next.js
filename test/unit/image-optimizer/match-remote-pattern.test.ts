@@ -72,6 +72,9 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(false)
     expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
   })
 
   it('should match literal protocol, hostname, port, pathname', () => {
@@ -100,6 +103,8 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(false)
     expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
   })
 
   it('should match hostname pattern with single asterisk by itself', () => {
@@ -195,6 +200,10 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr6/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/.a/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/team/usr4/pic.jpg'))).toBe(
+      false
+    )
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
   })
 
@@ -236,6 +245,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/.sr6/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(
       false
     )
@@ -288,6 +298,8 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr6/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/.a/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/team/.pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://sub.example.com/act123/team/pic.jpg'))).toBe(

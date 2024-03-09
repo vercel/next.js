@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -377,6 +378,61 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         `Expected string, received number at "images.contentSecurityPolicy"`
+      )
+    })
+
+    it('should error when assetPrefix is provided but is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          assetPrefix: 'httpbad',
+          images: {
+            formats: ['image/webp'],
+          },
+        })
+      )
+      try {
+        let stderr = ''
+
+        app = await launchApp(appDir, await findPort(), {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
+
+        await retry(() => {
+          expect(stderr).toContain(
+            `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
+          )
+        })
+      } finally {
+        await killApp(app).catch(() => {})
+        await nextConfig.restore()
+      }
+    })
+
+    it('should error when images.remotePatterns is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            remotePatterns: 'testing',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Expected array, received string at "images.remotePatterns"`
       )
     })
 

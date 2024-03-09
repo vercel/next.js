@@ -18,12 +18,13 @@ pub async fn wrap_edge_entry(
     entry: Vc<Box<dyn Module>>,
     pathname: String,
 ) -> Result<Vc<Box<dyn Module>>> {
+    // The wrapped module could be an async module, we handle that with the proxy
+    // here. The comma expression makes sure we don't call the function with the
+    // module as the "this" arg.
     let source = formatdoc!(
         r#"
-            import * as module from "MODULE"
-
             self._ENTRIES ||= {{}}
-            self._ENTRIES[{}] = module
+            self._ENTRIES[{}] = import('MODULE')
         "#,
         StringifyJs(&format_args!("middleware_{}", pathname))
     );
@@ -39,8 +40,11 @@ pub async fn wrap_edge_entry(
         "MODULE".to_string() => entry
     };
 
-    Ok(context.process(
-        Vc::upcast(virtual_source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    ))
+    let module = context
+        .process(
+            Vc::upcast(virtual_source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
+    Ok(module)
 }

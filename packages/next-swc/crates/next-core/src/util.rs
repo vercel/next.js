@@ -1,18 +1,19 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value as JsonValue;
-use swc_core::ecma::ast::Program;
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
+    swc::core::{
+        common::GLOBALS,
+        ecma::ast::{Expr, Lit, Program},
+    },
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
             asset::AssetContent,
-            environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity},
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             module::Module,
             source::Source,
             virtual_source::VirtualSource,
@@ -27,10 +28,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::{
-    next_config::{NextConfig, OutputType},
-    next_import_map::get_next_package,
-};
+use crate::{next_config::NextConfig, next_import_map::get_next_package};
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
@@ -165,7 +163,7 @@ impl ValueDefault for NextSourceConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<String>,
+    detail: Vc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -176,13 +174,13 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -191,17 +189,20 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
-            "The exported configuration object in a source file need to have a very specific \
-             format from which some properties can be statically parsed at compiled-time."
-                .to_string(),
-        )
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "The exported configuration object in a source file need to have a very specific \
+                 format from which some properties can be statically parsed at compiled-time."
+                    .to_string(),
+            )
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 }
 
@@ -212,6 +213,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
+            globals,
             eval_context,
             ..
         } = &*ecmascript_asset.parse().await?
@@ -223,23 +225,80 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                     .and_then(|export_decl| export_decl.decl.as_var())
                 {
                     for decl in &decl.decls {
-                        if decl
-                            .name
-                            .as_ident()
+                        let decl_ident = decl.name.as_ident();
+
+                        // Check if there is exported config object `export const config = {...}`
+                        // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
+                        if decl_ident
                             .map(|ident| &*ident.sym == "config")
                             .unwrap_or_default()
                         {
                             if let Some(init) = decl.init.as_ref() {
-                                let value = eval_context.eval(init);
-                                return Ok(parse_config_from_js_value(module, &value).cell());
+                                return GLOBALS.set(globals, || {
+                                    let value = eval_context.eval(init);
+                                    Ok(parse_config_from_js_value(module, &value).cell())
+                                });
                             } else {
                                 NextSourceConfigParsingIssue {
                                     ident: module.ident(),
-                                    detail: Vc::cell(
+                                    detail: StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .to_string(),
-                                    ),
+                                    )
+                                    .cell(),
+                                }
+                                .cell()
+                                .emit()
+                            }
+                        }
+                        // Or, check if there is segment runtime option
+                        // https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-Option
+                        else if decl_ident
+                            .map(|ident| &*ident.sym == "runtime")
+                            .unwrap_or_default()
+                        {
+                            let runtime_value_issue = NextSourceConfigParsingIssue {
+                                ident: module.ident(),
+                                detail: StyledString::Text(
+                                    "The runtime property must be either \"nodejs\" or \"edge\"."
+                                        .to_string(),
+                                )
+                                .cell(),
+                            }
+                            .cell();
+                            if let Some(init) = decl.init.as_ref() {
+                                // skipping eval and directly read the expr's value, as we know it
+                                // should be a const string
+                                if let Expr::Lit(Lit::Str(str_value)) = &**init {
+                                    let mut config = NextSourceConfig::default();
+
+                                    let runtime = str_value.value.to_string();
+                                    match runtime.as_str() {
+                                        "edge" | "experimental-edge" => {
+                                            config.runtime = NextRuntime::Edge;
+                                        }
+                                        "nodejs" => {
+                                            config.runtime = NextRuntime::NodeJs;
+                                        }
+                                        _ => {
+                                            runtime_value_issue.emit();
+                                        }
+                                    }
+
+                                    return Ok(config.cell());
+                                } else {
+                                    runtime_value_issue.emit();
+                                }
+                            } else {
+                                NextSourceConfigParsingIssue {
+                                    ident: module.ident(),
+                                    detail: StyledString::Text(
+                                        "The exported segment runtime option must contain an \
+                                         variable initializer."
+                                            .to_string(),
+                                    )
+                                    .cell(),
                                 }
                                 .cell()
                                 .emit()
@@ -259,7 +318,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
             ident: module.ident(),
-            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
         }
         .cell()
         .emit()
@@ -642,36 +701,4 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
-}
-
-#[turbo_tasks::function]
-pub async fn render_data(
-    next_config: Vc<NextConfig>,
-    server_addr: Vc<ServerAddr>,
-) -> Result<Vc<JsonValue>> {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct Data {
-        next_config_output: Option<OutputType>,
-        server_info: Option<ServerInfo>,
-        allowed_revalidate_header_keys: Option<Vec<String>>,
-        fetch_cache_key_prefix: Option<String>,
-        isr_memory_cache_size: Option<f64>,
-        isr_flush_to_disk: Option<bool>,
-    }
-
-    let config = next_config.await?;
-    let server_info = ServerInfo::try_from(&*server_addr.await?);
-
-    let experimental = &config.experimental;
-
-    let value = serde_json::to_value(Data {
-        next_config_output: config.output.clone(),
-        server_info: server_info.ok(),
-        allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
-        fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
-        isr_memory_cache_size: experimental.isr_memory_cache_size,
-        isr_flush_to_disk: experimental.isr_flush_to_disk,
-    })?;
-    Ok(Vc::cell(value))
 }

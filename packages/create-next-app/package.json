@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "14.0.3-canary.5",
+  "version": "14.2.0-canary.11",
   "keywords": [
     "react",
     "next",
@@ -33,7 +33,7 @@
     "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
     "@types/node": "^20.2.5",
-    "@types/prompts": "2.0.1",
+    "@types/prompts": "2.4.2",
     "@types/tar": "6.1.5",
     "@types/validate-npm-package-name": "3.0.0",
     "@vercel/ncc": "0.34.0",
@@ -43,10 +43,9 @@
     "conf": "10.2.0",
     "cross-spawn": "7.0.3",
     "fast-glob": "3.3.1",
-    "got": "10.7.0",
     "picocolors": "1.0.0",
     "prettier-plugin-tailwindcss": "0.3.0",
-    "prompts": "2.1.0",
+    "prompts": "2.4.2",
     "tar": "6.1.15",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"

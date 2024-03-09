@@ -288,10 +288,11 @@ createNextDescribe(
       describe('chunks', () => {
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
+
           expect(
             [
               ...html.matchAll(
-                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+                /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
               ),
             ].length
           ).toBe(3)
@@ -304,6 +305,11 @@ createNextDescribe(
           expect(
             await browser.eval(
               `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h2')).color`
             )
           ).toBe('rgb(255, 0, 0)')
         })
@@ -321,6 +327,11 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('h1')).color`
             )
           ).toBe('rgb(255, 0, 0)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h2')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
 
           try {
             await next.patchFile(
@@ -336,6 +347,11 @@ createNextDescribe(
             expect(
               await browser.eval(
                 `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h2')).color`
               )
             ).toBe('rgb(255, 0, 0)')
           } finally {
@@ -442,11 +458,22 @@ createNextDescribe(
           it('should only include the same style once in the flight data', async () => {
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 
-            // Even if it's deduped by Float, it should still only be included once in the payload.
-            // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
-            expect(
-              initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
-            ).toBe(3)
+            if (process.env.TURBOPACK) {
+              expect(
+                initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
+              ).toBe(5)
+            } else {
+              // Even if it's deduped by Float, it should still only be included once in the payload.
+              // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
+
+              expect(
+                initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
+              ).toBe(3)
+              // Links in data-precedence does not have `?v=` query
+              expect(
+                initialHtml.match(/css-duplicate-2\/layout\.css/g).length
+              ).toBe(5)
+            }
           })
 
           it.skip('should only load chunks for the css module that is used by the specific entrypoint', async () => {
@@ -730,13 +757,24 @@ createNextDescribe(
                 ),
               'rgb(255, 0, 0)'
             )
-            await check(
-              () =>
-                browser.eval(
-                  `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
-                ),
-              1
-            )
+
+            if (process.env.TURBOPACK) {
+              await check(
+                () =>
+                  browser.eval(
+                    `document.querySelectorAll('link[rel="stylesheet"][href*="/app_hmr_global_"]').length`
+                  ),
+                1
+              )
+            } else {
+              await check(
+                () =>
+                  browser.eval(
+                    `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
+                  ),
+                1
+              )
+            }
           } finally {
             await next.patchFile(filePath, origContent)
           }

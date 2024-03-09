@@ -53,5 +53,28 @@ createNextDescribe(
       const dataLayer2 = await browser.eval('window.dataLayer')
       expect(dataLayer2.length).toBe(2)
     })
+
+    it('renders GA', async () => {
+      const browser = await next.browser('/ga')
+
+      await browser.waitForElementByCss('#_next-ga')
+      await waitFor(1000)
+
+      const gaInlineScript = await browser.elementsByCss('#_next-ga-init')
+      expect(gaInlineScript.length).toBe(1)
+
+      const gaScript = await browser.elementsByCss(
+        '[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
+      )
+
+      expect(gaScript.length).toBe(1)
+      const dataLayer = await browser.eval('window.dataLayer')
+      expect(dataLayer.length).toBe(4)
+
+      await browser.elementByCss('#ga-send').click()
+
+      const dataLayer2 = await browser.eval('window.dataLayer')
+      expect(dataLayer2.length).toBe(5)
+    })
   }
 )

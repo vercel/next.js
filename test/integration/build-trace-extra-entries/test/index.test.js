@@ -29,10 +29,38 @@ describe('build trace with extra entries', () => {
       const imageTrace = await fs.readJSON(
         join(appDir, '.next/server/pages/image-import.js.nft.json')
       )
+      const appDirRoute1Trace = await fs.readJSON(
+        join(appDir, '.next/server/app/route1/route.js.nft.json')
+      )
+
+      expect(
+        appDirRoute1Trace.files.some(
+          (file) => file === '../../../../include-me/hello.txt'
+        )
+      ).toBe(true)
+      expect(
+        appDirRoute1Trace.files.some(
+          (file) => file === '../../../../include-me/second.txt'
+        )
+      ).toBe(true)
+      expect(
+        appDirRoute1Trace.files.some((file) => file.includes('exclude-me'))
+      ).toBe(false)
 
       expect(appTrace.files.some((file) => file.endsWith('hello.json'))).toBe(
         true
       )
+
+      expect(
+        indexTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      ).toBeGreaterThan(
+        anotherTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      )
+
       expect(
         appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
       ).toBe(true)

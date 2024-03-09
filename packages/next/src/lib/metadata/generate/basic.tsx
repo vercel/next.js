@@ -61,7 +61,11 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
         ])
       : []),
     metadata.manifest ? (
-      <link rel="manifest" href={metadata.manifest.toString()} />
+      <link
+        rel="manifest"
+        href={metadata.manifest.toString()}
+        crossOrigin="use-credentials"
+      />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),
@@ -87,12 +91,15 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
     ...(metadata.other
-      ? Object.entries(metadata.other).map(([name, content]) =>
-          Meta({
-            name,
-            content: Array.isArray(content) ? content.join(',') : content,
-          })
-        )
+      ? Object.entries(metadata.other).map(([name, content]) => {
+          if (Array.isArray(content)) {
+            return content.map((contentItem) =>
+              Meta({ name, content: contentItem })
+            )
+          } else {
+            return Meta({ name, content })
+          }
+        })
       : []),
   ])
 }

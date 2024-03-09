@@ -19,9 +19,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
 
     this.normalizers = new DevAppNormalizers(appDir, extensions)
 
-    // Match any page file that ends with `/page.${extension}` under the app
+    // Match any page file that ends with `/page.${extension}` or `/default.${extension}` under the app
     // directory.
-    this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
+    this.expression = new RegExp(
+      `[/\\\\](page|default)\\.(?:${extensions.join('|')})$`
+    )
   }
 
   protected async transform(
@@ -34,7 +36,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       { page: string; pathname: string; bundlePath: string }
     >()
     const routeFilenames = new Array<string>()
-    const appPaths: Record<string, string[]> = {}
+    let appPaths: Record<string, string[]> = {}
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
       if (!this.expression.test(filename)) continue
@@ -58,6 +60,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     }
 
     normalizeCatchAllRoutes(appPaths)
+
+    // Make sure to sort parallel routes to make the result deterministic.
+    appPaths = Object.fromEntries(
+      Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+    )
 
     const matchers: Array<AppPageRouteMatcher> = []
     for (const filename of routeFilenames) {

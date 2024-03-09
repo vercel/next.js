@@ -1,4 +1,5 @@
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * LoaderTree is generated in next-app-loader.
@@ -14,7 +15,7 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
   const isDefaultPage =
-    typeof defaultPage !== 'undefined' && loaderTree[0] === '__DEFAULT__'
+    typeof defaultPage !== 'undefined' && loaderTree[0] === DEFAULT_SEGMENT_KEY
 
   let value = undefined
   let modType: 'layout' | 'page' | undefined = undefined

@@ -1,22 +1,22 @@
-import { visionTool } from '@sanity/vision'
-import { defineConfig } from 'sanity'
-import { deskTool } from 'sanity/desk'
-import { unsplashImageAsset } from 'sanity-plugin-asset-source-unsplash'
+import { visionTool } from "@sanity/vision";
+import { defineConfig } from "sanity";
+import { deskTool } from "sanity/desk";
+import { unsplashImageAsset } from "sanity-plugin-asset-source-unsplash";
 
-import { resolveProductionUrl } from './resolveProductionUrl'
-import { author } from './schemas/author'
-import { post } from './schemas/post'
+import { resolveProductionUrl } from "./resolveProductionUrl";
+import { author } from "./schemas/author";
+import { post } from "./schemas/post";
 
 const title =
   import.meta.env.NEXT_PUBLIC_SANITY_PROJECT_TITLE ||
-  'Next.js Blog with Sanity.io'
-const projectId = import.meta.env.NEXT_PUBLIC_SANITY_PROJECT_ID
-const dataset = import.meta.env.NEXT_PUBLIC_SANITY_DATASET
+  "Next.js Blog with Sanity.io";
+const projectId = import.meta.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const dataset = import.meta.env.NEXT_PUBLIC_SANITY_DATASET;
 
 export default defineConfig({
-  basePath: '/',
-  projectId: projectId || '',
-  dataset: dataset || '',
+  basePath: "/",
+  projectId: projectId || "",
+  dataset: dataset || "",
   title,
   schema: {
     // If you want more content types, you can add them to this array
@@ -33,4 +33,4 @@ export default defineConfig({
     // https://www.sanity.io/docs/the-vision-plugin
     visionTool(),
   ],
-})
+});

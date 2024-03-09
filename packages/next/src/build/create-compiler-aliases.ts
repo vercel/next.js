@@ -12,11 +12,7 @@ import {
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
-import {
-  NEXT_PROJECT_ROOT,
-  NEXT_PROJECT_ROOT_DIST,
-  hasExternalOtelApiPackage,
-} from './webpack-config'
+import { NEXT_PROJECT_ROOT, hasExternalOtelApiPackage } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
 
 interface CompilerAliases {
@@ -90,12 +86,13 @@ export function createWebpackAliases({
   }
 
   return {
-    '@vercel/og': 'next/dist/server/og/image-response',
+    '@vercel/og$': 'next/dist/server/og/image-response',
 
     // Alias next/dist imports to next/dist/esm assets,
     // let this alias hit before `next` alias.
     ...(isEdgeServer
       ? {
+          'next/dist/api': 'next/dist/esm/api',
           'next/dist/build': 'next/dist/esm/build',
           'next/dist/client': 'next/dist/esm/client',
           'next/dist/shared': 'next/dist/esm/shared',
@@ -103,44 +100,7 @@ export function createWebpackAliases({
           'next/dist/lib': 'next/dist/esm/lib',
           'next/dist/server': 'next/dist/esm/server',
 
-          // Alias the usage of next public APIs
-          [path.join(NEXT_PROJECT_ROOT, 'server')]:
-            'next/dist/esm/server/web/exports/index',
-          [path.join(NEXT_PROJECT_ROOT, 'og')]:
-            'next/dist/esm/server/og/image-response',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
-            'next/dist/esm/client/link',
-          [path.join(
-            NEXT_PROJECT_ROOT,
-            'dist',
-            'shared',
-            'lib',
-            'image-external'
-          )]: 'next/dist/esm/shared/lib/image-external',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
-            'next/dist/esm/client/script',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
-            'next/dist/esm/client/router',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
-            'next/dist/esm/shared/lib/head',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
-            'next/dist/esm/shared/lib/dynamic',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
-            'next/dist/esm/pages/_document',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
-            'next/dist/esm/pages/_app',
-          [path.join(
-            NEXT_PROJECT_ROOT_DIST,
-            'client',
-            'components',
-            'navigation'
-          )]: 'next/dist/esm/client/components/navigation',
-          [path.join(
-            NEXT_PROJECT_ROOT_DIST,
-            'client',
-            'components',
-            'headers'
-          )]: 'next/dist/esm/client/components/headers',
+          ...createNextApiEsmAliases(),
         }
       : undefined),
 
@@ -188,7 +148,7 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
 
     [RSC_ACTION_PROXY_ALIAS]:
-      'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+      'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
     [RSC_ACTION_ENCRYPTION_ALIAS]:
       'next/dist/server/app-render/action-encryption',
@@ -233,6 +193,51 @@ export function createServerOnlyClientOnlyAliases(
       }
 }
 
+export function createNextApiEsmAliases() {
+  const mapping = {
+    head: 'next/dist/api/head',
+    image: 'next/dist/api/image',
+    constants: 'next/dist/api/constants',
+    router: 'next/dist/api/router',
+    dynamic: 'next/dist/api/dynamic',
+    script: 'next/dist/api/script',
+    link: 'next/dist/api/link',
+    navigation: 'next/dist/api/navigation',
+    headers: 'next/dist/api/headers',
+    og: 'next/dist/api/og',
+    server: 'next/dist/api/server',
+    // pages api
+    document: 'next/dist/api/document',
+    app: 'next/dist/api/app',
+  }
+  const aliasMap: Record<string, string> = {}
+  // Handle fully specified imports like `next/image.js`
+  for (const [key, value] of Object.entries(mapping)) {
+    const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key)
+    aliasMap[nextApiFilePath + '.js'] = value
+  }
+
+  return aliasMap
+}
+
+export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
+  const mapping: Record<string, string> = {
+    head: 'next/dist/client/components/noop-head',
+    dynamic: 'next/dist/api/app-dynamic',
+  }
+
+  if (isServerOnlyLayer) {
+    mapping['navigation'] = 'next/dist/api/navigation.react-server'
+  }
+
+  const aliasMap: Record<string, string> = {}
+  for (const [key, value] of Object.entries(mapping)) {
+    const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key)
+    aliasMap[nextApiFilePath + '.js'] = value
+  }
+  return aliasMap
+}
+
 export function createRSCAliases(
   bundledReactChannel: string,
   {
@@ -255,15 +260,14 @@ export function createRSCAliases(
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
-    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-    // optimisations to ignore the legacy build of react-dom/server
-    './cjs/react-dom-server-legacy.browser.production.min.js': `next/dist/build/noop-react-dom-server-legacy`,
-    './cjs/react-dom-server-legacy.browser.development.js': `next/dist/build/noop-react-dom-server-legacy`,
   }
 
   if (!isEdgeServer) {
@@ -291,7 +295,7 @@ export function createRSCAliases(
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
+      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
     }
     // Use server rendering stub for RSC and SSR
     // x-ref: https://github.com/facebook/react/pull/25436
@@ -370,16 +374,5 @@ function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
 function getReactProfilingInProduction(): CompilerAliases {
   return {
     'react-dom$': 'react-dom/profiling',
-  }
-}
-export function createServerComponentsNoopAliases(): CompilerAliases {
-  return {
-    [require.resolve('next/head')]: require.resolve(
-      'next/dist/client/components/noop-head'
-    ),
-    // Alias next/dynamic
-    [require.resolve('next/dynamic')]: require.resolve(
-      'next/dist/shared/lib/app-dynamic'
-    ),
   }
 }

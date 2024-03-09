@@ -228,6 +228,12 @@ createNextDescribe(
           'dns-prefetch': '/dns-prefetch-url',
         })
 
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
+        })
+
         await matchDom('meta', 'name="theme-color"', {
           media: '(prefers-color-scheme: dark)',
           content: 'cyan',
@@ -237,6 +243,7 @@ createNextDescribe(
       it('should support other basic tags (edge)', async () => {
         const browser = await next.browser('/basic-edge')
         const matchMultiDom = createMultiDomMatcher(browser)
+        const matchDom = createDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
           generator: 'next.js',
@@ -254,6 +261,12 @@ createNextDescribe(
           preconnect: '/preconnect-url',
           preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
+        })
+
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
         })
       })
 
@@ -359,6 +372,7 @@ createNextDescribe(
           'yandex-verification': 'yandex',
           me: ['my-email', 'my-link'],
         })
+        expect($('meta[name="me"]').length).toBe(2)
       })
 
       it('should support appLinks tags', async () => {
@@ -433,7 +447,7 @@ createNextDescribe(
         await matchMultiDom('meta', 'property', 'content', {
           'og:title': 'My custom title',
           'og:description': 'My custom description',
-          'og:url': 'https://example.com/',
+          'og:url': 'https://example.com',
           'og:site_name': 'My custom site name',
           'og:locale': 'en-US',
           'og:type': 'website',
