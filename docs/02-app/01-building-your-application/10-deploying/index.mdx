@@ -23,6 +23,14 @@ Deploying to Vercel is zero-configuration and provides additional enhancements f
 
 Learn more about [Next.js on Vercel](https://vercel.com/docs/frameworks/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [deploy a template for free](https://vercel.com/templates/next.js?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) to try it out.
 
+## Microsoft Azure Static Web Apps
+
+[Microsoft](https://github.com/Azure/static-web-apps/discussions/1428) now supports Next.js 14 (& 13). Server-focused features, including React Server Components, App Directory, and Server Actions are now fully supported in preview. You can also use Azure Static Web Apps built-in authentication with Next.js sites to secure them: the client principal containing the information of the authenticated user can be accessed from the request headers and used to perform server-side operations within API routes, Server Actions or React Server Components. 
+
+To ensure full feature compatibility with current and future Next.js releases, Next.js workloads on Azure Static Web Apps are uniquely hosted leveraging Azure's App Service. Static content for Next.js workloads will continue to be hosted on Azure Static Web Apps globally distributed content store, and Next.js backend functions are hosted by Azure Static Web Apps with a dedicated App Service plan. This enables improved support for Next.js features, while retaining Static Web Apps’ existing pricing plans.
+
+Learn more about [Next.js on Azure Static Web Apps](https://techcommunity.microsoft.com/t5/apps-on-azure-blog/improved-next-js-support-preview-for-azure-static-web-apps/ba-p/4078617).
+
 ## Self-Hosting
 
 You can self-host Next.js in three different ways:
