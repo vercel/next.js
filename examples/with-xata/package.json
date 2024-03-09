@@ -16,7 +16,7 @@
     "typescript": "4.9.3"
   },
   "dependencies": {
-    "@xata.io/client": "^0.21.3",
+    "@xata.io/client": "^0.29.1",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
