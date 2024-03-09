@@ -15857,12 +15857,11 @@
       "typescript paths without baseurl default behavior should alias components",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
-      "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
-    ],
-    "failed": [
+      "typescript paths without baseurl default behavior should resolve the second item in as a fallback",
       "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should not resolve to .d.ts files"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
