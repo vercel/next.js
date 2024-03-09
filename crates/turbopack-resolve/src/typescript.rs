@@ -270,7 +270,13 @@ pub async fn tsconfig_resolve_options(
                         let entries = vec
                             .iter()
                             .filter_map(|entry| {
-                                entry.as_str().map(|s| {
+                                let entry = entry.as_str();
+
+                                if entry.map(|e| e.ends_with(".d.ts")).unwrap_or_default() {
+                                    return None;
+                                }
+
+                                entry.map(|s| {
                                     // tsconfig paths are always relative requests
                                     if s.starts_with("./") || s.starts_with("../") {
                                         s.to_string()
