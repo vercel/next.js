@@ -670,7 +670,7 @@ createNextDescribe(
             "unstable-cache/dynamic-undefined/page.js",
             "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
             "unstable-cache/dynamic/page.js",
-           "unstable-cache/dynamic/page_client-reference-manifest.js",
+            "unstable-cache/dynamic/page_client-reference-manifest.js",
             "variable-config-revalidate/revalidate-3.html",
             "variable-config-revalidate/revalidate-3.rsc",
             "variable-config-revalidate/revalidate-3/page.js",
