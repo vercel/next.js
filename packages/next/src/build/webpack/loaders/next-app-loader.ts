@@ -200,9 +200,11 @@ async function createTreeCodeFromPath(
 
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const hasRootNotFound = await resolver(
+  const rootNotFound = await resolver(
     `${appDirPrefix}/${FILE_TYPES['not-found']}`
   )
+  const isRootNotFound = pagePath === rootNotFound
+  const hasRootNotFound = Boolean(rootNotFound)
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -382,9 +384,16 @@ async function createTreeCodeFromPath(
         )?.[1]
         rootLayout = layoutPath
 
-        if (isDefaultNotFound && !layoutPath && !rootLayout) {
+        if (
+          (isDefaultNotFound || isRootNotFound) &&
+          !layoutPath &&
+          !rootLayout
+        ) {
           rootLayout = defaultLayoutPath
-          definedFilePaths.push(['layout', rootLayout])
+
+          if (isDefaultNotFound) {
+            definedFilePaths.push(['layout', rootLayout])
+          }
         }
       }
 
