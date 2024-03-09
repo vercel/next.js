@@ -384,11 +384,7 @@ async function createTreeCodeFromPath(
         rootLayout = layoutPath
 
         const isRootNotFound = hasRootNotFound && isRootLayer && isNotFoundRoute
-        if (
-          (isRootNotFound || isDefaultNotFound) &&
-          !layoutPath &&
-          !rootLayout
-        ) {
+        if ((isRootNotFound || isDefaultNotFound) && !layoutPath) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
