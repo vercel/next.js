@@ -1227,7 +1227,7 @@ export default class NextNodeServer extends BaseServer {
                     : stack.at(globalThisFetchIndex + 1) ?? stack.at(-1)
                 const file = `${frame?.file}:${frame?.lineNumber}:${frame?.column}`
                 writeStdoutLine(
-                  `${newLineLeadingChar}${nextNestedIndent} ${newLineLeadingChar} ${cacheReasonStr}, ${gray(
+                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}, ${gray(
                     file
                   )}`
                 )
