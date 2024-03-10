@@ -1211,7 +1211,7 @@ describe.each([[''], ['/docs']])(
         ]
         const [, compileTime, timeUnit] = matches
 
-        let compileTimeMs = parseFloat(compileTime[1])
+        let compileTimeMs = parseFloat(compileTime)
         if (timeUnit === 's') {
           compileTimeMs = compileTimeMs * 1000
         }

@@ -45,7 +45,6 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
-import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -344,7 +343,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
           data: obj.data,
         })
       }
-      if (RuntimeErrorHandler.hadRuntimeError) {
+      if (hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null)
       }
