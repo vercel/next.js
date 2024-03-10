@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 
 type ErrorBoundaryProps = {
   children?: React.ReactNode
@@ -8,7 +8,7 @@ type ErrorBoundaryProps = {
 }
 type ErrorBoundaryState = { error: Error | null }
 
-class ErrorBoundary extends React.PureComponent<
+export class ErrorBoundary extends React.PureComponent<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
@@ -47,5 +47,3 @@ class ErrorBoundary extends React.PureComponent<
     )
   }
 }
-
-export { ErrorBoundary }

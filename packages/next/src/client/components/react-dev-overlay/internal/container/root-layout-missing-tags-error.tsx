@@ -5,7 +5,7 @@ import { Overlay } from '../components/Overlay'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { HotlinkedText } from '../components/hot-linked-text'
 
-export type RootLayoutMissingTagsErrorProps = {
+type RootLayoutMissingTagsErrorProps = {
   missingTags: string[]
   versionInfo?: VersionInfo
 }
