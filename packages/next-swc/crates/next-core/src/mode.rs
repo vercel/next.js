@@ -40,4 +40,11 @@ impl NextMode {
             NextMode::Build => true,
         }
     }
+
+    pub fn should_minify(&self) -> bool {
+        match self {
+            NextMode::Development => false,
+            NextMode::Build => true,
+        }
+    }
 }

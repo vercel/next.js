@@ -40,6 +40,8 @@ pub struct LoaderTreeBuilder {
     context: Vc<ModuleAssetContext>,
     server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
+    /// next.config.js' basePath option to construct og metadata.
+    base_path: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -71,6 +73,7 @@ impl LoaderTreeBuilder {
     fn new(
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        base_path: Option<String>,
     ) -> Self {
         LoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -80,6 +83,7 @@ impl LoaderTreeBuilder {
             context,
             server_component_transition,
             pages: Vec::new(),
+            base_path,
         }
     }
 
@@ -272,6 +276,7 @@ impl LoaderTreeBuilder {
         alt_path: Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
         let i = self.unique_number();
+
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import = "import { fillMetadataSegment } from \
@@ -295,13 +300,17 @@ impl LoaderTreeBuilder {
 
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-
+        let pathname_prefix = if let Some(base_path) = &self.base_path {
+            format!("{}/{}", base_path, app_page)
+        } else {
+            app_page.to_string()
+        };
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
             "{s}  url: fillMetadataSegment({}, props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&app_page.to_string()),
+            StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
         )?;
 
@@ -435,8 +444,9 @@ impl LoaderTreeModule {
         loader_tree: Vc<LoaderTree>,
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        base_path: Option<String>,
     ) -> Result<Self> {
-        LoaderTreeBuilder::new(context, server_component_transition)
+        LoaderTreeBuilder::new(context, server_component_transition, base_path)
             .build(loader_tree)
             .await
     }

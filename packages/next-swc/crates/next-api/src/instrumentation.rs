@@ -10,7 +10,6 @@ use turbo_tasks::{Completion, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
     turbopack::{
-        build::EntryChunkGroupResult,
         core::{
             asset::AssetContent,
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
@@ -22,6 +21,7 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
+        nodejs::EntryChunkGroupResult,
     },
 };
 

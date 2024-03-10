@@ -7,6 +7,7 @@ createNextDescribe(
     dependencies: {
       '@aws-sdk/client-s3': 'latest',
       lodash: 'latest',
+      'fast-xml-parser': '4.2.5', // https://github.com/aws/aws-sdk-js-v3/issues/5866#issuecomment-1984616572
     },
   },
   ({ next }) => {
