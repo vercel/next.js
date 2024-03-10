@@ -1149,7 +1149,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-              return nestedLevel === 0 ? ' ' : '  │ '.repeat(nestedLevel)
+              return nestedLevel === 0 ? ' ' : ' │ '.repeat(nestedLevel)
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
