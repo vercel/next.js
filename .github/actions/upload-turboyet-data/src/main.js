@@ -3,7 +3,11 @@ const path = require('path')
 
 const { createClient } = require('@vercel/kv')
 
-async function main() {
+/**
+ * Collect test results from test/turbopack-tests-manifest.json and report them to the areweturboyet.com Vercel KV store.
+ * @param {boolean} debug Skip uploading to Vercel KV store, useful for debugging the collection output.
+ */
+async function main(debug = false) {
   try {
     const file = path.join(process.cwd(), 'test/turbopack-tests-manifest.json')
 
@@ -56,11 +60,6 @@ async function main() {
       }
     }
 
-    const kv = createClient({
-      url: process.env.TURBOYET_KV_REST_API_URL,
-      token: process.env.TURBOYET_KV_REST_API_TOKEN,
-    })
-
     const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
       passCount + failCount
     }`
@@ -68,14 +67,21 @@ async function main() {
     console.log('TEST RESULT')
     console.log(testRun)
 
-    await kv.rpush('test-runs', testRun)
-    console.log('SUCCESSFULLY SAVED RUNS')
+    if (!debug) {
+      const kv = createClient({
+        url: process.env.TURBOYET_KV_REST_API_URL,
+        token: process.env.TURBOYET_KV_REST_API_TOKEN,
+      })
 
-    await kv.set('passing-tests', passingTests)
-    console.log('SUCCESSFULLY SAVED PASSING')
+      await kv.rpush('test-runs', testRun)
+      console.log('SUCCESSFULLY SAVED RUNS')
 
-    await kv.set('failing-tests', failingTests)
-    console.log('SUCCESSFULLY SAVED FAILING')
+      await kv.set('passing-tests', passingTests)
+      console.log('SUCCESSFULLY SAVED PASSING')
+
+      await kv.set('failing-tests', failingTests)
+      console.log('SUCCESSFULLY SAVED FAILING')
+    }
   } catch (error) {
     console.log(error)
   }
