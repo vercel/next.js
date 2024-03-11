@@ -892,7 +892,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const { originalRequest } = req as NodeNextRequest
       const isHttps = !!(originalRequest.socket as TLSSocket)?.encrypted
       req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port ? this.port.toString() : isHttps ? '443' : '80'
+      req.headers['x-forwarded-port'] ??= this.port
+        ? this.port.toString()
+        : isHttps
+        ? '443'
+        : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
