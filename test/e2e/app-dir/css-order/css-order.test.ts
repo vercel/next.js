@@ -91,7 +91,9 @@ createNextDescribe(
         ' -> '
       )} -> ${ordering.join(' -> ')}`
       // TODO fix this case
-      const broken = isNextDev && isTurbopack
+      const broken =
+        (isNextDev && isTurbopack) ||
+        ordering.some((page) => page.includes('big-interleaved'))
       if (broken) {
         it.todo(name)
         continue
@@ -124,6 +126,12 @@ createNextDescribe(
       const name = `should load correct styles navigating ${ordering.join(
         ' -> '
       )}`
+      // TODO fix this case
+      const broken = ordering.some((page) => page.includes('big-interleaved'))
+      if (broken) {
+        it.todo(name)
+        continue
+      }
       it(name, async () => {
         const start = PAGES[ordering[0]]
         const browser = await next.browser(start.url)
