@@ -107,8 +107,7 @@ const webpackRegExes = [
   /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
 ]
 
-function isInternal(file: StackFrame['file']) {
-  if (!file) return false
+function isInternal(file: string) {
   return webpackRegExes.some((regEx) => regEx.test(file))
 }
 
@@ -118,20 +117,19 @@ function isInternal(file: StackFrame['file']) {
  * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
- *
  */
 function formatFrameSourceFile(file: string) {
   return file.replace(webpackRegExes[0], '').replace(webpackRegExes[1], '')
 }
 
 export function getFrameSource(frame: StackFrame): string {
+  if (!frame.file) {
+    throw new TypeError(
+      `Could not parse source frame: ${JSON.stringify(frame, null, 2)}`
+    )
+  }
   let str = ''
   try {
-    if (!frame.file) {
-      throw new TypeError(
-        `Could not parse file from frame: ${JSON.stringify(frame, null, 2)}`
-      )
-    }
     const u = new URL(frame.file)
 
     // Strip the origin for same-origin scripts.
