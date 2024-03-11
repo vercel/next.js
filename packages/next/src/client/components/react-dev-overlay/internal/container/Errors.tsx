@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../app/error-overlay-reducer'
-import type {
-  UnhandledErrorAction,
-  UnhandledRejectionAction,
-} from '../../app/error-overlay-reducer'
+  type UnhandledErrorAction,
+  type UnhandledRejectionAction,
+} from '../../shared'
 import {
   Dialog,
   DialogBody,
