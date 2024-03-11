@@ -115,12 +115,6 @@ async function main() {
     )
     console.log('wrote config to', vercelConfigDir)
   }
-  const whoami = await execa(
-    'vercel',
-    ['whoami', '--global-config', vercelConfigDir],
-    { cwd: deployDir }
-  )
-  console.log(whoami.stderr, whoami.stderr)
 
   const child = execa(
     'vercel',
