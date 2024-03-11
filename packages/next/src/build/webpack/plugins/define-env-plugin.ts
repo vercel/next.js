@@ -1,5 +1,5 @@
 import type {
-  I18NConfig,
+  I18NDomains,
   NextConfigComplete,
 } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
@@ -51,7 +51,7 @@ interface DefineEnv {
     | MiddlewareMatcher[]
     | BloomFilter
     | Partial<ImageConfigComplete>
-    | I18NConfig['domains']
+    | I18NDomains
 }
 
 interface SerializedDefineEnv {
