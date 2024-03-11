@@ -29,13 +29,12 @@ async function main() {
   )
 
   const optionalDeps = {}
+  const { version } = JSON.parse(
+    await fs.readFile(path.join(cwd, 'lerna.json'))
+  )
 
   await Promise.all(
     platforms.map(async (platform) => {
-      let version = JSON.parse(
-        await fs.readFile(path.join(cwd, 'lerna.json'))
-      ).version
-
       let binaryName = `next-swc.${platform}.node`
       await fs.cp(
         path.join(cwd, 'packages/next-swc/native', binaryName),
@@ -132,14 +131,19 @@ async function main() {
   let deployOutput = ''
   const handleData = (type) => (chunk) => {
     process[type].write(chunk)
-    deployOutput += chunk.toString()
+
+    // only want stdout since that's where deployment URL
+    // is sent to
+    if (type === 'stdout') {
+      deployOutput += chunk.toString()
+    }
   }
-  child.stdout.on('data', handleData('stdout'))
+  child.stdout.on('data', handleData('stdout', true))
   child.stderr.on('data', handleData('stderr'))
 
   await child
 
-  const deployUrl = deployOutput.match(/Preview: (https.*?) /)?.[0]
+  const deployUrl = deployOutput.trim()
   console.log(`\n\nNext.js tarball: ${deployUrl.trim()}/next.tgz`)
 }
 
