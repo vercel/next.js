@@ -40,6 +40,7 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { getProxiedPluginState } from '../../build-context'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 import { PAGE_TYPES } from '../../../lib/page-types'
+import { isWebpackServerOnlyLayer } from '../../utils'
 
 interface Options {
   dev: boolean
@@ -95,7 +96,8 @@ const pluginState = getProxiedPluginState({
   // Collect modules from server/edge compiler in client layer,
   // and detect if it's been used, and mark it as `async: true` for react.
   // So that react could unwrap the async module from promise and render module itself.
-  ASYNC_CLIENT_MODULES: [] as string[],
+  // Use an object to simulate Set lookup
+  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -233,15 +235,15 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        // The module must has request, and resource so it's not a new entry created with loader.
-        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
-        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+        if (mod && mod.resource && !isWebpackServerOnlyLayer(mod.layer)) {
           if (compilation.moduleGraph.isAsync(mod)) {
-            pluginState.ASYNC_CLIENT_MODULES.push(mod.resource)
+            // The module must has resolved resource path so it's not a new entry created with loader.
+            // Checking the module layer to make sure it's from client layers (SSR or browser, not RSC).
+            pluginState.ASYNC_CLIENT_MODULES[mod.resource] = true
           }
         }
 
-        recordModule(String(modId), mod)
+        if (modId) recordModule(modId, mod)
       })
     })
 
@@ -539,11 +541,12 @@ export class FlightClientEntryPlugin {
       const collectActionsInDep = (mod: webpack.NormalModule): void => {
         if (!mod) return
 
+        const modPath: string = mod.resourceResolveData?.path || ''
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
-        let modRequest: string | undefined =
-          mod.resourceResolveData?.path + mod.resourceResolveData?.query
+        let modRequest: string =
+          modPath + (mod.resourceResolveData?.query || '')
 
         // For the barrel optimization, we need to use the match resource instead
         // because there will be 2 modules for the same file (same resource path)
@@ -633,11 +636,12 @@ export class FlightClientEntryPlugin {
 
       const isCSS = isCSSMod(mod)
 
+      const modPath: string = mod.resourceResolveData?.path || ''
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
       let modRequest: string | undefined =
-        mod.resourceResolveData?.path + mod.resourceResolveData?.query
+        modPath + mod.resourceResolveData?.query
 
       // Context modules don't have a resource path, we use the identifier instead.
       if (mod.constructor.name === 'ContextModule') {
@@ -945,6 +949,7 @@ export class FlightClientEntryPlugin {
       if (
         chunkGroup.name &&
         mod.request &&
+        modId &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
         const fromClient = /&__client_imported__=true/.test(mod.request)
