@@ -23,7 +23,14 @@ export default defineType({
           type: "string",
           title: "Alternative text",
           description: "Important for SEO and accessiblity.",
-          validation: (rule) => rule.required(),
+          validation: (rule) => {
+            return rule.custom((alt, context) => {
+              if ((context.document?.picture as any)?.asset?._ref && !alt) {
+                return "Required";
+              }
+              return true;
+            });
+          },
         },
       ],
       options: {
