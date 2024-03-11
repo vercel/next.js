@@ -39,6 +39,16 @@ export default function Nav() {
         </Link>
       </li>
       <li>
+        <Link href={'/big-interleaved/a'} id="big-interleaved-a">
+          Big Interleaved A
+        </Link>
+      </li>
+      <li>
+        <Link href={'/big-interleaved/b'} id="big-interleaved-b">
+          Big Interleaved B
+        </Link>
+      </li>
+      <li>
         <Link href={'/reversed/a'} id="reversed-a">
           Reversed A
         </Link>
