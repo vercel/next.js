@@ -38,6 +38,16 @@ export default function Nav() {
           Interleaved B
         </Link>
       </li>
+      <li>
+        <Link href={'/reversed/a'} id="reversed-a">
+          Reversed A
+        </Link>
+      </li>
+      <li>
+        <Link href={'/reversed/b'} id="reversed-b">
+          Reversed B
+        </Link>
+      </li>
     </ul>
   )
 }

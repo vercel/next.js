@@ -702,15 +702,15 @@ export class FlightClientEntryPlugin {
         return
       }
 
-      Array.from(
-        getModuleReferencesInOrder(mod, compilation.moduleGraph)
-      ).forEach((connection: any) => {
-        const dependencyIds: string[] = []
-        if (connection.dependency?.ids?.length) {
-          dependencyIds.push(...connection.dependency.ids)
+      getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+        (connection: any) => {
+          const dependencyIds: string[] = []
+          if (connection.dependency?.ids?.length) {
+            dependencyIds.push(...connection.dependency.ids)
+          }
+          filterClientComponents(connection.resolvedModule, dependencyIds)
         }
-        filterClientComponents(connection.resolvedModule, dependencyIds)
-      })
+      )
     }
 
     // Traverse the module graph to find all client components.

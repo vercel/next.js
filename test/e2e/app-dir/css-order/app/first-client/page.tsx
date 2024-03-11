@@ -9,7 +9,7 @@ export default function Page() {
   return (
     <div>
       <p
-        className={`${style.name} ${baseStyle.base} ${baseStyle2.base}`}
+        className={`${baseStyle.base} ${style.name} ${baseStyle2.base}`}
         id="hello1c"
       >
         hello world

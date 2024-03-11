@@ -51,9 +51,21 @@ const PAGES = {
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
   },
+  'reversed-a': {
+    url: '/reversed/a',
+    selector: '#hellora',
+    color: 'rgb(0, 166, 255)',
+  },
+  'reversed-b': {
+    url: '/reversed/b',
+    selector: '#hellorb',
+    color: 'rgb(0, 89, 255)',
+  },
 }
 
-const allPairs = getPairs(Object.keys(PAGES))
+const allPairs = getPairs(
+  Object.keys(PAGES).filter((page) => !page.startsWith('reversed'))
+)
 
 createNextDescribe(
   'css-order',
@@ -135,8 +147,7 @@ createNextDescribe(
     }
     for (const [page, pageInfo] of Object.entries(PAGES)) {
       const name = `should load correct styles on ${page}`
-      // TODO fix this case
-      const broken = isNextDev && !isTurbopack && page.includes('client')
+      const broken = false
       if (broken) {
         it.todo(name)
         continue

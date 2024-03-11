@@ -93,13 +93,16 @@ export function formatBarrelOptimizedResource(
 export function getModuleReferencesInOrder(
   module: Module,
   moduleGraph: ModuleGraph
-): Set<ModuleGraphConnection> {
-  const connections = new Set<ModuleGraphConnection>()
-  for (const dep of module.dependencies) {
-    const connection = moduleGraph.getConnection(dep)
-    if (connection) {
-      connections.add(connection)
+): ModuleGraphConnection[] {
+  const connections = []
+  for (const connection of moduleGraph.getOutgoingConnections(module)) {
+    if (connection.dependency && connection.module) {
+      connections.push({
+        connection,
+        index: moduleGraph.getParentBlockIndex(connection.dependency),
+      })
     }
   }
-  return connections
+  connections.sort((a, b) => a.index - b.index)
+  return connections.map((c) => c.connection)
 }
