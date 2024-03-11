@@ -667,6 +667,10 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "unstable-cache/dynamic-undefined/page.js",
+            "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
+            "unstable-cache/dynamic/page.js",
+            "unstable-cache/dynamic/page_client-reference-manifest.js",
             "variable-config-revalidate/revalidate-3.html",
             "variable-config-revalidate/revalidate-3.rsc",
             "variable-config-revalidate/revalidate-3/page.js",
@@ -3009,6 +3013,31 @@ createNextDescribe(
         const data2 = cheerio.load(html2)('#data').text()
 
         expect(data).toEqual(data2)
+      })
+    })
+
+    describe('unstable_cache', () => {
+      it('should retrieve the same value on second request', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+      })
+
+      it('should not error when retrieving the value undefined', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+        expect(data).toEqual('typeof cachedData: undefined')
       })
     })
 
