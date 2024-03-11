@@ -17,10 +17,6 @@ type ChunkState = {
   order: number
 }
 
-function chunkStateOrder(a: ChunkState, b: ChunkState): number {
-  return a.modules.length - b.modules.length
-}
-
 export class CssChunkingPlugin {
   public apply(compiler: Compiler) {
     compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
