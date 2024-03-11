@@ -23,7 +23,6 @@ type BloomFilter = ReturnType<
 
 export interface DefineEnvPluginOptions {
   isTurbopack: boolean
-  allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters?: {
     staticFilter: BloomFilter
     dynamicFilter: BloomFilter
@@ -38,7 +37,6 @@ export interface DefineEnvPluginOptions {
   isNodeOrEdgeCompilation: boolean
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
-  previewModeId: string | undefined
 }
 
 interface DefineEnv {
@@ -46,7 +44,6 @@ interface DefineEnv {
     | string
     | string[]
     | boolean
-    | undefined
     | MiddlewareMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
@@ -97,8 +94,7 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
   const defineEnvStringified: SerializedDefineEnv = {}
   for (const key in defineEnv) {
     const value = defineEnv[key]
-    defineEnvStringified[key] =
-      value === undefined ? 'undefined' : JSON.stringify(value)
+    defineEnvStringified[key] = JSON.stringify(value)
   }
 
   return defineEnvStringified
@@ -130,7 +126,6 @@ function getImageConfig(
 
 export function getDefineEnv({
   isTurbopack,
-  allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
   dev,
@@ -142,7 +137,6 @@ export function getDefineEnv({
   isNodeOrEdgeCompilation,
   isNodeServer,
   middlewareMatchers,
-  previewModeId,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -173,28 +167,25 @@ export function getDefineEnv({
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': config.experimental.ppr === true,
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID':
-      config.experimental.useDeploymentIdServerActions,
+      config.experimental.useDeploymentIdServerActions || false,
     'process.env.NEXT_DEPLOYMENT_ID': config.experimental.deploymentId || false,
-    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix,
-    'process.env.__NEXT_PREVIEW_MODE_ID': previewModeId,
-    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
-      allowedRevalidateHeaderKeys,
+    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix || '',
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers || [],
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
-      config.experimental.manualClientBasePath,
+      config.experimental.manualClientBasePath || false,
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
-      config.experimental.clientRouterFilter,
+      config.experimental.clientRouterFilter || true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
-      clientRouterFilters?.staticFilter,
+      clientRouterFilters?.staticFilter || false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
-      clientRouterFilters?.dynamicFilter,
+      clientRouterFilters?.dynamicFilter || false,
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
-      config.experimental.optimisticClientCache,
+      config.experimental.optimisticClientCache || true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
-      config.experimental.middlewarePrefetch,
+      config.experimental.middlewarePrefetch || 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
-    'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE,
+    'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE || false,
     // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
     ...(dev && (isClient || isEdgeServer)
       ? {
@@ -202,41 +193,45 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
-    'process.env.__NEXT_BUILD_INDICATOR': config.devIndicators.buildActivity,
+    'process.env.__NEXT_BUILD_INDICATOR':
+      config.devIndicators.buildActivity || true,
     'process.env.__NEXT_BUILD_INDICATOR_POSITION':
-      config.devIndicators.buildActivityPosition,
+      config.devIndicators.buildActivityPosition || 'bottom-right',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
       // When next.config.js does not have reactStrictMode it's enabled by default.
       config.reactStrictMode === null ? true : config.reactStrictMode,
     'process.env.__NEXT_OPTIMIZE_FONTS': !dev && config.optimizeFonts,
-    'process.env.__NEXT_OPTIMIZE_CSS': config.experimental.optimizeCss && !dev,
+    'process.env.__NEXT_OPTIMIZE_CSS':
+      (config.experimental.optimizeCss && !dev) || false,
     'process.env.__NEXT_SCRIPT_WORKERS':
-      config.experimental.nextScriptWorkers && !dev,
+      (config.experimental.nextScriptWorkers && !dev) || false,
     'process.env.__NEXT_SCROLL_RESTORATION':
-      config.experimental.scrollRestoration,
+      config.experimental.scrollRestoration || false,
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
-    'process.env.__NEXT_STRICT_NEXT_HEAD': config.experimental.strictNextHead,
+    'process.env.__NEXT_STRICT_NEXT_HEAD':
+      config.experimental.strictNextHead || false,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
-    'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains,
+    'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains || false,
     'process.env.__NEXT_ANALYTICS_ID': config.analyticsId, // TODO: remove in the next major version
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
       config.skipMiddlewareUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
-      config.experimental.externalMiddlewareRewritesResolve,
+      config.experimental.externalMiddlewareRewritesResolve || false,
     'process.env.__NEXT_MANUAL_TRAILING_SLASH':
       config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':
-      config.experimental.webVitalsAttribution &&
-      config.experimental.webVitalsAttribution.length > 0,
+      (config.experimental.webVitalsAttribution &&
+        config.experimental.webVitalsAttribution.length > 0) ||
+      false,
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION':
-      config.experimental.webVitalsAttribution,
+      config.experimental.webVitalsAttribution || false,
     'process.env.__NEXT_LINK_NO_TOUCH_START':
-      config.experimental.linkNoTouchStart,
+      config.experimental.linkNoTouchStart || false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
     ...(isNodeOrEdgeCompilation
       ? {
