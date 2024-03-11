@@ -240,6 +240,10 @@ child = arguments[0]
 
 classEscape = (...) => ...[...](..., ...)["replace"](/\]/g, "\\]")["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 
+computed#86 = arguments[1]["computed"]
+
+computed#95 = arguments[1]["computed"]
+
 condition = arguments[0]
 
 consequent = arguments[1]
@@ -417,9 +421,7 @@ joins = arguments[1]
 
 key = arguments[0]
 
-left = ???*0*
-- *0* left
-  ⚠️  pattern without value
+left = arguments[0]
 
 list = arguments[1]
 
@@ -459,17 +461,11 @@ name#49 = arguments[0]
 
 name#65 = arguments[0]
 
-object#86 = ???*0*
-- *0* object
-  ⚠️  pattern without value
+object#86 = arguments[0]
 
-object#95 = ???*0*
-- *0* object
-  ⚠️  pattern without value
+object#95 = arguments[0]
 
-operator#1802 = ???*0*
-- *0* operator
-  ⚠️  pattern without value
+operator#1802 = arguments[1][1]
 
 operator#87 = arguments[0]
 
@@ -1394,9 +1390,11 @@ property#83 = arguments[1]
 
 property#84 = arguments[1]
 
-right = ???*0*
-- *0* right
-  ⚠️  pattern without value
+property#86 = arguments[1]["property"]
+
+property#95 = arguments[1]["property"]
+
+right = arguments[1][3]
 
 s#15 = arguments[0]
 

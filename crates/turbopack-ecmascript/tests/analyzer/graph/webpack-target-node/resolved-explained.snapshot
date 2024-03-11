@@ -7,8 +7,8 @@
 *arrow function 389* = (...) => handler
 
 __unused_webpack_module = ???*0*
-- *0* __unused_webpack_module
-  ⚠️  pattern without value
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 __webpack_exec__ = (...) => __webpack_require__(???*0*)
 - *0* unsupported expression
@@ -19,14 +19,14 @@ __webpack_exports__#3 = module<../../webpack-api-runtime.js, {}>(???*0*)
   ⚠️  This value might have side effects
 
 __webpack_exports__#4 = ???*0*
-- *0* __webpack_exports__
-  ⚠️  pattern without value
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 __webpack_require__#3 = module<../../webpack-api-runtime.js, {}>
 
 __webpack_require__#4 = ???*0*
-- *0* __webpack_require__
-  ⚠️  pattern without value
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 _req = ???*0*
 - *0* arguments[0]
@@ -39,8 +39,8 @@ handler = (...) => undefined
 hello = module<fs/promises, {}>["readFile"]("./hello.txt", "utf-8")
 
 moduleId = ???*0*
-- *0* moduleId
-  ⚠️  pattern without value
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 promises_namespaceObject = module<fs/promises, {}>
 

@@ -1,14 +1,14 @@
 0 -> 5 member call = ???*0*["r"](???*1*)
-- *0* __webpack_require__
-  ⚠️  pattern without value
-- *1* __webpack_exports__
-  ⚠️  pattern without value
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 0 -> 7 member call = ???*0*["d"](???*1*, {"default": (...) => handler})
-- *0* __webpack_require__
-  ⚠️  pattern without value
-- *1* __webpack_exports__
-  ⚠️  pattern without value
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 0 -> 8 free var = FreeVar(require)
 

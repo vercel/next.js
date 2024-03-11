@@ -47,18 +47,10 @@
     ),
     (
         "__unused_webpack_module",
-        Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "__unused_webpack_module",
-                        #4,
-                    ),
-                ),
-            ),
-            reason: "pattern without value",
-            has_side_effects: false,
-        },
+        Argument(
+            131,
+            0,
+        ),
     ),
     (
         "__webpack_exec__",
@@ -92,18 +84,10 @@
     ),
     (
         "__webpack_exports__#4",
-        Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "__webpack_exports__",
-                        #4,
-                    ),
-                ),
-            ),
-            reason: "pattern without value",
-            has_side_effects: false,
-        },
+        Argument(
+            131,
+            1,
+        ),
     ),
     (
         "__webpack_require__#3",
@@ -125,18 +109,10 @@
     ),
     (
         "__webpack_require__#4",
-        Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "__webpack_require__",
-                        #4,
-                    ),
-                ),
-            ),
-            reason: "pattern without value",
-            has_side_effects: false,
-        },
+        Argument(
+            131,
+            2,
+        ),
     ),
     (
         "_req",
@@ -200,18 +176,10 @@
     ),
     (
         "moduleId",
-        Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "moduleId",
-                        #6,
-                    ),
-                ),
-            ),
-            reason: "pattern without value",
-            has_side_effects: false,
-        },
+        Argument(
+            1213,
+            0,
+        ),
     ),
     (
         "promises_namespaceObject",

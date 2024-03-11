@@ -74,4 +74,44 @@
             ],
         ),
     ),
+    (
+        "value2",
+        Alternatives(
+            7,
+            [
+                Member(
+                    3,
+                    Argument(
+                        105,
+                        0,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "value2",
+                            ),
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    Module(
+                        ModuleValue {
+                            module: "./module.js",
+                            annotations: ImportAnnotations {
+                                map: {},
+                            },
+                        },
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "named",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
 ]
