@@ -112,7 +112,7 @@ export const installTemplate = async ({
             ).replace(`@/`, `${importAlias.replace(/\*/g, "")}`),
           );
         }
-        await writeSema.release();
+        writeSema.release();
       }),
     );
   }

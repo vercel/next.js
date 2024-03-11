@@ -20,9 +20,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
+export type I18NDomains = DomainLocale[]
+
 export interface I18NConfig {
   defaultLocale: string
-  domains?: DomainLocale[]
+  domains?: I18NDomains
   localeDetection?: false
   locales: string[]
 }
@@ -132,6 +134,11 @@ export interface ExperimentalTurboOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurboRule>
+
+  /**
+   * Use swc_css instead of lightningcss for turbopakc
+   */
+  useSwcCss?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -396,7 +403,7 @@ export interface ExperimentalConfig {
   useWasmBinary?: boolean
 
   /**
-   * Use lightningcss instead of swc_css
+   * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
 
