@@ -123,11 +123,8 @@ function formatFrameSourceFile(file: string) {
 }
 
 export function getFrameSource(frame: StackFrame): string {
-  if (!frame.file) {
-    throw new TypeError(
-      `Could not parse source frame: ${JSON.stringify(frame, null, 2)}`
-    )
-  }
+  if (!frame.file) return ''
+
   let str = ''
   try {
     const u = new URL(frame.file)
