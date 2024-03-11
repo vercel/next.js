@@ -153,7 +153,7 @@ export default function Page() {
 
 ### `scroll`
 
-**Defaults to `true`.** The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. When `false`, `next/link` will _not_ scroll to the top of the page after a navigation.
+**Defaults to `true`.** The default behavior of `<Link>` **is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** When `false`, `next/link` will _not_ scroll to the top of the page after a navigation.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -178,6 +178,10 @@ export default function Page() {
   )
 }
 ```
+
+> **Good to know**:
+>
+> - If `{children}` from a Layout is not present in the current viewport, Next.js will scroll to the top of the `{children}` instead.
 
 ### `prefetch`
 

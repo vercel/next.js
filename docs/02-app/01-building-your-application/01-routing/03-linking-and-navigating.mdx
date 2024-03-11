@@ -130,7 +130,7 @@ export function Links() {
 
 #### Scrolling to an `id`
 
-The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
+The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.**
 
 If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
 
@@ -141,9 +141,13 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 <a href="/dashboard#settings">Settings</a>
 ```
 
+> **Good to know**:
+>
+> - If `{children}` from a Layout is not present in the current viewport, Next.js will scroll to the top of the `{children}` instead.
+
 #### Disabling scroll restoration
 
-The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
+The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
 
 ```jsx
 // next/link
