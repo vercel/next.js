@@ -345,6 +345,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               )
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
+            useSwcCss: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -376,7 +377,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         bundlePagesExternals: z.boolean().optional(),
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
-        useSwcCssForTurbopack: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
       })

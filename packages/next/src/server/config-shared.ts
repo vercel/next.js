@@ -132,6 +132,11 @@ export interface ExperimentalTurboOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurboRule>
+
+  /**
+   * Use swc_css instead of lightningcss for turbopakc
+   */
+  useSwcCss?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -394,11 +399,6 @@ export interface ExperimentalConfig {
   staticWorkerRequestDeduping?: boolean
 
   useWasmBinary?: boolean
-
-  /**
-   * Use swc_csss instead of lightningcss for turbopakc
-   */
-  useSwcCssForTurbopack?: boolean
 
   /**
    * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
