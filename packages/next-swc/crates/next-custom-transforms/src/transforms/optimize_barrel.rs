@@ -34,14 +34,14 @@ struct OptimizeBarrel {
     exports: Option<Vec<(String, String, String)>>,
 }
 
-impl Fold for OptimizeBarrel {
-    fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+impl VisitMut for OptimizeBarrel {
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
         // One pre-pass to find all the local idents that we are referencing, so we can
         // handle the case of `import foo from 'a'; export { foo };` correctly.
 
         // Map of "local ident" -> ("source module", "orig ident")
         let mut local_idents = HashMap::new();
-        for item in &items {
+        for item in &*items {
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = item {
                 for spec in &import_decl.specifiers {
                     let src = import_decl.src.value.to_string();
@@ -91,7 +91,7 @@ impl Fold for OptimizeBarrel {
         let mut directives = vec![];
 
         let mut is_barrel = true;
-        for item in &items {
+        for item in &*items {
             match item {
                 ModuleItem::ModuleDecl(decl) => {
                     allowed_directives = false;
@@ -315,7 +315,7 @@ impl Fold for OptimizeBarrel {
             }
         }
 
-        new_items
+        *items = new_items
     }
 }
 
