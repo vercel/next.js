@@ -70,9 +70,23 @@ exports[`ReactRefreshLogBox default should strip whitespace correctly with newli
   11 |                   </a>"
 `;
 
-exports[`ReactRefreshLogBox turbo boundaries 1`] = `null`;
+exports[`ReactRefreshLogBox turbo boundaries 1`] = `
+"FunctionDefault.js (1:51) @ FunctionDefault
 
-exports[`ReactRefreshLogBox turbo conversion to class component (1) 1`] = `null`;
+> 1 | export default function FunctionDefault() { throw new Error('no'); }
+    |                                                   ^"
+`;
+
+exports[`ReactRefreshLogBox turbo conversion to class component (1) 1`] = `
+"Child.js (4:11) @ ClickCount.render
+
+  2 | export default class ClickCount extends Component {
+  3 |   render() {
+> 4 |     throw new Error()
+    |           ^
+  5 |   }
+  6 | }"
+`;
 
 exports[`ReactRefreshLogBox turbo css syntax errors 1`] = `
 "./index.module.css
