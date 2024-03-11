@@ -522,14 +522,6 @@ describe('Error Overlay for server components', () => {
   })
 
   describe('Next.js navigation client hooks called in Server Component', () => {
-    const { next } = nextTestSetup({
-      files: {},
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
-      skipStart: true,
-    })
     it.each([
       ['useParams'],
       ['useRouter'],
@@ -541,13 +533,6 @@ describe('Error Overlay for server components', () => {
       const { session, cleanup } = await sandbox(
         next,
         new Map([
-          [
-            'app/layout.js',
-            outdent`
-            export default function RootLayout({ children }) {
-              return <html><body>{children}</body></html>
-            }`,
-          ],
           [
             'app/page.js',
             outdent`
