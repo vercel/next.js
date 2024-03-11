@@ -20,9 +20,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
+export type I18NDomains = DomainLocale[]
+
 export interface I18NConfig {
   defaultLocale: string
-  domains?: DomainLocale[]
+  domains?: I18NDomains
   localeDetection?: false
   locales: string[]
 }
