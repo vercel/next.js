@@ -363,7 +363,7 @@ pub async fn get_server_module_options_context(
         .cell()
     });
 
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
@@ -410,7 +410,7 @@ pub async fn get_server_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         execution_context: Some(execution_context),
-        use_lightningcss,
+        use_swc_css,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         import_externals: *next_config.import_externals().await?,
         ignore_dynamic_requests: true,
