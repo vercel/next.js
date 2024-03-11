@@ -169,7 +169,6 @@ export function getDefineEnv({
       : isNodeServer
       ? 'nodejs'
       : '',
-    'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': config.experimental.ppr === true,
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID':
       config.experimental.useDeploymentIdServerActions,
