@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
-use swc_core::ecma::visit::FoldWith;
+use swc_core::ecma::visit::{as_folder, FoldWith, VisitMut, VisitMutWith};
 use turbopack_binding::swc::core::{
     common::DUMMY_SP,
     ecma::{ast::*, utils::private_ident, visit::Fold},
@@ -12,20 +12,20 @@ pub struct Config {
     pub wildcard: bool,
 }
 
-pub fn optimize_barrel(config: Config) -> impl Fold {
-    OptimizeBarrel {
+pub fn optimize_barrel(config: Config) -> impl Fold + VisitMut {
+    as_folder(OptimizeBarrel {
         wildcard: config.wildcard,
         exports: None,
-    }
+    })
 }
 
-pub fn apply(program: Program, config: Config) -> (Program, Vec<(String, String, String)>) {
+pub fn apply(program: &mut Program, config: Config) -> Vec<(String, String, String)> {
     let mut v = OptimizeBarrel {
         wildcard: config.wildcard,
         exports: Some(vec![]),
     };
-    let program = program.fold_with(&mut v);
-    (program, v.exports.unwrap())
+    program.visit_mut_with(&mut v);
+    v.exports.unwrap()
 }
 
 #[derive(Debug, Default)]
