@@ -113,11 +113,12 @@ function isInternal(file: StackFrame['file']) {
 }
 
 /**
- * Format the webpack internal id to original file path without line and column
+ * Format the webpack internal id to original file path
  * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
  * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
+ *
  */
 function formatFrameSourceFile(file: string) {
   return file.replace(webpackRegExes[0], '').replace(webpackRegExes[1], '')
