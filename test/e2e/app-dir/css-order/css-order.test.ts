@@ -81,7 +81,7 @@ createNextDescribe(
         ' -> '
       )} -> ${ordering.join(' -> ')}`
       // TODO fix this case
-      const broken = isNextDev
+      const broken = isNextDev && isTurbopack
       if (broken) {
         it.todo(name)
         continue
@@ -114,17 +114,6 @@ createNextDescribe(
       const name = `should load correct styles navigating ${ordering.join(
         ' -> '
       )}`
-      // TODO fix this case
-      const broken =
-        isNextDev &&
-        !isTurbopack &&
-        ordering.some(
-          (page) => page.includes('client') || page.includes('first')
-        )
-      if (broken) {
-        it.todo(name)
-        continue
-      }
       it(name, async () => {
         const start = PAGES[ordering[0]]
         const browser = await next.browser(start.url)
@@ -147,11 +136,6 @@ createNextDescribe(
     }
     for (const [page, pageInfo] of Object.entries(PAGES)) {
       const name = `should load correct styles on ${page}`
-      const broken = false
-      if (broken) {
-        it.todo(name)
-        continue
-      }
       it(name, async () => {
         const browser = await next.browser(pageInfo.url)
         expect(
