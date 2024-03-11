@@ -9,7 +9,7 @@ use turbopack_binding::turbopack::{
 use super::get_ecma_transform_rule;
 use crate::next_config::NextConfig;
 
-/// Returns a transform rule for the relay graphql transform.
+/// Returns a transform rule for the styled jsx transform.
 pub async fn get_styled_jsx_transform_rule(
     next_config: Vc<NextConfig>,
     target_browsers: Vc<RuntimeVersions>,

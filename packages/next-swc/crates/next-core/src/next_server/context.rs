@@ -50,9 +50,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
+            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -114,6 +114,8 @@ pub async fn get_server_resolve_options_context(
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
+    let invalid_styled_jsx_client_only_resolve_plugin =
+        get_invalid_styled_jsx_resolve_plugin(project_path);
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
@@ -221,6 +223,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Instrumentation => {
             plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -548,7 +551,7 @@ pub async fn get_server_module_options_context(
             ..
         } => {
             let mut custom_source_transform_rules: Vec<ModuleRule> =
-                vec![styled_components_transform_rule]
+                vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
