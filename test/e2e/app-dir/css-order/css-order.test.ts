@@ -41,6 +41,16 @@ const PAGES = {
     selector: '#hello2c',
     color: 'rgb(255, 128, 0)',
   },
+  'interleaved-a': {
+    url: '/interleaved/a',
+    selector: '#helloia',
+    color: 'rgb(0, 255, 0)',
+  },
+  'interleaved-b': {
+    url: '/interleaved/b',
+    selector: '#helloib',
+    color: 'rgb(255, 0, 255)',
+  },
 }
 
 const allPairs = getPairs(Object.keys(PAGES))
