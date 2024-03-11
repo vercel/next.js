@@ -401,6 +401,11 @@ export interface ExperimentalConfig {
   useWasmBinary?: boolean
 
   /**
+   * Use lightningcss instead of postcss-loader
+   */
+  useLightningcss?: boolean
+
+  /**
    * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
    * if they are not wrapped in a suspense boundary.
    *
