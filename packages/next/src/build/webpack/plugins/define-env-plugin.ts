@@ -148,7 +148,7 @@ export function getDefineEnv({
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
-    __NEXT_DEFINE_ENV: 'true',
+    __NEXT_DEFINE_ENV: true,
 
     ...getNextPublicEnvironmentVariables(),
     ...getNextConfigEnv(config),
