@@ -97,7 +97,8 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
   const defineEnvStringified: SerializedDefineEnv = {}
   for (const key in defineEnv) {
     const value = defineEnv[key]
-    defineEnvStringified[key] = JSON.stringify(value)
+    defineEnvStringified[key] =
+      value === undefined ? 'undefined' : JSON.stringify(value)
   }
 
   return defineEnvStringified
