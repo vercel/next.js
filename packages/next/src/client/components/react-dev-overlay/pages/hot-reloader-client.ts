@@ -35,17 +35,17 @@ import {
   onBeforeRefresh,
   onRefresh,
   onVersionInfo,
-} from '../../components/react-dev-overlay/pages/client'
+} from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
-import formatWebpackMessages from './format-webpack-messages'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
-} from '../../../server/dev/hot-reloader-types'
-import { extractModulesFromTurbopackMessage } from '../../../server/dev/extract-modules-from-turbopack-message'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './messages'
+} from '../../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
+import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -258,7 +258,7 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
-// Handle messages from the server.
+/** Handles messages from the sevrer for the Pages Router. */
 function processMessage(obj: HMR_ACTION_TYPES) {
   if (!('action' in obj)) {
     return
@@ -273,9 +273,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
-      if (obj.hash) {
-        handleAvailableHash(obj.hash)
-      }
+      if (obj.hash) handleAvailableHash(obj.hash)
 
       const { errors, warnings } = obj
 
