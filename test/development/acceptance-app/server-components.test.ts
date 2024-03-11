@@ -521,25 +521,38 @@ describe('Error Overlay for server components', () => {
     })
   })
 
-  describe('Next.js component hooks called in Server Component', () => {
+  describe('Next.js navigation client hooks called in Server Component', () => {
+    const { next } = nextTestSetup({
+      files: {},
+      dependencies: {
+        react: 'latest',
+        'react-dom': 'latest',
+      },
+      skipStart: true,
+    })
     it.each([
-      // TODO-APP: add test for useParams
-      // ["useParams"],
+      ['useParams'],
       ['useRouter'],
       ['useSearchParams'],
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
       ['usePathname'],
     ])('should show error when %s is called', async (hook: string) => {
-      const { browser, cleanup } = await sandbox(
+      const { session, cleanup } = await sandbox(
         next,
         new Map([
+          [
+            'app/layout.js',
+            outdent`
+            export default function RootLayout({ children }) {
+              return <html><body>{children}</body></html>
+            }`,
+          ],
           [
             'app/page.js',
             outdent`
               import { ${hook} } from 'next/navigation'
               export default function Page() {
-                ${hook}()
                 return "Hello world"
               }
             `,
@@ -547,19 +560,15 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
-        expect(
-          await browser
-            .waitForElementByCss('#nextjs__container_errors_desc')
-            .text()
-        ).toContain(
-          `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
-        )
-        return 'success'
-      }, 'success')
-
-      expect(next.cliOutput).toContain(
-        `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+      expect(await session.hasRedbox()).toBe(true)
+      const normalizedSnapshot = next.normalizeTestDirContent(
+        await session.getRedboxSource()
+      )
+      expect(normalizedSnapshot).toContain(
+        `You're importing a component that needs ${hook}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+      expect(normalizedSnapshot).toContain(
+        `import { ${hook} } from 'next/navigation'`
       )
 
       await cleanup()

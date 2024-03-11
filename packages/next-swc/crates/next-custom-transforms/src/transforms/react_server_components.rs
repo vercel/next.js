@@ -2,10 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::{
-    common::util::take::Take,
-    ecma::{atoms::hstr::Atom, visit::VisitWith},
-};
+use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -612,40 +609,11 @@ impl ReactServerComponentValidator {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrServerImport((source_str, import.source.1)),
+                    RSCErrorKind::NextRscErrServerImport((source_str.clone(), import.source.1)),
                 );
             }
 
             self.assert_invalid_server_lib_apis(source_str, import);
-            // if source == *"react" {
-            //     for specifier in &import.specifiers {
-            //         if self.invalid_server_react_apis.contains(&specifier.0)
-            // {             report_error(
-            //                 &self.app_dir,
-            //                 &self.filepath,
-            //                 RSCErrorKind::NextRscErrReactApi((
-            //                     specifier.0.to_string(),
-            //                     specifier.1,
-            //                 )),
-            //             );
-            //         }
-            //     }
-            // }
-            // if source == *"react-dom" {
-            //     for specifier in &import.specifiers {
-            //         if
-            // self.invalid_server_react_dom_apis.contains(&specifier.0) {
-            //             report_error(
-            //                 &self.app_dir,
-            //                 &self.filepath,
-            //                 RSCErrorKind::NextRscErrReactApi((
-            //                     specifier.0.to_string(),
-            //                     specifier.1,
-            //                 )),
-            //             );
-            //         }
-            //     }
-            // }
         }
 
         self.assert_invalid_api(module, false);
