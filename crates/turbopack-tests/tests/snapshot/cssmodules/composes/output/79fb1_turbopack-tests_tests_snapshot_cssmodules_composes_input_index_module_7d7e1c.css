@@ -1,9 +1,11 @@
 /* [project]/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css [test] (css) */
-.className__index__286d8691 {
+.className__index-module__Tw9iRq {
   background: red;
-  color: yellow;
+  color: #ff0;
 }
-.subClass__index__286d8691 {
-  background: blue;
+
+.subClass__index-module__Tw9iRq {
+  background: #00f;
 }
+
 /*# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_cssmodules_composes_input_index_module_7d7e1c.css.map*/

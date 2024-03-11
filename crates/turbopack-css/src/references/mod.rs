@@ -178,6 +178,8 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
                     ),
                 )));
 
+                *rule = CssRule::Ignored;
+
                 // let res = i.visit_children(self);
                 // res
                 Ok(())

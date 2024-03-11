@@ -158,7 +158,7 @@ pub struct ModuleOptionsContext {
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
 
-    pub use_lightningcss: bool,
+    pub use_swc_css: bool,
 }
 
 #[turbo_tasks::value_impl]

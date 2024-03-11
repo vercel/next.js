@@ -81,7 +81,7 @@ impl ModuleOptions {
             esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            use_lightningcss,
+            use_swc_css,
             ..
         } = *module_options_context.await?;
         if !rules.is_empty() {
@@ -369,7 +369,7 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_lightningcss,
+                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -378,7 +378,7 @@ impl ModuleOptions {
                     )]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_lightningcss,
+                        use_swc_css,
                     })],
                 ),
             ]);
@@ -444,7 +444,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_lightningcss,
+                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new(
@@ -457,21 +457,21 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_lightningcss,
+                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
-                        use_lightningcss,
+                        use_swc_css,
                     })],
                 ),
                 ModuleRule::new_internal(
                     ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
-                        use_lightningcss,
+                        use_swc_css,
                     })],
                 ),
             ]);
