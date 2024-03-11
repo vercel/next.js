@@ -13,12 +13,10 @@ import {
   shouldBeTemplateProject,
   spawnExitPromise,
 } from './lib/utils'
-import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../lib/use-temp-dir'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
-import { createNextInstall } from '../../lib/create-next-install'
 
 const startsWithoutError = async (
   appDir: string,
@@ -54,10 +52,13 @@ let testVersion
 describe('create-next-app --app', () => {
   beforeAll(async () => {
     if (testVersion) return
-    const span = new Span({ name: 'parent' })
-    testVersion = (
-      await createNextInstall({ onlyPackages: true, parentSpan: span })
-    ).get('next')
+    // TODO: investigate moving this post publish or create deployed
+    // tarballs to avoid these failing while a publish is in progress
+    testVersion = 'canary'
+    // const span = new Span({ name: 'parent' })
+    // testVersion = (
+    //   await createNextInstall({ onlyPackages: true, parentSpan: span })
+    // ).get('next')
   })
 
   it('should create TS appDir projects with --ts', async () => {
@@ -132,7 +133,7 @@ describe('create-next-app --app', () => {
           '--app',
           '--eslint',
           '--src-dir',
-          '--import-alias=@/*',
+          '--no-import-alias',
         ],
         {
           cwd,

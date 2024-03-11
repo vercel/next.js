@@ -21,7 +21,7 @@ let appPort
 let app
 
 describe('404 Page Support with _app', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterAll(() => killApp(app))
 
     it('should build successfully', async () => {

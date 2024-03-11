@@ -1,8 +1,8 @@
-import styles from './post-body.module.css'
+import styles from "./post-body.module.css";
 
 type Props = {
-  content: string
-}
+  content: string;
+};
 
 export default function PostBody({ content }: Props) {
   return (
@@ -12,5 +12,5 @@ export default function PostBody({ content }: Props) {
         dangerouslySetInnerHTML={{ __html: content }}
       />
     </div>
-  )
+  );
 }

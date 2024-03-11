@@ -1,22 +1,23 @@
-import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
-import type { RenderWorker, initialize } from '../router-server'
+import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
+import type { Redirect } from '../../../../types'
+import type { Header } from '../../../lib/load-custom-routes'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
-import { Redirect } from '../../../../types'
+import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
-import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
@@ -25,16 +26,17 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
+import { NextDataPathnameNormalizer } from '../../future/normalizers/request/next-data'
+import { BasePathPathnameNormalizer } from '../../future/normalizers/request/base-path'
+import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
 
-import { NextUrlWithParsedQuery, addRequestMeta } from '../../request-meta'
+import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
-import { createRequestResponseMocks } from '../mock-request'
-
-import '../../node-polyfill-web-streams'
+import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -44,12 +46,9 @@ export function getResolveRoutes(
   >,
   config: NextConfigComplete,
   opts: Parameters<typeof initialize>[0],
-  renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  },
-  renderWorkerOpts: Parameters<RenderWorker['initialize']>[0],
-  ensureMiddleware?: () => Promise<void>
+  renderServer: RenderServer,
+  renderServerOpts: Parameters<RenderServer['initialize']>[0],
+  ensureMiddleware?: (url?: string) => Promise<void>
 ) {
   type Route = {
     /**
@@ -118,7 +117,7 @@ export function getResolveRoutes(
     let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
     let didRewrite = false
 
-    const urlParts = (req.url || '').split('?')
+    const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
 
     // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -137,7 +136,7 @@ export function getResolveRoutes(
     // TODO: inherit this from higher up
     const protocol =
       (req?.socket as TLSSocket)?.encrypted ||
-      req.headers['x-forwarded-proto'] === 'https'
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 
@@ -150,12 +149,12 @@ export function getResolveRoutes(
         }${req.url}`
       : req.url || ''
 
-    addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-    addRequestMeta(req, '_protocol', protocol)
+    addRequestMeta(req, 'initURL', initUrl)
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
+    addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req))
+      addRequestMeta(req, 'clonableBody', getCloneableBody(req))
     }
 
     const maybeAddTrailingSlash = (pathname: string) => {
@@ -293,6 +292,17 @@ export function getResolveRoutes(
       }
     }
 
+    const normalizers = {
+      basePath:
+        config.basePath && config.basePath !== '/'
+          ? new BasePathPathnameNormalizer(config.basePath)
+          : undefined,
+      data: new NextDataPathnameNormalizer(fsChecker.buildId),
+      postponed: config.experimental.ppr
+        ? new PostponedPathnameNormalizer()
+        : undefined,
+    }
+
     async function handleRoute(
       route: (typeof routes)[0]
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
@@ -348,9 +358,12 @@ export function getResolveRoutes(
       }
 
       if (params) {
-        if (fsChecker.interceptionRoutes && route.name === 'before_files_end') {
-          for (const interceptionRoute of fsChecker.interceptionRoutes) {
-            const result = await handleRoute(interceptionRoute)
+        if (
+          fsChecker.exportPathMapRoutes &&
+          route.name === 'before_files_end'
+        ) {
+          for (const exportPathMapRoute of fsChecker.exportPathMapRoutes) {
+            const result = await handleRoute(exportPathMapRoute)
 
             if (result) {
               return result
@@ -358,33 +371,37 @@ export function getResolveRoutes(
           }
         }
 
-        if (route.name === 'middleware_next_data') {
+        if (route.name === 'middleware_next_data' && parsedUrl.pathname) {
           if (fsChecker.getMiddlewareMatchers()?.length) {
-            const nextDataPrefix = addPathPrefix(
-              `/_next/data/${fsChecker.buildId}/`,
-              config.basePath
-            )
+            let normalized = parsedUrl.pathname
 
-            if (
-              parsedUrl.pathname?.startsWith(nextDataPrefix) &&
-              parsedUrl.pathname.endsWith('.json')
-            ) {
+            // Remove the base path if it exists.
+            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+            if (hadBasePath && normalizers.basePath) {
+              normalized = normalizers.basePath.normalize(normalized, true)
+            }
+
+            let updated = false
+            if (normalizers.data.match(normalized)) {
+              updated = true
               parsedUrl.query.__nextDataReq = '1'
-              parsedUrl.pathname = parsedUrl.pathname.substring(
-                nextDataPrefix.length - 1
-              )
-              parsedUrl.pathname = parsedUrl.pathname.substring(
-                0,
-                parsedUrl.pathname.length - '.json'.length
-              )
-              parsedUrl.pathname = addPathPrefix(
-                parsedUrl.pathname || '',
-                config.basePath
-              )
-              parsedUrl.pathname =
-                parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+              normalized = normalizers.data.normalize(normalized, true)
+            } else if (normalizers.postponed?.match(normalized)) {
+              updated = true
+              normalized = normalizers.postponed.normalize(normalized, true)
+            }
 
-              parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
+            // If we updated the pathname, and it had a base path, re-add the
+            // base path.
+            if (updated) {
+              if (hadBasePath) {
+                normalized = path.posix.join(config.basePath, normalized)
+              }
+
+              // Re-add the trailing slash (if required).
+              normalized = maybeAddTrailingSlash(normalized)
+
+              parsedUrl.pathname = normalized
             }
           }
         }
@@ -429,18 +446,18 @@ export function getResolveRoutes(
           const match = fsChecker.getMiddlewareMatchers()
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) &&
-            (!ensureMiddleware ||
-              (await ensureMiddleware?.()
-                .then(() => true)
-                .catch(() => false)))
+            match?.(parsedUrl.pathname, req, parsedUrl.query)
           ) {
-            const workerResult = await (
-              renderWorkers.app || renderWorkers.pages
-            )?.initialize(renderWorkerOpts)
+            if (ensureMiddleware) {
+              await ensureMiddleware(req.url)
+            }
 
-            if (!workerResult) {
-              throw new Error(`Failed to initialize render worker "middleware"`)
+            const serverResult = await renderServer?.initialize(
+              renderServerOpts
+            )
+
+            if (!serverResult) {
+              throw new Error(`Failed to initialize render server "middleware"`)
             }
 
             const invokeHeaders: typeof req.headers = {
@@ -456,27 +473,8 @@ export function getResolveRoutes(
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
             try {
-              let readableController: ReadableStreamController<Buffer>
-              const { res: mockedRes } = await createRequestResponseMocks({
-                url: req.url || '/',
-                method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-                resWriter(chunk) {
-                  readableController.enqueue(Buffer.from(chunk))
-                  return true
-                },
-              })
-
-              const initResult = await renderWorkers.pages?.initialize(
-                renderWorkerOpts
-              )
-
-              mockedRes.on('close', () => {
-                readableController.close()
-              })
-
               try {
-                await initResult?.requestHandler(req, res, parsedUrl)
+                await serverResult.requestHandler(req, res, parsedUrl)
               } catch (err: any) {
                 if (!('result' in err) || !('response' in err.result)) {
                   throw err

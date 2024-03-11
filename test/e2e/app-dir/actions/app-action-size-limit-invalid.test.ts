@@ -21,14 +21,13 @@ createNextDescribe(
       return
     }
 
-    it('should error if serverActionsBodySizeLimit config is a negative number', async function () {
+    it('should error if serverActions.bodySizeLimit config is a negative number', async function () {
       await next.patchFile(
         'next.config.js',
         `
       module.exports = {
         experimental: {
-          serverActions: true,
-          serverActionsBodySizeLimit: -3000,
+          serverActions: { bodySizeLimit: -3000 }
         },
       }
       `
@@ -40,14 +39,13 @@ createNextDescribe(
       expect(next.cliOutput).toContain(CONFIG_ERROR)
     })
 
-    it('should error if serverActionsBodySizeLimit config is invalid', async function () {
+    it('should error if serverActions.bodySizeLimit config is invalid', async function () {
       await next.patchFile(
         'next.config.js',
         `
       module.exports = {
         experimental: {
-          serverActions: true,
-          serverActionsBodySizeLimit: 'testmb',
+          serverActions: { bodySizeLimit: 'testmb' }
         },
       }
       `
@@ -59,14 +57,13 @@ createNextDescribe(
       expect(next.cliOutput).toContain(CONFIG_ERROR)
     })
 
-    it('should error if serverActionsBodySizeLimit config is a negative size', async function () {
+    it('should error if serverActions.bodySizeLimit config is a negative size', async function () {
       await next.patchFile(
         'next.config.js',
         `
       module.exports = {
         experimental: {
-          serverActions: true,
-          serverActionsBodySizeLimit: '-3000mb',
+          serverActions: { bodySizeLimit: '-3000mb' }
         },
       }
       `
@@ -79,14 +76,13 @@ createNextDescribe(
     })
 
     if (!isNextDeploy) {
-      it('should respect the size set in serverActionsBodySizeLimit', async function () {
+      it('should respect the size set in serverActions.bodySizeLimit', async function () {
         await next.patchFile(
           'next.config.js',
           `
       module.exports = {
         experimental: {
-          serverActions: true,
-          serverActionsBodySizeLimit: '1.5mb',
+          serverActions: { bodySizeLimit: '1.5mb' }
         },
       }
       `

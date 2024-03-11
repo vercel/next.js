@@ -24,7 +24,7 @@ const runTests = () => {
 }
 
 describe('Custom 404 Page for static site generation with dynamic routes', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterAll(() => killApp(app))
 
     it('should build successfully', async () => {

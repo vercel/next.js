@@ -62,7 +62,7 @@ createNextDescribe(
         '/static/three/data.json',
       ])('responds correctly on %s', async (path) => {
         expect(JSON.parse(await next.render(basePath + path))).toEqual({
-          params: { slug: path.split('/')[2] },
+          params: { slug: path.split('/', 3)[2] },
           now: expect.any(Number),
         })
         if (isNextStart) {
@@ -85,7 +85,7 @@ createNextDescribe(
       ])('revalidates correctly on %s', async (path) => {
         const data = JSON.parse(await next.render(basePath + path))
         expect(data).toEqual({
-          params: { slug: path.split('/')[2] },
+          params: { slug: path.split('/', 3)[2] },
           now: expect.any(Number),
         })
 
@@ -423,6 +423,19 @@ createNextDescribe(
         })
       })
 
+      describe('req.cookies', () => {
+        it('gets the correct values', async () => {
+          const res = await next.fetch(basePath + '/hooks/cookies/req', {
+            headers: cookieWithRequestMeta({ ping: 'pong' }),
+          })
+
+          expect(res.status).toEqual(200)
+
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
+      })
+
       describe('cookies().has()', () => {
         it('gets the correct values', async () => {
           const res = await next.fetch(basePath + '/hooks/cookies/has')
@@ -447,9 +460,30 @@ createNextDescribe(
         })
       })
 
-      describe('notFound', () => {
+      describe('permanentRedirect', () => {
         it('can respond correctly', async () => {
+          const res = await next.fetch(basePath + '/hooks/permanent-redirect', {
+            // "Manually" perform the redirect, we want to inspect the
+            // redirection response, so don't actually follow it.
+            redirect: 'manual',
+          })
+
+          expect(res.status).toEqual(308)
+          expect(res.headers.get('location')).toEqual('https://nextjs.org/')
+          expect(await res.text()).toBeEmpty()
+        })
+      })
+
+      describe('notFound', () => {
+        it('can respond correctly in nodejs', async () => {
           const res = await next.fetch(basePath + '/hooks/not-found')
+
+          expect(res.status).toEqual(404)
+          expect(await res.text()).toBeEmpty()
+        })
+
+        it('can respond correctly in edge', async () => {
+          const res = await next.fetch(basePath + '/hooks/not-found/edge')
 
           expect(res.status).toEqual(404)
           expect(await res.text()).toBeEmpty()
@@ -630,6 +664,13 @@ createNextDescribe(
           )
           return 'yes'
         }, 'yes')
+      })
+    })
+
+    describe('no bundle error', () => {
+      it('should not print bundling warning about React', async () => {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).not.toContain('Attempted import error')
       })
     })
   }

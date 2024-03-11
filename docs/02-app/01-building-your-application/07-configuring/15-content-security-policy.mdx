@@ -54,21 +54,30 @@ export function middleware(request: NextRequest) {
     block-all-mixed-content;
     upgrade-insecure-requests;
 `
+  // Replace newline characters and spaces
+  const contentSecurityPolicyHeaderValue = cspHeader
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 
-  const requestHeaders = new Headers()
+  const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+
   requestHeaders.set(
     'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
+    contentSecurityPolicyHeaderValue
   )
 
-  return NextResponse.next({
-    headers: requestHeaders,
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
+
+  return response
 }
 ```
 
@@ -90,21 +99,29 @@ export function middleware(request) {
     block-all-mixed-content;
     upgrade-insecure-requests;
 `
+  // Replace newline characters and spaces
+  const contentSecurityPolicyHeaderValue = cspHeader
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 
-  const requestHeaders = new Headers()
+  const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(
     'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
+    contentSecurityPolicyHeaderValue
   )
 
-  return NextResponse.next({
-    headers: requestHeaders,
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
+
+  return response
 }
 ```
 
@@ -189,6 +206,42 @@ export default function Page() {
       nonce={nonce}
     />
   )
+}
+```
+
+## Without Nonces
+
+For applications that do not require nonces, you can set the CSP header directly in your [`next.config.js`](/docs/app/api-reference/next-config-js) file:
+
+```js filename="next.config.js"
+const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' blob: data:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    block-all-mixed-content;
+    upgrade-insecure-requests;
+`
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspHeader.replace(/\n/g, ''),
+          },
+        ],
+      },
+    ]
+  },
 }
 ```
 

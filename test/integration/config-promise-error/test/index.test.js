@@ -7,12 +7,13 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '..')
 
 describe('Promise in next config', () => {
-  afterEach(() => fs.remove(join(appDir, 'next.config.js')))
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    afterEach(() => fs.remove(join(appDir, 'next.config.js')))
 
-  it('should warn when a promise is returned on webpack', async () => {
-    fs.writeFile(
-      join(appDir, 'next.config.js'),
-      `
+    it('should warn when a promise is returned on webpack', async () => {
+      fs.writeFile(
+        join(appDir, 'next.config.js'),
+        `
       module.exports = (phase, { isServer }) => {
         return {
           webpack: async (config) => {
@@ -21,14 +22,15 @@ describe('Promise in next config', () => {
         }
       }
     `
-    )
+      )
 
-    const { stderr, stdout } = await nextBuild(appDir, undefined, {
-      stderr: true,
-      stdout: true,
+      const { stderr, stdout } = await nextBuild(appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+      expect(stderr + stdout).toMatch(
+        /> Promise returned in next config\. https:\/\//
+      )
     })
-    expect(stderr + stdout).toMatch(
-      /> Promise returned in next config\. https:\/\//
-    )
   })
 })

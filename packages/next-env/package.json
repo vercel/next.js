@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "13.5.4-canary.0",
+  "version": "14.2.0-canary.13",
   "keywords": [
     "react",
     "next",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0",
-    "dotenv": "10.0.0",
-    "dotenv-expand": "8.0.1"
+    "dotenv": "16.3.1",
+    "dotenv-expand": "10.0.0"
   }
 }

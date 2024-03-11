@@ -9,32 +9,36 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-describe('Handles a broken webpack plugin (precompile)', () => {
-  let stderr = ''
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort, {
-      stderr: true,
-      nextStart: true,
-      onStderr(text) {
-        stderr += text
-      },
+  // Skipped as it's not relevant to Turbopack.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'Handles a broken webpack plugin (precompile)',
+  () => {
+    let stderr = ''
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        stderr: true,
+        nextStart: true,
+        onStderr(text) {
+          stderr += text
+        },
+      })
+      await waitPort({
+        host: 'localhost',
+        port: appPort,
+      })
     })
-    await waitPort({
-      host: 'localhost',
-      port: appPort,
+    afterAll(() => killApp(app))
+
+    beforeEach(() => {
+      stderr = ''
     })
-  })
-  afterAll(() => killApp(app))
 
-  beforeEach(() => {
-    stderr = ''
-  })
+    it('should render error correctly', async () => {
+      const text = await renderViaHTTP(appPort, '/')
+      expect(text).toContain('Internal Server Error')
 
-  it('should render error correctly', async () => {
-    const text = await renderViaHTTP(appPort, '/')
-    expect(text).toContain('Internal Server Error')
-
-    expect(stderr).toMatch('Error: oops')
-  })
-})
+      expect(stderr).toMatch('Error: oops')
+    })
+  }
+)

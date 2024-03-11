@@ -1,19 +1,19 @@
-import Head from 'next/head'
-import { GetServerSideProps } from 'next'
-import cosmos from '../lib/cosmosdb'
+import Head from "next/head";
+import { GetServerSideProps } from "next";
+import cosmos from "../lib/cosmosdb";
 
 export type Props = {
-  isConnected: boolean
+  isConnected: boolean;
   database?: {
-    name?: string
-    isConnected: boolean
-    numOfContainers?: number
-  }
+    name?: string;
+    isConnected: boolean;
+    numOfContainers?: number;
+  };
   container?: {
-    isConnected: boolean
-    name?: string
-  }
-}
+    isConnected: boolean;
+    name?: string;
+  };
+};
 
 const Home = (props: Props) => {
   return (
@@ -29,7 +29,7 @@ const Home = (props: Props) => {
         <h2 className="subtitle">You are connected to CosmosDB</h2>
       ) : (
         <h2 className="subtitle">
-          You are NOT connected to CosmosDB. Check the <code>README.md</code>{' '}
+          You are NOT connected to CosmosDB. Check the <code>README.md</code>{" "}
           for instructions.
         </h2>
       )}
@@ -46,14 +46,14 @@ const Home = (props: Props) => {
               <p>Name: {props.database?.name}</p>
               <div>{`Number of Containers : ${props.database?.numOfContainers}`}</div>
               <div>{`Status : ${
-                props.database?.isConnected ? 'Connected' : 'Not Connected'
+                props.database?.isConnected ? "Connected" : "Not Connected"
               }`}</div>
             </div>
             <div className="card">
               <h3>Container</h3>
               <p>Name: {props.container?.name}</p>
               <div>{`Status : ${
-                props.database?.isConnected ? 'Connected' : 'Not Connected'
+                props.database?.isConnected ? "Connected" : "Not Connected"
               }`}</div>
             </div>
           </div>
@@ -142,47 +142,47 @@ const Home = (props: Props) => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   const props: Props = {
     isConnected: false,
-  }
+  };
 
   if (cosmos.connected) {
-    props.isConnected = true
+    props.isConnected = true;
     try {
-      const { resource: database } = await cosmos.database!.read()
+      const { resource: database } = await cosmos.database!.read();
       const containerIterator = cosmos.database!.containers.query({
-        query: 'SELECT * from p',
-      })
-      const { resources: containers } = await containerIterator.fetchAll()
+        query: "SELECT * from p",
+      });
+      const { resources: containers } = await containerIterator.fetchAll();
       props.database = {
         isConnected: true,
         name: database?.id,
         numOfContainers: containers.length,
-      }
+      };
     } catch {
       props.database = {
         isConnected: false,
-      }
+      };
     }
     try {
-      const { resource: container } = await cosmos.container!.read()
+      const { resource: container } = await cosmos.container!.read();
       props.container = {
         isConnected: true,
         name: container?.id,
-      }
+      };
     } catch {
       props.database = {
         isConnected: false,
-      }
+      };
     }
   }
   return {
     props,
-  }
-}
+  };
+};

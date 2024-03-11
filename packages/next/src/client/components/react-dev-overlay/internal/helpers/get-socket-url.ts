@@ -19,7 +19,7 @@ export function getSocketUrl(assetPrefix: string): string {
   }`
 
   if (normalizedAssetPrefix.startsWith('http')) {
-    url = `${protocol}://${normalizedAssetPrefix.split('://')[1]}`
+    url = `${protocol}://${normalizedAssetPrefix.split('://', 2)[1]}`
   }
 
   return url

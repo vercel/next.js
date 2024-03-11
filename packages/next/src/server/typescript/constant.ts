@@ -15,6 +15,8 @@ export const ALLOWED_EXPORTS = [
   'generateStaticParams',
   'metadata',
   'generateMetadata',
+  'viewport',
+  'generateViewport',
 ]
 
 export const LEGACY_CONFIG_EXPORT = 'config'

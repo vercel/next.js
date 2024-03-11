@@ -62,8 +62,7 @@ describe('Dynamic Optional Routing Root Fallback', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
 

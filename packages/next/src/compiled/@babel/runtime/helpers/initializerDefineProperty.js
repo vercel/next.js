@@ -7,6 +7,4 @@ function _initializerDefineProperty(target, property, descriptor, context) {
     value: descriptor.initializer ? descriptor.initializer.call(context) : void 0
   });
 }
-
-module.exports = _initializerDefineProperty;
-module.exports["default"] = module.exports, module.exports.__esModule = true;
+module.exports = _initializerDefineProperty, module.exports.__esModule = true, module.exports["default"] = module.exports;

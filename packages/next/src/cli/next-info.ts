@@ -3,15 +3,17 @@
 import os from 'os'
 import childProcess from 'child_process'
 
-import chalk from 'next/dist/compiled/chalk'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
-import { CliCommand } from '../lib/commands'
+import { bold, cyan, yellow } from '../lib/picocolors'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
+import { getRegistry } from '../lib/helpers/get-registry'
+import { parseVersionInfo } from '../server/dev/parse-version-info'
+import { getStaleness } from '../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
+import { warn } from '../build/output/log'
 
-const dir = process.cwd()
+type NextInfoOptions = {
+  verbose?: boolean
+}
 
 type TaskResult = {
   // Additional messages to notify to the users, i.e certain script cannot be run due to missing xyz.
@@ -22,6 +24,7 @@ type TaskResult = {
 }
 
 type TaskScript = () => Promise<TaskResult>
+
 type PlatformTaskScript =
   | {
       win32: TaskScript
@@ -58,10 +61,13 @@ function getPackageVersion(packageName: string) {
 }
 
 async function getNextConfig() {
-  const config = await loadConfig(PHASE_INFO, dir)
+  const config = await loadConfig(PHASE_INFO, process.cwd())
 
   return {
     output: config.output ?? 'N/A',
+    experimental: {
+      useWasmBinary: config.experimental?.useWasmBinary,
+    },
   }
 }
 
@@ -80,78 +86,74 @@ function getBinaryVersion(binaryName: string) {
   }
 }
 
-function printHelp() {
-  console.log(
-    `
-Description
-  Prints relevant details about the current system which can be used to report Next.js bugs
-
-Usage
-  $ next info
-
-Options
-  --help, -h    Displays this message
-  --verbose     Collect additional information for debugging
-
-Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
-  )
-}
-
 /**
  * Collect basic next.js installation information and print it to stdout.
  */
-async function printDefaultInfo() {
+async function printInfo() {
   const installedRelease = getPackageVersion('next')
   const nextConfig = await getNextConfig()
 
+  let stalenessWithTitle = ''
+  let title = ''
+  let versionInfo
+
+  try {
+    const registry = getRegistry()
+    const res = await fetch(`${registry}-/package/next/dist-tags`)
+    const tags = await res.json()
+
+    versionInfo = parseVersionInfo({
+      installed: installedRelease,
+      latest: tags.latest,
+      canary: tags.canary,
+    })
+
+    title = getStaleness(versionInfo).title
+
+    if (title) {
+      stalenessWithTitle = ` // ${title}`
+    }
+  } catch (e) {
+    console.warn(
+      `${yellow(
+        bold('warn')
+      )}  - Failed to fetch latest canary version. (Reason: ${
+        (e as Error).message
+      }.)
+      Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
+      Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+      \nLearn more: ${cyan(
+        'https://nextjs.org/docs/messages/opening-an-issue'
+      )}`
+    )
+  }
+
+  const cpuCores = os.cpus().length
   console.log(`
 Operating System:
   Platform: ${os.platform()}
   Arch: ${os.arch()}
   Version: ${os.version()}
+  Available memory (MB): ${Math.ceil(os.totalmem() / 1024 / 1024)}
+  Available CPU cores: ${cpuCores > 0 ? cpuCores : 'N/A'}
 Binaries:
   Node: ${process.versions.node}
   npm: ${getBinaryVersion('npm')}
   Yarn: ${getBinaryVersion('yarn')}
   pnpm: ${getBinaryVersion('pnpm')}
 Relevant Packages:
-  next: ${installedRelease}
+  next: ${installedRelease}${stalenessWithTitle}
   eslint-config-next: ${getPackageVersion('eslint-config-next')}
   react: ${getPackageVersion('react')}
   react-dom: ${getPackageVersion('react-dom')}
   typescript: ${getPackageVersion('typescript')}
 Next.js Config:
-  output: ${nextConfig.output}
+  output: ${nextConfig.output}`)
 
-`)
-
-  try {
-    const res = await fetch(
-      'https://api.github.com/repos/vercel/next.js/releases'
-    )
-    const releases = await res.json()
-    const newestRelease = releases[0].tag_name.replace(/^v/, '')
-
-    if (installedRelease !== newestRelease) {
-      console.warn(
-        `${chalk.yellow(
-          chalk.bold('warn')
-        )}  - Latest canary version not detected, detected: "${installedRelease}", newest: "${newestRelease}".
-        Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-        Read more - https://nextjs.org/docs/messages/opening-an-issue`
-      )
-    }
-  } catch (e) {
-    console.warn(
-      `${chalk.yellow(
-        chalk.bold('warn')
-      )}  - Failed to fetch latest canary version. (Reason: ${
-        (e as Error).message
-      }.)
-      Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
-      Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-      Read more - https://nextjs.org/docs/messages/opening-an-issue`
-    )
+  if (versionInfo?.staleness.startsWith('stale')) {
+    warn(`${title}
+   Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+   Read more - https://nextjs.org/docs/messages/opening-an-issue`)
   }
 }
 
@@ -236,7 +238,7 @@ async function runSharedDependencyCheck(
 /**
  * Collect additional diagnostics information.
  */
-async function printVerbose() {
+async function printVerboseInfo() {
   const fs = require('fs')
   const currentPlatform = os.platform()
 
@@ -353,8 +355,11 @@ async function printVerbose() {
 
           // First, try to load next-swc via loadBindings.
           try {
+            let nextConfig = await getNextConfig()
             const { loadBindings } = require('../build/swc')
-            const bindings = await loadBindings()
+            const bindings = await loadBindings(
+              nextConfig.experimental?.useWasmBinary
+            )
             // Run arbitary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 
@@ -555,7 +560,7 @@ async function printVerbose() {
     })
   }
 
-  console.log(`\n${chalk.bold('Generated diagnostics report')}`)
+  console.log(`\n${bold('Generated diagnostics report')}`)
 
   console.log(`\nPlease copy below report and paste it into your issue.`)
   for (const { title, result } of report) {
@@ -576,16 +581,11 @@ async function printVerbose() {
  * There are 2 modes, by default it collects basic next.js installation with runtime information. If
  * `--verbose` mode is enabled it'll try to collect, verify more data for next-swc installation and others.
  */
-const nextInfo: CliCommand = async (args) => {
-  if (args['--help']) {
-    printHelp()
-    return
-  }
-
-  if (!args['--verbose']) {
-    await printDefaultInfo()
+const nextInfo = async (options: NextInfoOptions) => {
+  if (options.verbose) {
+    await printVerboseInfo()
   } else {
-    await printVerbose()
+    await printInfo()
   }
 }
 

@@ -10,7 +10,7 @@
     "target": "es2017",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "jsxFactory": "h"
   },
   "include": ["src", "types/jsx.d.ts"],

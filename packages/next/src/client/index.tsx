@@ -11,7 +11,8 @@ import type {
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import mitt, { MittEmitter } from '../shared/lib/mitt'
+import mitt from '../shared/lib/mitt'
+import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -20,22 +21,18 @@ import {
   assign,
 } from '../shared/lib/router/utils/querystring'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import {
-  getURL,
-  loadGetInitialProps,
-  NextWebVitalsMetric,
-  NEXT_DATA,
-  ST,
-} from '../shared/lib/utils'
+import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
+import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
-import PageLoader, { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer'
+import PageLoader from './page-loader'
+import type { StyleSheetTuple } from './page-loader'
+import measureWebVitals from './performance-relayer' // TODO: remove in the next major version
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import { ImageConfigComplete } from '../shared/lib/image-config'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
@@ -69,6 +66,7 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
+  isHydratePass?: boolean
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
@@ -181,9 +179,8 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const {
-        ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
+        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -607,6 +604,7 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+  // TODO: remove in the next major version
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
@@ -808,7 +806,16 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 }
 
 async function render(renderingProps: RenderRouteInfo): Promise<void> {
-  if (renderingProps.err) {
+  // if an error occurs in a server-side page (e.g. in getInitialProps),
+  // skip re-rendering the error page client-side as data-fetching operations
+  // will already have been done on the server and NEXT_DATA contains the correct
+  // data for straight-forward hydration of the error page
+  if (
+    renderingProps.err &&
+    // renderingProps.Component might be undefined if there is a top/module-level error
+    (typeof renderingProps.Component === 'undefined' ||
+      !renderingProps.isHydratePass)
+  ) {
     await renderError(renderingProps)
     return
   }
@@ -906,9 +913,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const {
-      getServerError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
+      require('./components/react-dev-overlay/pages/client').getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -926,7 +932,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source)
+          throw getServerError(error, initialErr!.source!)
         })
       }
       // We replaced the server-side error with a client-side error, and should
@@ -977,6 +983,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     Component: CachedComponent,
     props: initialData.props,
     err: initialErr,
+    isHydratePass: true,
   }
 
   if (opts?.beforeRender) {

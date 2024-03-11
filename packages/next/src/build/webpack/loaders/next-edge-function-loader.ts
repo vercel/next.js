@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
-import { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
@@ -40,6 +40,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
         import 'next/dist/esm/server/web/globals'
         import { adapter } from 'next/dist/esm/server/web/adapter'
         import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
+        import { wrapApiHandler } from 'next/dist/esm/server/api-utils'
 
         import handler from ${stringifiedPagePath}
 
@@ -47,12 +48,12 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
           throw new Error('The Edge Function "pages${page}" must export a \`default\` function');
         }
 
-        export default function (opts) {
+        export default function nHandler (opts) {
           return adapter({
               ...opts,
               IncrementalCache,
               page: ${JSON.stringify(page)},
-              handler,
+              handler: wrapApiHandler(${JSON.stringify(page)}, handler),
           })
         }
     `

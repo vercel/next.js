@@ -43,9 +43,9 @@ createNextDescribe(
 
       it('renders the error correctly and recovers', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         await next.patchFile('middleware.js', `export default function () {}`)
-        await hasRedbox(browser, false)
+        await hasRedbox(browser)
       })
     })
 
@@ -80,7 +80,7 @@ createNextDescribe(
 
       it('does not render the error', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         expect(await browser.elementByCss('#page-title')).toBeTruthy()
       })
     })
@@ -117,10 +117,10 @@ createNextDescribe(
 
       it('renders the error correctly and recovers', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxSource(browser)).toContain(`eval('test')`)
         await next.patchFile('middleware.js', `export default function () {}`)
-        await hasRedbox(browser, false)
+        await hasRedbox(browser)
       })
     })
 
@@ -155,12 +155,13 @@ createNextDescribe(
 
       it('renders the error correctly and recovers', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxSource(browser)).toContain(
-          `throw new Error('booooom!')`
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        const source = await getRedboxSource(browser)
+        expect(source).toContain(`throw new Error('booooom!')`)
+        expect(source).toContain('middleware.js')
+        expect(source).not.toContain('//middleware.js')
         await next.patchFile('middleware.js', `export default function () {}`)
-        await hasRedbox(browser, false)
+        await hasRedbox(browser)
       })
     })
 
@@ -195,7 +196,7 @@ createNextDescribe(
 
       it('does not render the error', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         expect(await browser.elementByCss('#page-title')).toBeTruthy()
       })
     })
@@ -233,7 +234,7 @@ createNextDescribe(
 
       it('does not render the error', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         expect(await browser.elementByCss('#page-title')).toBeTruthy()
       })
     })
@@ -249,9 +250,9 @@ createNextDescribe(
         await next.fetch('/')
         await check(async () => {
           expect(next.cliOutput).toContain(`Expected '{', got '}'`)
-          expect(next.cliOutput.split(`Expected '{', got '}'`).length).toEqual(
-            2
-          )
+          expect(
+            next.cliOutput.split(`Expected '{', got '}'`).length
+          ).toBeGreaterThanOrEqual(2)
 
           return 'success'
         }, 'success')
@@ -259,14 +260,14 @@ createNextDescribe(
 
       it('renders the error correctly and recovers', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(
           await browser
             .elementByCss('#nextjs__container_build_error_label')
             .text()
         ).toEqual('Failed to compile')
         await next.patchFile('middleware.js', `export default function () {}`)
-        await hasRedbox(browser, false)
+        await hasRedbox(browser)
         expect(await browser.elementByCss('#page-title')).toBeTruthy()
       })
     })
@@ -292,11 +293,11 @@ createNextDescribe(
 
       it('renders the error correctly and recovers', async () => {
         const browser = await next.browser('/')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         await next.patchFile('middleware.js', `export default function () }`)
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         await next.patchFile('middleware.js', `export default function () {}`)
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         expect(await browser.elementByCss('#page-title')).toBeTruthy()
       })
     })

@@ -1,8 +1,8 @@
 import path from 'path'
-import { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
+import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevPagesRouteMatcherProvider } from './dev-pages-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 
 const normalizeSlashes = (p: string) => p.replace(/\//g, path.sep)
 
@@ -15,7 +15,7 @@ describe('DevPagesRouteMatcherProvider', () => {
     const matcher = new DevPagesRouteMatcherProvider(dir, extensions, reader)
     const matchers = await matcher.matchers()
     expect(matchers).toHaveLength(0)
-    expect(reader.read).toBeCalledWith(dir)
+    expect(reader.read).toHaveBeenCalledWith(dir)
   })
 
   describe('filename matching', () => {
@@ -81,7 +81,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         )
         const matchers = await matcher.matchers()
         expect(matchers).toHaveLength(1)
-        expect(reader.read).toBeCalledWith(dir)
+        expect(reader.read).toHaveBeenCalledWith(dir)
         expect(matchers[0].definition).toEqual(route)
       }
     )

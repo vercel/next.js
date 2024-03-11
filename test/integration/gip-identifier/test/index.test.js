@@ -90,8 +90,7 @@ describe('gip identifiers', () => {
   describe('dev mode', () => {
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
   })
 })

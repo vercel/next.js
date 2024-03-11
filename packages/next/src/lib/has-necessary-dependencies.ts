@@ -1,5 +1,4 @@
-import { promises as fs } from 'fs'
-import { fileExists } from './file-exists'
+import { existsSync, promises as fs } from 'fs'
 import { resolveFrom } from './resolve-from'
 import { dirname, join, relative } from 'path'
 
@@ -33,7 +32,7 @@ export async function hasNecessaryDependencies(
           const fileNameToVerify = relative(p.pkg, p.file)
           if (fileNameToVerify) {
             const fileToVerify = join(pkgDir, fileNameToVerify)
-            if (await fileExists(fileToVerify)) {
+            if (existsSync(fileToVerify)) {
               resolutions.set(p.pkg, fileToVerify)
             } else {
               return missingPackages.push(p)

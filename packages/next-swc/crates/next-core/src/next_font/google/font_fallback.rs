@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
-    turbopack::core::issue::{IssueExt, IssueSeverity},
+    turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
 };
 
 use super::options::NextFontGoogleOptions;
@@ -52,7 +52,7 @@ pub(super) async fn get_font_fallback(
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {
-        Some(fallback) => FontFallback::Manual(Vc::cell(fallback.clone())).cell(),
+        Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
             let metrics_json = load_next_js_templateon(
                 context,
@@ -66,27 +66,28 @@ pub(super) async fn get_font_fallback(
             );
 
             match fallback {
-                Ok(fallback) => FontFallback::Automatic(
-                    AutomaticFontFallback {
-                        scoped_font_family: get_scoped_font_family(
-                            FontFamilyType::Fallback.cell(),
-                            options_vc.font_family(),
-                            request_hash,
-                        ),
-                        local_font_family: Vc::cell(fallback.font_family),
-                        adjustment: fallback.adjustment,
-                    }
-                    .cell(),
-                )
+                Ok(fallback) => FontFallback::Automatic(AutomaticFontFallback {
+                    scoped_font_family: get_scoped_font_family(
+                        FontFamilyType::Fallback.cell(),
+                        options_vc.font_family(),
+                        request_hash,
+                    ),
+                    local_font_family: Vc::cell(fallback.font_family),
+                    adjustment: fallback.adjustment,
+                })
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
                         path: context,
-                        title: Vc::cell(format!(
+                        title: StyledString::Text(format!(
                             "Failed to find font override values for font `{}`",
                             &options.font_family,
-                        )),
-                        description: Vc::cell("Skipping generating a fallback font.".to_owned()),
+                        ))
+                        .cell(),
+                        description: StyledString::Text(
+                            "Skipping generating a fallback font.".to_owned(),
+                        )
+                        .cell(),
                         severity: IssueSeverity::Warning.cell(),
                     }
                     .cell()

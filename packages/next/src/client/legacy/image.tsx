@@ -10,10 +10,12 @@ import React, {
 } from 'react'
 import Head from '../../shared/lib/head'
 import {
-  ImageConfigComplete,
   imageConfigDefault,
-  LoaderValue,
   VALID_LOADERS,
+} from '../../shared/lib/image-config'
+import type {
+  ImageConfigComplete,
+  LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'

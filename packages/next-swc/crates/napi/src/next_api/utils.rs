@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::core::{
         diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
         error::PrettyPrintError,
-        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource},
+        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
         source_pos::SourcePos,
     },
 };
@@ -69,47 +69,44 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] _root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    // TODO(alexkirsz) Implement. Not panicking here to avoid crashing the process
-    // when testing.
+    if let Some(task) = root_task.task_id.take() {
+        root_task.turbo_tasks.dispose_root_task(task);
+    }
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
-    issues.get_plain_issues().await
+pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+    let issues = source.peek_issues_with_path().await?;
+    Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
-/// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
-/// returns [turbopack::core::diagnostics::PlainDiagnostic]
-pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
-    let captured_diags = source
-        .peek_diagnostics()
-        .await?
-        .strongly_consistent()
-        .await?;
+/// Reads the [turbopack_binding::turbopack::core::diagnostics::Diagnostic] held
+/// by the given source and returns it as a
+/// [turbopack_binding::turbopack::core::diagnostics::PlainDiagnostic]. It does
+/// not consume any Diagnostics held by the source.
+pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
+    let captured_diags = source.peek_diagnostics().await?;
 
-    captured_diags
-        .diagnostics
-        .iter()
-        .map(|d| d.into_plain())
-        .try_join()
-        .await
+    Ok(Arc::new(
+        captured_diags
+            .diagnostics
+            .iter()
+            .map(|d| d.into_plain())
+            .try_join()
+            .await?,
+    ))
 }
 
 #[napi(object)]
 pub struct NapiIssue {
     pub severity: String,
-    pub category: String,
+    pub stage: String,
     pub file_path: String,
-    pub title: String,
-    pub description: String,
-    pub detail: String,
+    pub title: serde_json::Value,
+    pub description: Option<serde_json::Value>,
+    pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
     pub sub_issues: Vec<NapiIssue>,
@@ -118,14 +115,20 @@ pub struct NapiIssue {
 impl From<&PlainIssue> for NapiIssue {
     fn from(issue: &PlainIssue) -> Self {
         Self {
-            description: issue.description.clone(),
-            category: issue.category.clone(),
+            description: issue
+                .description
+                .as_ref()
+                .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
+            stage: issue.stage.to_string(),
             file_path: issue.file_path.clone(),
-            detail: issue.detail.clone(),
+            detail: issue
+                .detail
+                .as_ref()
+                .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_deref().map(|source| source.into()),
-            title: issue.title.clone(),
+            title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             sub_issues: issue
                 .sub_issues
                 .iter()
@@ -135,23 +138,71 @@ impl From<&PlainIssue> for NapiIssue {
     }
 }
 
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum StyledStringSerialize<'a> {
+    Line {
+        value: Vec<StyledStringSerialize<'a>>,
+    },
+    Stack {
+        value: Vec<StyledStringSerialize<'a>>,
+    },
+    Text {
+        value: &'a str,
+    },
+    Code {
+        value: &'a str,
+    },
+    Strong {
+        value: &'a str,
+    },
+}
+
+impl<'a> From<&'a StyledString> for StyledStringSerialize<'a> {
+    fn from(value: &'a StyledString) -> Self {
+        match value {
+            StyledString::Line(parts) => StyledStringSerialize::Line {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Stack(parts) => StyledStringSerialize::Stack {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Text(string) => StyledStringSerialize::Text { value: string },
+            StyledString::Code(string) => StyledStringSerialize::Code { value: string },
+            StyledString::Strong(string) => StyledStringSerialize::Strong { value: string },
+        }
+    }
+}
+
 #[napi(object)]
 pub struct NapiIssueSource {
     pub source: NapiSource,
-    pub start: NapiSourcePos,
-    pub end: NapiSourcePos,
+    pub range: Option<NapiIssueSourceRange>,
 }
 
 impl From<&PlainIssueSource> for NapiIssueSource {
     fn from(
         PlainIssueSource {
             asset: source,
-            start,
-            end,
+            range,
         }: &PlainIssueSource,
     ) -> Self {
         Self {
             source: (&**source).into(),
+            range: range.as_ref().map(|range| range.into()),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiIssueSourceRange {
+    pub start: NapiSourcePos,
+    pub end: NapiSourcePos,
+}
+
+impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
+    fn from((start, end): &(SourcePos, SourcePos)) -> Self {
+        Self {
             start: (*start).into(),
             end: (*end).into(),
         }

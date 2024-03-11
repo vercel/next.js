@@ -49,7 +49,7 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
         return warnLogs.join('\n')
       }, regex)
     } else {
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const errorContent = await getRedboxHeader(browser)
       expect(errorContent).toMatch(regex)
     }
@@ -84,7 +84,7 @@ const noError = async (pathname, click = false) => {
 }
 
 describe('Invalid hrefs', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

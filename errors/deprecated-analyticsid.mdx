@@ -1,0 +1,20 @@
+---
+title: config.analytics is deprecated
+---
+
+## Why This Error Occurred
+
+The Core Web Vitals of your Next.js application could be tracked and sent to any backend of your choice.
+
+Earlier version of Next.js enable tracking by specifying `analyticsId` into your `next.config.js` file.
+
+This configuration mechanism will be removed in nextjs@15, as it could be elegantly replaced with `useReportWebVitals` built-in hook.
+
+## Possible Ways to Fix It
+
+To remove this warning, you must remove `analyticsId` from your `next.config.js` file.
+
+To keep tracking your Core Web Vitals, you could:
+
+- use `useReportWebVitals` hook as explained [here](https://nextjs.org/docs/app/api-reference/functions/use-report-web-vitals) and send the metrics to any backend of your choice.
+- [install and use](https://vercel.com/docs/speed-insights/quickstart) `@vercel/speed-insights` package into your application

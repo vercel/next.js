@@ -4,7 +4,7 @@ import JSON5 from 'next/dist/compiled/json5'
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
-import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
+import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
 
@@ -233,7 +233,7 @@ function checkCustomBabelConfigDeprecation(
 
   if (isPresetReadyToDeprecate && unsupportedPlugins.length === 0) {
     Log.warn(
-      `It looks like there is a custom Babel configuration can be removed ${
+      `It looks like there is a custom Babel configuration that can be removed${
         pluginReasons.length > 0 ? ':' : '.'
       }`
     )

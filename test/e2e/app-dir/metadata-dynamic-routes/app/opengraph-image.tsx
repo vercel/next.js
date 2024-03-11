@@ -1,7 +1,8 @@
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export const alt = 'Open Graph'
 
+/* without generateImageMetadata */
 export default function og() {
   return new ImageResponse(
     (

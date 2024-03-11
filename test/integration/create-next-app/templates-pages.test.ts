@@ -15,7 +15,7 @@ import {
   shouldBeTypescriptProject,
   spawnExitPromise,
 } from './lib/utils'
-import { Span } from 'next/dist/trace'
+//import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
@@ -26,7 +26,7 @@ import {
   launchApp,
 } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
-import { createNextInstall } from '../../lib/create-next-install'
+//import { createNextInstall } from '../../lib/create-next-install'
 import ansiEscapes from 'ansi-escapes'
 
 const startsWithoutError = async (
@@ -62,10 +62,13 @@ let testVersion
 
 describe('create-next-app templates', () => {
   beforeAll(async () => {
-    const span = new Span({ name: 'parent' })
-    testVersion = (
-      await createNextInstall({ onlyPackages: true, parentSpan: span })
-    ).get('next')
+    // TODO: investigate moving this post publish or create deployed
+    // tarballs to avoid these failing while a publish is in progress
+    testVersion = 'canary'
+    // const span = new Span({ name: 'parent' })
+    // testVersion = (
+    //   await createNextInstall({ onlyPackages: true, parentSpan: span })
+    // ).get('next')
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
@@ -215,7 +218,7 @@ describe('create-next-app templates', () => {
           '--eslint',
           '--src-dir',
           '--no-app',
-          `--import-alias=@/*`,
+          `--no-import-alias`,
         ],
         {
           cwd,
@@ -282,8 +285,8 @@ describe('create-next-app templates', () => {
        */
       const tsConfig = require(path.join(cwd, projectName, 'tsconfig.json'))
       expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
-        Object {
-          "@/something/*": Array [
+        {
+          "@/something/*": [
             "./*",
           ],
         }

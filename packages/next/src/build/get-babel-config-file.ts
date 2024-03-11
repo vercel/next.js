@@ -1,5 +1,5 @@
-import { fileExists } from '../lib/file-exists'
 import { join } from 'path'
+import { existsSync } from 'fs'
 
 const BABEL_CONFIG_FILES = [
   '.babelrc',
@@ -13,12 +13,10 @@ const BABEL_CONFIG_FILES = [
   'babel.config.cjs',
 ]
 
-export async function getBabelConfigFile(
-  dir: string
-): Promise<string | undefined> {
+export function getBabelConfigFile(dir: string): string | undefined {
   for (const filename of BABEL_CONFIG_FILES) {
     const configFilePath = join(dir, filename)
-    const exists = await fileExists(configFilePath)
+    const exists = existsSync(configFilePath)
     if (!exists) {
       continue
     }

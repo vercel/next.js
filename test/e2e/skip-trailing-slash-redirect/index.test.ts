@@ -367,7 +367,7 @@ describe('skip-trailing-slash-redirect', () => {
     runSharedTests('/')
   })
 
-  describe('app dir', () => {
+  describe('app dir - skip trailing slash redirect', () => {
     runSharedTests('/with-app-dir/')
   })
 })

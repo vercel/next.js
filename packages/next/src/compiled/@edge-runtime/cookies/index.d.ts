@@ -1,9 +1,3 @@
-// Type definitions for cookie 0.5
-// Project: https://github.com/jshttp/cookie
-// Definitions by: Pine Mizune <https://github.com/pine>
-//                 Piotr Błażejewicz <https://github.com/peterblazejewicz>
-// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
-
 /**
  * Basic HTTP cookie parser and serializer for HTTP servers.
  */
@@ -63,6 +57,17 @@ interface CookieSerializeOptions {
      */
     maxAge?: number | undefined;
     /**
+     * Specifies the `boolean` value for the [`Partitioned` `Set-Cookie`](rfc-cutler-httpbis-partitioned-cookies)
+     * attribute. When truthy, the `Partitioned` attribute is set, otherwise it is not. By default, the
+     * `Partitioned` attribute is not set.
+     *
+     * **note** This is an attribute that has not yet been fully standardized, and may change in the future.
+     * This also means many clients may ignore this attribute until they understand it.
+     *
+     * More information about can be found in [the proposal](https://github.com/privacycg/CHIPS)
+     */
+    partitioned?: boolean | undefined;
+    /**
      * Specifies the value for the {@link https://tools.ietf.org/html/rfc6265#section-5.2.4|`Path` `Set-Cookie` attribute}.
      * By default, the path is considered the "default path".
      */
@@ -114,7 +119,7 @@ interface CookieSerializeOptions {
  * {@link https://wicg.github.io/cookie-store/#dictdef-cookielistitem CookieListItem}
  * as specified by W3C.
  */
-interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' | 'secure' | 'sameSite'> {
+interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' | 'secure' | 'sameSite' | 'partitioned'> {
     /** A string with the name of a cookie. */
     name: string;
     /** A string containing the value of the cookie. */
@@ -192,18 +197,5 @@ declare function stringifyCookie(c: ResponseCookie | RequestCookie): string;
 declare function parseCookie(cookie: string): Map<string, string>;
 /** Parse a `Set-Cookie` header value */
 declare function parseSetCookie(setCookie: string): undefined | ResponseCookie;
-/**
- * @source https://github.com/nfriedly/set-cookie-parser/blob/master/lib/set-cookie.js
- *
- * Set-Cookie header field-values are sometimes comma joined in one string. This splits them without choking on commas
- * that are within a single set-cookie field-value, such as in the Expires portion.
- * This is uncommon, but explicitly allowed - see https://tools.ietf.org/html/rfc2616#section-4.2
- * Node.js does this for every header *except* set-cookie - see https://github.com/nodejs/node/blob/d5e363b77ebaf1caf67cd7528224b651c86815c1/lib/_http_incoming.js#L128
- * React Native's fetch does this for *every* header, including set-cookie.
- *
- * Based on: https://github.com/google/j2objc/commit/16820fdbc8f76ca0c33472810ce0cb03d20efe25
- * Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
- */
-declare function splitCookiesString(cookiesString: string): string[];
 
-export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, splitCookiesString, stringifyCookie };
+export { type CookieListItem, type RequestCookie, RequestCookies, type ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, stringifyCookie };

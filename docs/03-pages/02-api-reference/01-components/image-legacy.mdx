@@ -379,13 +379,14 @@ module.exports = {
       {
         protocol: 'https',
         hostname: '**.example.com',
+        port: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -394,9 +395,11 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 
 The `**` syntax does not work in the middle of the pattern.
 
+> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+
 ### Domains
 
-> **Warning**: We recommend configuring strict [`remotePatterns`](#remote-patterns) instead of `domains` in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
+> **Warning**: Deprecated since Next.js 14 in favor of strict [`remotePatterns`](#remote-patterns) in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
@@ -519,7 +522,7 @@ The cache status of an image can be determined by reading the value of the `x-ne
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
-- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#image-sizes) to reduce the total number of possible generated images.
 - You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
@@ -542,7 +545,7 @@ There is no mechanism to invalidate the cache at this time, so its best to keep 
 
 ### Disable Static Imports
 
-The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+The default behavior allows you to import static files such as `import icon from './icon.png'` and then pass that to the `src` property.
 
 In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
 
@@ -558,9 +561,11 @@ module.exports = {
 
 ### Dangerously Allow SVG
 
-The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers).
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers#content-security-policy).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
+Therefore, we recommended using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
+
+However, if you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {

@@ -35,8 +35,7 @@ describe('Custom page extension', () => {
     afterAll(() => killApp(app))
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

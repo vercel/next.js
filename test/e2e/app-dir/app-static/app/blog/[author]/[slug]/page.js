@@ -1,7 +1,5 @@
 import { notFound } from 'next/navigation'
 
-export const revalidate = null
-
 export const dynamicParams = true
 
 export default function Page({ params }) {

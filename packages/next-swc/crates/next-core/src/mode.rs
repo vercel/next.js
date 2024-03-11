@@ -5,8 +5,6 @@ use turbo_tasks::TaskInput;
 #[derive(Debug, Copy, Clone, TaskInput, Ord, PartialOrd, Hash)]
 pub enum NextMode {
     /// `next dev --turbo`
-    DevServer,
-    /// `next dev --experimental-turbo`
     Development,
     /// `next build`
     Build,
@@ -16,7 +14,7 @@ impl NextMode {
     /// Returns the NODE_ENV value for the current mode.
     pub fn node_env(&self) -> &'static str {
         match self {
-            NextMode::Development | NextMode::DevServer => "development",
+            NextMode::Development => "development",
             NextMode::Build => "production",
         }
     }
@@ -24,8 +22,29 @@ impl NextMode {
     /// Returns true if the development React runtime should be used.
     pub fn is_react_development(&self) -> bool {
         match self {
-            NextMode::Development | NextMode::DevServer => true,
+            NextMode::Development => true,
             NextMode::Build => false,
+        }
+    }
+
+    pub fn is_development(&self) -> bool {
+        match self {
+            NextMode::Development => true,
+            NextMode::Build => false,
+        }
+    }
+
+    pub fn is_production(&self) -> bool {
+        match self {
+            NextMode::Development => false,
+            NextMode::Build => true,
+        }
+    }
+
+    pub fn should_minify(&self) -> bool {
+        match self {
+            NextMode::Development => false,
+            NextMode::Build => true,
         }
     }
 }

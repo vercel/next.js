@@ -1,6 +1,10 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
+import type { FetchMetrics } from '../../server/base-http'
+import type { Revalidate } from '../../server/lib/revalidate'
+import type { PrerenderState } from '../../server/app-render/dynamic-rendering'
+
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
@@ -11,6 +15,10 @@ export interface StaticGenerationStore {
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
   readonly isRevalidate?: boolean
+  readonly isUnstableCacheCallback?: boolean
+
+  // When this exists (is not null) it means we are in a Prerender
+  prerenderState: null | PrerenderState
 
   forceDynamic?: boolean
   fetchCache?:
@@ -21,10 +29,10 @@ export interface StaticGenerationStore {
     | 'default-no-store'
     | 'only-no-store'
 
-  revalidate?: false | number
+  revalidate?: Revalidate
   forceStatic?: boolean
   dynamicShouldError?: boolean
-  pendingRevalidates?: Promise<any>[]
+  pendingRevalidates?: Record<string, Promise<any>>
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
@@ -36,18 +44,10 @@ export interface StaticGenerationStore {
   tags?: string[]
 
   revalidatedTags?: string[]
-  fetchMetrics?: Array<{
-    url: string
-    idx: number
-    end: number
-    start: number
-    method: string
-    status: number
-    cacheReason: string
-    cacheStatus: 'hit' | 'miss' | 'skip'
-  }>
+  fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
+  isUnstableNoStore?: boolean
 }
 
 export type StaticGenerationAsyncStorage =

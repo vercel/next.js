@@ -1,13 +1,47 @@
 import {
+  accumulateViewport as originAccumulateViewport,
   accumulateMetadata as originAccumulateMetadata,
-  MetadataItems,
 } from './resolve-metadata'
-import { Metadata } from './types/metadata-interface'
+import type { MetadataItems as FullMetadataItems } from './resolve-metadata'
+import type { Metadata, Viewport } from './types/metadata-interface'
+
+type FullMetadataItem = FullMetadataItems[number]
+type MetadataItems = [FullMetadataItem[0], FullMetadataItem[1]][]
 
 function accumulateMetadata(metadataItems: MetadataItems) {
-  return originAccumulateMetadata(metadataItems, {
+  const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
+    item[0],
+    item[1],
+    null,
+  ])
+  return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
+    trailingSlash: false,
   })
+}
+
+function accumulateViewport(viewportExports: Viewport[]) {
+  // skip the first two arguments (metadata and static metadata)
+  return originAccumulateViewport(
+    viewportExports.map((item) => [null, null, item])
+  )
+}
+
+function mapUrlsToStrings(obj: any) {
+  if (typeof obj === 'object') {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (obj[key] instanceof URL) {
+          // If the property is a URL instance, convert it to a string
+          obj[key] = obj[key].href
+        } else if (typeof obj[key] === 'object') {
+          // Recursively process nested objects
+          obj[key] = mapUrlsToStrings(obj[key])
+        }
+      }
+    }
+  }
+  return obj
 }
 
 describe('accumulateMetadata', () => {
@@ -194,12 +228,14 @@ describe('accumulateMetadata', () => {
         ],
       ]
       const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        metadataBase: new URL('http://test.com/base'),
-        itunes: {
-          appArgument: new URL('http://test.com/base/test/native/app'),
-        },
-      })
+      expect(mapUrlsToStrings(metadata)).toMatchObject(
+        mapUrlsToStrings({
+          metadataBase: new URL('http://test.com/base'),
+          itunes: {
+            appArgument: new URL('http://test.com/base/test/native/app'),
+          },
+        })
+      )
     })
   })
 
@@ -219,11 +255,13 @@ describe('accumulateMetadata', () => {
             {
               openGraph: {
                 type: 'music.song',
-                images: new URL('https://test3.com'),
+                images: new URL('https://test-og-3.com'),
               },
             },
           ],
-          { openGraph: { images: [new URL('https://test3.com')] } },
+          {
+            openGraph: { images: [{ url: new URL('https://test-og-3.com') }] },
+          },
         ],
         [
           [
@@ -258,7 +296,9 @@ describe('accumulateMetadata', () => {
         const metadata = await accumulateMetadata(
           configuredMetadata.map((m) => [m, null])
         )
-        expect(metadata).toMatchObject(result)
+        expect(mapUrlsToStrings(metadata)).toMatchObject(
+          mapUrlsToStrings(result)
+        )
       })
     })
 
@@ -351,12 +391,14 @@ describe('accumulateMetadata', () => {
         ],
       ]
       const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        metadataBase: new URL('http://test.com/base'),
-        openGraph: {
-          url: new URL('http://test.com/base/test/abc'),
-        },
-      })
+      expect(mapUrlsToStrings(metadata)).toMatchObject(
+        mapUrlsToStrings({
+          metadataBase: new URL('http://test.com/base'),
+          openGraph: {
+            url: new URL('http://test.com/base/test/abc'),
+          },
+        })
+      )
     })
 
     it('should override openGraph or twitter images when current layer specifies social images properties', async () => {
@@ -420,36 +462,15 @@ describe('accumulateMetadata', () => {
         },
       })
     })
-  })
 
-  describe('themeColor', () => {
-    it('should support string theme color', async () => {
-      const metadataItems: MetadataItems = [
-        [{ themeColor: '#000' }, null],
-        [{ themeColor: '#fff' }, null],
-      ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        themeColor: [{ color: '#fff' }],
-      })
-    })
-
-    it('should support theme color descriptors', async () => {
+    it('should inherit metadata title description into openGraph or twitter if they are configured', async () => {
       const metadataItems1: MetadataItems = [
         [
           {
-            themeColor: {
-              media: '(prefers-color-scheme: light)',
-              color: '#fff',
-            },
-          },
-          null,
-        ],
-        [
-          {
-            themeColor: {
-              media: '(prefers-color-scheme: dark)',
-              color: 'cyan',
+            title: 'My title',
+            description: 'My description',
+            openGraph: {
+              images: 'https://test.com/og.png',
             },
           },
           null,
@@ -457,66 +478,74 @@ describe('accumulateMetadata', () => {
       ]
       const metadata1 = await accumulateMetadata(metadataItems1)
       expect(metadata1).toMatchObject({
-        themeColor: [{ media: '(prefers-color-scheme: dark)', color: 'cyan' }],
+        openGraph: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
       })
 
       const metadataItems2: MetadataItems = [
         [
           {
-            themeColor: [
-              { media: '(prefers-color-scheme: light)', color: '#fff' },
-              { media: '(prefers-color-scheme: dark)', color: 'cyan' },
-            ],
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              images: 'https://test.com/twitter.png',
+            },
           },
           null,
         ],
       ]
       const metadata2 = await accumulateMetadata(metadataItems2)
       expect(metadata2).toMatchObject({
-        themeColor: [
-          { media: '(prefers-color-scheme: light)', color: '#fff' },
-          { media: '(prefers-color-scheme: dark)', color: 'cyan' },
-        ],
+        openGraph: null,
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
       })
-    })
-  })
 
-  describe('viewport', () => {
-    it('should support string viewport', async () => {
-      const metadataItems: MetadataItems = [
-        [
-          { viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no' },
-          null,
-        ],
-      ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no',
-      })
-    })
-
-    it('should support viewport descriptors', async () => {
-      const metadataItems: MetadataItems = [
+      // Don't override if there's already a title in twitter
+      const metadataItems3: MetadataItems = [
         [
           {
-            viewport: {
-              width: 'device-width',
-              height: 'device-height',
-              initialScale: 1,
-              minimumScale: 1,
-              maximumScale: 1,
-              viewportFit: 'cover',
-              userScalable: false,
-              interactiveWidget: 'overlays-content',
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              title: 'My twitter title',
+              images: 'https://test.com/twitter.png',
             },
           },
           null,
         ],
       ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        viewport:
-          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=overlays-content',
+      const metadata3 = await accumulateMetadata(metadataItems3)
+      expect(metadata3).toMatchObject({
+        openGraph: null,
+        title: {
+          absolute: 'My title',
+          template: null,
+        },
+        twitter: {
+          title: {
+            absolute: 'My twitter title',
+            template: null,
+          },
+          description: 'My description',
+        },
       })
     })
   })
@@ -605,6 +634,86 @@ describe('accumulateMetadata', () => {
             'application/rss+xml': [{ url: 'https://example.com/rss' }],
           },
         },
+      })
+    })
+  })
+})
+
+describe('accumulateViewport', () => {
+  describe('viewport', () => {
+    it('should support viewport descriptors', async () => {
+      const viewport = await accumulateViewport([
+        {
+          width: 'device-width',
+          height: 'device-height',
+          initialScale: 1,
+          minimumScale: 1,
+          maximumScale: 1,
+          viewportFit: 'cover',
+          userScalable: false,
+          interactiveWidget: 'overlays-content',
+        },
+      ])
+      expect(viewport).toMatchObject({
+        width: 'device-width',
+        height: 'device-height',
+        initialScale: 1,
+        minimumScale: 1,
+        maximumScale: 1,
+        viewportFit: 'cover',
+        userScalable: false,
+        interactiveWidget: 'overlays-content',
+      })
+    })
+  })
+
+  describe('themeColor', () => {
+    it('should support string theme color', async () => {
+      const metadataItems: Viewport[] = [
+        { themeColor: '#000' },
+        { themeColor: '#fff' },
+      ]
+      const viewport = await accumulateViewport(metadataItems)
+      expect(viewport).toMatchObject({
+        themeColor: [{ color: '#fff' }],
+      })
+    })
+
+    it('should support theme color descriptors', async () => {
+      const viewportInput1: Viewport[] = [
+        {
+          themeColor: {
+            media: '(prefers-color-scheme: light)',
+            color: '#fff',
+          },
+        },
+        {
+          themeColor: {
+            media: '(prefers-color-scheme: dark)',
+            color: 'cyan',
+          },
+        },
+      ]
+
+      const viewport1 = await accumulateViewport(viewportInput1)
+      expect(viewport1).toMatchObject({
+        themeColor: [{ media: '(prefers-color-scheme: dark)', color: 'cyan' }],
+      })
+
+      const viewportInput2: Viewport[] = [
+        {
+          themeColor: [
+            { media: '(prefers-color-scheme: light)', color: '#fff' },
+            { media: '(prefers-color-scheme: dark)', color: 'cyan' },
+          ],
+        },
+      ]
+      const viewport2 = await accumulateViewport(viewportInput2)
+      expect(viewport2).toMatchObject({
+        themeColor: [
+          { media: '(prefers-color-scheme: light)', color: '#fff' },
+          { media: '(prefers-color-scheme: dark)', color: 'cyan' },
+        ],
       })
     })
   })

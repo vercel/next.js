@@ -946,7 +946,7 @@ describe('basePath', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (isDev) {
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         }
       } finally {
         await browser.close()
@@ -970,7 +970,7 @@ describe('basePath', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (isDev) {
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         }
       } finally {
         await browser.close()

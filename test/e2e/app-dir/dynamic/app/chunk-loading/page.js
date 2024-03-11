@@ -3,9 +3,11 @@
 
 'use client'
 
+function noop() {}
+
 export default function Page() {
   import('./comp').then((m) => {
-    console.log(m)
+    noop(m)
   })
   return null
 }

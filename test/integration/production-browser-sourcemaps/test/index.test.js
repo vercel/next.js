@@ -38,11 +38,13 @@ function runTests() {
 }
 
 describe('Production browser sourcemaps', () => {
-  describe('Server support', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir, [], {})
-    })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('Server support', () => {
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+      })
 
-    runTests()
+      runTests()
+    })
   })
 })

@@ -1,6 +1,6 @@
-import { RouteMatcher } from '../../route-matchers/route-matcher'
+import type { RouteMatcher } from '../../route-matchers/route-matcher'
 import { CachedRouteMatcherProvider } from '../helpers/cached-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 
 /**
  * This will memoize the matchers when the file contents are the same.

@@ -4,10 +4,6 @@ import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
 
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
-
 const MKCERT_VERSION = 'v1.4.4'
 
 export interface SelfSignedCertificate {
@@ -36,7 +32,7 @@ function getBinaryName() {
 async function downloadBinary() {
   try {
     const binaryName = getBinaryName()
-    const cacheDirectory = await getCacheDirectory('mkcert')
+    const cacheDirectory = getCacheDirectory('mkcert')
     const binaryPath = path.join(cacheDirectory, binaryName)
 
     if (fs.existsSync(binaryPath)) {

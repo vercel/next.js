@@ -1,3 +1,4 @@
+// TODO: remove in the next major version
 /* global location */
 import type { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
 

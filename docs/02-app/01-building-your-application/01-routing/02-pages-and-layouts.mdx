@@ -5,13 +5,13 @@ description: Create your first page and shared layout with the App Router.
 
 > We recommend reading the [Routing Fundamentals](/docs/app/building-your-application/routing) and [Defining Routes](/docs/app/building-your-application/routing/defining-routes) pages before continuing.
 
-The App Router inside Next.js 13 introduced new file conventions to easily create [pages](#pages), [shared layouts](#layouts), and [templates](#templates). This page will guide you through how to use these special files in your Next.js application.
+The special files [layout.js](#layouts), [page.js](#pages), and [template.js](#templates) allow you to create UI for a [route](/docs/app/building-your-application/routing/defining-routes#creating-routes). This page will guide you through how and when to use these special files.
 
 ## Pages
 
-A page is UI that is **unique** to a route. You can define pages by exporting a component from a `page.js` file. Use nested folders to [define a route](/docs/app/building-your-application/routing/defining-routes) and a `page.js` file to make the route publicly accessible.
+A page is UI that is **unique** to a route. You can define a page by default exporting a component from a `page.js` file.
 
-Create your first page by adding a `page.js` file inside the `app` directory:
+For example, to create your `index` page, add the `page.js` file inside the `app` directory:
 
 <Image
   alt="page.js special file"
@@ -35,6 +35,8 @@ export default function Page() {
 }
 ```
 
+Then, to create further pages, create a new folder and add the `page.js` file inside it. For example, to create a page for the `/dashboard` route, create a new folder called `dashboard`, and add the `page.js` file inside it:
+
 ```tsx filename="app/dashboard/page.tsx" switcher
 // `app/dashboard/page.tsx` is the UI for the `/dashboard` URL
 export default function Page() {
@@ -51,17 +53,19 @@ export default function Page() {
 
 > **Good to know**:
 >
+> - The `.js`, `.jsx`, or `.tsx` file extensions can be used for Pages.
 > - A page is always the [leaf](/docs/app/building-your-application/routing#terminology) of the [route subtree](/docs/app/building-your-application/routing#terminology).
-> - `.js`, `.jsx`, or `.tsx` file extensions can be used for Pages.
 > - A `page.js` file is required to make a route segment publicly accessible.
-> - Pages are [Server Components](/docs/app/building-your-application/rendering/server-components) by default but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
+> - Pages are [Server Components](/docs/app/building-your-application/rendering/server-components) by default, but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
 > - Pages can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
 
 ## Layouts
 
-A layout is UI that is **shared** between multiple pages. On navigation, layouts preserve state, remain interactive, and do not re-render. Layouts can also be [nested](#nesting-layouts).
+A layout is UI that is **shared** between multiple routes. On navigation, layouts preserve state, remain interactive, and do not re-render. Layouts can also be [nested](#nesting-layouts).
 
-You can define a layout by `default` exporting a React component from a `layout.js` file. The component should accept a `children` prop that will be populated with a child layout (if it exists) or a child page during rendering.
+You can define a layout by default exporting a React component from a `layout.js` file. The component should accept a `children` prop that will be populated with a child layout (if it exists) or a page during rendering.
+
+For example, the layout will be shared with the `/dashboard` and `/dashboard/settings` pages:
 
 <Image
   alt="layout.js special file"
@@ -103,22 +107,9 @@ export default function DashboardLayout({
 }
 ```
 
-> **Good to know**:
->
-> - The top-most layout is called the [Root Layout](#root-layout-required). This **required** layout is shared across all pages in an application. Root layouts must contain `html` and `body` tags.
-> - Any route segment can optionally define its own [Layout](#nesting-layouts). These layouts will be shared across all pages in that segment.
-> - Layouts in a route are **nested** by default. Each parent layout wraps child layouts below it using the React `children` prop.
-> - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to opt specific route segments in and out of shared layouts.
-> - Layouts are [Server Components](/docs/app/building-your-application/rendering/server-components) by default but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
-> - Layouts can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
-> - Passing data between a parent layout and its children is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/caching#request-memoization) without affecting performance.
-> - Layouts do not have access to the route segments below itself. To access all route segments, you can use [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) in a Client Component.
-> - `.js`, `.jsx`, or `.tsx` file extensions can be used for Layouts.
-> - A `layout.js` and `page.js` file can be defined in the same folder. The layout will wrap the page.
-
 ### Root Layout (Required)
 
-The root layout is defined at the top level of the `app` directory and applies to all routes. This layout enables you to modify the initial HTML returned from the server.
+The root layout is defined at the top level of the `app` directory and applies to all routes. This layout is **required** and must contain `html` and `body` tags, allowing you to modify the initial HTML returned from the server.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -128,7 +119,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* Layout UI */}
+        <main>{children}</main>
+      </body>
     </html>
   )
 }
@@ -138,25 +132,20 @@ export default function RootLayout({
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* Layout UI */}
+        <main>{children}</main>
+      </body>
     </html>
   )
 }
 ```
 
-> **Good to know**:
->
-> - The `app` directory **must** include a root layout.
-> - The root layout must define `<html>` and `<body>` tags since Next.js does not automatically create them.
-> - You can use the [built-in SEO support](/docs/app/building-your-application/optimizing/metadata) to manage `<head>` HTML elements, for example, the `<title>` element.
-> - You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts. See an [example here](/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts).
-> - The root layout is a [Server Component](/docs/app/building-your-application/rendering/server-components) by default and **can not** be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
-
-> **Migrating from the `pages` directory:** The root layout replaces the [`_app.js`](/docs/pages/building-your-application/routing/custom-app) and [`_document.js`](/docs/pages/building-your-application/routing/custom-document) files. [View the migration guide](/docs/app/building-your-application/upgrading/app-router-migration#migrating-_documentjs-and-_appjs).
-
 ### Nesting Layouts
 
-Layouts defined inside a folder (e.g. `app/dashboard/layout.js`) apply to specific route segments (e.g. `acme.com/dashboard`) and render when those segments are active. By default, layouts in the file hierarchy are **nested**, which means they wrap child layouts via their `children` prop.
+By default, layouts in the folder hierarchy are **nested**, which means they wrap child layouts via their `children` prop. You can nest layouts by adding `layout.js` inside specific route segments (folders).
+
+For example, to create a layout for the `/dashboard` route, add a new `layout.js` file inside the `dashboard` folder:
 
 <Image
   alt="Nested Layout"
@@ -182,10 +171,6 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-> **Good to know**:
->
-> - Only the root layout can contain `<html>` and `<body>` tags.
-
 If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the dashboard layout (`app/dashboard/layout.js`), which would wrap route segments inside `app/dashboard/*`.
 
 The two layouts would be nested as such:
@@ -198,7 +183,18 @@ The two layouts would be nested as such:
   height="1026"
 />
 
-You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to opt specific route segments in and out of shared layouts.
+> **Good to know**:
+>
+> - `.js`, `.jsx`, or `.tsx` file extensions can be used for Layouts.
+> - Only the root layout can contain `<html>` and `<body>` tags.
+> - When a `layout.js` and `page.js` file are defined in the same folder. The layout will wrap the page.
+> - Layouts are [Server Components](/docs/app/building-your-application/rendering/server-components) by default but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
+> - Layouts can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
+> - Passing data between a parent layout and its children is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/caching#request-memoization) without affecting performance.
+> - Layouts do not have access to the route segments below itself. To access all route segments, you can use [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) in a Client Component.
+> - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to opt specific route segments in and out of shared layouts.
+> - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts. See an [example here](/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts).
+> - **Migrating from the `pages` directory:** The root layout replaces the [`_app.js`](/docs/pages/building-your-application/routing/custom-app) and [`_document.js`](/docs/pages/building-your-application/routing/custom-document) files. [View the migration guide](/docs/app/building-your-application/upgrading/app-router-migration#migrating-_documentjs-and-_appjs).
 
 ## Templates
 
@@ -240,9 +236,9 @@ In terms of nesting, `template.js` is rendered between a layout and its children
 </Layout>
 ```
 
-## Modifying `<head>`
+## Metadata
 
-In the `app` directory, you can modify the `<head>` HTML elements such as `title` and `meta` using the [built-in SEO support](/docs/app/building-your-application/optimizing/metadata).
+In the `app` directory, you can modify the `<head>` HTML elements such as `title` and `meta` using the [Metadata APIs](/docs/app/building-your-application/optimizing/metadata).
 
 Metadata can be defined by exporting a [`metadata` object](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) or [`generateMetadata` function](/docs/app/api-reference/functions/generate-metadata#generatemetadata-function) in a [`layout.js`](/docs/app/api-reference/file-conventions/layout) or [`page.js`](/docs/app/api-reference/file-conventions/page) file.
 
@@ -270,4 +266,4 @@ export default function Page() {
 
 > **Good to know**: You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
 
-[Learn more about available metadata options in the API reference.](/docs/app/api-reference/functions/generate-metadata)
+Learn more about available metadata options in the [API reference](/docs/app/api-reference/functions/generate-metadata)

@@ -3,15 +3,14 @@ import retry from 'async-retry'
 import { red, green, cyan } from 'picocolors'
 import fs from 'fs'
 import path from 'path'
+import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
   downloadAndExtractRepo,
   getRepoInfo,
   existsInRepo,
   hasRepo,
-  RepoInfo,
 } from './helpers/examples'
-import { makeDir } from './helpers/make-dir'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
@@ -19,12 +18,8 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import type { PackageManager } from './helpers/get-pkg-manager'
 
-import {
-  getTemplateFile,
-  installTemplate,
-  TemplateMode,
-  TemplateType,
-} from './templates'
+import type { TemplateMode, TemplateType } from './templates'
+import { getTemplateFile, installTemplate } from './templates'
 
 export class DownloadError extends Error {}
 
@@ -66,8 +61,9 @@ export async function createApp({
 
     try {
       repoUrl = new URL(example)
-    } catch (error: any) {
-      if (error.code !== 'ERR_INVALID_URL') {
+    } catch (error: unknown) {
+      const err = error as Error & { code: string | undefined }
+      if (err.code !== 'ERR_INVALID_URL') {
         console.error(error)
         process.exit(1)
       }
@@ -136,7 +132,7 @@ export async function createApp({
 
   const appName = path.basename(root)
 
-  await makeDir(root)
+  fs.mkdirSync(root, { recursive: true })
   if (!isFolderEmpty(root, appName)) {
     process.exit(1)
   }
