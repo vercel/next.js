@@ -12,7 +12,7 @@ describeVariants.each(['turbo'])('experimental-lightningcss', () => {
     expect($('p').text()).toBe('hello world')
     // swc_css does not include `-module` in the class name, while lightningcss does.
     expect($('p').attr('class')).toBe(
-      'search-keyword style-module__hlQ3RG__blue'
+      'search-keyword blue__style-module__hlQ3RG'
     )
   })
 })
@@ -34,7 +34,7 @@ describeVariants.each(['default'])(
         // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
         const $ = await next.render$('/')
         expect($('p').text()).toBe('hello world')
-        // We remove hash frmo the class name in test mode using env var because it is not deterministic.
+        // We remove hash from the class name in test mode using env var because it is not deterministic.
         expect($('p').attr('class')).toBe('search-keyword style-module__blue')
       })
 
