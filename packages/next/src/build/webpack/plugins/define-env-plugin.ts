@@ -5,7 +5,6 @@ import type {
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
-import type { ImageConfigComplete } from '../../../shared/lib/image-config'
 
 function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
@@ -50,7 +49,7 @@ interface DefineEnv {
     | undefined
     | MiddlewareMatcher[]
     | BloomFilter
-    | Partial<ImageConfigComplete>
+    | Partial<NextConfigComplete['images']>
     | I18NDomains
 }
 
@@ -107,7 +106,7 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
 function getImageConfig(
   config: NextConfigComplete,
   dev: boolean
-): { 'process.env.__NEXT_IMAGE_OPTS': Partial<ImageConfigComplete> } {
+): { 'process.env.__NEXT_IMAGE_OPTS': Partial<NextConfigComplete['images']> } {
   return {
     'process.env.__NEXT_IMAGE_OPTS': {
       deviceSizes: config.images.deviceSizes,
