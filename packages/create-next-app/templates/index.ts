@@ -51,7 +51,7 @@ export const installTemplate = async ({
   if (!tailwind)
     copySource.push(
       mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
-      "!postcss.config.js",
+      "!postcss.config.cjs",
     );
 
   await copy(copySource, root, {
