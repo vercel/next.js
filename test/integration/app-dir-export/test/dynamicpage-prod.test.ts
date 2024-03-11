@@ -4,7 +4,7 @@ describe('app dir - with output export - dynamic api route prod', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it.each([
       { dynamicPage: 'undefined' },
-      { dynadynamicPagemic: "'error'" },
+      { dynamicPage: "'error'" },
       { dynamicPage: "'force-static'" },
       {
         dynamicPage: "'force-dynamic'",

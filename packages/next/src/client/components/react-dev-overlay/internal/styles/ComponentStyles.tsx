@@ -20,7 +20,6 @@ export function ComponentStyles() {
         ${leftRightDialogHeader}
         ${codeFrame}
         ${terminal}
-        
         ${buildErrorStyles}
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
