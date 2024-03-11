@@ -1,10 +1,11 @@
 /* [project]/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/c.css [test] (css) */
 @layer layer.foo {
-@media print and (orientation:landscape) {
+@media print and (orientation: landscape) {
 @supports not(display: inline-grid) and font-format(woff2) {
 .imported {
   color: red;
 }
+
 }
 }
 }
@@ -16,6 +17,7 @@
 .imported {
   color: orange;
 }
+
 }
 }
 }
@@ -25,15 +27,17 @@
 @media print {
 @supports not(display: inline-grid) {
 .imported {
-  color: cyan;
+  color: #0ff;
 }
+
 }
 }
 }
 
 /* [project]/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/style.css [test] (css) */
 .style {
-  color: yellow;
+  color: #ff0;
 }
+
 
 /*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_chained-attributes_input_7c9d25._.css.map*/

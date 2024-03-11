@@ -145,7 +145,7 @@ async fn get_client_module_options_context(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
                 EcmascriptInputTransform::Plugin(Vc::cell(Box::new(StyledJsxTransformer::new(
-                    module_options_context.use_lightningcss,
+                    !module_options_context.use_swc_css,
                     versions,
                 )) as _)),
             ]),

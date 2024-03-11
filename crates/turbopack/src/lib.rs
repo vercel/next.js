@@ -227,14 +227,11 @@ async fn apply_module_type(
             source,
             Vc::upcast(module_asset_context),
         )),
-        ModuleType::Css {
-            ty,
-            use_lightningcss,
-        } => Vc::upcast(CssModuleAsset::new(
+        ModuleType::Css { ty, use_swc_css } => Vc::upcast(CssModuleAsset::new(
             source,
             Vc::upcast(module_asset_context),
             *ty,
-            *use_lightningcss,
+            *use_swc_css,
             if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                 reference_type.into_value()
             {
