@@ -51,6 +51,16 @@ const PAGES = {
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
   },
+  'big-interleaved-a': {
+    url: '/big-interleaved/a',
+    selector: '#hellobia',
+    color: 'rgb(166, 255, 0)',
+  },
+  'big-interleaved-b': {
+    url: '/big-interleaved/b',
+    selector: '#hellobib',
+    color: 'rgb(166, 0, 255)',
+  },
   'reversed-a': {
     url: '/reversed/a',
     selector: '#hellora',
