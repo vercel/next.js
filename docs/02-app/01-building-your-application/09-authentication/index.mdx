@@ -1,15 +1,21 @@
 ---
 title: Authentication
-description: Learn how to implement authentication in Next.js, covering best practices, securing routes, authorization techniques, and session management.
+description: Learn how to implement authentication in Next.js.
 ---
 
-To implement authentication in Next.js, familiarize yourself with three foundational concepts:
+This page will guide you through implementing authentication in Next.js, it covers best practices and patterns so you can choose the best solution for your application.
 
-- **[Authentication](#authentication)** verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as a username and password.
-- **[Session Management](#session-management)** tracks the user's state (e.g. logged in) across multiple requests.
-- **[Authorization](#authorization)** decides what parts of the application the user is allowed to access.
+Before starting, it helps to be familiar with the following concepts:
 
-This page demonstrates how to use Next.js features to implement common authentication, authorization, and session management patterns so you can choose the best solutions based on your application's needs.
+- **[Authentication](#authentication)**: Verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as a username and password, or use a 3rd-party service like Google.
+  - **[Auth Providers](#auth-providers)**: Services that handle the authentication process for you. They often provide a set of helpful APIs and/or SDKs, making it easier and safer to implement auth in your application.
+- **[Session Management](#session-management)**: Tracks the user's auth state (e.g. logged-in) across requests.
+  - **[Session Management Libraries](#session-management-libraries)**: Libraries that help you manage user sessions, including setting, storing and retrieving cookie data, and handling expiration.
+- **[Authorization](#authorization)**: Decides what parts of the application the user is allowed to access. It includes redirecting users to different routes based on their auth state or role.
+
+This diagram illustrates the flow, and what Next.js features you can use for authentication, session management, and authorization:
+
+{/* TODO: Auth Diagram */}
 
 ## Authentication
 
