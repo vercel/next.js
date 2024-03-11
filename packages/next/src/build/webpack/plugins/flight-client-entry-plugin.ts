@@ -35,6 +35,7 @@ import {
   traverseModules,
   forEachEntryModule,
   formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
 } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
@@ -283,8 +284,9 @@ export class FlightClientEntryPlugin {
       const clientEntriesToInject = []
       const mergedCSSimports: CssImports = {}
 
-      for (const connection of compilation.moduleGraph.getOutgoingConnections(
-        entryModule
+      for (const connection of getModuleReferencesInOrder(
+        entryModule,
+        compilation.moduleGraph
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
         const entryRequest = (
@@ -564,7 +566,7 @@ export class FlightClientEntryPlugin {
           collectedActions.set(modRequest, actions)
         }
 
-        ;[...compilation.moduleGraph.getOutgoingConnections(mod)].forEach(
+        getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
           (connection) => {
             collectActionsInDep(
               connection.resolvedModule as webpack.NormalModule
@@ -586,8 +588,9 @@ export class FlightClientEntryPlugin {
     for (const entryDependency of dependencies) {
       const ssrEntryModule =
         compilation.moduleGraph.getResolvedModule(entryDependency)!
-      for (const connection of compilation.moduleGraph.getOutgoingConnections(
-        ssrEntryModule
+      for (const connection of getModuleReferencesInOrder(
+        ssrEntryModule,
+        compilation.moduleGraph
       )) {
         const dependency = connection.dependency!
         const request = (dependency as unknown as webpack.NormalModule).request
@@ -699,15 +702,15 @@ export class FlightClientEntryPlugin {
         return
       }
 
-      Array.from(compilation.moduleGraph.getOutgoingConnections(mod)).forEach(
-        (connection: any) => {
-          const dependencyIds: string[] = []
-          if (connection.dependency?.ids?.length) {
-            dependencyIds.push(...connection.dependency.ids)
-          }
-          filterClientComponents(connection.resolvedModule, dependencyIds)
+      Array.from(
+        getModuleReferencesInOrder(mod, compilation.moduleGraph)
+      ).forEach((connection: any) => {
+        const dependencyIds: string[] = []
+        if (connection.dependency?.ids?.length) {
+          dependencyIds.push(...connection.dependency.ids)
         }
-      )
+        filterClientComponents(connection.resolvedModule, dependencyIds)
+      })
     }
 
     // Traverse the module graph to find all client components.

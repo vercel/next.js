@@ -31,6 +31,7 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { getModuleReferencesInOrder } from '../utils'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
@@ -712,7 +713,7 @@ function getExtractMetadata(params: {
          * Append to the list of modules to process outgoingConnections from
          * the module that is being processed.
          */
-        for (const conn of moduleGraph.getOutgoingConnections(module)) {
+        for (const conn of getModuleReferencesInOrder(module, moduleGraph)) {
           if (conn.module) {
             modules.add(conn.module as webpack.NormalModule)
           }

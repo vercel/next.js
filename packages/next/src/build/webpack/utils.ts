@@ -1,5 +1,10 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type {
+  webpack,
+  Module,
+  ModuleGraph,
+} from 'next/dist/compiled/webpack/webpack'
 import { isAppRouteRoute } from '../../lib/is-app-route-route'
+import type { ModuleGraphConnection } from 'webpack'
 
 export function traverseModules(
   compilation: webpack.Compilation,
@@ -83,4 +88,18 @@ export function formatBarrelOptimizedResource(
   matchResource: string
 ) {
   return `${resource}@${matchResource}`
+}
+
+export function getModuleReferencesInOrder(
+  module: Module,
+  moduleGraph: ModuleGraph
+): Set<ModuleGraphConnection> {
+  const connections = new Set<ModuleGraphConnection>()
+  for (const dep of module.dependencies) {
+    const connection = moduleGraph.getConnection(dep)
+    if (connection) {
+      connections.add(connection)
+    }
+  }
+  return connections
 }
