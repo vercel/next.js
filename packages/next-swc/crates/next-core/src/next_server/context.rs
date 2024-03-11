@@ -8,8 +8,8 @@ use turbopack_binding::{
         tasks_fs::FileSystemPath,
     },
     turbopack::{
-        build::{BuildChunkingContext, MinifyType},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -22,6 +22,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        nodejs::NodeJsChunkingContext,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -362,7 +363,7 @@ pub async fn get_server_module_options_context(
         .cell()
     });
 
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
@@ -407,6 +408,15 @@ pub async fn get_server_module_options_context(
         get_styled_components_transform_rule(next_config).await?;
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
+    let module_options_context = ModuleOptionsContext {
+        execution_context: Some(execution_context),
+        use_swc_css,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        import_externals: *next_config.import_externals().await?,
+        ignore_dynamic_requests: true,
+        ..Default::default()
+    };
+
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
@@ -440,12 +450,8 @@ pub async fn get_server_module_options_context(
             );
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -501,14 +507,6 @@ pub async fn get_server_module_options_context(
 
             next_server_rules.extend(custom_source_transform_rules.clone());
             next_server_rules.extend(source_transform_rules);
-
-            let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
-            };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: foreign_next_server_rules.clone(),
@@ -578,14 +576,6 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(custom_source_transform_rules.clone());
             next_server_rules.extend(source_transform_rules);
 
-            let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
-            };
-
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
@@ -623,10 +613,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
@@ -670,12 +657,6 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
 
-            let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
-            };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
@@ -725,7 +706,8 @@ pub fn get_server_runtime_entries(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_chunking_context(
+pub async fn get_server_chunking_context(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
@@ -733,11 +715,11 @@ pub fn get_server_chunking_context(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<BuildChunkingContext> {
+) -> Result<Vc<NodeJsChunkingContext>> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    BuildChunkingContext::builder(
+    Ok(NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
@@ -746,6 +728,10 @@ pub fn get_server_chunking_context(
         environment,
     )
     .asset_prefix(asset_prefix)
-    .minify_type(MinifyType::NoMinify)
-    .build()
+    .minify_type(if mode.await?.should_minify() {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
+    .build())
 }

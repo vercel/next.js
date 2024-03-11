@@ -538,7 +538,7 @@ importers:
         version: 1.2.2
       tsec:
         specifier: 0.2.1
-        version: 0.2.1(@bazel/bazelisk@1.19.0)(typescript@5.2.2)
+        version: 0.2.1(@bazel/bazelisk@1.18.0)(typescript@5.2.2)
       turbo:
         specifier: 1.12.2
         version: 1.12.2
@@ -747,7 +747,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -809,7 +809,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.5
@@ -930,16 +930,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1071,8 +1071,8 @@ importers:
         specifier: 0.26.4
         version: 0.26.4
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240307.1
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240307.1'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240311.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240311.1'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1554,7 +1554,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.2.0-canary.8
+        specifier: 14.2.0-canary.13
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1667,7 +1667,7 @@ packages:
       slash: 2.0.0
     optionalDependencies:
       '@nicolo-ribaudo/chokidar-2': 2.1.8-no-fsevents.3
-      chokidar: 3.6.0
+      chokidar: 3.5.3
     dev: true
 
   /@babel/code-frame@7.12.11:
@@ -1680,7 +1680,7 @@ packages:
     resolution: {integrity: sha512-iAXqUn8IIeBTNd72xsFlgaXHkMBMt6y4HJp1tIaK465CWLT/fG1aqB7ykr95gHHmlBdGbFeWWfyB4NJJ0nmeIg==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      '@babel/highlight': 7.23.4
+      '@babel/highlight': 7.22.20
     dev: true
 
   /@babel/code-frame@7.22.13:
@@ -1842,24 +1842,6 @@ packages:
       '@babel/helper-split-export-declaration': 7.22.6
       semver: 6.3.1
 
-  /@babel/helper-create-class-features-plugin@7.24.0(@babel/core@7.22.5):
-    resolution: {integrity: sha512-QAH+vfvts51BCsNZ2PhY6HAggnlS6omLLFTsIpeqZk/MmJ6cW7tgz5yRv0fMJThcr6FmbMrENh1RgrWPTYA76g==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': 7.22.5
-    dependencies:
-      '@babel/core': 7.22.5
-      '@babel/helper-annotate-as-pure': 7.22.5
-      '@babel/helper-environment-visitor': 7.22.20
-      '@babel/helper-function-name': 7.23.0
-      '@babel/helper-member-expression-to-functions': 7.23.0
-      '@babel/helper-optimise-call-expression': 7.22.5
-      '@babel/helper-replace-supers': 7.22.20(@babel/core@7.22.5)
-      '@babel/helper-skip-transparent-expression-wrappers': 7.22.5
-      '@babel/helper-split-export-declaration': 7.22.6
-      semver: 6.3.1
-    dev: true
-
   /@babel/helper-create-regexp-features-plugin@7.22.1(@babel/core@7.22.5):
     resolution: {integrity: sha512-WWjdnfR3LPIe+0EY8td7WmjhytxXtjKAEpnAxun/hkNiyOaPlvGK+NZaBFIdi9ndYV3Gav7BpFvtUwnaJlwi1w==}
     engines: {node: '>=6.9.0'}
@@ -1963,20 +1945,6 @@ packages:
       '@babel/helper-split-export-declaration': 7.22.6
       '@babel/helper-validator-identifier': 7.22.20
 
-  /@babel/helper-module-transforms@7.23.3(@babel/core@7.22.5):
-    resolution: {integrity: sha512-7bBs4ED9OmswdfDzpz4MpWgSrV7FXlc3zIagvLFjS5H+Mk7Snr21vQ6QwrsoCGMfNC4e4LQPdoULEt4ykz0SRQ==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': 7.22.5
-    dependencies:
-      '@babel/core': 7.22.5
-      '@babel/helper-environment-visitor': 7.22.20
-      '@babel/helper-module-imports': 7.22.15
-      '@babel/helper-simple-access': 7.22.5
-      '@babel/helper-split-export-declaration': 7.22.6
-      '@babel/helper-validator-identifier': 7.22.20
-    dev: true
-
   /@babel/helper-optimise-call-expression@7.18.6:
     resolution: {integrity: sha512-HP59oD9/fEHQkdcbgFCnbmgH5vIQTJbxh2yf+CdM89/glUNnuzr87Q8GIjGEnOktTROemO0Pe0iPAYbqZuOUiA==}
     engines: {node: '>=6.9.0'}
@@ -2000,11 +1968,6 @@ packages:
   /@babel/helper-plugin-utils@7.22.5:
     resolution: {integrity: sha512-uLls06UVKgFG9QD4OeFYLEGteMIAa5kpTPcFL28yuCIIzsf6ZyKZMllKVOCZFhiZ5ptnwX4mtKdWCBE/uT4amg==}
     engines: {node: '>=6.9.0'}
-
-  /@babel/helper-plugin-utils@7.24.0:
-    resolution: {integrity: sha512-9cUznXMG0+FxRuJfvL82QlTqIzhVW9sL0KjMPHhAOOvpQGL8QtdxnBKILjBqxlHyliz0yCa1G903ZXI/FuHy2w==}
-    engines: {node: '>=6.9.0'}
-    dev: true
 
   /@babel/helper-remap-async-to-generator@7.22.20(@babel/core@7.22.5):
     resolution: {integrity: sha512-pBGyV4uBqOns+0UvhsTO8qgl8hO89PmiDYv+/COyp1aeMcmfrfruz+/nCMFiYyFF/Knn0yfrC85ZzNFjembFTw==}
@@ -2087,11 +2050,6 @@ packages:
     resolution: {integrity: sha512-bMn7RmyFjY/mdECUbgn9eoSY4vqvacUnS9i9vGAGttgFWesO6B4CYWA7XlpbWgBt71iv/hfbPlynohStqnu5hA==}
     engines: {node: '>=6.9.0'}
 
-  /@babel/helper-validator-option@7.23.5:
-    resolution: {integrity: sha512-85ttAOMLsr53VgXkTbkx8oA6YTfT4q7/HzXSLEYmjcSTJPMPQtvq1BD79Byep5xMUYbGRzEpDsjUf3dyp54IKw==}
-    engines: {node: '>=6.9.0'}
-    dev: true
-
   /@babel/helper-wrap-function@7.22.20:
     resolution: {integrity: sha512-pms/UwkOpnQe/PDAEdV/d7dVCoBbB+R4FvYoHGZz+4VPcg7RtYy2KP7S2lbuWM6FCSgob5wshfGESbC/hzNXZw==}
     engines: {node: '>=6.9.0'}
@@ -2117,15 +2075,6 @@ packages:
       '@babel/helper-validator-identifier': 7.22.20
       chalk: 2.4.2
       js-tokens: 4.0.0
-
-  /@babel/highlight@7.23.4:
-    resolution: {integrity: sha512-acGdbYSfp2WheJoJm/EBBBLh/ID8KDc64ISZ9DYtBmC8/Q204PZJLHyzeB5qMzJ5trcOkybd78M4x2KWsUq++A==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/helper-validator-identifier': 7.22.20
-      chalk: 2.4.2
-      js-tokens: 4.0.0
-    dev: true
 
   /@babel/parser@7.22.5:
     resolution: {integrity: sha512-DFZMC9LJUG9PLOclRC32G63UXwzqS2koQC8dkx+PLdmt1xSePYpbT/NbsrJy8Q/muXz7o/h/d4A7Fuyixm559Q==}
@@ -2185,8 +2134,8 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-create-class-features-plugin': 7.24.0(@babel/core@7.22.5)
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-create-class-features-plugin': 7.22.15(@babel/core@7.22.5)
+      '@babel/helper-plugin-utils': 7.22.5
     dev: true
 
   /@babel/plugin-proposal-class-properties@7.18.6(@babel/core@7.22.5):
@@ -2210,7 +2159,7 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/plugin-syntax-dynamic-import': 7.8.3(@babel/core@7.22.5)
     dev: true
 
@@ -2222,7 +2171,7 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/plugin-syntax-export-namespace-from': 7.8.3(@babel/core@7.22.5)
     dev: true
 
@@ -2246,7 +2195,7 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/plugin-syntax-logical-assignment-operators': 7.10.4(@babel/core@7.22.5)
     dev: true
 
@@ -2268,7 +2217,7 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/plugin-syntax-numeric-separator': 7.10.4(@babel/core@7.22.5)
     dev: true
 
@@ -2318,8 +2267,8 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-create-class-features-plugin': 7.24.0(@babel/core@7.22.5)
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-create-class-features-plugin': 7.22.15(@babel/core@7.22.5)
+      '@babel/helper-plugin-utils': 7.22.5
     dev: true
 
   /@babel/plugin-proposal-private-property-in-object@7.16.7(@babel/core@7.22.5):
@@ -2331,8 +2280,8 @@ packages:
     dependencies:
       '@babel/core': 7.22.5
       '@babel/helper-annotate-as-pure': 7.22.5
-      '@babel/helper-create-class-features-plugin': 7.24.0(@babel/core@7.22.5)
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-create-class-features-plugin': 7.22.15(@babel/core@7.22.5)
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/plugin-syntax-private-property-in-object': 7.14.5(@babel/core@7.22.5)
     dev: true
 
@@ -2804,8 +2753,8 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-module-transforms': 7.23.3(@babel/core@7.22.5)
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-module-transforms': 7.23.0(@babel/core@7.22.5)
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/helper-simple-access': 7.22.5
       babel-plugin-dynamic-import-node: 2.3.3
     dev: true
@@ -3029,7 +2978,7 @@ packages:
       '@babel/core': 7.22.5
       '@babel/helper-annotate-as-pure': 7.22.5
       '@babel/helper-module-imports': 7.22.15
-      '@babel/helper-plugin-utils': 7.24.0
+      '@babel/helper-plugin-utils': 7.22.5
       '@babel/plugin-syntax-jsx': 7.22.5(@babel/core@7.22.5)
       '@babel/types': 7.22.5
     dev: true
@@ -3350,8 +3299,8 @@ packages:
       '@babel/core': 7.22.5
     dependencies:
       '@babel/core': 7.22.5
-      '@babel/helper-plugin-utils': 7.24.0
-      '@babel/helper-validator-option': 7.23.5
+      '@babel/helper-plugin-utils': 7.22.5
+      '@babel/helper-validator-option': 7.22.15
       '@babel/plugin-transform-typescript': 7.22.15(@babel/core@7.22.5)
     dev: true
 
@@ -3439,8 +3388,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
-  /@bazel/bazelisk@1.19.0:
-    resolution: {integrity: sha512-8PyRGRj/CN286IFHVILgYZ2lQ/JvgQ25ZEgoUAkpSnGmbPdQnKyHtTGEG+Sf0AISFqP5+PPzN162DcizZ/bR9w==}
+  /@bazel/bazelisk@1.18.0:
+    resolution: {integrity: sha512-WqlTatsGKypeHYidqe3/6W8dkqkgJ13sMCEers/vH7dNwxojHrMQcuaH26sOnQG1eVn8UfHo78fy34yGAF3zsw==}
     hasBin: true
     dev: true
 
@@ -4233,7 +4182,7 @@ packages:
       '@jest/types': 29.6.3
       '@types/node': 20.2.5
       ansi-escapes: 4.3.2
-      chalk: 4.1.2
+      chalk: 4.0.0
       ci-info: 3.8.0
       exit: 0.1.2
       graceful-fs: 4.2.11
@@ -4564,7 +4513,7 @@ packages:
       '@types/istanbul-reports': 3.0.1
       '@types/node': 20.2.5
       '@types/yargs': 17.0.10
-      chalk: 4.1.2
+      chalk: 4.0.0
     dev: true
 
   /@jridgewell/gen-mapping@0.3.1:
@@ -8557,7 +8506,7 @@ packages:
       glob: 7.1.7
       pkg-up: 3.1.0
       reselect: 4.1.8
-      resolve: 1.22.8
+      resolve: 1.22.4
     dev: true
 
   /babel-plugin-polyfill-corejs2@0.4.3(@babel/core@7.22.5):
@@ -9347,23 +9296,6 @@ packages:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
-
-  /chokidar@3.6.0:
-    resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
-    engines: {node: '>= 8.10.0'}
-    requiresBuild: true
-    dependencies:
-      anymatch: 3.1.3
-      braces: 3.0.2
-      glob-parent: 5.1.2
-      is-binary-path: 2.1.0
-      is-glob: 4.0.3
-      normalize-path: 3.0.0
-      readdirp: 3.6.0
-    optionalDependencies:
-      fsevents: 2.3.3
-    dev: true
-    optional: true
 
   /chownr@1.1.3:
     resolution: {integrity: sha512-i70fVHhmV3DtTl6nqvZOnIjbY0Pe4kAUjwHj8z0zAdgBtYrJyYwLKCCuRBQ5ppkyL0AkN7HKRnETdmdp1zqNXw==}
@@ -13894,7 +13826,7 @@ packages:
       '@sidvind/better-ajv-errors': 0.6.10(ajv@6.12.6)
       acorn-walk: 8.2.0
       ajv: 6.12.6
-      chalk: 4.1.2
+      chalk: 4.0.0
       deepmerge: 4.2.2
       eslint: 7.24.0
       espree: 7.3.1
@@ -15250,7 +15182,7 @@ packages:
       '@jest/core': 29.7.0
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      chalk: 4.1.2
+      chalk: 4.0.0
       create-jest: 29.7.0(@types/node@20.2.5)
       exit: 0.1.2
       import-local: 3.0.2
@@ -15319,7 +15251,7 @@ packages:
     resolution: {integrity: sha512-LMIgiIrhigmPrs03JHpxUh2yISK3vLFPkAodPeo0+BuF7wA2FoQbkEg1u8gBYBThncu7e1oEDUfIXVuTqLRUjw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
-      chalk: 4.1.2
+      chalk: 4.0.0
       diff-sequences: 29.6.3
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
@@ -15456,7 +15388,7 @@ packages:
       fb-watchman: 2.0.1
       graceful-fs: 4.2.11
       jest-regex-util: 29.4.3
-      jest-util: 29.7.0
+      jest-util: 29.5.0
       jest-worker: 29.5.0
       micromatch: 4.0.5
       walker: 1.0.8
@@ -15852,7 +15784,7 @@ packages:
     dependencies:
       '@jest/types': 29.6.3
       '@types/node': 20.2.5
-      chalk: 4.1.2
+      chalk: 4.0.0
       ci-info: 3.8.0
       graceful-fs: 4.2.11
       picomatch: 2.3.1
@@ -21904,15 +21836,6 @@ packages:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  /resolve@1.22.8:
-    resolution: {integrity: sha512-oKWePCxqpd6FlLvGV1VU0x7bkPmmCNolxzjMf4NczoDnQcIWrAF+cPtZn5i6n+RfD2d9i0tzpKnG6Yk168yIyw==}
-    hasBin: true
-    dependencies:
-      is-core-module: 2.13.1
-      path-parse: 1.0.7
-      supports-preserve-symlinks-flag: 1.0.0
-    dev: true
-
   /resolve@2.0.0-next.4:
     resolution: {integrity: sha512-iMDbmAWtfU+MHpxt/I5iWI7cY6YVEZUQ3MBgPQ++XD1PELuJHIl82xBmObyP2KyQmkNB2dsqF7seoQQiAn5yDQ==}
     hasBin: true
@@ -24010,14 +23933,14 @@ packages:
       strip-bom: 3.0.0
     dev: true
 
-  /tsec@0.2.1(@bazel/bazelisk@1.19.0)(typescript@5.2.2):
+  /tsec@0.2.1(@bazel/bazelisk@1.18.0)(typescript@5.2.2):
     resolution: {integrity: sha512-RP9vhbRbRI9VH4CfOlQvo5W9HdfiPKq0gdiUOWI5oKmLaZKNFN8CsPwBfT5ySmhnKNwmmAS/BtY3WoTfABwwig==}
     hasBin: true
     peerDependencies:
       '@bazel/bazelisk': '>=1.7.5'
       typescript: '>=3.9.2'
     dependencies:
-      '@bazel/bazelisk': 1.19.0
+      '@bazel/bazelisk': 1.18.0
       glob: 7.1.7
       minimatch: 3.1.2
       typescript: 5.2.2
@@ -25569,8 +25492,8 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240307.1':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240307.1}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240311.1':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240311.1}
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
