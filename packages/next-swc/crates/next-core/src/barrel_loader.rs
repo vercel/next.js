@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use next_custom_transforms::transforms::optimize_barrel::apply_barrel_optimization;
 use turbo_tasks::Vc;
 use turbopack_binding::{
     swc::core::ecma::ast::Program,
@@ -32,5 +33,14 @@ struct BarrelLoader {
 
 #[async_trait]
 impl CustomTransformer for BarrelLoader {
-    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {}
+    async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        let exports = apply_barrel_optimization(
+            program,
+            next_custom_transforms::transforms::optimize_barrel::Config { wildcard: false },
+        );
+
+        dbg!(&exports);
+
+        Ok(())
+    }
 }
