@@ -272,6 +272,18 @@ child = ???*0*
 
 classEscape = (...) => ...[...](..., ...)["replace"](/\]/g, "\\]")["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 
+computed#86 = ???*0*
+- *0* ???*1*["computed"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+computed#95 = ???*0*
+- *0* ???*1*["computed"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
 condition = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -638,8 +650,8 @@ key = ???*0*
   ⚠️  function calls are not analysed yet
 
 left = ???*0*
-- *0* left
-  ⚠️  pattern without value
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 list = ???*0*
 - *0* arguments[1]
@@ -694,16 +706,18 @@ name#65 = ???*0*
   ⚠️  function calls are not analysed yet
 
 object#86 = ???*0*
-- *0* object
-  ⚠️  pattern without value
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 object#95 = ???*0*
-- *0* object
-  ⚠️  pattern without value
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 operator#1802 = ???*0*
-- *0* operator
-  ⚠️  pattern without value
+- *0* ???*1*[1]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 operator#87 = ???*0*
 - *0* arguments[0]
@@ -1505,9 +1519,23 @@ property#84 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
+property#86 = ???*0*
+- *0* ???*1*["property"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+property#95 = ???*0*
+- *0* ???*1*["property"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
 right = ???*0*
-- *0* right
-  ⚠️  pattern without value
+- *0* ???*1*[3]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 s#15 = ???*0*
 - *0* arguments[0]
