@@ -131,7 +131,7 @@ export async function verifyTypeScriptSetup({
       baseDir: dir,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
-      isAppDirEnabled: hasAppDir,
+      hasAppDir,
     })
 
     let result

@@ -26,7 +26,7 @@ import {
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
-import { createInfinitePromise } from './infinite-promise'
+import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
@@ -355,6 +355,7 @@ function InnerLayoutRouter({
       prefetchRsc: null,
       head: null,
       parallelRoutes: new Map(),
+      lazyDataResolved: false,
     }
 
     /**
@@ -411,25 +412,33 @@ function InnerLayoutRouter({
         context.nextUrl,
         buildId
       )
+      childNode.lazyDataResolved = false
     }
 
     /**
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(lazyData)
+    const serverResponse = use(lazyData)
 
-    // segmentPath from the server does not match the layout's segmentPath
-    childNode.lazyData = null
-
-    // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-    setTimeout(() => {
-      startTransition(() => {
-        changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
+    if (!childNode.lazyDataResolved) {
+      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
+      setTimeout(() => {
+        startTransition(() => {
+          changeByServerResponse({
+            previousTree: fullTree,
+            serverResponse,
+          })
+        })
       })
-    })
+
+      // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
+      // the patch to the tree.
+      childNode.lazyDataResolved = true
+    }
+
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(createInfinitePromise()) as never
+    use(unresolvedThenable) as never
   }
 
   // If we get to this point, then we know we have something we can render.

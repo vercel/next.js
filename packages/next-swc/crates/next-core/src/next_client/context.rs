@@ -7,7 +7,9 @@ use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
+        browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
+            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -16,7 +18,6 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
         node::{
             execution_context::ExecutionContext,
@@ -140,17 +141,18 @@ pub enum ClientContextType {
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
         get_next_client_import_map(project_path, ty, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
-    let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path, mode);
+    let next_client_resolved_map =
+        get_next_client_resolved_map(project_path, project_path, *mode.await?);
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec![mode.node_env().to_string()],
+        custom_conditions: vec![mode.await?.node_env().to_string()],
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
         resolved_map: Some(next_client_resolved_map),
@@ -167,6 +169,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
@@ -182,7 +185,7 @@ pub async fn get_client_module_options_context(
     execution_context: Vc<ExecutionContext>,
     env: Vc<Environment>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let resolve_options_context =
@@ -240,11 +243,13 @@ pub async fn get_client_module_options_context(
         .cell()
     });
 
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+    let foreign_next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config).await?,
@@ -284,6 +289,7 @@ pub async fn get_client_module_options_context(
     let foreign_codes_options_context = ModuleOptionsContext {
         enable_webpack_loaders: foreign_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
+        custom_rules: foreign_next_client_rules,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };
@@ -315,7 +321,7 @@ pub async fn get_client_module_options_context(
             ),
         ],
         custom_rules: next_client_rules,
-        use_lightningcss,
+        use_swc_css,
         ..module_options_context
     }
     .cell();
@@ -329,9 +335,10 @@ pub async fn get_client_chunking_context(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let mut builder = DevChunkingContext::builder(
+    let next_mode = mode.await?;
+    let mut builder = BrowserChunkingContext::builder(
         project_path,
         client_root,
         client_root,
@@ -340,9 +347,14 @@ pub async fn get_client_chunking_context(
         environment,
     )
     .chunk_base_path(asset_prefix)
+    .minify_type(if next_mode.should_minify() {
+        MinifyType::Minify
+    } else {
+        MinifyType::NoMinify
+    })
     .asset_base_path(asset_prefix);
 
-    if matches!(mode, NextMode::Development) {
+    if next_mode.is_development() {
         builder = builder.hot_module_replacement();
     }
 
@@ -358,71 +370,39 @@ pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemP
 pub async fn get_client_runtime_entries(
     project_root: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
+    let resolve_options_context =
+        get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
 
-    match mode {
-        NextMode::Development => {
-            let resolve_options_context = get_client_resolve_options_context(
-                project_root,
-                ty,
-                mode,
-                next_config,
-                execution_context,
-            );
-            let enable_react_refresh =
-                assert_can_resolve_react_refresh(project_root, resolve_options_context)
-                    .await?
-                    .as_request();
+    if mode.await?.is_development() {
+        let enable_react_refresh =
+            assert_can_resolve_react_refresh(project_root, resolve_options_context)
+                .await?
+                .as_request();
 
-            // It's important that React Refresh come before the regular bootstrap file,
-            // because the bootstrap contains JSX which requires Refresh's global
-            // functions to be available.
-            if let Some(request) = enable_react_refresh {
-                runtime_entries
-                    .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
-            };
+        // It's important that React Refresh come before the regular bootstrap file,
+        // because the bootstrap contains JSX which requires Refresh's global
+        // functions to be available.
+        if let Some(request) = enable_react_refresh {
+            runtime_entries
+                .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
+        };
+    }
 
-            if matches!(*ty, ClientContextType::App { .. },) {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "next/dist/client/app-next-dev-turbopack.js".to_string(),
-                        ))),
-                        project_root.join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
-        }
-        NextMode::Build => match *ty {
-            ClientContextType::App { .. } => {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/client/app-bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
-            ClientContextType::Pages { .. } => {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/client/bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
-            _ => {}
-        },
+    if matches!(*ty, ClientContextType::App { .. },) {
+        runtime_entries.push(
+            RuntimeEntry::Request(
+                Request::parse(Value::new(Pattern::Constant(
+                    "next/dist/client/app-next-turbopack.js".to_string(),
+                ))),
+                project_root.join("_".to_string()),
+            )
+            .cell(),
+        );
     }
 
     Ok(Vc::cell(runtime_entries))

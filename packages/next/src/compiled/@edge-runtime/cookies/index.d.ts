@@ -119,7 +119,7 @@ interface CookieSerializeOptions {
  * {@link https://wicg.github.io/cookie-store/#dictdef-cookielistitem CookieListItem}
  * as specified by W3C.
  */
-interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' | 'secure' | 'sameSite'> {
+interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' | 'secure' | 'sameSite' | 'partitioned'> {
     /** A string with the name of a cookie. */
     name: string;
     /** A string containing the value of the cookie. */

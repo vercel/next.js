@@ -68,8 +68,15 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
     let mut conditions = vec![
         ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
         ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+        ModuleRuleCondition::All(vec![
+            ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+            ModuleRuleCondition::Not(Box::new(ModuleRuleCondition::ResourcePathEndsWith(
+                "d.ts".to_string(),
+            ))),
+        ]),
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
     ];
 
     if enable_mdx_rs {
