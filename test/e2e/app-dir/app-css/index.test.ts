@@ -776,7 +776,7 @@ createNextDescribe(
               () =>
                 browser.eval(
                   `(() => {
-                    const tags = document.querySelectorAll('link[rel="stylesheet"][href^="/_next/static/css"]')
+                    const tags = document.querySelectorAll('link[rel="stylesheet"][href^="/_next/static"]')
                     const counts = new Map();
                     for (const tag of tags) {
                       counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
