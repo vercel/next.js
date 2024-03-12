@@ -10,7 +10,7 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
   const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
 
-  if (isPrivateKey ?? hasNextRuntimeKey) {
+  if (isPrivateKey || hasNextRuntimeKey) {
     throw new Error(
       `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
     )
