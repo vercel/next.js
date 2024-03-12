@@ -239,7 +239,7 @@ pub async fn webpack_runtime(
                 }
             }
         }
-        ParseResult::Unparseable | ParseResult::NotFound => {}
+        ParseResult::Unparseable { .. } | ParseResult::NotFound => {}
     }
     Ok(WebpackRuntime::None.into())
 }

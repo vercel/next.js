@@ -11,10 +11,27 @@ use turbopack_core::{
     source::Source,
 };
 
+#[derive(Clone)]
 pub struct IssueEmitter {
     pub source: Vc<Box<dyn Source>>,
     pub source_map: Arc<SourceMap>,
     pub title: Option<String>,
+    pub emitted_issues: Vec<Vc<AnalyzeIssue>>,
+}
+
+impl IssueEmitter {
+    pub fn new(
+        source: Vc<Box<dyn Source>>,
+        source_map: Arc<SourceMap>,
+        title: Option<String>,
+    ) -> Self {
+        Self {
+            source,
+            source_map,
+            title,
+            emitted_issues: vec![],
+        }
+    }
 }
 
 impl Emitter for IssueEmitter {
@@ -45,7 +62,7 @@ impl Emitter for IssueEmitter {
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
-        AnalyzeIssue {
+        let issue = AnalyzeIssue {
             severity: match level {
                 Level::Bug => IssueSeverity::Bug,
                 Level::Fatal | Level::PhaseFatal => IssueSeverity::Fatal,
@@ -63,7 +80,10 @@ impl Emitter for IssueEmitter {
             code,
             source,
         }
-        .cell()
-        .emit();
+        .cell();
+
+        self.emitted_issues.push(issue);
+
+        issue.emit();
     }
 }
