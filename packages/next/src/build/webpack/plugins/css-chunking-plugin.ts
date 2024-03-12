@@ -1,4 +1,4 @@
-import type { Chunk, ChunkGraph, Compiler, ChunkGroup, Module } from 'webpack'
+import type { Chunk, Compiler, Module } from 'webpack'
 
 const PLUGIN_NAME = 'CssChunkingPlugin'
 
@@ -15,10 +15,18 @@ type ChunkState = {
   chunk: Chunk
   modules: Module[]
   order: number
+  requests: number
 }
 
 export class CssChunkingPlugin {
+  private strict: boolean
+  constructor(strict: boolean) {
+    this.strict = strict
+  }
+
   public apply(compiler: Compiler) {
+    const strict = this.strict
+    const summary = !!process.env.CSS_CHUNKING_SUMMARY
     compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
       let once = false
       compilation.hooks.optimizeChunks.tap(
@@ -36,8 +44,8 @@ export class CssChunkingPlugin {
 
           const chunkStates = new Map<Chunk, ChunkState>()
           const chunkStatesByModule = new Map<Module, Map<ChunkState, number>>()
-          const newChunksByModule = new Map<Module, Chunk>()
 
+          // Collect all css modules in chunks and the execpted order of them
           for (const chunk of compilation.chunks) {
             const modules = []
             for (const module of chunkGraph.getChunkModulesIterable(chunk)) {
@@ -49,6 +57,7 @@ export class CssChunkingPlugin {
               chunk,
               modules,
               order: 0,
+              requests: modules.length,
             }
             chunkStates.set(chunk, chunkState)
             for (let i = 0; i < modules.length; i++) {
@@ -63,6 +72,7 @@ export class CssChunkingPlugin {
             }
           }
 
+          // Sort modules by their index sum
           const orderedModules: { module: Module; sum: number }[] = []
 
           for (const [module, moduleChunkStates] of chunkStatesByModule) {
@@ -75,63 +85,166 @@ export class CssChunkingPlugin {
 
           orderedModules.sort((a, b) => a.sum - b.sum)
 
+          // A queue of modules that still need to be processed
           const remainingModules = new Set(
             orderedModules.map(({ module }) => module)
           )
 
+          // In loose mode we guess the dependents of modules from the order
+          // assuming that when a module is a dependency of another module
+          // it will always appear before it in every chunk.
+          const allDependents = new Map<Module, Set<Module>>()
+
+          if (!this.strict) {
+            for (const b of remainingModules) {
+              const dependent = new Set<Module>()
+              loop: for (const a of remainingModules) {
+                if (a === b) continue
+                // check if a depends on b
+                for (const [chunkState, ia] of chunkStatesByModule.get(a)!) {
+                  const bChunkStates = chunkStatesByModule.get(b)!
+                  const ib = bChunkStates.get(chunkState)
+                  if (ib === undefined) {
+                    // If a would depend on b, it would be included in that chunk group too
+                    continue loop
+                  }
+                  if (ib > ia) {
+                    // If a would depend on b, b would be before a in order
+                    continue loop
+                  }
+                }
+                dependent.add(a)
+              }
+              if (dependent.size > 0) allDependents.set(b, dependent)
+            }
+          }
+
+          // Stores the new chunk for every module
+          const newChunksByModule = new Map<Module, Chunk>()
+
+          // Process through all modules
           for (const startModule of remainingModules) {
-            const startChunkStates = chunkStatesByModule.get(startModule)!
-            let allChunkStates = new Map(startChunkStates)
-            const newChunkModules = [startModule]
-            remainingModules.delete(startModule)
+            // The current position of processing in all selected chunks
+            let allChunkStates = new Map(chunkStatesByModule.get(startModule)!)
+
+            // The list of modules that goes into the new chunk
+            const newChunkModules = new Set([startModule])
+
+            // The current size of the new chunk
             let currentSize = startModule.size()
 
-            const potentialNextModules = new Set<Module>()
+            // A pool of potential modules where the next module is selected from.
+            // It's filled from the next module of the selected modules in every chunk.
+            // It also keeps some metadata to improve performance [size, chunkStates].
+            const potentialNextModules = new Map<
+              Module,
+              [number, Map<ChunkState, number>]
+            >()
             for (const [chunkState, i] of allChunkStates) {
               const nextModule = chunkState.modules[i + 1]
               if (nextModule && remainingModules.has(nextModule)) {
-                potentialNextModules.add(nextModule)
+                potentialNextModules.set(nextModule, [
+                  nextModule.size(),
+                  chunkStatesByModule.get(nextModule)!,
+                ])
               }
             }
+
+            // Try to add modules to the chunk until a break condition is met
             let cont
             do {
               cont = false
-              loop: for (const nextModule of potentialNextModules) {
-                const size = nextModule.size()
+              // We try to select a module that reduces request count and
+              // has the highest number of requests
+              const orderedPotentialNextModules = []
+              for (const [
+                nextModule,
+                [size, nextChunkStates],
+              ] of potentialNextModules) {
+                let maxRequests = 0
+                for (const chunkState of nextChunkStates.keys()) {
+                  // There is always some overlap
+                  if (allChunkStates.has(chunkState)) {
+                    maxRequests = Math.max(maxRequests, chunkState.requests)
+                  }
+                }
+
+                orderedPotentialNextModules.push([
+                  nextModule,
+                  size,
+                  nextChunkStates,
+                  maxRequests,
+                ] as const)
+              }
+              orderedPotentialNextModules.sort(
+                (a, b) =>
+                  b[3] - a[3] ||
+                  (a[0].identifier() < b[0].identifier() ? -1 : 1)
+              )
+
+              // Try every potential module
+              loop: for (const [
+                nextModule,
+                size,
+                nextChunkStates,
+              ] of orderedPotentialNextModules) {
                 if (currentSize + size > MAX_CSS_CHUNK_SIZE) {
                   // Chunk would be too large
                   continue
                 }
-                const nextChunkStates = chunkStatesByModule.get(nextModule)!
-                for (const [chunkState, i] of nextChunkStates) {
-                  const prevState = allChunkStates.get(chunkState)
-                  if (prevState === undefined) {
-                    // New chunk group, can add it, but should we?
-                    // We only add that if below min size
-                    if (currentSize < MIN_CSS_CHUNK_SIZE) {
+                if (!strict) {
+                  // In loose mode we only check if the dependencies are not violated
+                  const dependent = allDependents.get(nextModule)
+                  if (dependent) {
+                    for (const dep of dependent) {
+                      if (newChunkModules.has(dep)) {
+                        // A dependent of the module is already in the chunk, which would violate the order
+                        continue loop
+                      }
+                    }
+                  }
+                } else {
+                  // In strict mode we check that none of the order in any chunk is changed by adding the module
+                  for (const [chunkState, i] of nextChunkStates) {
+                    const prevState = allChunkStates.get(chunkState)
+                    if (prevState === undefined) {
+                      // New chunk group, can add it, but should we?
+                      // We only add that if below min size
+                      if (currentSize < MIN_CSS_CHUNK_SIZE) {
+                        continue
+                      } else {
+                        continue loop
+                      }
+                    } else if (prevState + 1 === i) {
+                      // Existing chunk group, order fits
                       continue
                     } else {
+                      // Existing chunk group, there is something in between or order is reversed
                       continue loop
                     }
-                  } else if (prevState + 1 === i) {
-                    // Existing chunk group, order fits
-                    continue
-                  } else {
-                    // Existing chunk group, there is something in between or order is reversed
-                    continue loop
                   }
                 }
                 potentialNextModules.delete(nextModule)
-                remainingModules.delete(nextModule)
                 currentSize += size
                 for (const [chunkState, i] of nextChunkStates) {
+                  if (allChunkStates.has(chunkState)) {
+                    // This reduces the request count of the chunk group
+                    chunkState.requests--
+                  }
                   allChunkStates.set(chunkState, i)
                   const newNextModule = chunkState.modules[i + 1]
-                  if (newNextModule && remainingModules.has(newNextModule)) {
-                    potentialNextModules.add(newNextModule)
+                  if (
+                    newNextModule &&
+                    remainingModules.has(newNextModule) &&
+                    !newChunkModules.has(newNextModule)
+                  ) {
+                    potentialNextModules.set(newNextModule, [
+                      newNextModule.size(),
+                      chunkStatesByModule.get(newNextModule)!,
+                    ])
                   }
                 }
-                newChunkModules.push(nextModule)
+                newChunkModules.add(nextModule)
                 cont = true
                 break
               }
@@ -140,6 +253,7 @@ export class CssChunkingPlugin {
             newChunk.preventIntegration = true
             newChunk.idNameHints.add('css')
             for (const module of newChunkModules) {
+              remainingModules.delete(module)
               chunkGraph.connectChunkAndModule(newChunk, module)
               newChunksByModule.set(module, newChunk)
             }
@@ -149,11 +263,27 @@ export class CssChunkingPlugin {
           for (const { chunk, modules } of chunkStates.values()) {
             const chunks = new Set()
             for (const module of modules) {
-              chunkGraph.disconnectChunkAndModule(chunk, module)
-              const newChunk = newChunksByModule.get(module)!
-              if (chunks.has(newChunk)) continue
-              chunks.add(newChunk)
-              chunk.split(newChunk)
+              const newChunk = newChunksByModule.get(module)
+              if (newChunk) {
+                chunkGraph.disconnectChunkAndModule(chunk, module)
+                if (chunks.has(newChunk)) continue
+                chunks.add(newChunk)
+                chunk.split(newChunk)
+              }
+            }
+          }
+
+          if (summary) {
+            console.log('Top 20 chunks by request count:')
+            const orderedChunkStates = [...chunkStates.values()]
+            orderedChunkStates.sort((a, b) => b.requests - a.requests)
+            for (const { chunk, modules, requests } of orderedChunkStates.slice(
+              0,
+              20
+            )) {
+              console.log(
+                `- ${requests} requests for ${chunk.name} (has ${modules.length} modules)`
+              )
             }
           }
 

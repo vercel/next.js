@@ -200,6 +200,13 @@ export interface ExperimentalConfig {
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
+   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * between CSS files to keep ordering of them.
+   * An alternative is 'strict', which will try to keep correct ordering as
+   * much as possible, even when this leads to many requests.
+   */
+  cssChunking?: 'strict' | 'loose'
+  /**
    * @deprecated use config.cacheHandler instead
    */
   incrementalCacheHandlerPath?: string
