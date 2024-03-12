@@ -29,6 +29,7 @@ jobs:
   upload_test_results:
     name: Upload test results
     needs: [next_js_integration]
-    if: github.repository_owner == 'vercel' && ${{ github.event_name == 'schedule' }} && always()
+    # if: github.repository_owner == 'vercel' && ${{ github.event_name == 'schedule' }} && always()
+    if: always()
     uses: ./.github/workflows/upload-nextjs-integration-test-results.yml
     secrets: inherit
