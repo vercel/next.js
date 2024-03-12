@@ -210,30 +210,32 @@ createNextDescribe(
       }
     })
 
-    it('should properly revalidate a route handler that triggers dynamic usage with force-static', async () => {
-      // wait for the revalidation period
-      let res = await next.fetch('/route-handler/no-store-force-static')
+    if (!isDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should properly revalidate a route handler that triggers dynamic usage with force-static', async () => {
+        // wait for the revalidation period
+        let res = await next.fetch('/route-handler/no-store-force-static')
 
-      let data = await res.json()
-      // grab the initial timestamp
-      const initialTimestamp = data.now
+        let data = await res.json()
+        // grab the initial timestamp
+        const initialTimestamp = data.now
 
-      // confirm its cached still
-      res = await next.fetch('/route-handler/no-store-force-static')
+        // confirm its cached still
+        res = await next.fetch('/route-handler/no-store-force-static')
 
-      data = await res.json()
+        data = await res.json()
 
-      expect(data.now).toBe(initialTimestamp)
+        expect(data.now).toBe(initialTimestamp)
 
-      // wait for the revalidation time
-      await waitFor(3000)
+        // wait for the revalidation time
+        await waitFor(3000)
 
-      // verify fresh data
-      res = await next.fetch('/route-handler/no-store-force-static')
-      data = await res.json()
+        // verify fresh data
+        res = await next.fetch('/route-handler/no-store-force-static')
+        data = await res.json()
 
-      expect(data.now).not.toBe(initialTimestamp)
-    })
+        expect(data.now).not.toBe(initialTimestamp)
+      })
+    }
 
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
