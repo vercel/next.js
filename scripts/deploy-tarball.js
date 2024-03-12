@@ -1,3 +1,4 @@
+// @ts-check
 const path = require('path')
 const execa = require('execa')
 const fs = require('fs/promises')
@@ -30,7 +31,7 @@ async function main() {
 
   const optionalDeps = {}
   const { version } = JSON.parse(
-    await fs.readFile(path.join(cwd, 'lerna.json'))
+    await fs.readFile(path.join(cwd, 'lerna.json'), 'utf8')
   )
 
   await Promise.all(
@@ -42,7 +43,8 @@ async function main() {
       )
       let pkg = JSON.parse(
         await fs.readFile(
-          path.join(nativePackagesDir, platform, 'package.json')
+          path.join(nativePackagesDir, platform, 'package.json'),
+          'utf8'
         )
       )
       pkg.version = version
@@ -55,7 +57,7 @@ async function main() {
         `${path.join(nativePackagesDir, platform)}`,
       ])
       process.stdout.write(stdout)
-      const tarballName = stdout.split('\n').pop().trim()
+      const tarballName = stdout.split('\n').pop()?.trim() || ''
       await fs.rename(
         path.join(cwd, tarballName),
         path.join(publicDir, tarballName)
@@ -76,7 +78,7 @@ async function main() {
     `${path.join(cwd, 'packages/next')}`,
   ])
   process.stdout.write(nextPackStdout)
-  const nextTarballName = nextPackStdout.split('\n').pop().trim()
+  const nextTarballName = nextPackStdout.split('\n').pop()?.trim() || ''
   await fs.rename(
     path.join(cwd, nextTarballName),
     path.join(publicDir, nextTarballName)
@@ -119,7 +121,7 @@ async function main() {
     'vercel',
     [
       '--scope',
-      process.env.VERCEL_TEST_TEAM,
+      process.env.VERCEL_TEST_TEAM || '',
       '--global-config',
       vercelConfigDir,
       '-y',
@@ -138,8 +140,8 @@ async function main() {
       deployOutput += chunk.toString()
     }
   }
-  child.stdout.on('data', handleData('stdout', true))
-  child.stderr.on('data', handleData('stderr'))
+  child.stdout?.on('data', handleData('stdout'))
+  child.stderr?.on('data', handleData('stderr'))
 
   await child
 
