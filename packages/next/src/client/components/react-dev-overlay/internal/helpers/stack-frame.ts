@@ -150,7 +150,7 @@ export function getFrameSource(frame: StackFrame): string {
     str += formatFrameSourceFile(frame.file || '(unknown)') + ' '
   }
 
-  if (!isInternal(frame.file) && frame.lineNumber != null) {
+  if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
     if (frame.column != null) {
       str += `(${frame.lineNumber}:${frame.column}) `
     } else {
