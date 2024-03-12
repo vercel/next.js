@@ -1000,5 +1000,10 @@ createNextDescribe(
       expect(iconHtml).toContain('pages-icon-page')
       expect(ogHtml).toContain('pages-opengraph-image-page')
     })
+
+    it('should not crash from error thrown during preloading nested generateMetadata', async () => {
+      const res = await next.fetch('/dynamic-meta')
+      expect(res.status).toBe(404)
+    })
   }
 )
