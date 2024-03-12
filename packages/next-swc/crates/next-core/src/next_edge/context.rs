@@ -163,7 +163,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks".to_string()),
+            output_root.join("chunks/ssr".to_string()),
             client_root.join("static/media".to_string()),
             environment,
             next_mode.runtime_type(),

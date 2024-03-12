@@ -435,7 +435,8 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     };
 
-    let module_options_context = match ty.into_value() {
+    let ty = ty.into_value();
+    let module_options_context = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -445,7 +446,7 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            if let ServerContextType::Pages { .. } = ty.into_value() {
+            if let ServerContextType::Pages { .. } = ty {
                 custom_source_transform_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
                         .await?,
@@ -460,7 +461,7 @@ pub async fn get_server_module_options_context(
 
             let url_rewrite_behavior = Some(
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
-                if let ServerContextType::PagesApi { .. } = ty.into_value() {
+                if let ServerContextType::PagesApi { .. } = ty {
                     UrlRewriteBehavior::Full
                 } else {
                     UrlRewriteBehavior::Relative
@@ -756,7 +757,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks".to_string()),
+        node_root.join("server/chunks/ssr".to_string()),
         client_root.join("static/media".to_string()),
         environment,
         next_mode.runtime_type(),
