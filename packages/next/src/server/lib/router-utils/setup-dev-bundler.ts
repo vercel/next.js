@@ -553,15 +553,15 @@ async function startWatcher(opts: SetupOpts) {
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
               dev: true,
               distDir,
-              fetchCacheKeyPrefix: undefined,
+              fetchCacheKeyPrefix:
+                opts.nextConfig.experimental.fetchCacheKeyPrefix,
               hasRewrites,
+              // TODO: Implement
               middlewareMatchers: undefined,
-              previewModeId: undefined,
             }),
           })
         }
@@ -625,19 +625,18 @@ async function startWatcher(opts: SetupOpts) {
               ) {
                 const newDefine = getDefineEnv({
                   isTurbopack: false,
-                  allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
                   dev: true,
                   distDir,
-                  fetchCacheKeyPrefix: undefined,
+                  fetchCacheKeyPrefix:
+                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
                   hasRewrites,
                   isClient,
                   isEdgeServer,
                   isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
-                  previewModeId: undefined,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
