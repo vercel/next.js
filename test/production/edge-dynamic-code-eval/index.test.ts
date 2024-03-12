@@ -31,7 +31,10 @@ describe('Dynamic Code Evaluation (DCE)', () => {
     )
     const output = await next.build()
     expect(output.exitCode).toBe(1)
-    expect(output.cliOutput).toInclude(`Failed to compile.
+    expect(output.cliOutput.split('\n').slice(3).join('\n'))
+      .toMatchInlineSnapshot(`
+      "   Creating an optimized production build ...
+      Failed to compile.
 
       ./lib/foo.js
       Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime 
@@ -45,6 +48,8 @@ describe('Dynamic Code Evaluation (DCE)', () => {
         ./middleware.js
 
 
-      > Build failed because of webpack errors`)
+      > Build failed because of webpack errors
+      "
+    `)
   })
 })
