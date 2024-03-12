@@ -435,7 +435,6 @@ export interface DefineEnv {
 
 export function createDefineEnv({
   isTurbopack,
-  allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
   dev,
@@ -443,7 +442,6 @@ export function createDefineEnv({
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
-  previewModeId,
 }: Omit<
   DefineEnvPluginOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
@@ -458,7 +456,6 @@ export function createDefineEnv({
     defineEnv[variant] = rustifyEnv(
       getDefineEnv({
         isTurbopack,
-        allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
         dev,
@@ -470,7 +467,6 @@ export function createDefineEnv({
         isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
-        previewModeId,
       })
     )
   }

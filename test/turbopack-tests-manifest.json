@@ -1405,6 +1405,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/edge-errors-hmr/index.test.ts": {
+    "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
+      "develop - app-dir - edge errros hmr should recover from build errors when server component error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/experimental-lightningcss/experimental-lightningcss.test.ts": {
     "passed": ["experimental-lightningcss should support css modules"],
     "failed": [],
@@ -3319,6 +3329,16 @@
     "passed": [
       "dynamic-href should error when using dynamic href in app dir",
       "dynamic-href should error when using dynamic href.pathname in app dir"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
+    "passed": [
+      "dynamic-requests should not error for dynamic requests in pages",
+      "dynamic-requests should not error for dynamic requests in routes"
     ],
     "failed": [],
     "pending": [],
@@ -13757,6 +13777,17 @@
     "failed": [],
     "pending": [
       "Unoptimized Image Tests production mode should not optimize any image"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts": {
+    "passed": [
+      "Image Component from node_modules dev mode should apply image config for node_modules"
+    ],
+    "failed": [],
+    "pending": [
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
     ],
     "flakey": [],
     "runtimeError": false
