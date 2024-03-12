@@ -571,13 +571,18 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn edge_chunking_context(
         self: Vc<Self>,
+        api_route: bool,
     ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
         Ok(get_edge_chunking_context(
             self.next_mode(),
             self.project_path(),
             self.node_root(),
             self.client_relative_path(),
-            self.next_config().computed_asset_prefix(),
+            if api_route {
+                Vc::cell(Some("blob:".to_string()))
+            } else {
+                self.next_config().computed_asset_prefix()
+            },
             self.edge_compile_time_info().environment(),
         ))
     }
