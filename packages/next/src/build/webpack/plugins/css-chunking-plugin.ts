@@ -40,7 +40,7 @@ export class CssChunkingPlugin {
           }
           once = true
           const chunkGraph = compilation.chunkGraph
-          let changed = false
+          let changed: undefined | true = undefined
 
           const chunkStates = new Map<Chunk, ChunkState>()
           const chunkStatesByModule = new Map<Module, Map<ChunkState, number>>()
