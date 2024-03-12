@@ -826,6 +826,7 @@ export function printCustomRoutes({
     print(`${routesStr}\n`)
   }
 
+  print()
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }
