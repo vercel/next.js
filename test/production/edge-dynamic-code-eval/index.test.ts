@@ -11,13 +11,11 @@ describe('Dynamic Code Evaluation (DCE)', () => {
   // to make sure that some libs that we know are using `eval` but don't break
   // because it will never run into that condition, but still can't to be DCE'd.
   it('should not fail when "function-bind" package is used', async () => {
-    await next.start()
-
-    expect(next.cliOutput).not.toContain(
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(cliOutput).not.toContain(
       `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
     )
-
-    await next.stop()
   })
 
   it("should show the user's import trace", async () => {
