@@ -1,7 +1,7 @@
 import path from 'path'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 
-function getPairs(all: string[]): [string, string][] {
+function getPairs(all: string[]): readonly [string, string][] {
   const result: [string, string][] = []
 
   for (const first of all) {
