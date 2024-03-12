@@ -66,17 +66,26 @@ describe('Error Overlay invalid imports', () => {
     await session.patch(pageFile, withoutUseClient)
 
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "./app/comp2.js
-      'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+    if (process.env.TURBOPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app
+        Invalid import
+        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+        The error was caused by using 'styled-jsx'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default."
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+              "./app/comp2.js
+              'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
 
-      The error was caused by using 'styled-jsx' in './app/comp2.js'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+              The error was caused by using 'styled-jsx' in './app/comp2.js'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
 
-      Import trace for requested module:
-      ./app/comp2.js
-      ./app/comp1.js
-      ./app/page.js"
-    `)
+              Import trace for requested module:
+              ./app/comp2.js
+              ./app/comp1.js
+              ./app/page.js"
+          `)
+    }
 
     await cleanup()
   })

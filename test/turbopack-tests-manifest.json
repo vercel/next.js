@@ -1070,12 +1070,11 @@
   },
   "test/development/acceptance-app/invalid-imports.test.ts": {
     "passed": [
-      "Error Overlay invalid imports should show error when external package imports client-only in server component"
-    ],
-    "failed": [
+      "Error Overlay invalid imports should show error when external package imports client-only in server component",
       "Error Overlay invalid imports should show error when external package imports server-only in client component",
       "Error Overlay invalid imports should show error when using styled-jsx in server component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
