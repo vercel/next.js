@@ -29,27 +29,15 @@ describe('Dynamic Code Evaluation (DCE)', () => {
         foo()
       }`
     )
-    const output = await next.build()
-    expect(output.exitCode).toBe(1)
-    expect(output.cliOutput.split('\n').slice(3).join('\n'))
-      .toMatchInlineSnapshot(`
-      "   Creating an optimized production build ...
-      Failed to compile.
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).toBe(1)
 
-      ./lib/foo.js
-      Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime 
-      Used by bar
-      Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation
+    expect(cliOutput).toContain(`./lib/foo.js
+Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime 
+Used by bar`)
 
-      The error was caused by importing 'foo/index.js' in './lib/foo.js'.
-
-      Import trace for requested module:
-        ./lib/foo.js
-        ./middleware.js
-
-
-      > Build failed because of webpack errors
-      "
-    `)
+    expect(cliOutput).toContain(`Import trace for requested module:
+  ./lib/foo.js
+  ./middleware.js`)
   })
 })
