@@ -318,9 +318,7 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
-    previewModeId,
     fetchCacheKeyPrefix,
-    allowedRevalidateHeaderKeys,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -348,9 +346,7 @@ export default async function getBaseWebpackConfig(
         import('../shared/lib/bloom-filter').BloomFilter['export']
       >
     }
-    previewModeId?: string
     fetchCacheKeyPrefix?: string
-    allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -1741,7 +1737,6 @@ export default async function getBaseWebpackConfig(
         }),
       getDefineEnvPlugin({
         isTurbopack: false,
-        allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
         dev,
@@ -1753,7 +1748,6 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
-        previewModeId,
       }),
       isClient &&
         new ReactLoadablePlugin({
