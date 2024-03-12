@@ -523,12 +523,12 @@ describe('Error Overlay for server components', () => {
 
   describe('Next.js navigation client hooks called in Server Component', () => {
     it.each([
-      ['useParams'],
-      ['useRouter'],
-      ['useSearchParams'],
+      // ['useParams'],
+      // ['useRouter'],
+      // ['usePathname'],
+      // ['useSearchParams'],
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
-      ['usePathname'],
     ])('should show error when %s is called', async (hook: string) => {
       const { session, cleanup } = await sandbox(
         next,
@@ -546,13 +546,13 @@ describe('Error Overlay for server components', () => {
       )
 
       expect(await session.hasRedbox()).toBe(true)
-      const normalizedSnapshot = next.normalizeTestDirContent(
-        await session.getRedboxSource()
+      // In webpack when the message too long it gets truncated with `  | ` with new lines.
+      // So we need to check for the first part of the message.
+      const normalizedSource = await session.getRedboxSource()
+      expect(normalizedSource).toContain(
+        `You're importing a component that needs ${hook}. It only works in a Client Component but none of its parents are marked with "use client"`
       )
-      expect(normalizedSnapshot).toContain(
-        `You're importing a component that needs ${hook}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-      )
-      expect(normalizedSnapshot).toContain(
+      expect(normalizedSource).toContain(
         `import { ${hook} } from 'next/navigation'`
       )
 

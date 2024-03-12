@@ -473,9 +473,6 @@ struct ReactServerComponentValidator {
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
     invalid_client_imports: Vec<JsWord>,
-    // invalid_server_react_apis: Vec<JsWord>,
-    // invalid_server_react_dom_apis: Vec<JsWord>,
-    // invalid_server_next_navigation_apis: Vec<JsWord>,
     invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, Vec<ModuleImports>, Vec<String>)>,
 }
@@ -544,30 +541,6 @@ impl ReactServerComponentValidator {
                 JsWord::from("next/router"),
             ],
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
-            // invalid_server_react_dom_apis: vec![
-            //     JsWord::from("findDOMNode"),
-            //     JsWord::from("flushSync"),
-            //     JsWord::from("unstable_batchedUpdates"),
-            //     JsWord::from("useFormStatus"),
-            //     JsWord::from("useFormState"),
-            // ],
-            // invalid_server_react_apis: vec![
-            //     JsWord::from("Component"),
-            //     JsWord::from("createContext"),
-            //     JsWord::from("createFactory"),
-            //     JsWord::from("PureComponent"),
-            //     JsWord::from("useDeferredValue"),
-            //     JsWord::from("useEffect"),
-            //     JsWord::from("useImperativeHandle"),
-            //     JsWord::from("useInsertionEffect"),
-            //     JsWord::from("useLayoutEffect"),
-            //     JsWord::from("useReducer"),
-            //     JsWord::from("useRef"),
-            //     JsWord::from("useState"),
-            //     JsWord::from("useSyncExternalStore"),
-            //     JsWord::from("useTransition"),
-            //     JsWord::from("useOptimistic"),
-            // ],
         }
     }
 
