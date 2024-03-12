@@ -7,6 +7,7 @@ import {
   type RouteMatchFn,
 } from '../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { modifyRouteRegex } from '../../../lib/redirect-status'
 
 type RouteMatchResult = {
   params?: Record<string, string | string[]>
@@ -24,7 +25,13 @@ export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
 
   constructor(public readonly definition: D) {
     if (isDynamicRoute(definition.pathname)) {
-      this.dynamic = getRouteMatcher(getRouteRegex(definition.pathname))
+      const routeRegex = getRouteRegex(definition.pathname)
+      const origRegex = routeRegex.re.toString()
+      const modifiedRegex = modifyRouteRegex(origRegex, ['/_next/static'])
+      routeRegex.re = new RegExp(
+        modifiedRegex.substring(1, modifiedRegex.length - 1)
+      )
+      this.dynamic = getRouteMatcher(routeRegex)
     }
   }
 

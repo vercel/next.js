@@ -8,7 +8,7 @@ import {
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
-  normalizeRegEx,
+  normalizeRouteRegExes,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -20,180 +20,6 @@ const appDir = join(__dirname, '../app')
 
 let buildId
 let next: NextInstance
-
-const expectedManifestRoutes = () => [
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
-    ),
-    page: '/',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
-    ),
-    page: '/another',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
-    ),
-    page: '/blog',
-  },
-  {
-    namedDataRouteRegex: `^/_next/data/${escapeRegex(
-      buildId
-    )}/blog/(?<nxtPpost>[^/]+?)\\.json$`,
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
-    ),
-    page: '/blog/[post]',
-    routeKeys: {
-      nxtPpost: 'nxtPpost',
-    },
-  },
-  {
-    namedDataRouteRegex: `^/_next/data/${escapeRegex(
-      buildId
-    )}/blog/(?<nxtPpost>[^/]+?)/(?<nxtPcomment>[^/]+?)\\.json$`,
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
-    ),
-    page: '/blog/[post]/[comment]',
-    routeKeys: {
-      nxtPpost: 'nxtPpost',
-      nxtPcomment: 'nxtPcomment',
-    },
-  },
-  {
-    namedDataRouteRegex: `^/_next/data/${escapeRegex(
-      buildId
-    )}/catchall/(?<nxtPpath>.+?)\\.json$`,
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
-    ),
-    page: '/catchall/[...path]',
-    routeKeys: {
-      nxtPpath: 'nxtPpath',
-    },
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/custom-cache.json$`
-    ),
-    page: '/custom-cache',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
-    ),
-    page: '/default-revalidate',
-  },
-  {
-    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-      buildId
-    )}\\/early-request-end.json$`,
-    page: '/early-request-end',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/enoent.json$`
-    ),
-    page: '/enoent',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys.json$`
-    ),
-    page: '/invalid-keys',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json.json$`
-    ),
-    page: '/non-json',
-  },
-  {
-    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-      buildId
-    )}\\/not-found.json$`,
-    page: '/not-found',
-  },
-  {
-    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-      buildId
-    )}\\/not\\-found\\/([^\\/]+?)\\.json$`,
-    namedDataRouteRegex: `^/_next/data/${escapeRegex(
-      buildId
-    )}/not\\-found/(?<nxtPslug>[^/]+?)\\.json$`,
-    page: '/not-found/[slug]',
-    routeKeys: {
-      nxtPslug: 'nxtPslug',
-    },
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise.json$`
-    ),
-    page: '/promise',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\/mutate-res.json$`
-    ),
-    page: '/promise/mutate-res',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/promise\\/mutate-res-no-streaming.json$`
-    ),
-    page: '/promise/mutate-res-no-streaming',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/promise\\/mutate-res-props.json$`
-    ),
-    page: '/promise/mutate-res-props',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
-    ),
-    page: '/refresh',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow.json$`
-    ),
-    page: '/slow',
-  },
-  {
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
-    ),
-    page: '/something',
-  },
-  {
-    namedDataRouteRegex: `^/_next/data/${escapeRegex(
-      buildId
-    )}/user/(?<nxtPuser>[^/]+?)/profile\\.json$`,
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
-    ),
-    page: '/user/[user]/profile',
-    routeKeys: {
-      nxtPuser: 'nxtPuser',
-    },
-  },
-]
 
 const navigateTest = () => {
   it('should navigate between pages successfully', async () => {
@@ -789,10 +615,176 @@ const runTests = (isDev = false, isDeploy = false) => {
           await next.readFile('.next/routes-manifest.json')
         )
         for (const route of dataRoutes) {
-          route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+          normalizeRouteRegExes(route)
         }
 
-        expect(dataRoutes).toEqual(expectedManifestRoutes())
+        expect(dataRoutes).toEqual(
+          [
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/index.json$`,
+              page: '/',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/another.json$`,
+              page: '/another',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/blog.json$`,
+              page: '/blog',
+            },
+            {
+              namedDataRouteRegex: `^/_next/data/${escapeRegex(
+                buildId
+              )}/blog/(?<nxtPpost>[^/]+?)\\.json$`,
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/blog\\/([^\\/]+?)\\.json$`,
+              page: '/blog/[post]',
+              routeKeys: {
+                nxtPpost: 'nxtPpost',
+              },
+            },
+            {
+              namedDataRouteRegex: `^/_next/data/${escapeRegex(
+                buildId
+              )}/blog/(?<nxtPpost>[^/]+?)/(?<nxtPcomment>[^/]+?)\\.json$`,
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
+              page: '/blog/[post]/[comment]',
+              routeKeys: {
+                nxtPpost: 'nxtPpost',
+                nxtPcomment: 'nxtPcomment',
+              },
+            },
+            {
+              namedDataRouteRegex: `^/_next/data/${escapeRegex(
+                buildId
+              )}/catchall/(?<nxtPpath>.+?)\\.json$`,
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/catchall\\/(.+?)\\.json$`,
+              page: '/catchall/[...path]',
+              routeKeys: {
+                nxtPpath: 'nxtPpath',
+              },
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/custom-cache.json$`,
+              page: '/custom-cache',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/default-revalidate.json$`,
+              page: '/default-revalidate',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/early-request-end.json$`,
+              page: '/early-request-end',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/enoent.json$`,
+              page: '/enoent',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/invalid-keys.json$`,
+              page: '/invalid-keys',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/non-json.json$`,
+              page: '/non-json',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/not-found.json$`,
+              page: '/not-found',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/not\\-found\\/([^\\/]+?)\\.json$`,
+              namedDataRouteRegex: `^/_next/data/${escapeRegex(
+                buildId
+              )}/not\\-found/(?<nxtPslug>[^/]+?)\\.json$`,
+              page: '/not-found/[slug]',
+              routeKeys: {
+                nxtPslug: 'nxtPslug',
+              },
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/promise.json$`,
+              page: '/promise',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/promise\\/mutate-res.json$`,
+              page: '/promise/mutate-res',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/promise\\/mutate-res-no-streaming.json$`,
+              page: '/promise/mutate-res-no-streaming',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/promise\\/mutate-res-props.json$`,
+              page: '/promise/mutate-res-props',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/refresh.json$`,
+              page: '/refresh',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/slow.json$`,
+              page: '/slow',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/something.json$`,
+              page: '/something',
+            },
+            {
+              namedDataRouteRegex: `^/_next/data/${escapeRegex(
+                buildId
+              )}/user/(?<nxtPuser>[^/]+?)/profile\\.json$`,
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
+              page: '/user/[user]/profile',
+              routeKeys: {
+                nxtPuser: 'nxtPuser',
+              },
+            },
+          ].map((item) => normalizeRouteRegExes(item))
+        )
       })
     }
 

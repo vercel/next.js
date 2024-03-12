@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
+import { fetchViaHTTP, normalizeRouteRegExes } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import escapeStringRegexp from 'escape-string-regexp'
@@ -151,31 +151,31 @@ createNextDescribe(
         )
 
         for (const route of manifest.dataRoutes) {
-          route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+          normalizeRouteRegExes(route)
         }
 
-        expect(manifest.dataRoutes).toEqual([
-          {
-            dataRouteRegex: normalizeRegEx(
-              `^/_next/data/${escapeStringRegexp(next.buildId)}/index.json$`
-            ),
-            page: '/',
-          },
-          {
-            dataRouteRegex: normalizeRegEx(
-              `^/_next/data/${escapeStringRegexp(
+        expect(manifest.dataRoutes).toEqual(
+          [
+            {
+              dataRouteRegex: `^/_next/data/${escapeStringRegexp(
                 next.buildId
-              )}/([^/]+?)\\.json$`
-            ),
-            namedDataRouteRegex: `^/_next/data/${escapeStringRegexp(
-              next.buildId
-            )}/(?<nxtPid>[^/]+?)\\.json$`,
-            page: '/[id]',
-            routeKeys: {
-              nxtPid: 'nxtPid',
+              )}/index.json$`,
+              page: '/',
             },
-          },
-        ])
+            {
+              dataRouteRegex: `^/_next/data/${escapeStringRegexp(
+                next.buildId
+              )}/([^/]+?)\\.json$`,
+              namedDataRouteRegex: `^/_next/data/${escapeStringRegexp(
+                next.buildId
+              )}/(?<nxtPid>[^/]+?)\\.json$`,
+              page: '/[id]',
+              routeKeys: {
+                nxtPid: 'nxtPid',
+              },
+            },
+          ].map((item) => normalizeRouteRegExes(item))
+        )
       })
     }
   }
