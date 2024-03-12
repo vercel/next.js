@@ -13,7 +13,6 @@ export function VersionStalenessInfo(props: VersionInfo) {
       <span className={indicatorClass} />
       <small data-nextjs-version-checker title={title}>
         {text}
-        {process.env.TURBOPACK ? ' (turbo)' : ''}
       </small>{' '}
       {staleness === 'fresh' ||
       staleness === 'newer-than-npm' ||
@@ -26,6 +25,7 @@ export function VersionStalenessInfo(props: VersionInfo) {
           (learn more)
         </a>
       )}
+      {process.env.TURBOPACK ? ' (turbo)' : ''}
     </small>
   )
 }
