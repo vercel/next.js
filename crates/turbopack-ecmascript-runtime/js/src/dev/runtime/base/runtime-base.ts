@@ -35,6 +35,7 @@ type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
 
 interface TurbopackDevBaseContext extends TurbopackBaseContext {
   k: RefreshContext;
+  R: ResolvePathFromModule;
 }
 
 interface TurbopackDevContext extends TurbopackDevBaseContext {}
@@ -259,6 +260,18 @@ async function loadChunkPath(
   }
 }
 
+/**
+ * Returns an absolute url to an asset.
+ */
+function createResolvePathFromModule(
+  resolver: (moduleId: string) => Exports
+): (moduleId: string) => string {
+  return function resolvePathFromModule(moduleId: string): string {
+    const exported = resolver(moduleId);
+    return exported?.default ?? exported;
+  };
+}
+
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
@@ -319,6 +332,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id };
 
     runModuleExecutionHooks(module, (refresh) => {
+      const r = commonJsRequire.bind(null, module);
       moduleFactory.call(
         module.exports,
         augmentContext({
@@ -341,6 +355,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           g: globalThis,
           U: relativeURL,
           k: refresh,
+          R: createResolvePathFromModule(r),
           __dirname: module.id.replace(/(^|\/)\/+$/, ""),
         })
       );
