@@ -795,7 +795,7 @@ impl PageEndpoint {
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -815,7 +815,7 @@ impl PageEndpoint {
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
             this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -835,7 +835,7 @@ impl PageEndpoint {
             this.pages_project.api_module_context(),
             this.pages_project.edge_api_module_context(),
             this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().edge_chunking_context(false),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))

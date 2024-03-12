@@ -5,8 +5,8 @@ use indexmap::{map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
-    emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
-    get_edge_resolve_options_context,
+    emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
+    get_edge_compile_time_info, get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
@@ -571,15 +571,24 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn edge_chunking_context(
         self: Vc<Self>,
+        client_assets: bool,
     ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-        Ok(get_edge_chunking_context(
-            self.next_mode(),
-            self.project_path(),
-            self.node_root(),
-            self.client_relative_path(),
-            self.next_config().computed_asset_prefix(),
-            self.edge_compile_time_info().environment(),
-        ))
+        Ok(if client_assets {
+            get_edge_chunking_context_with_client_assets(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.client_relative_path(),
+                self.next_config().computed_asset_prefix(),
+                self.edge_compile_time_info().environment(),
+            )
+        } else {
+            get_edge_chunking_context(
+                self.project_path(),
+                self.node_root(),
+                self.edge_compile_time_info().environment(),
+            )
+        })
     }
 
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
