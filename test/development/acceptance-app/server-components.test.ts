@@ -523,10 +523,10 @@ describe('Error Overlay for server components', () => {
 
   describe('Next.js navigation client hooks called in Server Component', () => {
     it.each([
-      // ['useParams'],
-      // ['useRouter'],
-      // ['usePathname'],
-      // ['useSearchParams'],
+      ['useParams'],
+      ['useRouter'],
+      ['usePathname'],
+      ['useSearchParams'],
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
     ])('should show error when %s is called', async (hook: string) => {
