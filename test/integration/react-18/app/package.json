@@ -1,8 +1,8 @@
 {
   "scripts": {
-    "dev": "yarn next dev",
-    "build": "yarn next build",
-    "start": "yarn next start"
+    "dev": "pnpm next dev",
+    "build": "pnpm next build",
+    "start": "pnpm next start"
   },
   "dependencies": {
     "react": "*",
