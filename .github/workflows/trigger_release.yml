@@ -50,17 +50,8 @@ jobs:
           node-version: 18
           check-latest: true
 
-      - uses: actions/checkout@v4
-        if: github.event.inputs.releaseType == 'stable'
-        with:
-          fetch-depth: 25
-          persist-credentials: false # to allow start-release to override the git credentials
-
-      # when publishing a canary, we clone via git so we're able to fetch the latest tag
-      # we don't need to use `actions/checkout` unless publishing a stable release/backport
       - name: Clone Next.js repository
-        run: git clone https://github.com/vercel/next.js.git --depth=25 .
-        if: github.event.inputs.releaseType != 'stable'
+        run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
 
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
