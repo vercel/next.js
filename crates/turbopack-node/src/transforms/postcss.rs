@@ -3,7 +3,8 @@ use indexmap::indexmap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, Completions, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    trace::TraceRawVcs, Completion, Completions, TaskInput, TryFlatJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -370,8 +371,20 @@ impl PostCssTransformedAsset {
 
         let postcss_executor =
             postcss_executor(evaluate_context, project_path, config_path).module();
-        let css_fs_path = this.source.ident().path().await?;
-        let css_path = css_fs_path.path.as_str();
+        let css_fs_path = this.source.ident().path();
+
+        // We need to get a path relative to the project because the postcss loader
+        // runs with the project as the current working directory.
+        let Some(css_path) = project_path
+            .await?
+            .get_relative_path_to(&*css_fs_path.await?)
+        else {
+            bail!(
+                "CSS path {} is outside of the project {}",
+                css_fs_path.to_string().await?,
+                project_path.to_string().await?
+            );
+        };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             module_asset: postcss_executor,
