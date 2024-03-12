@@ -6,7 +6,6 @@ use turbopack_binding::{
     turbopack::{
         browser::BrowserChunkingContext,
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -158,6 +157,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     environment: Vc<Environment>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
+    let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
@@ -166,14 +166,11 @@ pub async fn get_edge_chunking_context_with_client_assets(
             output_root.join("chunks".to_string()),
             client_root.join("static/media".to_string()),
             environment,
+            next_mode.runtime_type(),
         )
         .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
-        .minify_type(if mode.await?.should_minify() {
-            MinifyType::Minify
-        } else {
-            MinifyType::NoMinify
-        })
+        .minify_type(next_mode.minify_type())
         .build(),
     ))
 }

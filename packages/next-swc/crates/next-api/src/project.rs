@@ -493,8 +493,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn execution_context(self: Vc<Self>) -> Vc<ExecutionContext> {
+    pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root();
+        let next_mode = self.next_mode().await?;
 
         let node_execution_chunking_context = Vc::upcast(
             BrowserChunkingContext::builder(
@@ -504,15 +505,16 @@ impl Project {
                 node_root.join("chunks".to_string()),
                 node_root.join("assets".to_string()),
                 node_build_environment(),
+                next_mode.runtime_type(),
             )
             .build(),
         );
 
-        ExecutionContext::new(
+        Ok(ExecutionContext::new(
             self.project_path(),
             node_execution_chunking_context,
             self.env(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
