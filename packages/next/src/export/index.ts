@@ -419,7 +419,7 @@ export async function exportAppImpl(
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
-    deploymentId: nextConfig.experimental.deploymentId,
+    deploymentId: nextConfig.deploymentId,
     experimental: {
       ppr: nextConfig.experimental.ppr === true,
       missingSuspenseWithCSRBailout:

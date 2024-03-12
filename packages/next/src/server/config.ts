@@ -601,16 +601,8 @@ function assignDefaults(
   }
 
   // only leverage deploymentId
-  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
-    if (!result.experimental) {
-      result.experimental = {}
-    }
-    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-  }
-
-  // can't use this one without the other
-  if (result.experimental?.useDeploymentIdServerActions) {
-    result.experimental.useDeploymentId = true
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
   // use the closest lockfile as tracing root

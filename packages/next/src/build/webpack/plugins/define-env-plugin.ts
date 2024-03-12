@@ -171,9 +171,7 @@ export function getDefineEnv({
       : '',
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': config.experimental.ppr === true,
-    'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID':
-      config.experimental.useDeploymentIdServerActions,
-    'process.env.NEXT_DEPLOYMENT_ID': config.experimental.deploymentId || false,
+    'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix,
     'process.env.__NEXT_PREVIEW_MODE_ID': previewModeId,
     'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
