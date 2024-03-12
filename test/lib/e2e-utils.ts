@@ -10,7 +10,7 @@ import { shouldRunTurboDevTest } from './next-test-utils'
 
 export type { NextInstance }
 
-// increase timeout to account for yarn install time
+// increase timeout to account for pnpm install time
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.

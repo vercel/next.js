@@ -39,9 +39,11 @@ export class NextDevInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
-    // without isolation yarn can't be used and pnpm must be used instead
     if (process.env.NEXT_SKIP_ISOLATE) {
-      if (startArgs[0] === 'yarn') startArgs[0] = 'pnpm'
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
     }
 
     console.log('running', startArgs.join(' '))

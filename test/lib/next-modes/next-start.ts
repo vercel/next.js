@@ -58,13 +58,21 @@ export class NextStartInstance extends NextInstance {
     let buildArgs = ['pnpm', 'next', 'build']
     let startArgs = ['pnpm', 'next', 'start']
 
-    if (this.buildCommand) buildArgs = this.buildCommand.split(' ')
-    if (this.startCommand) startArgs = this.startCommand.split(' ')
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+    if (this.startCommand) {
+      startArgs = this.startCommand.split(' ')
+    }
 
-    // without isolation yarn can't be used so we force pnpm
     if (process.env.NEXT_SKIP_ISOLATE) {
-      if (buildArgs[0] === 'yarn') buildArgs[0] = 'pnpm'
-      if (startArgs[0] === 'yarn') startArgs[0] = 'pnpm'
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
     }
 
     console.log('running', buildArgs.join(' '))

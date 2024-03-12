@@ -12,7 +12,7 @@ createNextDescribe(
     packageJson: {
       scripts: {
         dev: 'node server.js',
-        build: 'yarn next build apps/host && yarn next build apps/guest',
+        build: 'pnpm next build apps/host && pnpm next build apps/guest',
         start: 'NODE_ENV=production node server.js',
         'post-build': 'echo done',
       },
