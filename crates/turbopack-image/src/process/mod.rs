@@ -268,13 +268,10 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
         }
         #[cfg(feature = "webp")]
         ImageFormat::WebP => {
-            use image::codecs::webp::{WebPEncoder, WebPQuality};
-            WebPEncoder::new_with_quality(&mut buf, WebPQuality::lossy(quality)).write_image(
-                image.as_bytes(),
-                width,
-                height,
-                image.color(),
-            )?;
+            use image::codecs::webp::WebPEncoder;
+            let encoder = WebPEncoder::new_lossless(&mut buf);
+            encoder.encode(image.as_bytes(), width, height, image.color().into())?;
+
             (buf, Mime::from_str("image/webp")?)
         }
         #[cfg(feature = "avif")]
@@ -284,7 +281,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
                 image.as_bytes(),
                 width,
                 height,
-                image.color(),
+                image.color().into(),
             )?;
             (buf, Mime::from_str("image/avif")?)
         }
