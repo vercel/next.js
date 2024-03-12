@@ -302,8 +302,13 @@ describe('node-web-stream-helpers', () => {
 
       it('should continue fizz stream operation using default arguments', async () => {
         const input: ReactReadableStream = defaultReactReadableStreamFactory()
-        // TODO: Somehow spy on `input.allReady` and assert it gets awaited
+        let allReadyAwaited = false
+        input.allReady = setImmediate().then(() => {
+          allReadyAwaited = true
+        })
+        expect(allReadyAwaited).toBe(false)
         const output = await continueFizzStream(input, defaultOptionsFactory())
+        expect(allReadyAwaited).toBe(true)
         const expected = encoder.encode(
           '<server-html>Server HTML</server-html>' + // server-inserted happens first
             '<html><head><title>My Website</title></head><body><div><h1>My Website</h1></div>' + // react content
@@ -325,12 +330,17 @@ describe('node-web-stream-helpers', () => {
       it('should continue fizz stream operation using default arguments', async () => {
         const options = {
           ...defaultOptionsFactory(),
-          isStaticGeneration: true, // not always true, but only impacts `allReady` being awaited
+          isStaticGeneration: true, // not always true, but impacts `allReady` being awaited
         }
 
         const input: ReactReadableStream = defaultReactReadableStreamFactory()
-        // TODO: Spy on `input.allReady` and assert it gets awaited
+        let allReadyAwaited = false
+        input.allReady = setImmediate().then(() => {
+          allReadyAwaited = true
+        })
+        expect(allReadyAwaited).toBe(false)
         const output = await continueFizzStream(input, options)
+        expect(allReadyAwaited).toBe(true)
         const expected = encoder.encode(
           '<html><head><title>My Website</title>' + // start react content
             '<server-html>Server HTML</server-html>' + // server-inserted before end of `</head>` tag

@@ -538,6 +538,7 @@ export async function continueFizzStream(
   // If we're generating static HTML and there's an `allReady` promise on the
   // stream, we need to wait for it to resolve before continuing.
   if (isStaticGeneration && 'allReady' in renderStream) {
+    console.log('🧪')
     await renderStream.allReady
   }
 
