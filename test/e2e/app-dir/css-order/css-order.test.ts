@@ -2,7 +2,7 @@ import path from 'path'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 
 function getPairs(all: string[]): (readonly [string, string])[] {
-  const result: [string, string][] = []
+  const result: (readonly [string, string])[] = []
 
   for (const first of all) {
     for (const second of all) {
