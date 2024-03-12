@@ -6,6 +6,7 @@ import {
   streamFromString,
   streamToString,
   type ReactReadableStream,
+  type ContinueStreamOptions,
 } from './node-web-streams-helper'
 
 async function processReadableStream(
@@ -36,6 +37,8 @@ async function assertEntireReadableStream(
     actual.set(value, i)
     i += value.length
     ;({ done, value } = await reader.read())
+
+    console.log(new TextDecoder().decode(actual))
   }
   expect(actual).toStrictEqual(expected)
 }
@@ -291,7 +294,7 @@ describe('node-web-stream-helpers', () => {
     describe('pages router', () => {
       const defaultSuffix = '<suffix>suffix</suffix>'
       // values hardcoded based on usage of `continueFizzStream` in `server/render.tsx`
-      const defaultOptionsFactory = () => ({
+      const defaultOptionsFactory: () => ContinueStreamOptions = () => ({
         isStaticGeneration: true, // always true
         serverInsertedHTMLToHead: false, // always false
         validateRootLayout: undefined, // always undefined
@@ -316,30 +319,57 @@ describe('node-web-stream-helpers', () => {
             '<suffix>suffix</suffix>' + // suffix next
             '</body></html>' // and then closing tags last
         )
-        assertEntireReadableStream(output, expected)
+        await assertEntireReadableStream(output, expected)
+      })
+
+      it('should inject closing html and body tags', async () => {
+        const input: ReactReadableStream = createMockReadableStream({
+          input: `<html><head><title>My Website</title></head><body><div><h1>My Website</h1></div>`,
+          byteCount: 8,
+        })
+        const output = await continueFizzStream(input, defaultOptionsFactory())
+        const expected = encoder.encode(
+          '<server-html>Server HTML</server-html>' + // server-inserted happens first
+            '<html><head><title>My Website</title></head><body><div><h1>My Website</h1></div>' + // react content
+            '<data>inlined data</data>' + // inlined-data stream next
+            '<suffix>suffix</suffix>' + // suffix next
+            '</body></html>' // and then closing tags last
+        )
+        await assertEntireReadableStream(output, expected)
+      })
+
+      it('should detect close tags in suffix', async () => {
+        const input: ReactReadableStream = defaultReactReadableStreamFactory()
+        const options = defaultOptionsFactory()
+        options.suffix = defaultSuffix + '</body></html>'
+        const output = await continueFizzStream(input, options)
+        const expected = encoder.encode(
+          '<server-html>Server HTML</server-html>' + // server-inserted happens first
+            '<html><head><title>My Website</title></head><body><div><h1>My Website</h1></div>' + // react content
+            '<data>inlined data</data>' + // inlined-data stream next
+            '<suffix>suffix</suffix>' + // suffix next
+            '</body></html>' // and then closing tags last
+        )
+        await assertEntireReadableStream(output, expected)
       })
     })
     describe('app router', () => {
       // values set based on usage of `continueFizzStream` in `server/app-render.tsx`
-      const defaultOptionsFactory = () => ({
+      const defaultOptionsFactory: () => ContinueStreamOptions = () => ({
         inlinedDataStream: defaultInlinedDataStreamFactory(),
         getServerInsertedHTML: defaultGetServerInsertedHTMLFactory(),
         serverInsertedHTMLToHead: true, // always true
+        isStaticGeneration: true, // not always true, impacts `allReady` being awaited
       })
 
       it('should continue fizz stream operation using default arguments', async () => {
-        const options = {
-          ...defaultOptionsFactory(),
-          isStaticGeneration: true, // not always true, but impacts `allReady` being awaited
-        }
-
         const input: ReactReadableStream = defaultReactReadableStreamFactory()
         let allReadyAwaited = false
         input.allReady = setImmediate().then(() => {
           allReadyAwaited = true
         })
         expect(allReadyAwaited).toBe(false)
-        const output = await continueFizzStream(input, options)
+        const output = await continueFizzStream(input, defaultOptionsFactory())
         expect(allReadyAwaited).toBe(true)
         const expected = encoder.encode(
           '<html><head><title>My Website</title>' + // start react content
@@ -348,9 +378,71 @@ describe('node-web-stream-helpers', () => {
             '<data>inlined data</data>' + // inlined data next
             '</body></html>' // closing tags last
         )
-        assertEntireReadableStream(output, expected)
+        await assertEntireReadableStream(output, expected)
       })
-      it.todo('dev mode - (validateRootLayout = true)')
+
+      it('should inject closing html and body tags', async () => {
+        const input: ReactReadableStream = createMockReadableStream({
+          input: `<html><head><title>My Website</title></head><body><div><h1>My Website</h1></div>`,
+          byteCount: 8,
+        })
+        let allReadyAwaited = false
+        input.allReady = setImmediate().then(() => {
+          allReadyAwaited = true
+        })
+        expect(allReadyAwaited).toBe(false)
+        const output = await continueFizzStream(input, defaultOptionsFactory())
+        expect(allReadyAwaited).toBe(true)
+        const expected = encoder.encode(
+          '<html><head><title>My Website</title>' + // start react content
+            '<server-html>Server HTML</server-html>' + // server-inserted before end of `</head>` tag
+            '</head><body><div><h1>My Website</h1></div>' + // remaining react content
+            '<data>inlined data</data>' + // inlined data next
+            '</body></html>' // closing tags last
+        )
+        await assertEntireReadableStream(output, expected)
+      })
+
+      it('should not await `allReady` when isStaticGeneration is false', async () => {
+        const options = defaultOptionsFactory()
+
+        options.isStaticGeneration = false
+
+        const input: ReactReadableStream = defaultReactReadableStreamFactory()
+        let allReadyAwaited = false
+        input.allReady = setImmediate().then(() => {
+          allReadyAwaited = true
+        })
+        expect(allReadyAwaited).toBe(false)
+        const output = await continueFizzStream(input, options)
+        expect(allReadyAwaited).toBe(false) // allReady should not get awaited
+        const expected = encoder.encode(
+          '<html><head><title>My Website</title>' + // start react content
+            '<server-html>Server HTML</server-html>' + // server-inserted before end of `</head>` tag
+            '</head><body><div><h1>My Website</h1></div>' + // remaining react content
+            '<data>inlined data</data>' + // inlined data next
+            '</body></html>' // closing tags last
+        )
+        await assertEntireReadableStream(output, expected)
+      })
+      it('dev mode should validate existence of html and body tags', async () => {
+        const options = defaultOptionsFactory()
+        options.validateRootLayout = true
+        const input: ReactReadableStream = createMockReadableStream({
+          input: `<head><title>My Website</title></head><div><h1>My Website</h1></div>`,
+          byteCount: 8,
+        })
+        const output = await continueFizzStream(input, options)
+        const expected = encoder.encode(
+          '<head><title>My Website</title>' + // start react content
+            '<server-html>Server HTML</server-html>' + // server-inserted before end of `</head>` tag
+            '</head><div><h1>My Website</h1></div>' + // remaining react content
+            '<data>inlined data</data>' + // inlined data next
+            '<script>self.__next_root_layout_missing_tags=["html","body"]</script>' + // missing tags script
+            '</body></html>' // closing tags last
+        )
+        await assertEntireReadableStream(output, expected)
+      })
     })
   })
   describe('continueDynamicPrerender', () => {})
