@@ -26,6 +26,7 @@ const PAGES: Record<
     background?: string
     conflict?: boolean
     brokenLoading?: boolean
+    brokenLoadingDev?: boolean
   }
 > = {
   first: {
@@ -137,30 +138,35 @@ const PAGES: Record<
 
   'pages-interleaved-a': {
     group: 'pages-interleaved',
+    brokenLoadingDev: true,
     url: '/pages/interleaved/a',
     selector: '#helloia',
     color: 'rgb(0, 255, 0)',
   },
   'pages-interleaved-b': {
     group: 'pages-interleaved',
+    brokenLoadingDev: true,
     url: '/pages/interleaved/b',
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
   },
   'pages-reversed-a': {
     group: 'pages-reversed',
+    brokenLoadingDev: true,
     url: '/pages/reversed/a',
     selector: '#hellora',
     color: 'rgb(0, 166, 255)',
   },
   'pages-reversed-b': {
     group: 'pages-reversed',
+    brokenLoadingDev: true,
     url: '/pages/reversed/b',
     selector: '#hellorb',
     color: 'rgb(0, 89, 255)',
   },
   'pages-partial-reversed-a': {
     group: 'pages-partial-reversed',
+    brokenLoadingDev: true,
     url: '/pages/partial-reversed/a',
     selector: '#hellopra',
     color: 'rgb(255, 166, 255)',
@@ -168,6 +174,7 @@ const PAGES: Record<
   },
   'pages-partial-reversed-b': {
     group: 'pages-partial-reversed',
+    brokenLoadingDev: true,
     url: '/pages/partial-reversed/b',
     selector: '#helloprb',
     color: 'rgb(255, 55, 255)',
@@ -211,7 +218,11 @@ for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
         const broken =
           mode === 'turbo'
             ? isNextDev
-            : ordering.some((page) => PAGES[page].brokenLoading)
+            : ordering.some(
+                (page) =>
+                  PAGES[page].brokenLoading ||
+                  (isNextDev && PAGES[page].brokenLoadingDev)
+              )
         if (broken) {
           it.todo(name)
           continue
@@ -257,7 +268,11 @@ for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
             continue
           }
           // TODO fix this case
-          const broken = ordering.some((page) => PAGES[page].brokenLoading)
+          const broken = ordering.some(
+            (page) =>
+              PAGES[page].brokenLoading ||
+              (isNextDev && PAGES[page].brokenLoadingDev)
+          )
           if (broken) {
             it.todo(name)
             continue

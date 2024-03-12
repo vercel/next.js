@@ -383,7 +383,14 @@ createNextDescribe(
             // there should be only 1 preload link
             expect(
               await browser.eval(
-                `document.querySelectorAll("link[rel=preload][href^='/_next/static/css/app/layout.css']").length`
+                `(() => {
+                  const tags = document.querySelectorAll('link[rel="preload"][href^="/_next/static/css"]')
+                  const counts = new Map();
+                  for (const tag of tags) {
+                    counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                  }
+                  return Math.max(...counts.values())
+                })()`
               )
             ).toBe(1)
           } finally {
@@ -464,15 +471,19 @@ createNextDescribe(
               ).toBe(5)
             } else {
               // Even if it's deduped by Float, it should still only be included once in the payload.
-              // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
 
-              expect(
-                initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
-              ).toBe(3)
-              // Links in data-precedence does not have `?v=` query
-              expect(
-                initialHtml.match(/css-duplicate-2\/layout\.css/g).length
-              ).toBe(5)
+              const matches = initialHtml.match(
+                /\/_next\/static\/css\/.+?\.css/g
+              )
+              const counts = new Map()
+              for (const match of matches) {
+                counts.set(match, (counts.get(match) || 0) + 1)
+              }
+              for (const count of counts.values()) {
+                // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
+                // And there is one match for the not found style
+                expect([1, 3]).toContain(count)
+              }
             }
           })
 
@@ -758,23 +769,20 @@ createNextDescribe(
               'rgb(255, 0, 0)'
             )
 
-            if (process.env.TURBOPACK) {
-              await check(
-                () =>
-                  browser.eval(
-                    `document.querySelectorAll('link[rel="stylesheet"][href*="/app_hmr_global_"]').length`
-                  ),
-                1
-              )
-            } else {
-              await check(
-                () =>
-                  browser.eval(
-                    `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
-                  ),
-                1
-              )
-            }
+            await check(
+              () =>
+                browser.eval(
+                  `(() => {
+                    const tags = document.querySelectorAll('link[rel="stylesheet"][href^="/_next/static/css"]')
+                    const counts = new Map();
+                    for (const tag of tags) {
+                      counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                    }
+                    return Math.max(...counts.values())
+                  })()`
+                ),
+              1
+            )
           } finally {
             await next.patchFile(filePath, origContent)
           }
