@@ -359,31 +359,33 @@ createNextDescribe(
           }
         })
 
-        it('should not preload styles twice during HMR', async () => {
-          const filePath = 'app/hmr/page.js'
-          const origContent = await next.readFile(filePath)
+        // Turbopack doesn't preload styles
+        if (!process.env.TURBOPACK) {
+          it('should not preload styles twice during HMR', async () => {
+            const filePath = 'app/hmr/page.js'
+            const origContent = await next.readFile(filePath)
 
-          const browser = await next.browser('/hmr')
+            const browser = await next.browser('/hmr')
 
-          try {
-            await next.patchFile(
-              filePath,
-              origContent.replace(
-                '<div>hello!</div>',
-                '<div>hello world!</div>'
+            try {
+              await next.patchFile(
+                filePath,
+                origContent.replace(
+                  '<div>hello!</div>',
+                  '<div>hello world!</div>'
+                )
               )
-            )
 
-            // Wait for HMR to trigger
-            await check(
-              () => browser.elementByCss('body').text(),
-              'hello world!'
-            )
+              // Wait for HMR to trigger
+              await check(
+                () => browser.elementByCss('body').text(),
+                'hello world!'
+              )
 
-            // there should be only 1 preload link
-            expect(
-              await browser.eval(
-                `(() => {
+              // there should be only 1 preload link
+              expect(
+                await browser.eval(
+                  `(() => {
                   const tags = document.querySelectorAll('link[rel="preload"][href^="/_next/static/css"]')
                   const counts = new Map();
                   for (const tag of tags) {
@@ -391,12 +393,13 @@ createNextDescribe(
                   }
                   return Math.max(...counts.values())
                 })()`
-              )
-            ).toBe(1)
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-        })
+                )
+              ).toBe(1)
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+        }
 
         it('should reload @import styles during HMR', async () => {
           const filePath = 'app/hmr/import/actual-styles.css'
