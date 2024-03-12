@@ -616,6 +616,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {

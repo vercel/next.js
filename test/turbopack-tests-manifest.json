@@ -6491,12 +6491,11 @@
     "passed": [
       "og-api should respond from index",
       "og-api should throw error when returning a response object in pages/api in node runtime",
-      "og-api should work in app route in node runtime"
-    ],
-    "failed": [
+      "og-api should work in app route in node runtime",
       "og-api should work in app route",
       "og-api should work in pages/api"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
