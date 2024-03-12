@@ -10,7 +10,7 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
   const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
 
-  if (isPrivateKey || hasNextRuntimeKey) {
+  if (isPrivateKey ?? hasNextRuntimeKey) {
     throw new Error(
       `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
     )
@@ -153,7 +153,7 @@ export function getDefineEnv({
              * and library authors to have different implementations based on
              * the runtime they are running with, if it's not using `edge-runtime`
              */
-            process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime',
+            process.env.NEXT_EDGE_RUNTIME_PROVIDER ?? 'edge-runtime',
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
@@ -167,36 +167,36 @@ export function getDefineEnv({
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': config.experimental.ppr === true,
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID':
-      config.experimental.useDeploymentIdServerActions || false,
-    'process.env.NEXT_DEPLOYMENT_ID': config.experimental.deploymentId || false,
-    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix || '',
-    'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers || [],
+      config.experimental.useDeploymentIdServerActions ?? false,
+    'process.env.NEXT_DEPLOYMENT_ID': config.experimental.deploymentId ?? false,
+    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
+    'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
-      config.experimental.manualClientBasePath || false,
+      config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
-      config.experimental.clientRouterFilter || true,
+      config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
-      clientRouterFilters?.staticFilter || false,
+      clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
-      clientRouterFilters?.dynamicFilter || false,
+      clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
-      config.experimental.optimisticClientCache || true,
+      config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
-      config.experimental.middlewarePrefetch || 'flexible',
+      config.experimental.middlewarePrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
-    'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE || false,
+    'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
     // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
-    ...(dev && (isClient || isEdgeServer)
+    ...(dev && (isClient ?? isEdgeServer)
       ? {
           'process.env.__NEXT_DIST_DIR': distDir,
         }
       : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_BUILD_INDICATOR':
-      config.devIndicators.buildActivity || true,
+      config.devIndicators.buildActivity ?? true,
     'process.env.__NEXT_BUILD_INDICATOR_POSITION':
-      config.devIndicators.buildActivityPosition || 'bottom-right',
+      config.devIndicators.buildActivityPosition ?? 'bottom-right',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -204,34 +204,34 @@ export function getDefineEnv({
       config.reactStrictMode === null ? true : config.reactStrictMode,
     'process.env.__NEXT_OPTIMIZE_FONTS': !dev && config.optimizeFonts,
     'process.env.__NEXT_OPTIMIZE_CSS':
-      (config.experimental.optimizeCss && !dev) || false,
+      (config.experimental.optimizeCss && !dev) ?? false,
     'process.env.__NEXT_SCRIPT_WORKERS':
-      (config.experimental.nextScriptWorkers && !dev) || false,
+      (config.experimental.nextScriptWorkers && !dev) ?? false,
     'process.env.__NEXT_SCROLL_RESTORATION':
-      config.experimental.scrollRestoration || false,
+      config.experimental.scrollRestoration ?? false,
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead || false,
+      config.experimental.strictNextHead ?? false,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
-    'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains || false,
+    'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_ANALYTICS_ID': config.analyticsId, // TODO: remove in the next major version
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
       config.skipMiddlewareUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
-      config.experimental.externalMiddlewareRewritesResolve || false,
+      config.experimental.externalMiddlewareRewritesResolve ?? false,
     'process.env.__NEXT_MANUAL_TRAILING_SLASH':
       config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':
       (config.experimental.webVitalsAttribution &&
-        config.experimental.webVitalsAttribution.length > 0) ||
+        config.experimental.webVitalsAttribution.length > 0) ??
       false,
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION':
-      config.experimental.webVitalsAttribution || false,
+      config.experimental.webVitalsAttribution ?? false,
     'process.env.__NEXT_LINK_NO_TOUCH_START':
-      config.experimental.linkNoTouchStart || false,
+      config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
     ...(isNodeOrEdgeCompilation
       ? {
