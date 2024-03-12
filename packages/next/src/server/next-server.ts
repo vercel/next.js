@@ -123,6 +123,10 @@ const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : require
 
+function writeStdoutLine(text: string) {
+  process.stdout.write(' ' + text + '\n')
+}
+
 function formatRequestUrl(url: string, maxLength: number | undefined) {
   return maxLength !== undefined && url.length > maxLength
     ? url.substring(0, maxLength) + '..'
@@ -1084,23 +1088,15 @@ export default class NextNodeServer extends BaseServer {
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
-        const { timestamp } =
-          require('../build/output/log') as typeof import('../build/output/log')
-        const { parse: parseStack } =
-          require('next/dist/compiled/stacktrace-parser') as typeof import('next/dist/compiled/stacktrace-parser')
         const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
         const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
         const origRes =
           'originalResponse' in _res ? _res.originalResponse : _res
 
-        function writeStdoutLine(text: string) {
-          process.stdout.write(`${timestamp()} ${text}\n`)
-        }
-
         const reqStart = Date.now()
 
-        const reqCallback = async () => {
+        const reqCallback = () => {
           // if we already logged in a render worker
           // don't log again in the router worker.
           // we also don't log for middleware alone
@@ -1214,22 +1210,9 @@ export default class NextNodeServer extends BaseServer {
                   fetchMetrics.slice(0, i + 1),
                   metric.start
                 )
-                const stack = parseStack(metric.file!)
-                const globalThisFetchIndex = stack.findLastIndex(
-                  (f) =>
-                    f.methodName === 'async globalThis.fetch' ||
-                    f.file?.includes('patch-fetch.js')
-                )
 
-                const frame =
-                  globalThisFetchIndex < 0
-                    ? stack.at(-1)
-                    : stack.at(globalThisFetchIndex + 1) ?? stack.at(-1)
-                const file = `${frame?.file}:${frame?.lineNumber}:${frame?.column}`
                 writeStdoutLine(
-                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}, ${gray(
-                    file
-                  )}`
+                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}}`
                 )
               }
             }

@@ -20,7 +20,6 @@ export type FetchMetric = {
   status: number
   cacheReason: string
   cacheStatus: 'hit' | 'miss' | 'skip'
-  file: string | undefined
 }
 
 export type FetchMetrics = Array<FetchMetric>

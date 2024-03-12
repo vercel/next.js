@@ -31,12 +31,12 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   if (message.length === 0) {
     console[consoleMethod]('')
   } else {
-    console[consoleMethod](`${timestamp()} ` + prefix, ...message)
+    console[consoleMethod](' ' + prefix, ...message)
   }
 }
 
 export function bootstrap(...message: any[]) {
-  console.log(' '.repeat(timestamp().length), ...message)
+  console.log(' ', ...message)
 }
 
 export function wait(...message: any[]) {
@@ -74,13 +74,4 @@ export function warnOnce(...message: any[]) {
 
     warn(...message)
   }
-}
-
-export function timestamp() {
-  const now = new Date()
-  const hours = now.getHours().toString().padStart(2, '0')
-  const minutes = now.getMinutes().toString().padStart(2, '0')
-  const seconds = now.getSeconds().toString().padStart(2, '0')
-  const milliseconds = now.getMilliseconds().toString().padStart(3, '0')
-  return `${hours}:${minutes}:${seconds}:${milliseconds}`
 }

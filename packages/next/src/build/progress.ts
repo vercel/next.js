@@ -68,7 +68,7 @@ export const createProgress = (total: number, label: string) => {
     }
 
     const isFinished = curProgress === total
-    const message = `${label} (${curProgress}/${total})\n`
+    const message = `${label} (${curProgress}/${total})`
     if (progressSpinner && !isFinished) {
       progressSpinner.setText(message)
     } else {

@@ -13,7 +13,7 @@ export default function createSpinner(
 ) {
   let spinner: undefined | (ora.Ora & { setText: (text: string) => void })
 
-  let prefixText = `${Log.timestamp()} ${Log.prefixes.info} ${text} `
+  let prefixText = ` ${Log.prefixes.info} ${text} `
 
   if (process.stdout.isTTY) {
     spinner = ora({
@@ -49,7 +49,7 @@ export default function createSpinner(
     }
     spinner.setText = (newText) => {
       text = newText
-      prefixText = `${Log.timestamp()} ${Log.prefixes.info} ${newText} `
+      prefixText = ` ${Log.prefixes.info} ${newText} `
       spinner!.prefixText = prefixText
       return spinner!
     }
@@ -60,7 +60,7 @@ export default function createSpinner(
     }
     spinner.stopAndPersist = () => {
       // Add \r at beginning to reset the current line of loading status text
-      const suffixText = `\r${Log.timestamp()} ${Log.prefixes.event} ${text} `
+      const suffixText = `\r ${Log.prefixes.event} ${text} `
       if (spinner) {
         spinner.text = suffixText
       } else {
