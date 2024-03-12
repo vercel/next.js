@@ -120,21 +120,23 @@ const PAGES: Record<
 
 const allPairs = getPairs(Object.keys(PAGES))
 
-for (const mode of ['strict', 'loose'])
+for (const mode of process.env.TURBOPACK
+  ? ['turbo']
+  : ['webpack strict', 'webpack loose'])
   createNextDescribe(
     `css-order ${mode}`,
     {
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
-        'next.config.js': `
-        module.exports = () => {
-          return {
-            experimental: {
-              cssChunking: ${JSON.stringify(mode)}
-            }
-          }
-        }
-      `,
+        'next.config.js': process.env.TURBOPACK
+          ? `
+            module.exports = {}`
+          : `
+            module.exports = {
+              experimental: {
+                cssChunking: ${JSON.stringify(mode)}
+              }
+            }`,
       },
       dependencies: {
         sass: 'latest',
@@ -151,8 +153,9 @@ for (const mode of ['strict', 'loose'])
         }
         // TODO fix this case
         const broken =
-          (isNextDev && isTurbopack) ||
-          ordering.some((page) => PAGES[page].brokenLoading)
+          mode === 'turbo'
+            ? isNextDev
+            : ordering.some((page) => PAGES[page].brokenLoading)
         if (broken) {
           it.todo(name)
           continue
@@ -192,15 +195,17 @@ for (const mode of ['strict', 'loose'])
         const name = `should load correct styles navigating ${ordering.join(
           ' -> '
         )}`
-        if (ordering.some((page) => PAGES[page].conflict)) {
-          // Conflict scenarios won't support that case
-          continue
-        }
-        // TODO fix this case
-        const broken = ordering.some((page) => PAGES[page].brokenLoading)
-        if (broken) {
-          it.todo(name)
-          continue
+        if (mode !== 'turbo') {
+          if (ordering.some((page) => PAGES[page].conflict)) {
+            // Conflict scenarios won't support that case
+            continue
+          }
+          // TODO fix this case
+          const broken = ordering.some((page) => PAGES[page].brokenLoading)
+          if (broken) {
+            it.todo(name)
+            continue
+          }
         }
         it(name, async () => {
           const start = PAGES[ordering[0]]
