@@ -107,7 +107,7 @@ const webpackRegExes = [
   /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
 ]
 
-function isInternal(file: string) {
+function isWebpackBundled(file: string) {
   return webpackRegExes.some((regEx) => regEx.test(file))
 }
 
@@ -119,7 +119,8 @@ function isInternal(file: string) {
  * webpack:///./src/hello.tsx => ./src/hello.tsx
  */
 function formatFrameSourceFile(file: string) {
-  return file.replace(webpackRegExes[0], '').replace(webpackRegExes[1], '')
+  for (const regex of webpackRegExes) file = file.replace(regex, '')
+  return file
 }
 
 export function getFrameSource(frame: StackFrame): string {
