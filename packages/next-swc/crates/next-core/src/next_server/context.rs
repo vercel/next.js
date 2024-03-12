@@ -676,6 +676,10 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
 
+            let module_options_context = ModuleOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+                ..module_options_context
+            };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
@@ -716,6 +720,17 @@ pub async fn get_server_module_options_context(
 }
 
 #[turbo_tasks::function]
+pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
+    ModuleOptionsContext {
+        enable_typescript_transform: Some(Default::default()),
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+        ..Default::default()
+    }
+    .cell()
+}
+
+#[turbo_tasks::function]
 pub fn get_server_runtime_entries(
     _ty: Value<ServerContextType>,
     _mode: Vc<NextMode>,
@@ -725,12 +740,10 @@ pub fn get_server_runtime_entries(
 }
 
 #[turbo_tasks::function]
-pub async fn get_server_chunking_context(
+pub async fn get_server_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
-    // anyway?
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
@@ -751,4 +764,25 @@ pub async fn get_server_chunking_context(
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
     .build())
+}
+
+#[turbo_tasks::function]
+pub fn get_server_chunking_context(
+    project_path: Vc<FileSystemPath>,
+    node_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Vc<NodeJsChunkingContext> {
+    // TODO(alexkirsz) This should return a trait that can be implemented by the
+    // different server chunking contexts. OR the build chunking context should
+    // support both production and development modes.
+    NodeJsChunkingContext::builder(
+        project_path,
+        node_root,
+        node_root,
+        node_root.join("server/chunks".to_string()),
+        node_root.join("server/assets".to_string()),
+        environment,
+    )
+    .minify_type(MinifyType::NoMinify)
+    .build()
 }
