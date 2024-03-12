@@ -58,6 +58,16 @@ export default function Nav() {
           Reversed B
         </Link>
       </li>
+      <li>
+        <Link href={'/partial-reversed/a'} id="partial-reversed-a">
+          Partial Reversed A
+        </Link>
+      </li>
+      <li>
+        <Link href={'/partial-reversed/b'} id="partial-reversed-b">
+          Partial Reversed B
+        </Link>
+      </li>
     </ul>
   )
 }
