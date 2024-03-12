@@ -990,7 +990,6 @@ export default async function getBaseWebpackConfig(
           // Ensures the framework chunk is not created for App Router.
           layer: isWebpackDefaultLayer,
           test(module: any) {
-            if (module.type?.startsWith('css')) return false
             const resource = module.nameForCondition?.()
             return resource
               ? topLevelFrameworkPaths.some((pkgPath) =>

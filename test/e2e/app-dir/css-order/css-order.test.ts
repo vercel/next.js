@@ -1,15 +1,15 @@
 import path from 'path'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 
-function getPairs(all) {
-  const result = []
+function getPairs(all: string[]): [string, string][] {
+  const result: [string, string][] = []
 
   for (const first of all) {
     for (const second of all) {
       if (first === second || PAGES[first].group !== PAGES[second].group) {
         continue
       }
-      result.push([first, second])
+      result.push([first, second] as const)
     }
   }
 
@@ -106,7 +106,7 @@ const PAGES: Record<
     url: '/partial-reversed/a',
     selector: '#hellopra',
     color: 'rgb(255, 166, 255)',
-    background: 'rgb(255, 255, 255)',
+    background: 'rgba(0, 0, 0, 0)',
   },
   'partial-reversed-b': {
     group: 'partial-reversed',
@@ -114,7 +114,64 @@ const PAGES: Record<
     url: '/partial-reversed/b',
     selector: '#helloprb',
     color: 'rgb(255, 55, 255)',
-    background: 'rgb(255, 255, 255)',
+    background: 'rgba(0, 0, 0, 0)',
+  },
+  'pages-first': {
+    group: 'pages-basic',
+    url: '/pages/first',
+    selector: '#hello1',
+    color: 'rgb(0, 0, 255)',
+  },
+  'pages-second': {
+    group: 'pages-basic',
+    url: '/pages/second',
+    selector: '#hello2',
+    color: 'rgb(0, 128, 0)',
+  },
+  'pages-third': {
+    group: 'pages-basic',
+    url: '/pages/third',
+    selector: '#hello3',
+    color: 'rgb(0, 128, 128)',
+  },
+
+  'pages-interleaved-a': {
+    group: 'pages-interleaved',
+    url: '/pages/interleaved/a',
+    selector: '#helloia',
+    color: 'rgb(0, 255, 0)',
+  },
+  'pages-interleaved-b': {
+    group: 'pages-interleaved',
+    url: '/pages/interleaved/b',
+    selector: '#helloib',
+    color: 'rgb(255, 0, 255)',
+  },
+  'pages-reversed-a': {
+    group: 'pages-reversed',
+    url: '/pages/reversed/a',
+    selector: '#hellora',
+    color: 'rgb(0, 166, 255)',
+  },
+  'pages-reversed-b': {
+    group: 'pages-reversed',
+    url: '/pages/reversed/b',
+    selector: '#hellorb',
+    color: 'rgb(0, 89, 255)',
+  },
+  'pages-partial-reversed-a': {
+    group: 'pages-partial-reversed',
+    url: '/pages/partial-reversed/a',
+    selector: '#hellopra',
+    color: 'rgb(255, 166, 255)',
+    background: 'rgba(0, 0, 0, 0)',
+  },
+  'pages-partial-reversed-b': {
+    group: 'pages-partial-reversed',
+    url: '/pages/partial-reversed/b',
+    selector: '#helloprb',
+    color: 'rgb(255, 55, 255)',
+    background: 'rgba(0, 0, 0, 0)',
   },
 }
 
@@ -126,6 +183,7 @@ for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
     {
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
+        pages: new FileRef(path.join(__dirname, 'pages')),
         'next.config.js': process.env.TURBOPACK
           ? `
             module.exports = {}`
@@ -140,7 +198,7 @@ for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
         sass: 'latest',
       },
     },
-    ({ next, isNextDev, isTurbopack }) => {
+    ({ next, isNextDev }) => {
       for (const ordering of allPairs) {
         const name = `should load correct styles navigating back again ${ordering.join(
           ' -> '

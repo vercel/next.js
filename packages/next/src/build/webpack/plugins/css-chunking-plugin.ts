@@ -47,6 +47,7 @@ export class CssChunkingPlugin {
 
           // Collect all css modules in chunks and the execpted order of them
           for (const chunk of compilation.chunks) {
+            if (chunk.name?.startsWith('pages/')) continue
             const modules = []
             for (const module of chunkGraph.getChunkModulesIterable(chunk)) {
               if (!module.type?.startsWith('css')) continue
