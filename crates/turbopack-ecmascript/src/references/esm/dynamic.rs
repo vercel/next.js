@@ -63,7 +63,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         esm_resolve(
             self.origin,
             self.request,
-            Default::default(),
+            Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             try_to_severity(self.in_try),
             Some(self.issue_source),
         )
