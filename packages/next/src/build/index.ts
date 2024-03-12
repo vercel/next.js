@@ -1351,15 +1351,14 @@ export default async function build(
           env: process.env as Record<string, string>,
           defineEnv: createDefineEnv({
             isTurbopack: true,
-            allowedRevalidateHeaderKeys: undefined,
-            clientRouterFilters: undefined,
+            clientRouterFilters: NextBuildContext.clientRouterFilters,
             config,
             dev,
             distDir,
-            fetchCacheKeyPrefix: undefined,
+            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
             hasRewrites,
+            // TODO: Implement
             middlewareMatchers: undefined,
-            previewModeId: undefined,
           }),
         })
 
