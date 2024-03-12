@@ -30,7 +30,7 @@ next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.90.18", features = [
+swc_core = { version = "0.90.19", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
