@@ -10,7 +10,7 @@
     "postsetup": "echo 'create the read token by following the rest of the guide: https://github.com/vercel/next.js/tree/canary/examples/cms-sanity#creating-a-read-token'"
   },
   "dependencies": {
-    "@sanity/assist": "^2.0.2",
+    "@sanity/assist": "^2.0.3",
     "@sanity/icons": "^2.11.2",
     "@sanity/image-url": "^1.0.2",
     "@sanity/vision": "^3.32.0",
