@@ -636,11 +636,11 @@ async fn process_content(
         let handler = swc_core::common::errors::Handler::with_emitter(
             true,
             false,
-            Box::new(IssueEmitter {
+            Box::new(IssueEmitter::new(
                 source,
-                source_map: cm.clone(),
-                title: Some("Parsing css source code failed".to_string()),
-            }),
+                cm.clone(),
+                Some("Parsing css source code failed".to_string()),
+            )),
         );
 
         let fm = cm.new_source_file(FileName::Custom(ident_str.to_string()), code.clone());

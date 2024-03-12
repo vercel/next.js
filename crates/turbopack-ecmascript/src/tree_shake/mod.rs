@@ -380,7 +380,7 @@ pub(super) async fn part_of_module(
 
             Ok(modules[part_id as usize])
         }
-        SplitResult::Unparseable => Ok(ParseResult::Unparseable.cell()),
+        SplitResult::Unparseable => Ok(ParseResult::Unparseable { messages: None }.cell()),
         SplitResult::NotFound => Ok(ParseResult::NotFound.cell()),
     }
 }

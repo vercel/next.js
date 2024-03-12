@@ -517,11 +517,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let handler = Handler::with_emitter(
         true,
         false,
-        Box::new(IssueEmitter {
-            source,
-            source_map: source_map.clone(),
-            title: None,
-        }),
+        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
     );
 
     let mut var_graph =
