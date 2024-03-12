@@ -50,7 +50,7 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain('with Turbopack')
+        expect(output).toContain('(turbo)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
