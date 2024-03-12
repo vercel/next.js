@@ -120,9 +120,7 @@ const PAGES: Record<
 
 const allPairs = getPairs(Object.keys(PAGES))
 
-for (const mode of process.env.TURBOPACK
-  ? ['turbo']
-  : ['webpack strict', 'webpack loose'])
+for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
   createNextDescribe(
     `css-order ${mode}`,
     {
