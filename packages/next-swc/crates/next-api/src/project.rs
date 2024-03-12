@@ -586,6 +586,7 @@ impl Project {
             )
         } else {
             get_edge_chunking_context(
+                self.next_mode(),
                 self.project_path(),
                 self.node_root(),
                 self.edge_compile_time_info().environment(),

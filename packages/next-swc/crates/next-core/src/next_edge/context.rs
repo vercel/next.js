@@ -176,13 +176,15 @@ pub async fn get_edge_chunking_context_with_client_assets(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_chunking_context(
+pub async fn get_edge_chunking_context(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
-) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
-    Vc::upcast(
+    let next_mode = mode.await?;
+    Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
@@ -190,6 +192,7 @@ pub fn get_edge_chunking_context(
             output_root.join("chunks".to_string()),
             output_root.join("assets".to_string()),
             environment,
+            next_mode.runtime_type(),
         )
         // Since one can't read files in edge directly, any asset need to be fetched
         // instead. This special blob url is handled by the custom fetch
@@ -198,5 +201,5 @@ pub fn get_edge_chunking_context(
         .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
         .reference_chunk_source_maps(should_debug("edge"))
         .build(),
-    )
+    ))
 }
