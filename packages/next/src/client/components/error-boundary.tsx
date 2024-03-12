@@ -109,7 +109,8 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  render() {
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  render(): React.ReactNode {
     if (this.state.error) {
       return (
         <>

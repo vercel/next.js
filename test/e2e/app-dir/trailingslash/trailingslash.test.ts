@@ -48,5 +48,15 @@ createNextDescribe(
         .waitForElementByCss('#a-page')
       expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
     })
+
+    it('should not add trailing slash to external url or relative url with query', async () => {
+      const $ = await next.render$('/metadata')
+      expect($('[rel="canonical"]').attr('href')).toBe(
+        'http://trailingslash.com/metadata?query=string'
+      )
+      expect($('[property="og:url"]').attr('content')).toBe(
+        'http://trailingslash-another.com/metadata'
+      )
+    })
   }
 )
