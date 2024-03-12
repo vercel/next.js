@@ -235,7 +235,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
                 CompressionType::Best,
                 image::codecs::png::FilterType::NoFilter,
             )
-            .write_image(image.as_bytes(), width, height, image.color())?;
+            .write_image(image.as_bytes(), width, height, image.color().into())?;
             (buf, mime::IMAGE_PNG)
         }
         ImageFormat::Jpeg => {
@@ -243,7 +243,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
                 image.as_bytes(),
                 width,
                 height,
-                image.color(),
+                image.color().into(),
             )?;
             (buf, mime::IMAGE_JPEG)
         }
@@ -252,7 +252,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
                 image.as_bytes(),
                 width,
                 height,
-                image.color(),
+                image.color().into(),
             )?;
             // mime does not support typed IMAGE_X_ICO yet
             (buf, Mime::from_str("image/x-icon")?)
@@ -262,7 +262,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
                 image.as_bytes(),
                 width,
                 height,
-                image.color(),
+                image.color().into(),
             )?;
             (buf, mime::IMAGE_BMP)
         }
