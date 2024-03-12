@@ -3,14 +3,7 @@ import stripAnsi from 'strip-ansi'
 
 describe('production - app dir - build output', () => {
   const { next } = nextTestSetup({
-    files: {
-      'app/page.tsx': `export default function Page() { return null }`,
-      'app/layout.tsx': `export default function Layout({ children }) {
-        return (
-          <html><body>{children}</body></html>
-        )
-      }`,
-    },
+    files: __dirname,
   })
 
   let output = ''
