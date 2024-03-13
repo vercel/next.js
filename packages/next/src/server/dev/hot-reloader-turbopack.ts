@@ -392,19 +392,6 @@ export async function createHotReloaderTurbopack(
         console.log('subscribeToHmrEvents', data)
         processIssues(state.clientIssues, key, data)
 
-        if (data.issues.length === 0) {
-          sendToClient(client, {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-            errors: [],
-            hash: '',
-            warnings: [],
-          })
-          //
-          sendToClient(client, {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
-          })
-        }
-
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -635,6 +622,8 @@ export async function createHotReloaderTurbopack(
 
         const errors: CompilationError[] = []
 
+        currentEntryIssues.delete(getEntryKey('app', 'server', '_error'))
+        currentEntryIssues.delete(getEntryKey('pages', 'server', '_error'))
         console.log('currentEntryIssues', currentEntryIssues)
         for (const entryIssues of currentEntryIssues.values()) {
           for (const issue of entryIssues.values()) {
