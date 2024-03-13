@@ -8,7 +8,7 @@ import { isNextStart } from 'e2e-utils'
 console.log({ global })
 
 describe('CSS Import from node_modules', () => {
-  ;(Boolean(isNextStart) ? describe : describe.skip)('production only', () => {
+  ;(isNextStart ? describe : describe.skip)('production only', () => {
     const appDir = __dirname
 
     beforeAll(async () => {

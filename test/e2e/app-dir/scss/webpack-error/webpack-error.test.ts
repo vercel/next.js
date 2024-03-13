@@ -7,7 +7,7 @@ import { quote as shellQuote } from 'shell-quote'
 import { isNextStart } from 'e2e-utils'
 
 describe('SCSS Support', () => {
-  ;(Boolean(isNextStart) ? describe : describe.skip)('production only', () => {
+  ;(isNextStart ? describe : describe.skip)('production only', () => {
     describe('Friendly Webpack Error', () => {
       const appDir = __dirname
 

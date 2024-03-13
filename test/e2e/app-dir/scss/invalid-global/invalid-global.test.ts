@@ -6,7 +6,7 @@ import { join } from 'path'
 import { isNextStart } from 'e2e-utils'
 
 describe('Invalid Global CSS', () => {
-  ;(Boolean(isNextStart) ? describe : describe.skip)('production only', () => {
+  ;(isNextStart ? describe : describe.skip)('production only', () => {
     const appDir = __dirname
 
     beforeAll(async () => {

@@ -6,7 +6,7 @@ import { join } from 'path'
 import { isNextStart } from 'e2e-utils'
 
 describe.skip('Invalid CSS Module Usage in node_modules', () => {
-  ;(Boolean(isNextStart) ? describe : describe.skip)('production only', () => {
+  ;(isNextStart ? describe : describe.skip)('production only', () => {
     const appDir = __dirname
 
     beforeAll(async () => {
