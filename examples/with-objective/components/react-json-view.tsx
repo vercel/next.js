@@ -2,7 +2,7 @@
 
 import ReactJson from "react-json-view"
 
-export const ReactJsonView = ({
+const ReactJsonView = ({
     data,
     collapsed = false,
     fontSize = "0.75rem",
@@ -34,3 +34,5 @@ export const ReactJsonView = ({
         </div>
     )
 }
+
+export default ReactJsonView

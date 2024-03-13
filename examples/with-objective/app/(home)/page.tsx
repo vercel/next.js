@@ -1,7 +1,6 @@
 import { EmptyPlaceholder } from "@/components/empty-placeholder"
 import { SearchResultsSelector } from "@/components/page-size-select"
 import { PaginationButton } from "@/components/pagination-button"
-import { ReactJsonView } from "@/components/react-json-view"
 import { ResultCardImage } from "@/components/result-card-image"
 import { SearchInput } from "@/components/search-input"
 import { Shell } from "@/components/shell"
@@ -15,6 +14,12 @@ import {
   DoubleArrowRightIcon,
 } from "@radix-ui/react-icons"
 import { Suspense } from "react"
+import dynamic from 'next/dynamic'
+
+const ReactJsonView = dynamic(() => import('@/components/react-json-view'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[150px] w-full" />,
+})
 
 export interface HomePageProps {
   searchParams: TIndexSearch
