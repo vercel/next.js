@@ -69,6 +69,7 @@ const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+const defaultForbiddenPath = 'next/dist/client/components/forbidden-error'
 const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
@@ -204,6 +205,10 @@ async function createTreeCodeFromPath(
   const hasRootNotFound = await resolver(
     `${appDirPrefix}/${FILE_TYPES['not-found']}`
   )
+  const hasRootForbidden = await resolver(
+    `${appDirPrefix}/${FILE_TYPES['forbidden']}`
+  )
+
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -365,6 +370,11 @@ async function createTreeCodeFromPath(
       const hasNotFoundFile = definedFilePaths.some(
         ([type]) => type === 'not-found'
       )
+
+      const hasForbiddenFile = definedFilePaths.some(
+        ([type]) => type === 'forbidden'
+      )
+
       // If the first layer is a group route, we treat it as root layer
       const isFirstLayerGroupRoute =
         segments.length === 1 &&
@@ -373,6 +383,13 @@ async function createTreeCodeFromPath(
         // If you already have a root not found, don't insert default not-found to group routes root
         if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
           definedFilePaths.push(['not-found', defaultNotFoundPath])
+        }
+      }
+
+      if ((isRootLayer || isFirstLayerGroupRoute) && !hasForbiddenFile) {
+        // If you already have a root not found, don't insert default forbidden to group routes root
+        if (!(hasRootForbidden && isFirstLayerGroupRoute)) {
+          definedFilePaths.push(['forbidden', defaultForbiddenPath])
         }
       }
 
