@@ -333,7 +333,7 @@ const transform = (
           emitWarning: makeErrorEmitter("warning", ipc),
           emitError: makeErrorEmitter("error", ipc),
           getLogger(name: unknown) {
-            return (type: unknown, args: unknown) => {
+            const logger = (type: unknown, args: unknown) => {
               let trace;
               switch (type) {
                 case LogType.warn:
@@ -353,6 +353,16 @@ const transform = (
 
               this.hooks.log.call(name, logEntry);
             };
+
+            // See https://github.com/webpack/webpack/blob/a48c34b34d2d6c44f9b2b221d7baf278d34ac0be/lib/logging/Logger.js#L8
+            // for the full logger interface if this isn't suffecient
+            logger.error = logger.bind(this, LogType.error);
+            logger.warn = logger.bind(this, LogType.warn);
+            logger.info = logger.bind(this, LogType.info);
+            logger.log = logger.bind(this, LogType.log);
+            logger.debug = logger.bind(this, LogType.debug);
+
+            return logger;
           },
         },
 
