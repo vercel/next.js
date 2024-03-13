@@ -6,6 +6,6 @@ export const indexSearchSchema = z.object({
   view: z.string().optional().default(""),
   limit: z.coerce.number().optional().default(12),
   offset: z.coerce.number().optional().default(0),
-}).default({})
+})
 
 export type TIndexSearch = z.infer<typeof indexSearchSchema>
