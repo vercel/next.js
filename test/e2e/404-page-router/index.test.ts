@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { type NextInstance } from 'test/lib/next-modes/base'
 
@@ -15,6 +15,20 @@ const pathnames = {
 
 const basePath = '/docs'
 
+const table = [
+  { basePath: false, i18n: true, middleware: false },
+  { basePath: true, i18n: false, middleware: false },
+  { basePath: true, i18n: true, middleware: false },
+  { basePath: false, i18n: false, middleware: false },
+
+  ...(isNextDev
+    ? []
+    : [
+        // TODO: investigate this failure in development
+        { basePath: false, i18n: false, middleware: true },
+      ]),
+]
+
 const baseNextConfig = `
 module.exports = {
   BASE_PATH
@@ -24,20 +38,6 @@ module.exports = {
 
 describe('404-page-router', () => {
   let next: NextInstance
-
-  const table = [
-    { basePath: false, i18n: true, middleware: false },
-    { basePath: true, i18n: false, middleware: false },
-    { basePath: true, i18n: true, middleware: false },
-    { basePath: false, i18n: false, middleware: false },
-
-    ...(next.isDev
-      ? []
-      : [
-          // TODO: investigate this failure in development
-          { basePath: false, i18n: false, middleware: true },
-        ]),
-  ]
 
   beforeAll(async () => {
     const files = {
