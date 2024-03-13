@@ -689,7 +689,7 @@ export async function createHotReloaderTurbopack(
       for (const issue of topLevelIssues) {
         errors.push(new Error(formatIssue(issue)))
       }
-      for (const [key, entryIssues] of currentEntryIssues.entries()) {
+      for (const entryIssues of currentEntryIssues.values()) {
         for (const issue of entryIssues.values()) {
           errors.push(new Error(formatIssue(issue)))
         }
