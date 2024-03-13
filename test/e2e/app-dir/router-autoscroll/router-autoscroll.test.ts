@@ -148,14 +148,18 @@ createNextDescribe(
             'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
 
           await browser.eval(`window.router.refresh()`)
-          await next.patchFile(
-            pagePath,
-            (await next.readFile(pagePath)) +
+          let originalContent: string
+          await next.patchFile(pagePath, (content) => {
+            originalContent = content
+            return (
+              content +
               `
         \\\\ Add this meaningless comment to force refresh
         `
-          )
+            )
+          })
           await waitForScrollToComplete(browser, { x: 0, y: 12000 })
+          await next.patchFile(pagePath, originalContent)
         }
       )
     })
