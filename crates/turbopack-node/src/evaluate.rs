@@ -325,7 +325,7 @@ pub async fn compute(
         let args = evaluate_context.args().iter().try_join().await?;
         // Assume this is a one-off operation, so we can kill the process
         // TODO use a better way to decide that.
-        let kill = args.is_empty();
+        let kill = !evaluate_context.keep_alive();
 
         // Workers in the pool could be in a bad state that we didn't detect yet.
         // The bad state might even be unnoticeable until we actually send the job to the
