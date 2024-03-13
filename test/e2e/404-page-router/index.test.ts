@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef, isNextDev } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { type NextInstance } from 'test/lib/next-modes/base'
 
@@ -51,9 +51,7 @@ describe('404-page-router', () => {
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',
     (options) => {
-      const { isNextDev: isDev, isNextDeploy: isDeploy } = next
-
-      if (isDeploy) {
+      if (isNextDeploy) {
         // TODO: investigate condensing these tests to avoid
         // 5 separate deploys for this one test
         it('should skip for deploy', () => {})
@@ -117,7 +115,7 @@ describe('404-page-router', () => {
 
       // Only include the /_error tests in production because in development we
       // have the error overlay.
-      if (!isDev) {
+      if (!isNextDev) {
         urls.push(...translate('/_error', options.basePath))
       }
 
