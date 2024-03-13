@@ -578,9 +578,20 @@ export async function createHotReloaderTurbopack(
             case 'client-reload-page': // { clientId }
             case 'client-removed-page': // { page }
             case 'client-full-reload': // { stackTrace, hadRuntimeError }
-              const { hadRuntimeError } = parsedData
+              const { hadRuntimeError, dependencyChain } = parsedData
               if (hadRuntimeError) {
                 Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
+              }
+              if (
+                Array.isArray(dependencyChain) &&
+                typeof dependencyChain[0] === 'string'
+              ) {
+                const cleanedModulePath = dependencyChain[0]
+                  .replace(/^\[project\]/, '.')
+                  .replace(/ \[.*\] \(.*\)$/, '')
+                Log.warn(
+                  `Fast Refresh had to perform a full reload when ${cleanedModulePath} changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
+                )
               }
               break
             case 'client-added-page':
