@@ -143,7 +143,15 @@ impl EcmascriptDevEvaluateChunk {
         )?;
 
         match chunking_context.runtime_type() {
-            RuntimeType::Default => {
+            RuntimeType::Development => {
+                let runtime_code = turbopack_ecmascript_runtime::get_dev_runtime_code(
+                    environment,
+                    chunking_context.chunk_base_path(),
+                    Vc::cell(output_root.to_string()),
+                );
+                code.push_code(&*runtime_code.await?);
+            }
+            RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_dev_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),

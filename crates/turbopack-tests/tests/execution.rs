@@ -34,6 +34,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
+use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::jest::JestRunResult;
@@ -302,6 +303,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         chunk_root_path,
         static_root_path,
         env,
+        RuntimeType::Development,
     )
     .build();
 

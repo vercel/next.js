@@ -95,6 +95,7 @@ impl NodeJsChunkingContext {
         chunk_root_path: Vc<FileSystemPath>,
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
+        runtime_type: RuntimeType,
     ) -> NodeJsChunkingContextBuilder {
         NodeJsChunkingContextBuilder {
             chunking_context: NodeJsChunkingContext {
@@ -105,7 +106,7 @@ impl NodeJsChunkingContext {
                 asset_root_path,
                 asset_prefix: Default::default(),
                 environment,
-                runtime_type: Default::default(),
+                runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
             },

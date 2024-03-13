@@ -28,6 +28,7 @@ use turbopack_core::{
         parse::Request,
     },
 };
+use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_nodejs::NodeJsChunkingContext;
@@ -181,6 +182,8 @@ async fn build_internal(
     let project_path = project_fs.root().join(project_relative);
     let build_output_root = output_fs.root().join("dist".to_string());
 
+    let node_env = NodeEnv::Production.cell();
+
     let chunking_context = Vc::upcast(
         NodeJsChunkingContext::builder(
             project_path,
@@ -189,12 +192,15 @@ async fn build_internal(
             build_output_root,
             build_output_root,
             env,
+            match *node_env.await? {
+                NodeEnv::Development => RuntimeType::Development,
+                NodeEnv::Production => RuntimeType::Production,
+            },
         )
         .minify_type(minify_type)
         .build(),
     );
 
-    let node_env = NodeEnv::Production.cell();
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let execution_context =
         ExecutionContext::new(project_path, chunking_context, load_env(project_path));

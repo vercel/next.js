@@ -2,23 +2,11 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
 #[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    TraceRawVcs,
-    Default,
+    Serialize, Deserialize, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs,
 )]
 pub enum RuntimeType {
-    #[default]
-    /// Default, full-featured runtime.
-    Default,
+    Development,
+    Production,
     #[cfg(feature = "test")]
     /// Dummy runtime for snapshot tests.
     Dummy,

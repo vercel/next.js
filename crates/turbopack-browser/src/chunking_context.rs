@@ -126,6 +126,7 @@ impl BrowserChunkingContext {
         chunk_root_path: Vc<FileSystemPath>,
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
+        runtime_type: RuntimeType,
     ) -> BrowserChunkingContextBuilder {
         BrowserChunkingContextBuilder {
             chunking_context: BrowserChunkingContext {
@@ -140,7 +141,7 @@ impl BrowserChunkingContext {
                 asset_base_path: Default::default(),
                 enable_hot_module_replacement: false,
                 environment,
-                runtime_type: Default::default(),
+                runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
             },

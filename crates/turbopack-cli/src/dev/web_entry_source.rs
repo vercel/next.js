@@ -19,6 +19,7 @@ use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{asset_graph::AssetGraphContentSource, ContentSource},
 };
+use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
@@ -43,6 +44,7 @@ pub fn get_client_chunking_context(
             server_root.join("/_chunks".to_string()),
             server_root.join("/_assets".to_string()),
             environment,
+            RuntimeType::Development,
         )
         .hot_module_replacement()
         .build(),

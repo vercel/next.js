@@ -309,6 +309,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                 chunk_root_path,
                 static_root_path,
                 env,
+                RuntimeType::Development,
             )
             .runtime_type(options.runtime_type)
             .build(),
@@ -321,6 +322,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                 chunk_root_path,
                 static_root_path,
                 env,
+                RuntimeType::Production,
             )
             .minify_type(options.minify_type)
             .runtime_type(options.runtime_type)
