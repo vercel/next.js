@@ -42,7 +42,7 @@ export default function Page() {
 
 ### Google Analytics Event
 
-The `sendGAEvent` function can be used to send an event to Google Analytics. This function uses the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs/events) library under the hood.
+The `sendGAEvent` function can be used to send an event to Google Analytics. This function uses the [gtag.js](https://developers.google.com/analytics/devguides/collection/ga4/events) library under the hood.
 
 ```js
 import { sendGAEvent } from '@next/third-parties/google'
