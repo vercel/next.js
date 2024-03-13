@@ -161,6 +161,7 @@ pub async fn get_client_resolve_options_context(
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
         ],
         ..Default::default()
     };
