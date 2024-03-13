@@ -3,7 +3,7 @@ import { join } from 'path'
 import assert from 'assert'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
@@ -223,7 +223,7 @@ describe('basePath', () => {
     })
 
     if (!isDev) {
-      if (!next.isNextDeploy) {
+      if (!isNextDeploy) {
         it('should add basePath to routes-manifest', async () => {
           const routesManifest = JSON.parse(
             await next.readFile('.next/routes-manifest.json')
@@ -613,7 +613,7 @@ describe('basePath', () => {
       )
     })
 
-    if (!next.isNextDeploy) {
+    if (!isNextDeploy) {
       it('should navigate an absolute local url with basePath', async () => {
         const browser = await webdriver(
           next.url,
@@ -993,5 +993,5 @@ describe('basePath', () => {
       }
     })
   }
-  runTests(next.isNextDev, next.isNextDeploy)
+  runTests(isNextDev, isNextDeploy)
 })

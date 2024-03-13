@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev, isNextStart } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import fs from 'fs-extra'
@@ -46,7 +46,7 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
-  if (next.isNextStart) {
+  if (isNextStart) {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
@@ -63,7 +63,7 @@ describe('og-api', () => {
     })
   }
 
-  if (next.isNextDev) {
+  if (isNextDev) {
     it('should throw error when returning a response object in pages/api in node runtime', async () => {
       const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
       expect(res.status).toBe(500)

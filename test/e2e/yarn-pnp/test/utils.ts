@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
-import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 jest.setTimeout(2 * 60 * 1000)
@@ -51,7 +51,7 @@ export function runTests(
           )}`
         },
         buildCommand: `yarn next build --no-lint`,
-        startCommand: next.isNextDev ? `yarn next` : `yarn next start`,
+        startCommand: isNextDev ? `yarn next` : `yarn next start`,
       })
     })
     afterAll(() => next?.destroy())

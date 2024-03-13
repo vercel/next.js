@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
@@ -11,7 +11,7 @@ const mockedGoogleFontResponses = require.resolve(
 describe('next/font/google without-preloaded-fonts without _app', () => {
   let next: NextInstance
 
-  if (next.isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
@@ -62,7 +62,7 @@ describe('next/font/google without-preloaded-fonts without _app', () => {
 describe('next/font/google no preloads with _app', () => {
   let next: NextInstance
 
-  if (next.isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }

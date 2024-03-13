@@ -1,5 +1,5 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextStart } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 
@@ -61,7 +61,7 @@ describe('prerender native module', () => {
     })
   })
 
-  if (next.isNextStart) {
+  if (isNextStart) {
     it('should output traces', async () => {
       const checks = [
         {

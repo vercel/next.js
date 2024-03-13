@@ -137,7 +137,7 @@ createNextDescribe(
       })
 
       // Test hot reloading only in development
-      ;(next.isNextDev ? it : it.skip)(
+      ;(isNextDev ? it : it.skip)(
         'should not scroll the page when we hot reload',
         async () => {
           const browser = await webdriver(next.url, '/10/10000/100/1000/page1')

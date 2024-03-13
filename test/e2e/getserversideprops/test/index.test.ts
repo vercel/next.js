@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
   check,
@@ -859,5 +859,5 @@ describe('getServerSideProps', () => {
   })
   afterAll(() => next.destroy())
 
-  runTests(next.isNextDev, next.isNextDeploy)
+  runTests(isNextDev, isNextDeploy)
 })

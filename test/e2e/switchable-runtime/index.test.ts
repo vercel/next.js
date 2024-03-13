@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
@@ -37,7 +37,7 @@ describe('Switchable runtime', () => {
   let next: NextInstance
   let context
 
-  if (next.isNextDeploy) {
+  if (isNextDeploy) {
     // TODO-APP: re-enable after Prerenders are handled on deploy
     it('should skip for deploy temporarily', () => {})
     return
@@ -60,7 +60,7 @@ describe('Switchable runtime', () => {
   })
   afterAll(() => next.destroy())
 
-  if (next.isNextDev) {
+  if (isNextDev) {
     describe('Switchable runtime (dev)', () => {
       it('should not include edge api routes and edge ssr routes into dev middleware manifest', async () => {
         const res = await fetchViaHTTP(
@@ -180,7 +180,7 @@ describe('Switchable runtime', () => {
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
-        if (!next.isNextDeploy) {
+        if (!isNextDeploy) {
           const manifest = await readJson(
             join(context.appDir, '.next/server/middleware-manifest.json')
           )
@@ -614,7 +614,7 @@ describe('Switchable runtime', () => {
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
-        if (!next.isNextDeploy) {
+        if (!isNextDeploy) {
           const manifest = await readJson(
             join(context.appDir, '.next/server/middleware-manifest.json')
           )

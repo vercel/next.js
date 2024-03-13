@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev, isNextStart } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 
@@ -80,7 +80,7 @@ describe('Middleware Runtime trailing slash', () => {
       })
     })
 
-    if (next.isNextDev) {
+    if (isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about/`)
         await browser.eval('window.didrefresh = "hello"')
@@ -104,7 +104,7 @@ describe('Middleware Runtime trailing slash', () => {
       })
     }
 
-    if (next.isNextStart) {
+    if (isNextStart) {
       it('should have valid middleware field in manifest', async () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
@@ -383,7 +383,7 @@ describe('Middleware Runtime trailing slash', () => {
       const res = await fetchViaHTTP(next.url, `/%2/`)
       expect(res.status).toBe(400)
 
-      if (next.isNextStart) {
+      if (isNextStart) {
         expect(await res.text()).toContain('Bad Request')
       }
     })

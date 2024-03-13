@@ -1,4 +1,4 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { hasRedbox, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -69,7 +69,7 @@ describe('Type module interop', () => {
     })
 
     // can't modify build output after deploy
-    if (!next.isNextDeploy) {
+    if (!isNextDeploy) {
       const contents = await next.readFile('package.json')
       const pkg = JSON.parse(contents)
       await next.patchFile(

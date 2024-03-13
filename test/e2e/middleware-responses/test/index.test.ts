@@ -3,7 +3,7 @@
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 
 describe('Middleware Responses', () => {
   let next: NextInstance
@@ -33,7 +33,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/stream-a-response`)
       expect(res.status).toBe(200)
 
-      if (!next.isNextDeploy) {
+      if (!isNextDeploy) {
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
@@ -44,7 +44,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
       expect(res.status).toBe(200)
 
-      if (!next.isNextDeploy) {
+      if (!isNextDeploy) {
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )

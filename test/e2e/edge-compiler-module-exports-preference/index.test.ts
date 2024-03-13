@@ -1,4 +1,4 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 
@@ -42,7 +42,7 @@ describe('Edge compiler module exports preference', () => {
         },
       },
       installCommand: 'pnpm i',
-      startCommand: next.isNextDev ? 'pnpm dev' : 'pnpm start',
+      startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
       buildCommand: 'pnpm run build',
       dependencies: {},
     })

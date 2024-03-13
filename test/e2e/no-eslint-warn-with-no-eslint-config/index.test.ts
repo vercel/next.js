@@ -1,11 +1,11 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('no-eslint-warn-with-no-eslint-config', () => {
   let next: NextInstance
 
-  if (next.isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip for deploy', () => {})
     return
   }
@@ -36,7 +36,7 @@ describe('no-eslint-warn-with-no-eslint-config', () => {
     expect(next.cliOutput).not.toBe('warn')
   })
 
-  if (!next.isNextDev) {
+  if (!isNextDev) {
     it('should warn with empty eslintrc', async () => {
       await next.stop()
       await next.patchFile('.eslintrc.json', '{}')

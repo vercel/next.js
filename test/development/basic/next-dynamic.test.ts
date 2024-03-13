@@ -1,7 +1,7 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev } from 'e2e-utils'
 import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
@@ -245,7 +245,7 @@ describe.each([
               }
             })
 
-            if (!next.isNextDev) {
+            if (!isNextDev) {
               it('should not include ssr:false imports to server trace', async () => {
                 const trace = JSON.parse(
                   await next.readFile(

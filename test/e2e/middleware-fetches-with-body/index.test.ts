@@ -1,4 +1,4 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 
@@ -66,7 +66,7 @@ describe('Middleware fetches with body', () => {
       try {
         expect(res.status).toBe(413)
 
-        if (!next.isNextDeploy) {
+        if (!isNextDeploy) {
           expect(res.statusText).toBe('Body exceeded 1mb limit')
         }
       } catch (err) {
@@ -142,7 +142,7 @@ describe('Middleware fetches with body', () => {
       try {
         expect(res.status).toBe(413)
 
-        if (!next.isNextDeploy) {
+        if (!isNextDeploy) {
           expect(res.statusText).toBe('Body exceeded 5kb limit')
         }
       } catch (err) {
@@ -195,7 +195,7 @@ describe('Middleware fetches with body', () => {
       try {
         expect(res.status).toBe(413)
 
-        if (!next.isNextDeploy) {
+        if (!isNextDeploy) {
           expect(res.statusText).toBe('Body exceeded 5mb limit')
         }
       } catch (err) {
@@ -207,7 +207,7 @@ describe('Middleware fetches with body', () => {
       }
     })
 
-    if (!next.isNextDeploy) {
+    if (!isNextDeploy) {
       it('should be able to send and return body size equal to 5mb', async () => {
         const bodySize = 5 * 1024 * 1024
         const body = 'FGHI1J2K3L4M5N6O7P8Q9R0SaTbUcVdW'.repeat(bodySize / 32)
@@ -297,7 +297,7 @@ describe('Middleware fetches with body', () => {
     try {
       expect(res.status).toBe(413)
 
-      if (!next.isNextDeploy) {
+      if (!isNextDeploy) {
         expect(res.statusText).toBe('Body exceeded 5mb limit')
       }
     } catch (err) {

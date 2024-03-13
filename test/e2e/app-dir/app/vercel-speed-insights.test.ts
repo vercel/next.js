@@ -1,4 +1,4 @@
-import { createNext, isNextDeploy } from 'e2e-utils'
+import { createNext, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 
@@ -34,7 +34,7 @@ describe('vercel speed insights', () => {
     afterAll(() => next.destroy())
 
     // Analytics events are only sent in production
-    ;(next.isNextDev ? describe.skip : describe)('Vercel analytics', () => {
+    ;(isNextDev ? describe.skip : describe)('Vercel analytics', () => {
       it('should send web vitals to Vercel analytics', async () => {
         expect(next.cliOutput).toMatch(
           '`config.analyticsId` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid'

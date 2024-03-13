@@ -1,5 +1,5 @@
 /* eslint-disable jest/no-identical-title */
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
@@ -99,7 +99,7 @@ describe('Middleware can set the matcher in its config', () => {
 
     await check(async () => {
       const matchers = await browser.eval(
-        next.isNextDev
+        isNextDev
           ? 'window.__DEV_MIDDLEWARE_MATCHERS'
           : 'window.__MIDDLEWARE_MATCHERS'
       )

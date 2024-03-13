@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
@@ -11,7 +11,7 @@ const mockedGoogleFontResponses = require.resolve(
 describe('next/font/google with-font-declarations-file', () => {
   let next: NextInstance
 
-  if (next.isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
@@ -46,7 +46,7 @@ describe('next/font/google with-font-declarations-file', () => {
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(0)
 
-    if (next.isNextDev) {
+    if (isNextDev) {
       // In dev all fonts will be preloaded since it's before DCE
       expect($('link[as="font"]').length).toBe(4)
     } else {
@@ -80,7 +80,7 @@ describe('next/font/google with-font-declarations-file', () => {
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(0)
 
-    if (next.isNextDev) {
+    if (isNextDev) {
       // In dev all fonts will be preloaded since it's before DCE
       expect($('link[as="font"]').length).toBe(4)
     } else {
@@ -114,7 +114,7 @@ describe('next/font/google with-font-declarations-file', () => {
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(0)
 
-    if (next.isNextDev) {
+    if (isNextDev) {
       // In dev all fonts will be preloaded since it's before DCE
       expect($('link[as="font"]').length).toBe(4)
     } else {

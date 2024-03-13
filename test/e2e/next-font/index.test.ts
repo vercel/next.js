@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 import { join } from 'path'
@@ -47,7 +47,7 @@ describe('next/font', () => {
       }
       let next: NextInstance
 
-      if (next.isNextDeploy) {
+      if (isNextDeploy) {
         it('should skip next deploy for now', () => {})
         return
       }
@@ -69,7 +69,7 @@ describe('next/font', () => {
       })
       afterAll(() => next.destroy())
 
-      if (next.isNextDev) {
+      if (isNextDev) {
         it('should use production cache control for fonts', async () => {
           const $ = await next.render$('/')
           const link = $('[rel="preload"][as="font"]').attr('href')

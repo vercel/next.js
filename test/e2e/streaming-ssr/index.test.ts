@@ -1,5 +1,10 @@
 import { join } from 'path'
-import { createNext, createNextDescribe, isNextStart } from 'e2e-utils'
+import {
+  createNext,
+  createNextDescribe,
+  isNextDev,
+  isNextStart,
+} from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
@@ -55,7 +60,7 @@ createNextDescribe(
       expect(html).toContain('マルチバイト'.repeat(28))
     })
 
-    if (next.isNextDev) {
+    if (isNextDev) {
       it('should work with custom document', async () => {
         await next.patchFile(
           'pages/_document.js',

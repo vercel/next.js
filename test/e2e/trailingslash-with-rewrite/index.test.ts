@@ -1,12 +1,12 @@
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('trailingSlash:true with rewrites and getStaticProps', () => {
   let next: NextInstance
 
-  if (next.isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip for deploy mode for now', () => {})
     return
   }
