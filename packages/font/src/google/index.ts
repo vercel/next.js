@@ -17,7 +17,7 @@ export declare function ABeeZee<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function ADLaM_Display<
@@ -30,7 +30,7 @@ export declare function ADLaM_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function AR_One_Sans<
@@ -49,7 +49,7 @@ export declare function AR_One_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'ARRR'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -63,7 +63,7 @@ export declare function Abel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Abhaya_Libre<
@@ -82,7 +82,7 @@ export declare function Abhaya_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aboreto<
@@ -95,7 +95,7 @@ export declare function Aboreto<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Abril_Fatface<
@@ -108,7 +108,7 @@ export declare function Abril_Fatface<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Abyssinica_SIL<
@@ -121,7 +121,7 @@ export declare function Abyssinica_SIL<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aclonica<
@@ -134,7 +134,7 @@ export declare function Aclonica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Acme<
@@ -147,7 +147,7 @@ export declare function Acme<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Actor<
@@ -160,7 +160,7 @@ export declare function Actor<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Adamina<
@@ -173,7 +173,7 @@ export declare function Adamina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Advent_Pro<
@@ -199,7 +199,7 @@ export declare function Advent_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -219,7 +219,7 @@ export declare function Afacad<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic-ext' | 'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'
   >
@@ -234,7 +234,7 @@ export declare function Agbalumo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Agdasima<
@@ -247,7 +247,7 @@ export declare function Agdasima<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aguafina_Script<
@@ -260,7 +260,7 @@ export declare function Aguafina_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Akatab<
@@ -280,7 +280,7 @@ export declare function Akatab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tifinagh'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Akaya_Kanadaka<
@@ -293,7 +293,7 @@ export declare function Akaya_Kanadaka<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Akaya_Telivigala<
@@ -306,7 +306,7 @@ export declare function Akaya_Telivigala<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Akronim<
@@ -319,7 +319,7 @@ export declare function Akronim<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Akshar<
@@ -339,7 +339,7 @@ export declare function Akshar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aladin<
@@ -352,7 +352,7 @@ export declare function Aladin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alata<
@@ -365,7 +365,7 @@ export declare function Alata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alatsi<
@@ -378,7 +378,7 @@ export declare function Alatsi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Albert_Sans<
@@ -404,7 +404,7 @@ export declare function Albert_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aldrich<
@@ -417,7 +417,7 @@ export declare function Aldrich<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alef<
@@ -430,7 +430,7 @@ export declare function Alef<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alegreya<
@@ -451,7 +451,7 @@ export declare function Alegreya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -478,7 +478,7 @@ export declare function Alegreya_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -507,7 +507,7 @@ export declare function Alegreya_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -536,7 +536,7 @@ export declare function Alegreya_Sans_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -570,7 +570,7 @@ export declare function Aleo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alex_Brush<
@@ -583,7 +583,7 @@ export declare function Alex_Brush<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alexandria<
@@ -609,7 +609,7 @@ export declare function Alexandria<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alfa_Slab_One<
@@ -622,7 +622,7 @@ export declare function Alfa_Slab_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alice<
@@ -635,7 +635,7 @@ export declare function Alice<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alike<
@@ -648,7 +648,7 @@ export declare function Alike<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alike_Angular<
@@ -661,7 +661,7 @@ export declare function Alike_Angular<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alkalami<
@@ -674,7 +674,7 @@ export declare function Alkalami<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alkatra<
@@ -693,7 +693,7 @@ export declare function Alkatra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'devanagari' | 'latin' | 'latin-ext' | 'oriya'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Allan<
@@ -706,7 +706,7 @@ export declare function Allan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Allerta<
@@ -719,7 +719,7 @@ export declare function Allerta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Allerta_Stencil<
@@ -732,7 +732,7 @@ export declare function Allerta_Stencil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Allison<
@@ -745,7 +745,7 @@ export declare function Allison<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Allura<
@@ -758,7 +758,7 @@ export declare function Allura<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Almarai<
@@ -771,7 +771,7 @@ export declare function Almarai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Almendra<
@@ -784,7 +784,7 @@ export declare function Almendra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Almendra_Display<
@@ -797,7 +797,7 @@ export declare function Almendra_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Almendra_SC<
@@ -810,7 +810,7 @@ export declare function Almendra_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alumni_Sans<
@@ -836,7 +836,7 @@ export declare function Alumni_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -851,7 +851,7 @@ export declare function Alumni_Sans_Collegiate_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alumni_Sans_Inline_One<
@@ -864,7 +864,7 @@ export declare function Alumni_Sans_Inline_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alumni_Sans_Pinstripe<
@@ -877,7 +877,7 @@ export declare function Alumni_Sans_Pinstripe<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -892,7 +892,7 @@ export declare function Amarante<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amaranth<
@@ -905,7 +905,7 @@ export declare function Amaranth<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amatic_SC<
@@ -918,7 +918,7 @@ export declare function Amatic_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amethysta<
@@ -931,7 +931,7 @@ export declare function Amethysta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amiko<
@@ -944,7 +944,7 @@ export declare function Amiko<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amiri<
@@ -957,7 +957,7 @@ export declare function Amiri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amiri_Quran<
@@ -970,7 +970,7 @@ export declare function Amiri_Quran<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Amita<
@@ -983,7 +983,7 @@ export declare function Amita<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Anaheim<
@@ -996,7 +996,7 @@ export declare function Anaheim<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Andada_Pro<
@@ -1016,7 +1016,7 @@ export declare function Andada_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Andika<
@@ -1029,7 +1029,7 @@ export declare function Andika<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -1054,7 +1054,7 @@ export declare function Anek_Bangla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1078,7 +1078,7 @@ export declare function Anek_Devanagari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1102,7 +1102,7 @@ export declare function Anek_Gujarati<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1126,7 +1126,7 @@ export declare function Anek_Gurmukhi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1150,7 +1150,7 @@ export declare function Anek_Kannada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1174,7 +1174,7 @@ export declare function Anek_Latin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1198,7 +1198,7 @@ export declare function Anek_Malayalam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1222,7 +1222,7 @@ export declare function Anek_Odia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'oriya'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1246,7 +1246,7 @@ export declare function Anek_Tamil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1270,7 +1270,7 @@ export declare function Anek_Telugu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1284,7 +1284,7 @@ export declare function Angkor<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Annapurna_SIL<
@@ -1297,7 +1297,7 @@ export declare function Annapurna_SIL<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Annie_Use_Your_Telescope<
@@ -1310,7 +1310,7 @@ export declare function Annie_Use_Your_Telescope<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Anonymous_Pro<
@@ -1323,7 +1323,7 @@ export declare function Anonymous_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Anta<
@@ -1336,7 +1336,7 @@ export declare function Anta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Antic<
@@ -1349,7 +1349,7 @@ export declare function Antic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Antic_Didone<
@@ -1362,7 +1362,7 @@ export declare function Antic_Didone<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Antic_Slab<
@@ -1375,7 +1375,7 @@ export declare function Antic_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Anton<
@@ -1388,7 +1388,7 @@ export declare function Anton<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Antonio<
@@ -1410,7 +1410,7 @@ export declare function Antonio<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Anuphan<
@@ -1432,7 +1432,7 @@ export declare function Anuphan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai' | 'vietnamese'
   >
@@ -1460,7 +1460,7 @@ export declare function Anybody<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1474,7 +1474,7 @@ export declare function Aoboshi_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arapey<
@@ -1487,7 +1487,7 @@ export declare function Arapey<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arbutus<
@@ -1500,7 +1500,7 @@ export declare function Arbutus<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arbutus_Slab<
@@ -1513,7 +1513,7 @@ export declare function Arbutus_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Architects_Daughter<
@@ -1526,7 +1526,7 @@ export declare function Architects_Daughter<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Archivo<
@@ -1552,7 +1552,7 @@ export declare function Archivo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1566,7 +1566,7 @@ export declare function Archivo_Black<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Archivo_Narrow<
@@ -1585,7 +1585,7 @@ export declare function Archivo_Narrow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Are_You_Serious<
@@ -1598,7 +1598,7 @@ export declare function Are_You_Serious<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aref_Ruqaa<
@@ -1611,7 +1611,7 @@ export declare function Aref_Ruqaa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aref_Ruqaa_Ink<
@@ -1624,7 +1624,7 @@ export declare function Aref_Ruqaa_Ink<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arima<
@@ -1646,7 +1646,7 @@ export declare function Arima<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'greek'
     | 'greek-ext'
@@ -1673,7 +1673,7 @@ export declare function Arimo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -1695,7 +1695,7 @@ export declare function Arizonia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Armata<
@@ -1708,7 +1708,7 @@ export declare function Armata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arsenal<
@@ -1721,7 +1721,7 @@ export declare function Arsenal<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -1736,7 +1736,7 @@ export declare function Artifika<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arvo<
@@ -1749,7 +1749,7 @@ export declare function Arvo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Arya<
@@ -1762,7 +1762,7 @@ export declare function Arya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Asap<
@@ -1788,7 +1788,7 @@ export declare function Asap<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -1811,7 +1811,7 @@ export declare function Asap_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Asar<
@@ -1824,7 +1824,7 @@ export declare function Asar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Asset<
@@ -1837,7 +1837,7 @@ export declare function Asset<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Assistant<
@@ -1859,7 +1859,7 @@ export declare function Assistant<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Astloch<
@@ -1872,7 +1872,7 @@ export declare function Astloch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Asul<
@@ -1885,7 +1885,7 @@ export declare function Asul<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Athiti<
@@ -1905,7 +1905,7 @@ export declare function Athiti<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Atkinson_Hyperlegible<
@@ -1918,7 +1918,7 @@ export declare function Atkinson_Hyperlegible<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Atma<
@@ -1937,7 +1937,7 @@ export declare function Atma<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Atomic_Age<
@@ -1950,7 +1950,7 @@ export declare function Atomic_Age<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Aubrey<
@@ -1963,7 +1963,7 @@ export declare function Aubrey<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Audiowide<
@@ -1976,7 +1976,7 @@ export declare function Audiowide<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Autour_One<
@@ -1989,7 +1989,7 @@ export declare function Autour_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Average<
@@ -2002,7 +2002,7 @@ export declare function Average<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Average_Sans<
@@ -2015,7 +2015,7 @@ export declare function Average_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Averia_Gruesa_Libre<
@@ -2028,7 +2028,7 @@ export declare function Averia_Gruesa_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Averia_Libre<
@@ -2041,7 +2041,7 @@ export declare function Averia_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Averia_Sans_Libre<
@@ -2054,7 +2054,7 @@ export declare function Averia_Sans_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Averia_Serif_Libre<
@@ -2067,7 +2067,7 @@ export declare function Averia_Serif_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Azeret_Mono<
@@ -2093,7 +2093,7 @@ export declare function Azeret_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function B612<
@@ -2106,7 +2106,7 @@ export declare function B612<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function B612_Mono<
@@ -2119,7 +2119,7 @@ export declare function B612_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BIZ_UDGothic<
@@ -2132,7 +2132,7 @@ export declare function BIZ_UDGothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BIZ_UDMincho<
@@ -2145,7 +2145,7 @@ export declare function BIZ_UDMincho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BIZ_UDPGothic<
@@ -2158,7 +2158,7 @@ export declare function BIZ_UDPGothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BIZ_UDPMincho<
@@ -2171,7 +2171,7 @@ export declare function BIZ_UDPMincho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Babylonica<
@@ -2184,7 +2184,7 @@ export declare function Babylonica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bacasime_Antique<
@@ -2197,7 +2197,7 @@ export declare function Bacasime_Antique<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bad_Script<
@@ -2210,7 +2210,7 @@ export declare function Bad_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bagel_Fat_One<
@@ -2223,7 +2223,7 @@ export declare function Bagel_Fat_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bahiana<
@@ -2236,7 +2236,7 @@ export declare function Bahiana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bahianita<
@@ -2249,7 +2249,7 @@ export declare function Bahianita<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bai_Jamjuree<
@@ -2269,7 +2269,7 @@ export declare function Bai_Jamjuree<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bakbak_One<
@@ -2282,7 +2282,7 @@ export declare function Bakbak_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ballet<
@@ -2295,7 +2295,7 @@ export declare function Ballet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -2316,7 +2316,7 @@ export declare function Baloo_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Bhai_2<
@@ -2336,7 +2336,7 @@ export declare function Baloo_Bhai_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Bhaijaan_2<
@@ -2356,7 +2356,7 @@ export declare function Baloo_Bhaijaan_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Bhaina_2<
@@ -2376,7 +2376,7 @@ export declare function Baloo_Bhaina_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'oriya' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Chettan_2<
@@ -2396,7 +2396,7 @@ export declare function Baloo_Chettan_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Da_2<
@@ -2416,7 +2416,7 @@ export declare function Baloo_Da_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Paaji_2<
@@ -2436,7 +2436,7 @@ export declare function Baloo_Paaji_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Tamma_2<
@@ -2456,7 +2456,7 @@ export declare function Baloo_Tamma_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Tammudu_2<
@@ -2476,7 +2476,7 @@ export declare function Baloo_Tammudu_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baloo_Thambi_2<
@@ -2496,7 +2496,7 @@ export declare function Baloo_Thambi_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Balsamiq_Sans<
@@ -2509,7 +2509,7 @@ export declare function Balsamiq_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Balthazar<
@@ -2522,7 +2522,7 @@ export declare function Balthazar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bangers<
@@ -2535,7 +2535,7 @@ export declare function Bangers<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Barlow<
@@ -2560,7 +2560,7 @@ export declare function Barlow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Barlow_Condensed<
@@ -2585,7 +2585,7 @@ export declare function Barlow_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Barlow_Semi_Condensed<
@@ -2610,7 +2610,7 @@ export declare function Barlow_Semi_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Barriecito<
@@ -2623,7 +2623,7 @@ export declare function Barriecito<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Barrio<
@@ -2636,7 +2636,7 @@ export declare function Barrio<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Basic<
@@ -2649,7 +2649,7 @@ export declare function Basic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baskervville<
@@ -2662,7 +2662,7 @@ export declare function Baskervville<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Battambang<
@@ -2681,7 +2681,7 @@ export declare function Battambang<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baumans<
@@ -2694,7 +2694,7 @@ export declare function Baumans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bayon<
@@ -2707,7 +2707,7 @@ export declare function Bayon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Be_Vietnam_Pro<
@@ -2732,7 +2732,7 @@ export declare function Be_Vietnam_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Beau_Rivage<
@@ -2745,7 +2745,7 @@ export declare function Beau_Rivage<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bebas_Neue<
@@ -2758,7 +2758,7 @@ export declare function Bebas_Neue<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Belanosima<
@@ -2771,7 +2771,7 @@ export declare function Belanosima<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Belgrano<
@@ -2784,7 +2784,7 @@ export declare function Belgrano<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bellefair<
@@ -2797,7 +2797,7 @@ export declare function Bellefair<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Belleza<
@@ -2810,7 +2810,7 @@ export declare function Belleza<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bellota<
@@ -2823,7 +2823,7 @@ export declare function Bellota<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bellota_Text<
@@ -2836,7 +2836,7 @@ export declare function Bellota_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BenchNine<
@@ -2849,7 +2849,7 @@ export declare function BenchNine<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Benne<
@@ -2862,7 +2862,7 @@ export declare function Benne<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bentham<
@@ -2875,7 +2875,7 @@ export declare function Bentham<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Berkshire_Swash<
@@ -2888,7 +2888,7 @@ export declare function Berkshire_Swash<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Besley<
@@ -2909,7 +2909,7 @@ export declare function Besley<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Beth_Ellen<
@@ -2922,7 +2922,7 @@ export declare function Beth_Ellen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bevan<
@@ -2935,7 +2935,7 @@ export declare function Bevan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BhuTuka_Expanded_One<
@@ -2948,7 +2948,7 @@ export declare function BhuTuka_Expanded_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Big_Shoulders_Display<
@@ -2974,7 +2974,7 @@ export declare function Big_Shoulders_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Big_Shoulders_Inline_Display<
@@ -3000,7 +3000,7 @@ export declare function Big_Shoulders_Inline_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Big_Shoulders_Inline_Text<
@@ -3026,7 +3026,7 @@ export declare function Big_Shoulders_Inline_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Big_Shoulders_Stencil_Display<
@@ -3052,7 +3052,7 @@ export declare function Big_Shoulders_Stencil_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Big_Shoulders_Stencil_Text<
@@ -3078,7 +3078,7 @@ export declare function Big_Shoulders_Stencil_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Big_Shoulders_Text<
@@ -3104,7 +3104,7 @@ export declare function Big_Shoulders_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bigelow_Rules<
@@ -3117,7 +3117,7 @@ export declare function Bigelow_Rules<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bigshot_One<
@@ -3130,7 +3130,7 @@ export declare function Bigshot_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bilbo<
@@ -3143,7 +3143,7 @@ export declare function Bilbo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bilbo_Swash_Caps<
@@ -3156,7 +3156,7 @@ export declare function Bilbo_Swash_Caps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function BioRhyme<
@@ -3178,7 +3178,7 @@ export declare function BioRhyme<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -3198,7 +3198,7 @@ export declare function BioRhyme_Expanded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Birthstone<
@@ -3211,7 +3211,7 @@ export declare function Birthstone<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Birthstone_Bounce<
@@ -3224,7 +3224,7 @@ export declare function Birthstone_Bounce<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Biryani<
@@ -3245,7 +3245,7 @@ export declare function Biryani<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bitter<
@@ -3271,7 +3271,7 @@ export declare function Bitter<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -3286,7 +3286,7 @@ export declare function Black_And_White_Picture<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Black_Han_Sans<
@@ -3299,7 +3299,7 @@ export declare function Black_Han_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Black_Ops_One<
@@ -3312,7 +3312,7 @@ export declare function Black_Ops_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Blaka<
@@ -3325,7 +3325,7 @@ export declare function Blaka<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Blaka_Hollow<
@@ -3338,7 +3338,7 @@ export declare function Blaka_Hollow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Blaka_Ink<
@@ -3351,7 +3351,7 @@ export declare function Blaka_Ink<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Blinker<
@@ -3373,7 +3373,7 @@ export declare function Blinker<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bodoni_Moda<
@@ -3394,7 +3394,7 @@ export declare function Bodoni_Moda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -3408,7 +3408,7 @@ export declare function Bokor<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bona_Nova<
@@ -3421,7 +3421,7 @@ export declare function Bona_Nova<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -3442,7 +3442,7 @@ export declare function Bonbon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bonheur_Royale<
@@ -3455,7 +3455,7 @@ export declare function Bonheur_Royale<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Boogaloo<
@@ -3468,7 +3468,7 @@ export declare function Boogaloo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Borel<
@@ -3481,7 +3481,7 @@ export declare function Borel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bowlby_One<
@@ -3494,7 +3494,7 @@ export declare function Bowlby_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bowlby_One_SC<
@@ -3507,7 +3507,7 @@ export declare function Bowlby_One_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Braah_One<
@@ -3520,7 +3520,7 @@ export declare function Braah_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Brawler<
@@ -3533,7 +3533,7 @@ export declare function Brawler<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bree_Serif<
@@ -3546,7 +3546,7 @@ export declare function Bree_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bricolage_Grotesque<
@@ -3568,7 +3568,7 @@ export declare function Bricolage_Grotesque<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('opsz' | 'wdth')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -3582,7 +3582,7 @@ export declare function Bruno_Ace<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bruno_Ace_SC<
@@ -3595,7 +3595,7 @@ export declare function Bruno_Ace_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Brygada_1918<
@@ -3614,7 +3614,7 @@ export declare function Brygada_1918<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -3629,7 +3629,7 @@ export declare function Bubblegum_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bubbler_One<
@@ -3642,7 +3642,7 @@ export declare function Bubbler_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Buda<
@@ -3655,7 +3655,7 @@ export declare function Buda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Buenard<
@@ -3668,7 +3668,7 @@ export declare function Buenard<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bungee<
@@ -3681,7 +3681,7 @@ export declare function Bungee<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bungee_Hairline<
@@ -3694,7 +3694,7 @@ export declare function Bungee_Hairline<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bungee_Inline<
@@ -3707,7 +3707,7 @@ export declare function Bungee_Inline<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bungee_Outline<
@@ -3720,7 +3720,7 @@ export declare function Bungee_Outline<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bungee_Shade<
@@ -3733,7 +3733,7 @@ export declare function Bungee_Shade<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bungee_Spice<
@@ -3746,7 +3746,7 @@ export declare function Bungee_Spice<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Butcherman<
@@ -3759,7 +3759,7 @@ export declare function Butcherman<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Butterfly_Kids<
@@ -3772,7 +3772,7 @@ export declare function Butterfly_Kids<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cabin<
@@ -3791,7 +3791,7 @@ export declare function Cabin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -3805,7 +3805,7 @@ export declare function Cabin_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cabin_Sketch<
@@ -3818,7 +3818,7 @@ export declare function Cabin_Sketch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caesar_Dressing<
@@ -3831,7 +3831,7 @@ export declare function Caesar_Dressing<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cagliostro<
@@ -3844,7 +3844,7 @@ export declare function Cagliostro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cairo<
@@ -3870,7 +3870,7 @@ export declare function Cairo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
   axes?: 'slnt'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -3897,7 +3897,7 @@ export declare function Cairo_Play<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
   axes?: 'slnt'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -3911,7 +3911,7 @@ export declare function Caladea<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Calistoga<
@@ -3924,7 +3924,7 @@ export declare function Calistoga<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Calligraffitti<
@@ -3937,7 +3937,7 @@ export declare function Calligraffitti<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cambay<
@@ -3950,7 +3950,7 @@ export declare function Cambay<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cambo<
@@ -3963,7 +3963,7 @@ export declare function Cambo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Candal<
@@ -3976,7 +3976,7 @@ export declare function Candal<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cantarell<
@@ -3989,7 +3989,7 @@ export declare function Cantarell<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cantata_One<
@@ -4002,7 +4002,7 @@ export declare function Cantata_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cantora_One<
@@ -4015,7 +4015,7 @@ export declare function Cantora_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caprasimo<
@@ -4028,7 +4028,7 @@ export declare function Caprasimo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Capriola<
@@ -4041,7 +4041,7 @@ export declare function Capriola<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caramel<
@@ -4054,7 +4054,7 @@ export declare function Caramel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Carattere<
@@ -4067,7 +4067,7 @@ export declare function Carattere<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cardo<
@@ -4080,7 +4080,7 @@ export declare function Cardo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Carlito<
@@ -4093,7 +4093,7 @@ export declare function Carlito<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -4114,7 +4114,7 @@ export declare function Carme<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Carrois_Gothic<
@@ -4127,7 +4127,7 @@ export declare function Carrois_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Carrois_Gothic_SC<
@@ -4140,7 +4140,7 @@ export declare function Carrois_Gothic_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Carter_One<
@@ -4153,7 +4153,7 @@ export declare function Carter_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Castoro<
@@ -4166,7 +4166,7 @@ export declare function Castoro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Castoro_Titling<
@@ -4179,7 +4179,7 @@ export declare function Castoro_Titling<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Catamaran<
@@ -4205,7 +4205,7 @@ export declare function Catamaran<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caudex<
@@ -4218,7 +4218,7 @@ export declare function Caudex<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caveat<
@@ -4237,7 +4237,7 @@ export declare function Caveat<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caveat_Brush<
@@ -4250,7 +4250,7 @@ export declare function Caveat_Brush<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cedarville_Cursive<
@@ -4263,7 +4263,7 @@ export declare function Cedarville_Cursive<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ceviche_One<
@@ -4276,7 +4276,7 @@ export declare function Ceviche_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chakra_Petch<
@@ -4295,7 +4295,7 @@ export declare function Chakra_Petch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Changa<
@@ -4317,7 +4317,7 @@ export declare function Changa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Changa_One<
@@ -4330,7 +4330,7 @@ export declare function Changa_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chango<
@@ -4343,7 +4343,7 @@ export declare function Chango<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Charis_SIL<
@@ -4356,7 +4356,7 @@ export declare function Charis_SIL<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -4371,7 +4371,7 @@ export declare function Charm<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Charmonman<
@@ -4384,7 +4384,7 @@ export declare function Charmonman<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chathura<
@@ -4403,7 +4403,7 @@ export declare function Chathura<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chau_Philomene_One<
@@ -4416,7 +4416,7 @@ export declare function Chau_Philomene_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chela_One<
@@ -4429,7 +4429,7 @@ export declare function Chela_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chelsea_Market<
@@ -4442,7 +4442,7 @@ export declare function Chelsea_Market<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chenla<
@@ -4455,7 +4455,7 @@ export declare function Chenla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cherish<
@@ -4468,7 +4468,7 @@ export declare function Cherish<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cherry_Bomb_One<
@@ -4481,7 +4481,7 @@ export declare function Cherry_Bomb_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cherry_Cream_Soda<
@@ -4494,7 +4494,7 @@ export declare function Cherry_Cream_Soda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cherry_Swash<
@@ -4507,7 +4507,7 @@ export declare function Cherry_Swash<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chewy<
@@ -4520,7 +4520,7 @@ export declare function Chewy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chicle<
@@ -4533,7 +4533,7 @@ export declare function Chicle<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chilanka<
@@ -4546,7 +4546,7 @@ export declare function Chilanka<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chivo<
@@ -4572,7 +4572,7 @@ export declare function Chivo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chivo_Mono<
@@ -4598,7 +4598,7 @@ export declare function Chivo_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chokokutai<
@@ -4611,7 +4611,7 @@ export declare function Chokokutai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chonburi<
@@ -4624,7 +4624,7 @@ export declare function Chonburi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cinzel<
@@ -4645,7 +4645,7 @@ export declare function Cinzel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cinzel_Decorative<
@@ -4658,7 +4658,7 @@ export declare function Cinzel_Decorative<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Clicker_Script<
@@ -4671,7 +4671,7 @@ export declare function Clicker_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Climate_Crisis<
@@ -4684,7 +4684,7 @@ export declare function Climate_Crisis<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
   axes?: 'YEAR'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -4698,7 +4698,7 @@ export declare function Coda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Codystar<
@@ -4711,7 +4711,7 @@ export declare function Codystar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Coiny<
@@ -4724,7 +4724,7 @@ export declare function Coiny<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Combo<
@@ -4737,7 +4737,7 @@ export declare function Combo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Comfortaa<
@@ -4757,7 +4757,7 @@ export declare function Comfortaa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -4772,7 +4772,7 @@ export declare function Comforter<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Comforter_Brush<
@@ -4785,7 +4785,7 @@ export declare function Comforter_Brush<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Comic_Neue<
@@ -4798,7 +4798,7 @@ export declare function Comic_Neue<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Coming_Soon<
@@ -4811,7 +4811,7 @@ export declare function Coming_Soon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Comme<
@@ -4837,7 +4837,7 @@ export declare function Comme<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Commissioner<
@@ -4863,7 +4863,7 @@ export declare function Commissioner<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -4879,7 +4879,7 @@ export declare function Concert_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Condiment<
@@ -4892,7 +4892,7 @@ export declare function Condiment<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Content<
@@ -4905,7 +4905,7 @@ export declare function Content<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Contrail_One<
@@ -4918,7 +4918,7 @@ export declare function Contrail_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Convergence<
@@ -4931,7 +4931,7 @@ export declare function Convergence<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cookie<
@@ -4944,7 +4944,7 @@ export declare function Cookie<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Copse<
@@ -4957,7 +4957,7 @@ export declare function Copse<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Corben<
@@ -4970,7 +4970,7 @@ export declare function Corben<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Corinthia<
@@ -4983,7 +4983,7 @@ export declare function Corinthia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cormorant<
@@ -5003,7 +5003,7 @@ export declare function Cormorant<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -5024,7 +5024,7 @@ export declare function Cormorant_Garamond<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -5045,7 +5045,7 @@ export declare function Cormorant_Infant<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -5066,7 +5066,7 @@ export declare function Cormorant_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -5087,7 +5087,7 @@ export declare function Cormorant_Unicase<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -5108,7 +5108,7 @@ export declare function Cormorant_Upright<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Courgette<
@@ -5121,7 +5121,7 @@ export declare function Courgette<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Courier_Prime<
@@ -5134,7 +5134,7 @@ export declare function Courier_Prime<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cousine<
@@ -5147,7 +5147,7 @@ export declare function Cousine<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -5169,7 +5169,7 @@ export declare function Coustard<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Covered_By_Your_Grace<
@@ -5182,7 +5182,7 @@ export declare function Covered_By_Your_Grace<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Crafty_Girls<
@@ -5195,7 +5195,7 @@ export declare function Crafty_Girls<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Creepster<
@@ -5208,7 +5208,7 @@ export declare function Creepster<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Crete_Round<
@@ -5221,7 +5221,7 @@ export declare function Crete_Round<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Crimson_Pro<
@@ -5244,7 +5244,7 @@ export declare function Crimson_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Crimson_Text<
@@ -5257,7 +5257,7 @@ export declare function Crimson_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Croissant_One<
@@ -5270,7 +5270,7 @@ export declare function Croissant_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Crushed<
@@ -5283,7 +5283,7 @@ export declare function Crushed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cuprum<
@@ -5302,7 +5302,7 @@ export declare function Cuprum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -5317,7 +5317,7 @@ export declare function Cute_Font<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cutive<
@@ -5330,7 +5330,7 @@ export declare function Cutive<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Cutive_Mono<
@@ -5343,7 +5343,7 @@ export declare function Cutive_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function DM_Mono<
@@ -5356,7 +5356,7 @@ export declare function DM_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function DM_Sans<
@@ -5392,7 +5392,7 @@ export declare function DM_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -5406,7 +5406,7 @@ export declare function DM_Serif_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function DM_Serif_Text<
@@ -5419,7 +5419,7 @@ export declare function DM_Serif_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dai_Banna_SIL<
@@ -5438,7 +5438,7 @@ export declare function Dai_Banna_SIL<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'new-tai-lue'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Damion<
@@ -5451,7 +5451,7 @@ export declare function Damion<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dancing_Script<
@@ -5470,7 +5470,7 @@ export declare function Dancing_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dangrek<
@@ -5483,7 +5483,7 @@ export declare function Dangrek<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Darker_Grotesque<
@@ -5505,7 +5505,7 @@ export declare function Darker_Grotesque<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Darumadrop_One<
@@ -5518,7 +5518,7 @@ export declare function Darumadrop_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function David_Libre<
@@ -5531,7 +5531,7 @@ export declare function David_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dawning_of_a_New_Day<
@@ -5544,7 +5544,7 @@ export declare function Dawning_of_a_New_Day<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Days_One<
@@ -5557,7 +5557,7 @@ export declare function Days_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dekko<
@@ -5570,7 +5570,7 @@ export declare function Dekko<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dela_Gothic_One<
@@ -5583,7 +5583,7 @@ export declare function Dela_Gothic_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Delicious_Handrawn<
@@ -5596,7 +5596,7 @@ export declare function Delicious_Handrawn<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Delius<
@@ -5609,7 +5609,7 @@ export declare function Delius<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Delius_Swash_Caps<
@@ -5622,7 +5622,7 @@ export declare function Delius_Swash_Caps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Delius_Unicase<
@@ -5635,7 +5635,7 @@ export declare function Delius_Unicase<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Della_Respira<
@@ -5648,7 +5648,7 @@ export declare function Della_Respira<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Denk_One<
@@ -5661,7 +5661,7 @@ export declare function Denk_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Devonshire<
@@ -5674,7 +5674,7 @@ export declare function Devonshire<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dhurjati<
@@ -5687,7 +5687,7 @@ export declare function Dhurjati<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Didact_Gothic<
@@ -5700,7 +5700,7 @@ export declare function Didact_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
   >
@@ -5715,7 +5715,7 @@ export declare function Diphylleia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Diplomata<
@@ -5728,7 +5728,7 @@ export declare function Diplomata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Diplomata_SC<
@@ -5741,7 +5741,7 @@ export declare function Diplomata_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Do_Hyeon<
@@ -5754,7 +5754,7 @@ export declare function Do_Hyeon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dokdo<
@@ -5767,7 +5767,7 @@ export declare function Dokdo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Domine<
@@ -5786,7 +5786,7 @@ export declare function Domine<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Donegal_One<
@@ -5799,7 +5799,7 @@ export declare function Donegal_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dongle<
@@ -5812,7 +5812,7 @@ export declare function Dongle<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Doppio_One<
@@ -5825,7 +5825,7 @@ export declare function Doppio_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dorsa<
@@ -5838,7 +5838,7 @@ export declare function Dorsa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dosis<
@@ -5860,7 +5860,7 @@ export declare function Dosis<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function DotGothic16<
@@ -5873,7 +5873,7 @@ export declare function DotGothic16<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dr_Sugiyama<
@@ -5886,7 +5886,7 @@ export declare function Dr_Sugiyama<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Duru_Sans<
@@ -5899,7 +5899,7 @@ export declare function Duru_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function DynaPuff<
@@ -5918,7 +5918,7 @@ export declare function DynaPuff<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -5932,7 +5932,7 @@ export declare function Dynalight<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function EB_Garamond<
@@ -5952,7 +5952,7 @@ export declare function EB_Garamond<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -5973,7 +5973,7 @@ export declare function Eagle_Lake<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function East_Sea_Dokdo<
@@ -5986,7 +5986,7 @@ export declare function East_Sea_Dokdo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Eater<
@@ -5999,7 +5999,7 @@ export declare function Eater<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Economica<
@@ -6012,7 +6012,7 @@ export declare function Economica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Eczar<
@@ -6032,7 +6032,7 @@ export declare function Eczar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Edu_NSW_ACT_Foundation<
@@ -6051,7 +6051,7 @@ export declare function Edu_NSW_ACT_Foundation<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Edu_QLD_Beginner<
@@ -6070,7 +6070,7 @@ export declare function Edu_QLD_Beginner<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Edu_SA_Beginner<
@@ -6089,7 +6089,7 @@ export declare function Edu_SA_Beginner<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Edu_TAS_Beginner<
@@ -6108,7 +6108,7 @@ export declare function Edu_TAS_Beginner<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Edu_VIC_WA_NT_Beginner<
@@ -6127,7 +6127,7 @@ export declare function Edu_VIC_WA_NT_Beginner<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function El_Messiri<
@@ -6146,7 +6146,7 @@ export declare function El_Messiri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Electrolize<
@@ -6159,7 +6159,7 @@ export declare function Electrolize<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Elsie<
@@ -6172,7 +6172,7 @@ export declare function Elsie<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Elsie_Swash_Caps<
@@ -6185,7 +6185,7 @@ export declare function Elsie_Swash_Caps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Emblema_One<
@@ -6198,7 +6198,7 @@ export declare function Emblema_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Emilys_Candy<
@@ -6211,7 +6211,7 @@ export declare function Emilys_Candy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Encode_Sans<
@@ -6237,7 +6237,7 @@ export declare function Encode_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -6263,7 +6263,7 @@ export declare function Encode_Sans_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Encode_Sans_Expanded<
@@ -6288,7 +6288,7 @@ export declare function Encode_Sans_Expanded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Encode_Sans_SC<
@@ -6314,7 +6314,7 @@ export declare function Encode_Sans_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -6340,7 +6340,7 @@ export declare function Encode_Sans_Semi_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Encode_Sans_Semi_Expanded<
@@ -6365,7 +6365,7 @@ export declare function Encode_Sans_Semi_Expanded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Engagement<
@@ -6378,7 +6378,7 @@ export declare function Engagement<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Englebert<
@@ -6391,7 +6391,7 @@ export declare function Englebert<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Enriqueta<
@@ -6404,7 +6404,7 @@ export declare function Enriqueta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ephesis<
@@ -6417,7 +6417,7 @@ export declare function Ephesis<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Epilogue<
@@ -6443,7 +6443,7 @@ export declare function Epilogue<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Erica_One<
@@ -6456,7 +6456,7 @@ export declare function Erica_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Esteban<
@@ -6469,7 +6469,7 @@ export declare function Esteban<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Estonia<
@@ -6482,7 +6482,7 @@ export declare function Estonia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Euphoria_Script<
@@ -6495,7 +6495,7 @@ export declare function Euphoria_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ewert<
@@ -6508,7 +6508,7 @@ export declare function Ewert<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Exo<
@@ -6534,7 +6534,7 @@ export declare function Exo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Exo_2<
@@ -6560,7 +6560,7 @@ export declare function Exo_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -6581,7 +6581,7 @@ export declare function Expletus_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Explora<
@@ -6594,7 +6594,7 @@ export declare function Explora<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cherokee' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fahkwang<
@@ -6614,7 +6614,7 @@ export declare function Fahkwang<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Familjen_Grotesk<
@@ -6633,7 +6633,7 @@ export declare function Familjen_Grotesk<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fanwood_Text<
@@ -6646,7 +6646,7 @@ export declare function Fanwood_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Farro<
@@ -6659,7 +6659,7 @@ export declare function Farro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Farsan<
@@ -6672,7 +6672,7 @@ export declare function Farsan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fascinate<
@@ -6685,7 +6685,7 @@ export declare function Fascinate<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fascinate_Inline<
@@ -6698,7 +6698,7 @@ export declare function Fascinate_Inline<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Faster_One<
@@ -6711,7 +6711,7 @@ export declare function Faster_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fasthand<
@@ -6724,7 +6724,7 @@ export declare function Fasthand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fauna_One<
@@ -6737,7 +6737,7 @@ export declare function Fauna_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Faustina<
@@ -6758,7 +6758,7 @@ export declare function Faustina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Federant<
@@ -6771,7 +6771,7 @@ export declare function Federant<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Federo<
@@ -6784,7 +6784,7 @@ export declare function Federo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Felipa<
@@ -6797,7 +6797,7 @@ export declare function Felipa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fenix<
@@ -6810,7 +6810,7 @@ export declare function Fenix<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Festive<
@@ -6823,7 +6823,7 @@ export declare function Festive<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Figtree<
@@ -6845,7 +6845,7 @@ export declare function Figtree<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Finger_Paint<
@@ -6858,7 +6858,7 @@ export declare function Finger_Paint<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Finlandica<
@@ -6877,7 +6877,7 @@ export declare function Finlandica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fira_Code<
@@ -6897,7 +6897,7 @@ export declare function Fira_Code<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
   >
@@ -6912,7 +6912,7 @@ export declare function Fira_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
   >
@@ -6939,7 +6939,7 @@ export declare function Fira_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -6972,7 +6972,7 @@ export declare function Fira_Sans_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -7005,7 +7005,7 @@ export declare function Fira_Sans_Extra_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -7026,7 +7026,7 @@ export declare function Fjalla_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fjord_One<
@@ -7039,7 +7039,7 @@ export declare function Fjord_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Flamenco<
@@ -7052,7 +7052,7 @@ export declare function Flamenco<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Flavors<
@@ -7065,7 +7065,7 @@ export declare function Flavors<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fleur_De_Leah<
@@ -7078,7 +7078,7 @@ export declare function Fleur_De_Leah<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Flow_Block<
@@ -7091,7 +7091,7 @@ export declare function Flow_Block<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -7106,7 +7106,7 @@ export declare function Flow_Circular<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -7121,7 +7121,7 @@ export declare function Flow_Rounded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -7149,7 +7149,7 @@ export declare function Foldit<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fondamento<
@@ -7162,7 +7162,7 @@ export declare function Fondamento<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fontdiner_Swanky<
@@ -7175,7 +7175,7 @@ export declare function Fontdiner_Swanky<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Forum<
@@ -7188,7 +7188,7 @@ export declare function Forum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fragment_Mono<
@@ -7201,7 +7201,7 @@ export declare function Fragment_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Francois_One<
@@ -7214,7 +7214,7 @@ export declare function Francois_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Frank_Ruhl_Libre<
@@ -7236,7 +7236,7 @@ export declare function Frank_Ruhl_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fraunces<
@@ -7262,7 +7262,7 @@ export declare function Fraunces<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('SOFT' | 'WONK' | 'opsz')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -7276,7 +7276,7 @@ export declare function Freckle_Face<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fredericka_the_Great<
@@ -7289,7 +7289,7 @@ export declare function Fredericka_the_Great<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fredoka<
@@ -7309,7 +7309,7 @@ export declare function Fredoka<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -7323,7 +7323,7 @@ export declare function Freehand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fresca<
@@ -7336,7 +7336,7 @@ export declare function Fresca<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Frijole<
@@ -7349,7 +7349,7 @@ export declare function Frijole<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fruktur<
@@ -7362,7 +7362,7 @@ export declare function Fruktur<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fugaz_One<
@@ -7375,7 +7375,7 @@ export declare function Fugaz_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fuggles<
@@ -7388,7 +7388,7 @@ export declare function Fuggles<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Fuzzy_Bubbles<
@@ -7401,7 +7401,7 @@ export declare function Fuzzy_Bubbles<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function GFS_Didot<
@@ -7414,7 +7414,7 @@ export declare function GFS_Didot<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function GFS_Neohellenic<
@@ -7427,7 +7427,7 @@ export declare function GFS_Neohellenic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gabarito<
@@ -7448,7 +7448,7 @@ export declare function Gabarito<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gabriela<
@@ -7461,7 +7461,7 @@ export declare function Gabriela<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gaegu<
@@ -7474,7 +7474,7 @@ export declare function Gaegu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gafata<
@@ -7487,7 +7487,7 @@ export declare function Gafata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gajraj_One<
@@ -7500,7 +7500,7 @@ export declare function Gajraj_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Galada<
@@ -7513,7 +7513,7 @@ export declare function Galada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Galdeano<
@@ -7526,7 +7526,7 @@ export declare function Galdeano<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Galindo<
@@ -7539,7 +7539,7 @@ export declare function Galindo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gamja_Flower<
@@ -7552,7 +7552,7 @@ export declare function Gamja_Flower<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gantari<
@@ -7578,7 +7578,7 @@ export declare function Gantari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gasoek_One<
@@ -7591,7 +7591,7 @@ export declare function Gasoek_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gayathri<
@@ -7604,7 +7604,7 @@ export declare function Gayathri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'malayalam'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gelasio<
@@ -7617,7 +7617,7 @@ export declare function Gelasio<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gemunu_Libre<
@@ -7639,7 +7639,7 @@ export declare function Gemunu_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Genos<
@@ -7665,7 +7665,7 @@ export declare function Genos<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cherokee' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gentium_Book_Plus<
@@ -7678,7 +7678,7 @@ export declare function Gentium_Book_Plus<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -7699,7 +7699,7 @@ export declare function Gentium_Plus<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -7720,7 +7720,7 @@ export declare function Geo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Geologica<
@@ -7746,7 +7746,7 @@ export declare function Geologica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -7775,7 +7775,7 @@ export declare function Georama<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -7789,7 +7789,7 @@ export declare function Geostar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Geostar_Fill<
@@ -7802,7 +7802,7 @@ export declare function Geostar_Fill<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Germania_One<
@@ -7815,7 +7815,7 @@ export declare function Germania_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gideon_Roman<
@@ -7828,7 +7828,7 @@ export declare function Gideon_Roman<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gidugu<
@@ -7841,7 +7841,7 @@ export declare function Gidugu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gilda_Display<
@@ -7854,7 +7854,7 @@ export declare function Gilda_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Girassol<
@@ -7867,7 +7867,7 @@ export declare function Girassol<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Give_You_Glory<
@@ -7880,7 +7880,7 @@ export declare function Give_You_Glory<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Glass_Antiqua<
@@ -7893,7 +7893,7 @@ export declare function Glass_Antiqua<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Glegoo<
@@ -7906,7 +7906,7 @@ export declare function Glegoo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gloock<
@@ -7919,7 +7919,7 @@ export declare function Gloock<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gloria_Hallelujah<
@@ -7932,7 +7932,7 @@ export declare function Gloria_Hallelujah<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Glory<
@@ -7955,7 +7955,7 @@ export declare function Glory<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gluten<
@@ -7981,7 +7981,7 @@ export declare function Gluten<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'slnt'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -7995,7 +7995,7 @@ export declare function Goblin_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gochi_Hand<
@@ -8008,7 +8008,7 @@ export declare function Gochi_Hand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Goldman<
@@ -8021,7 +8021,7 @@ export declare function Goldman<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Golos_Text<
@@ -8042,7 +8042,7 @@ export declare function Golos_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gorditas<
@@ -8055,7 +8055,7 @@ export declare function Gorditas<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gothic_A1<
@@ -8080,7 +8080,7 @@ export declare function Gothic_A1<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gotu<
@@ -8093,7 +8093,7 @@ export declare function Gotu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Goudy_Bookletter_1911<
@@ -8106,7 +8106,7 @@ export declare function Goudy_Bookletter_1911<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gowun_Batang<
@@ -8119,7 +8119,7 @@ export declare function Gowun_Batang<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gowun_Dodum<
@@ -8132,7 +8132,7 @@ export declare function Gowun_Dodum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Graduate<
@@ -8145,7 +8145,7 @@ export declare function Graduate<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grand_Hotel<
@@ -8158,7 +8158,7 @@ export declare function Grand_Hotel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grandiflora_One<
@@ -8171,7 +8171,7 @@ export declare function Grandiflora_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grandstander<
@@ -8197,7 +8197,7 @@ export declare function Grandstander<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grape_Nuts<
@@ -8210,7 +8210,7 @@ export declare function Grape_Nuts<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gravitas_One<
@@ -8223,7 +8223,7 @@ export declare function Gravitas_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Great_Vibes<
@@ -8236,7 +8236,7 @@ export declare function Great_Vibes<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grechen_Fuemen<
@@ -8249,7 +8249,7 @@ export declare function Grechen_Fuemen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grenze<
@@ -8274,7 +8274,7 @@ export declare function Grenze<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grenze_Gotisch<
@@ -8300,7 +8300,7 @@ export declare function Grenze_Gotisch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Grey_Qo<
@@ -8313,7 +8313,7 @@ export declare function Grey_Qo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Griffy<
@@ -8326,7 +8326,7 @@ export declare function Griffy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gruppo<
@@ -8339,7 +8339,7 @@ export declare function Gruppo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gudea<
@@ -8352,7 +8352,7 @@ export declare function Gudea<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gugi<
@@ -8365,7 +8365,7 @@ export declare function Gugi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gulzar<
@@ -8378,7 +8378,7 @@ export declare function Gulzar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gupter<
@@ -8391,7 +8391,7 @@ export declare function Gupter<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gurajada<
@@ -8404,7 +8404,7 @@ export declare function Gurajada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Gwendolyn<
@@ -8417,7 +8417,7 @@ export declare function Gwendolyn<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Habibi<
@@ -8430,7 +8430,7 @@ export declare function Habibi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hachi_Maru_Pop<
@@ -8443,7 +8443,7 @@ export declare function Hachi_Maru_Pop<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hahmlet<
@@ -8469,7 +8469,7 @@ export declare function Hahmlet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Halant<
@@ -8488,7 +8488,7 @@ export declare function Halant<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hammersmith_One<
@@ -8501,7 +8501,7 @@ export declare function Hammersmith_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hanalei<
@@ -8514,7 +8514,7 @@ export declare function Hanalei<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hanalei_Fill<
@@ -8527,7 +8527,7 @@ export declare function Hanalei_Fill<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Handjet<
@@ -8553,7 +8553,7 @@ export declare function Handjet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'arabic'
     | 'armenian'
@@ -8577,7 +8577,7 @@ export declare function Handlee<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hanken_Grotesk<
@@ -8603,7 +8603,7 @@ export declare function Hanken_Grotesk<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hanuman<
@@ -8622,7 +8622,7 @@ export declare function Hanuman<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Happy_Monkey<
@@ -8635,7 +8635,7 @@ export declare function Happy_Monkey<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Harmattan<
@@ -8648,7 +8648,7 @@ export declare function Harmattan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Headland_One<
@@ -8661,7 +8661,7 @@ export declare function Headland_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hedvig_Letters_Sans<
@@ -8674,7 +8674,7 @@ export declare function Hedvig_Letters_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hedvig_Letters_Serif<
@@ -8687,7 +8687,7 @@ export declare function Hedvig_Letters_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -8714,7 +8714,7 @@ export declare function Heebo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Henny_Penny<
@@ -8727,7 +8727,7 @@ export declare function Henny_Penny<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hepta_Slab<
@@ -8763,7 +8763,7 @@ export declare function Hepta_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Herr_Von_Muellerhoff<
@@ -8776,7 +8776,7 @@ export declare function Herr_Von_Muellerhoff<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hi_Melody<
@@ -8789,7 +8789,7 @@ export declare function Hi_Melody<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hina_Mincho<
@@ -8802,7 +8802,7 @@ export declare function Hina_Mincho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hind<
@@ -8821,7 +8821,7 @@ export declare function Hind<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hind_Guntur<
@@ -8840,7 +8840,7 @@ export declare function Hind_Guntur<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hind_Madurai<
@@ -8859,7 +8859,7 @@ export declare function Hind_Madurai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hind_Siliguri<
@@ -8878,7 +8878,7 @@ export declare function Hind_Siliguri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hind_Vadodara<
@@ -8897,7 +8897,7 @@ export declare function Hind_Vadodara<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Holtwood_One_SC<
@@ -8910,7 +8910,7 @@ export declare function Holtwood_One_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Homemade_Apple<
@@ -8923,7 +8923,7 @@ export declare function Homemade_Apple<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Homenaje<
@@ -8936,7 +8936,7 @@ export declare function Homenaje<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Honk<
@@ -8949,7 +8949,7 @@ export declare function Honk<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
   axes?: ('MORF' | 'SHLN')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -8963,7 +8963,7 @@ export declare function Hubballi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hurricane<
@@ -8976,7 +8976,7 @@ export declare function Hurricane<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Mono<
@@ -8997,7 +8997,7 @@ export declare function IBM_Plex_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -9020,7 +9020,7 @@ export declare function IBM_Plex_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -9043,7 +9043,7 @@ export declare function IBM_Plex_Sans_Arabic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_Condensed<
@@ -9064,7 +9064,7 @@ export declare function IBM_Plex_Sans_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_Devanagari<
@@ -9085,7 +9085,7 @@ export declare function IBM_Plex_Sans_Devanagari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_Hebrew<
@@ -9106,7 +9106,7 @@ export declare function IBM_Plex_Sans_Hebrew<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_JP<
@@ -9127,7 +9127,7 @@ export declare function IBM_Plex_Sans_JP<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_KR<
@@ -9148,7 +9148,7 @@ export declare function IBM_Plex_Sans_KR<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_Thai<
@@ -9169,7 +9169,7 @@ export declare function IBM_Plex_Sans_Thai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Sans_Thai_Looped<
@@ -9190,7 +9190,7 @@ export declare function IBM_Plex_Sans_Thai_Looped<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'thai'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IBM_Plex_Serif<
@@ -9211,7 +9211,7 @@ export declare function IBM_Plex_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -9226,7 +9226,7 @@ export declare function IM_Fell_DW_Pica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_DW_Pica_SC<
@@ -9239,7 +9239,7 @@ export declare function IM_Fell_DW_Pica_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_Double_Pica<
@@ -9252,7 +9252,7 @@ export declare function IM_Fell_Double_Pica<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_Double_Pica_SC<
@@ -9265,7 +9265,7 @@ export declare function IM_Fell_Double_Pica_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_English<
@@ -9278,7 +9278,7 @@ export declare function IM_Fell_English<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_English_SC<
@@ -9291,7 +9291,7 @@ export declare function IM_Fell_English_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_French_Canon<
@@ -9304,7 +9304,7 @@ export declare function IM_Fell_French_Canon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_French_Canon_SC<
@@ -9317,7 +9317,7 @@ export declare function IM_Fell_French_Canon_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_Great_Primer<
@@ -9330,7 +9330,7 @@ export declare function IM_Fell_Great_Primer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function IM_Fell_Great_Primer_SC<
@@ -9343,7 +9343,7 @@ export declare function IM_Fell_Great_Primer_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ibarra_Real_Nova<
@@ -9362,7 +9362,7 @@ export declare function Ibarra_Real_Nova<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Iceberg<
@@ -9375,7 +9375,7 @@ export declare function Iceberg<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Iceland<
@@ -9388,7 +9388,7 @@ export declare function Iceland<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Imbue<
@@ -9414,7 +9414,7 @@ export declare function Imbue<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -9428,7 +9428,7 @@ export declare function Imperial_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Imprima<
@@ -9441,7 +9441,7 @@ export declare function Imprima<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inclusive_Sans<
@@ -9454,7 +9454,7 @@ export declare function Inclusive_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inconsolata<
@@ -9477,7 +9477,7 @@ export declare function Inconsolata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -9491,7 +9491,7 @@ export declare function Inder<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Indie_Flower<
@@ -9504,7 +9504,7 @@ export declare function Indie_Flower<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ingrid_Darling<
@@ -9517,7 +9517,7 @@ export declare function Ingrid_Darling<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inika<
@@ -9530,7 +9530,7 @@ export declare function Inika<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inknut_Antiqua<
@@ -9551,7 +9551,7 @@ export declare function Inknut_Antiqua<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inria_Sans<
@@ -9564,7 +9564,7 @@ export declare function Inria_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inria_Serif<
@@ -9577,7 +9577,7 @@ export declare function Inria_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inspiration<
@@ -9590,7 +9590,7 @@ export declare function Inspiration<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Instrument_Sans<
@@ -9609,7 +9609,7 @@ export declare function Instrument_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -9623,7 +9623,7 @@ export declare function Instrument_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inter<
@@ -9649,7 +9649,7 @@ export declare function Inter<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -9684,7 +9684,7 @@ export declare function Inter_Tight<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -9705,7 +9705,7 @@ export declare function Irish_Grover<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Island_Moments<
@@ -9718,7 +9718,7 @@ export declare function Island_Moments<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Istok_Web<
@@ -9731,7 +9731,7 @@ export declare function Istok_Web<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Italiana<
@@ -9744,7 +9744,7 @@ export declare function Italiana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Italianno<
@@ -9757,7 +9757,7 @@ export declare function Italianno<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Itim<
@@ -9770,7 +9770,7 @@ export declare function Itim<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jacquarda_Bastarda_9<
@@ -9783,7 +9783,7 @@ export declare function Jacquarda_Bastarda_9<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jacques_Francois<
@@ -9796,7 +9796,7 @@ export declare function Jacques_Francois<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jacques_Francois_Shadow<
@@ -9809,7 +9809,7 @@ export declare function Jacques_Francois_Shadow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jaldi<
@@ -9822,7 +9822,7 @@ export declare function Jaldi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function JetBrains_Mono<
@@ -9845,7 +9845,7 @@ export declare function JetBrains_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -9860,7 +9860,7 @@ export declare function Jim_Nightshade<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Joan<
@@ -9873,7 +9873,7 @@ export declare function Joan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jockey_One<
@@ -9886,7 +9886,7 @@ export declare function Jockey_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jolly_Lodger<
@@ -9899,7 +9899,7 @@ export declare function Jolly_Lodger<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jomhuria<
@@ -9912,7 +9912,7 @@ export declare function Jomhuria<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jomolhari<
@@ -9925,7 +9925,7 @@ export declare function Jomolhari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'tibetan'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Josefin_Sans<
@@ -9947,7 +9947,7 @@ export declare function Josefin_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Josefin_Slab<
@@ -9969,7 +9969,7 @@ export declare function Josefin_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jost<
@@ -9995,7 +9995,7 @@ export declare function Jost<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Joti_One<
@@ -10008,7 +10008,7 @@ export declare function Joti_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jua<
@@ -10021,7 +10021,7 @@ export declare function Jua<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Judson<
@@ -10034,7 +10034,7 @@ export declare function Judson<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Julee<
@@ -10047,7 +10047,7 @@ export declare function Julee<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Julius_Sans_One<
@@ -10060,7 +10060,7 @@ export declare function Julius_Sans_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Junge<
@@ -10073,7 +10073,7 @@ export declare function Junge<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jura<
@@ -10093,7 +10093,7 @@ export declare function Jura<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -10115,7 +10115,7 @@ export declare function Just_Another_Hand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Just_Me_Again_Down_Here<
@@ -10128,7 +10128,7 @@ export declare function Just_Me_Again_Down_Here<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function K2D<
@@ -10150,7 +10150,7 @@ export declare function K2D<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kablammo<
@@ -10163,7 +10163,7 @@ export declare function Kablammo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -10179,7 +10179,7 @@ export declare function Kadwa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kaisei_Decol<
@@ -10192,7 +10192,7 @@ export declare function Kaisei_Decol<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kaisei_HarunoUmi<
@@ -10205,7 +10205,7 @@ export declare function Kaisei_HarunoUmi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kaisei_Opti<
@@ -10218,7 +10218,7 @@ export declare function Kaisei_Opti<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kaisei_Tokumin<
@@ -10231,7 +10231,7 @@ export declare function Kaisei_Tokumin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kalam<
@@ -10244,7 +10244,7 @@ export declare function Kalam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kalnia<
@@ -10266,7 +10266,7 @@ export declare function Kalnia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -10286,7 +10286,7 @@ export declare function Kameron<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kanit<
@@ -10311,7 +10311,7 @@ export declare function Kanit<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kantumruy_Pro<
@@ -10333,7 +10333,7 @@ export declare function Kantumruy_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Karantina<
@@ -10346,7 +10346,7 @@ export declare function Karantina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Karla<
@@ -10368,7 +10368,7 @@ export declare function Karla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Karma<
@@ -10387,7 +10387,7 @@ export declare function Karma<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Katibeh<
@@ -10400,7 +10400,7 @@ export declare function Katibeh<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kaushan_Script<
@@ -10413,7 +10413,7 @@ export declare function Kaushan_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kavivanar<
@@ -10426,7 +10426,7 @@ export declare function Kavivanar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kavoon<
@@ -10439,7 +10439,7 @@ export declare function Kavoon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kay_Pho_Du<
@@ -10452,7 +10452,7 @@ export declare function Kay_Pho_Du<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kayah-li' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kdam_Thmor_Pro<
@@ -10465,7 +10465,7 @@ export declare function Kdam_Thmor_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Keania_One<
@@ -10478,7 +10478,7 @@ export declare function Keania_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kelly_Slab<
@@ -10491,7 +10491,7 @@ export declare function Kelly_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kenia<
@@ -10504,7 +10504,7 @@ export declare function Kenia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Khand<
@@ -10523,7 +10523,7 @@ export declare function Khand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Khmer<
@@ -10536,7 +10536,7 @@ export declare function Khmer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Khula<
@@ -10555,7 +10555,7 @@ export declare function Khula<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kings<
@@ -10568,7 +10568,7 @@ export declare function Kings<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kirang_Haerang<
@@ -10581,7 +10581,7 @@ export declare function Kirang_Haerang<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kite_One<
@@ -10594,7 +10594,7 @@ export declare function Kite_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kiwi_Maru<
@@ -10607,7 +10607,7 @@ export declare function Kiwi_Maru<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Klee_One<
@@ -10620,7 +10620,7 @@ export declare function Klee_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Knewave<
@@ -10633,7 +10633,7 @@ export declare function Knewave<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function KoHo<
@@ -10653,7 +10653,7 @@ export declare function KoHo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kodchasan<
@@ -10673,7 +10673,7 @@ export declare function Kodchasan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kode_Mono<
@@ -10692,7 +10692,7 @@ export declare function Kode_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Koh_Santepheap<
@@ -10711,7 +10711,7 @@ export declare function Koh_Santepheap<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kolker_Brush<
@@ -10724,7 +10724,7 @@ export declare function Kolker_Brush<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Konkhmer_Sleokchher<
@@ -10737,7 +10737,7 @@ export declare function Konkhmer_Sleokchher<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kosugi<
@@ -10750,7 +10750,7 @@ export declare function Kosugi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kosugi_Maru<
@@ -10763,7 +10763,7 @@ export declare function Kosugi_Maru<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kotta_One<
@@ -10776,7 +10776,7 @@ export declare function Kotta_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Koulen<
@@ -10789,7 +10789,7 @@ export declare function Koulen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kranky<
@@ -10802,7 +10802,7 @@ export declare function Kranky<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kreon<
@@ -10822,7 +10822,7 @@ export declare function Kreon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kristi<
@@ -10835,7 +10835,7 @@ export declare function Kristi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Krona_One<
@@ -10848,7 +10848,7 @@ export declare function Krona_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Krub<
@@ -10868,7 +10868,7 @@ export declare function Krub<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kufam<
@@ -10889,7 +10889,7 @@ export declare function Kufam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kulim_Park<
@@ -10908,7 +10908,7 @@ export declare function Kulim_Park<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kumar_One<
@@ -10921,7 +10921,7 @@ export declare function Kumar_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kumar_One_Outline<
@@ -10934,7 +10934,7 @@ export declare function Kumar_One_Outline<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kumbh_Sans<
@@ -10960,7 +10960,7 @@ export declare function Kumbh_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
   axes?: 'YOPQ'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -10974,7 +10974,7 @@ export declare function Kurale<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'
   >
@@ -10989,7 +10989,7 @@ export declare function La_Belle_Aurore<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Labrada<
@@ -11015,7 +11015,7 @@ export declare function Labrada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lacquer<
@@ -11028,7 +11028,7 @@ export declare function Lacquer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Laila<
@@ -11047,7 +11047,7 @@ export declare function Laila<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lakki_Reddy<
@@ -11060,7 +11060,7 @@ export declare function Lakki_Reddy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lalezar<
@@ -11073,7 +11073,7 @@ export declare function Lalezar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lancelot<
@@ -11086,7 +11086,7 @@ export declare function Lancelot<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Langar<
@@ -11099,7 +11099,7 @@ export declare function Langar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lateef<
@@ -11120,7 +11120,7 @@ export declare function Lateef<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lato<
@@ -11139,7 +11139,7 @@ export declare function Lato<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lavishly_Yours<
@@ -11152,7 +11152,7 @@ export declare function Lavishly_Yours<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function League_Gothic<
@@ -11165,7 +11165,7 @@ export declare function League_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -11179,7 +11179,7 @@ export declare function League_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function League_Spartan<
@@ -11205,7 +11205,7 @@ export declare function League_Spartan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Leckerli_One<
@@ -11218,7 +11218,7 @@ export declare function Leckerli_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ledger<
@@ -11231,7 +11231,7 @@ export declare function Ledger<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lekton<
@@ -11244,7 +11244,7 @@ export declare function Lekton<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lemon<
@@ -11257,7 +11257,7 @@ export declare function Lemon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lemonada<
@@ -11277,7 +11277,7 @@ export declare function Lemonada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend<
@@ -11303,7 +11303,7 @@ export declare function Lexend<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Deca<
@@ -11329,7 +11329,7 @@ export declare function Lexend_Deca<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Exa<
@@ -11355,7 +11355,7 @@ export declare function Lexend_Exa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Giga<
@@ -11381,7 +11381,7 @@ export declare function Lexend_Giga<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Mega<
@@ -11407,7 +11407,7 @@ export declare function Lexend_Mega<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Peta<
@@ -11433,7 +11433,7 @@ export declare function Lexend_Peta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Tera<
@@ -11459,7 +11459,7 @@ export declare function Lexend_Tera<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lexend_Zetta<
@@ -11485,7 +11485,7 @@ export declare function Lexend_Zetta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_128<
@@ -11498,7 +11498,7 @@ export declare function Libre_Barcode_128<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_128_Text<
@@ -11511,7 +11511,7 @@ export declare function Libre_Barcode_128_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_39<
@@ -11524,7 +11524,7 @@ export declare function Libre_Barcode_39<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_39_Extended<
@@ -11537,7 +11537,7 @@ export declare function Libre_Barcode_39_Extended<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_39_Extended_Text<
@@ -11550,7 +11550,7 @@ export declare function Libre_Barcode_39_Extended_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_39_Text<
@@ -11563,7 +11563,7 @@ export declare function Libre_Barcode_39_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Barcode_EAN13_Text<
@@ -11576,7 +11576,7 @@ export declare function Libre_Barcode_EAN13_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Baskerville<
@@ -11589,7 +11589,7 @@ export declare function Libre_Baskerville<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Bodoni<
@@ -11608,7 +11608,7 @@ export declare function Libre_Bodoni<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Caslon_Display<
@@ -11621,7 +11621,7 @@ export declare function Libre_Caslon_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Caslon_Text<
@@ -11634,7 +11634,7 @@ export declare function Libre_Caslon_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Libre_Franklin<
@@ -11660,7 +11660,7 @@ export declare function Libre_Franklin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Licorice<
@@ -11673,7 +11673,7 @@ export declare function Licorice<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Life_Savers<
@@ -11686,7 +11686,7 @@ export declare function Life_Savers<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lilita_One<
@@ -11699,7 +11699,7 @@ export declare function Lilita_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lily_Script_One<
@@ -11712,7 +11712,7 @@ export declare function Lily_Script_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Limelight<
@@ -11725,7 +11725,7 @@ export declare function Limelight<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Linden_Hill<
@@ -11738,7 +11738,7 @@ export declare function Linden_Hill<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Linefont<
@@ -11774,7 +11774,7 @@ export declare function Linefont<
 
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
 
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -11797,7 +11797,7 @@ export declare function Lisu_Bosa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'lisu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Literata<
@@ -11820,7 +11820,7 @@ export declare function Literata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -11842,7 +11842,7 @@ export declare function Liu_Jian_Mao_Cao<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Livvic<
@@ -11864,7 +11864,7 @@ export declare function Livvic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lobster<
@@ -11877,7 +11877,7 @@ export declare function Lobster<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -11892,7 +11892,7 @@ export declare function Lobster_Two<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Londrina_Outline<
@@ -11905,7 +11905,7 @@ export declare function Londrina_Outline<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Londrina_Shadow<
@@ -11918,7 +11918,7 @@ export declare function Londrina_Shadow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Londrina_Sketch<
@@ -11931,7 +11931,7 @@ export declare function Londrina_Sketch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Londrina_Solid<
@@ -11944,7 +11944,7 @@ export declare function Londrina_Solid<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Long_Cang<
@@ -11957,7 +11957,7 @@ export declare function Long_Cang<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lora<
@@ -11976,7 +11976,7 @@ export declare function Lora<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -11997,7 +11997,7 @@ export declare function Love_Light<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Love_Ya_Like_A_Sister<
@@ -12010,7 +12010,7 @@ export declare function Love_Ya_Like_A_Sister<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Loved_by_the_King<
@@ -12023,7 +12023,7 @@ export declare function Loved_by_the_King<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lovers_Quarrel<
@@ -12036,7 +12036,7 @@ export declare function Lovers_Quarrel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Luckiest_Guy<
@@ -12049,7 +12049,7 @@ export declare function Luckiest_Guy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lugrasimo<
@@ -12062,7 +12062,7 @@ export declare function Lugrasimo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lumanosimo<
@@ -12075,7 +12075,7 @@ export declare function Lumanosimo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lunasima<
@@ -12088,7 +12088,7 @@ export declare function Lunasima<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -12110,7 +12110,7 @@ export declare function Lusitana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Lustria<
@@ -12123,7 +12123,7 @@ export declare function Lustria<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Luxurious_Roman<
@@ -12136,7 +12136,7 @@ export declare function Luxurious_Roman<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Luxurious_Script<
@@ -12149,7 +12149,7 @@ export declare function Luxurious_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function M_PLUS_1<
@@ -12175,7 +12175,7 @@ export declare function M_PLUS_1<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function M_PLUS_1_Code<
@@ -12197,7 +12197,7 @@ export declare function M_PLUS_1_Code<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function M_PLUS_1p<
@@ -12218,7 +12218,7 @@ export declare function M_PLUS_1p<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -12253,7 +12253,7 @@ export declare function M_PLUS_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function M_PLUS_Code_Latin<
@@ -12275,7 +12275,7 @@ export declare function M_PLUS_Code_Latin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -12297,7 +12297,7 @@ export declare function M_PLUS_Rounded_1c<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -12319,7 +12319,7 @@ export declare function Ma_Shan_Zheng<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Macondo<
@@ -12332,7 +12332,7 @@ export declare function Macondo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Macondo_Swash_Caps<
@@ -12345,7 +12345,7 @@ export declare function Macondo_Swash_Caps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mada<
@@ -12368,7 +12368,7 @@ export declare function Mada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Madimi_One<
@@ -12381,7 +12381,7 @@ export declare function Madimi_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Magra<
@@ -12394,7 +12394,7 @@ export declare function Magra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Maiden_Orange<
@@ -12407,7 +12407,7 @@ export declare function Maiden_Orange<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Maitree<
@@ -12427,7 +12427,7 @@ export declare function Maitree<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Major_Mono_Display<
@@ -12440,7 +12440,7 @@ export declare function Major_Mono_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mako<
@@ -12453,7 +12453,7 @@ export declare function Mako<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mali<
@@ -12473,7 +12473,7 @@ export declare function Mali<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mallanna<
@@ -12486,7 +12486,7 @@ export declare function Mallanna<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mandali<
@@ -12499,7 +12499,7 @@ export declare function Mandali<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Manjari<
@@ -12512,7 +12512,7 @@ export declare function Manjari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Manrope<
@@ -12534,7 +12534,7 @@ export declare function Manrope<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -12549,7 +12549,7 @@ export declare function Mansalva<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Manuale<
@@ -12570,7 +12570,7 @@ export declare function Manuale<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marcellus<
@@ -12583,7 +12583,7 @@ export declare function Marcellus<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marcellus_SC<
@@ -12596,7 +12596,7 @@ export declare function Marcellus_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marck_Script<
@@ -12609,7 +12609,7 @@ export declare function Marck_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Margarine<
@@ -12622,7 +12622,7 @@ export declare function Margarine<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marhey<
@@ -12642,7 +12642,7 @@ export declare function Marhey<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Markazi_Text<
@@ -12661,7 +12661,7 @@ export declare function Markazi_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marko_One<
@@ -12674,7 +12674,7 @@ export declare function Marko_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marmelad<
@@ -12687,7 +12687,7 @@ export declare function Marmelad<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -12710,7 +12710,7 @@ export declare function Martel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Martel_Sans<
@@ -12731,7 +12731,7 @@ export declare function Martel_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Martian_Mono<
@@ -12754,7 +12754,7 @@ export declare function Martian_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -12768,7 +12768,7 @@ export declare function Marvel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mate<
@@ -12781,7 +12781,7 @@ export declare function Mate<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mate_SC<
@@ -12794,7 +12794,7 @@ export declare function Mate_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Maven_Pro<
@@ -12815,7 +12815,7 @@ export declare function Maven_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function McLaren<
@@ -12828,7 +12828,7 @@ export declare function McLaren<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mea_Culpa<
@@ -12841,7 +12841,7 @@ export declare function Mea_Culpa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Meddon<
@@ -12854,7 +12854,7 @@ export declare function Meddon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function MedievalSharp<
@@ -12867,7 +12867,7 @@ export declare function MedievalSharp<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Medula_One<
@@ -12880,7 +12880,7 @@ export declare function Medula_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Meera_Inimai<
@@ -12893,7 +12893,7 @@ export declare function Meera_Inimai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Megrim<
@@ -12906,7 +12906,7 @@ export declare function Megrim<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Meie_Script<
@@ -12919,7 +12919,7 @@ export declare function Meie_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Meow_Script<
@@ -12932,7 +12932,7 @@ export declare function Meow_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Merienda<
@@ -12954,7 +12954,7 @@ export declare function Merienda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Merriweather<
@@ -12967,7 +12967,7 @@ export declare function Merriweather<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -12990,7 +12990,7 @@ export declare function Merriweather_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Metal<
@@ -13003,7 +13003,7 @@ export declare function Metal<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Metal_Mania<
@@ -13016,7 +13016,7 @@ export declare function Metal_Mania<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Metamorphous<
@@ -13029,7 +13029,7 @@ export declare function Metamorphous<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Metrophobic<
@@ -13042,7 +13042,7 @@ export declare function Metrophobic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Michroma<
@@ -13055,7 +13055,7 @@ export declare function Michroma<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Micro_5<
@@ -13068,7 +13068,7 @@ export declare function Micro_5<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Milonga<
@@ -13081,7 +13081,7 @@ export declare function Milonga<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miltonian<
@@ -13094,7 +13094,7 @@ export declare function Miltonian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miltonian_Tattoo<
@@ -13107,7 +13107,7 @@ export declare function Miltonian_Tattoo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mina<
@@ -13120,7 +13120,7 @@ export declare function Mina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mingzat<
@@ -13133,7 +13133,7 @@ export declare function Mingzat<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'lepcha'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miniver<
@@ -13146,7 +13146,7 @@ export declare function Miniver<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miriam_Libre<
@@ -13159,7 +13159,7 @@ export declare function Miriam_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mirza<
@@ -13172,7 +13172,7 @@ export declare function Mirza<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Miss_Fajardose<
@@ -13185,7 +13185,7 @@ export declare function Miss_Fajardose<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mitr<
@@ -13205,7 +13205,7 @@ export declare function Mitr<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mochiy_Pop_One<
@@ -13218,7 +13218,7 @@ export declare function Mochiy_Pop_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mochiy_Pop_P_One<
@@ -13231,7 +13231,7 @@ export declare function Mochiy_Pop_P_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Modak<
@@ -13244,7 +13244,7 @@ export declare function Modak<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Modern_Antiqua<
@@ -13257,7 +13257,7 @@ export declare function Modern_Antiqua<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mogra<
@@ -13270,7 +13270,7 @@ export declare function Mogra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mohave<
@@ -13290,7 +13290,7 @@ export declare function Mohave<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moirai_One<
@@ -13303,7 +13303,7 @@ export declare function Moirai_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Molengo<
@@ -13316,7 +13316,7 @@ export declare function Molengo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Molle<
@@ -13329,7 +13329,7 @@ export declare function Molle<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Monda<
@@ -13342,7 +13342,7 @@ export declare function Monda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Monofett<
@@ -13355,7 +13355,7 @@ export declare function Monofett<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Monomaniac_One<
@@ -13368,7 +13368,7 @@ export declare function Monomaniac_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Monoton<
@@ -13381,7 +13381,7 @@ export declare function Monoton<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Monsieur_La_Doulaise<
@@ -13394,7 +13394,7 @@ export declare function Monsieur_La_Doulaise<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Montaga<
@@ -13407,7 +13407,7 @@ export declare function Montaga<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Montagu_Slab<
@@ -13429,7 +13429,7 @@ export declare function Montagu_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -13443,7 +13443,7 @@ export declare function MonteCarlo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Montez<
@@ -13456,7 +13456,7 @@ export declare function Montez<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Montserrat<
@@ -13482,7 +13482,7 @@ export declare function Montserrat<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -13509,7 +13509,7 @@ export declare function Montserrat_Alternates<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -13524,7 +13524,7 @@ export declare function Montserrat_Subrayada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moo_Lah_Lah<
@@ -13537,7 +13537,7 @@ export declare function Moo_Lah_Lah<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mooli<
@@ -13550,7 +13550,7 @@ export declare function Mooli<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moon_Dance<
@@ -13563,7 +13563,7 @@ export declare function Moon_Dance<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moul<
@@ -13576,7 +13576,7 @@ export declare function Moul<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moulpali<
@@ -13589,7 +13589,7 @@ export declare function Moulpali<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mountains_of_Christmas<
@@ -13602,7 +13602,7 @@ export declare function Mountains_of_Christmas<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mouse_Memoirs<
@@ -13615,7 +13615,7 @@ export declare function Mouse_Memoirs<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mr_Bedfort<
@@ -13628,7 +13628,7 @@ export declare function Mr_Bedfort<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mr_Dafoe<
@@ -13641,7 +13641,7 @@ export declare function Mr_Dafoe<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mr_De_Haviland<
@@ -13654,7 +13654,7 @@ export declare function Mr_De_Haviland<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mrs_Saint_Delafield<
@@ -13667,7 +13667,7 @@ export declare function Mrs_Saint_Delafield<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mrs_Sheppards<
@@ -13680,7 +13680,7 @@ export declare function Mrs_Sheppards<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ms_Madi<
@@ -13693,7 +13693,7 @@ export declare function Ms_Madi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mukta<
@@ -13714,7 +13714,7 @@ export declare function Mukta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mukta_Mahee<
@@ -13735,7 +13735,7 @@ export declare function Mukta_Mahee<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mukta_Malar<
@@ -13756,7 +13756,7 @@ export declare function Mukta_Malar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mukta_Vaani<
@@ -13777,7 +13777,7 @@ export declare function Mukta_Vaani<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mulish<
@@ -13803,7 +13803,7 @@ export declare function Mulish<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -13831,7 +13831,7 @@ export declare function Murecho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function MuseoModerno<
@@ -13857,7 +13857,7 @@ export declare function MuseoModerno<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function My_Soul<
@@ -13870,7 +13870,7 @@ export declare function My_Soul<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mynerve<
@@ -13883,7 +13883,7 @@ export declare function Mynerve<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mystery_Quest<
@@ -13896,7 +13896,7 @@ export declare function Mystery_Quest<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function NTR<
@@ -13909,7 +13909,7 @@ export declare function NTR<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nabla<
@@ -13922,7 +13922,7 @@ export declare function Nabla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic-ext' | 'latin' | 'latin-ext' | 'math' | 'vietnamese'
   >
@@ -13944,7 +13944,7 @@ export declare function Namdhinggo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'limbu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nanum_Brush_Script<
@@ -13957,7 +13957,7 @@ export declare function Nanum_Brush_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nanum_Gothic<
@@ -13970,7 +13970,7 @@ export declare function Nanum_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nanum_Gothic_Coding<
@@ -13983,7 +13983,7 @@ export declare function Nanum_Gothic_Coding<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nanum_Myeongjo<
@@ -13996,7 +13996,7 @@ export declare function Nanum_Myeongjo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nanum_Pen_Script<
@@ -14009,7 +14009,7 @@ export declare function Nanum_Pen_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Narnoor<
@@ -14028,7 +14028,7 @@ export declare function Narnoor<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gunjala-gondi' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Neonderthaw<
@@ -14041,7 +14041,7 @@ export declare function Neonderthaw<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nerko_One<
@@ -14054,7 +14054,7 @@ export declare function Nerko_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Neucha<
@@ -14067,7 +14067,7 @@ export declare function Neucha<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Neuton<
@@ -14086,7 +14086,7 @@ export declare function Neuton<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function New_Rocker<
@@ -14099,7 +14099,7 @@ export declare function New_Rocker<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function New_Tegomin<
@@ -14112,7 +14112,7 @@ export declare function New_Tegomin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function News_Cycle<
@@ -14125,7 +14125,7 @@ export declare function News_Cycle<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Newsreader<
@@ -14147,7 +14147,7 @@ export declare function Newsreader<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -14161,7 +14161,7 @@ export declare function Niconne<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Niramit<
@@ -14181,7 +14181,7 @@ export declare function Niramit<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nixie_One<
@@ -14194,7 +14194,7 @@ export declare function Nixie_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nobile<
@@ -14207,7 +14207,7 @@ export declare function Nobile<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nokora<
@@ -14226,7 +14226,7 @@ export declare function Nokora<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Norican<
@@ -14239,7 +14239,7 @@ export declare function Norican<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nosifer<
@@ -14252,7 +14252,7 @@ export declare function Nosifer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Notable<
@@ -14265,7 +14265,7 @@ export declare function Notable<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nothing_You_Could_Do<
@@ -14278,7 +14278,7 @@ export declare function Nothing_You_Could_Do<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noticia_Text<
@@ -14291,7 +14291,7 @@ export declare function Noticia_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Color_Emoji<
@@ -14304,7 +14304,7 @@ export declare function Noto_Color_Emoji<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'emoji'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Emoji<
@@ -14324,7 +14324,7 @@ export declare function Noto_Emoji<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'emoji'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Kufi_Arabic<
@@ -14350,7 +14350,7 @@ export declare function Noto_Kufi_Arabic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Music<
@@ -14363,7 +14363,7 @@ export declare function Noto_Music<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'music'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Naskh_Arabic<
@@ -14382,7 +14382,7 @@ export declare function Noto_Naskh_Arabic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Nastaliq_Urdu<
@@ -14401,7 +14401,7 @@ export declare function Noto_Nastaliq_Urdu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Rashi_Hebrew<
@@ -14427,7 +14427,7 @@ export declare function Noto_Rashi_Hebrew<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans<
@@ -14453,7 +14453,7 @@ export declare function Noto_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -14482,7 +14482,7 @@ export declare function Noto_Sans_Adlam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Adlam_Unjoined<
@@ -14501,7 +14501,7 @@ export declare function Noto_Sans_Adlam_Unjoined<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'adlam' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Anatolian_Hieroglyphs<
@@ -14514,7 +14514,7 @@ export declare function Noto_Sans_Anatolian_Hieroglyphs<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'anatolian-hieroglyphs' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Arabic<
@@ -14540,7 +14540,7 @@ export declare function Noto_Sans_Arabic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -14567,7 +14567,7 @@ export declare function Noto_Sans_Armenian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'armenian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -14581,7 +14581,7 @@ export declare function Noto_Sans_Avestan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'avestan' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Balinese<
@@ -14600,7 +14600,7 @@ export declare function Noto_Sans_Balinese<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'balinese' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Bamum<
@@ -14619,7 +14619,7 @@ export declare function Noto_Sans_Bamum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bamum' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Bassa_Vah<
@@ -14638,7 +14638,7 @@ export declare function Noto_Sans_Bassa_Vah<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bassa-vah' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Batak<
@@ -14651,7 +14651,7 @@ export declare function Noto_Sans_Batak<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'batak' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Bengali<
@@ -14677,7 +14677,7 @@ export declare function Noto_Sans_Bengali<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -14691,7 +14691,7 @@ export declare function Noto_Sans_Bhaiksuki<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bhaiksuki' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Brahmi<
@@ -14704,7 +14704,7 @@ export declare function Noto_Sans_Brahmi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'brahmi' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Buginese<
@@ -14717,7 +14717,7 @@ export declare function Noto_Sans_Buginese<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'buginese' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Buhid<
@@ -14730,7 +14730,7 @@ export declare function Noto_Sans_Buhid<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'buhid' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Canadian_Aboriginal<
@@ -14756,7 +14756,7 @@ export declare function Noto_Sans_Canadian_Aboriginal<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'canadian-aboriginal' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Carian<
@@ -14769,7 +14769,7 @@ export declare function Noto_Sans_Carian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'carian' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Caucasian_Albanian<
@@ -14782,7 +14782,7 @@ export declare function Noto_Sans_Caucasian_Albanian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'caucasian-albanian' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Chakma<
@@ -14795,7 +14795,7 @@ export declare function Noto_Sans_Chakma<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'chakma' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Cham<
@@ -14821,7 +14821,7 @@ export declare function Noto_Sans_Cham<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cham' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Cherokee<
@@ -14847,7 +14847,7 @@ export declare function Noto_Sans_Cherokee<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cherokee' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Chorasmian<
@@ -14860,7 +14860,7 @@ export declare function Noto_Sans_Chorasmian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'chorasmian' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Coptic<
@@ -14873,7 +14873,7 @@ export declare function Noto_Sans_Coptic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'coptic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Cuneiform<
@@ -14886,7 +14886,7 @@ export declare function Noto_Sans_Cuneiform<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cuneiform' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Cypriot<
@@ -14899,7 +14899,7 @@ export declare function Noto_Sans_Cypriot<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cypriot' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Cypro_Minoan<
@@ -14912,7 +14912,7 @@ export declare function Noto_Sans_Cypro_Minoan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cypro-minoan' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Deseret<
@@ -14925,7 +14925,7 @@ export declare function Noto_Sans_Deseret<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'deseret' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Devanagari<
@@ -14951,7 +14951,7 @@ export declare function Noto_Sans_Devanagari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -14978,7 +14978,7 @@ export declare function Noto_Sans_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -15000,7 +15000,7 @@ export declare function Noto_Sans_Duployan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'duployan' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Egyptian_Hieroglyphs<
@@ -15013,7 +15013,7 @@ export declare function Noto_Sans_Egyptian_Hieroglyphs<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'egyptian-hieroglyphs' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Elbasan<
@@ -15026,7 +15026,7 @@ export declare function Noto_Sans_Elbasan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'elbasan' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Elymaic<
@@ -15039,7 +15039,7 @@ export declare function Noto_Sans_Elymaic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'elymaic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Ethiopic<
@@ -15065,7 +15065,7 @@ export declare function Noto_Sans_Ethiopic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15092,7 +15092,7 @@ export declare function Noto_Sans_Georgian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic-ext'
     | 'georgian'
@@ -15114,7 +15114,7 @@ export declare function Noto_Sans_Glagolitic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic-ext' | 'glagolitic' | 'latin' | 'latin-ext' | 'math' | 'symbols'
   >
@@ -15129,7 +15129,7 @@ export declare function Noto_Sans_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gothic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Grantha<
@@ -15142,7 +15142,7 @@ export declare function Noto_Sans_Grantha<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'grantha' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Gujarati<
@@ -15168,7 +15168,7 @@ export declare function Noto_Sans_Gujarati<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15188,7 +15188,7 @@ export declare function Noto_Sans_Gunjala_Gondi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gunjala-gondi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Gurmukhi<
@@ -15214,7 +15214,7 @@ export declare function Noto_Sans_Gurmukhi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15241,7 +15241,7 @@ export declare function Noto_Sans_HK<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Hanifi_Rohingya<
@@ -15260,7 +15260,7 @@ export declare function Noto_Sans_Hanifi_Rohingya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hanifi-rohingya' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Hanunoo<
@@ -15273,7 +15273,7 @@ export declare function Noto_Sans_Hanunoo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hanunoo' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Hatran<
@@ -15286,7 +15286,7 @@ export declare function Noto_Sans_Hatran<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hatran' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Hebrew<
@@ -15312,7 +15312,7 @@ export declare function Noto_Sans_Hebrew<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15326,7 +15326,7 @@ export declare function Noto_Sans_Imperial_Aramaic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'imperial-aramaic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Indic_Siyaq_Numbers<
@@ -15339,7 +15339,7 @@ export declare function Noto_Sans_Indic_Siyaq_Numbers<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'indic-siyaq-numbers' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Inscriptional_Pahlavi<
@@ -15352,7 +15352,7 @@ export declare function Noto_Sans_Inscriptional_Pahlavi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'inscriptional-pahlavi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Inscriptional_Parthian<
@@ -15365,7 +15365,7 @@ export declare function Noto_Sans_Inscriptional_Parthian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'inscriptional-parthian' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_JP<
@@ -15391,7 +15391,7 @@ export declare function Noto_Sans_JP<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Javanese<
@@ -15410,7 +15410,7 @@ export declare function Noto_Sans_Javanese<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'javanese' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_KR<
@@ -15436,7 +15436,7 @@ export declare function Noto_Sans_KR<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Kaithi<
@@ -15449,7 +15449,7 @@ export declare function Noto_Sans_Kaithi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kaithi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Kannada<
@@ -15475,7 +15475,7 @@ export declare function Noto_Sans_Kannada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15495,7 +15495,7 @@ export declare function Noto_Sans_Kawi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kawi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Kayah_Li<
@@ -15514,7 +15514,7 @@ export declare function Noto_Sans_Kayah_Li<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kayah-li' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Kharoshthi<
@@ -15527,7 +15527,7 @@ export declare function Noto_Sans_Kharoshthi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kharoshthi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Khmer<
@@ -15553,7 +15553,7 @@ export declare function Noto_Sans_Khmer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15567,7 +15567,7 @@ export declare function Noto_Sans_Khojki<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khojki' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Khudawadi<
@@ -15580,7 +15580,7 @@ export declare function Noto_Sans_Khudawadi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khudawadi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Lao<
@@ -15606,7 +15606,7 @@ export declare function Noto_Sans_Lao<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'lao' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15633,7 +15633,7 @@ export declare function Noto_Sans_Lao_Looped<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'lao' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15647,7 +15647,7 @@ export declare function Noto_Sans_Lepcha<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'lepcha'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Limbu<
@@ -15660,7 +15660,7 @@ export declare function Noto_Sans_Limbu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'limbu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Linear_A<
@@ -15673,7 +15673,7 @@ export declare function Noto_Sans_Linear_A<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'linear-a'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Linear_B<
@@ -15686,7 +15686,7 @@ export declare function Noto_Sans_Linear_B<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'linear-b'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Lisu<
@@ -15705,7 +15705,7 @@ export declare function Noto_Sans_Lisu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'lisu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Lycian<
@@ -15718,7 +15718,7 @@ export declare function Noto_Sans_Lycian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'lycian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Lydian<
@@ -15731,7 +15731,7 @@ export declare function Noto_Sans_Lydian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'lydian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Mahajani<
@@ -15744,7 +15744,7 @@ export declare function Noto_Sans_Mahajani<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'mahajani'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Malayalam<
@@ -15770,7 +15770,7 @@ export declare function Noto_Sans_Malayalam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -15784,7 +15784,7 @@ export declare function Noto_Sans_Mandaic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'mandaic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Manichaean<
@@ -15797,7 +15797,7 @@ export declare function Noto_Sans_Manichaean<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'manichaean'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Marchen<
@@ -15810,7 +15810,7 @@ export declare function Noto_Sans_Marchen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'marchen'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Masaram_Gondi<
@@ -15823,7 +15823,7 @@ export declare function Noto_Sans_Masaram_Gondi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'masaram-gondi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Math<
@@ -15836,7 +15836,7 @@ export declare function Noto_Sans_Math<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'math'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Mayan_Numerals<
@@ -15849,7 +15849,7 @@ export declare function Noto_Sans_Mayan_Numerals<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'mayan-numerals'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Medefaidrin<
@@ -15868,7 +15868,7 @@ export declare function Noto_Sans_Medefaidrin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'medefaidrin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Meetei_Mayek<
@@ -15894,7 +15894,7 @@ export declare function Noto_Sans_Meetei_Mayek<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'meetei-mayek'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Mende_Kikakui<
@@ -15907,7 +15907,7 @@ export declare function Noto_Sans_Mende_Kikakui<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'mende-kikakui'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Meroitic<
@@ -15920,7 +15920,7 @@ export declare function Noto_Sans_Meroitic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'latin'
     | 'latin-ext'
@@ -15939,7 +15939,7 @@ export declare function Noto_Sans_Miao<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'miao'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Modi<
@@ -15952,7 +15952,7 @@ export declare function Noto_Sans_Modi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'modi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Mongolian<
@@ -15965,7 +15965,7 @@ export declare function Noto_Sans_Mongolian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'mongolian' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Mono<
@@ -15991,7 +15991,7 @@ export declare function Noto_Sans_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -16013,7 +16013,7 @@ export declare function Noto_Sans_Mro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'mro'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Multani<
@@ -16026,7 +16026,7 @@ export declare function Noto_Sans_Multani<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'multani'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Myanmar<
@@ -16051,7 +16051,7 @@ export declare function Noto_Sans_Myanmar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'myanmar'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_NKo<
@@ -16064,7 +16064,7 @@ export declare function Noto_Sans_NKo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nko'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_NKo_Unjoined<
@@ -16083,7 +16083,7 @@ export declare function Noto_Sans_NKo_Unjoined<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nko'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Nabataean<
@@ -16096,7 +16096,7 @@ export declare function Noto_Sans_Nabataean<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nabataean'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Nag_Mundari<
@@ -16115,7 +16115,7 @@ export declare function Noto_Sans_Nag_Mundari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nag-mundari'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Nandinagari<
@@ -16128,7 +16128,7 @@ export declare function Noto_Sans_Nandinagari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nandinagari'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_New_Tai_Lue<
@@ -16147,7 +16147,7 @@ export declare function Noto_Sans_New_Tai_Lue<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'new-tai-lue'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Newa<
@@ -16160,7 +16160,7 @@ export declare function Noto_Sans_Newa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'newa'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Nushu<
@@ -16173,7 +16173,7 @@ export declare function Noto_Sans_Nushu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nushu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Ogham<
@@ -16186,7 +16186,7 @@ export declare function Noto_Sans_Ogham<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'ogham'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Ol_Chiki<
@@ -16205,7 +16205,7 @@ export declare function Noto_Sans_Ol_Chiki<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'ol-chiki'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Hungarian<
@@ -16218,7 +16218,7 @@ export declare function Noto_Sans_Old_Hungarian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-hungarian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Italic<
@@ -16231,7 +16231,7 @@ export declare function Noto_Sans_Old_Italic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-italic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_North_Arabian<
@@ -16244,7 +16244,7 @@ export declare function Noto_Sans_Old_North_Arabian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-north-arabian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Permic<
@@ -16257,7 +16257,7 @@ export declare function Noto_Sans_Old_Permic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'old-permic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Persian<
@@ -16270,7 +16270,7 @@ export declare function Noto_Sans_Old_Persian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-persian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Sogdian<
@@ -16283,7 +16283,7 @@ export declare function Noto_Sans_Old_Sogdian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-sogdian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_South_Arabian<
@@ -16296,7 +16296,7 @@ export declare function Noto_Sans_Old_South_Arabian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-south-arabian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Turkic<
@@ -16309,7 +16309,7 @@ export declare function Noto_Sans_Old_Turkic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-turkic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Oriya<
@@ -16335,7 +16335,7 @@ export declare function Noto_Sans_Oriya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'oriya'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -16349,7 +16349,7 @@ export declare function Noto_Sans_Osage<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'osage'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Osmanya<
@@ -16362,7 +16362,7 @@ export declare function Noto_Sans_Osmanya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'osmanya'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Pahawh_Hmong<
@@ -16375,7 +16375,7 @@ export declare function Noto_Sans_Pahawh_Hmong<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'pahawh-hmong'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Palmyrene<
@@ -16388,7 +16388,7 @@ export declare function Noto_Sans_Palmyrene<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'palmyrene'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Pau_Cin_Hau<
@@ -16401,7 +16401,7 @@ export declare function Noto_Sans_Pau_Cin_Hau<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'pau-cin-hau'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Phags_Pa<
@@ -16414,7 +16414,7 @@ export declare function Noto_Sans_Phags_Pa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'phags-pa'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Phoenician<
@@ -16427,7 +16427,7 @@ export declare function Noto_Sans_Phoenician<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'phoenician'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Psalter_Pahlavi<
@@ -16440,7 +16440,7 @@ export declare function Noto_Sans_Psalter_Pahlavi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'psalter-pahlavi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Rejang<
@@ -16453,7 +16453,7 @@ export declare function Noto_Sans_Rejang<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'rejang'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Runic<
@@ -16466,7 +16466,7 @@ export declare function Noto_Sans_Runic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'runic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_SC<
@@ -16492,7 +16492,7 @@ export declare function Noto_Sans_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Samaritan<
@@ -16505,7 +16505,7 @@ export declare function Noto_Sans_Samaritan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'samaritan'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Saurashtra<
@@ -16518,7 +16518,7 @@ export declare function Noto_Sans_Saurashtra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'saurashtra'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Sharada<
@@ -16531,7 +16531,7 @@ export declare function Noto_Sans_Sharada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sharada'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Shavian<
@@ -16544,7 +16544,7 @@ export declare function Noto_Sans_Shavian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'shavian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Siddham<
@@ -16557,7 +16557,7 @@ export declare function Noto_Sans_Siddham<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'siddham'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_SignWriting<
@@ -16570,7 +16570,7 @@ export declare function Noto_Sans_SignWriting<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'signwriting'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Sinhala<
@@ -16596,7 +16596,7 @@ export declare function Noto_Sans_Sinhala<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -16610,7 +16610,7 @@ export declare function Noto_Sans_Sogdian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sogdian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Sora_Sompeng<
@@ -16629,7 +16629,7 @@ export declare function Noto_Sans_Sora_Sompeng<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sora-sompeng'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Soyombo<
@@ -16642,7 +16642,7 @@ export declare function Noto_Sans_Soyombo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'soyombo'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Sundanese<
@@ -16661,7 +16661,7 @@ export declare function Noto_Sans_Sundanese<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sundanese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Syloti_Nagri<
@@ -16674,7 +16674,7 @@ export declare function Noto_Sans_Syloti_Nagri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'syloti-nagri'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Symbols<
@@ -16700,7 +16700,7 @@ export declare function Noto_Sans_Symbols<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Symbols_2<
@@ -16713,7 +16713,7 @@ export declare function Noto_Sans_Symbols_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'braille' | 'latin' | 'latin-ext' | 'math' | 'mayan-numerals' | 'symbols'
   >
@@ -16741,7 +16741,7 @@ export declare function Noto_Sans_Syriac<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'syriac'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Syriac_Eastern<
@@ -16767,7 +16767,7 @@ export declare function Noto_Sans_Syriac_Eastern<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'syriac'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_TC<
@@ -16793,7 +16793,7 @@ export declare function Noto_Sans_TC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tagalog<
@@ -16806,7 +16806,7 @@ export declare function Noto_Sans_Tagalog<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tagalog'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tagbanwa<
@@ -16819,7 +16819,7 @@ export declare function Noto_Sans_Tagbanwa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tagbanwa'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tai_Le<
@@ -16832,7 +16832,7 @@ export declare function Noto_Sans_Tai_Le<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tai-le'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tai_Tham<
@@ -16851,7 +16851,7 @@ export declare function Noto_Sans_Tai_Tham<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tai-tham'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tai_Viet<
@@ -16864,7 +16864,7 @@ export declare function Noto_Sans_Tai_Viet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tai-viet'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Takri<
@@ -16877,7 +16877,7 @@ export declare function Noto_Sans_Takri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'takri'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tamil<
@@ -16903,7 +16903,7 @@ export declare function Noto_Sans_Tamil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -16917,7 +16917,7 @@ export declare function Noto_Sans_Tamil_Supplement<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil-supplement'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tangsa<
@@ -16936,7 +16936,7 @@ export declare function Noto_Sans_Tangsa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tangsa'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Telugu<
@@ -16962,7 +16962,7 @@ export declare function Noto_Sans_Telugu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -16989,7 +16989,7 @@ export declare function Noto_Sans_Thaana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thaana'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Thai<
@@ -17015,7 +17015,7 @@ export declare function Noto_Sans_Thai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17041,7 +17041,7 @@ export declare function Noto_Sans_Thai_Looped<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tifinagh<
@@ -17054,7 +17054,7 @@ export declare function Noto_Sans_Tifinagh<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tifinagh'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tirhuta<
@@ -17067,7 +17067,7 @@ export declare function Noto_Sans_Tirhuta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tirhuta'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Ugaritic<
@@ -17080,7 +17080,7 @@ export declare function Noto_Sans_Ugaritic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'ugaritic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Vai<
@@ -17093,7 +17093,7 @@ export declare function Noto_Sans_Vai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vai'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Vithkuqi<
@@ -17112,7 +17112,7 @@ export declare function Noto_Sans_Vithkuqi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vithkuqi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Wancho<
@@ -17125,7 +17125,7 @@ export declare function Noto_Sans_Wancho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'wancho'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Warang_Citi<
@@ -17138,7 +17138,7 @@ export declare function Noto_Sans_Warang_Citi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'warang-citi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Yi<
@@ -17151,7 +17151,7 @@ export declare function Noto_Sans_Yi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'yi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Zanabazar_Square<
@@ -17164,7 +17164,7 @@ export declare function Noto_Sans_Zanabazar_Square<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'zanabazar-square'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif<
@@ -17190,7 +17190,7 @@ export declare function Noto_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -17212,7 +17212,7 @@ export declare function Noto_Serif_Ahom<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'ahom' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Armenian<
@@ -17238,7 +17238,7 @@ export declare function Noto_Serif_Armenian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'armenian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17252,7 +17252,7 @@ export declare function Noto_Serif_Balinese<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'balinese' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Bengali<
@@ -17278,7 +17278,7 @@ export declare function Noto_Serif_Bengali<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17305,7 +17305,7 @@ export declare function Noto_Serif_Devanagari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17332,7 +17332,7 @@ export declare function Noto_Serif_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -17354,7 +17354,7 @@ export declare function Noto_Serif_Dogra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'dogra' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Ethiopic<
@@ -17380,7 +17380,7 @@ export declare function Noto_Serif_Ethiopic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'ethiopic' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17407,7 +17407,7 @@ export declare function Noto_Serif_Georgian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'georgian' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17421,7 +17421,7 @@ export declare function Noto_Serif_Grantha<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'grantha' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Gujarati<
@@ -17447,7 +17447,7 @@ export declare function Noto_Serif_Gujarati<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Gurmukhi<
@@ -17473,7 +17473,7 @@ export declare function Noto_Serif_Gurmukhi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_HK<
@@ -17496,7 +17496,7 @@ export declare function Noto_Serif_HK<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Hebrew<
@@ -17522,7 +17522,7 @@ export declare function Noto_Serif_Hebrew<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17544,7 +17544,7 @@ export declare function Noto_Serif_JP<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_KR<
@@ -17565,7 +17565,7 @@ export declare function Noto_Serif_KR<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Kannada<
@@ -17591,7 +17591,7 @@ export declare function Noto_Serif_Kannada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Khitan_Small_Script<
@@ -17604,7 +17604,7 @@ export declare function Noto_Serif_Khitan_Small_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khitan-small-script' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Khmer<
@@ -17630,7 +17630,7 @@ export declare function Noto_Serif_Khmer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17650,7 +17650,7 @@ export declare function Noto_Serif_Khojki<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khojki' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Lao<
@@ -17676,7 +17676,7 @@ export declare function Noto_Serif_Lao<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'lao' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17690,7 +17690,7 @@ export declare function Noto_Serif_Makasar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'makasar'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Malayalam<
@@ -17716,7 +17716,7 @@ export declare function Noto_Serif_Malayalam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'malayalam'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Myanmar<
@@ -17741,7 +17741,7 @@ export declare function Noto_Serif_Myanmar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'myanmar'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_NP_Hmong<
@@ -17760,7 +17760,7 @@ export declare function Noto_Serif_NP_Hmong<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'nyiakeng-puachue-hmong'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Old_Uyghur<
@@ -17773,7 +17773,7 @@ export declare function Noto_Serif_Old_Uyghur<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'old-uyghur'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Oriya<
@@ -17792,7 +17792,7 @@ export declare function Noto_Serif_Oriya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'oriya'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Ottoman_Siyaq<
@@ -17805,7 +17805,7 @@ export declare function Noto_Serif_Ottoman_Siyaq<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'ottoman-siyaq-numbers'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_SC<
@@ -17826,7 +17826,7 @@ export declare function Noto_Serif_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Sinhala<
@@ -17852,7 +17852,7 @@ export declare function Noto_Serif_Sinhala<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17874,7 +17874,7 @@ export declare function Noto_Serif_TC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Tamil<
@@ -17900,7 +17900,7 @@ export declare function Noto_Serif_Tamil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17914,7 +17914,7 @@ export declare function Noto_Serif_Tangut<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tangut'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Telugu<
@@ -17940,7 +17940,7 @@ export declare function Noto_Serif_Telugu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Thai<
@@ -17966,7 +17966,7 @@ export declare function Noto_Serif_Thai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -17993,7 +17993,7 @@ export declare function Noto_Serif_Tibetan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tibetan'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Toto<
@@ -18012,7 +18012,7 @@ export declare function Noto_Serif_Toto<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'toto'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Vithkuqi<
@@ -18031,7 +18031,7 @@ export declare function Noto_Serif_Vithkuqi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vithkuqi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Yezidi<
@@ -18050,7 +18050,7 @@ export declare function Noto_Serif_Yezidi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'yezidi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Traditional_Nushu<
@@ -18070,7 +18070,7 @@ export declare function Noto_Traditional_Nushu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nushu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Cut<
@@ -18083,7 +18083,7 @@ export declare function Nova_Cut<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Flat<
@@ -18096,7 +18096,7 @@ export declare function Nova_Flat<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Mono<
@@ -18109,7 +18109,7 @@ export declare function Nova_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Oval<
@@ -18122,7 +18122,7 @@ export declare function Nova_Oval<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Round<
@@ -18135,7 +18135,7 @@ export declare function Nova_Round<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Script<
@@ -18148,7 +18148,7 @@ export declare function Nova_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Slim<
@@ -18161,7 +18161,7 @@ export declare function Nova_Slim<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Square<
@@ -18174,7 +18174,7 @@ export declare function Nova_Square<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Numans<
@@ -18187,7 +18187,7 @@ export declare function Numans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nunito<
@@ -18213,7 +18213,7 @@ export declare function Nunito<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18241,7 +18241,7 @@ export declare function Nunito_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18257,7 +18257,7 @@ export declare function Nuosu_SIL<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'yi'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Odibee_Sans<
@@ -18270,7 +18270,7 @@ export declare function Odibee_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Odor_Mean_Chey<
@@ -18283,7 +18283,7 @@ export declare function Odor_Mean_Chey<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Offside<
@@ -18296,7 +18296,7 @@ export declare function Offside<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oi<
@@ -18309,7 +18309,7 @@ export declare function Oi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -18339,7 +18339,7 @@ export declare function Ojuju<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Old_Standard_TT<
@@ -18352,7 +18352,7 @@ export declare function Old_Standard_TT<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18367,7 +18367,7 @@ export declare function Oldenburg<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ole<
@@ -18380,7 +18380,7 @@ export declare function Ole<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oleo_Script<
@@ -18393,7 +18393,7 @@ export declare function Oleo_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oleo_Script_Swash_Caps<
@@ -18406,7 +18406,7 @@ export declare function Oleo_Script_Swash_Caps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Onest<
@@ -18432,7 +18432,7 @@ export declare function Onest<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oooh_Baby<
@@ -18445,7 +18445,7 @@ export declare function Oooh_Baby<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Open_Sans<
@@ -18466,7 +18466,7 @@ export declare function Open_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -18491,7 +18491,7 @@ export declare function Oranienbaum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Orbit<
@@ -18504,7 +18504,7 @@ export declare function Orbit<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Orbitron<
@@ -18525,7 +18525,7 @@ export declare function Orbitron<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oregano<
@@ -18538,7 +18538,7 @@ export declare function Oregano<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Orelega_One<
@@ -18551,7 +18551,7 @@ export declare function Orelega_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Orienta<
@@ -18564,7 +18564,7 @@ export declare function Orienta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Original_Surfer<
@@ -18577,7 +18577,7 @@ export declare function Original_Surfer<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oswald<
@@ -18598,7 +18598,7 @@ export declare function Oswald<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18626,7 +18626,7 @@ export declare function Outfit<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Over_the_Rainbow<
@@ -18639,7 +18639,7 @@ export declare function Over_the_Rainbow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Overlock<
@@ -18652,7 +18652,7 @@ export declare function Overlock<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Overlock_SC<
@@ -18665,7 +18665,7 @@ export declare function Overlock_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Overpass<
@@ -18691,7 +18691,7 @@ export declare function Overpass<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18713,7 +18713,7 @@ export declare function Overpass_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18728,7 +18728,7 @@ export declare function Ovo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oxanium<
@@ -18750,7 +18750,7 @@ export declare function Oxanium<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oxygen<
@@ -18763,7 +18763,7 @@ export declare function Oxygen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Oxygen_Mono<
@@ -18776,7 +18776,7 @@ export declare function Oxygen_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function PT_Mono<
@@ -18789,7 +18789,7 @@ export declare function PT_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function PT_Sans<
@@ -18802,7 +18802,7 @@ export declare function PT_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function PT_Sans_Caption<
@@ -18815,7 +18815,7 @@ export declare function PT_Sans_Caption<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function PT_Sans_Narrow<
@@ -18828,7 +18828,7 @@ export declare function PT_Sans_Narrow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function PT_Serif<
@@ -18841,7 +18841,7 @@ export declare function PT_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function PT_Serif_Caption<
@@ -18854,7 +18854,7 @@ export declare function PT_Serif_Caption<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pacifico<
@@ -18867,7 +18867,7 @@ export declare function Pacifico<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18882,7 +18882,7 @@ export declare function Padauk<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'myanmar'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Padyakke_Expanded_One<
@@ -18895,7 +18895,7 @@ export declare function Padyakke_Expanded_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Palanquin<
@@ -18916,7 +18916,7 @@ export declare function Palanquin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Palanquin_Dark<
@@ -18929,7 +18929,7 @@ export declare function Palanquin_Dark<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Palette_Mosaic<
@@ -18942,7 +18942,7 @@ export declare function Palette_Mosaic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pangolin<
@@ -18955,7 +18955,7 @@ export declare function Pangolin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -18970,7 +18970,7 @@ export declare function Paprika<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Parisienne<
@@ -18983,7 +18983,7 @@ export declare function Parisienne<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Passero_One<
@@ -18996,7 +18996,7 @@ export declare function Passero_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Passion_One<
@@ -19009,7 +19009,7 @@ export declare function Passion_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Passions_Conflict<
@@ -19022,7 +19022,7 @@ export declare function Passions_Conflict<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pathway_Extreme<
@@ -19048,7 +19048,7 @@ export declare function Pathway_Extreme<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('opsz' | 'wdth')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -19062,7 +19062,7 @@ export declare function Pathway_Gothic_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Patrick_Hand<
@@ -19075,7 +19075,7 @@ export declare function Patrick_Hand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Patrick_Hand_SC<
@@ -19088,7 +19088,7 @@ export declare function Patrick_Hand_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pattaya<
@@ -19101,7 +19101,7 @@ export declare function Pattaya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Patua_One<
@@ -19114,7 +19114,7 @@ export declare function Patua_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pavanam<
@@ -19127,7 +19127,7 @@ export declare function Pavanam<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Paytone_One<
@@ -19140,7 +19140,7 @@ export declare function Paytone_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Peddana<
@@ -19153,7 +19153,7 @@ export declare function Peddana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Peralta<
@@ -19166,7 +19166,7 @@ export declare function Peralta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Permanent_Marker<
@@ -19179,7 +19179,7 @@ export declare function Permanent_Marker<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Petemoss<
@@ -19192,7 +19192,7 @@ export declare function Petemoss<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Petit_Formal_Script<
@@ -19205,7 +19205,7 @@ export declare function Petit_Formal_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Petrona<
@@ -19231,7 +19231,7 @@ export declare function Petrona<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Philosopher<
@@ -19244,7 +19244,7 @@ export declare function Philosopher<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Phudu<
@@ -19266,7 +19266,7 @@ export declare function Phudu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Piazzolla<
@@ -19292,7 +19292,7 @@ export declare function Piazzolla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -19314,7 +19314,7 @@ export declare function Piedra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pinyon_Script<
@@ -19327,7 +19327,7 @@ export declare function Pinyon_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pirata_One<
@@ -19340,7 +19340,7 @@ export declare function Pirata_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pixelify_Sans<
@@ -19359,7 +19359,7 @@ export declare function Pixelify_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Plaster<
@@ -19372,7 +19372,7 @@ export declare function Plaster<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Play<
@@ -19385,7 +19385,7 @@ export declare function Play<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -19400,7 +19400,7 @@ export declare function Playball<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Playfair<
@@ -19422,7 +19422,7 @@ export declare function Playfair<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -19446,7 +19446,7 @@ export declare function Playfair_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Playfair_Display_SC<
@@ -19459,7 +19459,7 @@ export declare function Playfair_Display_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Playpen_Sans<
@@ -19482,7 +19482,7 @@ export declare function Playpen_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'emoji' | 'latin' | 'latin-ext' | 'math' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Plus_Jakarta_Sans<
@@ -19504,7 +19504,7 @@ export declare function Plus_Jakarta_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Podkova<
@@ -19524,7 +19524,7 @@ export declare function Podkova<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -19539,7 +19539,7 @@ export declare function Poiret_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Poller_One<
@@ -19552,7 +19552,7 @@ export declare function Poller_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Poltawski_Nowy<
@@ -19571,7 +19571,7 @@ export declare function Poltawski_Nowy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Poly<
@@ -19584,7 +19584,7 @@ export declare function Poly<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pompiere<
@@ -19597,7 +19597,7 @@ export declare function Pompiere<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pontano_Sans<
@@ -19617,7 +19617,7 @@ export declare function Pontano_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Poor_Story<
@@ -19630,7 +19630,7 @@ export declare function Poor_Story<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Poppins<
@@ -19655,7 +19655,7 @@ export declare function Poppins<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Port_Lligat_Sans<
@@ -19668,7 +19668,7 @@ export declare function Port_Lligat_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Port_Lligat_Slab<
@@ -19681,7 +19681,7 @@ export declare function Port_Lligat_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Potta_One<
@@ -19694,7 +19694,7 @@ export declare function Potta_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pragati_Narrow<
@@ -19707,7 +19707,7 @@ export declare function Pragati_Narrow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Praise<
@@ -19720,7 +19720,7 @@ export declare function Praise<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Prata<
@@ -19733,7 +19733,7 @@ export declare function Prata<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Preahvihear<
@@ -19746,7 +19746,7 @@ export declare function Preahvihear<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Press_Start_2P<
@@ -19759,7 +19759,7 @@ export declare function Press_Start_2P<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Pridi<
@@ -19779,7 +19779,7 @@ export declare function Pridi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Princess_Sofia<
@@ -19792,7 +19792,7 @@ export declare function Princess_Sofia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Prociono<
@@ -19805,7 +19805,7 @@ export declare function Prociono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Prompt<
@@ -19830,7 +19830,7 @@ export declare function Prompt<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Prosto_One<
@@ -19843,7 +19843,7 @@ export declare function Prosto_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Protest_Guerrilla<
@@ -19856,7 +19856,7 @@ export declare function Protest_Guerrilla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Protest_Revolution<
@@ -19869,7 +19869,7 @@ export declare function Protest_Revolution<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Protest_Riot<
@@ -19882,7 +19882,7 @@ export declare function Protest_Riot<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Protest_Strike<
@@ -19895,7 +19895,7 @@ export declare function Protest_Strike<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Proza_Libre<
@@ -19914,7 +19914,7 @@ export declare function Proza_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Public_Sans<
@@ -19940,7 +19940,7 @@ export declare function Public_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Puppies_Play<
@@ -19953,7 +19953,7 @@ export declare function Puppies_Play<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Puritan<
@@ -19966,7 +19966,7 @@ export declare function Puritan<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Purple_Purse<
@@ -19979,7 +19979,7 @@ export declare function Purple_Purse<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Qahiri<
@@ -19992,7 +19992,7 @@ export declare function Qahiri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Quando<
@@ -20005,7 +20005,7 @@ export declare function Quando<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Quantico<
@@ -20018,7 +20018,7 @@ export declare function Quantico<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Quattrocento<
@@ -20031,7 +20031,7 @@ export declare function Quattrocento<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Quattrocento_Sans<
@@ -20044,7 +20044,7 @@ export declare function Quattrocento_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Questrial<
@@ -20057,7 +20057,7 @@ export declare function Questrial<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Quicksand<
@@ -20077,7 +20077,7 @@ export declare function Quicksand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Quintessential<
@@ -20090,7 +20090,7 @@ export declare function Quintessential<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Qwigley<
@@ -20103,7 +20103,7 @@ export declare function Qwigley<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Qwitcher_Grypen<
@@ -20116,7 +20116,7 @@ export declare function Qwitcher_Grypen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function REM<
@@ -20142,7 +20142,7 @@ export declare function REM<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Racing_Sans_One<
@@ -20155,7 +20155,7 @@ export declare function Racing_Sans_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Radio_Canada<
@@ -20175,7 +20175,7 @@ export declare function Radio_Canada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'canadian-aboriginal' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -20189,7 +20189,7 @@ export declare function Radley<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rajdhani<
@@ -20208,7 +20208,7 @@ export declare function Rajdhani<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rakkas<
@@ -20221,7 +20221,7 @@ export declare function Rakkas<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Raleway<
@@ -20247,7 +20247,7 @@ export declare function Raleway<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -20262,7 +20262,7 @@ export declare function Raleway_Dots<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ramabhadra<
@@ -20275,7 +20275,7 @@ export declare function Ramabhadra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ramaraja<
@@ -20288,7 +20288,7 @@ export declare function Ramaraja<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rambla<
@@ -20301,7 +20301,7 @@ export declare function Rambla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rammetto_One<
@@ -20314,7 +20314,7 @@ export declare function Rammetto_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rampart_One<
@@ -20327,7 +20327,7 @@ export declare function Rampart_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ranchers<
@@ -20340,7 +20340,7 @@ export declare function Ranchers<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rancho<
@@ -20353,7 +20353,7 @@ export declare function Rancho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ranga<
@@ -20366,7 +20366,7 @@ export declare function Ranga<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rasa<
@@ -20386,7 +20386,7 @@ export declare function Rasa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rationale<
@@ -20399,7 +20399,7 @@ export declare function Rationale<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ravi_Prakash<
@@ -20412,7 +20412,7 @@ export declare function Ravi_Prakash<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Readex_Pro<
@@ -20433,7 +20433,7 @@ export declare function Readex_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'HEXP'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -20457,7 +20457,7 @@ export declare function Recursive<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('CASL' | 'CRSV' | 'MONO' | 'slnt')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -20480,7 +20480,7 @@ export declare function Red_Hat_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Red_Hat_Mono<
@@ -20500,7 +20500,7 @@ export declare function Red_Hat_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Red_Hat_Text<
@@ -20520,7 +20520,7 @@ export declare function Red_Hat_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Red_Rose<
@@ -20540,7 +20540,7 @@ export declare function Red_Rose<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Redacted<
@@ -20553,7 +20553,7 @@ export declare function Redacted<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Redacted_Script<
@@ -20566,7 +20566,7 @@ export declare function Redacted_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Redressed<
@@ -20579,7 +20579,7 @@ export declare function Redressed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Reem_Kufi<
@@ -20598,7 +20598,7 @@ export declare function Reem_Kufi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Reem_Kufi_Fun<
@@ -20617,7 +20617,7 @@ export declare function Reem_Kufi_Fun<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Reem_Kufi_Ink<
@@ -20630,7 +20630,7 @@ export declare function Reem_Kufi_Ink<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Reenie_Beanie<
@@ -20643,7 +20643,7 @@ export declare function Reenie_Beanie<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Reggae_One<
@@ -20656,7 +20656,7 @@ export declare function Reggae_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rethink_Sans<
@@ -20676,7 +20676,7 @@ export declare function Rethink_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Revalia<
@@ -20689,7 +20689,7 @@ export declare function Revalia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rhodium_Libre<
@@ -20702,7 +20702,7 @@ export declare function Rhodium_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ribeye<
@@ -20715,7 +20715,7 @@ export declare function Ribeye<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ribeye_Marrow<
@@ -20728,7 +20728,7 @@ export declare function Ribeye_Marrow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Righteous<
@@ -20741,7 +20741,7 @@ export declare function Righteous<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Risque<
@@ -20754,7 +20754,7 @@ export declare function Risque<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Road_Rage<
@@ -20767,7 +20767,7 @@ export declare function Road_Rage<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Roboto<
@@ -20787,7 +20787,7 @@ export declare function Roboto<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -20821,7 +20821,7 @@ export declare function Roboto_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -20865,7 +20865,7 @@ export declare function Roboto_Flex<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -20903,7 +20903,7 @@ export declare function Roboto_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -20931,7 +20931,7 @@ export declare function Roboto_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -20960,7 +20960,7 @@ export declare function Roboto_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -20981,7 +20981,7 @@ export declare function Rochester<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rock_3D<
@@ -20994,7 +20994,7 @@ export declare function Rock_3D<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rock_Salt<
@@ -21007,7 +21007,7 @@ export declare function Rock_Salt<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function RocknRoll_One<
@@ -21020,7 +21020,7 @@ export declare function RocknRoll_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rokkitt<
@@ -21046,7 +21046,7 @@ export declare function Rokkitt<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Romanesco<
@@ -21059,7 +21059,7 @@ export declare function Romanesco<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ropa_Sans<
@@ -21072,7 +21072,7 @@ export declare function Ropa_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rosario<
@@ -21092,7 +21092,7 @@ export declare function Rosario<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rosarivo<
@@ -21105,7 +21105,7 @@ export declare function Rosarivo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rouge_Script<
@@ -21118,7 +21118,7 @@ export declare function Rouge_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rowdies<
@@ -21131,7 +21131,7 @@ export declare function Rowdies<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rozha_One<
@@ -21144,7 +21144,7 @@ export declare function Rozha_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik<
@@ -21166,7 +21166,7 @@ export declare function Rubik<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'arabic' | 'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21181,7 +21181,7 @@ export declare function Rubik_80s_Fade<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21196,7 +21196,7 @@ export declare function Rubik_Beastly<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21211,7 +21211,7 @@ export declare function Rubik_Broken_Fax<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21232,7 +21232,7 @@ export declare function Rubik_Bubbles<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21247,7 +21247,7 @@ export declare function Rubik_Burned<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21262,7 +21262,7 @@ export declare function Rubik_Dirt<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21277,7 +21277,7 @@ export declare function Rubik_Distressed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21292,7 +21292,7 @@ export declare function Rubik_Doodle_Shadow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21313,7 +21313,7 @@ export declare function Rubik_Doodle_Triangles<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21334,7 +21334,7 @@ export declare function Rubik_Gemstones<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21349,7 +21349,7 @@ export declare function Rubik_Glitch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21364,7 +21364,7 @@ export declare function Rubik_Glitch_Pop<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21385,7 +21385,7 @@ export declare function Rubik_Iso<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21400,7 +21400,7 @@ export declare function Rubik_Lines<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21421,7 +21421,7 @@ export declare function Rubik_Maps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21442,7 +21442,7 @@ export declare function Rubik_Marker_Hatch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21457,7 +21457,7 @@ export declare function Rubik_Maze<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21472,7 +21472,7 @@ export declare function Rubik_Microbe<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21487,7 +21487,7 @@ export declare function Rubik_Mono_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Moonrocks<
@@ -21500,7 +21500,7 @@ export declare function Rubik_Moonrocks<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21515,7 +21515,7 @@ export declare function Rubik_Pixels<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21530,7 +21530,7 @@ export declare function Rubik_Puddles<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21545,7 +21545,7 @@ export declare function Rubik_Scribble<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -21566,7 +21566,7 @@ export declare function Rubik_Spray_Paint<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21581,7 +21581,7 @@ export declare function Rubik_Storm<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21596,7 +21596,7 @@ export declare function Rubik_Vinyl<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21611,7 +21611,7 @@ export declare function Rubik_Wet_Paint<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
@@ -21634,7 +21634,7 @@ export declare function Ruda<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rufina<
@@ -21647,7 +21647,7 @@ export declare function Rufina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ruge_Boogie<
@@ -21660,7 +21660,7 @@ export declare function Ruge_Boogie<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ruluko<
@@ -21673,7 +21673,7 @@ export declare function Ruluko<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rum_Raisin<
@@ -21686,7 +21686,7 @@ export declare function Rum_Raisin<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ruslan_Display<
@@ -21699,7 +21699,7 @@ export declare function Ruslan_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Russo_One<
@@ -21712,7 +21712,7 @@ export declare function Russo_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ruthie<
@@ -21725,7 +21725,7 @@ export declare function Ruthie<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ruwudu<
@@ -21738,7 +21738,7 @@ export declare function Ruwudu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rye<
@@ -21751,7 +21751,7 @@ export declare function Rye<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function STIX_Two_Text<
@@ -21770,7 +21770,7 @@ export declare function STIX_Two_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -21785,7 +21785,7 @@ export declare function Sacramento<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sahitya<
@@ -21798,7 +21798,7 @@ export declare function Sahitya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sail<
@@ -21811,7 +21811,7 @@ export declare function Sail<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Saira<
@@ -21837,7 +21837,7 @@ export declare function Saira<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -21863,7 +21863,7 @@ export declare function Saira_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Saira_Extra_Condensed<
@@ -21888,7 +21888,7 @@ export declare function Saira_Extra_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Saira_Semi_Condensed<
@@ -21913,7 +21913,7 @@ export declare function Saira_Semi_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Saira_Stencil_One<
@@ -21926,7 +21926,7 @@ export declare function Saira_Stencil_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Salsa<
@@ -21939,7 +21939,7 @@ export declare function Salsa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sanchez<
@@ -21952,7 +21952,7 @@ export declare function Sanchez<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sancreek<
@@ -21965,7 +21965,7 @@ export declare function Sancreek<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sansita<
@@ -21978,7 +21978,7 @@ export declare function Sansita<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sansita_Swashed<
@@ -22000,7 +22000,7 @@ export declare function Sansita_Swashed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sarabun<
@@ -22022,7 +22022,7 @@ export declare function Sarabun<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sarala<
@@ -22035,7 +22035,7 @@ export declare function Sarala<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sarina<
@@ -22048,7 +22048,7 @@ export declare function Sarina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sarpanch<
@@ -22068,7 +22068,7 @@ export declare function Sarpanch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sassy_Frass<
@@ -22081,7 +22081,7 @@ export declare function Sassy_Frass<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Satisfy<
@@ -22094,7 +22094,7 @@ export declare function Satisfy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sawarabi_Gothic<
@@ -22107,7 +22107,7 @@ export declare function Sawarabi_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sawarabi_Mincho<
@@ -22120,7 +22120,7 @@ export declare function Sawarabi_Mincho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Scada<
@@ -22133,7 +22133,7 @@ export declare function Scada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Scheherazade_New<
@@ -22146,7 +22146,7 @@ export declare function Scheherazade_New<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Schibsted_Grotesk<
@@ -22167,7 +22167,7 @@ export declare function Schibsted_Grotesk<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Schoolbell<
@@ -22180,7 +22180,7 @@ export declare function Schoolbell<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Scope_One<
@@ -22193,7 +22193,7 @@ export declare function Scope_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Seaweed_Script<
@@ -22206,7 +22206,7 @@ export declare function Seaweed_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Secular_One<
@@ -22219,7 +22219,7 @@ export declare function Secular_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sedgwick_Ave<
@@ -22232,7 +22232,7 @@ export declare function Sedgwick_Ave<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sedgwick_Ave_Display<
@@ -22245,7 +22245,7 @@ export declare function Sedgwick_Ave_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sen<
@@ -22265,7 +22265,7 @@ export declare function Sen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Send_Flowers<
@@ -22278,7 +22278,7 @@ export declare function Send_Flowers<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sevillana<
@@ -22291,7 +22291,7 @@ export declare function Sevillana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Seymour_One<
@@ -22304,7 +22304,7 @@ export declare function Seymour_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shadows_Into_Light<
@@ -22317,7 +22317,7 @@ export declare function Shadows_Into_Light<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shadows_Into_Light_Two<
@@ -22330,7 +22330,7 @@ export declare function Shadows_Into_Light_Two<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shalimar<
@@ -22343,7 +22343,7 @@ export declare function Shalimar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shantell_Sans<
@@ -22364,7 +22364,7 @@ export declare function Shantell_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -22380,7 +22380,7 @@ export declare function Shanti<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Share<
@@ -22393,7 +22393,7 @@ export declare function Share<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Share_Tech<
@@ -22406,7 +22406,7 @@ export declare function Share_Tech<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Share_Tech_Mono<
@@ -22419,7 +22419,7 @@ export declare function Share_Tech_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shippori_Antique<
@@ -22432,7 +22432,7 @@ export declare function Shippori_Antique<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shippori_Antique_B1<
@@ -22445,7 +22445,7 @@ export declare function Shippori_Antique_B1<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shippori_Mincho<
@@ -22464,7 +22464,7 @@ export declare function Shippori_Mincho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shippori_Mincho_B1<
@@ -22483,7 +22483,7 @@ export declare function Shippori_Mincho_B1<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shizuru<
@@ -22496,7 +22496,7 @@ export declare function Shizuru<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shojumaru<
@@ -22509,7 +22509,7 @@ export declare function Shojumaru<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Short_Stack<
@@ -22522,7 +22522,7 @@ export declare function Short_Stack<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Shrikhand<
@@ -22535,7 +22535,7 @@ export declare function Shrikhand<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Siemreap<
@@ -22548,7 +22548,7 @@ export declare function Siemreap<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sigmar<
@@ -22561,7 +22561,7 @@ export declare function Sigmar<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sigmar_One<
@@ -22574,7 +22574,7 @@ export declare function Sigmar_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Signika<
@@ -22594,7 +22594,7 @@ export declare function Signika<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'GRAD'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -22615,7 +22615,7 @@ export declare function Signika_Negative<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Silkscreen<
@@ -22628,7 +22628,7 @@ export declare function Silkscreen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Simonetta<
@@ -22641,7 +22641,7 @@ export declare function Simonetta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Single_Day<
@@ -22654,7 +22654,7 @@ export declare function Single_Day<
 
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sintony<
   T extends CssVariable | undefined = undefined
@@ -22666,7 +22666,7 @@ export declare function Sintony<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sirin_Stencil<
@@ -22679,7 +22679,7 @@ export declare function Sirin_Stencil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Six_Caps<
@@ -22692,7 +22692,7 @@ export declare function Six_Caps<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sixtyfour<
@@ -22705,7 +22705,7 @@ export declare function Sixtyfour<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
   axes?: ('BLED' | 'SCAN')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -22719,7 +22719,7 @@ export declare function Skranji<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Slabo_13px<
@@ -22732,7 +22732,7 @@ export declare function Slabo_13px<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Slabo_27px<
@@ -22745,7 +22745,7 @@ export declare function Slabo_27px<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Slackey<
@@ -22758,7 +22758,7 @@ export declare function Slackey<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Slackside_One<
@@ -22771,7 +22771,7 @@ export declare function Slackside_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Smokum<
@@ -22784,7 +22784,7 @@ export declare function Smokum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Smooch<
@@ -22797,7 +22797,7 @@ export declare function Smooch<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Smooch_Sans<
@@ -22823,7 +22823,7 @@ export declare function Smooch_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Smythe<
@@ -22836,7 +22836,7 @@ export declare function Smythe<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sniglet<
@@ -22849,7 +22849,7 @@ export declare function Sniglet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Snippet<
@@ -22862,7 +22862,7 @@ export declare function Snippet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Snowburst_One<
@@ -22875,7 +22875,7 @@ export declare function Snowburst_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofadi_One<
@@ -22888,7 +22888,7 @@ export declare function Sofadi_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia<
@@ -22901,7 +22901,7 @@ export declare function Sofia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans<
@@ -22939,7 +22939,7 @@ export declare function Sofia_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans_Condensed<
@@ -22977,7 +22977,7 @@ export declare function Sofia_Sans_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans_Extra_Condensed<
@@ -23015,7 +23015,7 @@ export declare function Sofia_Sans_Extra_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans_Semi_Condensed<
@@ -23053,7 +23053,7 @@ export declare function Sofia_Sans_Semi_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Solitreo<
@@ -23066,7 +23066,7 @@ export declare function Solitreo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Solway<
@@ -23085,7 +23085,7 @@ export declare function Solway<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sometype_Mono<
@@ -23104,7 +23104,7 @@ export declare function Sometype_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Song_Myung<
@@ -23117,7 +23117,7 @@ export declare function Song_Myung<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sono<
@@ -23139,7 +23139,7 @@ export declare function Sono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'MONO'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -23153,7 +23153,7 @@ export declare function Sonsie_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sora<
@@ -23176,7 +23176,7 @@ export declare function Sora<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sorts_Mill_Goudy<
@@ -23189,7 +23189,7 @@ export declare function Sorts_Mill_Goudy<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Source_Code_Pro<
@@ -23212,7 +23212,7 @@ export declare function Source_Code_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -23243,7 +23243,7 @@ export declare function Source_Sans_3<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -23274,7 +23274,7 @@ export declare function Source_Serif_4<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -23297,7 +23297,7 @@ export declare function Space_Grotesk<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Space_Mono<
@@ -23310,7 +23310,7 @@ export declare function Space_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Special_Elite<
@@ -23323,7 +23323,7 @@ export declare function Special_Elite<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spectral<
@@ -23344,7 +23344,7 @@ export declare function Spectral<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spectral_SC<
@@ -23365,7 +23365,7 @@ export declare function Spectral_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spicy_Rice<
@@ -23378,7 +23378,7 @@ export declare function Spicy_Rice<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spinnaker<
@@ -23391,7 +23391,7 @@ export declare function Spinnaker<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spirax<
@@ -23404,7 +23404,7 @@ export declare function Spirax<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Splash<
@@ -23417,7 +23417,7 @@ export declare function Splash<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spline_Sans<
@@ -23437,7 +23437,7 @@ export declare function Spline_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Spline_Sans_Mono<
@@ -23457,7 +23457,7 @@ export declare function Spline_Sans_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Squada_One<
@@ -23470,7 +23470,7 @@ export declare function Squada_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Square_Peg<
@@ -23483,7 +23483,7 @@ export declare function Square_Peg<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sree_Krushnadevaraya<
@@ -23496,7 +23496,7 @@ export declare function Sree_Krushnadevaraya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sriracha<
@@ -23509,7 +23509,7 @@ export declare function Sriracha<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Srisakdi<
@@ -23522,7 +23522,7 @@ export declare function Srisakdi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Staatliches<
@@ -23535,7 +23535,7 @@ export declare function Staatliches<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stalemate<
@@ -23548,7 +23548,7 @@ export declare function Stalemate<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stalinist_One<
@@ -23561,7 +23561,7 @@ export declare function Stalinist_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stardos_Stencil<
@@ -23574,7 +23574,7 @@ export declare function Stardos_Stencil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stick<
@@ -23587,7 +23587,7 @@ export declare function Stick<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stick_No_Bills<
@@ -23609,7 +23609,7 @@ export declare function Stick_No_Bills<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stint_Ultra_Condensed<
@@ -23622,7 +23622,7 @@ export declare function Stint_Ultra_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stint_Ultra_Expanded<
@@ -23635,7 +23635,7 @@ export declare function Stint_Ultra_Expanded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stoke<
@@ -23648,7 +23648,7 @@ export declare function Stoke<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Strait<
@@ -23661,7 +23661,7 @@ export declare function Strait<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Style_Script<
@@ -23674,7 +23674,7 @@ export declare function Style_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Stylish<
@@ -23687,7 +23687,7 @@ export declare function Stylish<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sue_Ellen_Francisco<
@@ -23700,7 +23700,7 @@ export declare function Sue_Ellen_Francisco<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Suez_One<
@@ -23713,7 +23713,7 @@ export declare function Suez_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sulphur_Point<
@@ -23726,7 +23726,7 @@ export declare function Sulphur_Point<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sumana<
@@ -23739,7 +23739,7 @@ export declare function Sumana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sunflower<
@@ -23752,7 +23752,7 @@ export declare function Sunflower<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sunshiney<
@@ -23765,7 +23765,7 @@ export declare function Sunshiney<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Supermercado_One<
@@ -23778,7 +23778,7 @@ export declare function Supermercado_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sura<
@@ -23791,7 +23791,7 @@ export declare function Sura<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Suranna<
@@ -23804,7 +23804,7 @@ export declare function Suranna<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Suravaram<
@@ -23817,7 +23817,7 @@ export declare function Suravaram<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Suwannaphum<
@@ -23836,7 +23836,7 @@ export declare function Suwannaphum<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Swanky_and_Moo_Moo<
@@ -23849,7 +23849,7 @@ export declare function Swanky_and_Moo_Moo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Syncopate<
@@ -23862,7 +23862,7 @@ export declare function Syncopate<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Syne<
@@ -23882,7 +23882,7 @@ export declare function Syne<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Syne_Mono<
@@ -23895,7 +23895,7 @@ export declare function Syne_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Syne_Tactile<
@@ -23908,7 +23908,7 @@ export declare function Syne_Tactile<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tai_Heritage_Pro<
@@ -23921,7 +23921,7 @@ export declare function Tai_Heritage_Pro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tai-viet' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tajawal<
@@ -23942,7 +23942,7 @@ export declare function Tajawal<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tangerine<
@@ -23955,7 +23955,7 @@ export declare function Tangerine<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tapestry<
@@ -23968,7 +23968,7 @@ export declare function Tapestry<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Taprom<
@@ -23981,7 +23981,7 @@ export declare function Taprom<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'khmer' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tauri<
@@ -23994,7 +23994,7 @@ export declare function Tauri<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Taviraj<
@@ -24019,7 +24019,7 @@ export declare function Taviraj<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Teko<
@@ -24039,7 +24039,7 @@ export declare function Teko<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tektur<
@@ -24060,7 +24060,7 @@ export declare function Tektur<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -24076,7 +24076,7 @@ export declare function Telex<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tenali_Ramakrishna<
@@ -24089,7 +24089,7 @@ export declare function Tenali_Ramakrishna<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tenor_Sans<
@@ -24102,7 +24102,7 @@ export declare function Tenor_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Text_Me_One<
@@ -24115,7 +24115,7 @@ export declare function Text_Me_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Texturina<
@@ -24141,7 +24141,7 @@ export declare function Texturina<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'opsz'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24155,7 +24155,7 @@ export declare function Thasadith<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function The_Girl_Next_Door<
@@ -24168,7 +24168,7 @@ export declare function The_Girl_Next_Door<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function The_Nautigal<
@@ -24181,7 +24181,7 @@ export declare function The_Nautigal<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tienne<
@@ -24194,7 +24194,7 @@ export declare function Tienne<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tillana<
@@ -24213,7 +24213,7 @@ export declare function Tillana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tilt_Neon<
@@ -24226,7 +24226,7 @@ export declare function Tilt_Neon<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('XROT' | 'YROT')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24240,7 +24240,7 @@ export declare function Tilt_Prism<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('XROT' | 'YROT')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24254,7 +24254,7 @@ export declare function Tilt_Warp<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('XROT' | 'YROT')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24268,7 +24268,7 @@ export declare function Timmana<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tinos<
@@ -24281,7 +24281,7 @@ export declare function Tinos<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -24303,7 +24303,7 @@ export declare function Tiro_Bangla<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'bengali' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Devanagari_Hindi<
@@ -24316,7 +24316,7 @@ export declare function Tiro_Devanagari_Hindi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Devanagari_Marathi<
@@ -24329,7 +24329,7 @@ export declare function Tiro_Devanagari_Marathi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Devanagari_Sanskrit<
@@ -24342,7 +24342,7 @@ export declare function Tiro_Devanagari_Sanskrit<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Gurmukhi<
@@ -24355,7 +24355,7 @@ export declare function Tiro_Gurmukhi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'gurmukhi' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Kannada<
@@ -24368,7 +24368,7 @@ export declare function Tiro_Kannada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Tamil<
@@ -24381,7 +24381,7 @@ export declare function Tiro_Tamil<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Telugu<
@@ -24394,7 +24394,7 @@ export declare function Tiro_Telugu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'telugu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Titan_One<
@@ -24407,7 +24407,7 @@ export declare function Titan_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Titillium_Web<
@@ -24427,7 +24427,7 @@ export declare function Titillium_Web<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tomorrow<
@@ -24452,7 +24452,7 @@ export declare function Tomorrow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tourney<
@@ -24478,7 +24478,7 @@ export declare function Tourney<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24492,7 +24492,7 @@ export declare function Trade_Winds<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Train_One<
@@ -24505,7 +24505,7 @@ export declare function Train_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Trirong<
@@ -24530,7 +24530,7 @@ export declare function Trirong<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Trispace<
@@ -24553,7 +24553,7 @@ export declare function Trispace<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24567,7 +24567,7 @@ export declare function Trocchi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Trochut<
@@ -24580,7 +24580,7 @@ export declare function Trochut<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Truculenta<
@@ -24606,7 +24606,7 @@ export declare function Truculenta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('opsz' | 'wdth')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -24620,7 +24620,7 @@ export declare function Trykker<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tsukimi_Rounded<
@@ -24639,7 +24639,7 @@ export declare function Tsukimi_Rounded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tulpen_One<
@@ -24652,7 +24652,7 @@ export declare function Tulpen_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Turret_Road<
@@ -24672,7 +24672,7 @@ export declare function Turret_Road<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Twinkle_Star<
@@ -24685,7 +24685,7 @@ export declare function Twinkle_Star<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ubuntu<
@@ -24698,7 +24698,7 @@ export declare function Ubuntu<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
   >
@@ -24713,7 +24713,7 @@ export declare function Ubuntu_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
   >
@@ -24728,7 +24728,7 @@ export declare function Ubuntu_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'
   >
@@ -24743,7 +24743,7 @@ export declare function Uchen<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'tibetan'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ultra<
@@ -24756,7 +24756,7 @@ export declare function Ultra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Unbounded<
@@ -24779,7 +24779,7 @@ export declare function Unbounded<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -24794,7 +24794,7 @@ export declare function Uncial_Antiqua<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Underdog<
@@ -24807,7 +24807,7 @@ export declare function Underdog<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Unica_One<
@@ -24820,7 +24820,7 @@ export declare function Unica_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function UnifrakturCook<
@@ -24833,7 +24833,7 @@ export declare function UnifrakturCook<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function UnifrakturMaguntia<
@@ -24846,7 +24846,7 @@ export declare function UnifrakturMaguntia<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Unkempt<
@@ -24859,7 +24859,7 @@ export declare function Unkempt<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Unlock<
@@ -24872,7 +24872,7 @@ export declare function Unlock<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Unna<
@@ -24885,7 +24885,7 @@ export declare function Unna<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Updock<
@@ -24898,7 +24898,7 @@ export declare function Updock<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Urbanist<
@@ -24924,7 +24924,7 @@ export declare function Urbanist<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function VT323<
@@ -24937,7 +24937,7 @@ export declare function VT323<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vampiro_One<
@@ -24950,7 +24950,7 @@ export declare function Vampiro_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Varela<
@@ -24963,7 +24963,7 @@ export declare function Varela<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Varela_Round<
@@ -24976,7 +24976,7 @@ export declare function Varela_Round<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'hebrew' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Varta<
@@ -24996,7 +24996,7 @@ export declare function Varta<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vast_Shadow<
@@ -25009,7 +25009,7 @@ export declare function Vast_Shadow<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vazirmatn<
@@ -25035,7 +25035,7 @@ export declare function Vazirmatn<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vesper_Libre<
@@ -25048,7 +25048,7 @@ export declare function Vesper_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Viaoda_Libre<
@@ -25061,7 +25061,7 @@ export declare function Viaoda_Libre<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25076,7 +25076,7 @@ export declare function Vibes<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'arabic' | 'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vibur<
@@ -25089,7 +25089,7 @@ export declare function Vibur<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Victor_Mono<
@@ -25111,7 +25111,7 @@ export declare function Victor_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25126,7 +25126,7 @@ export declare function Vidaloka<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Viga<
@@ -25139,7 +25139,7 @@ export declare function Viga<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vina_Sans<
@@ -25152,7 +25152,7 @@ export declare function Vina_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Voces<
@@ -25165,7 +25165,7 @@ export declare function Voces<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Volkhov<
@@ -25178,7 +25178,7 @@ export declare function Volkhov<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vollkorn<
@@ -25199,7 +25199,7 @@ export declare function Vollkorn<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25214,7 +25214,7 @@ export declare function Vollkorn_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25229,7 +25229,7 @@ export declare function Voltaire<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Vujahday_Script<
@@ -25242,7 +25242,7 @@ export declare function Vujahday_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Waiting_for_the_Sunrise<
@@ -25255,7 +25255,7 @@ export declare function Waiting_for_the_Sunrise<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Wallpoet<
@@ -25268,7 +25268,7 @@ export declare function Wallpoet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Walter_Turncoat<
@@ -25281,7 +25281,7 @@ export declare function Walter_Turncoat<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Warnes<
@@ -25294,7 +25294,7 @@ export declare function Warnes<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Water_Brush<
@@ -25307,7 +25307,7 @@ export declare function Water_Brush<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Waterfall<
@@ -25320,7 +25320,7 @@ export declare function Waterfall<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Wavefont<
@@ -25356,7 +25356,7 @@ export declare function Wavefont<
 
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
 
   axes?: ('ROND' | 'YELA')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -25370,7 +25370,7 @@ export declare function Wellfleet<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Wendy_One<
@@ -25383,7 +25383,7 @@ export declare function Wendy_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Whisper<
@@ -25396,7 +25396,7 @@ export declare function Whisper<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function WindSong<
@@ -25409,7 +25409,7 @@ export declare function WindSong<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Wire_One<
@@ -25422,7 +25422,7 @@ export declare function Wire_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Wix_Madefor_Display<
@@ -25442,7 +25442,7 @@ export declare function Wix_Madefor_Display<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25464,7 +25464,7 @@ export declare function Wix_Madefor_Text<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25492,7 +25492,7 @@ export declare function Work_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Workbench<
@@ -25505,7 +25505,7 @@ export declare function Workbench<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'math' | 'symbols'>
   axes?: ('BLED' | 'SCAN')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
@@ -25519,7 +25519,7 @@ export declare function Xanh_Mono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yaldevi<
@@ -25540,7 +25540,7 @@ export declare function Yaldevi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'sinhala'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yanone_Kaffeesatz<
@@ -25561,7 +25561,7 @@ export declare function Yanone_Kaffeesatz<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -25589,7 +25589,7 @@ export declare function Yantramanav<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yatra_One<
@@ -25602,7 +25602,7 @@ export declare function Yatra_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yellowtail<
@@ -25615,7 +25615,7 @@ export declare function Yellowtail<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yeon_Sung<
@@ -25628,7 +25628,7 @@ export declare function Yeon_Sung<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yeseva_One<
@@ -25641,7 +25641,7 @@ export declare function Yeseva_One<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
   >
@@ -25656,7 +25656,7 @@ export declare function Yesteryear<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yomogi<
@@ -25669,7 +25669,7 @@ export declare function Yomogi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Young_Serif<
@@ -25682,7 +25682,7 @@ export declare function Young_Serif<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yrsa<
@@ -25702,7 +25702,7 @@ export declare function Yrsa<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Ysabeau<
@@ -25740,7 +25740,7 @@ export declare function Ysabeau<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -25787,7 +25787,7 @@ export declare function Ysabeau_Infant<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -25834,7 +25834,7 @@ export declare function Ysabeau_Office<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -25881,7 +25881,7 @@ export declare function Ysabeau_SC<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<
     | 'cyrillic'
     | 'cyrillic-ext'
@@ -25903,7 +25903,7 @@ export declare function Yuji_Boku<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yuji_Hentaigana_Akari<
@@ -25916,7 +25916,7 @@ export declare function Yuji_Hentaigana_Akari<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yuji_Hentaigana_Akebono<
@@ -25929,7 +25929,7 @@ export declare function Yuji_Hentaigana_Akebono<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yuji_Mai<
@@ -25942,7 +25942,7 @@ export declare function Yuji_Mai<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yuji_Syuku<
@@ -25955,7 +25955,7 @@ export declare function Yuji_Syuku<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Yusei_Magic<
@@ -25968,7 +25968,7 @@ export declare function Yusei_Magic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function ZCOOL_KuaiLe<
@@ -25981,7 +25981,7 @@ export declare function ZCOOL_KuaiLe<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function ZCOOL_QingKe_HuangYou<
@@ -25994,7 +25994,7 @@ export declare function ZCOOL_QingKe_HuangYou<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function ZCOOL_XiaoWei<
@@ -26007,7 +26007,7 @@ export declare function ZCOOL_XiaoWei<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Antique<
@@ -26020,7 +26020,7 @@ export declare function Zen_Antique<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Antique_Soft<
@@ -26033,7 +26033,7 @@ export declare function Zen_Antique_Soft<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Dots<
@@ -26046,7 +26046,7 @@ export declare function Zen_Dots<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Kaku_Gothic_Antique<
@@ -26065,7 +26065,7 @@ export declare function Zen_Kaku_Gothic_Antique<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Kaku_Gothic_New<
@@ -26084,7 +26084,7 @@ export declare function Zen_Kaku_Gothic_New<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Kurenaido<
@@ -26097,7 +26097,7 @@ export declare function Zen_Kurenaido<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Loop<
@@ -26110,7 +26110,7 @@ export declare function Zen_Loop<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Maru_Gothic<
@@ -26129,7 +26129,7 @@ export declare function Zen_Maru_Gothic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Old_Mincho<
@@ -26148,7 +26148,7 @@ export declare function Zen_Old_Mincho<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'cyrillic' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Tokyo_Zoo<
@@ -26161,7 +26161,7 @@ export declare function Zen_Tokyo_Zoo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zeyada<
@@ -26174,7 +26174,7 @@ export declare function Zeyada<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zhi_Mang_Xing<
@@ -26187,7 +26187,7 @@ export declare function Zhi_Mang_Xing<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zilla_Slab<
@@ -26206,7 +26206,7 @@ export declare function Zilla_Slab<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zilla_Slab_Highlight<
@@ -26219,6 +26219,6 @@ export declare function Zilla_Slab_Highlight<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  fixedFontFamily?: string
+  disableFontFamilyHashing?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable

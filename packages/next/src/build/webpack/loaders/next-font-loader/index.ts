@@ -100,7 +100,7 @@ export default async function nextFontLoader(this: any) {
         weight,
         style,
         variable,
-        fixedFontFamily,
+        disableFontFamilyHashing,
       } = await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
         fontLoader({
           functionName,
@@ -126,6 +126,7 @@ export default async function nextFontLoader(this: any) {
       const exports: { name: any; value: any }[] = []
 
       // Generate a hash from the CSS content. Used to generate classnames and font families
+      // While css hashing can be disabled with an option, className always stays hashed
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
         'sha1',
@@ -140,13 +141,14 @@ export default async function nextFontLoader(this: any) {
           postcss(
             postcssNextFontPlugin({
               exports,
-              fontFamilyHash,
+              fontFamilyHash: disableFontFamilyHashing
+                ? undefined
+                : fontFamilyHash,
               fallbackFonts,
               weight,
               style,
               adjustFontFallback,
               variable,
-              fixedFontFamily,
             })
           ).process(css, {
             from: undefined,
