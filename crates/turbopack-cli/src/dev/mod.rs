@@ -34,6 +34,7 @@ use turbopack_dev_server::{
     },
     DevServer, DevServerBuilder,
 };
+use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::execution_context::ExecutionContext;
 
@@ -255,6 +256,7 @@ async fn source(
         build_output_root.join("chunks".to_string()),
         build_output_root.join("assets".to_string()),
         node_build_environment(),
+        RuntimeType::Development,
     )
     .build();
 
