@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextDev } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import path from 'path'
 
@@ -8,7 +8,7 @@ createNextDescribe(
     files: path.join(__dirname, 'app'),
     skipDeployment: true,
     buildCommand: 'pnpm build',
-    startCommand: next.isDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     packageJson: {
       scripts: {
         dev: 'node server.js',

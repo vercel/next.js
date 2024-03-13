@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextDev } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
 createNextDescribe(
@@ -7,7 +7,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
-    startCommand: next.isDev
+    startCommand: isNextDev
       ? 'yarn next dev --experimental-test-proxy'
       : 'yarn next start --experimental-test-proxy',
   },

@@ -1,7 +1,7 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDev } from 'e2e-utils'
 
 describe('search-params', () => {
-  if (next.isDev) {
+  if (isNextDev) {
     test('ppr is disabled in dev', () => {})
     return
   }

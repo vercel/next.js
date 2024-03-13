@@ -8,7 +8,6 @@ const mockedGoogleFontResponses = require.resolve(
 )
 
 describe('next/font/google fetch error', () => {
-  const isDev = next.isDev
   let next: NextInstance
 
   if (next.isDeploy) {
@@ -29,7 +28,7 @@ describe('next/font/google fetch error', () => {
   })
   afterAll(() => next.destroy())
 
-  if (isDev) {
+  if (next.isDev) {
     it('should use a fallback font in dev', async () => {
       await next.start()
       const outputIndex = next.cliOutput.length

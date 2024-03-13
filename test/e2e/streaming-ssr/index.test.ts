@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { createNext, createNextDescribe } from 'e2e-utils'
+import { createNext, createNextDescribe, isNextStart } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
@@ -9,8 +9,6 @@ import {
   killApp,
   renderViaHTTP,
 } from 'next-test-utils'
-
-const isNextProd = !next.isDev && !next.isDeploy
 
 createNextDescribe(
   'streaming SSR with custom next configs',
@@ -86,7 +84,7 @@ createNextDescribe(
   }
 )
 
-if (isNextProd) {
+if (isNextStart) {
   describe('streaming SSR with custom server', () => {
     let next
     let server
@@ -126,7 +124,7 @@ if (isNextProd) {
     let next: NextInstance
 
     beforeAll(async () => {
-      if (isNextProd) {
+      if (isNextStart) {
         process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
       }
 
@@ -162,7 +160,7 @@ if (isNextProd) {
       })
     })
     afterAll(() => {
-      if (isNextProd) {
+      if (isNextStart) {
         delete process.env.NEXT_PRIVATE_MINIMAL_MODE
       }
       next.destroy()
@@ -178,7 +176,7 @@ if (isNextProd) {
       expect(html).toContain('streaming')
     })
 
-    if (isNextProd) {
+    if (isNextStart) {
       it('should have generated a static 404 page', async () => {
         expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
 

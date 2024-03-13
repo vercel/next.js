@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextDev } from 'e2e-utils'
 import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 createNextDescribe(
@@ -13,7 +13,7 @@ createNextDescribe(
       },
     },
     installCommand: 'pnpm i',
-    startCommand: next.isDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
     skipDeployment: true,
   },

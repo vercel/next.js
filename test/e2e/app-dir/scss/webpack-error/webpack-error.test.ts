@@ -4,11 +4,10 @@ import { remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 import { quote as shellQuote } from 'shell-quote'
-// In order for the global isNextStart to be set
-import 'e2e-utils'
+import { isNextStart } from 'e2e-utils'
 
 describe('SCSS Support', () => {
-  ;(Boolean(next.isStart) ? describe : describe.skip)('production only', () => {
+  ;(Boolean(isNextStart) ? describe : describe.skip)('production only', () => {
     describe('Friendly Webpack Error', () => {
       const appDir = __dirname
 

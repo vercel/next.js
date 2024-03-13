@@ -8,8 +8,6 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-const isDev = next.isDev
-
 describe('next/font/google with-font-declarations-file', () => {
   let next: NextInstance
 
@@ -48,7 +46,7 @@ describe('next/font/google with-font-declarations-file', () => {
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(0)
 
-    if (isDev) {
+    if (next.isDev) {
       // In dev all fonts will be preloaded since it's before DCE
       expect($('link[as="font"]').length).toBe(4)
     } else {
@@ -82,7 +80,7 @@ describe('next/font/google with-font-declarations-file', () => {
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(0)
 
-    if (isDev) {
+    if (next.isDev) {
       // In dev all fonts will be preloaded since it's before DCE
       expect($('link[as="font"]').length).toBe(4)
     } else {
@@ -116,7 +114,7 @@ describe('next/font/google with-font-declarations-file', () => {
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(0)
 
-    if (isDev) {
+    if (next.isDev) {
       // In dev all fonts will be preloaded since it's before DCE
       expect($('link[as="font"]').length).toBe(4)
     } else {
