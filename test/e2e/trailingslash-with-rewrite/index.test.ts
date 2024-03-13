@@ -6,7 +6,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 describe('trailingSlash:true with rewrites and getStaticProps', () => {
   let next: NextInstance
 
-  if (next.isDeploy) {
+  if (next.isNextDeploy) {
     it('should skip for deploy mode for now', () => {})
     return
   }

@@ -51,7 +51,7 @@ describe('404-page-router', () => {
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',
     (options) => {
-      const { isDev, isDeploy } = next
+      const { isNextDev: isDev, isNextDeploy: isDeploy } = next
 
       if (isDeploy) {
         // TODO: investigate condensing these tests to avoid

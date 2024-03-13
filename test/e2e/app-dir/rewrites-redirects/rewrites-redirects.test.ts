@@ -14,7 +14,7 @@ createNextDescribe(
   },
   ({ next }) => {
     // TODO: investigate test failures on deploy
-    if (next.isDeploy) {
+    if (next.isNextDeploy) {
       it('should skip for deploy', () => {})
       return
     }

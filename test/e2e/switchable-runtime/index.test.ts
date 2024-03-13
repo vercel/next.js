@@ -37,7 +37,7 @@ describe('Switchable runtime', () => {
   let next: NextInstance
   let context
 
-  if (next.isDeploy) {
+  if (next.isNextDeploy) {
     // TODO-APP: re-enable after Prerenders are handled on deploy
     it('should skip for deploy temporarily', () => {})
     return
@@ -60,7 +60,7 @@ describe('Switchable runtime', () => {
   })
   afterAll(() => next.destroy())
 
-  if (next.isDev) {
+  if (next.isNextDev) {
     describe('Switchable runtime (dev)', () => {
       it('should not include edge api routes and edge ssr routes into dev middleware manifest', async () => {
         const res = await fetchViaHTTP(
@@ -180,7 +180,7 @@ describe('Switchable runtime', () => {
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
-        if (!next.isDeploy) {
+        if (!next.isNextDeploy) {
           const manifest = await readJson(
             join(context.appDir, '.next/server/middleware-manifest.json')
           )
@@ -614,7 +614,7 @@ describe('Switchable runtime', () => {
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
-        if (!next.isDeploy) {
+        if (!next.isNextDeploy) {
           const manifest = await readJson(
             join(context.appDir, '.next/server/middleware-manifest.json')
           )

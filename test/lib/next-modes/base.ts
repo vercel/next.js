@@ -72,17 +72,17 @@ export class NextInstance {
    * Whether the test is running in dev mode.
    * Based on `process.env.NEXT_TEST_MODE` and the test directory.
    */
-  public isDev = isNextDev
+  public isNextDev = isNextDev
   /**
    * Whether the test is running in deploy mode.
    * Based on `process.env.NEXT_TEST_MODE`.
    */
-  public isDeploy = isNextDeploy
+  public isNextDeploy = isNextDeploy
   /**
    * Whether the test is running in start mode.
    * Default mode. `true` when both `isNextDev` and `isNextDeploy` are false.
    */
-  public isStart = isNextStart
+  public isNextStart = isNextStart
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -90,7 +90,7 @@ export class NextInstance {
 
     require('console').log('packageJson??', this.packageJson)
 
-    if (!this.isDeploy) {
+    if (!this.isNextDeploy) {
       this.env = {
         ...this.env,
         // remove node_modules/.bin repo path from env
@@ -220,7 +220,7 @@ export class NextInstance {
             !this.dependencies &&
             !this.installCommand &&
             !this.packageJson &&
-            !this.isDeploy
+            !this.isNextDeploy
           ) {
             await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
               recursive: true,
@@ -259,7 +259,7 @@ export class NextInstance {
           )
         }
 
-        if (this.nextConfig || (this.isDeploy && !nextConfigFile)) {
+        if (this.nextConfig || (this.isNextDeploy && !nextConfigFile)) {
           const functions = []
           const exportDeclare =
             this.packageJson?.type === 'module'
@@ -293,7 +293,7 @@ export class NextInstance {
           )
         }
 
-        if (this.isDeploy) {
+        if (this.isNextDeploy) {
           const fileName = path.join(
             this.testDir,
             nextConfigFile || 'next.config.js'
@@ -462,7 +462,7 @@ export class NextInstance {
     // TODO: replace this with an event directly from WatchPack inside
     // router-server for better accuracy
     if (
-      this.isDev &&
+      this.isNextDev &&
       (filename.startsWith('app/') || filename.startsWith('pages/'))
     ) {
       require('console').log('fs dev delay', filename)

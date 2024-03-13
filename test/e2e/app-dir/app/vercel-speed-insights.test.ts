@@ -34,7 +34,7 @@ describe('vercel speed insights', () => {
     afterAll(() => next.destroy())
 
     // Analytics events are only sent in production
-    ;(next.isDev ? describe.skip : describe)('Vercel analytics', () => {
+    ;(next.isNextDev ? describe.skip : describe)('Vercel analytics', () => {
       it('should send web vitals to Vercel analytics', async () => {
         expect(next.cliOutput).toMatch(
           '`config.analyticsId` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid'

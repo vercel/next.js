@@ -46,7 +46,7 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
-  if (next.isStart) {
+  if (next.isNextStart) {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
@@ -63,7 +63,7 @@ describe('og-api', () => {
     })
   }
 
-  if (next.isDev) {
+  if (next.isNextDev) {
     it('should throw error when returning a response object in pages/api in node runtime', async () => {
       const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
       expect(res.status).toBe(500)

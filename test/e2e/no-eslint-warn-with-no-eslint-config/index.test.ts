@@ -5,7 +5,7 @@ import { renderViaHTTP } from 'next-test-utils'
 describe('no-eslint-warn-with-no-eslint-config', () => {
   let next: NextInstance
 
-  if (next.isDeploy) {
+  if (next.isNextDeploy) {
     it('should skip for deploy', () => {})
     return
   }
@@ -36,7 +36,7 @@ describe('no-eslint-warn-with-no-eslint-config', () => {
     expect(next.cliOutput).not.toBe('warn')
   })
 
-  if (!next.isDev) {
+  if (!next.isNextDev) {
     it('should warn with empty eslintrc', async () => {
       await next.stop()
       await next.patchFile('.eslintrc.json', '{}')

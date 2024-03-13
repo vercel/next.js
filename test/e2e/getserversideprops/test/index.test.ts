@@ -859,5 +859,5 @@ describe('getServerSideProps', () => {
   })
   afterAll(() => next.destroy())
 
-  runTests(next.isDev, next.isDeploy)
+  runTests(next.isNextDev, next.isNextDeploy)
 })

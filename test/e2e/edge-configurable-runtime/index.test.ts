@@ -15,7 +15,7 @@ const apiPath = 'pages/api/edge.js'
   const page = new File(join(appDir, pagePath))
   const api = new File(join(appDir, apiPath))
 
-  if (next.isDev) {
+  if (next.isNextDev) {
     describe('In dev mode', () => {
       beforeAll(async () => {
         next = await createNext({
@@ -91,7 +91,7 @@ const apiPath = 'pages/api/edge.js'
         expect(next.cliOutput).not.toInclude('warn')
       })
     })
-  } else if (next.isStart) {
+  } else if (next.isNextStart) {
     describe('In start mode', () => {
       // TODO because createNext runs process.exit() without any log info on build failure, rely on good old nextBuild()
       afterEach(async () => {

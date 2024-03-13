@@ -7,7 +7,7 @@ import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 describe('transpile packages', () => {
   let next: NextInstance
 
-  if (next.isDeploy) {
+  if (next.isNextDeploy) {
     it('should skip for deploy mode for now', () => {})
     return
   }
@@ -28,13 +28,13 @@ describe('transpile packages', () => {
         },
       },
       installCommand: 'pnpm i',
-      startCommand: next.isDev ? 'pnpm dev' : 'pnpm start',
+      startCommand: next.isNextDev ? 'pnpm dev' : 'pnpm start',
       buildCommand: 'pnpm build',
     })
   })
   afterAll(() => next.destroy())
 
-  if (next.isDeploy) {
+  if (next.isNextDeploy) {
     it('should skip tests for next-deploy and react 17', () => {})
     return
   }

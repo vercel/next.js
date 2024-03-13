@@ -51,7 +51,7 @@ export function runTests(
           )}`
         },
         buildCommand: `yarn next build --no-lint`,
-        startCommand: next.isDev ? `yarn next` : `yarn next start`,
+        startCommand: next.isNextDev ? `yarn next` : `yarn next start`,
       })
     })
     afterAll(() => next?.destroy())

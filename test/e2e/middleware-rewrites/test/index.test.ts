@@ -127,7 +127,7 @@ describe('Middleware Rewrite', () => {
     it('should have props for afterFiles rewrite to SSG page', async () => {
       // TODO: investigate test failure during client navigation
       // on deployment
-      if (next.isDeploy) {
+      if (next.isNextDeploy) {
         return
       }
       let browser = await webdriver(next.url, '/')
@@ -338,7 +338,7 @@ describe('Middleware Rewrite', () => {
       expect(await element.text()).toEqual('About Bypassed Page')
     })
 
-    if (!next.isDev) {
+    if (!next.isNextDev) {
       it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 
@@ -767,7 +767,7 @@ describe('Middleware Rewrite', () => {
       }
     })
 
-    if (!next.isDeploy) {
+    if (!next.isNextDeploy) {
       it(`${label}should rewrite when not using localhost`, async () => {
         const customUrl = new URL(next.url)
         customUrl.hostname = 'localtest.me'

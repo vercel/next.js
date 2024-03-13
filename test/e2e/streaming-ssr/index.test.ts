@@ -55,7 +55,7 @@ createNextDescribe(
       expect(html).toContain('マルチバイト'.repeat(28))
     })
 
-    if (next.isDev) {
+    if (next.isNextDev) {
       it('should work with custom document', async () => {
         await next.patchFile(
           'pages/_document.js',

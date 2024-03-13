@@ -274,21 +274,21 @@ export function nextTestSetup(
 
   return {
     get isNextDev() {
-      return next.isDev
+      return next.isNextDev
     },
     get isTurbopack(): boolean {
       return Boolean(
-        next.isDev &&
+        next.isNextDev &&
           !process.env.TEST_WASM &&
           (options.turbo ?? shouldRunTurboDevTest())
       )
     },
 
     get isNextDeploy() {
-      return next.isDeploy
+      return next.isNextDeploy
     },
     get isNextStart() {
-      return next.isStart
+      return next.isNextStart
     },
     get next() {
       return nextProxy

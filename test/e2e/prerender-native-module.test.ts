@@ -61,7 +61,7 @@ describe('prerender native module', () => {
     })
   })
 
-  if (next.isStart) {
+  if (next.isNextStart) {
     it('should output traces', async () => {
       const checks = [
         {

@@ -99,7 +99,7 @@ describe('middleware can use wasm files', () => {
     })
   })
 
-  if (!next.isDeploy) {
+  if (!next.isNextDeploy) {
     it('lists the necessary wasm bindings in the manifest', async () => {
       const manifestPath = path.join(
         next.testDir,

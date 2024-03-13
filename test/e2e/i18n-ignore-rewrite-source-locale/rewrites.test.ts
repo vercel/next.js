@@ -67,7 +67,7 @@ describe('i18n-ignore-rewrite-source-locale', () => {
   )
 
   // build artifacts aren't available on deploy
-  if (!next.isDeploy) {
+  if (!next.isNextDeploy) {
     // chunks are not written to disk with TURBOPACK
     ;(process.env.TURBOPACK ? it.skip.each : it.each)(locales)(
       'get _next/static/ files by skipping locale in rewrite, locale: %s',

@@ -42,7 +42,7 @@ describe('Edge compiler module exports preference', () => {
         },
       },
       installCommand: 'pnpm i',
-      startCommand: next.isDev ? 'pnpm dev' : 'pnpm start',
+      startCommand: next.isNextDev ? 'pnpm dev' : 'pnpm start',
       buildCommand: 'pnpm run build',
       dependencies: {},
     })

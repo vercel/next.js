@@ -96,5 +96,5 @@ describe('basePath + trailingSlash', () => {
       }
     })
   }
-  runTests(next.isDev)
+  runTests(next.isNextDev)
 })

@@ -47,7 +47,7 @@ describe('next/font', () => {
       }
       let next: NextInstance
 
-      if (next.isDeploy) {
+      if (next.isNextDeploy) {
         it('should skip next deploy for now', () => {})
         return
       }
@@ -69,7 +69,7 @@ describe('next/font', () => {
       })
       afterAll(() => next.destroy())
 
-      if (next.isDev) {
+      if (next.isNextDev) {
         it('should use production cache control for fonts', async () => {
           const $ = await next.render$('/')
           const link = $('[rel="preload"][as="font"]').attr('href')
