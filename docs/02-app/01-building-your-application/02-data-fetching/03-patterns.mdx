@@ -390,7 +390,7 @@ export async function Page() {
 import { getUserData } from './data'
 
 export async function Page() {
-  const userData = getUserData()
+  const userData = await getUserData()
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference

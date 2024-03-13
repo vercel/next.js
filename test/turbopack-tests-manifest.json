@@ -293,66 +293,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/router-reducer/reducers/navigate-reducer.test.tsx": {
-    "passed": [
-      "navigateReducer should apply navigation",
-      "navigateReducer should apply navigation for external url (push)",
-      "navigateReducer should apply navigation for external url (replace)",
-      "navigateReducer should apply navigation for hash fragments within a different tree",
-      "navigateReducer should apply navigation for hash fragments within the same tree",
-      "navigateReducer should apply navigation for scroll",
-      "navigateReducer should apply navigation when called twice (concurrent)",
-      "navigateReducer should apply navigation with prefetched data",
-      "navigateReducer should apply parallel routes navigation (concurrent)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/reducers/prefetch-reducer.test.tsx": {
-    "passed": [
-      "prefetchReducer should apply navigation",
-      "prefetchReducer should apply navigation (concurrent)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/reducers/refresh-reducer.test.tsx": {
-    "passed": [
-      "refreshReducer should apply refresh",
-      "refreshReducer should apply refresh (concurrent)",
-      "refreshReducer should invalidate all segments (concurrent)",
-      "refreshReducer should invalidate prefetchCache (concurrent)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/reducers/restore-reducer.test.tsx": {
-    "passed": [
-      "serverPatchReducer should apply server patch",
-      "serverPatchReducer should apply server patch (concurrent)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/reducers/server-patch-reducer.test.tsx": {
-    "passed": [
-      "serverPatchReducer should apply server patch",
-      "serverPatchReducer should apply server patch without affecting focusAndScrollRef",
-      "serverPatchReducer should gracefully recover if the server patch doesn't match the current tree"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/router-reducer/should-hard-navigate.test.tsx": {
     "passed": [
       "shouldHardNavigate should return false if segments are dynamic and match",
@@ -435,7 +375,13 @@
       "metadata: resolveUrl should compose with metadataBase when url is relative or absolute",
       "metadata: resolveUrl should ignore metadataBase when url is valid URL",
       "metadata: resolveUrl should return null when url is falsy",
-      "metadata: resolveUrl should return url itself when metadataBase is null or url is valid URL"
+      "metadata: resolveUrl should return url itself when metadataBase is null or url is valid URL",
+      "resolveAbsoluteUrlWithPathname trailingSlash is false should resolve absolute internal url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to absolute internal url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to relative url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to absolute internal url with query",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to external url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to relative url with query"
     ],
     "failed": [],
     "pending": [],
@@ -1106,6 +1052,7 @@
   },
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
+      "Error overlay for hydration errors should collapse and uncollapse properly when there are many frames",
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
       "Error overlay for hydration errors should only show one hydration error when bad nesting happened",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
@@ -1123,12 +1070,11 @@
   },
   "test/development/acceptance-app/invalid-imports.test.ts": {
     "passed": [
-      "Error Overlay invalid imports should show error when external package imports client-only in server component"
-    ],
-    "failed": [
+      "Error Overlay invalid imports should show error when external package imports client-only in server component",
       "Error Overlay invalid imports should show error when external package imports server-only in client component",
       "Error Overlay invalid imports should show error when using styled-jsx in server component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1383,15 +1329,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
+      "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo render error not shown right after syntax error",
       "ReactRefreshLogBox turbo stuck error"
     ],
-    "failed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a component error",
-      "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo syntax > runtime error"
-    ],
+    "failed": ["ReactRefreshLogBox turbo syntax > runtime error"],
     "pending": [
       "ReactRefreshLogBox default logbox: can recover from a component error",
       "ReactRefreshLogBox default logbox: can recover from a event handler error",
@@ -1460,10 +1404,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/edge-errors-hmr/index.test.ts": {
+    "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
+      "develop - app-dir - edge errros hmr should recover from build errors when server component error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/experimental-lightningcss/experimental-lightningcss.test.ts": {
     "passed": ["experimental-lightningcss should support css modules"],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "experimental-lightningcss with default mode in dev server should support browserslist",
+      "experimental-lightningcss with default mode in dev server should support css modules"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1477,6 +1434,16 @@
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/missing-required-html-tags/index.test.ts": {
+    "passed": [
+      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],
     "pending": [],
@@ -1514,11 +1481,10 @@
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
     "passed": [
-      "app-render-error-log should log the correct values on app-render error"
-    ],
-    "failed": [
+      "app-render-error-log should log the correct values on app-render error",
       "app-render-error-log should log the correct values on app-render error with edge runtime"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1602,9 +1568,12 @@
       "basic HMR, basePath: \"\" Error Recovery should recover after a bad return from the render function",
       "basic HMR, basePath: \"\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"\" Error Recovery should recover after exporting an invalid page",
+      "basic HMR, basePath: \"\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover after undefined exported as default",
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
+      "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
+      "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1621,9 +1590,12 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after a bad return from the render function",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1636,16 +1608,10 @@
       "basic HMR, basePath: \"/docs\" should show hydration error correctly"
     ],
     "failed": [
-      "basic HMR, basePath: \"\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
-      "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error"
     ],
@@ -2333,6 +2299,7 @@
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
+      "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
       "app-dir action handling Edge SSR should handle redirect to a relative URL in a single pass",
@@ -2431,15 +2398,14 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
+      "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
-    "failed": [
-      "app dir - basepath should prefix metadata og image with basePath"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2921,6 +2887,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
@@ -2998,6 +2966,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
@@ -3357,6 +3327,16 @@
     "passed": [
       "dynamic-href should error when using dynamic href in app dir",
       "dynamic-href should error when using dynamic href.pathname in app dir"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
+    "passed": [
+      "dynamic-requests should not error for dynamic requests in pages",
+      "dynamic-requests should not error for dynamic requests in routes"
     ],
     "failed": [],
     "pending": [],
@@ -3814,6 +3794,7 @@
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
       "app dir - metadata opengraph should support opengraph tags",
       "app dir - metadata opengraph should support opengraph with article type",
+      "app dir - metadata should not crash from error thrown during preloading nested generateMetadata",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
       "app dir - metadata static routes should support root dir robots.txt",
@@ -4555,139 +4536,8 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/scss/multi-page/multi-page.test.ts": {
-    "passed": [
-      "SCSS Support Has CSS in computed styles in Production should have CSS for page",
-      "SCSS Support Can hot reload CSS without losing state should update CSS color without remounting <input>",
-      "SCSS Support Has CSS in computed styles in Development should have CSS for page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/unused/unused.test.ts": {
-    "passed": [
-      "unused scss Body is not hidden when unused in Development development only should have body visible",
-      "unused scss Body is not hidden when broken in Development development only should have body visible"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts": {
-    "passed": [
-      "Can hot reload CSS Module without losing state development only should update CSS color without remounting <input>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/url-global/url-global.test.ts": {
-    "passed": [
-      "SCSS Support loader handling CSS URL via `file-loader` should render the page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/scss/3rd-party-module/3rd-party-module.test.ts": {
     "passed": ["3rd Party CSS Module Support should render the module"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/external-url/external-url.test.ts": {
-    "passed": [
-      "SCSS Support loader handling External imports should include font on the page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/composes-basic/composes-basic.test.ts": {
-    "passed": ["CSS Module Composes Usage (Basic) should render the module"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/data-url/data-url.test.ts": {
-    "passed": [
-      "SCSS Support loader handling Data Urls should render the module"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/nested-global/nested-global.test.ts": {
-    "passed": ["Nested @import() Global Support should render the page"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/npm-import-tilde/npm-import-tilde.test.ts": {
-    "passed": [
-      "Good CSS Import from node_modules with tilde should render the page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/loader-order/loader-order.test.ts": {
-    "passed": [
-      "SCSS Support loader handling Preprocessor loader order should render the module"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/dev-module/dev-module.test.ts": {
-    "passed": [
-      "Has CSS Module in computed styles in Development should have CSS for page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/npm-import/npm-import.test.ts": {
-    "passed": ["Good CSS Import from node_modules should render the page"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/prod-module/prod-module.test.ts": {
-    "passed": [
-      "Has CSS Module in computed styles in Production should render the page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-
-  "test/e2e/app-dir/scss/with-styled-jsx/with-styled-jsx.test.ts": {
-    "passed": [
-      "Ordering with styled-jsx should have the correct color (css ordering)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/catch-all-module/catch-all-module.test.ts": {
-    "passed": ["Catch-all Route CSS Module Usage should render the module"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4714,20 +4564,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
-    "passed": ["Multi Global Support (reversed) should render the page"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/scss/single-global-src/single-global-src.test.ts": {
-    "passed": ["Basic Global Support with src/ dir should render the page"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/scss/basic-module/basic-module.test.ts": {
     "passed": ["Basic SCSS Module Support should render the module"],
     "failed": [],
@@ -4735,8 +4571,136 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/scss/single-global/single-global.test.ts": {
-    "passed": ["Basic Global Support scss should render the page"],
+  "test/e2e/app-dir/scss/catch-all-module/catch-all-module.test.ts": {
+    "passed": ["Catch-all Route CSS Module Usage should render the module"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/compilation-and-prefixing/compilation-and-prefixing.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support Production only CSS Compilation and Prefixing should've compiled and prefixed",
+      "SCSS Support Production only CSS Compilation and Prefixing should've emitted a source map"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/composes-basic/composes-basic.test.ts": {
+    "passed": ["CSS Module Composes Usage (Basic) should render the module"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/composes-external/composes-external.test.ts": {
+    "passed": ["CSS Module Composes Usage (External) should render the module"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/data-url/data-url.test.ts": {
+    "passed": [
+      "SCSS Support loader handling Data Urls should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/dev-module/dev-module.test.ts": {
+    "passed": [
+      "Has CSS Module in computed styles in Development should have CSS for page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/dynamic-route-module/dynamic-route-module.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Dynamic Route CSS Module Usage production mode should apply styles correctly"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/external-url/external-url.test.ts": {
+    "passed": [
+      "SCSS Support loader handling External imports should include font on the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts": {
+    "passed": [
+      "Can hot reload CSS Module without losing state development only should update CSS color without remounting <input>"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-global-module/invalid-global-module.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Global Module Usage in node_modules production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid Global CSS with Custom App production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["Invalid Global CSS production only should fail to build"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid SCSS in _document production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/invalid-module/invalid-module.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Module Usage in node_modules production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/loader-order/loader-order.test.ts": {
+    "passed": [
+      "SCSS Support loader handling Preprocessor loader order should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
+    "passed": ["(SCSS) Multi Global Support (reversed) should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4749,10 +4713,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/scss/npm-import-nested/npm-import-nested.test.ts": {
+  "test/e2e/app-dir/scss/multi-page/multi-page.test.ts": {
     "passed": [
-      "Good Nested CSS Import from node_modules should render the page"
+      "SCSS Support Can hot reload CSS without losing state should update CSS color without remounting <input>",
+      "SCSS Support Has CSS in computed styles in Development should have CSS for page",
+      "SCSS Support Has CSS in computed styles in Production should have CSS for page"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/nested-global/nested-global.test.ts": {
+    "passed": ["Nested @import() Global Support should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4776,16 +4749,130 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/scss/composes-external/composes-external.test.ts": {
-    "passed": ["CSS Module Composes Usage (External) should render the module"],
+  "test/e2e/app-dir/scss/npm-import-bad/npm-import-bad.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "CSS Import from node_modules production only should fail the build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/npm-import-nested/npm-import-nested.test.ts": {
+    "passed": [
+      "Good Nested CSS Import from node_modules should render the page"
+    ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/npm-import-tilde/npm-import-tilde.test.ts": {
+    "passed": [
+      "Good CSS Import from node_modules with tilde should render the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/npm-import/npm-import.test.ts": {
+    "passed": ["Good CSS Import from node_modules should render the page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/prod-module/prod-module.test.ts": {
+    "passed": [
+      "Has CSS Module in computed styles in Production should render the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/single-global-src/single-global-src.test.ts": {
+    "passed": ["Basic Global Support with src/ dir should render the page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/single-global/single-global.test.ts": {
+    "passed": ["Basic Global Support scss should render the page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/unused/unused.test.ts": {
+    "passed": [
+      "unused scss Body is not hidden when broken in Development development only should have body visible",
+      "unused scss Body is not hidden when unused in Development development only should have body visible"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/url-global-asset-prefix-1/url-global-asset-prefix-1.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (1) should render the page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/url-global-asset-prefix-2/url-global-asset-prefix-2.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (2) should render the page"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/url-global-partial/url-global-partial.test.ts": {
     "passed": [
       "SCSS Support loader handling CSS URL via file-loader sass partial should render the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/url-global/url-global.test.ts": {
+    "passed": [
+      "SCSS Support loader handling CSS URL via `file-loader` should render the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support production only Friendly Webpack Error should be a friendly error successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/with-styled-jsx/with-styled-jsx.test.ts": {
+    "passed": [
+      "Ordering with styled-jsx should have the correct color (css ordering)"
     ],
     "failed": [],
     "pending": [],
@@ -4923,6 +5010,7 @@
   "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
     "passed": [
       "app-dir trailingSlash handling should contain trailing slash to canonical url",
+      "app-dir trailingSlash handling should not add trailing slash to external url or relative url with query",
       "app-dir trailingSlash handling should redirect route when clicking link",
       "app-dir trailingSlash handling should redirect route when requesting it directly",
       "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
@@ -6259,8 +6347,8 @@
     "runtimeError": false
   },
   "test/e2e/next-font/basepath.test.ts": {
-    "passed": [],
-    "failed": ["next/font/google basepath preload correct files"],
+    "passed": ["next/font/google basepath preload correct files"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6403,12 +6491,11 @@
     "passed": [
       "og-api should respond from index",
       "og-api should throw error when returning a response object in pages/api in node runtime",
-      "og-api should work in app route in node runtime"
-    ],
-    "failed": [
       "og-api should work in app route",
+      "og-api should work in app route in node runtime",
       "og-api should work in pages/api"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7368,7 +7455,7 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage $dynamicPage",
+      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-static'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage undefined"
@@ -7757,6 +7844,7 @@
       "CLI Usage dev -p",
       "CLI Usage dev -p conflict",
       "CLI Usage dev -p reserved",
+      "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
@@ -7767,6 +7855,7 @@
       "CLI Usage dev should not throw UnhandledPromiseRejectionWarning",
       "CLI Usage dev should warn when unknown argument provided",
       "CLI Usage export --help",
+      "CLI Usage export run export command",
       "CLI Usage info --help",
       "CLI Usage info -h",
       "CLI Usage info should print output",
@@ -8221,24 +8310,38 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "Basic Global Support production mode should compile successfully",
-      "Basic Global Support production mode should've emitted a single CSS file",
-      "Basic Global Support with special characters in path production mode should compile successfully",
-      "Basic Global Support with special characters in path production mode should've emitted a single CSS file",
-      "Basic Global Support with src/ dir production mode should compile successfully",
-      "Basic Global Support with src/ dir production mode should've emitted a single CSS file",
+      "Basic Global Support production mode useLightnincsss(false) should compile successfully",
+      "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Basic Global Support production mode useLightnincsss(true) should compile successfully",
+      "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Basic Global Support with special characters in path production mode useLightnincsss(false) should compile successfully",
+      "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Basic Global Support with special characters in path production mode useLightnincsss(true) should compile successfully",
+      "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Basic Global Support with src/ dir production mode useLightnincsss(false) should compile successfully",
+      "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Basic Global Support with src/ dir production mode useLightnincsss(true) should compile successfully",
+      "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
       "CSS URL via `file-loader` and asset prefix (1) production mode should compile successfully",
       "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
       "CSS URL via `file-loader` and asset prefix (2) production mode should compile successfully",
       "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
-      "CSS URL via `file-loader` production mode should compile successfully",
-      "CSS URL via `file-loader` production mode should've emitted expected files",
-      "Multi Global Support (reversed) production mode should compile successfully",
-      "Multi Global Support (reversed) production mode should've emitted a single CSS file",
-      "Multi Global Support production mode should compile successfully",
-      "Multi Global Support production mode should've emitted a single CSS file",
-      "Nested @import() Global Support production mode should compile successfully",
-      "Nested @import() Global Support production mode should've emitted a single CSS file"
+      "CSS URL via `file-loader` production mode useLightnincsss(false) should compile successfully",
+      "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
+      "CSS URL via `file-loader` production mode useLightnincsss(true) should compile successfully",
+      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
+      "Multi Global Support (reversed) production mode useLightnincsss(false) should compile successfully",
+      "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Multi Global Support (reversed) production mode useLightnincsss(true) should compile successfully",
+      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Multi Global Support production mode useLightnincsss(false) should compile successfully",
+      "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Multi Global Support production mode useLightnincsss(true) should compile successfully",
+      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
+      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully",
+      "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
     ],
     "flakey": [],
     "runtimeError": false
@@ -8259,76 +8362,115 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "CSS Property Ordering production mode should have compiled successfully",
-      "CSS Property Ordering production mode should have the border width (property ordering)",
-      "CSS Support production mode CSS Compilation and Prefixing should compile successfully",
-      "CSS Support production mode CSS Compilation and Prefixing should've compiled and prefixed",
-      "CSS Support production mode CSS Compilation and Prefixing should've emitted a source map",
-      "CSS Support production mode Good CSS Import from node_modules should compile successfully",
-      "CSS Support production mode Good CSS Import from node_modules should've emitted a single CSS file",
-      "CSS Support production mode Good Nested CSS Import from node_modules should compile successfully",
-      "CSS Support production mode Good Nested CSS Import from node_modules should've emitted a single CSS file",
-      "CSS Support production mode Has CSS in computed styles in Production should have CSS for page",
-      "CSS Support production mode Has CSS in computed styles in Production should have compiled successfully",
-      "CSS Support production mode Has CSS in computed styles in Production should've preloaded the CSS file and injected it in <head>",
-      "CSS Support production mode React Lifecyce Order (production) should have compiled successfully",
-      "CSS Support production mode React Lifecyce Order (production) should have the correct color on mount after navigation"
+      "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
+      "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
+      "CSS Property Ordering production mode useLightnincsss(true) should have compiled successfully",
+      "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've emitted a source map",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've emitted a source map",
+      "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should compile successfully",
+      "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
+      "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should compile successfully",
+      "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should compile successfully",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should compile successfully",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have compiled successfully",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have compiled successfully",
+      "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
+      "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
+      "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
+      "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
+      "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
-      "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
+      "Ordering with Global CSS and Modules (dev) useLightnincsss(false) should have the correct color (css ordering)",
+      "Ordering with Global CSS and Modules (dev) useLightnincsss(false) should have the correct color (css ordering) during hot reloads",
+      "Ordering with Global CSS and Modules (dev) useLightnincsss(false) should not execute scripts in any order",
+      "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should have the correct color (css ordering)",
+      "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should have the correct color (css ordering) during hot reloads",
+      "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should not execute scripts in any order"
     ],
-    "failed": [
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)"
-    ],
+    "failed": [],
     "pending": [
-      "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
-      "Basic CSS Modules Ordering production mode should have correct color on index page (on load)",
-      "Basic CSS Modules Ordering production mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
-      "CSS Modules Composes Ordering production mode should have correct CSS injection order",
-      "CSS Modules Composes Ordering production mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering production mode should have correct color on index page (on load)",
-      "CSS Modules Composes Ordering production mode should have correct color on index page (on nav from index)",
-      "CSS Modules Composes Ordering production mode should have correct color on index page (on nav from other)",
-      "CSS Modules Composes Ordering production mode should not change color on hover",
+      "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
+      "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav)",
+      "Basic CSS Modules Ordering useLightnincsss(false) production mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering useLightnincsss(false) production mode should have correct color on index page (on load)",
+      "Basic CSS Modules Ordering useLightnincsss(false) production mode should have correct color on index page (on nav)",
+      "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on load)",
+      "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav)",
+      "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on load)",
+      "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on nav)",
+      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct CSS injection order",
+      "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering useLightnincsss(false) production mode should not change color on hover",
+      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct CSS injection order",
+      "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering useLightnincsss(true) production mode should not change color on hover",
       "Data URLs production mode should compile successfully",
       "Data URLs production mode should have emitted expected files",
-      "Ordering with Global CSS and Modules (prod) production mode should have compiled successfully",
-      "Ordering with Global CSS and Modules (prod) production mode should have the correct color (css ordering)",
+      "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have compiled successfully",
+      "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
+      "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
+      "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
       "should handle unresolved files gracefully production mode should build correctly",
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
-    "flakey": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/integration/css/test/css-rendering.test.js": {
     "passed": [],
     "failed": [],
     "pending": [
-      "CSS Support CSS Cleanup on Render Failure production mode not have intermediary page styles on error rendering",
+      "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
+      "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
       "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
       "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on hover)",
       "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on load)",
       "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
       "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
       "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should not change color on hover",
-      "CSS Support Page hydrates with CSS and not waiting on dependencies production mode should hydrate black without dependencies manifest",
-      "CSS Support Page hydrates with CSS and not waiting on dependencies production mode should hydrate red without dependencies manifest",
-      "CSS Support Page hydrates with CSS and not waiting on dependencies production mode should route from black to red without dependencies",
-      "CSS Support Page reload on CSS missing production mode should fall back to server-side transition on missing CSS",
-      "CSS Support production mode CSS Import from node_modules should fail the build"
+      "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate black without dependencies manifest",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate red without dependencies manifest",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should route from black to red without dependencies",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate black without dependencies manifest",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate red without dependencies manifest",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should route from black to red without dependencies",
+      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support production mode CSS Import from node_modules useLightnincsss(false) should fail the build",
+      "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
     ],
     "flakey": [],
     "runtimeError": false
@@ -13637,6 +13779,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts": {
+    "passed": [
+      "Image Component from node_modules dev mode should apply image config for node_modules"
+    ],
+    "failed": [],
+    "pending": [
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/next-image-new/app-dir/test/index.test.ts": {
     "passed": [
       "Image Component Default Tests dev mode Fill-mode tests should add 100% width and height to fill images",
@@ -15184,396 +15337,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/scss-fixtures/3rd-party-module/3rd-party-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "3rd Party CSS Module Support production mode should have compiled successfully",
-      "3rd Party CSS Module Support production mode should've emitted a single CSS file",
-      "3rd Party CSS Module Support production mode should've injected the CSS on server render"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/basic-module-include-paths/basic-module-include-paths.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Basic Module Include Paths Support production mode should compile successfully",
-      "Basic Module Include Paths Support production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/basic-module-prepend-data/basic-module-prepend-data.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Basic Module Prepend Data Support production mode should compile successfully",
-      "Basic Module Prepend Data Support production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/basic-module/basic-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Basic SCSS Module Support production mode should have compiled successfully",
-      "Basic SCSS Module Support production mode should've emitted a single CSS file",
-      "Basic SCSS Module Support production mode should've injected the CSS on server render"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/catch-all-module/catch-all-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Catch-all Route CSS Module Usage production mode should apply styles correctly",
-      "Catch-all Route CSS Module Usage production mode should have compiled successfully",
-      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/compilation-and-prefixing/compilation-and-prefixing.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support production mode CSS Compilation and Prefixing should compile successfully",
-      "SCSS Support production mode CSS Compilation and Prefixing should've compiled and prefixed",
-      "SCSS Support production mode CSS Compilation and Prefixing should've emitted a source map"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/composes-basic/composes-basic.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
-      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/composes-external/composes-external.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "CSS Module Composes Usage (External) production mode should have compiled successfully",
-      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/data-url/data-url.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode Data Urls should compile successfully",
-      "SCSS Support loader handling production mode Data Urls should've emitted expected files"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/dev-module/dev-module.test.js": {
-    "passed": [
-      "Has CSS Module in computed styles in Development should have CSS for page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/dynamic-route-module/dynamic-route-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Dynamic Route CSS Module Usage production mode should apply styles correctly",
-      "Dynamic Route CSS Module Usage production mode should have compiled successfully",
-      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/external-url/external-url.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode External imports should compile successfully",
-      "SCSS Support loader handling production mode External imports should've emitted expected files"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/hmr-module/hmr-module.test.js": {
-    "passed": [
-      "Can hot reload CSS Module without losing state should update CSS color without remounting <input>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/invalid-global-module/invalid-global-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Invalid CSS Global Module Usage in node_modules production mode should fail to build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/invalid-global-with-app/invalid-global-with-app.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Invalid Global CSS with Custom App production mode should fail to build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/invalid-global/invalid-global.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": ["Invalid Global CSS production mode should fail to build"],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/invalid-module-document/invalid-module-document.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Invalid SCSS in _document production mode should fail to build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/invalid-module/invalid-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Invalid CSS Module Usage in node_modules production mode should fail to build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/loader-order/loader-order.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode Preprocessor loader order should compile successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/multi-global-reversed/multi-global-reversed.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Multi Global Support (reversed) production mode should compile successfully",
-      "Multi Global Support (reversed) production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/multi-global/multi-global.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Multi Global Support production mode should compile successfully",
-      "Multi Global Support production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/multi-page/multi-page.test.js": {
-    "passed": [
-      "SCSS Support Has CSS in computed styles in Development should have CSS for page",
-      "SCSS Support development mode Can hot reload CSS without losing state should update CSS color without remounting <input>"
-    ],
-    "failed": [],
-    "pending": [
-      "SCSS Support production mode Has CSS in computed styles in Production should have CSS for page",
-      "SCSS Support production mode Has CSS in computed styles in Production should have compiled successfully",
-      "SCSS Support production mode Has CSS in computed styles in Production should've preloaded the CSS file and injected it in <head>"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/nested-global/nested-global.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Nested @import() Global Support production mode should compile successfully",
-      "Nested @import() Global Support production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/nm-module-nested/nm-module-nested.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/nm-module/nm-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
-      "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-      "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/npm-import-bad/npm-import-bad.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "CSS Import from node_modules production mode should fail the build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/npm-import-nested/npm-import-nested.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Good Nested CSS Import from node_modules production mode should compile successfully",
-      "Good Nested CSS Import from node_modules production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/npm-import/npm-import.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Good CSS Import from node_modules production mode should compile successfully",
-      "Good CSS Import from node_modules production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/prod-module/prod-module.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Has CSS Module in computed styles in Production production mode should have CSS for page",
-      "Has CSS Module in computed styles in Production production mode should have compiled successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/single-global-src/single-global-src.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Basic Global Support with src/ dir production mode should compile successfully",
-      "Basic Global Support with src/ dir production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/single-global/single-global.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Basic Global Support scss production mode should compile successfully",
-      "Basic Global Support scss production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/unused/unused.test.js": {
-    "passed": [
-      "Body is not hidden when broken in Development should have body visible",
-      "Body is not hidden when unused in Development should have body visible"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/url-global-asset-prefix-1/url-global-asset-prefix-1.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (1) should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (1) should've emitted expected files"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/url-global-asset-prefix-2/url-global-asset-prefix-2.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (2) should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (2) should've emitted expected files"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/url-global-partial/url-global-partial.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode CSS URL via file-loader sass partial should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via file-loader sass partial should've emitted expected files"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/url-global/url-global.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support loader handling production mode CSS URL via `file-loader` should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` should've emitted expected files"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/valid-and-invalid-global/valid-and-invalid-global.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Valid and Invalid Global CSS with Custom App production mode should fail to build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/webpack-error/webpack-error.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "SCSS Support production mode Friendly Webpack Error should be a friendly error successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/scss-fixtures/with-styled-jsx/with-styled-jsx.test.js": {
-    "passed": [
-      "Ordering with styled-jsx dev mode should have the correct color (css ordering)"
-    ],
-    "failed": [],
-    "pending": [
-      "Ordering with styled-jsx production mode should have compiled successfully",
-      "Ordering with styled-jsx production mode should have the correct color (css ordering)"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/server-asset-modules/test/index.test.js": {
     "passed": [
       "serverside asset modules dev mode should enable reading local files in api routes"
@@ -16119,18 +15882,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16138,13 +15900,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

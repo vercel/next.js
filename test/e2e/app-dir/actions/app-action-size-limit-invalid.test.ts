@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 const CONFIG_ERROR =
-  'Server Actions Size Limit must be a valid number or filesize format lager than 1MB'
+  'Server Actions Size Limit must be a valid number or filesize format larger than 1MB'
 
 createNextDescribe(
   'app-dir action size limit invalid config',

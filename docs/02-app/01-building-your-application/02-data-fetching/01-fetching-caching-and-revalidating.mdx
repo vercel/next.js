@@ -67,6 +67,7 @@ export default async function Page() {
 >
 > - Next.js provides helpful functions you may need when fetching data in Server Components such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers). These will cause the route to be dynamically rendered as they rely on request time information.
 > - In Route handlers, `fetch` requests are not memoized as Route Handlers are not part of the React component tree.
+> - In [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), `fetch` requests are not cached (defaults `cache: no-store`).
 > - To use `async`/`await` in a Server Component with TypeScript, you'll need to use TypeScript `5.1.3` or higher and `@types/react` `18.2.8` or higher.
 
 ### Caching Data
@@ -80,7 +81,10 @@ By default, Next.js automatically caches the returned values of `fetch` in the [
 fetch('https://...', { cache: 'force-cache' })
 ```
 
-`fetch` requests that use the `POST` method are also automatically cached. Unless it's inside a [Route Handler](/docs/app/building-your-application/routing/route-handlers) that uses the `POST` method, then it will not be cached.
+However, there are exceptions, `fetch` requests are not cached when:
+
+- Used inside a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+- Used inside a [Route Handler](/docs/app/building-your-application/routing/route-handlers) that uses the `POST` method.
 
 > **What is the Data Cache?**
 >

@@ -52,7 +52,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.12.2
+  TURBO_VERSION: 1.12.5
   NODE_LTS_VERSION: 20.9.0
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -72,7 +72,7 @@ env:
 
 jobs:
   build:
-    timeout-minutes: 15
+    timeout-minutes: 30
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -171,6 +171,7 @@ jobs:
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
+        timeout-minutes: 15
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

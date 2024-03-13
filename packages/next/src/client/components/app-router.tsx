@@ -182,6 +182,8 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
+    head: null,
+    prefetchHead: null,
     parallelRoutes: new Map(),
     lazyDataResolved: false,
   }
@@ -391,7 +393,6 @@ function Router({
           })
         })
       },
-      // @ts-ignore we don't want to expose this method at all
       fastRefresh: () => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
@@ -449,6 +450,11 @@ function Router({
       ) {
         return
       }
+
+      // Clear the pendingMpaPath value so that a subsequent MPA navigation to the same URL can be triggered.
+      // This is necessary because if the browser restored from bfcache, the pendingMpaPath would still be set to the value
+      // of the last MPA navigation.
+      globalMutable.pendingMpaPath = undefined
 
       dispatch({
         type: ACTION_RESTORE,
