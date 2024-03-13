@@ -843,6 +843,7 @@ export async function handleAction({
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
+      // TODO(@panteliselef): Handle this
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
 

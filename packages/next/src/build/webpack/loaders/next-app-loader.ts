@@ -61,6 +61,7 @@ const FILE_TYPES = {
   error: 'error',
   loading: 'loading',
   'not-found': 'not-found',
+  forbidden: 'forbidden',
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'

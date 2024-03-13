@@ -666,6 +666,7 @@ function Router({
       const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
         require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
       content = (
+        //TODO(@panteliselef): should we add the new boundaries here ?
         <DevRootNotFoundBoundary>
           <MissingSlotContext.Provider value={missingSlots}>
             {content}
