@@ -463,7 +463,7 @@ export function Thread({ messages }: { messages: Message[] }) {
   const [optimisticMessages, addOptimisticMessage] = useOptimistic<
     Message[],
     string
-  >(messages, (state, newMessage) => [...state, { message: newMessage }]);
+  >(messages, (state, newMessage) => [...state, { message: newMessage }])
 
   return (
     <div>
