@@ -43,6 +43,21 @@ export async function getTurbopackJsConfig(
 
 class ModuleBuildError extends Error {}
 
+/**
+ * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
+ * to emit certain type of errors into cli.
+ */
+export function isWellKnownError(issue: Issue): boolean {
+  const { title } = issue
+  const formattedTitle = renderStyledStringToErrorAnsi(title)
+  // TODO: add more well known errors
+  if (formattedTitle.includes('Module not found')) {
+    return true
+  }
+
+  return false
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, source } = issue
   let { documentationLink } = issue
