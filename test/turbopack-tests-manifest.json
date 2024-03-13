@@ -13180,10 +13180,11 @@
     "runtimeError": false
   },
   "test/integration/jsconfig-baseurl/test/index.test.js": {
-    "passed": ["jsconfig.json baseurl default behavior should render the page"],
-    "failed": [
+    "passed": [
+      "jsconfig.json baseurl default behavior should render the page",
       "jsconfig.json baseurl default behavior should have correct module not found error"
     ],
+    "failed": [],
     "pending": [
       "jsconfig.json baseurl should build production mode should trace correctly"
     ],
@@ -13218,12 +13219,11 @@
       "jsconfig paths without baseurl default behavior should alias components",
       "jsconfig paths without baseurl default behavior should resolve a single matching alias",
       "jsconfig paths without baseurl default behavior should resolve the first item in the array first",
-      "jsconfig paths without baseurl default behavior should resolve the second item as fallback"
-    ],
-    "failed": [
+      "jsconfig paths without baseurl default behavior should resolve the second item as fallback",
       "jsconfig paths default behavior should have correct module not found error",
       "jsconfig paths without baseurl default behavior should have correct module not found error"
     ],
+    "failed": [],
     "pending": [
       "jsconfig paths should build production mode should trace correctly",
       "jsconfig paths without baseurl should build production mode should trace correctly"
