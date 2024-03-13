@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 const fetchIfImageIsUrl = async (url: string) => {
     try {
         const res = await fetch(url)
@@ -33,7 +35,7 @@ export const ResultCardImage = async ({ object }: { object: any }) => {
     if (!image) return null
     return (
         <div className="relative h-48">
-            <img src={image} alt="Image" className="object-contain h-full w-full" />
+            <Image fill src={image} alt="Image" className="object-contain h-full w-full" />
         </div>
     )
 }

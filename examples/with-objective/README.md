@@ -60,7 +60,7 @@ yarn install
 yarn dev
 ```
 
-Your todo app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 4. Deploy on Vercel
 
@@ -77,3 +77,7 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-objective&env=OBJECTIVE_API_KEY,OBJECTIVE_INDEX_ID&envDescription=API%20Key%20and%20Index%20ID%20retrieved%20during%20onboarding)
+
+## Notes
+
+Since this repository uses Next/image, ensure that whatever domain you are serving images from is whitelisted in your `next.config.mjs` file. 
