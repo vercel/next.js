@@ -243,6 +243,7 @@ export async function createHotReloaderTurbopack(
     }
     buildingIds.add(id)
     return function finishBuilding() {
+      hmrEventHappened = false
       if (buildingIds.size === 0) {
         return
       }
