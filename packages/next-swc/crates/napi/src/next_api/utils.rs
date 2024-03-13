@@ -306,6 +306,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         let func = func.clone();
         Box::pin(async move {
             let result = handler().await;
+            dbg!("call");
 
             let status = func.call(
                 result.map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string())),
