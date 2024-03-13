@@ -10,9 +10,14 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 
 import s from 'next/dist/compiled/superstruct'
 
-export type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
+export type DynamicParamTypes =
+  | 'catchall'
+  | 'catchall-intercepted'
+  | 'optional-catchall'
+  | 'dynamic'
+  | 'dynamic-intercepted'
 
-const dynamicParamTypesSchema = s.enums(['c', 'oc', 'd'])
+const dynamicParamTypesSchema = s.enums(['c', 'ci', 'oc', 'd', 'di'])
 
 export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
 
