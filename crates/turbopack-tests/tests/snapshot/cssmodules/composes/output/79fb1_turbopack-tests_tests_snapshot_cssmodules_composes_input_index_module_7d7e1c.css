@@ -1,10 +1,10 @@
 /* [project]/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css [test] (css) */
-.className__index-module__Tw9iRq {
+.index-module__Tw9iRq__className {
   background: red;
   color: #ff0;
 }
 
-.subClass__index-module__Tw9iRq {
+.index-module__Tw9iRq__subClass {
   background: #00f;
 }
 
