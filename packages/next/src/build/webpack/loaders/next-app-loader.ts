@@ -1,5 +1,9 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
-import type { ValueOf } from '../../../shared/lib/constants'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  type ValueOf,
+} from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
@@ -124,8 +128,9 @@ async function createAppRouteCode({
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
+      filePath: resolvedPagePath,
       isDynamic: isDynamic ? '1' : '0',
-    })}!${resolvedPagePath}${`?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`}`
+    })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
   const pathname = new AppPathnameNormalizer().normalize(page)
@@ -191,7 +196,8 @@ async function createTreeCodeFromPath(
   globalError: string
 }> {
   const splittedPath = pagePath.split(/[\\/]/, 1)
-  const isNotFoundRoute = page === '/_not-found'
+  const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const hasRootNotFound = await resolver(
@@ -409,14 +415,16 @@ async function createTreeCodeFromPath(
           defaultNotFoundPath
         nestedCollectedAsyncImports.push(notFoundPath)
         subtreeCode = `{
-          children: ['${PAGE_SEGMENT_KEY}', {}, {
-            page: [
-              () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-                notFoundPath
-              )}),
-              ${JSON.stringify(notFoundPath)}
-            ]
-          }]
+          children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+            children: ['${PAGE_SEGMENT_KEY}', {}, {
+              page: [
+                () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                  notFoundPath
+                )}),
+                ${JSON.stringify(notFoundPath)}
+              ]
+            }]
+          }, {}]
         }`
       }
 

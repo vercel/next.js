@@ -10,7 +10,6 @@ use turbo_tasks::{Completion, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
     turbopack::{
-        build::EntryChunkGroupResult,
         core::{
             asset::AssetContent,
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
@@ -22,14 +21,16 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
+        nodejs::EntryChunkGroupResult,
     },
 };
 
 use crate::{
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    paths::{
+        all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -94,7 +95,7 @@ impl InstrumentationEndpoint {
         };
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context();
+        let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
@@ -202,7 +203,11 @@ impl Endpoint for InstrumentationEndpoint {
                 .await?
                 .clone_value();
 
-            Ok(WrittenEndpoint::Edge { server_paths }.cell())
+            Ok(WrittenEndpoint::Edge {
+                server_paths,
+                client_paths: vec![],
+            }
+            .cell())
         }
         .instrument(span)
         .await

@@ -4,10 +4,8 @@ import type {
   FlightSegmentPath,
 } from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
-import type { FetchServerResponseResult } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
-import { fillCacheWithDataProperty } from '../fill-cache-with-data-property'
 import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -17,15 +15,11 @@ import type {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { PrefetchCacheEntryStatus } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import {
-  DEFAULT_SEGMENT_KEY,
-  GLOBAL_NOT_FOUND_SEGMENT_KEY,
-} from '../../../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -75,32 +69,6 @@ function generateSegmentsFromPatch(
   return segments
 }
 
-function addRefetchToLeafSegments(
-  newCache: CacheNode,
-  currentCache: CacheNode,
-  flightSegmentPath: FlightSegmentPath,
-  treePatch: FlightRouterState,
-  data: () => Promise<FetchServerResponseResult>
-) {
-  let appliedPatch = false
-
-  newCache.rsc = currentCache.rsc
-  newCache.prefetchRsc = currentCache.prefetchRsc
-  newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
-
-  const segmentPathsToFill = generateSegmentsFromPatch(treePatch).map(
-    (segment) => [...flightSegmentPath, ...segment]
-  )
-
-  for (const segmentPaths of segmentPathsToFill) {
-    fillCacheWithDataProperty(newCache, currentCache, segmentPaths, data)
-
-    appliedPatch = true
-  }
-
-  return appliedPatch
-}
-
 // These implementations are expected to diverge significantly, so I've forked
 // the entire function. The one that's disabled should be dead code eliminated
 // because the check here is statically inlined at build time.
@@ -135,11 +103,7 @@ function navigateReducer_noPPR(
     buildId: state.buildId,
     prefetchCache: state.prefetchCache,
   })
-  const {
-    treeAtTimeOfPrefetch,
-    data,
-    status: prefetchEntryCacheStatus,
-  } = prefetchValues
+  const { treeAtTimeOfPrefetch, data } = prefetchValues
 
   prefetchQueue.bump(data)
 
@@ -199,31 +163,8 @@ function navigateReducer_noPPR(
             currentCache,
             cache,
             flightDataPath,
-            prefetchValues.kind === 'auto' &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+            prefetchValues
           )
-
-          if (
-            !applied &&
-            // if we've navigated away from the global not found segment but didn't apply the flight data, we need to refetch
-            // as otherwise we'd be incorrectly using the global not found cache node for the incoming page
-            currentTree[0] === GLOBAL_NOT_FOUND_SEGMENT_KEY
-          ) {
-            applied = addRefetchToLeafSegments(
-              cache,
-              currentCache,
-              flightSegmentPath,
-              treePatch,
-              // eslint-disable-next-line no-loop-func
-              () =>
-                fetchServerResponse(
-                  url,
-                  currentTree,
-                  state.nextUrl,
-                  state.buildId
-                )
-            )
-          }
 
           const hardNavigate = shouldHardNavigate(
             // TODO-APP: remove ''
@@ -305,11 +246,7 @@ function navigateReducer_PPR(
     buildId: state.buildId,
     prefetchCache: state.prefetchCache,
   })
-  const {
-    treeAtTimeOfPrefetch,
-    data,
-    status: prefetchEntryCacheStatus,
-  } = prefetchValues
+  const { treeAtTimeOfPrefetch, data } = prefetchValues
 
   prefetchQueue.bump(data)
 
@@ -446,31 +383,8 @@ function navigateReducer_PPR(
               currentCache,
               cache,
               flightDataPath,
-              prefetchValues.kind === 'auto' &&
-                prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+              prefetchValues
             )
-
-            if (
-              !applied &&
-              // if we've navigated away from the global not found segment but didn't apply the flight data, we need to refetch
-              // as otherwise we'd be incorrectly using the global not found cache node for the incoming page
-              currentTree[0] === GLOBAL_NOT_FOUND_SEGMENT_KEY
-            ) {
-              applied = addRefetchToLeafSegments(
-                cache,
-                currentCache,
-                flightSegmentPath,
-                treePatch,
-                // eslint-disable-next-line no-loop-func
-                () =>
-                  fetchServerResponse(
-                    url,
-                    currentTree,
-                    state.nextUrl,
-                    state.buildId
-                  )
-              )
-            }
 
             const hardNavigate = shouldHardNavigate(
               // TODO-APP: remove ''

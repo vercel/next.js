@@ -332,29 +332,38 @@ Once a user is authenticated, you'll need to ensure the user is allowed to visit
 
 Here's how to implement Middleware for authentication in Next.js:
 
-1. **Setting Up Middleware:**
-   - Create a `middleware.ts` or `.js` file in your project's root directory.
-   - Include logic to authorize user access, such as checking for authentication tokens.
-2. **Defining Protected Routes:**
-   - Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
-3. **Middleware Logic:**
-   - Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
-4. **Handling Unauthorized Access:**
-   - Redirect unauthorized users to a login or error page as appropriate.
+#### Setting Up Middleware:
+
+- Create a `middleware.ts` or `.js` file in your project's root directory.
+- Include logic to authorize user access, such as checking for authentication tokens.
+
+#### Defining Protected Routes:
+
+- Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
+
+#### Middleware Logic:
+
+- Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
+
+#### Handling Unauthorized Access:
+
+- Redirect unauthorized users to a login or error page as appropriate.
 
 Example Middleware file:
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const currentUser = request.cookies.get('currentUser')?.value
 
-  if (currentUser) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
+    return Response.redirect(new URL('/dashboard', request.url))
   }
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
+    return Response.redirect(new URL('/login', request.url))
+  }
 }
 
 export const config = {
@@ -363,15 +372,16 @@ export const config = {
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
-
 export function middleware(request) {
   const currentUser = request.cookies.get('currentUser')?.value
 
-  if (currentUser) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
+    return Response.redirect(new URL('/dashboard', request.url))
   }
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
+    return Response.redirect(new URL('/login', request.url))
+  }
 }
 
 export const config = {
@@ -379,7 +389,7 @@ export const config = {
 }
 ```
 
-This example uses [`NextResponse.redirect`](/docs/app/api-reference/functions/next-response#redirect) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
+This example uses [`Response.redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Response/redirect_static) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
 
 <AppOnly>
 

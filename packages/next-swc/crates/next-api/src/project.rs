@@ -5,8 +5,8 @@ use indexmap::{map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
-    emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
-    get_edge_resolve_options_context,
+    emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
+    get_edge_compile_time_info, get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
@@ -33,13 +33,14 @@ use turbopack_binding::{
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem},
     },
     turbopack::{
-        build::BuildChunkingContext,
+        browser::BrowserChunkingContext,
         core::{
             changed::content_changed,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
             file_source::FileSource,
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             output::{OutputAsset, OutputAssets},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
@@ -47,9 +48,9 @@ use turbopack_binding::{
             version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
-        dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
+        nodejs::NodeJsChunkingContext,
         turbopack::{evaluate_context::node_build_environment, ModuleAssetContext},
     },
 };
@@ -347,6 +348,42 @@ impl ProjectDefineEnv {
     }
 }
 
+#[turbo_tasks::value(shared)]
+struct ConflictIssue {
+    path: Vc<FileSystemPath>,
+    title: Vc<StyledString>,
+    description: Vc<StyledString>,
+    severity: Vc<IssueSeverity>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for ConflictIssue {
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        self.title
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
@@ -456,26 +493,28 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn execution_context(self: Vc<Self>) -> Vc<ExecutionContext> {
+    pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root();
+        let next_mode = self.next_mode().await?;
 
         let node_execution_chunking_context = Vc::upcast(
-            DevChunkingContext::builder(
+            BrowserChunkingContext::builder(
                 self.project_path(),
                 node_root,
                 node_root,
                 node_root.join("chunks".to_string()),
                 node_root.join("assets".to_string()),
                 node_build_environment(),
+                next_mode.runtime_type(),
             )
             .build(),
         );
 
-        ExecutionContext::new(
+        Ok(ExecutionContext::new(
             self.project_path(),
             node_execution_chunking_context,
             self.env(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -518,25 +557,41 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        get_server_chunking_context(
+    pub(super) async fn server_chunking_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<NodeJsChunkingContext>> {
+        Ok(get_server_chunking_context(
+            self.next_mode(),
             self.project_path(),
             self.node_root(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        get_edge_chunking_context(
-            self.project_path(),
-            self.node_root(),
-            self.client_relative_path(),
-            self.next_config().computed_asset_prefix(),
-            self.edge_compile_time_info().environment(),
-        )
+    pub(super) fn edge_chunking_context(
+        self: Vc<Self>,
+        client_assets: bool,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+        Ok(if client_assets {
+            get_edge_chunking_context_with_client_assets(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.client_relative_path(),
+                self.next_config().computed_asset_prefix(),
+                self.edge_compile_time_info().environment(),
+            )
+        } else {
+            get_edge_chunking_context(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.edge_compile_time_info().environment(),
+            )
+        })
     }
 
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
@@ -639,6 +694,24 @@ impl Project {
         for (pathname, page_route) in pages_project.routes().await?.iter() {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
+                    ConflictIssue {
+                        path: self.project_path(),
+                        title: StyledString::Text(
+                            format!("App Router and Pages Router both match path: {}", pathname)
+                                .to_string(),
+                        )
+                        .cell(),
+                        description: StyledString::Text(
+                            "Next.js does not support having both App Router and Pages Router \
+                             routes matching the same path. Please remove one of the conflicting \
+                             routes."
+                                .to_string(),
+                        )
+                        .cell(),
+                        severity: IssueSeverity::Error.cell(),
+                    }
+                    .cell()
+                    .emit();
                     *entry.get_mut() = Route::Conflict;
                 }
                 Entry::Vacant(entry) => {

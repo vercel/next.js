@@ -342,9 +342,9 @@ export async function getUserData() {
     data
   )
   experimental_taintUniqueValue(
-    "Do not pass the user's phone number to the client",
+    "Do not pass the user's address to the client",
     data,
-    data.phoneNumber
+    data.address
   )
   return data
 }
@@ -364,9 +364,9 @@ export async function getUserData() {
     data
   )
   experimental_taintUniqueValue(
-    "Do not pass the user's phone number to the client",
+    "Do not pass the user's address to the client",
     data,
-    data.phoneNumber
+    data.address
   )
   return data
 }
@@ -380,7 +380,7 @@ export async function Page() {
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference
-      phoneNumber={userData.phoneNumber} // this will cause an error because of taintUniqueValue
+      address={userData.address} // this will cause an error because of taintUniqueValue
     />
   )
 }
@@ -390,11 +390,11 @@ export async function Page() {
 import { getUserData } from './data'
 
 export async function Page() {
-  const userData = getUserData()
+  const userData = await getUserData()
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference
-      phoneNumber={userData.phoneNumber} // this will cause an error because of taintUniqueValue
+      address={userData.address} // this will cause an error because of taintUniqueValue
     />
   )
 }

@@ -220,6 +220,7 @@ Attributes on spans follow [OpenTelemetry semantic conventions](https://opentele
 - `next.span_name` - duplicates span name
 - `next.span_type` - each span type has a unique identifier
 - `next.route` - The route pattern of the request (e.g., `/[param]/user`).
+- `next.rsc` (true/false) - Whether the request is an RSC request, such as prefetch.
 - `next.page`
   - This is an internal value used by an app router.
   - You can think about it as a route to a special file (like `page.ts`, `layout.ts`, `loading.ts` and others)

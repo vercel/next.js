@@ -205,7 +205,6 @@ describe('next.rs api', () => {
       dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
@@ -218,7 +217,6 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
-        previewModeId: undefined,
       }),
     })
     projectUpdateSubscription = filterMapAsyncIterator(
@@ -228,8 +226,8 @@ describe('next.rs api', () => {
   })
 
   it('should detect the correct routes', async () => {
-    const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints = await entrypointsSubscribtion.next()
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
@@ -239,7 +237,6 @@ describe('next.rs api', () => {
       '/app',
       '/app-edge',
       '/app-nodejs',
-      '/not-found',
       '/page-edge',
       '/page-nodejs',
       '/route-edge',
@@ -249,7 +246,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscribtion.return()
+    entrypointsSubscription.return()
   })
 
   const routes = [

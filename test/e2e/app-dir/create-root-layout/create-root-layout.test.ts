@@ -53,7 +53,7 @@ import stripAnsi from 'strip-ansi'
             }
 
             export default function RootLayout({ children }) {
-             return (
+              return (
                 <html lang="en">
                   <body>{children}</body>
                 </html>
@@ -105,7 +105,7 @@ import stripAnsi from 'strip-ansi'
             }
 
             export default function RootLayout({ children }) {
-             return (
+              return (
                 <html lang="en">
                   <body>{children}</body>
                 </html>
@@ -159,7 +159,7 @@ import stripAnsi from 'strip-ansi'
             }
 
             export default function RootLayout({ children }) {
-             return (
+              return (
                 <html lang="en">
                   <body>{children}</body>
                 </html>
