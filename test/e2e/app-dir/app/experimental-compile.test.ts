@@ -1,4 +1,3 @@
-import 'e2e-utils'
 import { isNextStart } from 'e2e-utils'
 
 process.env.NEXT_EXPERIMENTAL_COMPILE = '1'
