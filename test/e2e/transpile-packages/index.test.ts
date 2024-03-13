@@ -34,8 +34,7 @@ describe('transpile packages', () => {
   })
   afterAll(() => next.destroy())
 
-  const { isNextDeploy } = global as any
-  if (isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip tests for next-deploy and react 17', () => {})
     return
   }
