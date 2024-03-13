@@ -8,7 +8,7 @@ import assert from 'assert'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip deploy', () => {})
     return
   }

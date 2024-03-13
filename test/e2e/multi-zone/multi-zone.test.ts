@@ -8,7 +8,7 @@ createNextDescribe(
     files: path.join(__dirname, 'app'),
     skipDeployment: true,
     buildCommand: 'pnpm build',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: next.isDev ? 'pnpm dev' : 'pnpm start',
     packageJson: {
       scripts: {
         dev: 'node server.js',

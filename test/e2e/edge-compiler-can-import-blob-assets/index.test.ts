@@ -12,7 +12,7 @@ describe.skip('Edge Compiler can import asset assets', () => {
   let next: NextInstance
 
   // TODO: remove after this is supported for deploy
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip for deploy for now', () => {})
     return
   }

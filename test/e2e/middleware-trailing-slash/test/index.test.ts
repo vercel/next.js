@@ -80,7 +80,7 @@ describe('Middleware Runtime trailing slash', () => {
       })
     })
 
-    if ((global as any).isNextDev) {
+    if (next.isDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about/`)
         await browser.eval('window.didrefresh = "hello"')
@@ -104,7 +104,7 @@ describe('Middleware Runtime trailing slash', () => {
       })
     }
 
-    if ((global as any).isNextStart) {
+    if (next.isStart) {
       it('should have valid middleware field in manifest', async () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
@@ -383,7 +383,7 @@ describe('Middleware Runtime trailing slash', () => {
       const res = await fetchViaHTTP(next.url, `/%2/`)
       expect(res.status).toBe(400)
 
-      if ((global as any).isNextStart) {
+      if (next.isStart) {
         expect(await res.text()).toContain('Bad Request')
       }
     })

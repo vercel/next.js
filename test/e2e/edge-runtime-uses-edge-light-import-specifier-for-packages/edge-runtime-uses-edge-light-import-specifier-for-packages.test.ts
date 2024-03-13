@@ -13,7 +13,7 @@ createNextDescribe(
       },
     },
     installCommand: 'pnpm i',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: next.isDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
     skipDeployment: true,
   },

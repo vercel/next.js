@@ -30,7 +30,7 @@ describe('New Link Behavior with <a> child', () => {
     const msg =
       'Error: Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>'
 
-    if ((global as any).isDev) {
+    if (next.isDev) {
       expect(next.cliOutput).toContain(msg)
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxSource(browser)).toContain(msg)

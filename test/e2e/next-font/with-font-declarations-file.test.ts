@@ -8,12 +8,12 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-const isDev = (global as any).isNextDev
+const isDev = next.isDev
 
 describe('next/font/google with-font-declarations-file', () => {
   let next: NextInstance
 
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }

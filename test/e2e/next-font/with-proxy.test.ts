@@ -9,7 +9,7 @@ describe('next/font/google with proxy', () => {
   let PROXY_PORT: number
   let SERVER_PORT: number
 
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip next deploy', () => {})
     return
   }

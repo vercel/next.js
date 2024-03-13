@@ -15,20 +15,6 @@ const pathnames = {
 
 const basePath = '/docs'
 
-const table = [
-  { basePath: false, i18n: true, middleware: false },
-  { basePath: true, i18n: false, middleware: false },
-  { basePath: true, i18n: true, middleware: false },
-  { basePath: false, i18n: false, middleware: false },
-
-  ...((global as any).isNextDev
-    ? []
-    : [
-        // TODO: investigate this failure in development
-        { basePath: false, i18n: false, middleware: true },
-      ]),
-]
-
 const baseNextConfig = `
 module.exports = {
   BASE_PATH
@@ -38,6 +24,20 @@ module.exports = {
 
 describe('404-page-router', () => {
   let next: NextInstance
+
+  const table = [
+    { basePath: false, i18n: true, middleware: false },
+    { basePath: true, i18n: false, middleware: false },
+    { basePath: true, i18n: true, middleware: false },
+    { basePath: false, i18n: false, middleware: false },
+
+    ...(next.isDev
+      ? []
+      : [
+          // TODO: investigate this failure in development
+          { basePath: false, i18n: false, middleware: true },
+        ]),
+  ]
 
   beforeAll(async () => {
     const files = {
@@ -51,9 +51,9 @@ describe('404-page-router', () => {
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',
     (options) => {
-      const isDev = (global as any).isNextDev
+      const { isDev, isDeploy } = next
 
-      if ((global as any).isNextDeploy) {
+      if (isDeploy) {
         // TODO: investigate condensing these tests to avoid
         // 5 separate deploys for this one test
         it('should skip for deploy', () => {})

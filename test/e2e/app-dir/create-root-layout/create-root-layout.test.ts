@@ -6,9 +6,9 @@ import stripAnsi from 'strip-ansi'
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'app-dir create root layout',
   () => {
-    const isDev = (global as any).isNextDev
+    const isDev = next.isDev
 
-    if ((global as any).isNextDeploy) {
+    if (next.isDeploy) {
       it('should skip next deploy for now', () => {})
       return
     }

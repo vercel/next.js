@@ -11,7 +11,7 @@ const mockedGoogleFontResponses = require.resolve(
 describe('next/font/google basepath', () => {
   let next: NextInstance
 
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }

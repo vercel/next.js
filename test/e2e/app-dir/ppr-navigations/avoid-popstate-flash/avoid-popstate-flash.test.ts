@@ -4,7 +4,7 @@ import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 
 describe('avoid-popstate-flash', () => {
-  if ((global as any).isNextDev) {
+  if (next.isDev) {
     test('ppr is disabled in dev', () => {})
     return
   }

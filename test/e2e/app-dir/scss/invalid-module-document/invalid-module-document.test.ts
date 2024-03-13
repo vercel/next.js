@@ -7,27 +7,24 @@ import { join } from 'path'
 import 'e2e-utils'
 
 describe('Invalid SCSS in _document', () => {
-  ;(Boolean((global as any).isNextStart) ? describe : describe.skip)(
-    'production only',
-    () => {
-      const appDir = __dirname
+  ;(Boolean(next.isStart) ? describe : describe.skip)('production only', () => {
+    const appDir = __dirname
 
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
 
-      it('should fail to build', async () => {
-        const { code, stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-        })
-        expect(code).not.toBe(0)
-        expect(stderr).toContain('Failed to compile')
-        expect(stderr).toContain('styles.module.scss')
-        expect(stderr).toMatch(
-          /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
-        )
-        expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+    it('should fail to build', async () => {
+      const { code, stderr } = await nextBuild(appDir, [], {
+        stderr: true,
       })
-    }
-  )
+      expect(code).not.toBe(0)
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('styles.module.scss')
+      expect(stderr).toMatch(
+        /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
+      )
+      expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+    })
+  })
 })

@@ -69,7 +69,7 @@ describe('Type module interop', () => {
     })
 
     // can't modify build output after deploy
-    if (!(global as any).isNextDeploy) {
+    if (!next.isDeploy) {
       const contents = await next.readFile('package.json')
       const pkg = JSON.parse(contents)
       await next.patchFile(

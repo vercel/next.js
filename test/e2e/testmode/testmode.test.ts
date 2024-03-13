@@ -7,7 +7,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
-    startCommand: (global as any).isNextDev
+    startCommand: next.isDev
       ? 'yarn next dev --experimental-test-proxy'
       : 'yarn next start --experimental-test-proxy',
   },

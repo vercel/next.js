@@ -11,7 +11,7 @@ createNextDescribe(
     files: join(__dirname, 'app'),
   },
   ({ next }) => {
-    if ((global as any).isNextStart) {
+    if (next.isStart) {
       it('should not output trace files for edge routes', async () => {
         expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(
           false
@@ -144,7 +144,7 @@ createNextDescribe(
       expect(props.params).toEqual({ id: '321' })
     })
 
-    if ((global as any).isNextStart) {
+    if (next.isStart) {
       it('should have data routes in routes-manifest', async () => {
         const manifest = JSON.parse(
           await next.readFile('.next/routes-manifest.json')

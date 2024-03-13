@@ -13,7 +13,7 @@ export function runTests(
 ) {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should not run for next deploy', () => {})
     return
   }
@@ -51,9 +51,7 @@ export function runTests(
           )}`
         },
         buildCommand: `yarn next build --no-lint`,
-        startCommand: (global as any).isNextDev
-          ? `yarn next`
-          : `yarn next start`,
+        startCommand: next.isDev ? `yarn next` : `yarn next start`,
       })
     })
     afterAll(() => next?.destroy())

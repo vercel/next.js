@@ -245,7 +245,7 @@ describe.each([
               }
             })
 
-            if (!(global as any).isNextDev) {
+            if (!next.isDev) {
               it('should not include ssr:false imports to server trace', async () => {
                 const trace = JSON.parse(
                   await next.readFile(

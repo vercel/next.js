@@ -51,7 +51,7 @@ for (const { app, src, pathname, text } of [
           start: 'next start',
         },
       },
-      startCommand: `pnpm ${(global as any).isNextDev ? 'dev' : 'start'}`,
+      startCommand: `pnpm ${next.isDev ? 'dev' : 'start'}`,
       buildCommand: `pnpm build`,
       dependencies: require('./package.json').dependencies,
     })

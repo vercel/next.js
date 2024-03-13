@@ -96,5 +96,5 @@ describe('basePath + trailingSlash', () => {
       }
     })
   }
-  runTests((global as any).isDev)
+  runTests(next.isDev)
 })

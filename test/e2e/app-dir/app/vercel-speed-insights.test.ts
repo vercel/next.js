@@ -3,9 +3,9 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 
 describe('vercel speed insights', () => {
-  const isDev = (global as any).isNextDev
+  const isDev = next.isDev
 
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }

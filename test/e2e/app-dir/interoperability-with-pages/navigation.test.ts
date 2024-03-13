@@ -42,7 +42,7 @@ describe('navigation between pages and app dir', () => {
   })
 
   // TODO: re-enable after 404 transition bug is addressed
-  if (!(global as any).isNextDeploy) {
+  if (!next.isDeploy) {
     it('It should be able to navigate pages -> app and go back an forward', async () => {
       const browser = await webdriver(next.url, '/pages')
       await browser

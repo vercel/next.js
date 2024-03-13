@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
+const isNextProd = !next.isDev && !next.isDeploy
 
 createNextDescribe(
   'streaming SSR with custom next configs',
@@ -57,7 +57,7 @@ createNextDescribe(
       expect(html).toContain('マルチバイト'.repeat(28))
     })
 
-    if ((global as any).isNextDev) {
+    if (next.isDev) {
       it('should work with custom document', async () => {
         await next.patchFile(
           'pages/_document.js',

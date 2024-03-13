@@ -4,7 +4,7 @@ import { outdent } from 'outdent'
 import { FileRef, createNext } from 'e2e-utils'
 
 describe('app-fetch-deduping', () => {
-  if ((global as any).isNextStart) {
+  if (next.isStart) {
     describe('during static generation', () => {
       let externalServerPort: number
       let externalServer: http.Server
@@ -50,7 +50,7 @@ describe('app-fetch-deduping', () => {
         await next.destroy()
       })
     })
-  } else if ((global as any).isNextDev) {
+  } else if (next.isDev) {
     describe('during next dev', () => {
       it('should dedupe requests called from the same component', async () => {
         const next = await createNext({

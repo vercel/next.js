@@ -8,7 +8,7 @@ describe('i18n-data-fetching-redirect', () => {
   let next: NextInstance
 
   // TODO: investigate tests failures on deploy
-  if ((global as any).isNextDeploy) {
+  if (next.isDeploy) {
     it('should skip temporarily', () => {})
     return
   }

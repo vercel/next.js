@@ -222,7 +222,7 @@ describe('skip-trailing-slash-redirect', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Example Domain')
 
-    if (!(global as any).isNextDeploy) {
+    if (!next.isDeploy) {
       await check(() => next.cliOutput, /missing-id rewrite/)
       expect(next.cliOutput).toContain('/_next/data/missing-id/hello.json')
     }
@@ -275,7 +275,7 @@ describe('skip-trailing-slash-redirect', () => {
     )
   })
 
-  if ((global as any).isNextStart) {
+  if (next.isStart) {
     it('should not have trailing slash redirects in manifest', async () => {
       const routesManifest = JSON.parse(
         await next.readFile('.next/routes-manifest.json')

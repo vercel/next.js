@@ -99,7 +99,7 @@ describe('Middleware can set the matcher in its config', () => {
 
     await check(async () => {
       const matchers = await browser.eval(
-        (global as any).isNextDev
+        next.isDev
           ? 'window.__DEV_MIDDLEWARE_MATCHERS'
           : 'window.__MIDDLEWARE_MATCHERS'
       )

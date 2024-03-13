@@ -33,7 +33,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/stream-a-response`)
       expect(res.status).toBe(200)
 
-      if (!(global as any).isNextDeploy) {
+      if (!next.isDeploy) {
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
@@ -44,7 +44,7 @@ describe('Middleware Responses', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
       expect(res.status).toBe(200)
 
-      if (!(global as any).isNextDeploy) {
+      if (!next.isDeploy) {
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
