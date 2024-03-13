@@ -7,6 +7,40 @@ describe('app dir - navigation', () => {
     files: __dirname,
   })
 
+  describe('navigating to dynamic params & changing the casing', () => {
+    it('should load the page correctly', async () => {
+      const browser = await next.browser('/dynamic-param-casing-change')
+
+      // note the casing here capitalizes `ParamA`
+      await browser
+        .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+        .click()
+
+      // note the `paramA` casing has now changed
+      await browser
+        .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+        .click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'noParam page'
+        )
+      })
+
+      await browser.back()
+
+      await browser
+        .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+        .click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          '[paramB] page'
+        )
+      })
+    })
+  })
+
   describe('query string', () => {
     it('should set query correctly', async () => {
       const browser = await next.browser('/')
@@ -405,6 +439,59 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('forbidden', () => {
+    it('should trigger forbidden in a server component', async () => {
+      const browser = await next.browser('/forbidden/servercomponent')
+
+      expect(
+        await browser.waitForElementByCss('#forbidden-component').text()
+      ).toBe('Forbidden!')
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
+    })
+
+    it('should trigger forbidden in a client component', async () => {
+      const browser = await next.browser('/forbidden/clientcomponent')
+      expect(
+        await browser.waitForElementByCss('#forbidden-component').text()
+      ).toBe('Forbidden!')
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
+    })
+    it('should trigger forbidden client-side', async () => {
+      const browser = await next.browser('/forbidden/client-side')
+      await browser
+        .elementByCss('button')
+        .click()
+        .waitForElementByCss('#forbidden-component')
+      expect(await browser.elementByCss('#forbidden-component').text()).toBe(
+        'Forbidden!'
+      )
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
+    })
+    it('should trigger forbidden while streaming', async () => {
+      const browser = await next.browser('/forbidden/suspense')
+      expect(
+        await browser.waitForElementByCss('#forbidden-component').text()
+      ).toBe('Forbidden!')
+      expect(
+        await browser
+          .waitForElementByCss('meta[name="robots"]')
+          .getAttribute('content')
+      ).toBe('noindex')
+    })
+  })
+
   describe('bots', () => {
     if (!isNextDeploy) {
       it('should block rendering for bots and return 404 status', async () => {
@@ -415,6 +502,17 @@ describe('app dir - navigation', () => {
         })
 
         expect(res.status).toBe(404)
+        expect(await res.text()).toInclude('"noindex"')
+      })
+
+      it('should block rendering for bots and return 403 status', async () => {
+        const res = await next.fetch('/forbidden/servercomponent', {
+          headers: {
+            'User-Agent': 'Googlebot',
+          },
+        })
+
+        expect(res.status).toBe(403)
         expect(await res.text()).toInclude('"noindex"')
       })
     }
@@ -783,6 +881,14 @@ describe('app dir - navigation', () => {
       )
     })
 
+    it('should contain default meta tags in 403 page', async () => {
+      const html = await next.render('/forbidden/servercomponent')
+      expect(html).toContain('<meta name="robots" content="noindex"/>')
+      expect(html).toContain(
+        '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+      )
+    })
+
     it('should not log 404 errors in ipc server', async () => {
       await next.fetch('/this-path-does-not-exist')
       expect(next.cliOutput).not.toInclude(
@@ -883,40 +989,6 @@ describe('app dir - navigation', () => {
         expect(await browser.elementById('page-content').text()).toBe('Content')
 
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
-      })
-    })
-  })
-
-  describe('navigating to dynamic params & changing the casing', () => {
-    it('should load the page correctly', async () => {
-      const browser = await next.browser('/dynamic-param-casing-change')
-
-      // note the casing here capitalizes `ParamA`
-      await browser
-        .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
-        .click()
-
-      // note the `paramA` casing has now changed
-      await browser
-        .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
-        .click()
-
-      await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain(
-          'noParam page'
-        )
-      })
-
-      await browser.back()
-
-      await browser
-        .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
-        .click()
-
-      await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain(
-          '[paramB] page'
-        )
       })
     })
   })
