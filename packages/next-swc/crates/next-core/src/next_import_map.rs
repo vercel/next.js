@@ -624,7 +624,6 @@ async fn rsc_aliases(
                 "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
                 "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
                 "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
                 // Needed to make `react-dom/server` work.
                 "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),

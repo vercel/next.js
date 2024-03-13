@@ -521,16 +521,17 @@ describe('Error Overlay for server components', () => {
     })
   })
 
-  describe('Next.js navigation client hooks called in Server Component', () => {
+  describe('Next.js component hooks called in Server Component', () => {
     it.each([
-      ['useParams'],
+      // TODO-APP: add test for useParams
+      // ["useParams"],
       ['useRouter'],
-      ['usePathname'],
       ['useSearchParams'],
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
+      ['usePathname'],
     ])('should show error when %s is called', async (hook: string) => {
-      const { session, cleanup } = await sandbox(
+      const { browser, cleanup } = await sandbox(
         next,
         new Map([
           [
@@ -538,6 +539,7 @@ describe('Error Overlay for server components', () => {
             outdent`
               import { ${hook} } from 'next/navigation'
               export default function Page() {
+                ${hook}()
                 return "Hello world"
               }
             `,
@@ -545,15 +547,19 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      expect(await session.hasRedbox()).toBe(true)
-      // In webpack when the message too long it gets truncated with `  | ` with new lines.
-      // So we need to check for the first part of the message.
-      const normalizedSource = await session.getRedboxSource()
-      expect(normalizedSource).toContain(
-        `You're importing a component that needs ${hook}. It only works in a Client Component but none of its parents are marked with "use client"`
-      )
-      expect(normalizedSource).toContain(
-        `import { ${hook} } from 'next/navigation'`
+      await check(async () => {
+        expect(
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
+        ).toContain(
+          `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+        )
+        return 'success'
+      }, 'success')
+
+      expect(next.cliOutput).toContain(
+        `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
       )
 
       await cleanup()
