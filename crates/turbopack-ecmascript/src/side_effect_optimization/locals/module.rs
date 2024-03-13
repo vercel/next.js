@@ -14,7 +14,10 @@ use turbopack_core::{
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
-    references::esm::{EsmExport, EsmExports},
+    references::{
+        async_module::OptionAsyncModule,
+        esm::{EsmExport, EsmExports},
+    },
     EcmascriptModuleAsset,
 };
 
@@ -93,6 +96,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn is_marked_as_side_effect_free(&self) -> Vc<bool> {
         self.module.is_marked_as_side_effect_free()
+    }
+
+    #[turbo_tasks::function]
+    fn get_async_module(&self) -> Vc<OptionAsyncModule> {
+        self.module.get_async_module()
     }
 }
 

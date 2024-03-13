@@ -31,13 +31,13 @@ use crate::{
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
 #[turbo_tasks::value(shared)]
-pub struct EcmascriptModuleReexportsChunkItem {
+pub struct EcmascriptModuleFacadeChunkItem {
     pub(crate) module: Vc<EcmascriptModuleFacadeModule>,
     pub(crate) chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for EcmascriptModuleReexportsChunkItem {
+impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
         panic!("content() should never be called");
@@ -68,8 +68,9 @@ impl EcmascriptChunkItem for EcmascriptModuleReexportsChunkItem {
 
         let mut code = RopeBuilder::default();
 
-        let mut code_gens = Vec::new();
-        for r in self.module.references().await?.iter() {
+        let references = self.module.references().await?;
+        let mut code_gens = Vec::with_capacity(references.len() + 2);
+        for r in references.iter() {
             let r = r.resolve().await?;
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
@@ -82,6 +83,11 @@ impl EcmascriptChunkItem for EcmascriptModuleReexportsChunkItem {
             }
         }
 
+        code_gens.push(
+            self.module
+                .async_module()
+                .code_generation(chunking_context, async_module_info),
+        );
         code_gens.push(exports.code_generation(chunking_context));
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
@@ -150,7 +156,7 @@ impl EcmascriptChunkItem for EcmascriptModuleReexportsChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for EcmascriptModuleReexportsChunkItem {
+impl ChunkItem for EcmascriptModuleFacadeChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()

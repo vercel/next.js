@@ -9,6 +9,7 @@ use swc_core::{
 use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule},
+    reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
 
@@ -17,7 +18,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
     code_gen::{CodeGenerateableWithAsyncModuleInfo, CodeGeneration},
     create_visitor,
-    references::esm::{base::insert_hoisted_stmt, EsmAssetReference},
+    references::esm::base::insert_hoisted_stmt,
 };
 
 /// Information needed for generating the async module wrapper for
@@ -47,7 +48,7 @@ impl OptionAsyncModuleOptions {
 #[turbo_tasks::value(shared)]
 pub struct AsyncModule {
     pub placeable: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub references: IndexSet<Vc<EsmAssetReference>>,
+    pub references: Vc<ModuleReferences>,
     pub has_top_level_await: bool,
     pub import_externals: bool,
 }
@@ -92,9 +93,11 @@ impl AsyncModule {
 
         let reference_idents = self
             .references
+            .await?
             .iter()
             .map(|r| async {
-                let referenced_asset = r.get_referenced_asset().await?;
+                let referenced_asset =
+                    ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(
                         _,
@@ -140,9 +143,11 @@ impl AsyncModule {
             self.import_externals
                 && self
                     .references
+                    .await?
                     .iter()
                     .map(|r| async {
-                        let referenced_asset = r.get_referenced_asset().await?;
+                        let referenced_asset =
+                            ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
                         Ok(matches!(
                             &*referenced_asset,
                             ReferencedAsset::External(

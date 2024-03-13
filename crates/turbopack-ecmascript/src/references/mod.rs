@@ -736,7 +736,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
         let async_module = AsyncModule {
             placeable: Vc::upcast(module),
-            references: import_references.iter().copied().collect(),
+            references: Vc::cell(import_references.iter().map(|&r| Vc::upcast(r)).collect()),
             has_top_level_await,
             import_externals,
         }
