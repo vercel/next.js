@@ -48,8 +48,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
+            NextSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
