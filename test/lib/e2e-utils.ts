@@ -90,6 +90,22 @@ if (testMode === 'dev') {
   ;(global as any).isNextStart = true
 }
 
+/**
+ * Whether the test is running in dev mode.
+ * Based on `process.env.NEXT_TEST_MODE` and the test directory.
+ */
+export const isNextDev = testMode === 'dev'
+/**
+ * Whether the test is running in deploy mode.
+ * Based on `process.env.NEXT_TEST_MODE`.
+ */
+export const isNextDeploy = testMode === 'deploy'
+/**
+ * Whether the test is running in start mode.
+ * Default mode. `true` when both `isNextDev` and `isNextDeploy` are false.
+ */
+export const isNextStart = !isNextDev && !isNextDeploy
+
 if (!testMode) {
   throw new Error(
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
