@@ -78,7 +78,7 @@ describe('fillCacheWithNewSubtreeData', () => {
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
 
-    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
 
     const expectedCache: CacheNode = {
       lazyData: null,

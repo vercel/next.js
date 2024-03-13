@@ -119,7 +119,7 @@ export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
-  isAppDirEnabled: boolean,
+  hasAppDir: boolean,
   distDir: string,
   hasPagesDir: boolean
 ): Promise<void> {
@@ -184,19 +184,19 @@ export async function writeConfigurationDefaults(
   const nextAppTypes = `${distDir}/types/**/*.ts`
 
   if (!('include' in rawConfig)) {
-    userTsConfig.include = isAppDirEnabled
+    userTsConfig.include = hasAppDir
       ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
       : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
-          isAppDirEnabled
+          hasAppDir
             ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
             : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else if (isAppDirEnabled && !rawConfig.include.includes(nextAppTypes)) {
+  } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
     userTsConfig.include.push(nextAppTypes)
     suggestedActions.push(
       cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
@@ -204,7 +204,7 @@ export async function writeConfigurationDefaults(
   }
 
   // Enable the Next.js typescript plugin.
-  if (isAppDirEnabled) {
+  if (hasAppDir) {
     // Check if the config or the resolved config has the plugin already.
     const plugins = [
       ...(Array.isArray(tsOptions.plugins) ? tsOptions.plugins : []),
@@ -248,7 +248,7 @@ export async function writeConfigurationDefaults(
     // then set `strictNullChecks` to `true`.
     if (
       hasPagesDir &&
-      isAppDirEnabled &&
+      hasAppDir &&
       userTsConfig.compilerOptions &&
       !userTsConfig.compilerOptions.strict &&
       !('strictNullChecks' in userTsConfig.compilerOptions)

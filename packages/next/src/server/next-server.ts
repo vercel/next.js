@@ -23,7 +23,7 @@ import type { PagesAPIRouteModule } from './future/route-modules/pages-api/modul
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -40,6 +40,7 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -90,8 +91,6 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
 import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -103,6 +102,7 @@ import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 
 export * from './base-server'
 
@@ -171,6 +171,10 @@ export default class NextNodeServer extends BaseServer {
     page: string
     re: RegExp
   }[]
+  private routerServerHandler?: (
+    req: IncomingMessage,
+    res: ServerResponse
+  ) => void
 
   constructor(options: Options) {
     // Initialize super class
@@ -369,6 +373,17 @@ export default class NextNodeServer extends BaseServer {
     ) as PagesManifest
   }
 
+  protected getinterceptionRoutePatterns(): RegExp[] {
+    if (!this.enabledDirectories.app) return []
+
+    const routesManifest = this.getRoutesManifest()
+    return (
+      routesManifest?.rewrites.beforeFiles
+        .filter(isInterceptionRouteRewrite)
+        .map((rewrite) => new RegExp(rewrite.regex)) ?? []
+    )
+  }
+
   protected async hasPage(pathname: string): Promise<boolean> {
     return !!getMaybePagePath(
       pathname,
@@ -411,6 +426,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
+      swrDelta: SwrDelta | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -421,6 +437,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
+      swrDelta: options.swrDelta,
     })
   }
 
@@ -555,35 +572,11 @@ export default class NextNodeServer extends BaseServer {
           throw new Error(`Invariant attempted to optimize _next/image itself`)
         }
 
-        const protocol = this.serverOptions.experimentalHttpsServer
-          ? 'https'
-          : 'http'
-
-        const invokeRes = await invokeRequest(
-          `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
-            newReq.url || ''
-          }`,
-          {
-            method: newReq.method || 'GET',
-            headers: newReq.headers,
-            signal: signalFromNodeResponse(res.originalResponse),
-          }
-        )
-        const filteredResHeaders = filterReqHeaders(
-          toNodeOutgoingHttpHeaders(invokeRes.headers),
-          ipcForbiddenHeaders
-        )
-
-        for (const key of Object.keys(filteredResHeaders)) {
-          newRes.setHeader(key, filteredResHeaders[key] || '')
+        if (!this.routerServerHandler) {
+          throw new Error(`Invariant missing routerServerHandler`)
         }
-        newRes.statusCode = invokeRes.status || 200
 
-        if (invokeRes.body) {
-          await pipeToNodeResponse(invokeRes.body, newRes)
-        } else {
-          res.send()
-        }
+        await this.routerServerHandler(newReq, newRes)
         return
       }
 
@@ -1314,25 +1307,23 @@ export default class NextNodeServer extends BaseServer {
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
-
       if (this.renderOpts.dev) {
         await this.ensurePage({
-          page: notFoundPathname,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           clientOnly: false,
           url: req.url,
         }).catch(() => {})
       }
 
-      if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
+      if (
+        this.getEdgeFunctionsPages().includes(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY)
+      ) {
         await this.runEdgeFunction({
           req: req as BaseNextRequest,
           res: res as BaseNextResponse,
           query: query || {},
           params: {},
-          page: notFoundPathname,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           appPaths: null,
         })
         return null
@@ -1431,7 +1422,7 @@ export default class NextNodeServer extends BaseServer {
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
-    assets: { filePath: string; name: string }[]
+    assets?: { filePath: string; name: string }[]
   } | null {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
@@ -1464,12 +1455,14 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
-      assets: (pageInfo.assets ?? []).map((binding) => {
-        return {
-          ...binding,
-          filePath: join(this.distDir, binding.filePath),
-        }
-      }),
+      assets:
+        pageInfo.assets &&
+        pageInfo.assets.map((binding) => {
+          return {
+            ...binding,
+            filePath: join(this.distDir, binding.filePath),
+          }
+        }),
     }
   }
 
@@ -1795,7 +1788,9 @@ export default class NextNodeServer extends BaseServer {
     isUpgradeReq?: boolean
   ) {
     // Injected in base-server.ts
-    const protocol = req.headers['x-forwarded-proto'] as 'https' | 'http'
+    const protocol = req.headers['x-forwarded-proto']?.includes('https')
+      ? 'https'
+      : 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl =
@@ -1822,6 +1817,7 @@ export default class NextNodeServer extends BaseServer {
     page: string
     appPaths: string[] | null
     match?: RouteMatch
+    onError?: (err: unknown) => void
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     if (process.env.NEXT_MINIMAL) {
@@ -1897,6 +1893,7 @@ export default class NextNodeServer extends BaseServer {
         ),
       },
       useCache: true,
+      onError: params.onError,
       onWarning: params.onWarning,
       incrementalCache:
         (globalThis as any).__incrementalCache ||

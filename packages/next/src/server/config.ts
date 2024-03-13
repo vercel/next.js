@@ -559,7 +559,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }
@@ -831,9 +831,6 @@ function assignDefaults(
     lodash: {
       transform: 'lodash/{{member}}',
     },
-    'next/server': {
-      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
-    },
   }
 
   const userProvidedOptimizePackageImports =
@@ -1088,6 +1085,18 @@ export default async function loadConfig(
       }
 
       userConfig.experimental.turbo.rules = rules
+    }
+
+    if (userConfig.experimental?.useLightningcss) {
+      const { loadBindings } = require('next/dist/build/swc')
+      const isLightningSupported = (await loadBindings())?.css?.lightning
+
+      if (!isLightningSupported) {
+        curLog.warn(
+          `experimental.useLightningcss is set, but the setting is disabled because next-swc/wasm does not support it yet.`
+        )
+        userConfig.experimental.useLightningcss = false
+      }
     }
 
     onLoadUserConfig?.(userConfig)

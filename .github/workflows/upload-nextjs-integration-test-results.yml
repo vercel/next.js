@@ -12,26 +12,26 @@ jobs:
     name: Upload test results
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      # Download test results into the `test-results` directory from the artifact created by `nextjs-integration-test`.
-      - name: Download test results artifact
-        uses: actions/download-artifact@v4
+      - name: Setup node
+        uses: actions/setup-node@v4
         with:
-          name: test-results
-          path: test-results
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
 
-      # Read next.js version from test results, set necessary environment variables.
-      - name: Print test results
-        run: |
-          echo "::group::Passed test paths"
-          cat ./test-results/passed-test-path-list.json
-          echo "::endgroup::"
+      - name: Checkout
+        uses: actions/checkout@v4
 
-          echo "::group::Failed test paths"
-          cat ./test-results/failed-test-path-list.json
-          echo "::endgroup::"
+      - run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      # Always run build manifest script to get the latest value
+      - run: |
+          node ./test/build-turbopack-tests-manifest.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
 
       - name: 'Upload results to "Are We Turbo Yet" KV'
         env:
