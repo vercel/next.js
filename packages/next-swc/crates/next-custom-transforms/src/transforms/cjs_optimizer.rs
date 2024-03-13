@@ -9,19 +9,16 @@ use turbopack_binding::swc::core::{
         },
         atoms::{Atom, JsWord},
         utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
-            VisitWith,
-        },
+        visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
     },
 };
 
-pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> impl Fold + VisitMut {
-    as_folder(CjsOptimizer {
+pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> CjsOptimizer {
+    CjsOptimizer {
         data: State::default(),
         packages: config.packages,
         unresolved_ctxt,
-    })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -35,7 +32,7 @@ pub struct PackageConfig {
     pub transforms: FxHashMap<JsWord, JsWord>,
 }
 
-struct CjsOptimizer {
+pub struct CjsOptimizer {
     data: State,
     packages: FxHashMap<String, PackageConfig>,
     unresolved_ctxt: SyntaxContext,

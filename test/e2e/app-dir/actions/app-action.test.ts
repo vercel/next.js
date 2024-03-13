@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
-import { Request, Response } from 'playwright-chromium'
+import { check, waitFor, getRedboxSource, hasRedbox } from 'next-test-utils'
+import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -23,20 +23,20 @@ createNextDescribe(
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
-      const cnt = await browser.elementByCss('h1').text()
+      const cnt = await browser.elementById('count').text()
       expect(cnt).toBe('0')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '1')
+      await check(() => browser.elementById('count').text(), '1')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '2')
+      await check(() => browser.elementById('count').text(), '2')
 
       await browser.elementByCss('#double').click()
-      await check(() => browser.elementByCss('h1').text(), '4')
+      await check(() => browser.elementById('count').text(), '4')
 
       await browser.elementByCss('#dec').click()
-      await check(() => browser.elementByCss('h1').text(), '3')
+      await check(() => browser.elementById('count').text(), '3')
     })
 
     it('should support headers and cookies', async () => {
@@ -134,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -239,20 +239,20 @@ createNextDescribe(
     it('should support importing actions in client components', async () => {
       const browser = await next.browser('/client')
 
-      const cnt = await browser.elementByCss('h1').text()
+      const cnt = await browser.elementById('count').text()
       expect(cnt).toBe('0')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '1')
+      await check(() => browser.elementById('count').text(), '1')
 
       await browser.elementByCss('#inc').click()
-      await check(() => browser.elementByCss('h1').text(), '2')
+      await check(() => browser.elementById('count').text(), '2')
 
       await browser.elementByCss('#double').click()
-      await check(() => browser.elementByCss('h1').text(), '4')
+      await check(() => browser.elementById('count').text(), '4')
 
       await browser.elementByCss('#dec').click()
-      await check(() => browser.elementByCss('h1').text(), '3')
+      await check(() => browser.elementById('count').text(), '3')
     })
 
     it('should support importing the same action module instance in both server and action layers', async () => {
@@ -410,6 +410,7 @@ createNextDescribe(
     })
 
     it('should 404 when POSTing an invalid server action', async () => {
+      const cliOutputPosition = next.cliOutput.length
       const res = await next.fetch('/non-existent-route', {
         method: 'POST',
         headers: {
@@ -418,6 +419,12 @@ createNextDescribe(
         body: 'foo=bar',
       })
 
+      const cliOutput = next.cliOutput.slice(cliOutputPosition)
+
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
       expect(res.status).toBe(404)
     })
 
@@ -435,6 +442,51 @@ createNextDescribe(
         () => next.cliOutput,
         /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
       )
+    })
+
+    it('should be possible to catch network errors', async () => {
+      const browser = await next.browser('/catching-error', {
+        beforePageLoad(page) {
+          page.route('**/catching-error', (route: Route) => {
+            if (route.request().method() !== 'POST') {
+              route.fallback()
+              return
+            }
+
+            route.abort('internetdisconnected')
+          })
+        },
+      })
+
+      await browser.elementById('good-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
+    })
+
+    it('should be possible to catch regular errors', async () => {
+      const browser = await next.browser('/catching-error')
+
+      await browser.elementById('bad-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
     })
 
     if (isNextStart) {
@@ -456,8 +508,8 @@ createNextDescribe(
     }
 
     if (isNextDev) {
-      describe('HMR', () => {
-        it('should support updating the action', async () => {
+      describe('"use server" export values', () => {
+        it('should error when exporting non async functions at build time', async () => {
           const filePath = 'app/server/actions.js'
           const origContent = await next.readFile(filePath)
 
@@ -467,8 +519,35 @@ createNextDescribe(
             const cnt = await browser.elementByCss('h1').text()
             expect(cnt).toBe('0')
 
+            // This can be caught by SWC directly
+            await next.patchFile(
+              filePath,
+              origContent + '\n\nexport const foo = 1'
+            )
+
+            expect(await hasRedbox(browser)).toBe(true)
+            expect(await getRedboxSource(browser)).toContain(
+              'Only async functions are allowed to be exported in a "use server" file.'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+      })
+
+      describe('HMR', () => {
+        it('should support updating the action', async () => {
+          const filePath = 'app/server/actions-3.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await next.browser('/server')
+
+            const cnt = await browser.elementById('count').text()
+            expect(cnt).toBe('0')
+
             await browser.elementByCss('#inc').click()
-            await check(() => browser.elementByCss('h1').text(), '1')
+            await check(() => browser.elementById('count').text(), '1')
 
             await next.patchFile(
               filePath,
@@ -477,7 +556,7 @@ createNextDescribe(
 
             await check(async () => {
               await browser.elementByCss('#inc').click()
-              const val = Number(await browser.elementByCss('h1').text())
+              const val = Number(await browser.elementById('count').text())
               return val > 1000 ? 'success' : val
             }, 'success')
           } finally {
@@ -516,20 +595,20 @@ createNextDescribe(
       it('should handle basic actions correctly', async () => {
         const browser = await next.browser('/server/edge')
 
-        const cnt = await browser.elementByCss('h1').text()
+        const cnt = await browser.elementById('count').text()
         expect(cnt).toBe('0')
 
         await browser.elementByCss('#inc').click()
-        await check(() => browser.elementByCss('h1').text(), '1')
+        await check(() => browser.elementById('count').text(), '1')
 
         await browser.elementByCss('#inc').click()
-        await check(() => browser.elementByCss('h1').text(), '2')
+        await check(() => browser.elementById('count').text(), '2')
 
         await browser.elementByCss('#double').click()
-        await check(() => browser.elementByCss('h1').text(), '4')
+        await check(() => browser.elementById('count').text(), '4')
 
         await browser.elementByCss('#dec').click()
-        await check(() => browser.elementByCss('h1').text(), '3')
+        await check(() => browser.elementById('count').text(), '3')
       })
 
       it('should return error response for hoc auth wrappers in edge runtime', async () => {
@@ -599,11 +678,11 @@ createNextDescribe(
       it('should handle unicode search params', async () => {
         const browser = await next.browser('/server?name=名')
 
-        const cnt = await browser.elementByCss('h1').text()
+        const cnt = await browser.elementById('count').text()
         expect(cnt).toBe('0')
 
         await browser.elementByCss('#inc').click()
-        await check(() => browser.elementByCss('h1').text(), '1')
+        await check(() => browser.elementById('count').text(), '1')
       })
     })
 
@@ -974,6 +1053,7 @@ createNextDescribe(
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+        expect(html).not.toContain('some-module-level-encryption-value')
       })
     })
 
@@ -1039,6 +1119,43 @@ createNextDescribe(
         // verify that the POST request was only made to the action handler
         expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
         expect(responseCodes).toEqual([303])
+      })
+
+      it('displays searchParams correctly when redirecting with SearchParams', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+        await browser.refresh()
+        expect(await browser.elementByCss('h2').text()).toBe('baz=')
+
+        // redirect with search params
+        await browser.elementById('redirect-with-search-params').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
+
+        // verify that the search params was set correctly
+        expect(await browser.elementByCss('h2').text()).toBe('baz=1')
+      })
+
+      it('merges cookies correctly when redirecting', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+
+        // set foo and bar to be both 1, and verify
+        await browser.eval(
+          `document.cookie = 'bar=1; Path=/'; document.cookie = 'foo=1; Path=/';`
+        )
+        await browser.refresh()
+        expect(await browser.elementByCss('h1').text()).toBe('foo=1; bar=1')
+
+        // delete foo and set bar to 2, redirect
+        await browser.elementById('redirect-with-cookie-mutation').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target/
+        )
+
+        // verify that the cookies were merged correctly
+        expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')
       })
 
       it.each(['307', '308'])(

@@ -192,7 +192,7 @@ describe.each([
                   () => browser.elementByCss('body').text(),
                   /navigator/
                 )
-                expect(await hasRedbox(browser, false)).toBe(false)
+                expect(await hasRedbox(browser)).toBe(false)
               } finally {
                 if (browser) {
                   await browser.close()
@@ -211,7 +211,7 @@ describe.each([
                   () => browser.elementByCss('body').text(),
                   /esm.mjs/
                 )
-                expect(await hasRedbox(browser, false)).toBe(false)
+                expect(await hasRedbox(browser)).toBe(false)
               } finally {
                 if (browser) {
                   await browser.close()

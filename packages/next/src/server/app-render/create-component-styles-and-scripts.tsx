@@ -26,12 +26,6 @@ export async function createComponentStylesAndScripts({
 
   const styles = cssHrefs
     ? cssHrefs.map((href, index) => {
-        // In dev, Safari and Firefox will cache the resource during HMR:
-        // - https://github.com/vercel/next.js/issues/5860
-        // - https://bugs.webkit.org/show_bug.cgi?id=187726
-        // Because of this, we add a `?v=` query to bypass the cache during
-        // development. We need to also make sure that the number is always
-        // increasing.
         const fullHref = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
           ctx,
           true

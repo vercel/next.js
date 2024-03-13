@@ -23,7 +23,7 @@
 
 .inlineCode::before,
 .inlineCode::after {
-  content: '`';
+  content: "`";
 }
 
 .hr {

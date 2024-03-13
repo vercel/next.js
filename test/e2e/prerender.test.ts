@@ -1094,7 +1094,7 @@ describe('Prerender', () => {
         // we need to reload the page to trigger getStaticProps
         await browser.refresh()
 
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         const errOverlayContent = await getRedboxHeader(browser)
 
         await next.patchFile(indexPage, origContent)
@@ -1233,7 +1233,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1249,7 +1249,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )

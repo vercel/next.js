@@ -1,9 +1,9 @@
-import { useGraphQL } from 'graphql-react'
+import { useGraphQL } from "graphql-react";
 
 export default function IndexPage() {
   const { loading, cacheValue: { data } = {} } = useGraphQL({
     fetchOptionsOverride(options) {
-      options.url = 'https://graphql-pokemon.vercel.app'
+      options.url = "https://graphql-pokemon.vercel.app";
     },
     operation: {
       query: /* GraphQL */ `
@@ -18,7 +18,7 @@ export default function IndexPage() {
     loadOnMount: true,
     loadOnReload: true,
     loadOnReset: true,
-  })
+  });
 
   return data ? (
     <img src={data.pokemon.image} alt={data.pokemon.name} />
@@ -26,5 +26,5 @@ export default function IndexPage() {
     <p>Loading…</p>
   ) : (
     <p>Error!</p>
-  )
+  );
 }

@@ -1,15 +1,15 @@
-import { createContext, useContext } from 'react'
-import { createStore, useStore as useZustandStore } from 'zustand'
-import { PreloadedStoreInterface } from './storeProvider'
+import { createContext, useContext } from "react";
+import { createStore, useStore as useZustandStore } from "zustand";
+import { PreloadedStoreInterface } from "./storeProvider";
 
 export interface StoreInterface {
-  lastUpdate: number
-  light: boolean
-  count: number
-  tick: (lastUpdate: number) => void
-  increment: () => void
-  decrement: () => void
-  reset: () => void
+  lastUpdate: number;
+  light: boolean;
+  count: number;
+  tick: (lastUpdate: number) => void;
+  increment: () => void;
+  decrement: () => void;
+  reset: () => void;
 }
 
 function getDefaultInitialState() {
@@ -17,21 +17,21 @@ function getDefaultInitialState() {
     lastUpdate: new Date(1970, 1, 1).getTime(),
     light: false,
     count: 0,
-  } as const
+  } as const;
 }
 
-export type StoreType = ReturnType<typeof initializeStore>
+export type StoreType = ReturnType<typeof initializeStore>;
 
-const storeContext = createContext<StoreType | null>(null)
+const storeContext = createContext<StoreType | null>(null);
 
-export const Provider = storeContext.Provider
+export const Provider = storeContext.Provider;
 
 export function useStore<T>(selector: (state: StoreInterface) => T) {
-  const store = useContext(storeContext)
+  const store = useContext(storeContext);
 
-  if (!store) throw new Error('Store is missing the provider')
+  if (!store) throw new Error("Store is missing the provider");
 
-  return useZustandStore(store, selector)
+  return useZustandStore(store, selector);
 }
 
 export function initializeStore(preloadedState: PreloadedStoreInterface) {
@@ -55,5 +55,5 @@ export function initializeStore(preloadedState: PreloadedStoreInterface) {
       set({
         count: getDefaultInitialState().count,
       }),
-  }))
+  }));
 }

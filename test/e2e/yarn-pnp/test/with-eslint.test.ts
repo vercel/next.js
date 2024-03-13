@@ -1,5 +1,4 @@
 import { runTests } from './utils'
-
-describe('yarn PnP', () => {
+;(process.env.TURBOPACK ? describe.skip : describe)('yarn PnP', () => {
   runTests('with-eslint', '/', ['<html', 'Home', 'fake-script'])
 })

@@ -14,6 +14,8 @@ import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { ParsedUrlQuery } from 'querystring'
+
 import {
   createDefaultMetadata,
   createDefaultViewport,
@@ -65,6 +67,14 @@ type TitleTemplates = {
 
 type BuildState = {
   warnings: Set<string>
+}
+
+type LayoutProps = {
+  params: { [key: string]: any }
+}
+type PageProps = {
+  params: { [key: string]: any }
+  searchParams: { [key: string]: any }
 }
 
 function hasIconsProperty(
@@ -462,7 +472,7 @@ export async function resolveMetadataItems({
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  searchParams: { [key: string]: any }
+  searchParams: ParsedUrlQuery
   errorConvention: 'not-found' | undefined
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
@@ -484,9 +494,16 @@ export async function resolveMetadataItems({
       : // Pass through parent params to children
         parentParams
 
-  const layerProps = {
-    params: currentParams,
-    ...(isPage && { searchParams }),
+  let layerProps: LayoutProps | PageProps
+  if (isPage) {
+    layerProps = {
+      params: currentParams,
+      searchParams,
+    }
+  } else {
+    layerProps = {
+      params: currentParams,
+    }
   }
 
   await collectMetadata({
@@ -603,13 +620,24 @@ function collectMetadataExportPreloading<Data, ResolvedData>(
   dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
   resolvers: ((value: ResolvedData) => void)[]
 ) {
-  results.push(
-    dynamicMetadataExportFn(
-      new Promise<any>((resolve) => {
-        resolvers.push(resolve)
-      })
-    )
+  const result = dynamicMetadataExportFn(
+    new Promise<any>((resolve) => {
+      resolvers.push(resolve)
+    })
   )
+
+  if (result instanceof Promise) {
+    // since we eager execute generateMetadata and
+    // they can reject at anytime we need to ensure
+    // we attach the catch handler right away to
+    // prevent unhandled rejections crashing the process
+    result.catch((err) => {
+      return {
+        __nextError: err,
+      }
+    })
+  }
+  results.push(result)
 }
 
 async function getMetadataFromExport<Data, ResolvedData>(
@@ -664,6 +692,11 @@ async function getMetadataFromExport<Data, ResolvedData>(
     resolveParent(currentResolvedMetadata)
     metadata =
       metadataResult instanceof Promise ? await metadataResult : metadataResult
+
+    if (metadata && typeof metadata === 'object' && '__nextError' in metadata) {
+      // re-throw caught metadata error from preloading
+      throw metadata['__nextError']
+    }
   } else if (metadataExport !== null && typeof metadataExport === 'object') {
     // This metadataExport is the object form
     metadata = metadataExport

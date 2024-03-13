@@ -6,6 +6,7 @@ use std::{
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
+use swc_core::common::Span;
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -47,19 +48,24 @@ pub fn server_actions<C: Comments>(
         in_default_export_decl: false,
         has_action: false,
 
-        ident_cnt: 0,
-        in_module: true,
+        action_cnt: 0,
+        in_module_level: true,
         in_action_fn: false,
-        in_action_closure: false,
-        closure_idents: Default::default(),
-        action_closure_idents: Default::default(),
+        should_track_names: false,
+
+        names: Default::default(),
+        declared_idents: Default::default(),
+
         exported_idents: Default::default(),
-        inlined_action_closure_idents: Default::default(),
+
+        // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
+        rewrite_fn_decl_to_proxy_decl: None,
+        rewrite_default_fn_expr_to_proxy_expr: None,
+        rewrite_expr_to_proxy_expr: None,
 
         annotations: Default::default(),
         extra_items: Default::default(),
         export_actions: Default::default(),
-        replaced_action_proxies: Default::default(),
     })
 }
 
@@ -84,17 +90,21 @@ struct ServerActions<C: Comments> {
     in_default_export_decl: bool,
     has_action: bool,
 
-    ident_cnt: u32,
-    in_module: bool,
+    action_cnt: u32,
+    in_module_level: bool,
     in_action_fn: bool,
-    in_action_closure: bool,
-    closure_idents: Vec<Id>,
-    action_closure_idents: Vec<Name>,
-    inlined_action_closure_idents: Vec<(Id, Id)>,
+    should_track_names: bool,
+
+    names: Vec<Name>,
+    declared_idents: Vec<Id>,
+
+    // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
+    rewrite_fn_decl_to_proxy_decl: Option<VarDecl>,
+    rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
+    rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
     // (ident, export name)
     exported_idents: Vec<(Id, String)>,
-    replaced_action_proxies: Vec<(Ident, Box<Expr>)>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -116,18 +126,20 @@ impl<C: Comments> ServerActions<C> {
         } else {
             // Check if the function has `"use server"`
             if let Some(body) = maybe_body {
+                let mut action_span = None;
                 remove_server_directive_index_in_fn(
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
+                    &mut action_span,
                     self.config.enabled,
                 );
 
-                if is_action_fn && !self.config.is_react_server_layer {
+                if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
-                                body.span,
+                                action_span.unwrap_or(body.span),
                                 "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
                             )
                             .emit()
@@ -141,42 +153,16 @@ impl<C: Comments> ServerActions<C> {
 
     fn maybe_hoist_and_create_proxy(
         &mut self,
-        ident: &Ident,
+        ids_from_closure: Vec<Name>,
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
-        let action_name: JsWord = gen_ident(&mut self.ident_cnt);
+        let action_name: JsWord = gen_ident(&mut self.action_cnt);
         let action_ident = private_ident!(action_name.clone());
-
-        if !self.in_action_file {
-            self.inlined_action_closure_idents
-                .push((ident.to_id(), action_ident.to_id()));
-        }
-
-        let export_name: JsWord = if self.in_default_export_decl {
-            "default".into()
-        } else {
-            action_name
-        };
+        let export_name: JsWord = action_name;
 
         self.has_action = true;
         self.export_actions.push(export_name.to_string());
-
-        // Hoist the function to the top level and export it. To hoist it, we need to
-        // first Collect all the identifiers defined in the closure and used
-        // in the action function. Dedup the identifiers.
-        let mut added_ids = Vec::new();
-        let mut ids_from_closure = self.action_closure_idents.clone();
-        ids_from_closure.retain(|id| {
-            if added_ids.contains(id) {
-                false
-            } else if self.closure_idents.contains(&id.0) {
-                added_ids.push(id.clone());
-                true
-            } else {
-                false
-            }
-        });
 
         if let Some(a) = arrow {
             let register_action_expr = annotate_ident_as_action(
@@ -194,9 +180,6 @@ impl<C: Comments> ServerActions<C> {
                 block.visit_mut_with(&mut ClosureReplacer {
                     used_ids: &ids_from_closure,
                 });
-
-                self.replaced_action_proxies
-                    .push((ident.clone(), Box::new(register_action_expr)));
             }
 
             // export const $ACTION_myAction = async () => {}
@@ -305,7 +288,7 @@ impl<C: Comments> ServerActions<C> {
                     .into(),
                 })));
 
-            return Some(Box::new(Expr::Ident(ident.clone())));
+            return Some(Box::new(register_action_expr.clone()));
         } else if let Some(f) = function {
             let register_action_expr = annotate_ident_as_action(
                 action_ident.clone(),
@@ -321,9 +304,6 @@ impl<C: Comments> ServerActions<C> {
             f.body.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
             });
-
-            self.replaced_action_proxies
-                .push((ident.clone(), Box::new(register_action_expr)));
 
             // export async function $ACTION_myAction () {}
             let mut new_params: Vec<Param> = vec![];
@@ -404,7 +384,7 @@ impl<C: Comments> ServerActions<C> {
                     .into(),
                 })));
 
-            return Some(Box::new(Expr::Ident(ident.clone())));
+            return Some(Box::new(register_action_expr));
         }
 
         None
@@ -424,6 +404,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_default = self.in_default_export_decl;
         self.in_export_decl = true;
         self.in_default_export_decl = true;
+        self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
         self.in_export_decl = old;
         self.in_default_export_decl = old_default;
@@ -440,29 +421,34 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let is_action_fn = self.get_action_info(f.function.body.as_mut(), false);
+        let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
+        let current_declared_idents = self.declared_idents.clone();
+        let current_names = self.names.clone();
+        self.names = vec![];
+
+        // Visit children
         {
-            // Visit children
             let old_in_action_fn = self.in_action_fn;
-            let old_in_module = self.in_module;
-            let old_in_action_closure = self.in_action_closure;
+            let old_in_module = self.in_module_level;
+            let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            let old_closure_idents = self.closure_idents.clone();
             self.in_action_fn = is_action_fn;
-            self.in_module = false;
-            self.in_action_closure = true;
+            self.in_module_level = false;
+            self.should_track_names = true;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
-            self.in_module = old_in_module;
-            self.in_action_closure = old_in_action_closure;
+            self.in_module_level = old_in_module;
+            self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
-            self.closure_idents = old_closure_idents;
         }
+
+        let mut child_names = self.names.clone();
+        self.names.extend(current_names);
 
         if !is_action_fn {
             return;
@@ -475,32 +461,77 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .emit();
             });
         }
+
+        if !(self.in_action_file && self.in_export_decl) {
+            // It's an action function. If it doesn't have a name, give it one.
+            match f.ident.as_mut() {
+                None => {
+                    let action_name = gen_ident(&mut self.action_cnt);
+                    let ident = Ident::new(action_name, DUMMY_SP);
+                    f.ident.insert(ident)
+                }
+                Some(i) => i,
+            };
+
+            // Collect all the identifiers defined inside the closure and used
+            // in the action function. With deduplication.
+            retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+
+            let maybe_new_expr =
+                self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
+
+            if self.in_default_export_decl {
+                // This function expression is also the default export:
+                // `export default async function() {}`
+                // This specific case (default export) isn't handled by `visit_mut_expr`.
+                // Replace the original function expr with a action proxy expr.
+                self.rewrite_default_fn_expr_to_proxy_expr = maybe_new_expr;
+            } else {
+                self.rewrite_expr_to_proxy_expr = maybe_new_expr;
+            }
+        }
+    }
+
+    fn visit_mut_decl(&mut self, d: &mut Decl) {
+        self.rewrite_fn_decl_to_proxy_decl = None;
+        d.visit_mut_children_with(self);
+
+        if let Some(decl) = &self.rewrite_fn_decl_to_proxy_decl {
+            *d = (*decl).clone().into();
+        }
+
+        self.rewrite_fn_decl_to_proxy_decl = None;
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
+        let current_declared_idents = self.declared_idents.clone();
+        let current_names = self.names.clone();
+        self.names = vec![];
+
         {
             // Visit children
             let old_in_action_fn = self.in_action_fn;
-            let old_in_module = self.in_module;
-            let old_in_action_closure = self.in_action_closure;
+            let old_in_module = self.in_module_level;
+            let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            let old_closure_idents = self.closure_idents.clone();
             self.in_action_fn = is_action_fn;
-            self.in_module = false;
-            self.in_action_closure = true;
+            self.in_module_level = false;
+            self.should_track_names = true;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
-            self.in_module = old_in_module;
-            self.in_action_closure = old_in_action_closure;
+            self.in_module_level = old_in_module;
+            self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
-            self.closure_idents = old_closure_idents;
         }
+
+        let mut child_names = self.names.clone();
+        self.names.extend(current_names);
 
         if !is_action_fn {
             return;
@@ -512,22 +543,28 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .struct_span_err(f.ident.span, "Server actions must be async functions")
                     .emit();
             });
-        } else if !self.in_action_file {
-            self.maybe_hoist_and_create_proxy(&f.ident, Some(&mut f.function), None);
+        }
 
-            // Make the original function declaration empty, as we have hoisted it already.
-            f.function = Box::new(Function {
-                params: vec![],
-                decorators: vec![],
+        if !(self.in_action_file && self.in_export_decl) {
+            // Collect all the identifiers defined inside the closure and used
+            // in the action function. With deduplication.
+            retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+
+            let maybe_new_expr =
+                self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
+
+            // Replace the original function declaration with a action proxy declaration
+            // expr.
+            self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                 span: DUMMY_SP,
-                body: Some(BlockStmt {
+                kind: VarDeclKind::Var,
+                declare: false,
+                decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    stmts: vec![],
-                }),
-                is_generator: false,
-                is_async: false,
-                type_params: None,
-                return_type: None,
+                    name: Pat::Ident(f.ident.clone().into()),
+                    init: maybe_new_expr,
+                    definite: false,
+                }],
             });
         }
     }
@@ -541,37 +578,40 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             } else {
                 None
             },
-            false,
+            true,
         );
+
+        let current_declared_idents = self.declared_idents.clone();
+        let current_names = self.names.clone();
+        self.names = vec![];
 
         {
             // Visit children
             let old_in_action_fn = self.in_action_fn;
-            let old_in_module = self.in_module;
-            let old_in_action_closure = self.in_action_closure;
+            let old_in_module = self.in_module_level;
+            let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            let old_closure_idents = self.closure_idents.clone();
             self.in_action_fn = is_action_fn;
-            self.in_module = false;
-            self.in_action_closure = true;
+            self.in_module_level = false;
+            self.should_track_names = true;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             {
-                if !self.in_action_fn && !self.in_action_file {
-                    for n in &mut a.params {
-                        collect_pat_idents(n, &mut self.closure_idents);
-                    }
+                for n in &mut a.params {
+                    collect_pat_idents(n, &mut self.declared_idents);
                 }
             }
             a.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
-            self.in_module = old_in_module;
-            self.in_action_closure = old_in_action_closure;
+            self.in_module_level = old_in_module;
+            self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
-            self.closure_idents = old_closure_idents;
         }
+
+        let mut child_names = self.names.clone();
+        self.names.extend(current_names);
 
         if !is_action_fn {
             return;
@@ -584,6 +624,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .emit();
             });
         }
+
+        // Collect all the identifiers defined inside the closure and used
+        // in the action function. With deduplication.
+        retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+
+        let maybe_new_expr = self.maybe_hoist_and_create_proxy(child_names, None, Some(a));
+        self.rewrite_expr_to_proxy_expr = maybe_new_expr;
     }
 
     fn visit_mut_module(&mut self, m: &mut Module) {
@@ -594,31 +641,32 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
         n.visit_mut_children_with(self);
 
-        if self.in_module {
+        if self.in_module_level {
             return;
         }
 
-        let ids = collect_idents_in_stmt(n);
-        if !self.in_action_fn && !self.in_action_file {
-            self.closure_idents.extend(ids);
-        }
+        // If it's a closure (not in the module level), we need to collect
+        // identifiers defined in the closure.
+        self.declared_idents.extend(collect_decl_idents_in_stmt(n));
     }
 
     fn visit_mut_param(&mut self, n: &mut Param) {
         n.visit_mut_children_with(self);
 
-        if !self.in_action_fn && !self.in_action_file {
-            collect_pat_idents(&n.pat, &mut self.closure_idents);
+        if self.in_module_level {
+            return;
         }
+
+        collect_pat_idents(&n.pat, &mut self.declared_idents);
     }
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
-        if self.in_action_fn && self.in_action_closure {
+        if !self.in_module_level && self.should_track_names {
             if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
-                self.in_action_closure = false;
-                self.action_closure_idents.push(Name::from(&*i));
+                self.names.push(Name::from(&*i));
+                self.should_track_names = false;
                 n.visit_mut_children_with(self);
-                self.in_action_closure = true;
+                self.should_track_names = true;
                 return;
             }
         }
@@ -627,73 +675,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
-        if self.in_action_fn && self.in_action_closure {
+        if !self.in_module_level && self.should_track_names {
             if let Ok(name) = Name::try_from(&*n) {
-                self.in_action_closure = false;
-                self.action_closure_idents.push(name);
+                self.names.push(name);
+                self.should_track_names = false;
                 n.visit_mut_children_with(self);
-                self.in_action_closure = true;
+                self.should_track_names = true;
                 return;
             }
         }
 
+        self.rewrite_expr_to_proxy_expr = None;
         n.visit_mut_children_with(self);
-
-        if self.in_action_file {
-            return;
-        }
-
-        match n {
-            Expr::Arrow(a) => {
-                let is_action_fn = self.get_action_info(
-                    if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
-                        Some(block)
-                    } else {
-                        None
-                    },
-                    true,
-                );
-
-                if !is_action_fn {
-                    return;
-                }
-
-                // We need to give a name to the arrow function
-                // action and hoist it to the top.
-                let action_name = gen_ident(&mut self.ident_cnt);
-                let ident = private_ident!(action_name);
-
-                let maybe_new_expr = self.maybe_hoist_and_create_proxy(&ident, None, Some(a));
-
-                *n = if let Some(new_expr) = maybe_new_expr {
-                    *new_expr
-                } else {
-                    Expr::Arrow(a.clone())
-                };
-            }
-            Expr::Fn(f) => {
-                let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
-
-                if !is_action_fn {
-                    return;
-                }
-                let ident = match f.ident.as_mut() {
-                    None => {
-                        let action_name = gen_ident(&mut self.ident_cnt);
-                        let ident = Ident::new(action_name, DUMMY_SP);
-                        f.ident.insert(ident)
-                    }
-                    Some(i) => i,
-                };
-
-                let maybe_new_expr =
-                    self.maybe_hoist_and_create_proxy(ident, Some(&mut f.function), None);
-
-                if let Some(new_expr) = maybe_new_expr {
-                    *n = *new_expr;
-                }
-            }
-            _ => {}
+        if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
+            *n = (**expr).clone();
+            self.rewrite_expr_to_proxy_expr = None;
         }
     }
 
@@ -790,7 +786,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 // export default function() {}
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.ident_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -809,7 +805,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 } else {
                                     // export default async () => {}
                                     let new_ident =
-                                        Ident::new(gen_ident(&mut self.ident_cnt), DUMMY_SP);
+                                        Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -828,7 +824,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Expr::Call(call) => {
                                 // export default fn()
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.ident_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -865,8 +861,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             stmt.visit_mut_with(self);
 
+            let mut new_stmt = stmt;
+
+            if let Some(expr) = &self.rewrite_default_fn_expr_to_proxy_expr {
+                // If this happens, we need to replace the statement with a default export expr.
+                new_stmt =
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        span: DUMMY_SP,
+                        expr: expr.clone(),
+                    }));
+                self.rewrite_default_fn_expr_to_proxy_expr = None;
+            }
+
             if self.config.is_react_server_layer || !self.in_action_file {
-                new.push(stmt);
+                new.push(new_stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
             }
@@ -896,6 +904,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
             }
 
@@ -982,6 +991,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
                 new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -1017,11 +1027,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action {
-            let actions = if self.in_action_file {
-                self.exported_idents.iter().map(|e| e.1.clone()).collect()
-            } else {
-                self.export_actions.clone()
+            let mut actions = self.export_actions.clone();
+
+            // All exported values are considered as actions if the file is an action file.
+            if self.in_action_file {
+                actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
             };
+
             let actions = actions
                 .into_iter()
                 .map(|name| (generate_action_id(&self.file_name, &name), name))
@@ -1038,23 +1050,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             if self.config.is_react_server_layer {
                 // Inlined actions are only allowed on the server layer.
-                // import { createActionProxy } from 'private-next-rsc-action-proxy'
-                // createActionProxy("action_id")
+                // import { registerServerReference } from 'private-next-rsc-server-reference'
+                // registerServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("createActionProxy"),
+                        local: quote_ident!("registerServerReference"),
                         imported: None,
                         is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-proxy".into(),
+                        value: "private-next-rsc-server-reference".into(),
                         raw: None,
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
 
                 // Encryption and decryption only happens on the server layer.
@@ -1083,6 +1096,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
 
                 // Make it the first item
@@ -1094,10 +1108,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         *stmts = new;
-
-        stmts.visit_mut_with(&mut ClosureActionReplacer {
-            replaced_action_proxies: &self.replaced_action_proxies,
-        });
 
         self.annotations = old_annotations;
     }
@@ -1119,6 +1129,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     noop_visit_mut_type!();
+}
+
+fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declared_idents: &[Id]) {
+    // Collect all the identifiers defined inside the closure and used
+    // in the action function. With deduplication.
+    let mut added_names = Vec::new();
+    child_names.retain(|name| {
+        if added_names.contains(name) {
+            false
+        } else if current_declared_idents.contains(&name.0) {
+            added_names.push(name.clone());
+            true
+        } else {
+            false
+        }
+    });
 }
 
 fn gen_ident(cnt: &mut u32) -> JsWord {
@@ -1149,7 +1175,7 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
             span: DUMMY_SP,
             expr: Box::new(Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
-                left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.into()))),
+                left: ident.into(),
                 op: op!("="),
                 right: Box::new(expr),
             })),
@@ -1195,13 +1221,13 @@ fn annotate_ident_as_action(
     file_name: &str,
     export_name: String,
 ) -> Expr {
-    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
+    // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let action_id = generate_action_id(file_name, &export_name);
 
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,
-        callee: quote_ident!("createActionProxy").as_callee(),
+        callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             // $$id
             ExprOrSpread {
@@ -1373,6 +1399,7 @@ fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
+    action_span: &mut Option<Span>,
     enabled: bool,
 ) {
     let mut is_directive = true;
@@ -1384,6 +1411,8 @@ fn remove_server_directive_index_in_fn(
         }) = stmt
         {
             if value == "use server" {
+                *action_span = Some(*span);
+
                 if is_directive {
                     *is_action_fn = true;
                     if !enabled {
@@ -1519,7 +1548,7 @@ fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<Id> {
     ids
 }
 
-fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
+fn collect_decl_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
     let mut ids = Vec::new();
 
     if let Stmt::Decl(Decl::Var(var)) = &stmt {
@@ -1527,45 +1556,6 @@ fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
     }
 
     ids
-}
-
-pub(crate) struct ClosureActionReplacer<'a> {
-    replaced_action_proxies: &'a Vec<(Ident, Box<Expr>)>,
-}
-
-impl ClosureActionReplacer<'_> {
-    fn index(&self, i: &Ident) -> Option<usize> {
-        self.replaced_action_proxies
-            .iter()
-            .position(|(ident, _)| ident.sym == i.sym && ident.span.ctxt == i.span.ctxt)
-    }
-}
-
-impl VisitMut for ClosureActionReplacer<'_> {
-    fn visit_mut_expr(&mut self, e: &mut Expr) {
-        e.visit_mut_children_with(self);
-
-        if let Expr::Ident(i) = e {
-            if let Some(index) = self.index(i) {
-                *e = *self.replaced_action_proxies[index].1.clone();
-            }
-        }
-    }
-
-    fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
-        n.visit_mut_children_with(self);
-
-        if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
-            if let Some(index) = self.index(i) {
-                *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(i.clone()),
-                    value: Box::new(*self.replaced_action_proxies[index].1.clone()),
-                })));
-            }
-        }
-    }
-
-    noop_visit_mut_type!();
 }
 
 pub(crate) struct ClosureReplacer<'a> {

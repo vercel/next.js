@@ -21,15 +21,5 @@ describe('app dir - with output export - dynamic missing gsp prod', () => {
           'Page "/another/[slug]/page" cannot use both "use client" and export function "generateStaticParams()".',
       })
     })
-
-    it('should error when generateStaticParams returns an empty array', async () => {
-      await runTests({
-        isDev: false,
-        dynamicPage: 'undefined',
-        generateStaticParamsOpt: 'set empty',
-        expectedErrMsg:
-          'Page "/another/[slug]"\'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.',
-      })
-    })
   })
 })

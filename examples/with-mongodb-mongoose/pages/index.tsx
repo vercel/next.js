@@ -1,11 +1,11 @@
-import Link from 'next/link'
-import dbConnect from '../lib/dbConnect'
-import Pet, { Pets } from '../models/Pet'
-import { GetServerSideProps } from 'next'
+import Link from "next/link";
+import dbConnect from "../lib/dbConnect";
+import Pet, { Pets } from "../models/Pet";
+import { GetServerSideProps } from "next";
 
 type Props = {
-  pets: Pets[]
-}
+  pets: Pets[];
+};
 
 const Index = ({ pets }: Props) => {
   return (
@@ -38,10 +38,10 @@ const Index = ({ pets }: Props) => {
               </div>
 
               <div className="btn-container">
-                <Link href={{ pathname: '/[id]/edit', query: { id: pet._id } }}>
+                <Link href={{ pathname: "/[id]/edit", query: { id: pet._id } }}>
                   <button className="btn edit">Edit</button>
                 </Link>
-                <Link href={{ pathname: '/[id]', query: { id: pet._id } }}>
+                <Link href={{ pathname: "/[id]", query: { id: pet._id } }}>
                   <button className="btn view">View</button>
                 </Link>
               </div>
@@ -50,23 +50,23 @@ const Index = ({ pets }: Props) => {
         </div>
       ))}
     </>
-  )
-}
+  );
+};
 
 /* Retrieves pet(s) data from mongodb database */
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  await dbConnect()
+  await dbConnect();
 
   /* find all the data in our database */
-  const result = await Pet.find({})
+  const result = await Pet.find({});
 
   /* Ensures all objectIds and nested objectIds are serialized as JSON data */
   const pets = result.map((doc) => {
-    const pet = JSON.parse(JSON.stringify(doc))
-    return pet
-  })
+    const pet = JSON.parse(JSON.stringify(doc));
+    return pet;
+  });
 
-  return { props: { pets: pets } }
-}
+  return { props: { pets: pets } };
+};
 
-export default Index
+export default Index;

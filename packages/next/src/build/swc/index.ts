@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
-import { platform, arch } from 'os'
+import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
+import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
+import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
@@ -137,7 +137,6 @@ let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
 let swcHeapProfilerFlushGuard: any
-let swcCrashReporterFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
@@ -167,17 +166,29 @@ export interface Binding {
   transformSync: any
   parse: any
   parseSync: any
+
   getTargetTriple(): string | undefined
+
   initCustomTraceSubscriber?: any
   teardownTraceSubscriber?: any
   initHeapProfiler?: any
   teardownHeapProfiler?: any
-  teardownCrashReporter?: any
+  css: {
+    lightning: {
+      transform(transformOptions: any): Promise<any>
+      transformStyleAttr(attrOptions: any): Promise<any>
+    }
+  }
 }
 
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  // Increase Rust stack size as some npm packages being compiled need more than the default.
+  if (!process.env.RUST_MIN_STACK) {
+    process.env.RUST_MIN_STACK = '8388608'
+  }
+
   if (pendingBindings) {
     return pendingBindings
   }
@@ -187,11 +198,11 @@ export async function loadBindings(
   // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
   if (process.stdout._handle != null) {
     // @ts-ignore
-    process.stdout._handle.setBlocking(true)
+    process.stdout._handle.setBlocking?.(true)
   }
   if (process.stderr._handle != null) {
     // @ts-ignore
-    process.stderr._handle.setBlocking(true)
+    process.stderr._handle.setBlocking?.(true)
   }
 
   pendingBindings = new Promise(async (resolve, _reject) => {
@@ -409,9 +420,9 @@ export interface ProjectOptions {
   watch: boolean
 
   /**
-   * The address of the dev server.
+   * The mode in which Next.js is running.
    */
-  serverAddr: string
+  dev: boolean
 }
 
 type RustifiedEnv = { name: string; value: string }[]
@@ -424,7 +435,6 @@ export interface DefineEnv {
 
 export function createDefineEnv({
   isTurbopack,
-  allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
   dev,
@@ -432,7 +442,6 @@ export function createDefineEnv({
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
-  previewModeId,
 }: Omit<
   DefineEnvPluginOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
@@ -447,7 +456,6 @@ export function createDefineEnv({
     defineEnv[variant] = rustifyEnv(
       getDefineEnv({
         isTurbopack,
-        allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
         dev,
@@ -459,7 +467,6 @@ export function createDefineEnv({
         isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
-        previewModeId,
       })
     )
   }
@@ -498,7 +505,7 @@ export type StyledString =
 
 export interface Issue {
   severity: string
-  category: string
+  stage: string
   filePath: string
   title: StyledString
   description?: StyledString
@@ -509,8 +516,18 @@ export interface Issue {
       content?: string
     }
     range?: {
-      start: { line: number; column: number }
-      end: { line: number; column: number }
+      start: {
+        // 0-indexed
+        line: number
+        // 0-indexed
+        column: number
+      }
+      end: {
+        // 0-indexed
+        line: number
+        // 0-indexed
+        column: number
+      }
     }
   }
   documentationLink: string
@@ -552,7 +569,7 @@ interface BaseUpdate {
     path: string
   }
   diagnostics: unknown[]
-  issues: unknown[]
+  issues: Issue[]
 }
 
 interface IssuesUpdate extends BaseUpdate {
@@ -579,13 +596,26 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
-interface TurbopackStackFrame {
-  column: number | null
-  file: string
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+export interface TurbopackStackFrame {
   isServer: boolean
-  line: number
-  methodName: string | null
+  isInternal?: boolean
+  file: string
+  /** 1-indexed, unlike source map tokens */
+  line?: number
+  /** 1-indexed, unlike source map tokens */
+  column?: number | null
+  methodName?: string
 }
+
+export type UpdateMessage =
+  | {
+      updateType: 'start'
+    }
+  | {
+      updateType: 'end'
+      value: UpdateInfo
+    }
 
 export interface UpdateInfo {
   duration: number
@@ -594,16 +624,24 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+
   getSourceForAsset(filePath: string): Promise<string | null>
+
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
-  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
+
+  updateInfoSubscribe(
+    aggregationMs: number
+  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 }
 
 export type Route =
@@ -612,11 +650,15 @@ export type Route =
     }
   | {
       type: 'app-page'
-      htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      pages: {
+        originalName: string
+        htmlEndpoint: Endpoint
+        rscEndpoint: Endpoint
+      }[]
     }
   | {
       type: 'app-route'
+      originalName: string
       endpoint: Endpoint
     }
   | {
@@ -632,12 +674,14 @@ export type Route =
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+
   /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
   clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+
   /**
    * Listen to server-side changes to the endpoint.
    * After serverChanged() has been awaited it will listen to changes.
@@ -674,13 +718,17 @@ export type WrittenEndpoint =
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
-      /** All server paths that has been written for the endpoint. */
+      /** All client paths that have been written for the endpoint. */
+      clientPaths: string[]
+      /** All server paths that have been written for the endpoint. */
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
   | {
       type: 'edge'
-      /** All server paths that has been written for the endpoint. */
+      /** All client paths that have been written for the endpoint. */
+      clientPaths: string[]
+      /** All server paths that have been written for the endpoint. */
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
@@ -798,7 +846,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
     return {
       ...options,
       nextConfig:
-        options.nextConfig && (await serializeNextConfig(options.nextConfig)),
+        options.nextConfig &&
+        (await serializeNextConfig(options.nextConfig, options.projectPath!)),
       jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
       defineEnv: options.defineEnv,
@@ -812,7 +861,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       this._nativeProject = nativeProject
     }
 
-    async update(options: ProjectOptions) {
+    async update(options: Partial<ProjectOptions>) {
       await withErrorCause(async () =>
         binding.projectUpdate(
           this._nativeProject,
@@ -858,11 +907,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'app-page'
-            htmlEndpoint: NapiEndpoint
-            rscEndpoint: NapiEndpoint
+            pages: {
+              originalName: string
+              htmlEndpoint: NapiEndpoint
+              rscEndpoint: NapiEndpoint
+            }[]
           }
         | {
             type: 'app-route'
+            originalName: string
             endpoint: NapiEndpoint
           }
         | {
@@ -898,13 +951,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-page':
                 route = {
                   type: 'app-page',
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
+                  pages: nativeRoute.pages.map((page) => ({
+                    originalName: page.originalName,
+                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
+                  })),
                 }
                 break
               case 'app-route':
                 route = {
                   type: 'app-route',
+                  originalName: nativeRoute.originalName,
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break
@@ -958,21 +1015,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     hmrEvents(identifier: string) {
-      const subscription = subscribe<TurbopackResult<Update>>(
-        true,
-        async (callback) =>
-          binding.projectHmrEvents(this._nativeProject, identifier, callback)
+      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
+        binding.projectHmrEvents(this._nativeProject, identifier, callback)
       )
-      return subscription
     }
 
     hmrIdentifiersSubscribe() {
-      const subscription = subscribe<TurbopackResult<HmrIdentifiers>>(
+      return subscribe<TurbopackResult<HmrIdentifiers>>(
         false,
         async (callback) =>
           binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
       )
-      return subscription
     }
 
     traceSource(
@@ -985,11 +1038,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
-    updateInfoSubscribe() {
-      const subscription = subscribe<TurbopackResult<UpdateInfo>>(
+    updateInfoSubscribe(aggregationMs: number) {
+      const subscription = subscribe<TurbopackResult<UpdateMessage>>(
         true,
         async (callback) =>
-          binding.projectUpdateInfoSubscribe(this._nativeProject, callback)
+          binding.projectUpdateInfoSubscribe(
+            this._nativeProject,
+            aggregationMs,
+            callback
+          )
       )
       return subscription
     }
@@ -1039,9 +1096,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
   }
 
   async function serializeNextConfig(
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigComplete,
+    projectPath: string
   ): Promise<string> {
-    let nextConfigSerializable = nextConfig as any
+    // Avoid mutating the existing `nextConfig` object.
+    let nextConfigSerializable = { ...(nextConfig as any) }
 
     nextConfigSerializable.generateBuildId =
       await nextConfig.generateBuildId?.()
@@ -1074,6 +1133,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
             )
           )
         : undefined
+
+    // loaderFile is an absolute path, we need it to be relative for turbopack.
+    if (nextConfigSerializable.images.loaderFile) {
+      nextConfigSerializable.images = {
+        ...nextConfig.images,
+        loaderFile:
+          './' + path.relative(projectPath, nextConfig.images.loaderFile),
+      }
+    }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
@@ -1158,8 +1226,7 @@ async function loadWasm(importPath = '') {
             : Promise.resolve(bindings.parseSync(src.toString(), options))
         },
         parseSync(src: string, options: any) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
+          return bindings.parseSync(src.toString(), options)
         },
         getTargetTriple() {
           return undefined
@@ -1272,23 +1339,11 @@ function loadNative(importPath?: string) {
   }
 
   if (bindings) {
-    // Initialize crash reporter, as earliest as possible from any point of import.
-    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
-    // we can't rely on explicit manual initialization as similar to trace reporter.
-    if (!swcCrashReporterFlushGuard) {
-      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
-      /* TODO: temporarily disable initialization while confirming logistics.
-      let telemetry = new Telemetry({ distDir: process.cwd() })
-      if (telemetry.isEnabled) {
-        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
-      }*/
-    }
-
     nativeBindings = {
       isWasm: false,
       transform(src: string, options: any) {
         const isModule =
-          typeof src !== undefined &&
+          typeof src !== 'undefined' &&
           typeof src !== 'string' &&
           !Buffer.isBuffer(src)
         options = options || {}
@@ -1305,7 +1360,7 @@ function loadNative(importPath?: string) {
       },
 
       transformSync(src: string, options: any) {
-        if (typeof src === undefined) {
+        if (typeof src === 'undefined') {
           throw new Error(
             "transformSync doesn't implement reading the file from filesystem"
           )
@@ -1345,21 +1400,13 @@ function loadNative(importPath?: string) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
-      teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        nextBuild: (options: unknown) => {
-          initHeapProfiler()
-          const ret = (customBindings ?? bindings).nextBuild(options)
-
-          return ret
-        },
         startTrace: (options = {}, turboTasks: unknown) => {
           initHeapProfiler()
-          const ret = (customBindings ?? bindings).runTurboTracing(
+          return (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
           )
-          return ret
         },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
@@ -1401,6 +1448,14 @@ function loadNative(importPath?: string) {
         compileSync: (src: string, options: any) =>
           bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
       },
+      css: {
+        lightning: {
+          transform: (transformOptions: any) =>
+            bindings.lightningCssTransform(transformOptions),
+          transformStyleAttr: (transformAttrOptions: any) =>
+            bindings.lightningCssTransformStyleAttribute(transformAttrOptions),
+        },
+      },
     }
     return nativeBindings
   }
@@ -1411,7 +1466,7 @@ function loadNative(importPath?: string) {
 /// Build a mdx options object contains default values that
 /// can be parsed with serde_wasm_bindgen.
 function getMdxOptions(options: any = {}) {
-  const ret = {
+  return {
     ...options,
     development: options.development ?? false,
     jsx: options.jsx ?? false,
@@ -1420,8 +1475,6 @@ function getMdxOptions(options: any = {}) {
       mathTextSingleDollar: true,
     },
   }
-
-  return ret
 }
 
 function toBuffer(t: any) {
@@ -1544,23 +1597,6 @@ export const teardownTraceSubscriber = (() => {
         let bindings = loadNative()
         if (swcTraceFlushGuard) {
           bindings.teardownTraceSubscriber(swcTraceFlushGuard)
-        }
-      } catch (e) {
-        // Suppress exceptions, this fn allows to fail to load native bindings
-      }
-    }
-  }
-})()
-
-export const teardownCrashReporter = (() => {
-  let flushed = false
-  return (): void => {
-    if (!flushed) {
-      flushed = true
-      try {
-        let bindings = loadNative()
-        if (swcCrashReporterFlushGuard) {
-          bindings.teardownCrashReporter(swcCrashReporterFlushGuard)
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings

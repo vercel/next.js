@@ -3,11 +3,14 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type {
   FlightRouterState,
   CacheNodeSeedData,
+  FlightData,
 } from '../../../server/app-render/types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
+import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
+import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -15,9 +18,9 @@ export interface InitialRouterStateParameters {
   initialCanonicalUrl: string
   initialSeedData: CacheNodeSeedData
   initialParallelRoutes: CacheNode['parallelRoutes']
-  isServer: boolean
   location: Location | null
   initialHead: ReactNode
+  couldBeIntercepted?: boolean
 }
 
 export function createInitialRouterState({
@@ -26,19 +29,25 @@ export function createInitialRouterState({
   initialSeedData,
   initialCanonicalUrl,
   initialParallelRoutes,
-  isServer,
   location,
   initialHead,
+  couldBeIntercepted,
 }: InitialRouterStateParameters) {
+  const isServer = !location
   const rsc = initialSeedData[2]
 
   const cache: CacheNode = {
     lazyData: null,
     rsc: rsc,
     prefetchRsc: null,
+    head: null,
+    prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+    lazyDataResolved: false,
   }
+
+  const prefetchCache = new Map<string, PrefetchCacheEntry>()
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
@@ -51,11 +60,11 @@ export function createInitialRouterState({
     )
   }
 
-  return {
+  const initialState = {
     buildId,
     tree: initialTree,
     cache,
-    prefetchCache: new Map(),
+    prefetchCache,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
@@ -81,4 +90,23 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
   }
+
+  if (location) {
+    // Seed the prefetch cache with this page's data.
+    // This is to prevent needlessly re-prefetching a page that is already reusable,
+    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
+    const url = new URL(location.pathname, location.origin)
+
+    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    createPrefetchCacheEntryForInitialLoad({
+      url,
+      kind: PrefetchKind.AUTO,
+      data: [initialFlightData, undefined, false, couldBeIntercepted],
+      tree: initialState.tree,
+      prefetchCache: initialState.prefetchCache,
+      nextUrl: initialState.nextUrl,
+    })
+  }
+
+  return initialState
 }
