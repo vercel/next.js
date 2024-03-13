@@ -21,7 +21,7 @@ export type LazyCacheNode = {
    * Whether the lazy cache node data promise has been resolved.
    * This value is only true after we've called `use` on the promise (and applied the data to the tree).
    */
-  lazyDataResolved?: boolean
+  lazyDataResolved: boolean
   /**
    * When rsc is null, this is a lazily-initialized cache node.
    *
@@ -68,7 +68,7 @@ export type ReadyCacheNode = {
    * Whether the lazy cache node data promise has been resolved.
    * This value is only true after we've called `use` on the promise (and applied the data to the tree).
    */
-  lazyDataResolved?: boolean
+  lazyDataResolved: boolean
   /**
    * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
