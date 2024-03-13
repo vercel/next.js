@@ -35,7 +35,7 @@ export function autoImplementMethods(
     if (method === 'HEAD') {
       // If the userland module doesn't implement the GET method, then
       // we're done.
-      if (!handlers.GET) break
+      if (!handlers.GET) continue
 
       // Implement the HEAD method by calling the GET method.
       methods.HEAD = handlers.GET
