@@ -389,9 +389,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        console.log('subscribeToHmrEvents', data)
         processIssues(state.clientIssues, key, data)
-
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -624,7 +622,6 @@ export async function createHotReloaderTurbopack(
 
         currentEntryIssues.delete(getEntryKey('app', 'server', '_error'))
         currentEntryIssues.delete(getEntryKey('pages', 'server', '_error'))
-        console.log('currentEntryIssues', currentEntryIssues)
         for (const entryIssues of currentEntryIssues.values()) {
           for (const issue of entryIssues.values()) {
             errors.push({
@@ -675,15 +672,6 @@ export async function createHotReloaderTurbopack(
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
 
-      console.log(
-        'getCompilationErrors 1',
-        appEntryKey,
-        pagesEntryKey,
-        currentEntryIssues,
-        Array.from(topLevelIssues),
-        'separator',
-        thisEntryIssues
-      )
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
         return [...topLevelIssues, ...thisEntryIssues.values()].map((issue) => {
@@ -713,7 +701,6 @@ export async function createHotReloaderTurbopack(
           errors.push(new Error(formatIssue(issue)))
         }
       }
-      console.log('getCompilationErrors 2', currentEntryIssues, errors)
       return errors
     },
     async invalidate({
