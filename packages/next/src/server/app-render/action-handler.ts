@@ -45,6 +45,7 @@ import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
+import { isForbiddenError } from '../../client/components/forbidden'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -307,6 +308,7 @@ export async function handleAction({
   | {
       type: 'not-found'
     }
+  | { type: 'forbidden' }
   | {
       type: 'done'
       result: RenderResult | undefined
@@ -680,7 +682,6 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
-      // TODO(@panteliselef): Handle this
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
 
@@ -711,6 +712,38 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
       return {
         type: 'not-found',
+      }
+    } else if (isForbiddenError(err)) {
+      res.statusCode = 403
+
+      await addRevalidationHeader(res, {
+        staticGenerationStore,
+        requestStore,
+      })
+
+      if (isFetchAction) {
+        const promise = Promise.reject(err)
+        try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
+          await promise
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            skipFlight: false,
+            actionResult: promise,
+            // TODO(@panteliselef): What does this do ?
+            asNotFound: false,
+          }),
+        }
+      }
+      return {
+        type: 'forbidden',
       }
     }
 
