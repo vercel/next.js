@@ -55,7 +55,7 @@ The `request` object is a [NextRequest](/docs/app/api-reference/functions/next-r
 
 ```ts filename="app/dashboard/[team]/route.ts" switcher
 type Params = {
-  team: string;
+  team: string
 }
 
 export async function GET(request: Request, context: { params: Params }) {
@@ -64,6 +64,7 @@ export async function GET(request: Request, context: { params: Params }) {
 
 // Define params type according to your route parameters (see table below)
 ```
+
 ```js filename="app/dashboard/[team]/route.js" switcher
 
 export async function GET(request, context: { params }) {
@@ -71,7 +72,6 @@ export async function GET(request, context: { params }) {
 }
 
 ```
-
 
 Currently, the only value of `context` is `params`, which is an object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) for the current route.
 
