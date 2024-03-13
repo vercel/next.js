@@ -1,19 +1,21 @@
 use std::{
     borrow::Cow,
+    cmp::max,
     collections::HashMap,
-    fmt::Display,
+    fmt::{Debug, Display},
     future::Future,
     mem::take,
     path::{Path, PathBuf},
     process::{ExitStatus, Stdio},
-    sync::{Arc, Mutex},
-    time::Duration,
+    sync::Arc,
+    time::{Duration, Instant},
 };
 
 use anyhow::{bail, Context, Result};
 use futures::join;
 use indexmap::IndexSet;
 use owo_colors::{OwoColorize, Style};
+use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     io::{
@@ -65,25 +67,7 @@ impl FormattingMode {
     }
 }
 
-enum NodeJsPoolProcess {
-    Spawned(SpawnedNodeJsPoolProcess),
-    Running(RunningNodeJsPoolProcess),
-}
-
-struct SpawnedNodeJsPoolProcess {
-    #[allow(dyn_drop)]
-    guard: Box<dyn Drop + Send + Sync>,
-    child: Child,
-    listener: TcpListener,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    assets_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    shared_stdout: SharedOutputSet,
-    shared_stderr: SharedOutputSet,
-    debug: bool,
-}
-
-struct RunningNodeJsPoolProcess {
+struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
@@ -94,7 +78,7 @@ struct RunningNodeJsPoolProcess {
     debug: bool,
 }
 
-impl RunningNodeJsPoolProcess {
+impl NodeJsPoolProcess {
     pub async fn apply_source_mapping<'a>(
         &self,
         text: &'a str,
@@ -225,15 +209,13 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         let mut stack_trace_buffer = Vec::new();
         loop {
             let start = buffer.len();
-            match stream.read_until(b'\n', &mut buffer).await {
-                Ok(0) => {
-                    bail!("stream closed unexpectedly")
-                }
-                Err(err) => {
-                    eprintln!("error reading from stream: {}", err);
-                    break;
-                }
-                Ok(_) => {}
+            if stream
+                .read_until(b'\n', &mut buffer)
+                .await
+                .context("error reading from stream")?
+                == 0
+            {
+                bail!("stream closed unexpectedly")
             }
             if buffer.len() - start == MARKER.len() + 2
                 && &buffer[start..buffer.len() - 2] == MARKER
@@ -275,7 +257,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                                 .and_modify(|c| *c += 1)
                                 .or_insert(0);
                             let new_entry = {
-                                let mut shared = shared.lock().unwrap();
+                                let mut shared = shared.lock();
                                 shared.insert((entry.clone(), occurrence_number))
                             };
                             if !new_entry {
@@ -364,139 +346,108 @@ impl NodeJsPoolProcess {
         cmd.stdout(Stdio::piped());
         cmd.kill_on_drop(true);
 
-        let child = cmd.spawn().context("spawning node pooled process")?;
+        let mut child = cmd.spawn().context("spawning node pooled process")?;
 
-        Ok(Self::Spawned(SpawnedNodeJsPoolProcess {
-            guard,
-            listener,
-            child,
-            debug,
+        let timeout = if debug {
+            Duration::MAX
+        } else {
+            CONNECT_TIMEOUT
+        };
+
+        async fn get_output(child: &mut Child) -> Result<(String, String)> {
+            let mut stdout = Vec::new();
+            let mut stderr = Vec::new();
+            child
+                .stdout
+                .take()
+                .unwrap()
+                .read_to_end(&mut stdout)
+                .await?;
+            child
+                .stderr
+                .take()
+                .unwrap()
+                .read_to_end(&mut stderr)
+                .await?;
+            fn clean(buffer: Vec<u8>) -> Result<String> {
+                Ok(String::from_utf8(buffer)?
+                    .lines()
+                    .filter(|line| {
+                        line.len() != MARKER_STR.len() + 1 && !line.starts_with(MARKER_STR)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n"))
+            }
+            Ok((clean(stdout)?, clean(stderr)?))
+        }
+
+        let (connection, _) = select! {
+            connection = listener.accept() => connection.context("accepting connection")?,
+            status = child.wait() => {
+                match status {
+                    Ok(status) => {
+                        let (stdout, stderr) = get_output(&mut child).await?;
+                        bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
+                    }
+                    Err(err) => {
+                        let _ = child.start_kill();
+                        let (stdout, stderr) = get_output(&mut child).await?;
+                        bail!("node process exited before we could connect to it: {err:?}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
+                    },
+                }
+            },
+            _ = sleep(timeout) => {
+                let _ = child.start_kill();
+                let (stdout, stderr) = get_output(&mut child).await?;
+                bail!("timed out waiting for the Node.js process to connect ({timeout:?} timeout)\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
+            },
+        };
+
+        let child_stdout = BufReader::new(child.stdout.take().unwrap());
+        let child_stderr = BufReader::new(child.stderr.take().unwrap());
+
+        let stdout_handler = OutputStreamHandler {
+            stream: child_stdout,
+            shared: shared_stdout,
+            assets_for_source_mapping,
+            root: assets_root,
+            project_dir,
+            final_stream: stdout(),
+        };
+        let stderr_handler = OutputStreamHandler {
+            stream: child_stderr,
+            shared: shared_stderr,
+            assets_for_source_mapping,
+            root: assets_root,
+            project_dir,
+            final_stream: stderr(),
+        };
+
+        let mut process = Self {
+            child: Some(child),
+            connection,
             assets_for_source_mapping,
             assets_root,
             project_dir,
-            shared_stdout,
-            shared_stderr,
-        }))
+            stdout_handler,
+            stderr_handler,
+            debug,
+        };
+
+        drop(guard);
+
+        let guard = duration_span!("Node.js initialization");
+        let ready_signal = process.recv().await?;
+
+        if !ready_signal.is_empty() {
+            bail!("Node.js process didn't send the expected ready signal");
+        }
+
+        drop(guard);
+
+        Ok(process)
     }
 
-    async fn run(self) -> Result<RunningNodeJsPoolProcess> {
-        Ok(match self {
-            NodeJsPoolProcess::Spawned(SpawnedNodeJsPoolProcess {
-                guard,
-                mut child,
-                listener,
-                assets_for_source_mapping,
-                assets_root,
-                project_dir,
-                shared_stdout,
-                shared_stderr,
-                debug,
-            }) => {
-                let timeout = if debug {
-                    Duration::MAX
-                } else {
-                    CONNECT_TIMEOUT
-                };
-
-                async fn get_output(child: &mut Child) -> Result<(String, String)> {
-                    let mut stdout = Vec::new();
-                    let mut stderr = Vec::new();
-                    child
-                        .stdout
-                        .take()
-                        .unwrap()
-                        .read_to_end(&mut stdout)
-                        .await?;
-                    child
-                        .stderr
-                        .take()
-                        .unwrap()
-                        .read_to_end(&mut stderr)
-                        .await?;
-                    fn clean(buffer: Vec<u8>) -> Result<String> {
-                        Ok(String::from_utf8(buffer)?
-                            .lines()
-                            .filter(|line| {
-                                line.len() != MARKER_STR.len() + 1 && !line.starts_with(MARKER_STR)
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n"))
-                    }
-                    Ok((clean(stdout)?, clean(stderr)?))
-                }
-
-                let (connection, _) = select! {
-                    connection = listener.accept() => connection.context("accepting connection")?,
-                    status = child.wait() => {
-                        match status {
-                            Ok(status) => {
-                                let (stdout, stderr) = get_output(&mut child).await?;
-                                bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
-                            }
-                            Err(err) => {
-                                let _ = child.start_kill();
-                                let (stdout, stderr) = get_output(&mut child).await?;
-                                bail!("node process exited before we could connect to it: {err:?}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
-                            },
-                        }
-                    },
-                    _ = sleep(timeout) => {
-                        let _ = child.start_kill();
-                        let (stdout, stderr) = get_output(&mut child).await?;
-                        bail!("timed out waiting for the Node.js process to connect ({timeout:?} timeout)\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
-                    },
-                };
-
-                let child_stdout = BufReader::new(child.stdout.take().unwrap());
-                let child_stderr = BufReader::new(child.stderr.take().unwrap());
-
-                let stdout_handler = OutputStreamHandler {
-                    stream: child_stdout,
-                    shared: shared_stdout,
-                    assets_for_source_mapping,
-                    root: assets_root,
-                    project_dir,
-                    final_stream: stdout(),
-                };
-                let stderr_handler = OutputStreamHandler {
-                    stream: child_stderr,
-                    shared: shared_stderr,
-                    assets_for_source_mapping,
-                    root: assets_root,
-                    project_dir,
-                    final_stream: stderr(),
-                };
-
-                let mut process = RunningNodeJsPoolProcess {
-                    child: Some(child),
-                    connection,
-                    assets_for_source_mapping,
-                    assets_root,
-                    project_dir,
-                    stdout_handler,
-                    stderr_handler,
-                    debug,
-                };
-
-                drop(guard);
-
-                let guard = duration_span!("Node.js initialization");
-                let ready_signal = process.recv().await?;
-
-                if !ready_signal.is_empty() {
-                    bail!("Node.js process didn't send the expected ready signal");
-                }
-
-                drop(guard);
-
-                process
-            }
-            NodeJsPoolProcess::Running(running) => running,
-        })
-    }
-}
-
-impl RunningNodeJsPoolProcess {
     async fn recv(&mut self) -> Result<Vec<u8>> {
         let connection = &mut self.connection;
         async fn with_timeout<T, E: Into<anyhow::Error>>(
@@ -560,6 +511,167 @@ impl RunningNodeJsPoolProcess {
     }
 }
 
+#[derive(Default)]
+struct NodeJsPoolStats {
+    pub total_bootup_time: Duration,
+    pub bootup_count: u32,
+    pub total_cold_process_time: Duration,
+    pub cold_process_count: u32,
+    pub total_warm_process_time: Duration,
+    pub warm_process_count: u32,
+    pub workers: u32,
+    pub booting_workers: u32,
+    pub queued_tasks: u32,
+}
+
+impl NodeJsPoolStats {
+    fn add_bootup_time(&mut self, time: Duration) {
+        self.total_bootup_time += time;
+        self.bootup_count += 1;
+    }
+
+    fn add_booting_worker(&mut self) {
+        self.booting_workers += 1;
+        self.workers += 1;
+    }
+
+    fn finished_booting_worker(&mut self) {
+        self.booting_workers -= 1;
+    }
+
+    fn remove_worker(&mut self) {
+        self.workers -= 1;
+    }
+
+    fn add_queued_task(&mut self) {
+        self.queued_tasks += 1;
+    }
+
+    fn add_cold_process_time(&mut self, time: Duration) {
+        self.total_cold_process_time += time;
+        self.cold_process_count += 1;
+        self.queued_tasks -= 1;
+    }
+
+    fn add_warm_process_time(&mut self, time: Duration) {
+        self.total_warm_process_time += time;
+        self.warm_process_count += 1;
+        self.queued_tasks -= 1;
+    }
+
+    fn estimated_bootup_time(&self) -> Duration {
+        if self.bootup_count == 0 {
+            Duration::from_millis(200)
+        } else {
+            self.total_bootup_time / self.bootup_count
+        }
+    }
+
+    fn estimated_warm_process_time(&self) -> Duration {
+        if self.warm_process_count == 0 {
+            self.estimated_cold_process_time()
+        } else {
+            self.total_warm_process_time / self.warm_process_count
+        }
+    }
+
+    fn estimated_cold_process_time(&self) -> Duration {
+        if self.cold_process_count == 0 {
+            // We assume cold processing is half of bootup time
+            self.estimated_bootup_time() / 2
+        } else {
+            self.total_cold_process_time / self.cold_process_count
+        }
+    }
+    fn wait_time_before_bootup(&self) -> Duration {
+        if self.workers == 0 {
+            return Duration::ZERO;
+        }
+        let booting_workers = self.booting_workers;
+        let workers = self.workers;
+        let warm_process_time = self.estimated_warm_process_time();
+        let expected_completion = self.expected_completion(workers, booting_workers);
+
+        let new_process_duration =
+            self.estimated_bootup_time() + self.estimated_cold_process_time();
+        if expected_completion + warm_process_time < new_process_duration {
+            // Running the task with the existing warm pool is faster
+            return (expected_completion + warm_process_time + new_process_duration) / 2;
+        }
+
+        let expected_completion_with_additional_worker = max(
+            new_process_duration,
+            self.expected_completion(workers + 1, booting_workers + 1),
+        );
+        if expected_completion > expected_completion_with_additional_worker {
+            // Scaling up the pool would help to complete work faster
+            return Duration::ZERO;
+        }
+
+        // It's expected to be faster if we queue the task
+        (expected_completion + expected_completion_with_additional_worker) / 2
+    }
+
+    fn expected_completion(&self, workers: u32, booting_workers: u32) -> Duration {
+        if workers == 0 {
+            return Duration::MAX;
+        }
+        let bootup_time = self.estimated_bootup_time();
+        let cold_process_time = self.estimated_cold_process_time();
+        let warm_process_time = self.estimated_warm_process_time();
+        let expected_full_workers_in = booting_workers * (bootup_time / 2 + cold_process_time);
+        let expected_completed_task_until_full_workers = {
+            let millis = max(1, warm_process_time.as_millis());
+            let ready_workers = workers - booting_workers;
+            (expected_full_workers_in.as_millis() / millis) as u32 * ready_workers
+        };
+        let remaining_tasks = self
+            .queued_tasks
+            .saturating_sub(expected_completed_task_until_full_workers);
+        if remaining_tasks > 0 {
+            expected_full_workers_in + warm_process_time * remaining_tasks / workers
+        } else {
+            warm_process_time * self.queued_tasks / workers
+        }
+    }
+}
+
+impl Debug for NodeJsPoolStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeJsPoolStats")
+            .field("queued_tasks", &self.queued_tasks)
+            .field("workers", &self.workers)
+            .field("booting_workers", &self.booting_workers)
+            .field(
+                "expected_completion",
+                &self.expected_completion(self.workers, self.booting_workers),
+            )
+            .field("bootup_time", &self.estimated_bootup_time())
+            .field("cold_process_time", &self.estimated_cold_process_time())
+            .field("warm_process_time", &self.estimated_warm_process_time())
+            .field("bootup_count", &self.bootup_count)
+            .field("cold_process_count", &self.cold_process_count)
+            .field("warm_process_count", &self.warm_process_count)
+            .finish()
+    }
+}
+
+enum AcquiredPermits {
+    Idle {
+        // This is used for drop
+        #[allow(dead_code)]
+        concurrency_permit: OwnedSemaphorePermit,
+    },
+    Fresh {
+        // This is used for drop
+        #[allow(dead_code)]
+        concurrency_permit: OwnedSemaphorePermit,
+        // This is used for drop
+        #[allow(dead_code)]
+        bootup_permit: OwnedSemaphorePermit,
+    },
+}
+
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
 ///
@@ -579,13 +691,23 @@ pub struct NodeJsPool {
     pub project_dir: Vc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    semaphore: Arc<Semaphore>,
+    concurrency_semaphore: Arc<Semaphore>,
+    /// Semaphore to limit the number of concurrently booting up processes
+    /// (excludes one-off processes)
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    bootup_semaphore: Arc<Semaphore>,
+    /// Semaphore to wait for an idle process to become available
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    idle_process_semaphore: Arc<Semaphore>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     shared_stdout: SharedOutputSet,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     shared_stderr: SharedOutputSet,
     debug: bool,
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    stats: Arc<Mutex<NodeJsPoolStats>>,
 }
 
 impl NodeJsPool {
@@ -609,64 +731,109 @@ impl NodeJsPool {
             assets_root,
             project_dir,
             processes: Arc::new(Mutex::new(Vec::new())),
-            semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
+            concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
+            bootup_semaphore: Arc::new(Semaphore::new(1)),
+            idle_process_semaphore: Arc::new(Semaphore::new(0)),
             shared_stdout: Arc::new(Mutex::new(IndexSet::new())),
             shared_stderr: Arc::new(Mutex::new(IndexSet::new())),
             debug,
+            stats: Default::default(),
         }
     }
 
-    async fn acquire_process(&self) -> Result<(NodeJsPoolProcess, OwnedSemaphorePermit)> {
-        let permit = self.semaphore.clone().acquire_owned().await?;
+    async fn acquire_process(&self) -> Result<(NodeJsPoolProcess, AcquiredPermits)> {
+        {
+            self.stats.lock().add_queued_task();
+        }
 
-        let popped = {
-            let mut processes = self.processes.lock().unwrap();
-            processes.pop()
+        let concurrency_permit = self.concurrency_semaphore.clone().acquire_owned().await?;
+
+        let bootup = async {
+            let permit = self.bootup_semaphore.clone().acquire_owned().await;
+            let wait_time = self.stats.lock().wait_time_before_bootup();
+            tokio::time::sleep(wait_time).await;
+            permit
         };
-        let process = match popped {
-            Some(process) => process,
-            None => NodeJsPoolProcess::new(
-                self.cwd.as_path(),
-                &self.env,
-                self.entrypoint.as_path(),
-                self.assets_for_source_mapping,
-                self.assets_root,
-                self.project_dir,
-                self.shared_stdout.clone(),
-                self.shared_stderr.clone(),
-                self.debug,
-            )
-            .await
-            .context("creating new process")?,
-        };
-        Ok((process, permit))
+
+        select! {
+            idle_process_permit = self.idle_process_semaphore.clone().acquire_owned() => {
+                let idle_process_permit = idle_process_permit.context("acquiring idle process permit")?;
+                let process = {
+                    let mut processes = self.processes.lock();
+                    processes.pop().unwrap()
+                };
+                idle_process_permit.forget();
+                Ok((process, AcquiredPermits::Idle { concurrency_permit }))
+            },
+            bootup_permit = bootup => {
+                let bootup_permit = bootup_permit.context("acquiring bootup permit")?;
+                {
+                    self.stats.lock().add_booting_worker();
+                }
+                let (process, bootup_time) = self.create_process().await?;
+                // Update the worker count
+                {
+                    let mut stats = self.stats.lock();
+                    stats.add_bootup_time(bootup_time);
+                    stats.finished_booting_worker();
+                }
+                // Increase the allowed booting up processes
+                self.bootup_semaphore.add_permits(1);
+                Ok((process, AcquiredPermits::Fresh { concurrency_permit, bootup_permit }))
+            }
+        }
+    }
+
+    async fn create_process(&self) -> Result<(NodeJsPoolProcess, Duration), anyhow::Error> {
+        let start = Instant::now();
+        let process = NodeJsPoolProcess::new(
+            self.cwd.as_path(),
+            &self.env,
+            self.entrypoint.as_path(),
+            self.assets_for_source_mapping,
+            self.assets_root,
+            self.project_dir,
+            self.shared_stdout.clone(),
+            self.shared_stderr.clone(),
+            self.debug,
+        )
+        .await
+        .context("creating new process")?;
+        Ok((process, start.elapsed()))
     }
 
     pub async fn operation(&self) -> Result<NodeJsOperation> {
-        let (process, permit) = self.acquire_process().await?;
+        // Acquire a running process (handles concurrency limits, boots up the process)
+        let (process, permits) = self.acquire_process().await?;
 
         Ok(NodeJsOperation {
-            process: Some(process.run().await?),
-            permit,
+            process: Some(process),
+            permits,
             processes: self.processes.clone(),
+            idle_process_semaphore: self.idle_process_semaphore.clone(),
+            start: Instant::now(),
+            stats: self.stats.clone(),
             allow_process_reuse: true,
         })
     }
 }
 
 pub struct NodeJsOperation {
-    process: Option<RunningNodeJsPoolProcess>,
+    process: Option<NodeJsPoolProcess>,
     // This is used for drop
     #[allow(dead_code)]
-    permit: OwnedSemaphorePermit,
+    permits: AcquiredPermits,
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    idle_process_semaphore: Arc<Semaphore>,
+    start: Instant,
+    stats: Arc<Mutex<NodeJsPoolStats>>,
     allow_process_reuse: bool,
 }
 
 impl NodeJsOperation {
     async fn with_process<'a, F: Future<Output = Result<T>> + Send + 'a, T>(
         &'a mut self,
-        f: impl FnOnce(&'a mut RunningNodeJsPoolProcess) -> F,
+        f: impl FnOnce(&'a mut NodeJsPoolProcess) -> F,
     ) -> Result<T> {
         let process = self
             .process
@@ -678,7 +845,8 @@ impl NodeJsOperation {
         }
 
         let result = f(process).await;
-        if result.is_err() {
+        if result.is_err() && self.allow_process_reuse {
+            self.stats.lock().remove_worker();
             self.allow_process_reuse = false;
         }
         result
@@ -718,6 +886,10 @@ impl NodeJsOperation {
             .take()
             .context("Node.js operation already finished")?;
 
+        if self.allow_process_reuse {
+            self.stats.lock().remove_worker();
+        }
+
         let mut child = process
             .child
             .take()
@@ -734,7 +906,10 @@ impl NodeJsOperation {
     }
 
     pub fn disallow_reuse(&mut self) {
-        self.allow_process_reuse = false;
+        if self.allow_process_reuse {
+            self.stats.lock().remove_worker();
+            self.allow_process_reuse = false;
+        }
     }
 
     pub async fn apply_source_mapping<'a>(
@@ -752,12 +927,18 @@ impl NodeJsOperation {
 
 impl Drop for NodeJsOperation {
     fn drop(&mut self) {
-        if self.allow_process_reuse {
-            if let Some(process) = self.process.take() {
-                self.processes
-                    .lock()
-                    .unwrap()
-                    .push(NodeJsPoolProcess::Running(process));
+        if let Some(process) = self.process.take() {
+            let elapsed = self.start.elapsed();
+            {
+                let stats = &mut self.stats.lock();
+                match self.permits {
+                    AcquiredPermits::Idle { .. } => stats.add_warm_process_time(elapsed),
+                    AcquiredPermits::Fresh { .. } => stats.add_cold_process_time(elapsed),
+                }
+            }
+            if self.allow_process_reuse {
+                self.processes.lock().push(process);
+                self.idle_process_semaphore.add_permits(1);
             }
         }
     }
