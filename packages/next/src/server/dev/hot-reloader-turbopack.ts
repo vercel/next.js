@@ -249,6 +249,7 @@ export async function createHotReloaderTurbopack(
       readyIds.add(id)
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
+        hmrEventHappened = false
         consoleStore.setState(
           {
             loading: false,
