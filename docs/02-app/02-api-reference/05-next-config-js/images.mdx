@@ -39,6 +39,7 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 ## Example Loader Configuration
 
 - [Akamai](#akamai)
+- [Amazon CloudFront](#cloudfront)
 - [Cloudinary](#cloudinary)
 - [Cloudflare](#cloudflare)
 - [Contentful](#contentful)
@@ -58,6 +59,18 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 export default function akamaiLoader({ src, width, quality }) {
   return `https://example.com/${src}?imwidth=${width}`
 }
+```
+
+### Amazon CloudFront
+
+```js
+// Docs: https://aws.amazon.com/developer/application-security-performance/articles/image-optimization
+export default function cloudfrontLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('format', 'auto')
+  url.searchParams.set('width', width.toString())
+  url.searchParams.set('quality', (quality || 75).toString())
+  return url.href
 ```
 
 ### Cloudinary
