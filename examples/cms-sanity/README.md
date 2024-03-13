@@ -1,17 +1,267 @@
 # A statically generated blog example using Next.js and Sanity
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Sanity](https://www.sanity.io/) as the data source.
+![Screenshot of Sanity Studio using Presentation Tool to do Visual Editing](https://github.com/sanity-io/next.js/assets/81981/59ecd9d6-7a78-41c6-95f7-275f66fe3c9d)
 
-You'll get:
+This starter is a statically generated blog that uses Next.js App Router for the frontend and [Sanity][sanity-homepage] to handle its content. It comes with a native Sanity Studio that offers features like real-time collaboration and visual editing with live updates using [Presentation][presentation].
 
-- Next.js deployed with the [Sanity Vercel Integration][integration].
-- Sanity Studio running on localhost and deployed in the [cloud](https://www.sanity.io/docs/deployment).
-- Sub-second as-you-type previews in Next.js
-- [On-demand revalidation of pages](https://nextjs.org/blog/next-12-1#on-demand-incremental-static-regeneration-beta) with [GROQ powered webhooks](https://www.sanity.io/docs/webhooks)
+The Studio connects to Sanity Content Lake, which gives you hosted content APIs with a flexible query language, on-demand image transformations, powerful patching, and more. You can use this starter to kick-start a blog or learn these technologies.
+
+## Features
+
+- A performant, static blog with editable posts, authors, and site settings
+- A native and customizable authoring environment, accessible on `yourblog.com/studio`
+- Real-time and collaborative content editing with fine-grained revision history
+- Side-by-side instant content preview that works across your whole site
+- Support for block content and the most advanced custom fields capability in the industry
+- Incremental Static Revalidation; no need to wait for a rebuild to publish new content
+- Unsplash integration setup for easy media management
+- [Sanity AI Assist preconfigured for image alt text generation](https://www.sanity.io/docs/ai-assist?utm_source=github.com&utm_medium=organic_social&utm_campaign=ai-assist&utm_content=)
+- Out of the box support for [Vercel Visual Editing](https://www.sanity.io/blog/visual-editing-sanity-vercel?utm_source=github.com&utm_medium=referral&utm_campaign=may-vercel-launch).
 
 ## Demo
 
-### [https://next-blog-sanity.vercel.app](https://next-blog-sanity.vercel.app)
+### [https://next-blog.sanity.build](https://next-blog.sanity.build)
+
+## Deploy your own
+
+Use the Deploy Button below, you'll deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) as well as connect it to your Sanity dataset using [the Sanity Vercel Integration][integration].
+
+[![Deploy with Vercel](https://vercel.com/button)][vercel-deploy]
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+
+```bash
+npx create-next-app --example cms-sanity next-sanity-blog
+```
+
+```bash
+yarn create next-app --example cms-sanity next-sanity-blog
+```
+
+```bash
+pnpm create next-app --example cms-sanity next-sanity-blog
+```
+
+# Configuration
+
+- [Step 1. Set up the environment](#step-1-set-up-the-environment)
+  - [Reuse remote envionment variables](#reuse-remote-envionment-variables)
+  - [Using the Sanity CLI](#using-the-sanity-cli)
+    - [Creating a read token](#creating-a-read-token)
+- [Step 2. Run Next.js locally in development mode](#step-2-run-nextjs-locally-in-development-mode)
+- [Step 3. Populate content](#step-3-populate-content)
+- [Step 4. Deploy to production](#step-4-deploy-to-production)
+- [Next steps](#next-steps)
+
+## Step 1. Set up the environment
+
+### Reuse remote envionment variables
+
+If you started with [deploying your own](#deploy-your-own) then you can run this to reuse the environment variables from the Vercel project and skip to the next step:
+
+```bash
+npx vercel link
+npx vercel pull
+```
+
+### Using the Sanity CLI
+
+Copy the `.env.local.example` file to `.env.local` to get started:
+
+```bash
+cp -i .env.local.example .env.local
+```
+
+Run the setup command to get setup with a Sanity project, dataset and their relevant environment variables:
+
+```bash
+npm run setup
+```
+
+```bash
+yarn setup
+```
+
+```bash
+pnpm run setup
+```
+
+You'll be asked multiple questions, here's a sample output of what you can expect:
+
+```bash
+Need to install the following packages:
+sanity@3.30.1
+Ok to proceed? (y) y
+You're setting up a new project!
+We'll make sure you have an account with Sanity.io.
+Press ctrl + C at any time to quit.
+
+Prefer web interfaces to terminals?
+You can also set up best practice Sanity projects with
+your favorite frontends on https://www.sanity.io/templates
+
+Looks like you already have a Sanity-account. Sweet!
+
+✔ Fetching existing projects
+? Select project to use Templates [r0z1eifg]
+? Select dataset to use blog-vercel
+? Would you like to add configuration files for a Sanity project in this Next.js folder? No
+
+Detected framework Next.js, using prefix 'NEXT_PUBLIC_'
+Found existing NEXT_PUBLIC_SANITY_PROJECT_ID, replacing value.
+Found existing NEXT_PUBLIC_SANITY_DATASET, replacing value.
+```
+
+It's important that when you're asked `Would you like to add configuration files for a Sanity project in this Next.js folder?` that you answer `No` as this example is alredy setup with the required configuration files.
+
+#### Creating a read token
+
+This far your `.env.local` file should have values for `NEXT_PUBLIC_SANITY_PROJECT_ID` and `NEXT_PUBLIC_SANITY_DATASET`.
+Before you can run the project you need to setup a read token (`SANITY_API_READ_TOKEN`), it's used for authentication when Sanity Studio is live previewing your application.
+
+1. Go to [manage.sanity.io](https://manage.sanity.io/) and select your project.
+2. Click on the `🔌 API` tab.
+3. Click on `+ Add API token`.
+4. Name it "next blog live preview read token" and set `Permissions` to `Viewer` and hit `Save`.
+5. Copy the token and add it to your `.env.local` file.
+
+```bash
+SANITY_API_READ_TOKEN="<paste your token here>"
+```
+
+Your `.env.local` file should look something like this:
+
+```bash
+NEXT_PUBLIC_SANITY_PROJECT_ID="r0z1eifg"
+NEXT_PUBLIC_SANITY_DATASET="blog-vercel"
+SANITY_API_READ_TOKEN="sk..."
+```
+
+> [!CAUTION]  
+> Make sure to add `.env.local` to your `.gitignore` file so you don't accidentally commit it to your repository.
+
+## Step 2. Run Next.js locally in development mode
+
+```bash
+npm install && npm run dev
+```
+
+```bash
+yarn install && yarn dev
+```
+
+```bash
+pnpm install && pnpm dev
+```
+
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+
+## Step 3. Populate content
+
+Open your Sanity Studio that should be running on [http://localhost:3000/studio](http://localhost:3000/studio).
+
+By default you're taken to the [Presentation tool][presentation], which has a preview of the blog on the left hand side, and a list of documents on the right hand side.
+
+<details>
+<summary>View screenshot ✨</summary>
+
+![screenshot](https://github.com/vercel/next.js/assets/81981/07cbc580-4a03-4837-9aa4-90b632c95630)
+
+</details>
+
+We're all set to do some content creation!
+
+- Click on the **"+ Create"** button top left and select **Post**
+- Type some dummy data for the **Title**
+- **Generate** a **Slug**
+  <details>
+  <summary>Now that you have a slug you should see the post show up in the preview on the left hand side ✨</summary>
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/05b74848-6ae4-442b-8995-0b7e2180aa74)
+
+  </details>
+
+- Fill in **Content** with some dummy text
+  <details>
+  <summary>Or generate it with AI Assist ✨</summary>
+
+  If you've enabled [AI Assist][enable-ai-assist] you click on the sparkles ✨ button and generate a draft based on your title and then on **Generate sample content**.
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/2276d8ad-5b55-447c-befe-d53249f091e1)
+
+  </details>
+
+- Summarize the **Content** in the **Excerpt** field
+  <details>
+  <summary>Or have AI Assist summarize it for you ✨</summary>
+
+  If you've enabled [AI Assist][enable-ai-assist] you click on the sparkles ✨ button and then on **Generate sample content**.
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/d24b9b37-cd88-4519-8094-f4c956102450)
+
+  </details>
+
+- Select a **Cover Image** from [Unsplash].
+  <details>
+  <summary>Unsplash is available in the **Select** dropdown ✨</summary>
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/204d004d-9396-434e-8795-a8b68a2ed89b)
+
+  </details>
+  <details>
+  <summary>Click the "Crop image" button to adjust hotspots and cropping ✨</summary>
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/e905fc6e-5bab-46a7-baec-7cb08747772c)
+
+  </details>
+  <details>
+  <summary>You can preview the results live on the left side, and additional formats on the right side ✨</summary>
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/6c59eef0-d2d9-4d77-928a-98e99df4b1df)
+
+  </details>
+
+- Customize the blog name, description and more.
+  <details>
+  <summary>Click "Structure" at the top center, then on "Settings" on the left hand side ✨</summary>
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/14f48d83-af81-4589-900e-a7a598cc608a)
+
+  </details>
+  <details>
+  <summary>Once you have a "Settings" document, you can customize it inside "Presentation" ✨</summary>
+
+  ![screenshot](https://github.com/vercel/next.js/assets/81981/e3473f7b-5e7e-46ab-8d43-cae54a4b929b)
+
+  </details>
+
+> [!IMPORTANT]  
+> For each post record, you need to click **Publish** after saving for it to be visible outside Draft Mode. In production new content is using [Time-based Revalidation](https://nextjs.org/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation), which means it may take up to 1 minute before changes show up. Since a stale-while-revalidate pattern is used you may need to refresh a couple of times to see the changes.
+
+## Step 4. Deploy to production
+
+> [!NOTE]  
+> If you already [deployed with Vercel earlier](#deploy-your-own) you can skip this step.
+
+To deploy your local project to Vercel, push it to [GitHub](https://docs.github.com/en/get-started/importing-your-projects-to-github/importing-source-code-to-github/adding-locally-hosted-code-to-github)/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+
+> [!IMPORTANT]  
+> When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+
+After it's deployed link your local code to the Vercel project:
+
+```bash
+npx vercel link
+```
+
+> [!TIP]
+> In production you can exit Draft Mode by clicking on _"Back to published"_ at the top. On [Preview deployments](https://vercel.com/docs/deployments/preview-deployments) you can [toggle Draft Mode in the Vercel Toolbar](https://vercel.com/docs/workflow-collaboration/draft-mode#enabling-draft-mode-in-the-vercel-toolbar).
+
+## Next steps
+
+- [Join the Sanity community](https://slack.sanity.io/)
 
 ## Related examples
 
@@ -38,298 +288,10 @@ You'll get:
 - [Blog Starter](/examples/blog-starter)
 - [WordPress](/examples/cms-wordpress)
 
-# Configuration
-
-- [Step 1. Set up the environment](#step-1-set-up-the-environment)
-- [Step 2. Run Next.js locally in development mode](#step-3-run-nextjs-locally-in-development-mode)
-- [Step 3. Populate content](#step-3-populate-content)
-- [Step 4. Deploy to production & use Preview Mode from anywhere](#step-4-deploy-to-production--use-preview-mode-from-anywhere)
-  - [If you didn't Deploy with Vercel earlier do so now](#if-you-didnt-deploy-with-vercel-earlier-do-so-now)
-  - [Configure CORS for production](#configure-cors-for-production)
-  - [Add the preview secret environment variable](#add-the-preview-secret-environment-variable)
-  - [How to test locally that the secret is setup correctly](#how-to-test-locally-that-the-secret-is-setup-correctly)
-  - [How to start Preview Mode for Next.js in production from a local Studio](#how-to-start-preview-mode-for-nextjs-in-production-from-a-local-studio)
-  - [If you regret sending a preview link to someone](#if-you-regret-sending-a-preview-link-to-someone)
-- [Step 5. Deploy your Studio and publish from anywhere](#step-5-deploy-your-studio-and-publish-from-anywhere)
-- [Step 6. Setup Revalidation Webhook](#step-6-setup-revalidation-webhook)
-  - [Testing the Webhook](#testing-the-webhook)
-- [Next steps](#next-steps)
-
-## Step 1. Set up the environment
-
-Use the Deploy Button below, you'll deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) as well as connect it to your Sanity dataset using [the Sanity Vercel Integration][integration].
-
-[![Deploy with Vercel](https://vercel.com/button)][vercel-deploy]
-
-[Clone the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) that Vercel created for you and from the root directory of your local checkout.
-Then link your clone to Vercel:
-
-```bash
-npx vercel link
-```
-
-Download the environment variables needed to connect Next.js and Studio to your Sanity project:
-
-```bash
-npx vercel env pull
-```
-
-## Step 2. Run Next.js locally in development mode
-
-```bash
-npm install && npm run dev
-```
-
-```bash
-yarn install && yarn dev
-```
-
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
-
-Note: This also installs dependencies for Sanity Studio as a post-install step.
-
-## Step 4. Populate content
-
-In another terminal start up the studio:
-
-```bash
-npm run studio:dev
-```
-
-Your studio should be up and running on [http://localhost:3333](http://localhost:3333)!
-
-### Create content
-
-Create content in Sanity Studio and live preview it in Next.js, side-by-side, by opening these URLs:
-
-- [`http://localhost:3333`](http://localhost:3333)
-- [`http://localhost:3000/api/preview`](http://localhost:3000/api/preview)
-
-<details>
-<summary>View screenshot ✨</summary>
-
-![screenshot](https://user-images.githubusercontent.com/81981/182991870-7a0f6e54-b35e-4728-922b-409fcf1d6cc3.png)
-
-</details>
-
-We're all set to do some content creation!
-
-- Click on the **"Create new document"** button top left and select **Post**
-- Type some dummy data for the **Title**
-- **Generate** a **Slug**
-  <details>
-  <summary>View screenshot ✨</summary>
-
-  ![screenshot](https://user-images.githubusercontent.com/81981/182993687-b6313086-f60a-4b36-b038-4c1c63b53c54.png)
-
-  </details>
-
-- Set the **Date**
-- Select a **Cover Image** from [Unsplash].
-  <details>
-  <summary>View screenshot ✨</summary>
-
-  ![screenshot](https://user-images.githubusercontent.com/81981/182994571-f204c41c-e1e3-44f4-82b3-99fefbd25bec.png)
-
-  </details>
-
-- Let's create an **Author** inline, click **Create new**.
-- Give the **Author** a **Name**.
-- After selecting a **Picture** of a **face** from [Unsplash], set a hotspot to ensure pixel-perfect cropping.
-  <details>
-  <summary>View screenshot ✨</summary>
-
-  ![screenshot](https://user-images.githubusercontent.com/81981/182995772-33d63e45-4920-48c5-aa47-ccb7ce10170c.png)
-
-  </details>
-
-- Create a couple more **Posts** and watch how the layout adapt to more content.
-
-**Important:** For each post record, you need to click **Publish** after saving for it to be visible outside Preview Mode.
-
-To exit Preview Mode, you can click on _"Click here to exit preview mode"_ at the top.
-
-## Step 4. Deploy to production & use Preview Mode from anywhere
-
-### If you didn't [Deploy with Vercel earlier](#step-1-set-up-the-environment) do so now
-
-To deploy your local project to Vercel, push it to [GitHub](https://docs.github.com/en/get-started/importing-your-projects-to-github/importing-source-code-to-github/adding-locally-hosted-code-to-github)/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
-
-**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
-
-After it's deployed link your local code to the Vercel project:
-
-```bash
-npx vercel link
-```
-
-### Configure CORS for production
-
-Add your `production url` to the list over CORS origins.
-
-<details>
-<summary>Don't remember the production url? 🤔</summary>
-
-No worries, it's easy to find out. Go to your [Vercel Dashboard](https://vercel.com/) and click on your project:
-
-![screenshot](https://user-images.githubusercontent.com/81981/183002637-6aa6b1d8-e0ee-4a9b-bcc0-d49799fcc984.png)
-
-In the screenshot above the `production url` is `https://cms-sanity.vercel.app`.
-
-</details>
-
-```bash
-npm --prefix studio run cors:add -- [your production url] --credentials
-```
-
-### Add the preview secret environment variable
-
-It's required to set a secret that makes Preview Mode activation links unique. Otherwise anyone could see your unpublished content by just opening `[your production url]/api/preview`.
-Run this and it'll prompt you for a value:
-
-```bash
-npx vercel env add SANITY_STUDIO_PREVIEW_SECRET
-```
-
-The secret can be any combination of random words and letters as long as it's URL safe.
-You can generate one in your DevTools console using `copy(Math.random().toString(36).substr(2, 10))` if you don't feel like inventing one.
-
-You should see something like this in your terminal afterwards:
-
-```bash
-$ npx vercel env add SANITY_STUDIO_PREVIEW_SECRET
-Vercel CLI 27.3.7
-? What’s the value of SANITY_STUDIO_PREVIEW_SECRET? 2whpu1jefs
-? Add SANITY_STUDIO_PREVIEW_SECRET to which Environments (select multiple)? Production, Preview, Development
-✅  Added Environment Variable SANITY_STUDIO_PREVIEW_SECRET to Project cms-sanity [1s]
-```
-
-Redeploy production to apply the secret to the preview api:
-
-```bash
-npx vercel --prod
-```
-
-After it deploys it should now start preview mode if you launch `[your production url]/api/preview?secret=[your preview secret]`. You can send that preview url to people you want to show the content you're working on before you publish it.
-
-### How to test locally that the secret is setup correctly
-
-In order to test that the secret will prevent unauthorized people from activating preview mode, start by updating the local `.env` with the secret you just made:
-
-```bash
-npx vercel env pull
-```
-
-Restart your Next.js and Studio processes so the secret is applied:
-
-```bash
-npm run dev
-```
-
-```bash
-npm run studio:dev
-```
-
-And now you'll get an error if `[secret]` is incorrect when you try to open `https://localhost:3000/api/preview?secret=[secret]`.
-
-### How to start Preview Mode for Next.js in production from a local Studio
-
-Run this to make the Studio open previews at `[your production url]/api/preview` instead of `http://localhost:3000/api/preview`
-
-```bash
-SANITY_STUDIO_PREVIEW_URL=[your production url] npm run studio:dev
-```
-
-### If you regret sending a preview link to someone
-
-Revoke their access by creating a new secret:
-
-```bash
-npx vercel env rm SANITY_STUDIO_PREVIEW_SECRET
-npx vercel env add SANITY_STUDIO_PREVIEW_SECRET
-npx vercel --prod
-```
-
-## Step 5. Deploy your Studio and publish from anywhere
-
-Live previewing content is fun, but collaborating on content in real-time is next-level:
-
-```bash
-SANITY_STUDIO_PREVIEW_URL=[your production url] npm run studio:deploy
-```
-
-If it's successful you should see something like this in your terminal:
-
-```bash
-SANITY_STUDIO_PREVIEW_URL="https://cms-sanity.vercel.app" npm run studio:deploy
-? Studio hostname (<value>.sanity.studio): cms-sanity
-
-Including the following environment variables as part of the JavaScript bundle:
-- SANITY_STUDIO_PREVIEW_URL
-- SANITY_STUDIO_PREVIEW_SECRET
-- SANITY_STUDIO_API_PROJECT_ID
-- SANITY_STUDIO_API_DATASET
-
-✔ Deploying to Sanity.Studio
-
-Success! Studio deployed to https://cms-sanity.sanity.studio/
-```
-
-This snippet is stripped from verbose information, you'll see a lot of extra stuff in your terminal.
-
-## Step 6. Setup Revalidation Webhook
-
-Using GROQ Webhooks Next.js can rebuild pages that have changed content. It rebuilds so fast it can almost compete with Preview Mode.
-
-Create a secret and give it a value the same way you did for `SANITY_STUDIO_PREVIEW_SECRET` in [Step 4](#add-the-preview-secret-environment-variable). It's used to verify that webhook payloads came from Sanity infra, and set it as the value for `SANITY_REVALIDATE_SECRET`:
-
-```bash
-npx vercel env add SANITY_REVALIDATE_SECRET
-```
-
-You should see something like this in your terminal afterwards:
-
-```bash
-$ npx vercel env add SANITY_REVALIDATE_SECRET
-Vercel CLI 27.3.7
-? What’s the value of SANITY_REVALIDATE_SECRET? jwh3nr85ft
-? Add SANITY_REVALIDATE_SECRET to which Environments (select multiple)? Production, Preview, Development
-✅  Added Environment Variable SANITY_REVALIDATE_SECRET to Project cms-sanity [1s]
-```
-
-Apply the secret to production:
-
-```bash
-npx vercel --prod
-```
-
-Wormhole into the [manager](https://manage.sanity.io/) by running:
-
-```bash
-(cd studio && npx sanity hook create)
-```
-
-- **Name** it "On-demand Revalidation".
-- Set the **URL** to`[your production url]/api/revalidate`, for example: `https://cms-sanity.vercel.app/api/revalidate`
-- Set the **Trigger on** field to <label><input type=checkbox checked> Create</label> <label><input type=checkbox checked> Update</label> <label><input type=checkbox checked> Delete</label>
-- Set the **Filter** to `_type == "post" || _type == "author"`
-- Set the **Secret** to the same value you gave `SANITY_REVALIDATE_SECRET` earlier.
-- Hit **Save**!
-
-### Testing the Webhook
-
-- Open the Deployment function log. (**Vercel Dashboard > Deployment > Functions** and filter by `api/revalidate`)
-- Edit a Post in your Sanity Studio and publish.
-- The log should start showing calls.
-- And the published changes show up on the site after you reload.
-
-## Next steps
-
-- Mount your preview inside the Sanity Studio for comfortable side-by-side editing
-- [Join the Sanity community](https://slack.sanity.io/)
-
-[vercel-deploy]: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-sanity&repository-name=cms-sanity&project-name=cms-sanity&demo-title=Blog%20using%20Next.js%20%26%20Sanity&demo-description=On-demand%20ISR%2C%20sub-second%20as-you-type%20previews&demo-url=https%3A%2F%2Fnext-blog-sanity.vercel.app%2F&demo-image=https%3A%2F%2Fuser-images.githubusercontent.com%2F110497645%2F182727236-75c02b1b-faed-4ae2-99ce-baa089f7f363.png&integration-ids=oac_hb2LITYajhRQ0i4QznmKH7gx
+[vercel-deploy]: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-sanity&repository-name=cms-sanity&project-name=cms-sanity&demo-title=Blog%20using%20Next.js%20%26%20Sanity&demo-description=Real-time%20updates%2C%20seamless%20editing%2C%20no%20rebuild%20delays.&demo-url=https%3A%2F%2Fnext-blog.sanity.build%2F&demo-image=https%3A%2F%2Fgithub.com%2Fsanity-io%2Fnext-sanity%2Fassets%2F81981%2Fb81296a9-1f53-4eec-8948-3cb51aca1259&integration-ids=oac_hb2LITYajhRQ0i4QznmKH7gx
 [integration]: https://www.sanity.io/docs/vercel-integration
-[`sanity.json`]: studio/sanity.json
 [`.env.local.example`]: .env.local.example
 [unsplash]: https://unsplash.com
+[sanity-homepage]: https://www.sanity.io?utm_source=github.com&utm_medium=referral&utm_campaign=nextjs-v3vercelstarter
+[presentation]: https://www.sanity.io/docs/presentation
+[enable-ai-assist]: https://www.sanity.io/plugins/ai-assist#enabling-the-ai-assist-api

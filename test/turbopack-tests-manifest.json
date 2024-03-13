@@ -375,7 +375,13 @@
       "metadata: resolveUrl should compose with metadataBase when url is relative or absolute",
       "metadata: resolveUrl should ignore metadataBase when url is valid URL",
       "metadata: resolveUrl should return null when url is falsy",
-      "metadata: resolveUrl should return url itself when metadataBase is null or url is valid URL"
+      "metadata: resolveUrl should return url itself when metadataBase is null or url is valid URL",
+      "resolveAbsoluteUrlWithPathname trailingSlash is false should resolve absolute internal url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to absolute internal url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to relative url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to absolute internal url with query",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to external url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to relative url with query"
     ],
     "failed": [],
     "pending": [],
@@ -1064,12 +1070,11 @@
   },
   "test/development/acceptance-app/invalid-imports.test.ts": {
     "passed": [
-      "Error Overlay invalid imports should show error when external package imports client-only in server component"
-    ],
-    "failed": [
+      "Error Overlay invalid imports should show error when external package imports client-only in server component",
       "Error Overlay invalid imports should show error when external package imports server-only in client component",
       "Error Overlay invalid imports should show error when using styled-jsx in server component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1324,15 +1329,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
+      "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo render error not shown right after syntax error",
       "ReactRefreshLogBox turbo stuck error"
     ],
-    "failed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a component error",
-      "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo syntax > runtime error"
-    ],
+    "failed": ["ReactRefreshLogBox turbo syntax > runtime error"],
     "pending": [
       "ReactRefreshLogBox default logbox: can recover from a component error",
       "ReactRefreshLogBox default logbox: can recover from a event handler error",
@@ -1401,6 +1404,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/edge-errors-hmr/index.test.ts": {
+    "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
+      "develop - app-dir - edge errros hmr should recover from build errors when server component error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/experimental-lightningcss/experimental-lightningcss.test.ts": {
     "passed": ["experimental-lightningcss should support css modules"],
     "failed": [],
@@ -1427,18 +1440,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/multiple-compiles-single-route/multiple-compiles-single-route.test.ts": {
+  "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
-      "multiple-compiles-single-route should not compile additional matching paths"
+      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/show-error-when-missing-html-or-body-in-root-layout/show-error-when-missing-html-or-body-in-root-layout.test.ts": {
+  "test/development/app-dir/multiple-compiles-single-route/multiple-compiles-single-route.test.ts": {
     "passed": [
-      "show error when missing html or body in root layout should show error overlay"
+      "multiple-compiles-single-route should not compile additional matching paths"
     ],
     "failed": [],
     "pending": [],
@@ -1559,6 +1573,7 @@
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
+      "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1580,6 +1595,7 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1593,11 +1609,9 @@
     ],
     "failed": [
       "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error"
     ],
@@ -2385,12 +2399,12 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
+      "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
-      "app dir - basepath should support `basePath`",
-      "app dir - basepath should prefix metadata og image with basePath"
+      "app dir - basepath should support `basePath`"
     ],
     "failed": [],
     "pending": [],
@@ -2874,6 +2888,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
@@ -2951,6 +2967,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
@@ -3310,6 +3328,16 @@
     "passed": [
       "dynamic-href should error when using dynamic href in app dir",
       "dynamic-href should error when using dynamic href.pathname in app dir"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
+    "passed": [
+      "dynamic-requests should not error for dynamic requests in pages",
+      "dynamic-requests should not error for dynamic requests in routes"
     ],
     "failed": [],
     "pending": [],
@@ -4672,7 +4700,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
-    "passed": ["Multi Global Support (reversed) should render the page"],
+    "passed": ["(SCSS) Multi Global Support (reversed) should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4982,6 +5010,7 @@
   "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
     "passed": [
       "app-dir trailingSlash handling should contain trailing slash to canonical url",
+      "app-dir trailingSlash handling should not add trailing slash to external url or relative url with query",
       "app-dir trailingSlash handling should redirect route when clicking link",
       "app-dir trailingSlash handling should redirect route when requesting it directly",
       "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
@@ -6462,12 +6491,11 @@
     "passed": [
       "og-api should respond from index",
       "og-api should throw error when returning a response object in pages/api in node runtime",
-      "og-api should work in app route in node runtime"
-    ],
-    "failed": [
+      "og-api should work in app route in node runtime",
       "og-api should work in app route",
       "og-api should work in pages/api"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7427,7 +7455,7 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage $dynamicPage",
+      "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-static'",
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage undefined"
@@ -13751,6 +13779,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts": {
+    "passed": [
+      "Image Component from node_modules dev mode should apply image config for node_modules"
+    ],
+    "failed": [],
+    "pending": [
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/next-image-new/app-dir/test/index.test.ts": {
     "passed": [
       "Image Component Default Tests dev mode Fill-mode tests should add 100% width and height to fill images",
@@ -15843,18 +15882,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -15862,13 +15900,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

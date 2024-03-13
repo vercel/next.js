@@ -129,15 +129,15 @@ export async function createHotReloaderTurbopack(
     env: process.env as Record<string, string>,
     defineEnv: createDefineEnv({
       isTurbopack: true,
-      allowedRevalidateHeaderKeys: undefined,
+      // TODO: Implement
       clientRouterFilters: undefined,
       config: nextConfig,
       dev: true,
       distDir,
-      fetchCacheKeyPrefix: undefined,
+      fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
       hasRewrites,
+      // TODO: Implement
       middlewareMatchers: undefined,
-      previewModeId: undefined,
     }),
   })
   const entrypointsSubscription = project.entrypointsSubscribe()

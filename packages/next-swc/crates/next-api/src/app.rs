@@ -11,7 +11,7 @@ use next_core::{
     get_edge_resolve_options_context,
     next_app::{
         app_client_references_chunks::get_app_server_reference_modules,
-        get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
+        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
         get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
     next_client::{
@@ -51,8 +51,10 @@ use turbopack_binding::{
         },
         nodejs::EntryChunkGroupResult,
         turbopack::{
-            module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-            transition::ContextTransition, ModuleAssetContext,
+            module_options::ModuleOptionsContext,
+            resolve_options_context::ResolveOptionsContext,
+            transition::{ContextTransition, FullContextTransition},
+            ModuleAssetContext,
         },
     },
 };
@@ -156,13 +158,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
-            self.project().client_compile_time_info(),
-            self.client_module_options_context(),
-            self.client_resolve_options_context(),
-            Vc::cell("app-client".to_string()),
-        )
+    async fn client_transition(self: Vc<Self>) -> Result<Vc<FullContextTransition>> {
+        let module_context = self.client_module_context();
+        Ok(FullContextTransition::new(module_context))
     }
 
     #[turbo_tasks::function]
@@ -204,13 +202,15 @@ impl AppProject {
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    self.client_transition(),
+                    Vc::upcast(self.client_transition()),
                     self.ssr_transition(),
                 )),
             ),
             (
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             ),
             ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
@@ -231,13 +231,15 @@ impl AppProject {
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    self.client_transition(),
+                    Vc::upcast(self.client_transition()),
                     self.edge_ssr_transition(),
                 )),
             ),
             (
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             ),
             (
                 "next-ssr".to_string(),
@@ -517,18 +519,19 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let (app_entry, process_client, process_ssr) = match this.ty {
+        let (app_entry, process_client, process_ssr, has_client_side_assets) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
                 true,
                 matches!(ty, AppPageEndpointType::Html),
+                true,
             ),
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false),
+            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false, false),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), false, false)
+                (self.app_metadata_entry(metadata), false, false, false)
             }
         };
 
@@ -579,17 +582,18 @@ impl AppEndpoint {
         // .await?;
 
         let app_server_reference_modules = if process_client {
-            let client_shared_chunks = get_app_client_shared_chunks(
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 app_entry
                     .rsc_entry
                     .ident()
                     .with_modifier(Vc::cell("client_shared_chunks".to_string())),
                 this.app_project.client_runtime_entries(),
                 this.app_project.project().client_chunking_context(),
-            );
+            )
+            .await?;
 
             let mut client_shared_chunks_paths = vec![];
-            for chunk in client_shared_chunks.await?.iter().copied() {
+            for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
                 client_assets.push(chunk);
 
                 let chunk_path = chunk.ident().path().await?;
@@ -599,6 +603,7 @@ impl AppEndpoint {
                     }
                 }
             }
+            let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
             let client_reference_graph = ClientReferenceGraph::new(Vc::cell(vec![rsc_entry_asset]));
             let client_reference_types = client_reference_graph.types();
@@ -609,7 +614,10 @@ impl AppEndpoint {
                     NextRuntime::NodeJs => {
                         Vc::upcast(this.app_project.project().server_chunking_context())
                     }
-                    NextRuntime::Edge => this.app_project.project().edge_chunking_context(),
+                    NextRuntime::Edge => this
+                        .app_project
+                        .project()
+                        .edge_chunking_context(has_client_side_assets),
                 })
             } else {
                 None
@@ -618,6 +626,7 @@ impl AppEndpoint {
             let client_references_chunks = get_app_client_references_chunks(
                 client_references,
                 this.app_project.project().client_chunking_context(),
+                Value::new(client_shared_availability_info),
                 ssr_chunking_context,
             );
             let client_references_chunks_ref = client_references_chunks.await?;
@@ -832,7 +841,10 @@ impl AppEndpoint {
         let endpoint_output = match runtime {
             NextRuntime::Edge => {
                 // create edge chunks
-                let chunking_context = this.app_project.project().edge_chunking_context();
+                let chunking_context = this
+                    .app_project
+                    .project()
+                    .edge_chunking_context(has_client_side_assets);
                 let mut evaluatable_assets = this
                     .app_project
                     .edge_rsc_runtime_entries()
