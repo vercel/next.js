@@ -12,7 +12,7 @@ const mockedGoogleFontResponses = require.resolve(
 function getClassNameRegex(className: string): RegExp {
   // Turbopack uses a different format for its css modules than webpack-based Next.js
   return shouldRunTurboDevTest()
-    ? new RegExp(`^.{6}__.*__${className}$`) // e.g. `ks7jmG__nabla_abb2401d-module__className`
+    ? new RegExp(`^.*__.{6}__${className}$`) // e.g. `ks7jmG__nabla_abb2401d-module__className`
     : new RegExp(`^__${className}_.{6}$`) // e.g. `__className_a8cc56`
 }
 
