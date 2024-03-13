@@ -357,7 +357,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
-    await session.patch('index.module.css', `.button {`)
+    await session.patch('index.module.css', `.button`)
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
@@ -365,9 +365,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     if (!IS_TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
-      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('Unknown word')
     }
-    expect(source).toMatch('> 1 | .button {')
+    expect(source).toMatch('> 1 | .button')
     expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
 
     // Checks for selectors that can't be prefixed.
@@ -839,17 +839,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('useless frames are hidden in stack trace', async () => {
+  test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
         [
           'app/page.js',
+          // TODO: repro stringify (<anonymous>)
           outdent`
         export default function Page() {
           const e = new Error("Boom!");
           e.stack += \`
-          // REVIEW: how to reliably test the presence of these stack frames?
           at stringify (<anonymous>)
           at <unknown> (<anonymous>)
           at foo (bar:1:1)\`;
@@ -869,23 +869,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(texts).not.toContain('<unknown>\n<anonymous>')
     expect(texts).toContain('foo\nbar (1:1)')
 
-    // Test that node:internal errors should be hidden
+    await cleanup()
+  })
 
-    next.patchFile(
-      'app/page.js',
-      // Node.js will throw an error about the invalid URL since this is a server component
-      outdent`
-      export default function Page() {
-        new URL("/", "invalid");
-      }`
+  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          // Node.js will throw an error about the invalid URL since this is a server component
+          outdent`
+          export default function Page() {
+            new URL("/", "invalid");
+          }`,
+        ],
+      ])
     )
 
     expect(await session.hasRedbox()).toBe(true)
     await expandCallStack(browser)
-    callStackFrames = await browser.elementsByCss(
+
+    // Should still show the errored line in source code
+    const source = await session.getRedboxSource()
+    expect(source).toContain('app/page.js')
+    expect(source).toContain(`new URL("/", "invalid")`)
+
+    await expandCallStack(browser)
+    const callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
-    texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
 
     expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
 

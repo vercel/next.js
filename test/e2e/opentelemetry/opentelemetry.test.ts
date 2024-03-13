@@ -75,6 +75,7 @@ createNextDescribe(
                   'http.status_code': 200,
                   'http.target': '/app/param/rsc-fetch',
                   'next.route': '/app/[param]/rsc-fetch',
+                  'next.rsc': false,
                   'next.span_name': 'GET /app/[param]/rsc-fetch',
                   'next.span_type': 'BaseServer.handleRequest',
                 },
@@ -129,12 +130,13 @@ createNextDescribe(
                         ],
                       },
                       {
-                        name: 'fetch GET https://vercel.com/',
+                        name: 'fetch GET https://example.vercel.sh/',
                         attributes: {
                           'http.method': 'GET',
-                          'http.url': 'https://vercel.com/',
-                          'net.peer.name': 'vercel.com',
-                          'next.span_name': 'fetch GET https://vercel.com/',
+                          'http.url': 'https://example.vercel.sh/',
+                          'net.peer.name': 'example.vercel.sh',
+                          'next.span_name':
+                            'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
                         },
                         kind: 2,
@@ -265,14 +267,15 @@ createNextDescribe(
                         ],
                       },
                       {
-                        name: 'fetch GET https://vercel.com/',
+                        name: 'fetch GET https://example.vercel.sh/',
                         kind: 2,
                         attributes: {
-                          'next.span_name': 'fetch GET https://vercel.com/',
+                          'next.span_name':
+                            'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
-                          'http.url': 'https://vercel.com/',
+                          'http.url': 'https://example.vercel.sh/',
                           'http.method': 'GET',
-                          'net.peer.name': 'vercel.com',
+                          'net.peer.name': 'example.vercel.sh',
                         },
                         status: { code: 0 },
                       },
@@ -329,6 +332,37 @@ createNextDescribe(
                     status: { code: 0 },
                   },
                 ],
+              },
+            ])
+          })
+
+          it('should handle RSC with fetch in RSC mode', async () => {
+            await next.fetch('/app/param/rsc-fetch', {
+              ...env.fetchInit,
+              headers: {
+                ...env.fetchInit?.headers,
+                Rsc: '1',
+              },
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'RSC GET /app/[param]/rsc-fetch',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/rsc-fetch',
+                  'http.status_code': 200,
+                  'http.target': '/app/param/rsc-fetch',
+                  'next.route': '/app/[param]/rsc-fetch',
+                  'next.rsc': true,
+                  'next.span_name': 'RSC GET /app/[param]/rsc-fetch',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
               },
             ])
           })

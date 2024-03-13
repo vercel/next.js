@@ -473,8 +473,7 @@ struct ReactServerComponentValidator {
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
     invalid_client_imports: Vec<JsWord>,
-    invalid_server_react_apis: Vec<JsWord>,
-    invalid_server_react_dom_apis: Vec<JsWord>,
+    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, Vec<ModuleImports>, Vec<String>)>,
 }
 
@@ -485,6 +484,56 @@ impl ReactServerComponentValidator {
             filepath: filename,
             app_dir,
             directive_import_collection: None,
+            // react -> [apis]
+            // react-dom -> [apis]
+            // next/navigation -> [apis]
+            invalid_server_lib_apis_mapping: [
+                (
+                    "react",
+                    vec![
+                        "Component",
+                        "createContext",
+                        "createFactory",
+                        "PureComponent",
+                        "useDeferredValue",
+                        "useEffect",
+                        "useImperativeHandle",
+                        "useInsertionEffect",
+                        "useLayoutEffect",
+                        "useReducer",
+                        "useRef",
+                        "useState",
+                        "useSyncExternalStore",
+                        "useTransition",
+                        "useOptimistic",
+                    ],
+                ),
+                (
+                    "react-dom",
+                    vec![
+                        "findDOMNode",
+                        "flushSync",
+                        "unstable_batchedUpdates",
+                        "useFormStatus",
+                        "useFormState",
+                    ],
+                ),
+                (
+                    "next/navigation",
+                    vec![
+                        "useSearchParams",
+                        "usePathname",
+                        "useSelectedLayoutSegment",
+                        "useSelectedLayoutSegments",
+                        "useParams",
+                        "useRouter",
+                        "useServerInsertedHTML",
+                        "ServerInsertedHTMLContext",
+                    ],
+                ),
+            ]
+            .into(),
+
             invalid_server_imports: vec![
                 JsWord::from("client-only"),
                 JsWord::from("react-dom/client"),
@@ -492,35 +541,33 @@ impl ReactServerComponentValidator {
                 JsWord::from("next/router"),
             ],
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
-            invalid_server_react_dom_apis: vec![
-                JsWord::from("findDOMNode"),
-                JsWord::from("flushSync"),
-                JsWord::from("unstable_batchedUpdates"),
-                JsWord::from("useFormStatus"),
-                JsWord::from("useFormState"),
-            ],
-            invalid_server_react_apis: vec![
-                JsWord::from("Component"),
-                JsWord::from("createContext"),
-                JsWord::from("createFactory"),
-                JsWord::from("PureComponent"),
-                JsWord::from("useDeferredValue"),
-                JsWord::from("useEffect"),
-                JsWord::from("useImperativeHandle"),
-                JsWord::from("useInsertionEffect"),
-                JsWord::from("useLayoutEffect"),
-                JsWord::from("useReducer"),
-                JsWord::from("useRef"),
-                JsWord::from("useState"),
-                JsWord::from("useSyncExternalStore"),
-                JsWord::from("useTransition"),
-                JsWord::from("useOptimistic"),
-            ],
         }
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
         Regex::new(r"node_modules[\\/]").unwrap().is_match(filepath)
+    }
+
+    // Asserts the server lib apis
+    // e.g.
+    // assert_invalid_server_lib_apis("react", import)
+    // assert_invalid_server_lib_apis("react-dom", import)
+    fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
+        // keys of invalid_server_lib_apis_mapping
+        let invalid_apis = self
+            .invalid_server_lib_apis_mapping
+            .get(import_source.as_str());
+        if let Some(invalid_apis) = invalid_apis {
+            for specifier in &import.specifiers {
+                if invalid_apis.contains(&specifier.0.as_str()) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrReactApi((specifier.0.to_string(), specifier.1)),
+                    );
+                }
+            }
+        }
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
@@ -530,41 +577,16 @@ impl ReactServerComponentValidator {
         }
         for import in imports {
             let source = import.source.0.clone();
+            let source_str = source.to_string();
             if self.invalid_server_imports.contains(&source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrServerImport((source.to_string(), import.source.1)),
+                    RSCErrorKind::NextRscErrServerImport((source_str.clone(), import.source.1)),
                 );
             }
-            if source == *"react" {
-                for specifier in &import.specifiers {
-                    if self.invalid_server_react_apis.contains(&specifier.0) {
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrReactApi((
-                                specifier.0.to_string(),
-                                specifier.1,
-                            )),
-                        );
-                    }
-                }
-            }
-            if source == *"react-dom" {
-                for specifier in &import.specifiers {
-                    if self.invalid_server_react_dom_apis.contains(&specifier.0) {
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrReactApi((
-                                specifier.0.to_string(),
-                                specifier.1,
-                            )),
-                        );
-                    }
-                }
-            }
+
+            self.assert_invalid_server_lib_apis(source_str, import);
         }
 
         self.assert_invalid_api(module, false);
