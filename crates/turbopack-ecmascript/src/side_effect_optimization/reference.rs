@@ -6,7 +6,10 @@ use swc_core::{
 };
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkItemExt, ChunkableModule, ChunkableModuleReference, ModuleId},
+    chunk::{
+        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingType, ChunkingTypeOption,
+        ModuleId,
+    },
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
 };
@@ -95,7 +98,12 @@ impl ModuleReference for EcmascriptModulePartReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EcmascriptModulePartReference {}
+impl ChunkableModuleReference for EcmascriptModulePartReference {
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EcmascriptModulePartReference {
