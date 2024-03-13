@@ -14,6 +14,7 @@ const NEXT_POLYFILLED_FEATURES = [
   'Array.prototype.includes',
   'Array.of',
   'Function.prototype.name',
+  'structuredClone',
   'fetch',
   'Map',
   'Number.EPSILON',

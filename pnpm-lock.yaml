@@ -1512,8 +1512,8 @@ importers:
   packages/next-polyfill-nomodule:
     devDependencies:
       core-js:
-        specifier: 3.6.5
-        version: 3.6.5
+        specifier: 3.36.0
+        version: 3.36.0
       microbundle:
         specifier: 0.15.0
         version: 0.15.0
@@ -9893,6 +9893,11 @@ packages:
     resolution: {integrity: sha512-nriW1nuJjUgvkEjIot1Spwakz52V9YkYHZAQG6A1eCgC8AA1p0zngrQEP9R0+V6hji5XilWKG1Bd0YRppmGimA==}
     dependencies:
       browserslist: 4.22.2
+
+  /core-js@3.36.0:
+    resolution: {integrity: sha512-mt7+TUBbTFg5+GngsAxeKBTl5/VS0guFeJacYge9OmHb+m058UwwIm41SE9T4Den7ClatV57B6TYTuJ0CX1MAw==}
+    requiresBuild: true
+    dev: true
 
   /core-js@3.6.5:
     resolution: {integrity: sha512-vZVEEwZoIsI+vPEuoF9Iqf5H7/M3eeQqWlQnYa8FSKKePuYTf5MWnxb5SDAzCa60b3JBRS5g9b+Dq7b1y/RCrA==}
