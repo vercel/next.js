@@ -82,14 +82,6 @@ if (testModeFromFile === 'e2e') {
   testMode = 'start'
 }
 
-if (testMode === 'dev') {
-  ;(global as any).isNextDev = true
-} else if (testMode === 'deploy') {
-  ;(global as any).isNextDeploy = true
-} else {
-  ;(global as any).isNextStart = true
-}
-
 /**
  * Whether the test is running in dev mode.
  * Based on `process.env.NEXT_TEST_MODE` and the test directory.
