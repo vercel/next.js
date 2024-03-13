@@ -31,6 +31,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
     }
@@ -38,6 +40,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
       lazyDataResolved: false,
       parallelRoutes: new Map([
         [
@@ -49,6 +53,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
                 lazyDataResolved: false,
                 parallelRoutes: new Map([
                   [
@@ -60,6 +66,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
                           lazyDataResolved: false,
                           parallelRoutes: new Map(),
                         },
@@ -100,6 +108,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     const expectedCache: CacheNode = {
       lazyData: null,
       lazyDataResolved: false,
+      head: null,
+      prefetchHead: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -109,6 +119,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               {
                 lazyData: null,
                 lazyDataResolved: false,
+                head: null,
+                prefetchHead: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -120,6 +132,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           parallelRoutes: new Map(),
                           rsc: <React.Fragment>Page</React.Fragment>,
                           prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
                           lazyDataResolved: false,
                         },
                       ],

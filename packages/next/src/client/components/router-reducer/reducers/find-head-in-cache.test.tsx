@@ -29,6 +29,8 @@ describe('findHeadInCache', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
       lazyDataResolved: false,
       parallelRoutes: new Map([
         [
@@ -40,6 +42,8 @@ describe('findHeadInCache', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
                 lazyDataResolved: false,
                 parallelRoutes: new Map([
                   [
@@ -50,6 +54,8 @@ describe('findHeadInCache', () => {
                         {
                           lazyData: null,
                           lazyDataResolved: false,
+                          head: null,
+                          prefetchHead: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -60,6 +66,7 @@ describe('findHeadInCache', () => {
                                     lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
+                                    prefetchHead: null,
                                     lazyDataResolved: false,
                                     parallelRoutes: new Map(),
                                     head: (

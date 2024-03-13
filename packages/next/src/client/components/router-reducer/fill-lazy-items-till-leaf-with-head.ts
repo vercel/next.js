@@ -65,6 +65,8 @@ export function fillLazyItemsTillLeafWithHead(
             // `prefetchRsc`. As an incremental step, we'll just de-opt to the
             // old behavior — no PPR value.
             prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             lazyDataResolved: false,
           }
@@ -78,7 +80,10 @@ export function fillLazyItemsTillLeafWithHead(
             // just cloning the existing cache node, we might as well keep the
             // PPR value, if it exists.
             prefetchRsc: existingCacheNode.prefetchRsc,
+            head: existingCacheNode.head,
+            prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
+            lazyDataResolved: existingCacheNode.lazyDataResolved,
           } as CacheNode
         } else {
           // No data available for this node. This will trigger a lazy fetch
@@ -87,6 +92,8 @@ export function fillLazyItemsTillLeafWithHead(
             lazyData: null,
             rsc: null,
             prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             lazyDataResolved: false,
           }
@@ -117,6 +124,8 @@ export function fillLazyItemsTillLeafWithHead(
         lazyData: null,
         rsc: seedNode,
         prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
         lazyDataResolved: false,
       }
@@ -127,6 +136,8 @@ export function fillLazyItemsTillLeafWithHead(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
         lazyDataResolved: false,
       }
