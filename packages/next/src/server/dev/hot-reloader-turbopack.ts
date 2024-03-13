@@ -690,13 +690,6 @@ export async function createHotReloaderTurbopack(
         errors.push(new Error(formatIssue(issue)))
       }
       for (const [key, entryIssues] of currentEntryIssues.entries()) {
-        if (
-          key === getEntryKey('app', 'server', '_error') ||
-          key === getEntryKey('pages', 'server', '_error')
-        ) {
-          continue
-        }
-
         for (const issue of entryIssues.values()) {
           errors.push(new Error(formatIssue(issue)))
         }
