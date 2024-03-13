@@ -620,8 +620,6 @@ export async function createHotReloaderTurbopack(
 
         const errors: CompilationError[] = []
 
-        currentEntryIssues.delete(getEntryKey('app', 'server', '_error'))
-        currentEntryIssues.delete(getEntryKey('pages', 'server', '_error'))
         for (const entryIssues of currentEntryIssues.values()) {
           for (const issue of entryIssues.values()) {
             errors.push({
@@ -662,9 +660,6 @@ export async function createHotReloaderTurbopack(
     async getCompilationErrors(page) {
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)
-
-      currentEntryIssues.delete(getEntryKey('app', 'server', '_error'))
-      currentEntryIssues.delete(getEntryKey('pages', 'server', '_error'))
 
       const topLevelIssues = currentTopLevelIssues.values()
 
