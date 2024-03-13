@@ -40,4 +40,27 @@ export default function Page() {
 }
 ```
 
+### Google Analytics Event
+
+The `sendGAEvent` function can be used to send an event to Google Analytics. This function uses the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs/events) library under the hood.
+
+```js
+import { sendGAEvent } from '@next/third-parties/google'
+
+export default function Page() {
+  return (
+    <button
+      onClick={() => {
+        // Send an event to Google Analytics
+        sendGAEvent('event-name', {
+          value: xyz,
+        })
+      }}
+    >
+      Click me
+    </button>
+  )
+}
+```
+
 To get a better idea of how these components work, take a look at this [demo](https://test-next-script-housseindjirdeh.vercel.app/). <!--- TODO: Replace with a better demo page -->
