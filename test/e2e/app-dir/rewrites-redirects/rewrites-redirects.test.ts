@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextDeploy } from 'e2e-utils'
 
 createNextDescribe(
   'redirects and rewrites',
@@ -14,7 +14,7 @@ createNextDescribe(
   },
   ({ next }) => {
     // TODO: investigate test failures on deploy
-    if ((global as any).isNextDeploy) {
+    if (isNextDeploy) {
       it('should skip for deploy', () => {})
       return
     }

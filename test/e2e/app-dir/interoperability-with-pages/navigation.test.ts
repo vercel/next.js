@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 
@@ -42,7 +42,7 @@ describe('navigation between pages and app dir', () => {
   })
 
   // TODO: re-enable after 404 transition bug is addressed
-  if (!(global as any).isNextDeploy) {
+  if (!isNextDeploy) {
     it('It should be able to navigate pages -> app and go back an forward', async () => {
       const browser = await webdriver(next.url, '/pages')
       await browser

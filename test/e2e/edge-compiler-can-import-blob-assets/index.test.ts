@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
@@ -12,7 +12,7 @@ describe.skip('Edge Compiler can import asset assets', () => {
   let next: NextInstance
 
   // TODO: remove after this is supported for deploy
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip for deploy for now', () => {})
     return
   }

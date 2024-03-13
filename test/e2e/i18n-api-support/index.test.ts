@@ -1,4 +1,4 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDeploy } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
@@ -55,7 +55,7 @@ describe('i18n API support', () => {
   })
 
   // TODO: re-enable after this is fixed to match on Vercel
-  if (!(global as any).isNextDeploy) {
+  if (!isNextDeploy) {
     it('should fallback rewrite non-matching API request', async () => {
       const paths = [
         '/fr/api/hello',

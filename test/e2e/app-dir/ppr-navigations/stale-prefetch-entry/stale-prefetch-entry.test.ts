@@ -1,10 +1,10 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDev } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 
 describe('stale-prefetch-entry', () => {
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     test('ppr is disabled in dev', () => {})
     return
   }

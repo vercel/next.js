@@ -1,21 +1,19 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'app-dir create root layout',
   () => {
-    const isDev = (global as any).isNextDev
-
-    if ((global as any).isNextDeploy) {
+    if (isNextDeploy) {
       it('should skip next deploy for now', () => {})
       return
     }
 
     let next: NextInstance
 
-    if (isDev) {
+    if (isNextDev) {
       describe('page.js', () => {
         describe('root layout in app', () => {
           beforeAll(async () => {

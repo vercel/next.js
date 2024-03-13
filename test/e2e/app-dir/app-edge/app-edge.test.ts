@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextDev } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
@@ -26,7 +26,7 @@ createNextDescribe(
       expect(appHtml).toContain('the /index route')
     })
 
-    if ((globalThis as any).isNextDev) {
+    if (isNextDev) {
       it('should warn about the re-export of a pages runtime/preferredRegion config', async () => {
         const logs = []
         next.on('stderr', (log) => {

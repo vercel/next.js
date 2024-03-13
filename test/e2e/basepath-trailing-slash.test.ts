@@ -1,6 +1,6 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { hasRedbox } from 'next-test-utils'
 
@@ -96,5 +96,5 @@ describe('basePath + trailingSlash', () => {
       }
     })
   }
-  runTests((global as any).isDev)
+  runTests(isNextDev)
 })

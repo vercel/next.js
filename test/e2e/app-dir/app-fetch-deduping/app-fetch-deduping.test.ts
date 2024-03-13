@@ -1,10 +1,10 @@
 import { findPort, waitFor } from 'next-test-utils'
 import http from 'http'
 import { outdent } from 'outdent'
-import { FileRef, createNext } from 'e2e-utils'
+import { FileRef, createNext, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('app-fetch-deduping', () => {
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     describe('during static generation', () => {
       let externalServerPort: number
       let externalServer: http.Server
@@ -50,7 +50,7 @@ describe('app-fetch-deduping', () => {
         await next.destroy()
       })
     })
-  } else if ((global as any).isNextDev) {
+  } else if (isNextDev) {
     describe('during next dev', () => {
       it('should dedupe requests called from the same component', async () => {
         const next = await createNext({

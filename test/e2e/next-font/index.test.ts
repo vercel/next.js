@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 import { join } from 'path'
@@ -12,7 +12,7 @@ const mockedGoogleFontResponses = require.resolve(
 function getClassNameRegex(className: string): RegExp {
   // Turbopack uses a different format for its css modules than webpack-based Next.js
   return shouldRunTurboDevTest()
-    ? new RegExp(`^.*__.{6}__${className}$`) // e.g. `ks7jmG__nabla_abb2401d-module__className`
+    ? new RegExp(`^${className}__.*__.{6}$`) // e.g. `className__nabla_abb2401d-module__ks7jmG`
     : new RegExp(`^__${className}_.{6}$`) // e.g. `__className_a8cc56`
 }
 
@@ -47,7 +47,7 @@ describe('next/font', () => {
       }
       let next: NextInstance
 
-      if ((global as any).isNextDeploy) {
+      if (isNextDeploy) {
         it('should skip next deploy for now', () => {})
         return
       }
@@ -69,7 +69,7 @@ describe('next/font', () => {
       })
       afterAll(() => next.destroy())
 
-      if ((global as any).isNextDev) {
+      if (isNextDev) {
         it('should use production cache control for fonts', async () => {
           const $ = await next.render$('/')
           const link = $('[rel="preload"][as="font"]').attr('href')

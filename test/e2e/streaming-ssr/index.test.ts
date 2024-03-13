@@ -1,5 +1,10 @@
 import { join } from 'path'
-import { createNext, createNextDescribe } from 'e2e-utils'
+import {
+  createNext,
+  createNextDescribe,
+  isNextDev,
+  isNextStart,
+} from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
@@ -9,8 +14,6 @@ import {
   killApp,
   renderViaHTTP,
 } from 'next-test-utils'
-
-const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
 createNextDescribe(
   'streaming SSR with custom next configs',
@@ -57,7 +60,7 @@ createNextDescribe(
       expect(html).toContain('マルチバイト'.repeat(28))
     })
 
-    if ((global as any).isNextDev) {
+    if (isNextDev) {
       it('should work with custom document', async () => {
         await next.patchFile(
           'pages/_document.js',
@@ -86,7 +89,7 @@ createNextDescribe(
   }
 )
 
-if (isNextProd) {
+if (isNextStart) {
   describe('streaming SSR with custom server', () => {
     let next
     let server
@@ -126,7 +129,7 @@ if (isNextProd) {
     let next: NextInstance
 
     beforeAll(async () => {
-      if (isNextProd) {
+      if (isNextStart) {
         process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
       }
 
@@ -162,7 +165,7 @@ if (isNextProd) {
       })
     })
     afterAll(() => {
-      if (isNextProd) {
+      if (isNextStart) {
         delete process.env.NEXT_PRIVATE_MINIMAL_MODE
       }
       next.destroy()
@@ -178,7 +181,7 @@ if (isNextProd) {
       expect(html).toContain('streaming')
     })
 
-    if (isNextProd) {
+    if (isNextStart) {
       it('should have generated a static 404 page', async () => {
         expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
 

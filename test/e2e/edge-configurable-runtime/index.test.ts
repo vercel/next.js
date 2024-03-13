@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev, isNextStart } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, File, nextBuild } from 'next-test-utils'
 import { join } from 'path'
@@ -15,7 +15,7 @@ const apiPath = 'pages/api/edge.js'
   const page = new File(join(appDir, pagePath))
   const api = new File(join(appDir, apiPath))
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     describe('In dev mode', () => {
       beforeAll(async () => {
         next = await createNext({
@@ -91,7 +91,7 @@ const apiPath = 'pages/api/edge.js'
         expect(next.cliOutput).not.toInclude('warn')
       })
     })
-  } else if ((global as any).isNextStart) {
+  } else if (isNextStart) {
     describe('In start mode', () => {
       // TODO because createNext runs process.exit() without any log info on build failure, rely on good old nextBuild()
       afterEach(async () => {
