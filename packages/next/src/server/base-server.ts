@@ -1850,6 +1850,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
+      res.setHeader('x-matched-path', pathname)
       res.setHeader('x-middleware-skip', '1')
       res.setHeader(
         'cache-control',
