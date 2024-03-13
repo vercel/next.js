@@ -243,13 +243,13 @@ export async function createHotReloaderTurbopack(
     }
     buildingIds.add(id)
     return function finishBuilding() {
-      hmrEventHappened = false
       if (buildingIds.size === 0) {
         return
       }
       readyIds.add(id)
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
+        hmrEventHappened = false
         consoleStore.setState(
           {
             loading: false,
