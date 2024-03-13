@@ -1,17 +1,17 @@
 /* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css) */
-.module-style__style-module__YW1Vbq {
+.style-module__YW1Vbq__module-style {
   color: #f0f;
 }
 
-.module-style__style-module__YW1Vbq > h1, .module-style__style-module__YW1Vbq + .inner__style-module__YW1Vbq {
+.style-module__YW1Vbq__module-style > h1, .style-module__YW1Vbq__module-style + .style-module__YW1Vbq__inner {
   background: purple;
 }
 
-.composed-module-style__style-module__YW1Vbq {
+.style-module__YW1Vbq__composed-module-style {
   color: green;
 }
 
-.another-composed-module-style__style-module__YW1Vbq {
+.style-module__YW1Vbq__another-composed-module-style {
   color: #ff0;
 }
 
