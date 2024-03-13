@@ -680,6 +680,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
+      // TODO(@panteliselef): Handle this
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
 

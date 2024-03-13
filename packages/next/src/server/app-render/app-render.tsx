@@ -45,6 +45,7 @@ import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isNotFoundError } from '../../client/components/not-found'
+import { isForbiddenError } from '../../client/components/forbidden'
 import {
   getURLFromRedirectError,
   isRedirectError,
@@ -1175,6 +1176,8 @@ async function renderToHTMLOrFlightImpl(
 
         if (isNotFoundError(err)) {
           res.statusCode = 404
+        } else if (isForbiddenError(err)) {
+          res.statusCode = 403
         }
         let hasRedirectError = false
         if (isRedirectError(err)) {
@@ -1195,13 +1198,17 @@ async function renderToHTMLOrFlightImpl(
           )
           res.setHeader('Location', redirectUrl)
         }
-
-        const is404 = res.statusCode === 404
-        if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
+        const internalHandledStatusCodes = [403, 404]
+        if (
+          !internalHandledStatusCodes.includes(res.statusCode) &&
+          !hasRedirectError &&
+          !shouldBailoutToCSR
+        ) {
           res.statusCode = 500
         }
 
-        const errorType = is404
+        // TODO(@panteliselef): Handle this
+        const errorType = internalHandledStatusCodes.includes(res.statusCode)
           ? 'not-found'
           : hasRedirectError
           ? 'redirect'

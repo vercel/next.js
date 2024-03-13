@@ -17,6 +17,10 @@ export function handleBadRequestResponse(): Response {
   return new Response(null, { status: 400 })
 }
 
+export function handleForbiddenResponse(): Response {
+  return new Response(null, { status: 403 })
+}
+
 export function handleNotFoundResponse(): Response {
   return new Response(null, { status: 404 })
 }

@@ -32,6 +32,7 @@ import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
+import { ForbiddenBoundary } from './forbidden-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 
@@ -514,6 +515,8 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
+  forbidden,
+  forbiddenStyles,
   styles,
 }: {
   parallelRouterKey: string
@@ -530,6 +533,8 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
+  forbidden: React.ReactNode | undefined
+  forbiddenStyles: React.ReactNode | undefined
   styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -593,24 +598,29 @@ export default function OuterLayoutRouter({
                     loadingStyles={loadingStyles}
                     loadingScripts={loadingScripts}
                   >
-                    <NotFoundBoundary
-                      notFound={notFound}
-                      notFoundStyles={notFoundStyles}
+                    <ForbiddenBoundary
+                      forbidden={forbidden}
+                      forbiddenStyles={forbiddenStyles}
                     >
-                      <RedirectBoundary>
-                        <InnerLayoutRouter
-                          parallelRouterKey={parallelRouterKey}
-                          url={url}
-                          tree={tree}
-                          childNodes={childNodesForParallelRouter!}
-                          segmentPath={segmentPath}
-                          cacheKey={cacheKey}
-                          isActive={
-                            currentChildSegmentValue === preservedSegmentValue
-                          }
-                        />
-                      </RedirectBoundary>
-                    </NotFoundBoundary>
+                      <NotFoundBoundary
+                        notFound={notFound}
+                        notFoundStyles={notFoundStyles}
+                      >
+                        <RedirectBoundary>
+                          <InnerLayoutRouter
+                            parallelRouterKey={parallelRouterKey}
+                            url={url}
+                            tree={tree}
+                            childNodes={childNodesForParallelRouter!}
+                            segmentPath={segmentPath}
+                            cacheKey={cacheKey}
+                            isActive={
+                              currentChildSegmentValue === preservedSegmentValue
+                            }
+                          />
+                        </RedirectBoundary>
+                      </NotFoundBoundary>
+                    </ForbiddenBoundary>
                   </LoadingBoundary>
                 </ErrorBoundary>
               </ScrollAndFocusHandler>
