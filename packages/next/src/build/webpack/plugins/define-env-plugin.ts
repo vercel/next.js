@@ -96,11 +96,8 @@ export function getDefineEnv({
     ),
     'process.env.NEXT_MINIMAL': JSON.stringify(''),
     'process.env.__NEXT_PPR': JSON.stringify(config.experimental.ppr === true),
-    'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
-      config.experimental.useDeploymentIdServerActions
-    ),
     'process.env.NEXT_DEPLOYMENT_ID': JSON.stringify(
-      config.experimental.deploymentId || false
+      config.deploymentId || false
     ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
       JSON.stringify(fetchCacheKeyPrefix),

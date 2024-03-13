@@ -204,6 +204,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         z.literal('use-credentials'),
       ])
       .optional(),
+    deploymentId: z.string().optional(),
     devIndicators: z
       .object({
         buildActivity: z.boolean().optional(),
@@ -247,9 +248,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
-        useDeploymentId: z.boolean().optional(),
-        useDeploymentIdServerActions: z.boolean().optional(),
-        deploymentId: z.string().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),

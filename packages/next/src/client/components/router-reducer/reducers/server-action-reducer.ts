@@ -70,8 +70,7 @@ async function fetchServerAction(
       Accept: RSC_CONTENT_TYPE_HEADER,
       [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
-      ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
-      process.env.NEXT_DEPLOYMENT_ID
+      ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
           }

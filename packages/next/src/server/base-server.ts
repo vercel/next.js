@@ -501,13 +501,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      process.env.NEXT_DEPLOYMENT_ID =
-        this.nextConfig.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
     }
 
     this.renderOpts = {
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.experimental.deploymentId,
+      deploymentId: this.nextConfig.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
