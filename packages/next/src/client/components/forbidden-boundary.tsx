@@ -42,7 +42,7 @@ class ForbiddenErrorBoundary extends React.Component<
       !this.props.missingSlots.has('children')
     ) {
       let warningMessage =
-        'No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n' +
+        'No default component was found for a parallel route rendered on this page. Falling back to nearest Forbidden boundary.\n' +
         'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
 
       if (this.props.missingSlots.size > 0) {
@@ -64,7 +64,7 @@ class ForbiddenErrorBoundary extends React.Component<
         forbiddenTriggered: true,
       }
     }
-    // Re-throw if error is not for 404
+    // Re-throw if error is not for 403
     throw error
   }
 
@@ -96,7 +96,7 @@ class ForbiddenErrorBoundary extends React.Component<
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
-            <meta name="next-error" content="not-found" />
+            <meta name="next-error" content="forbidden" />
           )}
           {this.props.forbiddenStyles}
           {this.props.forbidden}
@@ -121,6 +121,7 @@ export function ForbiddenBoundary({
       pathname={pathname}
       forbidden={forbidden}
       forbiddenStyles={forbiddenStyles}
+      //TODO(@panteliselef): Maybe remove ? Should this be for a default 403 ?
       asNotFound={asNotFound}
       missingSlots={missingSlots}
     >
