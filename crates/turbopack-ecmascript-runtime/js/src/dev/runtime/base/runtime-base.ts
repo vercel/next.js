@@ -104,6 +104,17 @@ interface RuntimeBackend {
   restart: () => void;
 }
 
+class UpdateApplyError extends Error {
+  name = "UpdateApplyError";
+
+  dependencyChain: string[];
+
+  constructor(message: string, dependencyChain: string[]) {
+    super(message);
+    this.dependencyChain = dependencyChain;
+  }
+}
+
 const moduleFactories: ModuleFactories = Object.create(null);
 const moduleCache: ModuleCache = Object.create(null);
 /**
@@ -539,16 +550,18 @@ function computedInvalidatedModules(
 
     switch (effect.type) {
       case "unaccepted":
-        throw new Error(
+        throw new UpdateApplyError(
           `cannot apply update: unaccepted module. ${formatDependencyChain(
             effect.dependencyChain
-          )}.`
+          )}.`,
+          effect.dependencyChain
         );
       case "self-declined":
-        throw new Error(
+        throw new UpdateApplyError(
           `cannot apply update: self-declined module. ${formatDependencyChain(
             effect.dependencyChain
-          )}.`
+          )}.`,
+          effect.dependencyChain
         );
       case "accepted":
         for (const outdatedModuleId of effect.outdatedModules) {

@@ -9,6 +9,7 @@ export function initializeHMR(options: { assetPrefix: string }) {
   connect({
     addMessageListener,
     sendMessage,
+    onUpdateError: console.error,
   });
   connectHMR({
     assetPrefix: options.assetPrefix,

@@ -333,6 +333,14 @@ let SourceType;
    * update.
    */ SourceType[SourceType["Update"] = 2] = "Update";
 })(SourceType || (SourceType = {}));
+class UpdateApplyError extends Error {
+    name = "UpdateApplyError";
+    dependencyChain;
+    constructor(message, dependencyChain){
+        super(message);
+        this.dependencyChain = dependencyChain;
+    }
+}
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 /**
@@ -664,9 +672,9 @@ function computedInvalidatedModules(invalidated) {
         const effect = getAffectedModuleEffects(moduleId);
         switch(effect.type){
             case "unaccepted":
-                throw new Error(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`);
+                throw new UpdateApplyError(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
             case "self-declined":
-                throw new Error(`cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`);
+                throw new UpdateApplyError(`cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
             case "accepted":
                 for (const outdatedModuleId of effect.outdatedModules){
                     outdatedModules.add(outdatedModuleId);
