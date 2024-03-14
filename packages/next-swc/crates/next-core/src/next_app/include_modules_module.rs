@@ -68,7 +68,7 @@ impl EcmascriptChunkPlaceable for IncludeModulesModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>) -> Vc<bool> {
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Vec<String>>) -> Vc<bool> {
         Vc::cell(true)
     }
 }
