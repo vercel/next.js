@@ -95,7 +95,7 @@ impl InstrumentationEndpoint {
         };
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context();
+        let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
