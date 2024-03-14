@@ -171,10 +171,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(external_cjs_modules_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -182,10 +182,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
@@ -199,8 +199,8 @@ pub async fn get_server_resolve_options_context(
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
     };

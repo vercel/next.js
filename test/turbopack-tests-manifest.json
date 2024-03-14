@@ -2555,6 +2555,7 @@
       "app dir - external dependency react in external esm packages should use the same react in server app",
       "app dir - external dependency server actions should compile server actions from node_modules in client components",
       "app dir - external dependency server actions should not prefer to resolve esm over cjs for bundling optout packages",
+      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
       "app dir - external dependency should correctly collect global css imports and mark them as side effects",
       "app dir - external dependency should emit cjs helpers for external cjs modules when compiled",
       "app dir - external dependency should export client module references in esm",
@@ -2571,8 +2572,7 @@
       "app dir - external dependency should use the same export type for packages in both ssr and client"
     ],
     "failed": [
-      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should not apply swc optimizer transform for external packages in browser layer"
+      "app dir - external dependency should not apply swc optimizer transform for external packages in browser layer in web worker"
     ],
     "pending": [],
     "flakey": [],
