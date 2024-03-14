@@ -890,6 +890,11 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.error, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
     processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_error')

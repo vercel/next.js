@@ -666,6 +666,7 @@ export async function createHotReloaderTurbopack(
       const thisEntryIssues =
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
+
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
         return [...topLevelIssues, ...thisEntryIssues.values()].map((issue) => {
