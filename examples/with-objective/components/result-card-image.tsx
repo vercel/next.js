@@ -13,18 +13,27 @@ const fetchIfImageIsUrl = async (url: string) => {
 const traverseObjectForImageUrl = async (
     obj: Record<string, any>
 ): Promise<string | null> => {
+    // First, try to find an image URL at the current level
     for (let key in obj) {
-        if (typeof obj[key] === "object") {
-            return traverseObjectForImageUrl(obj[key])
-        }
         if (obj[key] && typeof obj[key] === "string") {
             const isImage = await fetchIfImageIsUrl(obj[key])
-
             if (isImage) {
                 return obj[key]
             }
         }
     }
+
+    // If no image URL is found, then recursively check nested objects
+    for (let key in obj) {
+        if (typeof obj[key] === "object") {
+            const imageUrl = await traverseObjectForImageUrl(obj[key])
+            if (imageUrl) {
+                return imageUrl
+            }
+        }
+    }
+
+    // If no image URL is found at all, return null
     return null
 }
 

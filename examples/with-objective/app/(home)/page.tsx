@@ -51,7 +51,7 @@ export default async function CatalogPage({
   const { pagination } = data;
 
   const isFirstPage = pagination.page === 1
-  const isLastPage = pagination.page === pagination.pages - 1
+  const isLastPage = pagination.page === pagination.pages
 
   return (
     <Shell className="max-w-7xl">
@@ -86,7 +86,7 @@ export default async function CatalogPage({
         {pagination?.pages > 1 && (
           <div className="flex items-center justify-between px-2 mt-16">
             <div className="flex-1 text-sm text-muted-foreground">
-              Page {pagination.page} of {pagination.pages - 1}
+              Page {pagination.page} of {pagination.pages}
             </div>
             <div className="flex items-center space-x-6 lg:space-x-8">
               <div className="items-center space-x-2 hidden lg:flex">
