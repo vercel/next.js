@@ -1276,7 +1276,8 @@ async function renderToHTMLOrFlightImpl(
           res.statusCode = 500
         }
 
-        // TODO(@panteliselef): Handle this
+        // TODO(@panteliselef): Maybe create specific type for `forbidden`
+        // This is probably is used to generate metadata.
         const errorType = internalHandledStatusCodes.includes(res.statusCode)
           ? 'not-found'
           : hasRedirectError
@@ -1374,7 +1375,7 @@ async function renderToHTMLOrFlightImpl(
   })
 
   let formState: null | any = null
-  // TODO(@panteliselef): Handle this
+  // TODO(@panteliselef): Do we need to handle forbidden the same way as not-found in this case ?
   if (actionRequestResult) {
     if (actionRequestResult.type === 'not-found') {
       const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)

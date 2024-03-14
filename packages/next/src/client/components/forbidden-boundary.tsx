@@ -122,6 +122,7 @@ export function ForbiddenBoundary({
       forbidden={forbidden}
       forbiddenStyles={forbiddenStyles}
       //TODO(@panteliselef): Maybe remove ? Should this be for a default 403 ?
+      // `asNoFound` comes from above, have not figured out its purpose yet.
       asNotFound={asNotFound}
       missingSlots={missingSlots}
     >

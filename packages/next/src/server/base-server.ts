@@ -2520,7 +2520,9 @@ export default abstract class Server<
 
           // Call the built-in render method on the module.
           result = await module.render(req, res, {
-            // TODO(@panteliselef): Handle this
+            // TODO(@panteliselef):
+            // Is this for pages router ?
+            // Do we need a `/403` route, probably not.
             page: is404Page ? '/404' : pathname,
             params: opts.params,
             query,
