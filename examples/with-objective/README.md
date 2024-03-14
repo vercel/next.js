@@ -24,7 +24,7 @@ pnpm create next-app --example with-objective next-objective-app
 
 ### Step 1. Create an account on Objective
 
-First, [create an account on Objective](https://app.objective.inc).
+First, [create an account on Objective](https://www.objective.inc/get-objective).
 
 After following the quickstart example, make note of your API Key, and Index ID which you'll be needing later.
 
