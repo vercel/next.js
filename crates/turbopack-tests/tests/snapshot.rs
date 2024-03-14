@@ -88,6 +88,8 @@ struct SnapshotOptions {
     runtime_type: RuntimeType,
     #[serde(default)]
     environment: SnapshotEnvironment,
+    #[serde(default)]
+    use_swc_css: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -113,6 +115,7 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
+            use_swc_css: Default::default(),
         }
     }
 }
@@ -262,9 +265,11 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             })),
             preset_env_versions: Some(env),
             ignore_dynamic_requests: true,
+            use_swc_css: options.use_swc_css,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
                 ModuleOptionsContext {
+                    use_swc_css: options.use_swc_css,
                     ..Default::default()
                 }
                 .cell(),

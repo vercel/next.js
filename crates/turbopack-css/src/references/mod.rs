@@ -117,6 +117,11 @@ impl VisitMut for ModuleReferencesVisitor<'_> {
         // res
     }
 
+    /// Noop. Urls in `@supports` are not used.
+    ///
+    /// See https://github.com/vercel/next.js/issues/63102
+    fn visit_mut_supports_condition(&mut self, _: &mut swc_core::css::ast::SupportsCondition) {}
+
     fn visit_mut_url(&mut self, u: &mut swc_core::css::ast::Url) {
         u.visit_mut_children_with(self);
 
@@ -219,6 +224,16 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
 
         // u.visit_children(self)?;
 
+        Ok(())
+    }
+
+    /// Noop. Urls in `@supports` are not used.
+    ///
+    /// See https://github.com/vercel/next.js/issues/63102
+    fn visit_supports_condition(
+        &mut self,
+        _: &mut lightningcss::rules::supports::SupportsCondition<'_>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 }
