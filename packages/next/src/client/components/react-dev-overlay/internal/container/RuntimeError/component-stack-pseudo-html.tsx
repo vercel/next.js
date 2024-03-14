@@ -153,7 +153,7 @@ export function PseudoHtmlDiff({
           <Fragment key={nestedHtmlStack.length}>
             <span>{spaces + `<${secondContent}>\n`}</span>
             <span data-nextjs-container-errors-pseudo-html--diff-remove>
-              {spaces + '  ' + `"${firstContent}"\n`}
+              {spaces + `  "${firstContent}"\n`}
             </span>
           </Fragment>
         )
