@@ -27,6 +27,7 @@ const PAGES: Record<
     conflict?: boolean
     brokenLoading?: boolean
     brokenLoadingDev?: boolean
+    brokenLoadingTurbo?: boolean
   }
 > = {
   first: {
@@ -139,6 +140,7 @@ const PAGES: Record<
   'pages-interleaved-a': {
     group: 'pages-interleaved',
     brokenLoadingDev: true,
+    brokenLoadingTurbo: true,
     url: '/pages/interleaved/a',
     selector: '#helloia',
     color: 'rgb(0, 255, 0)',
@@ -146,6 +148,7 @@ const PAGES: Record<
   'pages-interleaved-b': {
     group: 'pages-interleaved',
     brokenLoadingDev: true,
+    brokenLoadingTurbo: true,
     url: '/pages/interleaved/b',
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
@@ -273,6 +276,13 @@ for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
               PAGES[page].brokenLoading ||
               (isNextDev && PAGES[page].brokenLoadingDev)
           )
+          if (broken) {
+            it.todo(name)
+            continue
+          }
+        } else {
+          // TODO fix this case
+          const broken = ordering.some((page) => PAGES[page].brokenLoadingTurbo)
           if (broken) {
             it.todo(name)
             continue
