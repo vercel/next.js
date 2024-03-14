@@ -1141,11 +1141,12 @@
       "Error Overlay for server components Class component used in Server Component should show error when Class Component is used",
       "Error Overlay for server components Class component used in Server Component should show error when Component is rendered in external package",
       "Error Overlay for server components Class component used in Server Component should show error when React.PureComponent is rendered in external package",
-      "Error Overlay for server components Next.js component hooks called in Server Component should show error when usePathname is called",
-      "Error Overlay for server components Next.js component hooks called in Server Component should show error when useRouter is called",
-      "Error Overlay for server components Next.js component hooks called in Server Component should show error when useSearchParams is called",
-      "Error Overlay for server components Next.js component hooks called in Server Component should show error when useSelectedLayoutSegment is called",
-      "Error Overlay for server components Next.js component hooks called in Server Component should show error when useSelectedLayoutSegments is called",
+      "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useParams is called",
+      "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when usePathname is called",
+      "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useRouter is called",
+      "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useSearchParams is called",
+      "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useSelectedLayoutSegment is called",
+      "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useSelectedLayoutSegments is called",
       "Error Overlay for server components React component hooks called in Server Component should show error when React client hook is called in external package",
       "Error Overlay for server components React component hooks called in Server Component should show error when React.<client-hook> is called",
       "Error Overlay for server components React component hooks called in Server Component should show error when React.<client-hook> is called in external package",
@@ -1183,10 +1184,10 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
-      "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
-      "ReactRefreshLogBox _app _document turbo empty _document shows logbox",
       "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox",
-      "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox"
+      "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox",
+      "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
+      "ReactRefreshLogBox _app _document turbo empty _document shows logbox"
     ],
     "failed": [],
     "pending": [
@@ -6180,6 +6181,7 @@
       "Middleware Rewrite should behave consistently on recursive rewrites",
       "Middleware Rewrite should clear query parameters",
       "Middleware Rewrite should correctly rewriting to a different dynamic path",
+      "Middleware Rewrite should handle catch-all rewrite correctly",
       "Middleware Rewrite should handle middleware rewrite with body correctly",
       "Middleware Rewrite should handle next.config.js rewrite with body correctly",
       "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",
@@ -6843,6 +6845,7 @@
   },
   "test/e2e/testmode/testmode.test.ts": {
     "passed": [
+      "testmode app router should avoid fetch cache",
       "testmode app router should handle API with fetch in edge function",
       "testmode app router should handle API with fetch in serverless function",
       "testmode app router should handle API with http.get in serverless function",
@@ -13180,8 +13183,8 @@
   },
   "test/integration/jsconfig-baseurl/test/index.test.js": {
     "passed": [
-      "jsconfig.json baseurl default behavior should render the page",
-      "jsconfig.json baseurl default behavior should have correct module not found error"
+      "jsconfig.json baseurl default behavior should have correct module not found error",
+      "jsconfig.json baseurl default behavior should render the page"
     ],
     "failed": [],
     "pending": [
@@ -13212,15 +13215,15 @@
   "test/integration/jsconfig-paths/test/index.test.js": {
     "passed": [
       "jsconfig paths default behavior should alias components",
+      "jsconfig paths default behavior should have correct module not found error",
       "jsconfig paths default behavior should resolve a single matching alias",
       "jsconfig paths default behavior should resolve the first item in the array first",
       "jsconfig paths default behavior should resolve the second item as fallback",
       "jsconfig paths without baseurl default behavior should alias components",
+      "jsconfig paths without baseurl default behavior should have correct module not found error",
       "jsconfig paths without baseurl default behavior should resolve a single matching alias",
       "jsconfig paths without baseurl default behavior should resolve the first item in the array first",
-      "jsconfig paths without baseurl default behavior should resolve the second item as fallback",
-      "jsconfig paths default behavior should have correct module not found error",
-      "jsconfig paths without baseurl default behavior should have correct module not found error"
+      "jsconfig paths without baseurl default behavior should resolve the second item as fallback"
     ],
     "failed": [],
     "pending": [
