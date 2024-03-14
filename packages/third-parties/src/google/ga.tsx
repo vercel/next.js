@@ -38,12 +38,7 @@ export function GoogleAnalytics(props: GAParams) {
       <Script
         id="_next-ga-init"
         dangerouslySetInnerHTML={{
-          __html: `
-          window['${dataLayerName}'] = window['${dataLayerName}'] || [];
-          function gtag(){window['${dataLayerName}'].push(arguments);}
-          gtag('js', new Date());
-
-          gtag('config', '${gaId}');`,
+          __html: `window['${dataLayerName}']=window['${dataLayerName}']||[];function gtag(){window['${dataLayerName}'].push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`,
         }}
       />
       <Script
