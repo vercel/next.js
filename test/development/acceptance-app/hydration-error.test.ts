@@ -259,7 +259,6 @@ describe('Error overlay for hydration errors', () => {
                   <div>
                     <div>
                       "only""
-        
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
