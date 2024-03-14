@@ -32,13 +32,14 @@ export function autoImplementMethods(
     // If the userland module doesn't implement the HEAD method, then
     // we'll automatically implement it by calling the GET method (if it
     // exists).
-    if (method === 'HEAD' && handlers.GET) {
-      // Implement the HEAD method by calling the GET method.
-      methods.HEAD = handlers.GET
+    if (method === 'HEAD') {
+      if (handlers.GET) {
+        // Implement the HEAD method by calling the GET method.
+        methods.HEAD = handlers.GET
 
-      // Mark it as implemented.
-      implemented.add('HEAD')
-
+        // Mark it as implemented.
+        implemented.add('HEAD')
+      }
       continue
     }
 
