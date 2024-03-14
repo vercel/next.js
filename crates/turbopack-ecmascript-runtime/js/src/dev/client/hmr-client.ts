@@ -12,6 +12,7 @@ type SendMessage = typeof import("./websocket").sendMessage;
 export type ClientOptions = {
   addMessageListener: typeof import("./websocket").addMessageListener;
   sendMessage: SendMessage;
+  onUpdateError: (err: unknown) => void;
 };
 
 export function connect({
@@ -21,6 +22,7 @@ export function connect({
   // TODO(WEB-1465) Remove this backwards compat fallback once
   // vercel/next.js#54586 is merged.
   sendMessage = turboSocketSendMessage,
+  onUpdateError = console.error,
 }: ClientOptions) {
   addMessageListener((msg) => {
     switch (msg.type) {
@@ -28,14 +30,31 @@ export function connect({
         handleSocketConnected(sendMessage);
         break;
       default:
-        if (Array.isArray(msg.data)) {
-          for (let i = 0; i < msg.data.length; i++) {
-            handleSocketMessage(msg.data[i] as ServerMessage);
+        try {
+          if (Array.isArray(msg.data)) {
+            for (let i = 0; i < msg.data.length; i++) {
+              handleSocketMessage(msg.data[i] as ServerMessage);
+            }
+          } else {
+            handleSocketMessage(msg.data as ServerMessage);
           }
-        } else {
-          handleSocketMessage(msg.data as ServerMessage);
+          applyAggregatedUpdates();
+        } catch (e: unknown) {
+          if (!(e instanceof Error && e.name === "UpdateApplyError")) {
+            throw e;
+          }
+
+          console.warn(
+            "[Fast Refresh] performing full reload\n\n" +
+              "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\n" +
+              "You might have a file which exports a React component but also exports a value that is imported by a non-React component file.\n" +
+              "Consider migrating the non-React component export to a separate file and importing it into both files.\n\n" +
+              "It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\n" +
+              "Fast Refresh requires at least one parent function component in your React tree."
+          );
+          onUpdateError(e);
+          location.reload();
         }
-        applyAggregatedUpdates();
         break;
     }
   });
@@ -570,25 +589,17 @@ function triggerUpdate(msg: ServerMessage) {
     return;
   }
 
-  try {
-    for (const callback of callbackSet.callbacks) {
-      callback(msg);
-    }
+  for (const callback of callbackSet.callbacks) {
+    callback(msg);
+  }
 
-    if (msg.type === "notFound") {
-      // This indicates that the resource which we subscribed to either does not exist or
-      // has been deleted. In either case, we should clear all update callbacks, so if a
-      // new subscription is created for the same resource, it will send a new "subscribe"
-      // message to the server.
-      // No need to send an "unsubscribe" message to the server, it will have already
-      // dropped the update stream before sending the "notFound" message.
-      updateCallbackSets.delete(key);
-    }
-  } catch (err) {
-    console.error(
-      `An error occurred during the update of resource \`${msg.resource.path}\``,
-      err
-    );
-    location.reload();
+  if (msg.type === "notFound") {
+    // This indicates that the resource which we subscribed to either does not exist or
+    // has been deleted. In either case, we should clear all update callbacks, so if a
+    // new subscription is created for the same resource, it will send a new "subscribe"
+    // message to the server.
+    // No need to send an "unsubscribe" message to the server, it will have already
+    // dropped the update stream before sending the "notFound" message.
+    updateCallbackSets.delete(key);
   }
 }

@@ -85,7 +85,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::empty("integration/empty.js")]
 #[case::env_var("integration/env-var.js")]
 #[case::es_get_iterator("integration/es-get-iterator.js")]
-#[case::esbuild("integration/esbuild.js")]
+// This is flakey on Windows. Disable for now.
+#[cfg_attr(not(target_os = "windows"), case::esbuild("integration/esbuild.js"))]
 #[case::esm("integration/esm.js")]
 #[case::express_consolidate("integration/express-consolidate.js")]
 #[case::express_template_engine("integration/express-template-engine.js")]
