@@ -30,18 +30,18 @@ next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.90.17", features = [
+swc_core = { version = "0.90.22", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
 testing = { version = "0.35.20" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", branch = "wbinnssmith/hmr-log-reload" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240314.3" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "wbinnssmith/hmr-log-reload" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240314.3" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "wbinnssmith/hmr-log-reload" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240314.3" }
 
 # General Deps
 
@@ -73,8 +73,6 @@ async-recursion = "1.0.2"
 async-trait = "0.1.64"
 atty = "0.2.14"
 chrono = "0.4.23"
-clap = "4.1.6"
-clap_complete = "4.1.2"
 concurrent-queue = "2.1.0"
 console = "0.15.5"
 console-subscriber = "0.1.8"
@@ -111,7 +109,7 @@ pin-project-lite = "0.2.9"
 postcard = "1.0.4"
 predicates = "2.1.5"
 pretty_assertions = "1.3.0"
-proc-macro2 = "1.0.51"
+proc-macro2 = "1.0.79"
 qstring = "0.7.2"
 quote = "1.0.23"
 rand = "0.8.5"
