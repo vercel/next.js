@@ -354,6 +354,7 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      prefetchHead: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
     }

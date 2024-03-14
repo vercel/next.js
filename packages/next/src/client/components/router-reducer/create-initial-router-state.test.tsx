@@ -58,6 +58,9 @@ describe('createInitialRouterState', () => {
       lazyData: null,
       rsc: children,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      lazyDataResolved: false,
       parallelRoutes: new Map([
         [
           'children',
@@ -77,6 +80,8 @@ describe('createInitialRouterState', () => {
                           prefetchRsc: null,
                           parallelRoutes: new Map(),
                           head: <title>Test</title>,
+                          prefetchHead: null,
+                          lazyDataResolved: false,
                         },
                       ],
                     ]),
@@ -85,6 +90,9 @@ describe('createInitialRouterState', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                lazyDataResolved: false,
               },
             ],
           ]),

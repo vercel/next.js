@@ -13,11 +13,12 @@
     "@sanity/assist": "^2.0.3",
     "@sanity/icons": "^2.11.2",
     "@sanity/image-url": "^1.0.2",
-    "@sanity/vision": "^3.32.0",
+    "@sanity/preview-url-secret": "^1.6.4",
+    "@sanity/vision": "^3.33.0",
     "@tailwindcss/typography": "^0.5.10",
-    "@types/node": "^20.11.26",
+    "@types/node": "^20.11.27",
     "@types/react": "^18.2.65",
-    "@types/react-dom": "^18.2.21",
+    "@types/react-dom": "^18.2.22",
     "@vercel/speed-insights": "^1.0.10",
     "autoprefixer": "^10.4.18",
     "date-fns": "^3.4.0",
@@ -27,7 +28,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "rxjs": "^7.8.1",
-    "sanity": "^3.32.0",
+    "sanity": "^3.33.0",
     "sanity-plugin-asset-source-unsplash": "^2.0.1",
     "server-only": "^0.0.1",
     "styled-components": "^6.1.8",
@@ -35,6 +36,7 @@
     "typescript": "5.3.3"
   },
   "devDependencies": {
+    "@next/env": "latest",
     "eslint": "^8.57.0",
     "eslint-config-next": "latest"
   }
