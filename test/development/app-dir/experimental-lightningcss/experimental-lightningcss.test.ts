@@ -12,7 +12,7 @@ describeVariants.each(['turbo'])('experimental-lightningcss', () => {
     expect($('p').text()).toBe('hello world')
     // swc_css does not include `-module` in the class name, while lightningcss does.
     expect($('p').attr('class')).toBe(
-      'search-keyword blue__style-module__hlQ3RG'
+      'search-keyword style-module__hlQ3RG__blue'
     )
   })
 })

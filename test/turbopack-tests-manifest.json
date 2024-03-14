@@ -1184,12 +1184,11 @@
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
       "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
-      "ReactRefreshLogBox _app _document turbo empty _document shows logbox"
-    ],
-    "failed": [
+      "ReactRefreshLogBox _app _document turbo empty _document shows logbox",
       "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshLogBox _app _document default _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document default _document syntax error shows logbox",
@@ -2300,7 +2299,6 @@
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
-      "app-dir action handling \"use server\" export values should error when exporting non async functions during runtime",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
       "app-dir action handling Edge SSR should handle redirect to a relative URL in a single pass",
@@ -3793,6 +3791,7 @@
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
       "app dir - metadata opengraph should support opengraph tags",
       "app dir - metadata opengraph should support opengraph with article type",
+      "app dir - metadata should not crash from error thrown during preloading nested generateMetadata",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
       "app dir - metadata static routes should support root dir robots.txt",
@@ -6489,8 +6488,8 @@
     "passed": [
       "og-api should respond from index",
       "og-api should throw error when returning a response object in pages/api in node runtime",
-      "og-api should work in app route in node runtime",
       "og-api should work in app route",
+      "og-api should work in app route in node runtime",
       "og-api should work in pages/api"
     ],
     "failed": [],
@@ -13178,10 +13177,11 @@
     "runtimeError": false
   },
   "test/integration/jsconfig-baseurl/test/index.test.js": {
-    "passed": ["jsconfig.json baseurl default behavior should render the page"],
-    "failed": [
+    "passed": [
+      "jsconfig.json baseurl default behavior should render the page",
       "jsconfig.json baseurl default behavior should have correct module not found error"
     ],
+    "failed": [],
     "pending": [
       "jsconfig.json baseurl should build production mode should trace correctly"
     ],
@@ -13216,12 +13216,11 @@
       "jsconfig paths without baseurl default behavior should alias components",
       "jsconfig paths without baseurl default behavior should resolve a single matching alias",
       "jsconfig paths without baseurl default behavior should resolve the first item in the array first",
-      "jsconfig paths without baseurl default behavior should resolve the second item as fallback"
-    ],
-    "failed": [
+      "jsconfig paths without baseurl default behavior should resolve the second item as fallback",
       "jsconfig paths default behavior should have correct module not found error",
       "jsconfig paths without baseurl default behavior should have correct module not found error"
     ],
+    "failed": [],
     "pending": [
       "jsconfig paths should build production mode should trace correctly",
       "jsconfig paths without baseurl should build production mode should trace correctly"

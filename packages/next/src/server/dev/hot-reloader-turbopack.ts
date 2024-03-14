@@ -61,6 +61,7 @@ import {
   type StartBuilding,
   processTopLevelIssues,
   type TopLevelIssuesMap,
+  isWellKnownError,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -249,6 +250,7 @@ export async function createHotReloaderTurbopack(
       readyIds.add(id)
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
+        hmrEventHappened = false
         consoleStore.setState(
           {
             loading: false,
@@ -664,11 +666,17 @@ export async function createHotReloaderTurbopack(
       const thisEntryIssues =
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
+
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()].map(
-          (issue) => new Error(formatIssue(issue))
-        )
+        return [...topLevelIssues, ...thisEntryIssues.values()].map((issue) => {
+          const formattedIssue = formatIssue(issue)
+          if (isWellKnownError(issue)) {
+            Log.error(formattedIssue)
+          }
+
+          return new Error(formattedIssue)
+        })
       }
 
       // Otherwise, return all errors across pages

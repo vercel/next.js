@@ -25,12 +25,18 @@ describe('fillCacheWithDataProperty', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
       parallelRoutes: new Map(),
+      lazyDataResolved: false,
     }
     const existingCache: CacheNode = {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      lazyDataResolved: false,
       parallelRoutes: new Map([
         [
           'children',
@@ -41,6 +47,9 @@ describe('fillCacheWithDataProperty', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
+                lazyDataResolved: false,
+                head: null,
+                prefetchHead: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -51,7 +60,10 @@ describe('fillCacheWithDataProperty', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
                           parallelRoutes: new Map(),
+                          lazyDataResolved: false,
                         },
                       ],
                     ]),
@@ -70,16 +82,23 @@ describe('fillCacheWithDataProperty', () => {
 
     expect(cache).toMatchInlineSnapshot(`
       {
+        "head": null,
         "lazyData": null,
+        "lazyDataResolved": false,
         "parallelRoutes": Map {
           "children" => Map {
             "linking" => {
+              "head": null,
               "lazyData": null,
+              "lazyDataResolved": false,
               "parallelRoutes": Map {
                 "children" => Map {
                   "" => {
+                    "head": null,
                     "lazyData": null,
+                    "lazyDataResolved": false,
                     "parallelRoutes": Map {},
+                    "prefetchHead": null,
                     "prefetchRsc": null,
                     "rsc": <React.Fragment>
                       Page
@@ -87,19 +106,24 @@ describe('fillCacheWithDataProperty', () => {
                   },
                 },
               },
+              "prefetchHead": null,
               "prefetchRsc": null,
               "rsc": <React.Fragment>
                 Linking
               </React.Fragment>,
             },
             "dashboard" => {
+              "head": null,
               "lazyData": Promise {},
+              "lazyDataResolved": false,
               "parallelRoutes": Map {},
+              "prefetchHead": null,
               "prefetchRsc": null,
               "rsc": null,
             },
           },
         },
+        "prefetchHead": null,
         "prefetchRsc": null,
         "rsc": null,
       }

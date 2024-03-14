@@ -236,6 +236,7 @@ export function updateCacheNodeOnNavigation(
 
     // Everything is cloned except for the children, which we computed above.
     parallelRoutes: prefetchParallelRoutes,
+    lazyDataResolved: false,
   }
 
   return {
@@ -523,6 +524,7 @@ function createPendingCacheNode(
     // response is received from the server.
     rsc: createDeferredRsc(),
     head: isLeafSegment ? createDeferredRsc() : null,
+    lazyDataResolved: false,
   }
 }
 
@@ -763,6 +765,7 @@ export function updateCacheNodeOnPopstateRestoration(
 
     // These are the cloned children we computed above
     parallelRoutes: newParallelRoutes,
+    lazyDataResolved: false,
   }
 }
 
