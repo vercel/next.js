@@ -9,7 +9,6 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -172,10 +171,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(external_cjs_modules_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -183,10 +182,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
@@ -200,8 +199,8 @@ pub async fn get_server_resolve_options_context(
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
     };
@@ -720,6 +719,7 @@ pub async fn get_server_chunking_context(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
@@ -730,12 +730,9 @@ pub async fn get_server_chunking_context(
         node_root.join("server/chunks".to_string()),
         client_root.join("static/media".to_string()),
         environment,
+        next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
-    .minify_type(if mode.await?.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .build())
 }

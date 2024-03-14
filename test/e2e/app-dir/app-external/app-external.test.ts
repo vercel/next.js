@@ -150,7 +150,7 @@ createNextDescribe(
       ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
     })
 
-    it('should not apply swc optimizer transform for external packages in browser layer', async () => {
+    it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
       const browser = await next.browser('/browser')
       expect(await browser.elementByCss('#worker-state').text()).toBe('default')
 

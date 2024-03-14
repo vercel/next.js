@@ -9,7 +9,6 @@ use turbopack_binding::{
     turbopack::{
         browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -346,13 +345,10 @@ pub async fn get_client_chunking_context(
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
+        next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if next_mode.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .asset_base_path(asset_prefix);
 
     if next_mode.is_development() {
