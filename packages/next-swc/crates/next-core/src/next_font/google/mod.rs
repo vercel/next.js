@@ -383,8 +383,14 @@ async fn update_google_stylesheet(
         &format!("font-family: '{}';", &*scoped_font_family.await?),
     );
 
-    let font_files =
-        find_font_files_in_css(&stylesheet, options.subsets.as_deref().unwrap_or_default());
+    let font_files = find_font_files_in_css(
+        &stylesheet,
+        if options.preload {
+            options.subsets.as_deref().unwrap_or_default()
+        } else {
+            Default::default()
+        },
+    );
 
     let has_size_adjust = *has_size_adjust.await?;
 
@@ -576,7 +582,12 @@ async fn fetch_from_google_fonts(
     url: Vc<String>,
     virtual_path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
-    let result = fetch(url, Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned()))).await?;
+    let result = fetch(
+        url,
+        Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
+        Vc::cell(None),
+    )
+    .await?;
 
     Ok(match &*result {
         Ok(r) => Some(r.await?.body),
@@ -610,6 +621,7 @@ async fn get_mock_stylesheet(
             .to_str()
             .context("Must exist")?
             .to_string(),
+        vec![],
     ));
 
     let ExecutionContext {

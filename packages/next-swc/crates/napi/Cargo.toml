@@ -42,17 +42,17 @@ __internal_dhat-ad-hoc = ["dhat"]
 [target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc"] }
 
-[target.'cfg(all(target_os = "linux", not(target_arch = "aarch64")))'.dependencies]
+[target.'cfg(all(target_os = "linux", not(any(target_arch = "aarch64", target_arch = "wasm32"))))'.dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc", "__turbo_tasks_malloc_custom_allocator"] }
 
-[target.'cfg(not(target_os = "linux"))'.dependencies]
+[target.'cfg(not(any(target_os = "linux", target_arch = "wasm32")))'.dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc", "__turbo_tasks_malloc_custom_allocator"] }
 
 # Enable specific tls features per-target.
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
 next-core = { workspace = true, features = ["native-tls"] }
 
-[target.'cfg(not(all(target_os = "windows", target_arch = "aarch64")))'.dependencies]
+[target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
 next-core = { workspace = true, features = ["rustls-tls"] }
 
 [lints]
@@ -68,24 +68,34 @@ napi = { version = "2", default-features = false, features = [
   "serde-json",
   "tokio_rt",
   "error_anyhow",
+  # Lightningcss uses this features
+  "napi4",
+  "napi5",
+  "compat-mode"
 ] }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
-next-api = { workspace = true }
-next-build = { workspace = true }
-next-core = { workspace = true }
-turbo-tasks = { workspace = true }
-once_cell = { workspace = true }
+
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
-tracing-futures = "0.2.5"
 tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
+url = {workspace = true}
+urlencoding = {workspace = true}
+
+# Dependencies for the native, non-wasm32 build.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+lightningcss-napi = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks = { workspace = true }
+next-api = { workspace = true }
+next-build = { workspace = true }
+next-core = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
+  "__swc_core_serde",
   "__feature_node_file_trace",
   "__feature_mdx_rs",
   "__turbo",
@@ -94,8 +104,21 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack",
   "__turbopack_ecmascript_hmr_protocol",
 ] }
-url = {workspace = true}
-urlencoding = {workspace = true}
+
+# Dependencies for the wasm32 build.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
+iana-time-zone = { version = "*", features = ["fallback"] }
+turbopack-binding = { workspace = true, features = [
+  "__swc_core_binding_napi",
+  "__swc_core_serde",
+  "__feature_mdx_rs",
+] }
+
+# wasi-only dependencies.
+[target.wasm32-wasi-preview1-threads.dependencies]
+# this requires tokio_unstable currently.
+tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 napi-build = "2"
@@ -103,4 +126,7 @@ serde = "1"
 serde_json = "1"
 # It is not a mistake this dependency is specified in dep / build-dep both.
 shadow-rs = { workspace = true }
+
+# build-dependencies for the native, non-wasm32 build
+[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }

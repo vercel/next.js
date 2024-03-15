@@ -129,7 +129,7 @@ export function isRedirectError<U extends string>(
 export function getURLFromRedirectError<U extends string>(
   error: RedirectError<U>
 ): U
-export function getURLFromRedirectError(error: any): string | null {
+export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
 
   // Slices off the beginning of the digest that contains the code and the

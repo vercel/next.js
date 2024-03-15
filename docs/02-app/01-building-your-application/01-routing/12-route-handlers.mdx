@@ -572,7 +572,7 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 
 ### CORS
 
-You can set CORS headers on a `Response` using the standard Web API methods:
+You can set CORS headers for a specific Route Handler using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
 export const dynamic = 'force-dynamic' // defaults to auto
@@ -603,6 +603,11 @@ export async function GET(request) {
   })
 }
 ```
+
+> **Good to know**:
+>
+> - To add CORS headers to multiple Route Handlers, you can use [Middleware](/docs/app/building-your-application/routing/middleware#cors) or the [`next.config.js` file](/docs/app/api-reference/next-config-js/headers#cors).
+> - Alternatively, see our [CORS example](https://github.com/vercel/examples/blob/main/edge-functions/cors/lib/cors.ts) package.
 
 ### Webhooks
 

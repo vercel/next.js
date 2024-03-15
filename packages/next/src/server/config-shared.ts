@@ -10,6 +10,7 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../../types'
+import type { SwrDelta } from './lib/revalidate'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -19,9 +20,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
+export type I18NDomains = DomainLocale[]
+
 export interface I18NConfig {
   defaultLocale: string
-  domains?: DomainLocale[]
+  domains?: I18NDomains
   localeDetection?: false
   locales: string[]
 }
@@ -112,6 +115,13 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
+   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   */
+  resolveExtensions?: string[]
+
+  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
@@ -124,6 +134,11 @@ export interface ExperimentalTurboOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurboRule>
+
+  /**
+   * Use swc_css instead of lightningcss for turbopakc
+   */
+  useSwcCss?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -159,10 +174,9 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  prerenderEarlyExit?: boolean
+  linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  useDeploymentId?: boolean
-  useDeploymentIdServerActions?: boolean
-  deploymentId?: string
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -176,8 +190,17 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
+  /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
+  /**
+   * This will enable a plugin that attempts to keep CSS entries below a certain amount
+   * by merging smaller chunks into larger ones
+   */
+  mergeCssChunks?: boolean
   /**
    * @deprecated use config.cacheHandler instead
    */
@@ -377,7 +400,7 @@ export interface ExperimentalConfig {
   useWasmBinary?: boolean
 
   /**
-   * Use lightningcss instead of swc_css
+   * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
 
@@ -391,6 +414,11 @@ export interface ExperimentalConfig {
    * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
+
+  /**
+   * Enables early import feature for app router modules
+   */
+  useEarlyImport?: boolean
 }
 
 export type ExportPathMap = {
@@ -596,6 +624,11 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * A unique identifier for a deployment that will be included in each request's query string or header.
+   */
+  deploymentId?: string
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
@@ -713,6 +746,12 @@ export interface NextConfig extends Record<string, any> {
         }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
+
+    styledJsx?:
+      | boolean
+      | {
+          useLightningcss?: boolean
+        }
   }
 
   /**
@@ -813,18 +852,18 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    prerenderEarlyExit: false,
     serverMinification: true,
     serverSourceMaps: false,
+    linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    useDeploymentId: false,
-    deploymentId: undefined,
-    useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
+    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,
@@ -872,7 +911,9 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
-    optimizeServerReact: false,
+    optimizeServerReact: true,
+    useEarlyImport: false,
+    mergeCssChunks: true,
   },
 }
 

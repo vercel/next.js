@@ -207,7 +207,7 @@ You can then call your Authentication Provider's API in the Server Action to han
 
 import { signIn } from '@/auth'
 
-export async function authenticate(formData: FormData) {
+export async function authenticate(_currentState: unknown, formData: FormData) {
   try {
     await signIn('credentials', formData)
   } catch (error) {
@@ -229,7 +229,7 @@ export async function authenticate(formData: FormData) {
 
 import { signIn } from '@/auth'
 
-export async function authenticate(formData) {
+export async function authenticate(_currentState, formData) {
   try {
     await signIn('credentials', formData)
   } catch (error) {
@@ -332,29 +332,38 @@ Once a user is authenticated, you'll need to ensure the user is allowed to visit
 
 Here's how to implement Middleware for authentication in Next.js:
 
-1. **Setting Up Middleware:**
-   - Create a `middleware.ts` or `.js` file in your project's root directory.
-   - Include logic to authorize user access, such as checking for authentication tokens.
-2. **Defining Protected Routes:**
-   - Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
-3. **Middleware Logic:**
-   - Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
-4. **Handling Unauthorized Access:**
-   - Redirect unauthorized users to a login or error page as appropriate.
+#### Setting Up Middleware:
+
+- Create a `middleware.ts` or `.js` file in your project's root directory.
+- Include logic to authorize user access, such as checking for authentication tokens.
+
+#### Defining Protected Routes:
+
+- Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
+
+#### Middleware Logic:
+
+- Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
+
+#### Handling Unauthorized Access:
+
+- Redirect unauthorized users to a login or error page as appropriate.
 
 Example Middleware file:
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const currentUser = request.cookies.get('currentUser')?.value
 
-  if (currentUser) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
+    return Response.redirect(new URL('/dashboard', request.url))
   }
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
+    return Response.redirect(new URL('/login', request.url))
+  }
 }
 
 export const config = {
@@ -363,15 +372,16 @@ export const config = {
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
-
 export function middleware(request) {
   const currentUser = request.cookies.get('currentUser')?.value
 
-  if (currentUser) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
+    return Response.redirect(new URL('/dashboard', request.url))
   }
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
+    return Response.redirect(new URL('/login', request.url))
+  }
 }
 
 export const config = {
@@ -379,7 +389,7 @@ export const config = {
 }
 ```
 
-This example uses [`NextResponse.redirect`](/docs/app/api-reference/functions/next-response#redirect) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
+This example uses [`Response.redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Response/redirect_static) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
 
 <AppOnly>
 
@@ -642,6 +652,8 @@ This prevents the need for repeated logins, enhancing both security and user con
 
 ### Cookie-Based Sessions
 
+> **🎥 Watch:** Learn more about cookie-based sessions and authentication with Next.js → [YouTube (11 minutes)](https://www.youtube.com/watch?v=DJvM2lSPn6w).
+
 Cookie-based sessions manage user data by storing encrypted session information directly in browser cookies. Upon user login, this encrypted data is stored in the cookie. Each subsequent server request includes this cookie, minimizing the need for repeated server queries and enhancing client-side efficiency.
 
 However, this method requires careful encryption to protect sensitive data, as cookies are susceptible to client-side security risks. Encrypting session data in cookies is key to safeguarding user information from unauthorized access. It ensures that even if a cookie is stolen, the data inside remains unreadable.
@@ -850,10 +862,10 @@ Here are authentication solutions compatible with Next.js, please refer to the q
 {/* TODO: Change link to authjs.dev when new documentation is ready */}
 
 - [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
-- [Auth.js](https://authjs.dev/guides/upgrade-to-v5)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
 - [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
 - [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
+- [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
 - [Iron Session](https://github.com/vvo/iron-session)

@@ -57,7 +57,7 @@ describe('app dir - with output export (next dev / next build)', () => {
         }
         expect(error).toBeDefined()
         expect(stderr).toContain(
-          'The "next export" command has been removed in favor of "output: export" in next.config.js'
+          `\`next export\` has been removed in favor of 'output: export' in next.config.js`
         )
         expect(stdout).not.toContain('Export successful. Files written to')
         expect(await getFiles()).toEqual([])

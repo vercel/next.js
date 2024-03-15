@@ -15,7 +15,7 @@ if (!window._nextSetupHydrationWarning) {
     if (isHydrateError) {
       args = [
         ...args,
-        `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`,
+        `\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`,
       ]
     }
     origConsoleError.apply(window.console, args)

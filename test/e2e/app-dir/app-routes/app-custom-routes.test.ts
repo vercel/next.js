@@ -475,8 +475,15 @@ createNextDescribe(
       })
 
       describe('notFound', () => {
-        it('can respond correctly', async () => {
+        it('can respond correctly in nodejs', async () => {
           const res = await next.fetch(basePath + '/hooks/not-found')
+
+          expect(res.status).toEqual(404)
+          expect(await res.text()).toBeEmpty()
+        })
+
+        it('can respond correctly in edge', async () => {
+          const res = await next.fetch(basePath + '/hooks/not-found/edge')
 
           expect(res.status).toEqual(404)
           expect(await res.text()).toBeEmpty()
@@ -550,9 +557,7 @@ createNextDescribe(
         expect(res.status).toEqual(204)
         expect(await res.text()).toBeEmpty()
 
-        expect(res.headers.get('allow')).toEqual(
-          'DELETE, GET, HEAD, OPTIONS, POST'
-        )
+        expect(res.headers.get('allow')).toEqual('OPTIONS, POST')
       })
     })
 
@@ -657,6 +662,13 @@ createNextDescribe(
           )
           return 'yes'
         }, 'yes')
+      })
+    })
+
+    describe('no bundle error', () => {
+      it('should not print bundling warning about React', async () => {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).not.toContain('Attempted import error')
       })
     })
   }
