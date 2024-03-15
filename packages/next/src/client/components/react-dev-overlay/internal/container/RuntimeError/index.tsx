@@ -210,4 +210,7 @@ export const styles = css`
     color: var(--color-ansi-red);
     font-weight: bold;
   }
+  [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
+    color: var(--color-accents-3);
+  }
 `
