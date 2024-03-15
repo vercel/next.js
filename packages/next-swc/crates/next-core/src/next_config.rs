@@ -738,8 +738,6 @@ impl NextConfig {
                 )
             }
             fn find_rule<'a>(
-                rules: &mut IndexMap<String, LoaderRuleItem>,
-                ext: &str,
                 rule: &'a RuleConfigItem,
                 active_conditions: &HashSet<String>,
             ) -> Option<&'a RuleConfigItemOptions> {
@@ -750,7 +748,7 @@ impl NextConfig {
                     RuleConfigItem::Conditional(map) => {
                         for (condition, rule) in map.iter() {
                             if condition == "default" || active_conditions.contains(condition) {
-                                if let Some(rule) = find_rule(rules, ext, rule, active_conditions) {
+                                if let Some(rule) = find_rule(rule, active_conditions) {
                                     return Some(rule);
                                 }
                             }
@@ -771,7 +769,7 @@ impl NextConfig {
                 }
                 RuleConfigItemOrShortcut::Advanced(rule) => {
                     if let Some(RuleConfigItemOptions { loaders, rename_as }) =
-                        find_rule(&mut rules, ext, rule, &active_conditions)
+                        find_rule(rule, &active_conditions)
                     {
                         rules.insert(
                             ext.to_string(),
