@@ -8,8 +8,8 @@ describe('webpack-loader-conditions', () => {
   it('should render correctly on server site', async () => {
     const res = await next.fetch('/')
     const html = (await res.text()).replaceAll(/<!-- -->/g, '')
-    expect(html).toContain(`server: ${JSON.stringify({ default: true })}`)
-    expect(html).toContain(`client: ${JSON.stringify({ nextSsr: true })}`)
+    expect(html).toContain(`server: {&quot;default&quot;:true}`)
+    expect(html).toContain(`client: {&quot;nextSsr&quot;:true}`)
   })
 
   it('should render correctly on client side', async () => {

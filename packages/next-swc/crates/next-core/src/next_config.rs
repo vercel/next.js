@@ -722,7 +722,7 @@ impl NextConfig {
         }
         let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
         let mut rules = IndexMap::new();
-        for (ext, rule) in turbo_rules.iter().rev() {
+        for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
                 Vc::cell(
                     loaders
@@ -737,29 +737,27 @@ impl NextConfig {
                         .collect(),
                 )
             }
-            fn insert_rules<'a>(
+            fn find_rule<'a>(
                 rules: &mut IndexMap<String, LoaderRuleItem>,
                 ext: &str,
                 rule: &'a RuleConfigItem,
                 active_conditions: &HashSet<String>,
-            ) {
-                let rule = match rule {
-                    RuleConfigItem::Options(RuleConfigItemOptions { loaders, rename_as }) => {
-                        LoaderRuleItem {
-                            loaders: transform_loaders(loaders),
-                            rename_as: rename_as.clone(),
-                        }
+            ) -> Option<&'a RuleConfigItemOptions> {
+                match rule {
+                    RuleConfigItem::Options(rule) => {
+                        return Some(rule);
                     }
                     RuleConfigItem::Conditional(map) => {
-                        for (condition, rule) in map.iter().rev() {
+                        for (condition, rule) in map.iter() {
                             if condition == "default" || active_conditions.contains(condition) {
-                                insert_rules(rules, ext, rule, active_conditions);
+                                if let Some(rule) = find_rule(rules, ext, rule, active_conditions) {
+                                    return Some(rule);
+                                }
                             }
                         }
-                        return;
                     }
-                };
-                rules.insert(ext.to_string(), rule);
+                }
+                None
             }
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
@@ -772,7 +770,17 @@ impl NextConfig {
                     );
                 }
                 RuleConfigItemOrShortcut::Advanced(rule) => {
-                    insert_rules(&mut rules, ext, rule, &active_conditions);
+                    if let Some(RuleConfigItemOptions { loaders, rename_as }) =
+                        find_rule(&mut rules, ext, rule, &active_conditions)
+                    {
+                        rules.insert(
+                            ext.to_string(),
+                            LoaderRuleItem {
+                                loaders: transform_loaders(loaders),
+                                rename_as: rename_as.clone(),
+                            },
+                        );
+                    }
                 }
             }
         }

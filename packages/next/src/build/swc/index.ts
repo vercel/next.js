@@ -1168,7 +1168,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
         checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
       } else {
         for (const key in rule) {
-          checkConfigItem(rule[key], glob)
+          const inner = rule[key]
+          if (typeof inner === 'object' && inner) {
+            checkConfigItem(inner, glob)
+          }
         }
       }
     }
