@@ -594,8 +594,9 @@ async fn font_file_options_from_query_map(
 async fn fetch_real_stylesheet(
     stylesheet_url: Vc<String>,
     css_virtual_path: Vc<FileSystemPath>,
+    proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Option<Vc<String>>> {
-    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
+    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path, proxy_option).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
