@@ -210,6 +210,11 @@ export const styles = css`
     color: var(--color-ansi-red);
     font-weight: bold;
   }
+  /* hide but text are still accessible in DOM */
+  [data-nextjs-container-errors-pseudo-html--hint] {
+    display: inline-block;
+    font-size: 0;
+  }
   [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
     color: var(--color-accents-3);
   }

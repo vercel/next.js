@@ -123,7 +123,7 @@ export function PseudoHtmlDiff({
               {codeLine}
               {/* Add ^^^^ to the target tags used for snapshots but not displayed for users */}
               {isHighlightedTag && (
-                <span hidden>
+                <span data-nextjs-container-errors-pseudo-html--hint>
                   {spaces + '^'.repeat(component.length + 2) + '\n'}
                 </span>
               )}
