@@ -519,18 +519,19 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let (app_entry, process_client, process_ssr) = match this.ty {
+        let (app_entry, process_client, process_ssr, has_client_side_assets) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
                 true,
                 matches!(ty, AppPageEndpointType::Html),
+                true,
             ),
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false),
+            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false, false),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), false, false)
+                (self.app_metadata_entry(metadata), false, false, false)
             }
         };
 
@@ -613,7 +614,10 @@ impl AppEndpoint {
                     NextRuntime::NodeJs => {
                         Vc::upcast(this.app_project.project().server_chunking_context())
                     }
-                    NextRuntime::Edge => this.app_project.project().edge_chunking_context(),
+                    NextRuntime::Edge => this
+                        .app_project
+                        .project()
+                        .edge_chunking_context(has_client_side_assets),
                 })
             } else {
                 None
@@ -837,7 +841,10 @@ impl AppEndpoint {
         let endpoint_output = match runtime {
             NextRuntime::Edge => {
                 // create edge chunks
-                let chunking_context = this.app_project.project().edge_chunking_context();
+                let chunking_context = this
+                    .app_project
+                    .project()
+                    .edge_chunking_context(has_client_side_assets);
                 let mut evaluatable_assets = this
                     .app_project
                     .edge_rsc_runtime_entries()

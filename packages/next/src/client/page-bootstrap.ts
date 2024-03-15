@@ -66,6 +66,7 @@ export function pageBootrap(assetPrefix: string) {
             return window.location.reload()
           }
           case HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES: {
+            // This is used in `../server/dev/turbopack-utils.ts`.
             const isOnErrorPage = window.next.router.pathname === '/_error'
             // On the error page we want to reload the page when a page was changed
             if (isOnErrorPage) return window.location.reload()

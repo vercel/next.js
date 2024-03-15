@@ -557,9 +557,7 @@ createNextDescribe(
         expect(res.status).toEqual(204)
         expect(await res.text()).toBeEmpty()
 
-        expect(res.headers.get('allow')).toEqual(
-          'DELETE, GET, HEAD, OPTIONS, POST'
-        )
+        expect(res.headers.get('allow')).toEqual('OPTIONS, POST')
       })
     })
 

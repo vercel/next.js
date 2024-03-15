@@ -564,7 +564,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
     }
   }
@@ -606,16 +606,8 @@ function assignDefaults(
   }
 
   // only leverage deploymentId
-  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
-    if (!result.experimental) {
-      result.experimental = {}
-    }
-    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-  }
-
-  // can't use this one without the other
-  if (result.experimental?.useDeploymentIdServerActions) {
-    result.experimental.useDeploymentId = true
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
   // use the closest lockfile as tracing root

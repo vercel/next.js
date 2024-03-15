@@ -9,7 +9,6 @@ use turbopack_binding::{
     turbopack::{
         browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -49,8 +48,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
+            NextSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
@@ -162,6 +161,7 @@ pub async fn get_client_resolve_options_context(
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
         ],
         ..Default::default()
     };
@@ -345,13 +345,10 @@ pub async fn get_client_chunking_context(
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
+        next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if next_mode.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .asset_base_path(asset_prefix);
 
     if next_mode.is_development() {
