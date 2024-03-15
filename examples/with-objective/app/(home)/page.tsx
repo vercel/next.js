@@ -5,7 +5,7 @@ import { ResultCardImage } from "@/components/result-card-image"
 import { SearchInput } from "@/components/search-input"
 import { Shell } from "@/components/shell"
 import { Skeleton } from "@/components/skeleton"
-import { searchIndex } from "@/lib/utils"
+import { objective } from "@/lib/objective"
 import { TIndexSearch, indexSearchSchema } from "@/lib/validations/index-search"
 import {
   ChevronLeftIcon,
@@ -13,8 +13,8 @@ import {
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
 } from "@radix-ui/react-icons"
-import { Suspense } from "react"
 import dynamic from 'next/dynamic'
+import { Suspense } from "react"
 
 const ReactJsonView = dynamic(() => import('@/components/react-json-view'), {
   ssr: false,
@@ -25,30 +25,23 @@ export interface HomePageProps {
   searchParams: TIndexSearch
 }
 
-const API_KEY = process.env.OBJECTIVE_API_KEY as string
 const INDEX_ID = process.env.OBJECTIVE_INDEX_ID as string
 
 export default async function CatalogPage({
   searchParams,
 }: HomePageProps) {
   const params = searchParams || {}
-  const { offset, limit, query, filterQuery, view } =
+  const { offset, limit, query  } =
     indexSearchSchema.parse(params)
 
-  const data = await searchIndex({
-    apiKey: API_KEY,
-    apiHostName: "api.objective.inc",
+  
+  const {results, pagination} = await objective.indexes.index.search(INDEX_ID as string, {
     query,
-    filterQuery,
-    object_fields: "*",
-    indexId: INDEX_ID,
-    debug: false,
     limit,
     offset,
-    view,
+    object_fields: "*",
   })
 
-  const { pagination } = data;
 
   const isFirstPage = pagination.page === 1
   const isLastPage = pagination.page === pagination.pages
@@ -57,9 +50,9 @@ export default async function CatalogPage({
     <Shell className="max-w-7xl">
       <SearchInput />
       <div className="mt-8">
-        {data?.results?.length > 0 ? (
+        {results?.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
-            {data?.results.map((result: any) => (
+            {results.map((result: any) => (
               <div key={result.id}>
                 <div className="overflow-auto max-h-[600px] border shadow-sm rounded-lg">
                   <Suspense

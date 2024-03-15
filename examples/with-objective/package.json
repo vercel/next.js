@@ -18,6 +18,7 @@
     "clsx": "^2.1.0",
     "lucide-react": "^0.356.0",
     "next": "latest",
+    "objective-sdk": "^1.0.3",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.51.0",
