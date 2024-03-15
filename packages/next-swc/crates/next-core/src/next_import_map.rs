@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{FileSystem, FileSystemPath},
+    turbo::{
+        tasks_fetch::{OptionProxyConfig, ProxyConfig},
+        tasks_fs::{FileSystem, FileSystemPath},
+    },
     turbopack::{
         core::{
             reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -810,11 +813,20 @@ async fn insert_next_shared_aliases(
         ImportMapping::Dynamic(Vc::upcast(NextFontGoogleReplacer::new(project_path))).into(),
     );
 
+    let proxy_option = match std::env::var("http_proxy") {
+        Ok(proxy) => Vc::cell(Some(ProxyConfig::Http(proxy))),
+        Err(_) => match std::env::var("https_proxy") {
+            Ok(proxy) => Vc::cell(Some(ProxyConfig::Https(proxy))),
+            Err(_) => Vc::cell(None),
+        },
+    };
+
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
         ImportMapping::Dynamic(Vc::upcast(NextFontGoogleCssModuleReplacer::new(
             project_path,
             execution_context,
+            proxy_option,
         )))
         .into(),
     );
@@ -823,6 +835,7 @@ async fn insert_next_shared_aliases(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/font"),
         ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
             project_path,
+            proxy_option,
         )))
         .into(),
     );
