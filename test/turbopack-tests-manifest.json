@@ -1905,6 +1905,7 @@
     "passed": [
       "middleware - development errors when middleware contains an unhandled rejection does not render the error",
       "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
+      "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
       "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
@@ -1915,14 +1916,14 @@
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly",
       "middleware - development errors when throwing while loading the module logs the error correctly",
-      "middleware - development errors when throwing while loading the module renders the error correctly and recovers",
-      "middleware - development errors when middleware throws synchronously logs the error correctly",
-      "middleware - development errors when there is a compilation error after boot logs the error correctly",
-      "middleware - development errors when there is a compilation error from boot logs the error correctly"
+      "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "middleware - development errors when there is a compilation error after boot logs the error correctly",
+      "middleware - development errors when there is a compilation error from boot logs the error correctly"
+    ],
     "runtimeError": false
   },
   "test/development/middleware-warnings/index.test.ts": {
