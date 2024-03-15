@@ -78,6 +78,44 @@ export async function sendRenderResult({
       // ordering can differ even if underlying content
       // does not differ
       etagPayload = payload.split('\n').sort().join('\n')
+    } else if (type === 'html') {
+      const { parse } =
+        require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+
+      try {
+        // Parse the HTML
+        let root = parse(payload)
+
+        // Get script tags in the body element
+        let scriptTags = root
+          ?.querySelector('body')
+          ?.childNodes.filter(
+            (node: any) =>
+              node.tagName === 'script' &&
+              !node.hasAttribute('src') &&
+              node.innerHTML?.startsWith('self.__next_f.push')
+          )
+
+        // Sort the script tags by their inner text
+        scriptTags?.sort((a: any, b: any) => {
+          let aLog = parseInt(a.rawText.match(/\d+/)[0])
+          let bLog = parseInt(b.rawText.match(/\d+/)[0])
+          return aLog - bLog
+        })
+
+        // Remove the original script tags
+        scriptTags?.forEach((script: any) => script.remove())
+
+        // Append the sorted script tags to the body
+        scriptTags?.forEach((script: any) =>
+          root.querySelector('body')?.appendChild(script)
+        )
+
+        // Stringify back to HTML
+        etagPayload = root.toString()
+      } catch (err) {
+        console.error(`Error parsing HTML payload`, err)
+      }
     }
 
     const etag = generateEtags ? generateETag(etagPayload) : undefined
