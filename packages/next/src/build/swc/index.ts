@@ -8,7 +8,13 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
-import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
+import type {
+  TurboRuleConfigItem,
+  NextConfigComplete,
+  TurboLoaderItem,
+  TurboRuleConfigItemOrShortcut,
+  TurboRuleConfigItemOptions,
+} from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
@@ -1147,10 +1153,27 @@ function bindingToApi(binding: any, _wasm: boolean) {
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurboRule>
+    turbopackRules: Record<string, TurboRuleConfigItemOrShortcut>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
-      const loaderItems = Array.isArray(rule) ? rule : rule.loaders
+      if (Array.isArray(rule)) {
+        checkLoaderItems(rule, glob)
+      } else {
+        checkConfigItem(rule, glob)
+      }
+    }
+
+    function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+      if ('loaders' in rule) {
+        checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
+      } else {
+        for (const key in rule) {
+          checkConfigItem(rule[key], glob)
+        }
+      }
+    }
+
+    function checkLoaderItems(loaderItems: TurboLoaderItem[], glob: string) {
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&
