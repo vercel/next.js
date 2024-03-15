@@ -40,10 +40,6 @@ export function connect({
           }
           applyAggregatedUpdates();
         } catch (e: unknown) {
-          if (!(e instanceof Error && e.name === "UpdateApplyError")) {
-            throw e;
-          }
-
           console.warn(
             "[Fast Refresh] performing full reload\n\n" +
               "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\n" +
