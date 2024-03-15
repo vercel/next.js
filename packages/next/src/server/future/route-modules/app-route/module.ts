@@ -314,7 +314,7 @@ export class AppRouteRouteModule extends RouteModule<
                       // We should never be in this case but since it can happen based on the way our build/execution is structured
                       // We defend against it for the time being
                       throw new Error(
-                        'Invariant: `dynamic-error` during static generation not expected for app routes. This is a bug in Next.js'
+                        'Invariant: `force-dynamic` during static generation not expected for app routes. This is a bug in Next.js'
                       )
                       break
                     case 'force-static':
