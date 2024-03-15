@@ -472,14 +472,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      process.env.NEXT_DEPLOYMENT_ID =
-        this.nextConfig.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
     }
 
     this.renderOpts = {
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.experimental.deploymentId,
+      deploymentId: this.nextConfig.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -772,6 +771,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           attributes: {
             'http.method': method,
             'http.target': req.url,
+            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
@@ -888,13 +888,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port?.toString()
       const { originalRequest } = req as NodeNextRequest
-      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
-        ?.encrypted
-        ? 'https'
-        : 'http'
+      const isHttps = !!(originalRequest?.socket as TLSSocket)?.encrypted
+      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
+      req.headers['x-forwarded-port'] ??= this.port
+        ? this.port.toString()
+        : isHttps
+        ? '443'
+        : '80'
+      req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
       // This should be done before any normalization of the pathname happens as
@@ -949,7 +951,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -973,6 +975,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+
+            // If the request does not have the `x-now-route-matches` header,
+            // it means that the request has it's exact path specified in the
+            // `x-matched-path` header. In this case, we should update the
+            // pathname to the matched path.
+            if (!req.headers['x-now-route-matches']) {
+              urlPathname = this.normalizers.postponed.normalize(
+                matchedPath,
+                true
+              )
+            }
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -1837,6 +1850,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
+      res.setHeader('x-matched-path', pathname)
       res.setHeader('x-middleware-skip', '1')
       res.setHeader(
         'cache-control',

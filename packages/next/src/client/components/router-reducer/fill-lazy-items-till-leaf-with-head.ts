@@ -56,6 +56,7 @@ export function fillLazyItemsTillLeafWithHead(
         if (parallelSeedData !== null) {
           // New data was sent from the server.
           const seedNode = parallelSeedData[2]
+          const loading = parallelSeedData[3]
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
@@ -65,7 +66,11 @@ export function fillLazyItemsTillLeafWithHead(
             // `prefetchRsc`. As an incremental step, we'll just de-opt to the
             // old behavior — no PPR value.
             prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
+            loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+            lazyDataResolved: false,
           }
         } else if (hasReusablePrefetch && existingCacheNode) {
           // No new data was sent from the server, but the existing cache node
@@ -77,7 +82,11 @@ export function fillLazyItemsTillLeafWithHead(
             // just cloning the existing cache node, we might as well keep the
             // PPR value, if it exists.
             prefetchRsc: existingCacheNode.prefetchRsc,
+            head: existingCacheNode.head,
+            prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
+            lazyDataResolved: existingCacheNode.lazyDataResolved,
+            loading: existingCacheNode.loading,
           } as CacheNode
         } else {
           // No data available for this node. This will trigger a lazy fetch
@@ -86,7 +95,11 @@ export function fillLazyItemsTillLeafWithHead(
             lazyData: null,
             rsc: null,
             prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+            lazyDataResolved: false,
+            loading: null,
           }
         }
 
@@ -111,11 +124,16 @@ export function fillLazyItemsTillLeafWithHead(
     if (parallelSeedData !== null) {
       // New data was sent from the server.
       const seedNode = parallelSeedData[2]
+      const loading = parallelSeedData[3]
       newCacheNode = {
         lazyData: null,
         rsc: seedNode,
         prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
+        lazyDataResolved: false,
+        loading,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
@@ -124,7 +142,11 @@ export function fillLazyItemsTillLeafWithHead(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
+        lazyDataResolved: false,
+        loading: null,
       }
     }
 

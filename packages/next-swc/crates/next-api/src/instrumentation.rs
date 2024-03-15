@@ -10,7 +10,6 @@ use turbo_tasks::{Completion, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
     turbopack::{
-        build::EntryChunkGroupResult,
         core::{
             asset::AssetContent,
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
@@ -22,6 +21,7 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
+        nodejs::EntryChunkGroupResult,
     },
 };
 
@@ -95,7 +95,7 @@ impl InstrumentationEndpoint {
         };
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context();
+        let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),

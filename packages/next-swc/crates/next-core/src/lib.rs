@@ -46,7 +46,8 @@ pub use app_segment_config::{
 };
 pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets, emit_client_assets};
 pub use next_edge::context::{
-    get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
+    get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
+    get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
 use turbopack_binding::{turbo, turbopack};
@@ -57,7 +58,7 @@ pub fn register() {
     turbo::tasks_bytes::register();
     turbo::tasks_fs::register();
     turbo::tasks_fetch::register();
-    turbopack::dev::register();
+    turbopack::browser::register();
     turbopack::node::register();
     turbopack::turbopack::register();
     turbopack::image::register();
