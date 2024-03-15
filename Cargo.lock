@@ -321,7 +321,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "serde",
  "smallvec",
@@ -3217,7 +3217,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "serde",
@@ -7160,7 +7160,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7192,7 +7192,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -7204,7 +7204,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-bytes"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7219,7 +7219,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "dotenvs",
@@ -7233,7 +7233,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7250,7 +7250,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7282,7 +7282,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "base16",
  "hex",
@@ -7294,7 +7294,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "convert_case 0.6.0",
@@ -7308,7 +7308,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7318,7 +7318,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "mimalloc",
 ]
@@ -7326,7 +7326,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7351,7 +7351,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7384,7 +7384,7 @@ dependencies = [
 [[package]]
 name = "turbopack-binding"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "auto-hash-map",
  "mdxjs",
@@ -7424,7 +7424,7 @@ dependencies = [
 [[package]]
 name = "turbopack-browser"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7450,7 +7450,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "clap",
@@ -7469,7 +7469,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7500,7 +7500,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7528,7 +7528,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -7565,7 +7565,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7603,7 +7603,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-hmr-protocol"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "serde",
  "serde_json",
@@ -7614,7 +7614,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7639,7 +7639,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "indoc",
@@ -7656,7 +7656,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7672,7 +7672,7 @@ dependencies = [
 [[package]]
 name = "turbopack-image"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -7692,7 +7692,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "serde",
@@ -7707,7 +7707,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -7722,7 +7722,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -7760,7 +7760,7 @@ dependencies = [
 [[package]]
 name = "turbopack-nodejs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7784,7 +7784,7 @@ dependencies = [
 [[package]]
 name = "turbopack-resolve"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7806,7 +7806,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "serde",
@@ -7822,7 +7822,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -7833,7 +7833,7 @@ dependencies = [
 [[package]]
 name = "turbopack-trace-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -7849,7 +7849,7 @@ dependencies = [
 [[package]]
 name = "turbopack-wasm"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240314.3#dd33882c310f75e02bfa60f5ef7e439a84d15de2"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240315.2#ebce81ac409239ec4c9e98a744d276a5dd80b5a7"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
