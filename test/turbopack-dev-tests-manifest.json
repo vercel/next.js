@@ -6495,10 +6495,10 @@
     "runtimeError": false
   },
   "test/e2e/next-font/with-proxy.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google with proxy should use a proxy agent when proxy environment variable is set"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
