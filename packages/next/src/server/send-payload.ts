@@ -72,7 +72,15 @@ export async function sendRenderResult({
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
   if (payload !== null) {
-    const etag = generateEtags ? generateETag(payload) : undefined
+    let etagPayload = payload
+    if (type === 'rsc') {
+      // ensure etag generation is deterministic as
+      // ordering can differ even if underlying content
+      // does not differ
+      etagPayload = payload.split('\n').sort().join('\n')
+    }
+
+    const etag = generateEtags ? generateETag(etagPayload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
     }
