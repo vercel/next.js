@@ -603,11 +603,12 @@ async fn fetch_real_stylesheet(
 async fn fetch_from_google_fonts(
     url: Vc<String>,
     virtual_path: Vc<FileSystemPath>,
+    proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch(
         url,
         Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
-        Vc::cell(None),
+        proxy_option,
     )
     .await?;
 
