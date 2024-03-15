@@ -5,7 +5,7 @@ use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::{
-        tasks_fetch::{OptionProxyConfig, ProxyConfig},
+        tasks_fetch::ProxyConfig,
         tasks_fs::{FileSystem, FileSystemPath},
     },
     turbopack::{
