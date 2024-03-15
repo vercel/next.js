@@ -29,6 +29,7 @@ describe('fillCacheWithDataProperty', () => {
       prefetchHead: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
+      loading: null,
     }
     const existingCache: CacheNode = {
       lazyData: null,
@@ -37,6 +38,7 @@ describe('fillCacheWithDataProperty', () => {
       head: null,
       prefetchHead: null,
       lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -50,6 +52,7 @@ describe('fillCacheWithDataProperty', () => {
                 lazyDataResolved: false,
                 head: null,
                 prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -64,6 +67,7 @@ describe('fillCacheWithDataProperty', () => {
                           prefetchHead: null,
                           parallelRoutes: new Map(),
                           lazyDataResolved: false,
+                          loading: null,
                         },
                       ],
                     ]),
@@ -85,18 +89,21 @@ describe('fillCacheWithDataProperty', () => {
         "head": null,
         "lazyData": null,
         "lazyDataResolved": false,
+        "loading": null,
         "parallelRoutes": Map {
           "children" => Map {
             "linking" => {
               "head": null,
               "lazyData": null,
               "lazyDataResolved": false,
+              "loading": null,
               "parallelRoutes": Map {
                 "children" => Map {
                   "" => {
                     "head": null,
                     "lazyData": null,
                     "lazyDataResolved": false,
+                    "loading": null,
                     "parallelRoutes": Map {},
                     "prefetchHead": null,
                     "prefetchRsc": null,
@@ -116,6 +123,7 @@ describe('fillCacheWithDataProperty', () => {
               "head": null,
               "lazyData": Promise {},
               "lazyDataResolved": false,
+              "loading": null,
               "parallelRoutes": Map {},
               "prefetchHead": null,
               "prefetchRsc": null,
