@@ -49,6 +49,8 @@ import {
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
@@ -297,6 +299,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly enabledDirectories: NextEnabledDirectories
   protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
 
+  protected readonly experimentalTestProxy?: boolean
+
   protected abstract findPageComponents(params: {
     page: string
     query: NextParsedUrlQuery
@@ -385,8 +389,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       customServer = true,
       hostname,
       port,
+      experimentalTestProxy,
     } = options
 
+    this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
     this.dir =
@@ -466,14 +472,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      process.env.NEXT_DEPLOYMENT_ID =
-        this.nextConfig.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
     }
 
     this.renderOpts = {
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.experimental.deploymentId,
+      deploymentId: this.nextConfig.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -766,6 +771,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           attributes: {
             'http.method': method,
             'http.target': req.url,
+            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
@@ -882,13 +888,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port?.toString()
       const { originalRequest } = req as NodeNextRequest
-      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
-        ?.encrypted
-        ? 'https'
-        : 'http'
+      const isHttps = !!(originalRequest?.socket as TLSSocket)?.encrypted
+      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
+      req.headers['x-forwarded-port'] ??= this.port
+        ? this.port.toString()
+        : isHttps
+        ? '443'
+        : '80'
+      req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
       // This should be done before any normalization of the pathname happens as
@@ -943,7 +951,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -967,6 +975,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+
+            // If the request does not have the `x-now-route-matches` header,
+            // it means that the request has it's exact path specified in the
+            // `x-matched-path` header. In this case, we should update the
+            // pathname to the matched path.
+            if (!req.headers['x-now-route-matches']) {
+              urlPathname = this.normalizers.postponed.normalize(
+                matchedPath,
+                true
+              )
+            }
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -1726,7 +1745,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<ResponsePayload | null> {
     const is404Page =
       // For edge runtime 404 page, /_not-found needs to be treated as 404 page
-      (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
+      (process.env.NEXT_RUNTIME === 'edge' &&
+        pathname === UNDERSCORE_NOT_FOUND_ROUTE) ||
       pathname === '/404'
 
     // Strip the internal headers.
@@ -1830,6 +1850,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
+      res.setHeader('x-matched-path', pathname)
       res.setHeader('x-middleware-skip', '1')
       res.setHeader(
         'cache-control',
@@ -2120,9 +2141,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       postponed: string | undefined
     }) => Promise<ResponseCacheEntry | null>
 
+    // allow debugging the skeleton in dev with PPR
+    // instead of continuing to resume stream right away
+    const debugPPRSkeleton = Boolean(
+      this.nextConfig.experimental.ppr &&
+        (this.renderOpts.dev || this.experimentalTestProxy) &&
+        query.__nextppronly
+    )
+
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML: boolean =
+      let supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
         // support dynamic HTML.
         (!isDataReq && opts.dev === true) ||
@@ -2192,6 +2221,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+      }
+
+      if (debugPPRSkeleton) {
+        supportsDynamicHTML = false
+        renderOpts.nextExport = true
+        renderOpts.supportsDynamicHTML = false
+        renderOpts.isStaticGeneration = true
+        renderOpts.isRevalidate = true
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2852,6 +2889,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
+      if (debugPPRSkeleton) {
+        return {
+          type: 'html',
+          body,
+          revalidate: 0,
+        }
+      }
+
       // This request has postponed, so let's create a new transformer that the
       // dynamic data can pipe to that will attach the dynamic data to the end
       // of the response.
@@ -3234,7 +3279,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.enabledDirectories.app) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
             query,
             params: {},
             isAppPath: true,

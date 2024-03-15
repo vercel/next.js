@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../app/error-overlay-reducer'
-import type {
-  UnhandledErrorAction,
-  UnhandledRejectionAction,
-} from '../../app/error-overlay-reducer'
+  type UnhandledErrorAction,
+  type UnhandledRejectionAction,
+} from '../../shared'
 import {
   Dialog,
   DialogBody,
@@ -25,10 +23,10 @@ import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
-import { PseudoHtml } from './RuntimeError/component-stack-pseudo-html'
+import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
-  isHtmlTagsWarning,
   type HydrationErrorState,
+  getHydrationWarningType,
 } from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
@@ -228,7 +226,7 @@ export function Errors({
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
-  const isHtmlTagsWarningTemplate = isHtmlTagsWarning(warningTemplate)
+  const hydrationErrorType = getHydrationWarningType(warningTemplate)
   const hydrationWarning = warningTemplate
     ? warningTemplate
         .replace('%s', serverContent)
@@ -274,11 +272,12 @@ export function Errors({
             {hydrationWarning && activeError.componentStackFrames && (
               <>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
-                <PseudoHtml
+                <PseudoHtmlDiff
                   className="nextjs__container_errors__extra_code"
+                  hydrationMismatchType={hydrationErrorType}
                   componentStackFrames={activeError.componentStackFrames}
-                  serverTagName={isHtmlTagsWarningTemplate ? serverContent : ''}
-                  clientTagName={isHtmlTagsWarningTemplate ? clientContent : ''}
+                  firstContent={serverContent}
+                  secondContent={clientContent}
                 />
               </>
             )}
@@ -351,6 +350,9 @@ export const styles = css`
   }
   .nextjs__container_errors__extra_code {
     margin: 20px 0;
+    padding: 12px 32px;
+    color: var(--color-ansi-fg);
+    background: var(--color-ansi-bg);
   }
   .nextjs-toast-errors-parent {
     cursor: pointer;

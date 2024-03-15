@@ -13,13 +13,24 @@ createNextDescribe(
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-      ? 'pnpm next experimental-compile'
+      ? `pnpm next build --experimental-build-mode=compile`
       : undefined,
     dependencies: {
       nanoid: '4.0.1',
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
+    if (isDev && isPPREnabledByDefault) {
+      it('should allow returning just skeleton in dev with query', async () => {
+        const res = await next.fetch('/skeleton?__nextppronly=1')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain('Skeleton')
+        expect(html).not.toContain('suspended content')
+      })
+    }
+
     if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should provide query for getStaticProps page correctly', async () => {
         const res = await next.fetch('/ssg?hello=world')

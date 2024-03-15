@@ -398,7 +398,7 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onError when error occured while loading image', async () => {
+  it('should callback native onError when error occurred while loading image', async () => {
     let browser = await webdriver(appPort, '/on-error')
 
     await check(
@@ -412,11 +412,11 @@ function runTests(mode) {
     )
     await check(
       () => browser.eval(`document.getElementById("msg1").textContent`),
-      'no error occured'
+      'no error occurred'
     )
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'error occured while loading img2'
+      'error occurred while loading img2'
     )
   })
 

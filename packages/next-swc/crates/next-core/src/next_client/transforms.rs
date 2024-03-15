@@ -24,6 +24,7 @@ pub async fn get_next_client_transforms_rules(
     next_config: Vc<NextConfig>,
     context_ty: ClientContextType,
     mode: Vc<NextMode>,
+    foreign_code: bool,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -40,15 +41,21 @@ pub async fn get_next_client_transforms_rules(
 
     let pages_dir = match context_ty {
         ClientContextType::Pages { pages_dir } => {
-            rules.push(
-                get_next_pages_transforms_rule(pages_dir, ExportFilter::StripDataExports, mdx_rs)
+            if !foreign_code {
+                rules.push(
+                    get_next_pages_transforms_rule(
+                        pages_dir,
+                        ExportFilter::StripDataExports,
+                        mdx_rs,
+                    )
                     .await?,
-            );
-            rules.push(get_next_disallow_export_all_in_page_rule(
-                mdx_rs,
-                pages_dir.await?,
-            ));
-            rules.push(get_next_page_config_rule(mdx_rs, pages_dir.await?));
+                );
+                rules.push(get_next_disallow_export_all_in_page_rule(
+                    mdx_rs,
+                    pages_dir.await?,
+                ));
+                rules.push(get_next_page_config_rule(mdx_rs, pages_dir.await?));
+            }
             Some(pages_dir)
         }
         ClientContextType::App { .. } => {
@@ -61,13 +68,15 @@ pub async fn get_next_client_transforms_rules(
         ClientContextType::Fallback | ClientContextType::Other => None,
     };
 
-    rules.push(get_next_amp_attr_rule(mdx_rs));
-    rules.push(get_next_cjs_optimizer_rule(mdx_rs));
-    rules.push(get_next_pure_rule(mdx_rs));
+    if !foreign_code {
+        rules.push(get_next_amp_attr_rule(mdx_rs));
+        rules.push(get_next_cjs_optimizer_rule(mdx_rs));
+        rules.push(get_next_pure_rule(mdx_rs));
 
-    rules.push(get_next_dynamic_transform_rule(false, false, pages_dir, mode, mdx_rs).await?);
+        rules.push(get_next_dynamic_transform_rule(false, false, pages_dir, mode, mdx_rs).await?);
 
-    rules.push(get_next_image_rule());
+        rules.push(get_next_image_rule());
+    }
 
     Ok(rules)
 }

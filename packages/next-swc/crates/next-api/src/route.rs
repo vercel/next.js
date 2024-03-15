@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Vc};
 
-use crate::server_paths::ServerPath;
+use crate::paths::ServerPath;
 
 #[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, ValueDebugFormat, Clone, Debug)]
 pub struct AppPageRoute {
@@ -78,15 +78,17 @@ pub trait Endpoint {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WrittenEndpoint {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: String,
         server_paths: Vec<ServerPath>,
+        client_paths: Vec<String>,
     },
     Edge {
         server_paths: Vec<ServerPath>,
+        client_paths: Vec<String>,
     },
 }
 

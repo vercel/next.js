@@ -10,7 +10,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::middleware::get_font_paths_from_root;
+use crate::paths::get_font_paths_from_root;
 
 pub(crate) async fn create_font_manifest(
     client_root: Vc<FileSystemPath>,
@@ -18,17 +18,20 @@ pub(crate) async fn create_font_manifest(
     dir: Vc<FileSystemPath>,
     original_name: &str,
     manifest_path_prefix: &str,
+    pathname: &str,
     client_assets: Vc<OutputAssets>,
     app_dir: bool,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    // `_next` gets added again later, so we "strip" it here via
-    // `get_font_paths_from_root`.
-    let client_root_value = client_root.join("_next".to_string()).await?;
-
     let all_client_output_assets = all_assets_from_entries(client_assets).await?;
 
-    let font_paths =
-        get_font_paths_from_root(&client_root_value, &all_client_output_assets).await?;
+    // `_next` gets added again later, so we "strip" it here via
+    // `get_font_paths_from_root`.
+    let font_paths: Vec<String> =
+        get_font_paths_from_root(&*client_root.await?, &all_client_output_assets)
+            .await?
+            .iter()
+            .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
+            .collect();
 
     let path = if app_dir {
         node_root.join(format!(
@@ -60,9 +63,7 @@ pub(crate) async fn create_font_manifest(
         }
     } else {
         NextFontManifest {
-            pages: [(original_name.to_string(), font_paths)]
-                .into_iter()
-                .collect(),
+            pages: [(pathname.to_string(), font_paths)].into_iter().collect(),
             pages_using_size_adjust: using_size_adjust,
             ..Default::default()
         }

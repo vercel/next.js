@@ -6,19 +6,43 @@ export type HydrationErrorState = {
   clientContent?: string
 }
 
+type NullableText = string | null | undefined
+
+export const getHydrationWarningType = (
+  msg: NullableText
+): 'tag' | 'text' | 'text-in-tag' => {
+  if (isHtmlTagsWarning(msg)) return 'tag'
+  if (isTextInTagsMismatchWarning(msg)) return 'text-in-tag'
+  return 'text'
+}
+
+const isHtmlTagsWarning = (msg: NullableText) =>
+  Boolean(msg && htmlTagsWarnings.has(msg))
+
+const isTextMismatchWarning = (msg: NullableText) =>
+  Boolean(msg && textMismatchWarnings.has(msg))
+const isTextInTagsMismatchWarning = (msg: NullableText) =>
+  Boolean(msg && textInTagsMismatchWarnings.has(msg))
+
+const isKnownHydrationWarning = (msg: NullableText) =>
+  isHtmlTagsWarning(msg) ||
+  isTextInTagsMismatchWarning(msg) ||
+  isTextMismatchWarning(msg)
+
 export const hydrationErrorState: HydrationErrorState = {}
 
+// https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([
   'Warning: In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
   'Warning: Expected server HTML to contain a matching <%s> in <%s>.%s',
   'Warning: Did not expect server HTML to contain a <%s> in <%s>.%s',
 ])
-// https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
-const knownHydrationWarnings = new Set([
-  ...htmlTagsWarnings,
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s',
+const textInTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
+])
+const textMismatchWarnings = new Set([
+  'Warning: Text content did not match. Server: "%s" Client: "%s"%s',
 ])
 
 /**
@@ -30,7 +54,7 @@ const knownHydrationWarnings = new Set([
 export function patchConsoleError() {
   const prev = console.error
   console.error = function (msg, serverContent, clientContent, componentStack) {
-    if (knownHydrationWarnings.has(msg)) {
+    if (isKnownHydrationWarning(msg)) {
       hydrationErrorState.warning = [
         // remove the last %s from the message
         msg,
@@ -46,6 +70,3 @@ export function patchConsoleError() {
     prev.apply(console, arguments)
   }
 }
-
-export const isHtmlTagsWarning = (msg: any) =>
-  Boolean(msg && htmlTagsWarnings.has(msg))

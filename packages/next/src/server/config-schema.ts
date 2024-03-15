@@ -206,6 +206,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
+    deploymentId: z.string().optional(),
     devIndicators: z
       .object({
         buildActivity: z.boolean().optional(),
@@ -249,9 +250,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
-        useDeploymentId: z.boolean().optional(),
-        useDeploymentIdServerActions: z.boolean().optional(),
-        deploymentId: z.string().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
@@ -276,6 +274,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        mergeCssChunks: z.boolean().optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -344,6 +343,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               )
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
+            useSwcCss: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

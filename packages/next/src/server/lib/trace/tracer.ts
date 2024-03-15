@@ -141,6 +141,7 @@ interface NextTracer {
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.rsc'
   | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'

@@ -40,7 +40,8 @@ export type ManifestChunks = Array<string>
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  ASYNC_CLIENT_MODULES: [] as string[],
+  // Use an object to simulate Set lookup
+  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 })
 
 export interface ManifestNode {
@@ -175,13 +176,11 @@ export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   appDirBase: string
-  ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
-    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -276,7 +275,7 @@ export class ClientReferenceManifestPlugin {
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
 
       const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
-      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
+      const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
@@ -302,7 +301,7 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
+        const isAsyncModule = !!pluginState.ASYNC_CLIENT_MODULES[mod.resource]
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
@@ -328,7 +327,7 @@ export class ClientReferenceManifestPlugin {
         function addClientReference() {
           const exportName = resource
           manifest.clientModules[exportName] = {
-            id,
+            id: modId,
             name: '*',
             chunks: requiredChunks,
             async: isAsyncModule,
@@ -345,8 +344,8 @@ export class ClientReferenceManifestPlugin {
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id]['*'] = {
+            moduleIdMapping[modId] = moduleIdMapping[modId] || {}
+            moduleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -360,8 +359,8 @@ export class ClientReferenceManifestPlugin {
             typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
             'undefined'
           ) {
-            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id]['*'] = {
+            edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
+            edgeModuleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -456,13 +455,6 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
-      // Special case for the root not-found page.
-      // dev: app/not-found
-      // prod: app/_not-found
-      if (/^app\/_?not-found(\.[^.]+)?$/.test(entryName)) {
-        manifestEntryFiles.push(this.dev ? 'app/not-found' : 'app/_not-found')
-      }
-
       const groupName = entryNameToGroupName(entryName)
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
@@ -503,18 +495,8 @@ export class ClientReferenceManifestPlugin {
           pagePath.slice('app'.length)
         )}]=${json}`
       ) as unknown as webpack.sources.RawSource
-
-      if (pagePath === 'app/not-found') {
-        // Create a separate special manifest for the root not-found page.
-        assets['server/app/_not-found_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
-          new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              '/_not-found'
-            )}]=${json}`
-          ) as unknown as webpack.sources.RawSource
-      }
     }
 
-    pluginState.ASYNC_CLIENT_MODULES = []
+    pluginState.ASYNC_CLIENT_MODULES = {}
   }
 }

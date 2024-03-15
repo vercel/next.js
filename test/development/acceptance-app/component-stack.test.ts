@@ -21,15 +21,18 @@ describe('Component Stack in error overlay', () => {
     // If it's too long we can collapse
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "<Root>
-          <ServerRoot>
-            <AppRouter>
-              <ErrorBoundary>
-                <ErrorBoundaryHandler>
-                  <Router>"
+        "...
+          <InnerLayoutRouter>
+            <Mismatch>
+              <main>
+                <Component>
+                  <div>
+                    <p>
+                      "server"
+                      "client""
       `)
 
-      await session.toggleComponentStack()
+      await session.toggleCollapseComponentStack()
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
         "<Root>
           <ServerRoot>
@@ -62,7 +65,9 @@ describe('Component Stack in error overlay', () => {
                                                                 <main>
                                                                   <Component>
                                                                     <div>
-                                                                      <p>"
+                                                                      <p>
+                                                                        "server"
+                                                                        "client""
       `)
     } else {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
@@ -70,7 +75,9 @@ describe('Component Stack in error overlay', () => {
           <main>
             <Component>
               <div>
-                <p>"
+                <p>
+                  "server"
+                  "client""
       `)
     }
 

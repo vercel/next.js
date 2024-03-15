@@ -32,6 +32,7 @@ import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-ur
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
@@ -532,14 +533,14 @@ export async function initialize(opts: {
 
       const appNotFound = opts.dev
         ? developmentBundler?.serverFields.hasAppNotFound
-        : await fsChecker.getItem('/_not-found')
+        : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
 
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          opts.dev ? '/not-found' : '/_not-found',
+          UNDERSCORE_NOT_FOUND_ROUTE,
           handleIndex,
           {
             'x-invoke-status': '404',
