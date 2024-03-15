@@ -1915,16 +1915,14 @@
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly",
       "middleware - development errors when throwing while loading the module logs the error correctly",
-      "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
-    ],
-    "failed": [
-      "middleware - development errors when middleware throws synchronously logs the error correctly"
-    ],
-    "pending": [],
-    "flakey": [
+      "middleware - development errors when throwing while loading the module renders the error correctly and recovers",
+      "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error from boot logs the error correctly"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/middleware-warnings/index.test.ts": {
