@@ -11,6 +11,7 @@ describe('invalidateCacheByRouterState', () => {
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
     }
@@ -21,6 +22,7 @@ describe('invalidateCacheByRouterState', () => {
       head: null,
       prefetchHead: null,
       lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -34,6 +36,7 @@ describe('invalidateCacheByRouterState', () => {
                 head: null,
                 prefetchHead: null,
                 lazyDataResolved: false,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -47,6 +50,7 @@ describe('invalidateCacheByRouterState', () => {
                           head: null,
                           prefetchHead: null,
                           lazyDataResolved: false,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -89,6 +93,7 @@ describe('invalidateCacheByRouterState', () => {
       head: null,
       prefetchHead: null,
       lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([['children', new Map()]]),
     }
 

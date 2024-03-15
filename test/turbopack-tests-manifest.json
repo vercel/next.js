@@ -1203,11 +1203,10 @@
     "passed": [
       "ReactRefreshLogBox turbo Module not found",
       "ReactRefreshLogBox turbo Module not found (empty import trace)",
+      "ReactRefreshLogBox turbo Module not found (missing global CSS)",
       "ReactRefreshLogBox turbo Node.js builtins"
     ],
-    "failed": [
-      "ReactRefreshLogBox turbo Module not found (missing global CSS)"
-    ],
+    "failed": [],
     "pending": [
       "ReactRefreshLogBox default Module not found",
       "ReactRefreshLogBox default Module not found (empty import trace)",

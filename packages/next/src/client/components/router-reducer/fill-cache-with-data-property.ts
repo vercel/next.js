@@ -45,6 +45,7 @@ export function fillCacheWithDataProperty(
         prefetchHead: null,
         parallelRoutes: new Map(),
         lazyDataResolved: false,
+        loading: null,
       })
     }
     return
@@ -61,6 +62,7 @@ export function fillCacheWithDataProperty(
         prefetchHead: null,
         parallelRoutes: new Map(),
         lazyDataResolved: false,
+        loading: null,
       })
     }
     return
@@ -75,6 +77,7 @@ export function fillCacheWithDataProperty(
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
       lazyDataResolved: childCacheNode.lazyDataResolved,
+      loading: childCacheNode.loading,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)
   }
