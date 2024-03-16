@@ -1,9 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-conditions', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+
+  if (!isTurbopack) return
 
   it('should render correctly on server site', async () => {
     const res = await next.fetch('/')
