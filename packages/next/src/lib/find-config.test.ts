@@ -30,7 +30,7 @@ describe('findConfig()', () => {
 
   for (const pkgConfigType of testPatterns.pkgConfigTypes) {
     for (const ext of testPatterns.exts) {
-      it(`should not append message several times (type: "${pkgConfigType}", config: ${
+      it(`should load config properly (type: "${pkgConfigType}", config: ${
         ext === 'package.json' ? 'package.json' : `awsome.config.${ext}`
       })`, async () => {
         // Create fixtures
