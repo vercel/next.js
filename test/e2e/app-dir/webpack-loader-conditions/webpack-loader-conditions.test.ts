@@ -5,7 +5,10 @@ describe('webpack-loader-conditions', () => {
     files: __dirname,
   })
 
-  if (!isTurbopack) return
+  if (!isTurbopack) {
+    it('should only run the test in turbopack', () => {})
+    return
+  }
 
   it('should render correctly on server site', async () => {
     const res = await next.fetch('/')
