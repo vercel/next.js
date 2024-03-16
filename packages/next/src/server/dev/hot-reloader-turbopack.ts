@@ -61,6 +61,7 @@ import {
   type StartBuilding,
   processTopLevelIssues,
   type TopLevelIssuesMap,
+  isWellKnownError,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -129,15 +130,15 @@ export async function createHotReloaderTurbopack(
     env: process.env as Record<string, string>,
     defineEnv: createDefineEnv({
       isTurbopack: true,
-      allowedRevalidateHeaderKeys: undefined,
+      // TODO: Implement
       clientRouterFilters: undefined,
       config: nextConfig,
       dev: true,
       distDir,
-      fetchCacheKeyPrefix: undefined,
+      fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
       hasRewrites,
+      // TODO: Implement
       middlewareMatchers: undefined,
-      previewModeId: undefined,
     }),
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
@@ -249,6 +250,7 @@ export async function createHotReloaderTurbopack(
       readyIds.add(id)
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
+        hmrEventHappened = false
         consoleStore.setState(
           {
             loading: false,
@@ -578,9 +580,20 @@ export async function createHotReloaderTurbopack(
             case 'client-reload-page': // { clientId }
             case 'client-removed-page': // { page }
             case 'client-full-reload': // { stackTrace, hadRuntimeError }
-              const { hadRuntimeError } = parsedData
+              const { hadRuntimeError, dependencyChain } = parsedData
               if (hadRuntimeError) {
                 Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
+              }
+              if (
+                Array.isArray(dependencyChain) &&
+                typeof dependencyChain[0] === 'string'
+              ) {
+                const cleanedModulePath = dependencyChain[0]
+                  .replace(/^\[project\]/, '.')
+                  .replace(/ \[.*\] \(.*\)$/, '')
+                Log.warn(
+                  `Fast Refresh had to perform a full reload when ${cleanedModulePath} changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
+                )
               }
               break
             case 'client-added-page':
@@ -664,11 +677,17 @@ export async function createHotReloaderTurbopack(
       const thisEntryIssues =
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
+
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()].map(
-          (issue) => new Error(formatIssue(issue))
-        )
+        return [...topLevelIssues, ...thisEntryIssues.values()].map((issue) => {
+          const formattedIssue = formatIssue(issue)
+          if (isWellKnownError(issue)) {
+            Log.error(formattedIssue)
+          }
+
+          return new Error(formattedIssue)
+        })
       }
 
       // Otherwise, return all errors across pages

@@ -9,7 +9,6 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -50,9 +49,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
+            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -98,6 +97,21 @@ pub enum ServerContextType {
     Instrumentation,
 }
 
+impl ServerContextType {
+    pub fn conditions(&self) -> &'static [&'static str] {
+        match self {
+            ServerContextType::Pages { .. } => &["next-server", "next-pages", "next-ssr"],
+            ServerContextType::PagesApi { .. } => &["next-server", "next-pages", "next-api"],
+            ServerContextType::PagesData { .. } => &["next-server", "next-pages", "next-data"],
+            ServerContextType::AppSSR { .. } => &["next-server", "next-app", "next-ssr"],
+            ServerContextType::AppRSC { .. } => &["next-server", "next-app", "next-rsc"],
+            ServerContextType::AppRoute { .. } => &["next-server", "next-app", "next-route"],
+            ServerContextType::Middleware => &["next-server", "next-middleware"],
+            ServerContextType::Instrumentation => &["next-server", "next-instrumentation"],
+        }
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
@@ -114,6 +128,8 @@ pub async fn get_server_resolve_options_context(
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
+    let invalid_styled_jsx_client_only_resolve_plugin =
+        get_invalid_styled_jsx_resolve_plugin(project_path);
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
@@ -141,7 +157,8 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.await?.node_env().to_string(), "node".to_string()];
+    let mut custom_conditions = vec![mode.await?.condition().to_string(), "node".to_string()];
+    custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
 
     match ty {
         ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
@@ -170,10 +187,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(external_cjs_modules_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -181,10 +198,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
@@ -198,8 +215,8 @@ pub async fn get_server_resolve_options_context(
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
     };
@@ -221,6 +238,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Instrumentation => {
             plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -335,11 +353,11 @@ pub async fn get_server_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let foreign_webpack_rules = maybe_add_sass_loader(
-        next_config.sass_config(),
-        *next_config.webpack_rules().await?,
-    )
-    .await?;
+    let mut conditions = vec!["server".to_string(), mode.await?.condition().to_string()];
+    conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let foreign_webpack_rules = *next_config.webpack_rules(conditions).await?;
+    let foreign_webpack_rules =
+        maybe_add_sass_loader(next_config.sass_config(), foreign_webpack_rules).await?;
     let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -548,7 +566,7 @@ pub async fn get_server_module_options_context(
             ..
         } => {
             let mut custom_source_transform_rules: Vec<ModuleRule> =
-                vec![styled_components_transform_rule]
+                vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
@@ -613,6 +631,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -716,6 +735,7 @@ pub async fn get_server_chunking_context(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
@@ -726,12 +746,9 @@ pub async fn get_server_chunking_context(
         node_root.join("server/chunks".to_string()),
         client_root.join("static/media".to_string()),
         environment,
+        next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
-    .minify_type(if mode.await?.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .build())
 }

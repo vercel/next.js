@@ -96,12 +96,18 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRule =
+export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
-  | {
-      loaders: TurboLoaderItem[]
-      as: string
-    }
+  | TurboRuleConfigItem
+
+export type TurboRuleConfigItemOptions = {
+  loaders: TurboLoaderItem[]
+  as: string
+}
+
+export type TurboRuleConfigItem =
+  | TurboRuleConfigItemOptions
+  | { [condition: string]: TurboRuleConfigItem }
 
 export interface ExperimentalTurboOptions {
   /**
@@ -133,7 +139,7 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRule>
+  rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
    * Use swc_css instead of lightningcss for turbopakc
@@ -177,9 +183,6 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  useDeploymentId?: boolean
-  useDeploymentIdServerActions?: boolean
-  deploymentId?: string
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -627,6 +630,11 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * A unique identifier for a deployment that will be included in each request's query string or header.
+   */
+  deploymentId?: string
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
@@ -855,9 +863,6 @@ export const defaultConfig: NextConfig = {
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    useDeploymentId: false,
-    deploymentId: undefined,
-    useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -912,7 +917,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
-    optimizeServerReact: false,
+    optimizeServerReact: true,
     useEarlyImport: false,
     mergeCssChunks: true,
   },

@@ -8,14 +8,25 @@ export type HydrationErrorState = {
 
 type NullableText = string | null | undefined
 
-export const isHtmlTagsWarning = (msg: NullableText) =>
+export const getHydrationWarningType = (
+  msg: NullableText
+): 'tag' | 'text' | 'text-in-tag' => {
+  if (isHtmlTagsWarning(msg)) return 'tag'
+  if (isTextInTagsMismatchWarning(msg)) return 'text-in-tag'
+  return 'text'
+}
+
+const isHtmlTagsWarning = (msg: NullableText) =>
   Boolean(msg && htmlTagsWarnings.has(msg))
 
-export const isTextMismatchWarning = (msg: NullableText) =>
-  Boolean(msg && textMismatchWarnings.has(msg))
+const isTextMismatchWarning = (msg: NullableText) => textMismatchWarning === msg
+const isTextInTagsMismatchWarning = (msg: NullableText) =>
+  Boolean(msg && textAndTagsMismatchWarnings.has(msg))
 
 const isKnownHydrationWarning = (msg: NullableText) =>
-  isHtmlTagsWarning(msg) || isTextMismatchWarning(msg)
+  isHtmlTagsWarning(msg) ||
+  isTextInTagsMismatchWarning(msg) ||
+  isTextMismatchWarning(msg)
 
 export const hydrationErrorState: HydrationErrorState = {}
 
@@ -25,11 +36,12 @@ const htmlTagsWarnings = new Set([
   'Warning: Expected server HTML to contain a matching <%s> in <%s>.%s',
   'Warning: Did not expect server HTML to contain a <%s> in <%s>.%s',
 ])
-const textMismatchWarnings = new Set([
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s',
+const textAndTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
+const textMismatchWarning =
+  'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
 /**
  * Patch console.error to capture hydration errors.
