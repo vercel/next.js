@@ -19,8 +19,7 @@ export const getHydrationWarningType = (
 const isHtmlTagsWarning = (msg: NullableText) =>
   Boolean(msg && htmlTagsWarnings.has(msg))
 
-const isTextMismatchWarning = (msg: NullableText) =>
-  Boolean(msg && textMismatchWarning === msg)
+const isTextMismatchWarning = (msg: NullableText) => textMismatchWarning === msg
 const isTextInTagsMismatchWarning = (msg: NullableText) =>
   Boolean(msg && textAndTagsMismatchWarnings.has(msg))
 
