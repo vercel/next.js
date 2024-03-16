@@ -1808,12 +1808,12 @@ createNextDescribe(
 
         await browser.waitForElementByCss('h1')
         await waitFor(2000)
-        expect(Number(await browser.eval('window.__test_async_executions'))).toBe(
-          1
-        )
-        expect(Number(await browser.eval('window.__test_defer_executions'))).toBe(
-          1
-        )
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(1)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(1)
       } finally {
         if (browser) {
           await browser.close()
