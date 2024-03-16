@@ -21,18 +21,16 @@ describe('findConfig()', () => {
   }
   type TestPatterns = {
     pkgConfigTypes: ('module' | 'commonjs')[]
-    exts: ('js' | 'mjs' | 'cjs' | 'package.json')[]
+    exts: ('js' | 'mjs' | 'cjs')[]
   }
   const testPatterns: TestPatterns = {
     pkgConfigTypes: ['module', 'commonjs'],
-    exts: ['js', 'mjs', 'cjs', 'package.json'],
+    exts: ['js', 'mjs', 'cjs'],
   }
 
   for (const pkgConfigType of testPatterns.pkgConfigTypes) {
     for (const ext of testPatterns.exts) {
-      it(`should load config properly (type: "${pkgConfigType}", config: ${
-        ext === 'package.json' ? 'package.json' : `awsome.config.${ext}`
-      })`, async () => {
+      it(`should load config properly from *.config.* file (type: "${pkgConfigType}", config: awsome.config.${ext})`, async () => {
         // Create fixtures
         const tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
 
@@ -41,23 +39,17 @@ describe('findConfig()', () => {
           JSON.stringify({
             name: 'nextjs-test',
             type: pkgConfigType,
-            ...(ext === 'package.json'
-              ? { awsome: { basePath: '/docs' } }
-              : {}),
           })
         )
 
-        if (ext !== 'package.json') {
-          let configCodeType = ext
-          if (configCodeType === 'js') {
-            configCodeType = pkgConfigType === 'module' ? 'mjs' : 'cjs'
-          }
-
-          await writeFile(
-            join(tmpDir, `awsome.config.${ext}`),
-            configCode[configCodeType]
-          )
+        let configCodeType = ext
+        if (configCodeType === 'js') {
+          configCodeType = pkgConfigType === 'module' ? 'mjs' : 'cjs'
         }
+        await writeFile(
+          join(tmpDir, `awsome.config.${ext}`),
+          configCode[configCodeType]
+        )
 
         // Test
         const actualConfig = await findConfig(tmpDir, 'awsome')
@@ -65,4 +57,23 @@ describe('findConfig()', () => {
       })
     }
   }
+
+  it(`should load config properly from the config in package.json)`, async () => {
+    // Create fixtures
+    const tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
+
+    await writeFile(
+      join(tmpDir, 'package.json'),
+      JSON.stringify({
+        name: 'nextjs-test',
+        awsome: {
+          basePath: '/docs',
+        },
+      })
+    )
+
+    // Test
+    const actualConfig = await findConfig(tmpDir, 'awsome')
+    expect(actualConfig).toStrictEqual(exampleConfig)
+  })
 })
