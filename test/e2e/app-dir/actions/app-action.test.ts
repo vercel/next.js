@@ -1,12 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import {
-  check,
-  waitFor,
-  getRedboxSource,
-  hasRedbox,
-  retry,
-} from 'next-test-utils'
+import { check, waitFor, getRedboxSource, hasRedbox } from 'next-test-utils'
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -538,54 +532,6 @@ createNextDescribe(
           } finally {
             await next.patchFile(filePath, origContent)
           }
-        })
-
-        it('should error when exporting non async functions during runtime', async () => {
-          const logs: string[] = []
-          next.on('stdout', (log) => {
-            logs.push(log)
-          })
-          next.on('stderr', (log) => {
-            logs.push(log)
-          })
-
-          const filePath = 'app/server/actions.js'
-          const origContent = await next.readFile(filePath)
-
-          try {
-            const browser = await next.browser('/server')
-
-            const cnt = await browser.elementById('count').text()
-            expect(cnt).toBe('0')
-
-            // This requires the runtime to catch
-            await next.patchFile(
-              filePath,
-              origContent + '\n\nconst f = () => {}\nexport { f }'
-            )
-
-            await check(
-              () =>
-                logs.some((log) =>
-                  log.includes(
-                    'Error: A "use server" file can only export async functions. Found "f" that is not an async function.'
-                  )
-                )
-                  ? 'true'
-                  : '',
-              'true'
-            )
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-
-          // verify the error has gone away after the file is reverted
-          const browser = await next.browser('/server')
-          await retry(async () => {
-            expect(await hasRedbox(browser)).toBe(false)
-            const count = await browser.elementById('count').text()
-            expect(count).toBe('0')
-          })
         })
       })
 

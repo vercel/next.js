@@ -246,6 +246,29 @@ describe('Error overlay for hydration errors', () => {
       `"Did not expect server HTML to contain the text node "only" in <div>."`
     )
 
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+      "...
+        <NotFoundErrorBoundary>
+          <RedirectBoundary>
+            <RedirectErrorBoundary>
+              <InnerLayoutRouter>
+                <Mismatch>
+                  <div>
+                    <div>
+                      "only""
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Mismatch>
+          <div>
+            <div>
+              "only""
+      `)
+    }
+
     await cleanup()
   })
 
@@ -326,7 +349,7 @@ describe('Error overlay for hydration errors', () => {
     await cleanup()
   })
 
-  it('should only show one hydration error when bad nesting happened', async () => {
+  it('should only show one hydration error when bad nesting happened - p under p', async () => {
     const { cleanup, session, browser } = await sandbox(
       next,
       new Map([
@@ -383,6 +406,69 @@ describe('Error overlay for hydration errors', () => {
           ^^^
             <p>
             ^^^"
+      `)
+    }
+
+    await cleanup()
+  })
+
+  it('should only show one hydration error when bad nesting happened - div under p', async () => {
+    const { cleanup, session, browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            export default function Page() {
+              return (
+                <p>
+                  <div>Nested div under p tag</div>
+                </p>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
+
+    const totalErrorCount = await browser
+      .elementByCss('[data-nextjs-dialog-header-total-count]')
+      .text()
+    expect(totalErrorCount).toBe('1')
+
+    const description = await session.getRedboxDescription()
+    expect(description).toContain(
+      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
+    )
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    )
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Page>
+            <p>
+            ^^^
+              <div>
+              ^^^^^"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <p>
+          ^^^
+            <div>
+            ^^^^^"
       `)
     }
 
