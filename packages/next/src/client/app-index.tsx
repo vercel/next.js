@@ -165,7 +165,7 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags || null
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const hasMissingTags = !!rootLayoutMissingTags?.length
 
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
@@ -190,8 +190,8 @@ export function hydrate() {
         require('./components/react-dev-overlay/app/ReactDevOverlay')
           .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
 
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE
 
       const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
@@ -207,10 +207,7 @@ export function hydrate() {
       const errorTree = (
         <FallbackLayout>
           <ReactDevOverlay
-            state={{
-              ...INITIAL_OVERLAY_STATE,
-              rootLayoutMissingTags,
-            }}
+            state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
             onReactError={() => {}}
           >
             {reactEl}

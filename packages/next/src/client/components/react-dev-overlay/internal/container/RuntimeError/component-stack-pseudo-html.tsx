@@ -2,6 +2,10 @@ import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { CollapseIcon } from '../../icons/CollapseIcon'
 
+function getAdjacentProps(isAdj: boolean) {
+  return { 'data-nextjs-container-errors-pseudo-html--tag-adjacent': isAdj }
+}
+
 /**
  *
  * Format component stack into pseudo HTML
@@ -13,39 +17,54 @@ import { CollapseIcon } from '../../icons/CollapseIcon'
  * <pre>
  *  <code>{`
  *    <Page>
- *       <p>
- *       ^^^
- *         <p>
- *         ^^^
+ *       <p red>
+ *         <p red>
  *  `}</code>
  * </pre>
  * ```
  *
  * For text mismatch, it will render it for the code block
  *
- * ```diff
+ * ```
  * <pre>
  * <code>{`
  *   <Page>
  *     <p>
- * -     "Server Text"
- * +     "Client Text"
+ *       "Server Text" (green)
+ *       "Client Text" (red)
  *     </p>
  *   </Page>
  * `}</code>
  * ```
+ *
+ * For bad text under a tag it will render it for the code block,
+ * e.g. "Mismatched Text" under <p>
+ *
+ * ```
+ * <pre>
+ * <code>{`
+ *   <Page>
+ *     <div>
+ *       <p>
+ *         "Mismatched Text" (red)
+ *      </p>
+ *     </div>
+ *   </Page>
+ * `}</code>
+ * ```
+ *
  */
 export function PseudoHtmlDiff({
   componentStackFrames,
-  serverContent,
-  clientContent,
+  firstContent,
+  secondContent,
   hydrationMismatchType,
   ...props
 }: {
   componentStackFrames: ComponentStackFrame[]
-  serverContent: string
-  clientContent: string
-  hydrationMismatchType: 'tag' | 'text'
+  firstContent: string
+  secondContent: string
+  hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
   // For text mismatch, mismatched text will take 2 rows, so we display 4 rows of component stack
@@ -54,7 +73,7 @@ export function PseudoHtmlDiff({
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
   const htmlComponents = useMemo(() => {
-    const tagNames = isHtmlTagsWarning ? [serverContent, clientContent] : []
+    const tagNames = isHtmlTagsWarning ? [firstContent, secondContent] : []
     const nestedHtmlStack: React.ReactNode[] = []
     let lastText = ''
 
@@ -68,7 +87,7 @@ export function PseudoHtmlDiff({
         // When component is the server or client tag name, highlight it
 
         const isHighlightedTag = tagNames.includes(component)
-        const isRelatedTag =
+        const isAdjacentTag =
           isHighlightedTag ||
           tagNames.includes(prevComponent) ||
           tagNames.includes(nextComponent)
@@ -76,17 +95,22 @@ export function PseudoHtmlDiff({
         const isLastFewFrames =
           !isHtmlTagsWarning && index >= componentList.length - 6
 
-        if ((isHtmlTagsWarning && isRelatedTag) || isLastFewFrames) {
+        const adjProps = getAdjacentProps(isAdjacentTag)
+
+        if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
           const codeLine = (
             <span>
               {spaces}
               <span
-                {...(isHighlightedTag
-                  ? {
-                      'data-nextjs-container-errors-pseudo-html--tag-error':
-                        true,
-                    }
-                  : undefined)}
+                {...adjProps}
+                {...{
+                  ...(isHighlightedTag
+                    ? {
+                        'data-nextjs-container-errors-pseudo-html--tag-error':
+                          true,
+                      }
+                    : undefined),
+                }}
               >
                 {`<${component}>\n`}
               </span>
@@ -97,9 +121,11 @@ export function PseudoHtmlDiff({
           const wrappedCodeLine = (
             <Fragment key={nestedHtmlStack.length}>
               {codeLine}
-              {/* Add ^^^^ to the target tags */}
+              {/* Add ^^^^ to the target tags used for snapshots but not displayed for users */}
               {isHighlightedTag && (
-                <span>{spaces + '^'.repeat(component.length + 2) + '\n'}</span>
+                <span data-nextjs-container-errors-pseudo-html--hint>
+                  {spaces + '^'.repeat(component.length + 2) + '\n'}
+                </span>
               )}
             </Fragment>
           )
@@ -114,7 +140,7 @@ export function PseudoHtmlDiff({
 
           if (!isHtmlCollapsed || isLastFewFrames) {
             nestedHtmlStack.push(
-              <span key={nestedHtmlStack.length}>
+              <span {...adjProps} key={nestedHtmlStack.length}>
                 {spaces}
                 {'<' + component + '>\n'}
               </span>
@@ -122,7 +148,7 @@ export function PseudoHtmlDiff({
           } else if (isHtmlCollapsed && lastText !== '...') {
             lastText = '...'
             nestedHtmlStack.push(
-              <span key={nestedHtmlStack.length}>
+              <span {...adjProps} key={nestedHtmlStack.length}>
                 {spaces}
                 {'...\n'}
               </span>
@@ -131,18 +157,35 @@ export function PseudoHtmlDiff({
         }
       })
 
-    if (hydrationMismatchType === 'text') {
+    // Hydration mismatch: text or text-tag
+    if (!isHtmlTagsWarning) {
       const spaces = ' '.repeat(nestedHtmlStack.length * 2)
-      const wrappedCodeLine = (
-        <Fragment key={nestedHtmlStack.length}>
-          <span data-nextjs-container-errors-pseudo-html--diff-remove>
-            {spaces + `"${serverContent}"\n`}
-          </span>
-          <span data-nextjs-container-errors-pseudo-html--diff-add>
-            {spaces + `"${clientContent}"\n`}
-          </span>
-        </Fragment>
-      )
+      let wrappedCodeLine
+      if (hydrationMismatchType === 'text') {
+        // hydration type is "text", represent [server content, client content]
+        wrappedCodeLine = (
+          <Fragment key={nestedHtmlStack.length}>
+            <span data-nextjs-container-errors-pseudo-html--diff-remove>
+              {spaces + `"${firstContent}"\n`}
+            </span>
+            <span data-nextjs-container-errors-pseudo-html--diff-add>
+              {spaces + `"${secondContent}"\n`}
+            </span>
+          </Fragment>
+        )
+      } else {
+        // hydration type is "text-in-tag", represent [parent tag, mismatch content]
+        wrappedCodeLine = (
+          <Fragment key={nestedHtmlStack.length}>
+            <span data-nextjs-container-errors-pseudo-html--tag-adjacent>
+              {spaces + `<${secondContent}>\n`}
+            </span>
+            <span data-nextjs-container-errors-pseudo-html--diff-remove>
+              {spaces + `  "${firstContent}"\n`}
+            </span>
+          </Fragment>
+        )
+      }
       nestedHtmlStack.push(wrappedCodeLine)
     }
 
@@ -150,8 +193,8 @@ export function PseudoHtmlDiff({
   }, [
     componentStackFrames,
     isHtmlCollapsed,
-    clientContent,
-    serverContent,
+    firstContent,
+    secondContent,
     isHtmlTagsWarning,
     hydrationMismatchType,
     MAX_NON_COLLAPSED_FRAMES,

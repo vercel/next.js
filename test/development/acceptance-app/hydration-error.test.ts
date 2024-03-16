@@ -246,6 +246,29 @@ describe('Error overlay for hydration errors', () => {
       `"Did not expect server HTML to contain the text node "only" in <div>."`
     )
 
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+      "...
+        <NotFoundErrorBoundary>
+          <RedirectBoundary>
+            <RedirectErrorBoundary>
+              <InnerLayoutRouter>
+                <Mismatch>
+                  <div>
+                    <div>
+                      "only""
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Mismatch>
+          <div>
+            <div>
+              "only""
+      `)
+    }
+
     await cleanup()
   })
 

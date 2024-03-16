@@ -20,9 +20,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
+export type I18NDomains = DomainLocale[]
+
 export interface I18NConfig {
   defaultLocale: string
-  domains?: DomainLocale[]
+  domains?: I18NDomains
   localeDetection?: false
   locales: string[]
 }
@@ -132,6 +134,11 @@ export interface ExperimentalTurboOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurboRule>
+
+  /**
+   * Use swc_css instead of lightningcss for turbopakc
+   */
+  useSwcCss?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -170,9 +177,6 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  useDeploymentId?: boolean
-  useDeploymentIdServerActions?: boolean
-  deploymentId?: string
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -396,7 +400,7 @@ export interface ExperimentalConfig {
   useWasmBinary?: boolean
 
   /**
-   * Use lightningcss instead of swc_css
+   * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
 
@@ -618,6 +622,11 @@ export interface NextConfig extends Record<string, any> {
   amp?: {
     canonicalBase?: string
   }
+
+  /**
+   * A unique identifier for a deployment that will be included in each request's query string or header.
+   */
+  deploymentId?: string
 
   /**
    * Deploy a Next.js application under a sub-path of a domain
@@ -848,9 +857,6 @@ export const defaultConfig: NextConfig = {
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    useDeploymentId: false,
-    deploymentId: undefined,
-    useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -905,7 +911,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
-    optimizeServerReact: false,
+    optimizeServerReact: true,
     useEarlyImport: false,
     mergeCssChunks: true,
   },
