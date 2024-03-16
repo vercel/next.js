@@ -57,7 +57,7 @@ export async function findConfig<T>(
       if (packageJson[key] != null && typeof packageJson[key] === 'object') {
         return packageJson[key]
       }
-    } catch (err) {
+    } catch {
       // Ignore error and continue
     }
   }
