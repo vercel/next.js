@@ -37,7 +37,7 @@ export async function findConfig<T>(
 ): Promise<RecursivePartial<T> | null> {
   // `package.json` configuration always wins. Let's check that first.
   const packageJsonPath = await findUp('package.json', { cwd: directory })
-  let isJSM = false
+  let isESM = false
 
   if (packageJsonPath) {
     try {
@@ -51,7 +51,7 @@ export async function findConfig<T>(
       }
 
       if (packageJson.type === 'module') {
-        isJSM = true
+        isESM = true
       }
 
       if (packageJson[key] != null && typeof packageJson[key] === 'object') {
@@ -66,7 +66,7 @@ export async function findConfig<T>(
 
   if (filePath) {
     if (filePath.endsWith('.js')) {
-      return isJSM ? (await import(filePath)).default : require(filePath)
+      return isESM ? (await import(filePath)).default : require(filePath)
     } else if (filePath.endsWith('.mjs')) {
       return (await import(filePath)).default
     } else if (filePath.endsWith('.cjs')) {
