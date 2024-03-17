@@ -39,9 +39,19 @@ pub struct Config {
 // cache  -> "use server"  server     create(server reference)  server entry
 // cache  -> "use client"  client     create(client reference)  client entry
 // cache  -> "use cache"   server     reg(cache reference)      -
+
+#[derive(PartialEq, Eq)]
+pub enum ReferenceType {
+    Server,
+    Client,
+    Cache,
+}
+
 pub struct DirectiveConfig {
     pub register_reference: String,
     pub create_reference: String,
+    pub encrypt_closure_values: bool,
+    pub validate_export_values: bool,
 }
 
 /// A mapping of hashed action id to the action's exported function name.
@@ -71,6 +81,8 @@ pub fn server_actions<C: Comments>(
             DirectiveConfig {
                 register_reference: "registerServerReference".to_string(),
                 create_reference: "createServerReference".to_string(),
+                encrypt_closure_values: true,
+                validate_export_values: true,
             },
         )]),
         current_layer,
@@ -148,11 +160,11 @@ struct ServerActions<C: Comments> {
 
 impl<C: Comments> ServerActions<C> {
     // Check if the current value is marked by a directive or not
-    fn get_fn_directive_info(
+    fn get_maybe_fn_reference_type(
         &mut self,
         maybe_body: Option<&mut BlockStmt>,
         remove_directive: bool,
-    ) -> bool {
+    ) -> Option<ReferenceType> {
         let mut is_action_fn = false;
 
         if self.in_action_file && self.in_export_decl {
@@ -184,7 +196,11 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        is_action_fn
+        if is_action_fn {
+            Some(ReferenceType::Server)
+        } else {
+            None
+        }
     }
 
     fn maybe_hoist_and_create_proxy(
@@ -227,12 +243,14 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                    pat: Pat::Ident(
+                        Ident::new("$$REFERENCE_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
                 });
 
                 // Also prepend the decryption decl into the body.
                 // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-                // $$ACTION_CLOSURE_BOUND)
+                // $$REFERENCE_CLOSURE_BOUND)
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
@@ -258,7 +276,7 @@ impl<C: Comments> ServerActions<C> {
                                 callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                                 args: vec![
                                     generate_action_id(&self.file_name, &export_name).as_arg(),
-                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                                    quote_ident!("$$REFERENCE_CLOSURE_BOUND").as_arg(),
                                 ],
                                 type_args: None,
                             })),
@@ -351,12 +369,14 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                    pat: Pat::Ident(
+                        Ident::new("$$REFERENCE_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
                 });
 
                 // Also prepend the decryption decl into the body.
                 // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-                // $$ACTION_CLOSURE_BOUND)
+                // $$REFERENCE_CLOSURE_BOUND)
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
@@ -382,7 +402,7 @@ impl<C: Comments> ServerActions<C> {
                                 callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                                 args: vec![
                                     generate_action_id(&self.file_name, &export_name).as_arg(),
-                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                                    quote_ident!("$$REFERENCE_CLOSURE_BOUND").as_arg(),
                                 ],
                                 type_args: None,
                             })),
@@ -457,7 +477,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let is_action_fn = self.get_fn_directive_info(f.function.body.as_mut(), true);
+        let is_action_fn = self
+            .get_maybe_fn_reference_type(f.function.body.as_mut(), true)
+            .is_some_and(|t| t == ReferenceType::Server);
 
         let current_declared_idents = self.declared_idents.clone();
         let current_names = self.names.clone();
@@ -540,7 +562,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let is_action_fn = self.get_fn_directive_info(f.function.body.as_mut(), true);
+        let is_action_fn = self
+            .get_maybe_fn_reference_type(f.function.body.as_mut(), true)
+            .is_some_and(|t| t == ReferenceType::Server);
 
         let current_declared_idents = self.declared_idents.clone();
         let current_names = self.names.clone();
@@ -608,14 +632,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let is_action_fn = self.get_fn_directive_info(
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
-                Some(block)
-            } else {
-                None
-            },
-            true,
-        );
+        let is_action_fn = self
+            .get_maybe_fn_reference_type(
+                if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+                    Some(block)
+                } else {
+                    None
+                },
+                true,
+            )
+            .is_some_and(|t| t == ReferenceType::Server);
 
         let current_declared_idents = self.declared_idents.clone();
         let current_names = self.names.clone();
