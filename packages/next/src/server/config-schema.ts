@@ -5,7 +5,11 @@ import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
 import type { SizeLimit } from '../../types'
-import type { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
+import type {
+  ExportPathMap,
+  TurboLoaderItem,
+  TurboRuleConfigItemOrShortcut,
+} from './config-shared'
 import type {
   Header,
   Rewrite,
@@ -99,7 +103,7 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRule: zod.ZodType<TurboRule> = z.union([
+const zTurboRule: zod.ZodType<TurboRuleConfigItemOrShortcut> = z.union([
   z.array(zTurboLoaderItem),
   z.object({
     loaders: z.array(zTurboLoaderItem),

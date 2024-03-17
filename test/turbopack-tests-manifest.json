@@ -9654,6 +9654,9 @@
       "Env Config dev mode with hot reload should have updated runtime values after change",
       "Env Config dev mode with hot reload should inline global values during build",
       "Env Config dev mode with hot reload should load env from .env",
+      "Env Config dev mode with hot reload should provide env correctly for API routes",
+      "Env Config dev mode with hot reload should provide env correctly for SSR",
+      "Env Config dev mode with hot reload should provide env for SSG",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
       "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
@@ -9674,11 +9677,7 @@
       "Env Config production mode should provide env for SSG",
       "Env Config production mode should provide global env to next.config.js"
     ],
-    "flakey": [
-      "Env Config dev mode with hot reload should provide env correctly for API routes",
-      "Env Config dev mode with hot reload should provide env correctly for SSR",
-      "Env Config dev mode with hot reload should provide env for SSG"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/integration/error-in-error/test/index.test.js": {
