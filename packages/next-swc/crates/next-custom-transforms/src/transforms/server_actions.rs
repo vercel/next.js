@@ -53,6 +53,13 @@ pub fn server_actions<C: Comments>(
     config: Config,
     comments: C,
 ) -> impl VisitMut + Fold {
+    let current_layer = if config.is_react_server_layer {
+        "server"
+    } else {
+        "client"
+    }
+    .to_string();
+
     as_folder(ServerActions {
         config,
         comments,
@@ -66,6 +73,7 @@ pub fn server_actions<C: Comments>(
                 create_reference: "createServerReference".to_string(),
             },
         )]),
+        current_layer,
 
         in_action_file: false,
         in_export_decl: false,
@@ -110,6 +118,8 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
 
     directives: HashMap<String, DirectiveConfig>,
+    current_layer: String,
+
     in_action_file: bool,
     in_export_decl: bool,
     in_default_export_decl: bool,
