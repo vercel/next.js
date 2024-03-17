@@ -19,10 +19,9 @@ export const getHydrationWarningType = (
 const isHtmlTagsWarning = (msg: NullableText) =>
   Boolean(msg && htmlTagsWarnings.has(msg))
 
-const isTextMismatchWarning = (msg: NullableText) =>
-  Boolean(msg && textMismatchWarnings.has(msg))
+const isTextMismatchWarning = (msg: NullableText) => textMismatchWarning === msg
 const isTextInTagsMismatchWarning = (msg: NullableText) =>
-  Boolean(msg && textInTagsMismatchWarnings.has(msg))
+  Boolean(msg && textAndTagsMismatchWarnings.has(msg))
 
 const isKnownHydrationWarning = (msg: NullableText) =>
   isHtmlTagsWarning(msg) ||
@@ -37,13 +36,12 @@ const htmlTagsWarnings = new Set([
   'Warning: Expected server HTML to contain a matching <%s> in <%s>.%s',
   'Warning: Did not expect server HTML to contain a <%s> in <%s>.%s',
 ])
-const textInTagsMismatchWarnings = new Set([
+const textAndTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
-const textMismatchWarnings = new Set([
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s',
-])
+const textMismatchWarning =
+  'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
 /**
  * Patch console.error to capture hydration errors.

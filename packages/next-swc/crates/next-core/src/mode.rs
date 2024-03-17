@@ -20,6 +20,14 @@ impl NextMode {
         }
     }
 
+    /// Returns the exports condition for the current mode.
+    pub fn condition(&self) -> &'static str {
+        match self {
+            NextMode::Development => "development",
+            NextMode::Build => "production",
+        }
+    }
+
     /// Returns true if the development React runtime should be used.
     pub fn is_react_development(&self) -> bool {
         match self {
