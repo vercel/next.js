@@ -96,12 +96,18 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRule =
+export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
-  | {
-      loaders: TurboLoaderItem[]
-      as: string
-    }
+  | TurboRuleConfigItem
+
+export type TurboRuleConfigItemOptions = {
+  loaders: TurboLoaderItem[]
+  as: string
+}
+
+export type TurboRuleConfigItem =
+  | TurboRuleConfigItemOptions
+  | { [condition: string]: TurboRuleConfigItem }
 
 export interface ExperimentalTurboOptions {
   /**
@@ -133,7 +139,7 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRule>
+  rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
    * Use swc_css instead of lightningcss for turbopakc
