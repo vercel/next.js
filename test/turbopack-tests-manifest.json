@@ -317,6 +317,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/lib/find-config.test.ts": {
+    "passed": [
+      "findConfig() should load config properly from *.config.* file (type: \"commonjs\", config: awsome.config.cjs)",
+      "findConfig() should load config properly from *.config.* file (type: \"commonjs\", config: awsome.config.js)",
+      "findConfig() should load config properly from *.config.* file (type: \"commonjs\", config: awsome.config.mjs)",
+      "findConfig() should load config properly from *.config.* file (type: \"module\", config: awsome.config.cjs)",
+      "findConfig() should load config properly from *.config.* file (type: \"module\", config: awsome.config.js)",
+      "findConfig() should load config properly from *.config.* file (type: \"module\", config: awsome.config.mjs)",
+      "findConfig() should load config properly from the config in package.json)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/lib/format-server-error.test.ts": {
     "passed": ["formatServerError should not append message several times"],
     "failed": [],
@@ -1053,7 +1068,8 @@
     "passed": [
       "Error overlay for hydration errors should collapse and uncollapse properly when there are many frames",
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
-      "Error overlay for hydration errors should only show one hydration error when bad nesting happened",
+      "Error overlay for hydration errors should only show one hydration error when bad nesting happened - div under p",
+      "Error overlay for hydration errors should only show one hydration error when bad nesting happened - p under p",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra element",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra node inside Suspense content",
@@ -5056,6 +5072,16 @@
       "useSelectedLayoutSegment(s) should return correct values in layout before catchall segment",
       "useSelectedLayoutSegment(s) should return correct values in layout before param segment",
       "useSelectedLayoutSegment(s) should return correct values in layout before static segment"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
+    "passed": [
+      "webpack-loader-conditions should render correctly on client side",
+      "webpack-loader-conditions should render correctly on server site"
     ],
     "failed": [],
     "pending": [],
