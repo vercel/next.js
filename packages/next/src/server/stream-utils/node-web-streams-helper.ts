@@ -4,7 +4,6 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encodedTags'
 import {
-  concatUint8Arrays,
   indexOfUint8Array,
   isEquivalentUint8Arrays,
   removeFromUint8Array,
