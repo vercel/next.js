@@ -356,6 +356,10 @@ async function main() {
     }
   }
 
+  if (!tests) {
+    tests = []
+  }
+
   if (tests.length === 0) {
     console.log('No tests found for', options.type, 'exiting..')
   }
