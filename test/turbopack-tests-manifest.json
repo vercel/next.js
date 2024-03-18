@@ -6871,13 +6871,12 @@
       "Switchable runtime Switchable runtime (dev) should be able to navigate between edge SSR routes without any errors",
       "Switchable runtime Switchable runtime (dev) should be possible to switch between runtimes in API routes",
       "Switchable runtime Switchable runtime (dev) should be possible to switch between runtimes in pages",
+      "Switchable runtime Switchable runtime (dev) should build /api/hello and /api/edge as an api route with edge runtime",
       "Switchable runtime Switchable runtime (dev) should not consume server.js file extension",
       "Switchable runtime Switchable runtime (dev) should not include edge api routes and edge ssr routes into dev middleware manifest",
       "Switchable runtime Switchable runtime (dev) should sort edge SSR routes correctly"
     ],
-    "failed": [
-      "Switchable runtime Switchable runtime (dev) should build /api/hello and /api/edge as an api route with edge runtime"
-    ],
+    "failed": [],
     "pending": [
       "Switchable runtime Switchable runtime (dev) should be possible to switch between runtimes with same content",
       "Switchable runtime Switchable runtime (dev) should give proper errors for invalid runtime in app dir",
