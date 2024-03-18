@@ -495,6 +495,7 @@ impl AppEndpoint {
             Vc::upcast(FileSource::new(path)),
             self.page.clone(),
             self.app_project.project().project_path(),
+            None,
         )
     }
 
