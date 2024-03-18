@@ -21,6 +21,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
     },
+    references::AnalyzeEcmascriptModuleResultBuilder,
     AnalyzeEcmascriptModuleResult, EcmascriptInputTransforms, EcmascriptModuleAsset,
     EcmascriptModuleAssetType,
 };
@@ -163,9 +164,15 @@ impl MdxModuleAsset {
 
     #[turbo_tasks::function]
     async fn failsafe_analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        Ok(into_ecmascript_module_asset(&self)
-            .await?
-            .failsafe_analyze())
+        let asset = into_ecmascript_module_asset(&self).await;
+
+        if let Ok(asset) = asset {
+            Ok(asset.failsafe_analyze())
+        } else {
+            let mut result = AnalyzeEcmascriptModuleResultBuilder::new();
+            result.set_successful(false);
+            result.build(false).await
+        }
     }
 }
 

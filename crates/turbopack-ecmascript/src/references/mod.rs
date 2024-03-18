@@ -151,7 +151,7 @@ pub struct AnalyzeEcmascriptModuleResult {
 
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
-pub(crate) struct AnalyzeEcmascriptModuleResultBuilder {
+pub struct AnalyzeEcmascriptModuleResultBuilder {
     references: IndexSet<Vc<Box<dyn ModuleReference>>>,
     local_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
     reexport_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
