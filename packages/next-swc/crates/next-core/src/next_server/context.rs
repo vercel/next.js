@@ -768,22 +768,25 @@ pub async fn get_server_chunking_context_with_client_assets(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_chunking_context(
+pub async fn get_server_chunking_context(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
-) -> Vc<NodeJsChunkingContext> {
+) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    NodeJsChunkingContext::builder(
+    Ok(NodeJsChunkingContext::builder(
         project_path,
         node_root,
         node_root,
         node_root.join("server/chunks".to_string()),
         node_root.join("server/assets".to_string()),
         environment,
+        next_mode.runtime_type(),
     )
-    .minify_type(MinifyType::NoMinify)
-    .build()
+    .minify_type(next_mode.minify_type())
+    .build())
 }

@@ -573,6 +573,7 @@ impl Project {
             )
         } else {
             get_server_chunking_context(
+                self.next_mode(),
                 self.project_path(),
                 self.node_root(),
                 self.server_compile_time_info().environment(),

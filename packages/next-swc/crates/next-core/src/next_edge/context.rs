@@ -200,6 +200,7 @@ pub async fn get_edge_chunking_context(
         // asset from the output directory.
         .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
         .reference_chunk_source_maps(should_debug("edge"))
+        .minify_type(next_mode.minify_type())
         .build(),
     ))
 }
