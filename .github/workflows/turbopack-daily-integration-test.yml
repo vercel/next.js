@@ -19,7 +19,7 @@ jobs:
     if: github.repository_owner == 'vercel'
     permissions:
       pull-requests: write
-    uses: ./.github/workflows/nextjs-integration-test.yml
+    uses: ./.github/workflows/turbopack-nextjs-integration-tests.yml
     secrets: inherit
     with:
       diff_base: 'none'
