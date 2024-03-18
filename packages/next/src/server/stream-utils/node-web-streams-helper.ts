@@ -4,6 +4,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
 import { ENCODED_TAGS } from './encodedTags'
 import {
+  concatUint8Arrays,
   indexOfUint8Array,
   isEquivalentUint8Arrays,
   removeFromUint8Array,
@@ -444,31 +445,28 @@ export function createRootLayoutValidatorStream(): TransformStream<
   let foundHtml = false
   let foundBody = false
 
-  const decoder = new TextDecoder()
-
-  let content = ''
+  let content = new Uint8Array(0)
   return new TransformStream({
     async transform(chunk, controller) {
+      content = concatUint8Arrays(content, chunk)
       // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
-        content += decoder.decode(chunk, { stream: true })
-        if (!foundHtml && content.includes('<html')) {
+        if (
+          !foundHtml &&
+          indexOfUint8Array(content, ENCODED_TAGS.OPENING.HTML)
+        ) {
           foundHtml = true
         }
-        if (!foundBody && content.includes('<body')) {
+        if (
+          !foundBody &&
+          indexOfUint8Array(content, ENCODED_TAGS.OPENING.BODY)
+        ) {
           foundBody = true
         }
       }
       controller.enqueue(chunk)
     },
     flush(controller) {
-      // Flush the decoder.
-      if (!foundHtml || !foundBody) {
-        content += decoder.decode()
-        if (!foundHtml && content.includes('<html')) foundHtml = true
-        if (!foundBody && content.includes('<body')) foundBody = true
-      }
-
       const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')

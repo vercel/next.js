@@ -1,5 +1,11 @@
 export const ENCODED_TAGS = {
-  OPENING: {},
+  // opening tags do not have the closing `>` since they can contain other attributes such as `<body className=''>`
+  OPENING: {
+    // <html
+    HTML: new Uint8Array([60, 104, 116, 109, 108]),
+    // <body
+    BODY: new Uint8Array([60, 98, 111, 100, 121]),
+  },
   CLOSED: {
     // </head>
     HEAD: new Uint8Array([60, 47, 104, 101, 97, 100, 62]),

@@ -49,3 +49,15 @@ export function removeFromUint8Array(a: Uint8Array, b: Uint8Array) {
     return a
   }
 }
+
+/**
+ * Combines two Uint8Arrays together in order.
+ *
+ * `(a, b)` will be returned as `a + b`
+ */
+export function concatUint8Arrays(a: Uint8Array, b: Uint8Array) {
+  const result = new Uint8Array(a.length + b.length)
+  result.set(a)
+  result.set(b, a.length)
+  return result
+}
