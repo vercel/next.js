@@ -13,7 +13,7 @@
     "react-dom": "^18.2.0",
     "remark": "14.0.2",
     "remark-html": "15.0.1",
-    "storyblok-js-client": "2.5.0"
+    "storyblok-js-client": "3.0.0"
   },
   "devDependencies": {
     "autoprefixer": "10.4.2",
