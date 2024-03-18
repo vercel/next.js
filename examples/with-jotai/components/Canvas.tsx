@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { atom, useAtom } from "jotai";
 
