@@ -29,5 +29,5 @@ jobs:
   upload_turbopack_tests_manifest:
     name: Upload Turbopack tests manifest to areweturboyet.com
     if: ${{ !cancelled() }}
-    uses: ./.github/workflows/upload-turbopack-tests-manifest.yml
+    uses: ./.github/workflows/turbopack-upload-tests-manifest.yml
     secrets: inherit
