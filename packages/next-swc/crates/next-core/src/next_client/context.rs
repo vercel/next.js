@@ -9,7 +9,6 @@ use turbopack_binding::{
     turbopack::{
         browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -49,8 +48,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
+            NextSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
@@ -137,6 +136,17 @@ pub enum ClientContextType {
     Other,
 }
 
+impl ClientContextType {
+    pub fn conditions(&self) -> &'static [&'static str] {
+        match self {
+            ClientContextType::Pages { .. } => &["next-client", "next-pages"],
+            ClientContextType::App { .. } => &["next-client", "next-app"],
+            ClientContextType::Fallback => &["next-client", "next-fallback"],
+            ClientContextType::Other => &["next-client", "next-other"],
+        }
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
@@ -150,9 +160,11 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path, project_path, *mode.await?);
+    let mut custom_conditions = vec![mode.await?.condition().to_string()];
+    custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec![mode.await?.node_env().to_string()],
+        custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
         resolved_map: Some(next_client_resolved_map),
@@ -162,6 +174,7 @@ pub async fn get_client_resolve_options_context(
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
         ],
         ..Default::default()
     };
@@ -215,11 +228,11 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let foreign_webpack_rules = maybe_add_sass_loader(
-        next_config.sass_config(),
-        *next_config.webpack_rules().await?,
-    )
-    .await?;
+    let mut conditions = vec!["browser".to_string(), mode.await?.condition().to_string()];
+    conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let foreign_webpack_rules = *next_config.webpack_rules(conditions).await?;
+    let foreign_webpack_rules =
+        maybe_add_sass_loader(next_config.sass_config(), foreign_webpack_rules).await?;
     let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -243,7 +256,7 @@ pub async fn get_client_module_options_context(
         .cell()
     });
 
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
@@ -321,7 +334,7 @@ pub async fn get_client_module_options_context(
             ),
         ],
         custom_rules: next_client_rules,
-        use_lightningcss,
+        use_swc_css,
         ..module_options_context
     }
     .cell();
@@ -345,13 +358,10 @@ pub async fn get_client_chunking_context(
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
+        next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if next_mode.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .asset_base_path(asset_prefix);
 
     if next_mode.is_development() {

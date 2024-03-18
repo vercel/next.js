@@ -231,6 +231,10 @@ async fn dynamic_site_map_route_source(
             const cacheControl = {cache_control}
             const fileType = {file_type}
 
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
+
             export async function GET(_, ctx) {{
                 const {{ __metadata_id__ = [], ...params }} = ctx.params || {{}}
                 const targetId = __metadata_id__[0]
@@ -298,6 +302,10 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
             const handler = imageModule.default
             const generateImageMetadata = imageModule.generateImageMetadata
+
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
 
             export async function GET(_, ctx) {{
                 const {{ __metadata_id__ = [], ...params }} = ctx.params || {{}}
