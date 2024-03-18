@@ -5,7 +5,10 @@ const { createClient } = require('@vercel/kv')
 
 async function main() {
   try {
-    const file = path.join(process.cwd(), 'test/turbopack-tests-manifest.json')
+    const file = path.join(
+      process.cwd(),
+      'test/turbopack-dev-tests-manifest.json'
+    )
 
     let passingTests = ''
     let failingTests = ''

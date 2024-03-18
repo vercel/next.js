@@ -163,7 +163,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
       stepName: 'test-turbopack-dev-${{ matrix.group }}'
     secrets: inherit
 
@@ -179,9 +179,41 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-${{ matrix.group }}'
     secrets: inherit
+
+  # test-turbopack-production:
+  #   name: test turbopack production
+  #   needs: ['changes', 'build-next']
+  #   if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1/5, 2/5, 3/5, 4/5, 5/5]
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     nodeVersion: 18.17.0
+  #     afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+  #     stepName: 'test-turbopack-integration-${{ matrix.group }}'
+  #   secrets: inherit
+
+  # test-turbopack-production-integration:
+  #   name: test turbopack integration
+  #   needs: ['changes', 'build-next']
+  #   if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1/5, 2/5, 3/5, 4/5, 5/5]
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     nodeVersion: 18.17.0
+  #     afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+  #     stepName: 'test-turbopack-integration-${{ matrix.group }}'
+  #   secrets: inherit
 
   test-next-swc-wasm:
     name: test next-swc wasm

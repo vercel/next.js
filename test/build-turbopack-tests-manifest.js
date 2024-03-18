@@ -13,7 +13,7 @@ async function format(text) {
 
 const override = process.argv.includes('--override')
 
-const PASSING_JSON_PATH = `${__dirname}/turbopack-tests-manifest.json`
+const PASSING_JSON_PATH = `${__dirname}/turbopack-dev-tests-manifest.json`
 const WORKING_PATH = '/root/actions-runner/_work/next.js/next.js/'
 
 const INITIALIZING_TEST_CASES = [
