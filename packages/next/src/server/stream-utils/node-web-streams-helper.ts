@@ -419,13 +419,8 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
         // We assume these tags will go at together at the end of the document and that
         // they won't appear anywhere else in the document. This is not really a safe assumption
         // but until we revamp our streaming infra this is a performant way to string the tags
-        let transformed = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
-        transformed = removeFromUint8Array(
-          transformed,
-          ENCODED_TAGS.CLOSED.HTML
-        )
-
-        controller.enqueue(transformed)
+        chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
+        chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.HTML)
       }
 
       controller.enqueue(chunk)
