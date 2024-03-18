@@ -168,7 +168,7 @@ jobs:
     secrets: inherit
 
   test-turbopack-integration:
-    name: test turbopack integration
+    name: test turbopack development integration
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
@@ -200,7 +200,7 @@ jobs:
   #   secrets: inherit
 
   # test-turbopack-production-integration:
-  #   name: test turbopack integration
+  #   name: test turbopack production integration
   #   needs: ['changes', 'build-next']
   #   if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
