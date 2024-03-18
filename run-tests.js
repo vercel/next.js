@@ -358,7 +358,6 @@ async function main() {
 
   if (tests.length === 0) {
     console.log('No tests found for', options.type, 'exiting..')
-    return cleanUpAndExit(0)
   }
 
   console.log(`${GROUP}Running tests:
