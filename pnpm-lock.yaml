@@ -747,13 +747,13 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
         version: 1.3.3
       '@typescript-eslint/parser':
-        specifier: ^5.4.2 || ^6.0.0 || ^7.0.1
+        specifier: ^5.4.2 || ^6.0.0 || 7.0.0 - 7.2.0
         version: 6.14.0(eslint@8.31.0)(typescript@4.8.2)
       eslint:
         specifier: ^7.23.0 || ^8.0.0
@@ -809,7 +809,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.5
@@ -930,16 +930,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1554,7 +1554,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.2.0-canary.28
+        specifier: 14.2.0-canary.29
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -7459,7 +7459,7 @@ packages:
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
       '@typescript-eslint/types': 5.62.0
-      eslint-visitor-keys: 3.4.1
+      eslint-visitor-keys: 3.4.3
     dev: true
 
   /@typescript-eslint/visitor-keys@6.14.0:
@@ -7467,7 +7467,7 @@ packages:
     engines: {node: ^16.0.0 || >=18.0.0}
     dependencies:
       '@typescript-eslint/types': 6.14.0
-      eslint-visitor-keys: 3.4.1
+      eslint-visitor-keys: 3.4.3
 
   /@ungap/structured-clone@1.2.0:
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
@@ -11892,11 +11892,11 @@ packages:
   /eslint-visitor-keys@3.4.1:
     resolution: {integrity: sha512-pZnmmLwYzf+kWaM/Qgrvpen51upAktaaiI01nsJD/Yr3lMOdNtq0cxkrrg16w64VtisN6okbs7Q8AfGqj4c9fA==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    dev: false
 
   /eslint-visitor-keys@3.4.3:
     resolution: {integrity: sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-    dev: true
 
   /eslint@7.24.0:
     resolution: {integrity: sha512-k9gaHeHiFmGCDQ2rEfvULlSLruz6tgfA8DEn+rY9/oYPFFTlz55mM/Q/Rij1b2Y42jwZiK3lXvNTw6w6TXzcKQ==}
@@ -13981,7 +13981,7 @@ packages:
     engines: {node: '>= 6'}
     dependencies:
       agent-base: 6.0.2
-      debug: 4.3.4
+      debug: 4.1.1
     transitivePeerDependencies:
       - supports-color
     dev: true
