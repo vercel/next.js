@@ -506,8 +506,15 @@ export async function handleAction({
 
         if (isMultipartAction) {
           if (isFetchAction) {
+            const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+            const limit = require('next/dist/compiled/bytes').parse(
+              readableLimit
+            )
             const busboy = require('busboy')
-            const bb = busboy({ headers: req.headers })
+            const bb = busboy({
+              headers: req.headers,
+              limits: { fieldSize: limit },
+            })
             req.pipe(bb)
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
