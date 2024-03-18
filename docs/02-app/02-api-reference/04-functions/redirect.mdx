@@ -6,13 +6,16 @@ related:
     - app/api-reference/functions/permanentRedirect
 ---
 
-The `redirect` function allows you to redirect the user to another URL. `redirect` can be used in Server Components, Client Components, [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+The `redirect` function allows you to redirect the user to another URL. `redirect` can be used in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
 When used in a [streaming context](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming), this will insert a meta tag to emit the redirect on the client side. When used in a server action, it will serve a 303 HTTP redirect response to the caller. Otherwise, it will serve a 307 HTTP redirect response to the caller.
 
 If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api-reference/functions/not-found) instead.
 
-> **Good to know**: If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
+> **Good to know**:
+>
+> - In Server Actions and Route Handlers, `redirect` should be called after the `try/catch` block.
+> - If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
 
 ## Parameters
 
@@ -37,9 +40,9 @@ The `type` parameter has no effect when used in Server Components.
 
 ## Example
 
-Invoking the `redirect()` function throws a `NEXT_REDIRECT` error and terminates rendering of the route segment in which it was thrown.
+### Server Component
 
-> **Good to know**: If you need to programmatically redirect the user after a certain event in a Client Component, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
+Invoking the `redirect()` function throws a `NEXT_REDIRECT` error and terminates rendering of the route segment in which it was thrown.
 
 ```jsx filename="app/team/[id]/page.js"
 import { redirect } from 'next/navigation'
@@ -61,6 +64,60 @@ export default async function Profile({ params }) {
 ```
 
 > **Good to know**: `redirect` does not require you to use `return redirect()` as it uses the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
+
+### Client Component
+
+`redirect` can be used in a Client Component through a Server Action. If you need to use an event handler to redirect the user, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
+
+```tsx filename="app/client-redirect.tsx" switcher
+'use client'
+
+import { navigate } from './actions'
+
+export function ClientRedirect() {
+  return (
+    <form action={navigate}>
+      <input type="text" name="id" />
+      <button>Submit</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/client-redirect.jsx" switcher
+'use client'
+
+import { navigate } from './actions'
+
+export function ClientRedirect() {
+  return (
+    <form action={navigate}>
+      <input type="text" name="id" />
+      <button>Submit</button>
+    </form>
+  )
+}
+```
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+
+export async function navigate(data: FormData) {
+  redirect(`/posts/${data.get('id')}`)
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+
+export async function navigate(data) {
+  redirect(`/posts/${data.get('id')}`)
+}
+```
 
 ## FAQ
 

@@ -40,36 +40,30 @@ pub(super) async fn get_font_fallbacks(
 
     match options.adjust_font_fallback {
         AdjustFontFallback::Arial => font_fallbacks.push(
-            FontFallback::Automatic(
-                AutomaticFontFallback {
-                    scoped_font_family,
-                    local_font_family: Vc::cell("Arial".to_owned()),
-                    adjustment: Some(
-                        get_font_adjustment(context, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
-                    ),
-                }
-                .cell(),
-            )
+            FontFallback::Automatic(AutomaticFontFallback {
+                scoped_font_family,
+                local_font_family: Vc::cell("Arial".to_owned()),
+                adjustment: Some(
+                    get_font_adjustment(context, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
+                ),
+            })
             .into(),
         ),
         AdjustFontFallback::TimesNewRoman => font_fallbacks.push(
-            FontFallback::Automatic(
-                AutomaticFontFallback {
-                    scoped_font_family,
-                    local_font_family: Vc::cell("Times New Roman".to_owned()),
-                    adjustment: Some(
-                        get_font_adjustment(context, options_vc, &DEFAULT_SERIF_FONT).await?,
-                    ),
-                }
-                .cell(),
-            )
+            FontFallback::Automatic(AutomaticFontFallback {
+                scoped_font_family,
+                local_font_family: Vc::cell("Times New Roman".to_owned()),
+                adjustment: Some(
+                    get_font_adjustment(context, options_vc, &DEFAULT_SERIF_FONT).await?,
+                ),
+            })
             .into(),
         ),
         AdjustFontFallback::None => (),
     };
 
     if let Some(fallback) = &options.fallback {
-        font_fallbacks.push(FontFallback::Manual(Vc::cell(fallback.clone())).into());
+        font_fallbacks.push(FontFallback::Manual(fallback.clone()).into());
     }
 
     Ok(Vc::cell(font_fallbacks))
@@ -143,7 +137,7 @@ fn calc_average_width(font: &mut Font<DynamicFontTableProvider>) -> Option<f32> 
     )
 }
 
-/// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L59
+/// From [implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L59)
 ///
 /// If multiple font files are provided for a font family, we need to pick
 /// one to use for the automatic fallback generation. This function returns
@@ -202,7 +196,7 @@ fn pick_font_for_fallback_generation(
     }
 }
 
-/// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L18
+/// From[implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L18)
 ///
 /// Get the distance from normal (400) weight for the provided weight.
 /// If it's not a variable font we can just return the distance.
@@ -233,10 +227,10 @@ fn get_distance_from_normal_weight(weight: &Option<FontWeight>) -> Result<f64> {
     })
 }
 
-/// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L6
+/// From [implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L6)
 ///
 /// Convert the weight string to a number so it can be used for comparison.
-/// Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight
+/// Weights can be defined as a number, 'normal' or 'bold'. [reference](https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight)
 fn parse_weight_string(weight_str: &str) -> Result<f64> {
     if weight_str == "normal" {
         Ok(NORMAL_WEIGHT)

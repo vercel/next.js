@@ -60,11 +60,15 @@ export class CacheHandler {
   ): Promise<void> {}
 
   public async revalidateTag(_tag: string): Promise<void> {}
+
+  public resetRequestCache(): void {}
 }
 
 export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
+  disableForTestmode?: boolean
   cacheHandler?: CacheHandler
+  hasCustomCacheHandler: boolean
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   requestProtocol?: 'http' | 'https'
@@ -112,6 +116,7 @@ export class IncrementalCache implements IncrementalCacheType {
     experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
+    this.hasCustomCacheHandler = Boolean(CurCacheHandler)
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
         if (debug) {
@@ -138,6 +143,7 @@ export class IncrementalCache implements IncrementalCacheType {
       maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
     this.dev = dev
+    this.disableForTestmode = process.env.NEXT_PRIVATE_TEST_PROXY === 'true'
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
     const minimalModeKey = 'minimalMode'
@@ -209,6 +215,10 @@ export class IncrementalCache implements IncrementalCacheType {
 
   _getPathname(pathname: string, fetchCache?: boolean) {
     return fetchCache ? pathname : normalizePagePath(pathname)
+  }
+
+  resetRequestCache() {
+    this.cacheHandler?.resetRequestCache?.()
   }
 
   async unlock(cacheKey: string) {
@@ -293,7 +303,6 @@ export class IncrementalCache implements IncrementalCacheType {
     // that should bust the cache
     const MAIN_KEY_PREFIX = 'v3'
 
-    let cacheKey: string
     const bodyChunks: string[] = []
 
     const encoder = new TextEncoder()
@@ -396,12 +405,11 @@ export class IncrementalCache implements IncrementalCacheType {
           .join('')
       }
       const buffer = encoder.encode(cacheString)
-      cacheKey = bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
+      return bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
     } else {
       const crypto = require('crypto') as typeof import('crypto')
-      cacheKey = crypto.createHash('sha256').update(cacheString).digest('hex')
+      return crypto.createHash('sha256').update(cacheString).digest('hex')
     }
-    return cacheKey
   }
 
   // get data from cache if available
@@ -435,9 +443,10 @@ export class IncrementalCache implements IncrementalCacheType {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
     if (
-      this.dev &&
-      (ctx.kindHint !== 'fetch' ||
-        this.requestHeaders['cache-control'] === 'no-cache')
+      this.disableForTestmode ||
+      (this.dev &&
+        (ctx.kindHint !== 'fetch' ||
+          this.requestHeaders['cache-control'] === 'no-cache'))
     ) {
       return null
     }
@@ -554,11 +563,20 @@ export class IncrementalCache implements IncrementalCacheType {
       })
     }
 
-    if (this.dev && !ctx.fetchCache) return
-    // fetchCache has upper limit of 2MB per-entry currently
-    if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
+    if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
+    // FetchCache has upper limit of 2MB per-entry currently
+    const itemSize = JSON.stringify(data).length
+    if (
+      ctx.fetchCache &&
+      // we don't show this error/warning when a custom cache handler is being used
+      // as it might not have this limit
+      !this.hasCustomCacheHandler &&
+      itemSize > 2 * 1024 * 1024
+    ) {
       if (this.dev) {
-        throw new Error(`fetch for over 2MB of data can not be cached`)
+        throw new Error(
+          `Failed to set Next.js data cache, items over 2MB can not be cached (${itemSize} bytes)`
+        )
       }
       return
     }

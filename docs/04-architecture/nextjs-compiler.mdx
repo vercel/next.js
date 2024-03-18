@@ -31,8 +31,20 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 ```js filename="next.config.js"
 module.exports = {
   compiler: {
+    styledComponents: true,
+  },
+}
+```
+
+For advanced use cases, you can configure individual properties for styled-components compilation.
+
+> Note: `minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
+
+```js filename="next.config.js"
+module.exports = {
+  compiler: {
     // see https://styled-components.com/docs/tooling#babel-plugin for more info on the options.
-    styledComponents: boolean | {
+    styledComponents: {
       // Enabled by default in development, disabled in production to reduce file size,
       // setting this will override the default for all environments.
       displayName?: boolean,
@@ -58,8 +70,6 @@ module.exports = {
   },
 }
 ```
-
-`minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 

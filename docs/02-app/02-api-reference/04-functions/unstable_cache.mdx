@@ -20,6 +20,9 @@ export default async function Component({ userID }) {
 }
 ```
 
+> **Good to know**:
+> Accessing dynamic data sources such as `headers` or `cookies` inside a cache scope is not supported. If you need this data inside a cached function use `headers` outside of the cached function and pass the required dynamic data in as an argument.
+
 > **Warning**: This API is unstable and may change in the future. We will provide migration documentation and codemods, if needed, as this API stabilizes.
 
 ## Parameters
@@ -32,8 +35,14 @@ const data = unstable_cache(fetchData, keyParts, options)()
 - `keyParts`: This is an array that identifies the cached key. It must contain globally unique values that together identify the key of the data being cached. The cache key also includes the arguments passed to the function.
 - `options`: This is an object that controls how the cache behaves. It can contain the following properties:
   - `tags`: An array of tags that can be used to control cache invalidation.
-  - `revalidate`: The number of seconds after which the cache should be revalidated.
+  - `revalidate`: The number of seconds after which the cache should be revalidated. Omit or pass `false` to cache indefinitely or until matching `revalidateTag()` or `revalidatePath()` methods are called.
 
 ## Returns
 
 `unstable_cache` returns a function that when invoked, returns a Promise that resolves to the cached data. If the data is not in the cache, the provided function will be invoked, and its result will be cached and returned.
+
+## Version History
+
+| Version   | Changes                      |
+| --------- | ---------------------------- |
+| `v14.0.0` | `unstable_cache` introduced. |

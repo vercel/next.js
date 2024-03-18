@@ -5,10 +5,7 @@ const { createClient } = require('@vercel/kv')
 
 async function main() {
   try {
-    const file = path.join(
-      process.cwd(),
-      './test-results/nextjs-test-results.json'
-    )
+    const file = path.join(process.cwd(), 'test/turbopack-tests-manifest.json')
 
     let passingTests = ''
     let failingTests = ''
@@ -17,37 +14,34 @@ async function main() {
 
     const contents = await fs.readFile(file, 'utf-8')
     const results = JSON.parse(contents)
-    let { ref } = results
+
     const currentDate = new Date()
     const isoString = currentDate.toISOString()
     const timestamp = isoString.slice(0, 19).replace('T', ' ')
 
-    for (const result of results.result) {
+    for (const [testFileName, result] of Object.entries(results)) {
       let suitePassCount = 0
       let suiteFailCount = 0
 
-      suitePassCount += result.data.numPassedTests
-      suiteFailCount += result.data.numFailedTests
+      suitePassCount += result.passed.length
+      suiteFailCount += result.failed.length
 
-      let suiteName = result.data.testResults[0].name
-      // remove "/home/runner/work/turbo/turbo/" from the beginning of suiteName
-      suiteName = suiteName.slice(30)
       if (suitePassCount > 0) {
-        passingTests += `${suiteName}\n`
+        passingTests += `${testFileName}\n`
       }
 
       if (suiteFailCount > 0) {
-        failingTests += `${suiteName}\n`
+        failingTests += `${testFileName}\n`
       }
 
-      for (const assertionResult of result.data.testResults[0]
-        .assertionResults) {
-        let assertion = assertionResult.fullName.replaceAll('`', '\\`')
-        if (assertionResult.status === 'passed') {
-          passingTests += `* ${assertion}\n`
-        } else if (assertionResult.status === 'failed') {
-          failingTests += `* ${assertion}\n`
-        }
+      for (const passed of result.passed) {
+        const passedName = passed.replaceAll('`', '\\`')
+        passingTests += `* ${passedName}\n`
+      }
+
+      for (const passed of result.failed) {
+        const failedName = passed.replaceAll('`', '\\`')
+        failingTests += `* ${failedName}\n`
       }
 
       passCount += suitePassCount
@@ -67,7 +61,7 @@ async function main() {
       token: process.env.TURBOYET_KV_REST_API_TOKEN,
     })
 
-    const testRun = `${ref}\t${timestamp}\t${passCount}/${
+    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
       passCount + failCount
     }`
 

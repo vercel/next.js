@@ -152,7 +152,7 @@ export default function Page() {
 
 <AppOnly>
 
-> **Good to know**: Using props like `loader`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `loader`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -212,7 +212,7 @@ This example `sizes` could have a dramatic effect on performance metrics. Withou
 Learn more about `srcset` and `sizes`:
 
 - [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
-- [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-sizes)
+- [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#sizes)
 
 ### `quality`
 
@@ -294,7 +294,7 @@ The callback function will be called with one argument, a reference to the under
 
 <AppOnly>
 
-> **Good to know**: Using props like `onLoadingComplete`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onLoadingComplete`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -310,7 +310,7 @@ The callback function will be called with one argument, the Event which has a `t
 
 <AppOnly>
 
-> **Good to know**: Using props like `onLoad`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onLoad`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -324,7 +324,7 @@ A callback function that is invoked if the image fails to load.
 
 <AppOnly>
 
-> **Good to know**: Using props like `onError`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onError`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -343,7 +343,7 @@ the viewport.
 
 When `eager`, load the image immediately.
 
-Learn more about the [`loading` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-loading).
+Learn more about the [`loading` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#loading).
 
 ### `blurDataURL`
 
@@ -430,13 +430,14 @@ module.exports = {
       {
         protocol: 'https',
         hostname: '**.example.com',
+        port: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -444,6 +445,8 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 - `**` match any number of path segments at the end or subdomains at the beginning
 
 The `**` syntax does not work in the middle of the pattern.
+
+> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
 
 ### `domains`
 
@@ -494,7 +497,7 @@ Examples:
 
 <AppOnly>
 
-> **Good to know**: Customizing the image loader file, which accepts a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Customizing the image loader file, which accepts a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -617,9 +620,11 @@ module.exports = {
 
 ### `dangerouslyAllowSVG`
 
-The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without a proper [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy).
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers#content-security-policy).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
+Therefore, we recommended using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
+
+However, if you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -728,7 +733,7 @@ Try it out:
 
 - [Demo the `fill` prop](https://image-component.nextjs.gallery/fill)
 
-## Theme Detection
+## Theme Detection CSS
 
 If you want to display a different image for light and dark mode, you can create a new component that wraps two `<Image>` components and reveals the correct one based on a CSS media query.
 
@@ -790,6 +795,109 @@ Try it out:
 
 - [Demo light/dark mode theme detection](https://image-component.nextjs.gallery/theme)
 
+## getImageProps
+
+For more advanced use cases, you can call `getImageProps()` to get the props that would be passed to the underlying `<img>` element, and instead pass to them to another component, style, canvas, etc.
+
+This also avoid calling React `useState()` so it can lead to better performance, but it cannot be used with the [`placeholder`](#placeholder) prop because the placeholder will never be removed.
+
+### Theme Detection Picture
+
+If you want to display a different image for light and dark mode, you can use the [`<picture>`](https://developer.mozilla.org/docs/Web/HTML/Element/picture) element to display a different image based on the user's [preferred color scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme).
+
+```jsx filename="app/page.js"
+import { getImageProps } from 'next/image'
+
+export default function Page() {
+  const common = { alt: 'Theme Example', width: 800, height: 400 }
+  const {
+    props: { srcSet: dark },
+  } = getImageProps({ ...common, src: '/dark.png' })
+  const {
+    props: { srcSet: light, ...rest },
+  } = getImageProps({ ...common, src: '/light.png' })
+
+  return (
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet={dark} />
+      <source media="(prefers-color-scheme: light)" srcSet={light} />
+      <img {...rest} />
+    </picture>
+  )
+}
+```
+
+### Art Direction
+
+If you want to display a different image for mobile and desktop, sometimes called [Art Direction](https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images#art_direction), you can provide different `src`, `width`, `height`, and `quality` props to `getImageProps()`.
+
+```jsx filename="app/page.js"
+import { getImageProps } from 'next/image'
+
+export default function Home() {
+  const common = { alt: 'Art Direction Example', sizes: '100vw' }
+  const {
+    props: { srcSet: desktop },
+  } = getImageProps({
+    ...common,
+    width: 1440,
+    height: 875,
+    quality: 80,
+    src: '/desktop.jpg',
+  })
+  const {
+    props: { srcSet: mobile, ...rest },
+  } = getImageProps({
+    ...common,
+    width: 750,
+    height: 1334,
+    quality: 70,
+    src: '/mobile.jpg',
+  })
+
+  return (
+    <picture>
+      <source media="(min-width: 1000px)" srcSet={desktop} />
+      <source media="(min-width: 500px)" srcSet={mobile} />
+      <img {...rest} style={{ width: '100%', height: 'auto' }} />
+    </picture>
+  )
+}
+```
+
+### Background CSS
+
+You can even convert the `srcSet` string to the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set) CSS function to optimize a background image.
+
+```jsx filename="app/page.js"
+import { getImageProps } from 'next/image'
+
+function getBackgroundImage(srcSet = '') {
+  const imageSet = srcSet
+    .split(', ')
+    .map((str) => {
+      const [url, dpi] = str.split(' ')
+      return `url("${url}") ${dpi}`
+    })
+    .join(', ')
+  return `image-set(${imageSet})`
+}
+
+export default function Home() {
+  const {
+    props: { srcSet },
+  } = getImageProps({ alt: '', width: 128, height: 128, src: '/img.png' })
+  const backgroundImage = getBackgroundImage(srcSet)
+  const style = { height: '100vh', width: '100vw', backgroundImage }
+
+  return (
+    <main style={style}>
+      <h1>Hello World</h1>
+    </main>
+  )
+}
+```
+
 ## Known Browser Bugs
 
 This `next/image` component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
@@ -805,6 +913,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `v13.2.0`  | `contentDispositionType` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

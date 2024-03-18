@@ -1,7 +1,10 @@
 import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
 import { bold, purple } from '../../lib/picocolors'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../../shared/lib/constants'
 import loadConfig, { getEnabledExperimentalFeatures } from '../config'
 
 export function logStartInfo({
@@ -35,7 +38,7 @@ export function logStartInfo({
   if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
+    Log.bootstrap(` - Experiments (use with caution):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
       Log.bootstrap(`   · ${exp}`)
@@ -50,21 +53,28 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo(dir: string): Promise<{
+export async function getStartServerInfo(
+  dir: string,
+  dev: boolean
+): Promise<{
   envInfo?: string[]
   expFeatureInfo?: string[]
 }> {
   let expFeatureInfo: string[] = []
-  await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
+  await loadConfig(
+    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+    dir,
+    {
+      onLoadUserConfig(userConfig) {
+        const userNextConfigExperimental = getEnabledExperimentalFeatures(
+          userConfig.experimental
+        )
+        expFeatureInfo = userNextConfigExperimental.sort(
+          (a, b) => a.length - b.length
+        )
+      },
+    }
+  )
 
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the

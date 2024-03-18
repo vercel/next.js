@@ -141,7 +141,7 @@ export default async function sitemap({
   id,
 }: {
   id: number
-}): MetadataRoute.Sitemap {
+}): Promise<MetadataRoute.Sitemap> {
   // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
@@ -171,7 +171,7 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`
+    url: `${BASE_URL}/product/${id}`,
     lastModified: product.date,
   }))
 }
@@ -207,5 +207,5 @@ type Sitemap = Array<{
 
 | Version   | Changes                                                      |
 | --------- | ------------------------------------------------------------ |
-| `v13.3.0` | `sitemap` introduced.                                        |
 | `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |
+| `v13.3.0` | `sitemap` introduced.                                        |

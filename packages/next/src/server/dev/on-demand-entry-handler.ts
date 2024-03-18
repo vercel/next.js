@@ -34,6 +34,7 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
@@ -41,6 +42,7 @@ import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-r
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -100,7 +102,7 @@ function convertDynamicParamTypeToSyntax(
 
 export function getEntryKey(
   compilerType: CompilerNameValues,
-  pageBundleType: 'app' | 'pages' | 'root',
+  pageBundleType: PAGE_TYPES,
   page: string
 ) {
   // TODO: handle the /children slot better
@@ -109,15 +111,15 @@ export function getEntryKey(
   return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
-function getPageBundleType(pageBundlePath: string) {
+function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   // Handle special case for /_error
-  if (pageBundlePath === '/_error') return 'pages'
-  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  if (pageBundlePath === '/_error') return PAGE_TYPES.PAGES
+  if (isMiddlewareFilename(pageBundlePath)) return PAGE_TYPES.ROOT
   return pageBundlePath.startsWith('pages/')
-    ? 'pages'
+    ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? 'app'
-    : 'root'
+    ? PAGE_TYPES.APP
+    : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -375,11 +377,12 @@ interface PagePathData {
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
  * @param rootDir Absolute path to the project root.
+ * @param page The page normalized (it will be denormalized).
+ * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
- * @param pageExtensions Array of page extensions.
+ * @param appDir Absolute path to the app folder with trailing `/app`.
  */
-async function findPagePathData(
+export async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
@@ -425,6 +428,29 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
+    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
+      const notFoundPath = await findPageFile(
+        appDir,
+        'not-found',
+        extensions,
+        true
+      )
+      if (notFoundPath) {
+        return {
+          filename: join(appDir, notFoundPath),
+          bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        }
+      }
+
+      return {
+        filename: require.resolve(
+          'next/dist/client/components/not-found-error'
+        ),
+        bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      }
+    }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
@@ -465,14 +491,6 @@ async function findPagePathData(
     }
   }
 
-  if (page === '/not-found' && appDir) {
-    return {
-      filename: require.resolve('next/dist/client/components/not-found-error'),
-      bundlePath: 'app/not-found',
-      page: '/not-found',
-    }
-  }
-
   if (page === '/_error') {
     return {
       filename: require.resolve('next/dist/pages/_error'),
@@ -503,6 +521,7 @@ export function onDemandEntryHandler({
   rootDir: string
   appDir?: string
 }) {
+  const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
@@ -523,24 +542,24 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>,
-    root?: boolean
+    entrypoints: Map<string, { name?: string }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name!, root)
+      const page = getRouteFromEntrypoint(entrypoint.name!, hasAppDir)
 
       if (page) {
         const pageBundleType = entrypoint.name?.startsWith('app/')
-          ? 'app'
-          : 'pages'
+          ? PAGE_TYPES.APP
+          : PAGE_TYPES.PAGES
         pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
-        (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
+        pagePaths.push(
+          getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`)
+        )
       }
     }
     return pagePaths
@@ -556,23 +575,19 @@ export function onDemandEntryHandler({
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!appDir
     const entryNames = [
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.client,
-        clientStats.compilation.entrypoints,
-        root
+        clientStats.compilation.entrypoints
       ),
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.server,
-        serverStats.compilation.entrypoints,
-        root
+        serverStats.compilation.entrypoints
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             COMPILER_NAMES.edgeServer,
-            edgeServerStats.compilation.entrypoints,
-            root
+            edgeServerStats.compilation.entrypoints
           )
         : []),
     ]
@@ -609,7 +624,7 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryKey = getEntryKey(compilerType, PAGE_TYPES.APP, `/${page}`)
         const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -644,7 +659,7 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryKey = getEntryKey(compilerType, PAGE_TYPES.PAGES, page)
       const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.

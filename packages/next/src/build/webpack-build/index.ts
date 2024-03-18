@@ -34,8 +34,7 @@ async function webpackBuildWithWorker(
   compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
 ) {
   const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
-  const { buildSpinner, nextBuildSpan, ...prunedBuildContext } =
-    NextBuildContext
+  const { nextBuildSpan, ...prunedBuildContext } = NextBuildContext
 
   prunedBuildContext.pluginState = pluginState
 
@@ -59,7 +58,7 @@ async function webpackBuildWithWorker(
     }[]) {
       worker._child.on('exit', (code, signal) => {
         if (code || (signal && signal !== 'SIGINT')) {
-          console.error(
+          debug(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
         }
@@ -127,7 +126,6 @@ async function webpackBuildWithWorker(
   }
 
   if (compilerNames.length === 3) {
-    buildSpinner?.stopAndPersist()
     Log.event('Compiled successfully')
   }
 

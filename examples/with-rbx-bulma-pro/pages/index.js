@@ -1,6 +1,6 @@
-import Link from 'next/link'
-import { Section, Card, Content, Title } from 'rbx'
-import Layout from '../components/Layout'
+import Link from "next/link";
+import { Section, Card, Content, Title } from "rbx";
+import Layout from "../components/Layout";
 
 const Home = () => (
   <Layout>
@@ -21,7 +21,7 @@ const Home = () => (
             <Link href="https://github.com/vercel/next.js/tree/canary/examples">
               <Title as="h3">Examples &rarr;</Title>
               <p>
-                Find other example boilerplates on the{' '}
+                Find other example boilerplates on the{" "}
                 <code>create-next-app</code> site
               </p>
             </Link>
@@ -40,6 +40,6 @@ const Home = () => (
       </Card>
     </Section>
   </Layout>
-)
+);
 
-export default Home
+export default Home;

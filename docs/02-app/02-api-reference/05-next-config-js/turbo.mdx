@@ -6,11 +6,20 @@ description: Configure Next.js with Turbopack-specific options
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-> **Warning**: These features are experimental and will only work with `next --turbo`.
+Turbopack can be customized to transform different files and change how modules are resolved.
+
+> **Good to know**:
+>
+> - These features are experimental and will only work with `next --turbo`.
+> - Turbopack for Next.js does not require loaders nor loader configuration for built-in functionality. Turbopack has built-in support for css and compiling modern JavaScript, so there's no need for `css-loader`, `postcss-loader`, or `babel-loader` if you're using `@babel/preset-env`.
 
 ## webpack loaders
 
-Currently, Turbopack supports a subset of webpack's loader API, allowing you to use some webpack loaders to transform code in Turbopack.
+If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
+
+- Only a core subset of the webpack loader API is implemented. Currently, there is enough coverage for some popular loaders, and we'll expand our API support in the future.
+- Only loaders that return JavaScript code are supported. Loaders that transform files like stylesheets or images are not currently supported.
+- Options passed to webpack loaders must be plain JavaScript primitives, objects, and arrays. For example, it's not possible to pass `require()`d plugin modules as option values.
 
 To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders:
 
@@ -36,7 +45,7 @@ module.exports = {
 }
 ```
 
-Then, given the above configuration, you can use transformed code from your app:
+Using the configuration above, you can use transformed code in your app:
 
 ```js
 import MyDoc from './my-doc.mdx'
@@ -46,7 +55,58 @@ export default function Home() {
 }
 ```
 
-## Resolve Alias
+> **Good to know**: Prior to Next.js version 13.4.4, `experimental.turbo.rules` was named `experimental.turbo.loaders` and only accepted file extensions like `.mdx` instead of `*.mdx`.
+
+### Supported loaders
+
+The following loaders have been tested to work with Turbopack's webpack loader implementation:
+
+- [`babel-loader`](https://www.npmjs.com/package/babel-loader)
+- [`@mdx-js/loader`](https://www.npmjs.com/package/@mdx-js/loader)
+- [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
+- [`svg-inline-loader`](https://www.npmjs.com/package/svg-inline-loader)
+- [`yaml-loader`](https://www.npmjs.com/package/yaml-loader)
+- [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
+- [`raw-loader`](https://www.npmjs.com/package/raw-loader)
+
+### Custom loaders
+
+If you need to pass something like the result of importing an external package as a loader option, it's possible to wrap the webpack loader with your own, specifying options there. **This is an interim solution and should not be necessary in the future.**
+
+This loader wraps `@mdx-js/loader` and configures the `rehypePrism` rehype plugin:
+
+```js filename="my-mdx-loader.js"
+const mdxLoader = require('@mdx-js/loader')
+const rehypePrism = require('@mapbox/rehype-prism')
+
+module.exports = function (code) {
+  const prevGetOptions = this.getOptions.bind(this)
+  this.getOptions = function getOptions(...args) {
+    return {
+      ...prevGetOptions(...args),
+      rehypePlugins: [rehypePrism],
+    }
+  }
+
+  mdxLoader.call(this, code)
+}
+```
+
+Then, configure Next.js to load the wrapper loader:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbo: {
+      rules: {
+        '*.mdx': ['./my-mdx-loader'],
+      },
+    },
+  },
+}
+```
+
+## Resolve aliases
 
 Through `next.config.js`, Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
 
@@ -68,5 +128,31 @@ module.exports = {
 This aliases imports of the `underscore` package to the `lodash` package. In other words, `import underscore from 'underscore'` will load the `lodash` module instead of `underscore`.
 
 Turbopack also supports conditional aliasing through this field, similar to Node.js's [conditional exports](https://nodejs.org/docs/latest-v18.x/api/packages.html#conditional-exports). At the moment only the `browser` condition is supported. In the case above, imports of the `mocha` module will be aliased to `mocha/browser-entry.js` when Turbopack targets browser environments.
+
+## Resolve extensions
+
+Through `next.config.js`, Turbopack can be configured to resolve modules with custom extensions, similar to webpack's [`resolve.extensions`](https://webpack.js.org/configuration/resolve/#resolveextensions) configuration.
+
+To configure resolve extensions, use the `resolveExtensions` field in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbo: {
+      resolveExtensions: [
+        '.mdx',
+        '.tsx',
+        '.ts',
+        '.jsx',
+        '.js',
+        '.mjs',
+        '.json',
+      ],
+    },
+  },
+}
+```
+
+This overwrites the original resolve extensions with the provided list. Make sure to include the default extensions.
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
