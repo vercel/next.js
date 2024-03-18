@@ -3774,11 +3774,10 @@
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
-    ],
-    "failed": [
+      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
       "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
