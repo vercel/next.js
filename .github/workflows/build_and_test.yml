@@ -371,7 +371,7 @@ jobs:
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 
-  report-test-results:
+  report-test-results-to-datadog:
     needs:
       [
         'changes',
@@ -384,6 +384,8 @@ jobs:
         'test-ppr-integration',
         'test-turbopack-dev',
         'test-turbopack-integration',
+        'test-turbopack-production',
+        'test-turbopack-production-integration',
       ]
     if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
