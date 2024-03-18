@@ -1,11 +1,8 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
-
-import { readJson } from 'fs-extra'
 
 function splitLines(text) {
   return text
