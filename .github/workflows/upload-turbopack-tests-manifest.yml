@@ -1,7 +1,7 @@
 # Reusable workflow to upload next.js integration test results to KV for https://areweturboyet.com/
 # This workflow assumes the `next-integration-test` workflow has been executed
 # and test reports have been uploaded to the `test-results` artifact.
-name: Update next.js integration test results
+name: Upload Turbopack tests manifest to areweturboyet.com
 
 on:
   workflow_call:
