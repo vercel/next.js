@@ -648,6 +648,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
+                enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
