@@ -3,19 +3,7 @@
 #
 # Refer test.yml for how this workflow is being initialized
 # - Workflow can specify `inputs.version` to specify which version of next.js to use, otherwise will use latest release version.
-name: Turbopack Next.js integration test
-
-on:
-  workflow_call:
-    inputs:
-      # Allow to specify Next.js version to run integration test against.
-      # If not specified, will use latest release version including canary.
-      version:
-        type: string
-      # The base of the test results to compare against. If not specified, will try to compare with latest main branch's test results.
-      diff_base:
-        type: string
-        default: 'main'
+name: Turbopack Next.js integration tests
 
 # Workflow-common env variables
 env:
@@ -180,7 +168,7 @@ jobs:
       - 'x64'
       - 'metal'
 
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Download test report artifacts
         id: download-test-reports
