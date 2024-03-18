@@ -2,7 +2,8 @@
  * Find the starting index of Uint8Array `b` within Uint8Array `a`.
  */
 export function indexOfUint8Array(a: Uint8Array, b: Uint8Array) {
-  if (a.length === 0 || b.length === 0 || b.length > a.length) return -1
+  if (b.length === 0) return 0
+  if (a.length === 0 || b.length > a.length) return -1
 
   // start iterating through `a`
   for (let i = 0; i <= a.length - b.length; i++) {
@@ -28,7 +29,13 @@ export function indexOfUint8Array(a: Uint8Array, b: Uint8Array) {
  * Check if two Uint8Arrays are strictly equivalent.
  */
 export function isEquivalentUint8Arrays(a: Uint8Array, b: Uint8Array) {
-  return a.length === b.length && a.every((v, i) => v === b[i])
+  if (a.length !== b.length) return false
+
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+
+  return true
 }
 
 /**
@@ -40,6 +47,7 @@ export function isEquivalentUint8Arrays(a: Uint8Array, b: Uint8Array) {
  */
 export function removeFromUint8Array(a: Uint8Array, b: Uint8Array) {
   const tagIndex = indexOfUint8Array(a, b)
+  if (tagIndex === 0) return a.subarray(b.length)
   if (tagIndex > -1) {
     const removed = new Uint8Array(a.length - b.length)
     removed.set(a.slice(0, tagIndex))

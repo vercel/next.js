@@ -202,6 +202,7 @@ function createHeadInsertionTransformStream(
         controller.enqueue(chunk)
         freezing = true
       } else {
+        // TODO (@Ethan-Arrowood): Replace the generic `indexOfUint8Array` method with something finely tuned for the subset of things actually being checked for.
         const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
         if (index !== -1) {
           const insertedHeadContent = new Uint8Array(
@@ -444,10 +445,22 @@ export function createRootLayoutValidatorStream(): TransformStream<
 > {
   let foundHtml = false
   let foundBody = false
-  let content = new Uint8Array(0)
+  let chunks: Uint8Array[] = []
+  let size = 0
   return new TransformStream({
     async transform(chunk, controller) {
-      content = concatUint8Arrays(content, chunk)
+      chunks.push(chunk)
+      size += chunk.length
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
+      const content = new Uint8Array(size)
+      let offset = 0
+      for (const chunk of chunks) {
+        content.set(chunk, offset)
+        offset += chunk.length
+      }
+
       // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
         if (
@@ -463,9 +476,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
           foundBody = true
         }
       }
-      controller.enqueue(chunk)
-    },
-    flush(controller) {
+
       const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
