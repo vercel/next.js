@@ -413,15 +413,15 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
         isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY) ||
         isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.HTML)
       ) {
-        // the entire chunk is the closing tags.
+        // the entire chunk is the closing tags; return without enqueueing anything.
         return
-      } else {
-        // We assume these tags will go at together at the end of the document and that
-        // they won't appear anywhere else in the document. This is not really a safe assumption
-        // but until we revamp our streaming infra this is a performant way to string the tags
-        chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
-        chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.HTML)
       }
+
+      // We assume these tags will go at together at the end of the document and that
+      // they won't appear anywhere else in the document. This is not really a safe assumption
+      // but until we revamp our streaming infra this is a performant way to string the tags
+      chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
+      chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.HTML)
 
       controller.enqueue(chunk)
     },
