@@ -1,6 +1,6 @@
 # A workflow to run next.js integration test with turbopack for each day.
 # This runs against main branch with latest Next.js release.
-name: Daily Next.js integration test with turbopack
+name: Daily Next.js integration test with Turbopack
 
 on:
   schedule:
