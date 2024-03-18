@@ -2,6 +2,12 @@ import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import { ENCODED_TAGS } from './encodedTags'
+import {
+  indexOfUint8Array,
+  isEquivalentUint8Arrays,
+  removeFromUint8Array,
+} from './uint8array-helpers'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -175,8 +181,6 @@ function createHeadInsertionTransformStream(
   let inserted = false
   let freezing = false
 
-  const decoder = new TextDecoder()
-
   // We need to track if this transform saw any bytes because if it didn't
   // we won't want to insert any server HTML at all
   let hasBytes = false
@@ -191,17 +195,24 @@ function createHeadInsertionTransformStream(
       }
 
       const insertion = await insert()
+      const encodedInsertion = encoder.encode(insertion)
       if (inserted) {
-        controller.enqueue(encoder.encode(insertion))
+        controller.enqueue(encodedInsertion)
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decoder.decode(chunk)
-        const index = content.indexOf('</head>')
+        const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
         if (index !== -1) {
-          const insertedHeadContent =
-            content.slice(0, index) + insertion + content.slice(index)
-          controller.enqueue(encoder.encode(insertedHeadContent))
+          const insertedHeadContent = new Uint8Array(
+            chunk.length + encodedInsertion.length
+          )
+          insertedHeadContent.set(chunk.slice(0, index))
+          insertedHeadContent.set(encodedInsertion, index)
+          insertedHeadContent.set(
+            chunk.slice(index),
+            index + encodedInsertion.length
+          )
+          controller.enqueue(insertedHeadContent)
           freezing = true
           inserted = true
         }
@@ -344,7 +355,7 @@ function createMoveSuffixStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundSuffix = false
 
-  const decoder = new TextDecoder()
+  const encodedSuffix = encoder.encode(suffix)
 
   return new TransformStream({
     transform(chunk, controller) {
@@ -352,29 +363,26 @@ function createMoveSuffixStream(
         return controller.enqueue(chunk)
       }
 
-      const buf = decoder.decode(chunk)
-      const index = buf.indexOf(suffix)
+      const index = indexOfUint8Array(chunk, encodedSuffix)
       if (index > -1) {
         foundSuffix = true
 
         // If the whole chunk is the suffix, then don't write anything, it will
         // be written in the flush.
-        if (buf.length === suffix.length) {
+        if (chunk.length === suffix.length) {
           return
         }
 
         // Write out the part before the suffix.
-        const before = buf.slice(0, index)
-        chunk = encoder.encode(before)
-        controller.enqueue(chunk)
+        const before = chunk.slice(0, index)
+        controller.enqueue(before)
 
         // In the case where the suffix is in the middle of the chunk, we need
         // to split the chunk into two parts.
-        if (buf.length > suffix.length + index) {
+        if (chunk.length > suffix.length + index) {
           // Write out the part after the suffix.
-          const after = buf.slice(index + suffix.length)
-          chunk = encoder.encode(after)
-          controller.enqueue(chunk)
+          const after = chunk.slice(index + suffix.length)
+          controller.enqueue(after)
         }
       } else {
         controller.enqueue(chunk)
@@ -383,7 +391,7 @@ function createMoveSuffixStream(
     flush(controller) {
       // Even if we didn't find the suffix, the HTML is not valid if we don't
       // add it, so insert it at the end.
-      controller.enqueue(encoder.encode(suffix))
+      controller.enqueue(encodedSuffix)
     },
   })
 }
@@ -392,7 +400,6 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   Uint8Array,
   Uint8Array
 > {
-  const decoder = new TextDecoder()
   return new TransformStream({
     transform(chunk, controller) {
       // We rely on the assumption that chunks will never break across a code unit.
@@ -400,13 +407,10 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
       // flush into one chunk before streaming it forward which means the chunk will represent
       // a single coherent utf-8 string. This is not safe to use if we change our streaming to no
       // longer do this large buffered chunk
-      let originalContent = decoder.decode(chunk)
-      let content = originalContent
-
       if (
-        content === '</body></html>' ||
-        content === '</body>' ||
-        content === '</html>'
+        isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML) ||
+        isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY) ||
+        isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.HTML)
       ) {
         // the entire chunk is the closing tags.
         return
@@ -414,10 +418,13 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
         // We assume these tags will go at together at the end of the document and that
         // they won't appear anywhere else in the document. This is not really a safe assumption
         // but until we revamp our streaming infra this is a performant way to string the tags
-        content = content.replace('</body>', '').replace('</html>', '')
-        if (content.length !== originalContent.length) {
-          return controller.enqueue(encoder.encode(content))
-        }
+        let transformed = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
+        transformed = removeFromUint8Array(
+          transformed,
+          ENCODED_TAGS.CLOSED.HTML
+        )
+
+        controller.enqueue(transformed)
       }
 
       controller.enqueue(chunk)
