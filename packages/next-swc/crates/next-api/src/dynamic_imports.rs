@@ -181,6 +181,8 @@ async fn build_dynamic_imports_map_for_module(
         return Ok(OptionDynamicImportsMap::none());
     };
 
+    let ecmascript_asset_value = &*ecmascript_asset.await?;
+
     // https://github.com/vercel/next.js/pull/56389#discussion_r1349336374
     // don't emit specific error as we expect there's a parse error already reported
     let ParseResult::Ok { program, .. } = &*ecmascript_asset.parse().await? else {
@@ -202,13 +204,14 @@ async fn build_dynamic_imports_map_for_module(
         // resolve the module that is being imported.
         let dynamic_imported_resolved_module = *esm_resolve(
             Vc::upcast(PlainResolveOrigin::new(
-                ecmascript_asset.await?.asset_context,
+                ecmascript_asset_value.asset_context,
                 module.ident().path(),
             )),
             Request::parse(Value::new(Pattern::Constant(import.to_string()))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
             IssueSeverity::Error.cell(),
             None,
+            ecmascript_asset_value.options.import_externals,
         )
         .first_module()
         .await?;

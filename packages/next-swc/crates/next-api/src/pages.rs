@@ -605,6 +605,7 @@ impl PageEndpoint {
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
                 IssueSeverity::Error.cell(),
                 None,
+                client_module.await?.options.import_externals,
             )
             .first_module()
             .await?
