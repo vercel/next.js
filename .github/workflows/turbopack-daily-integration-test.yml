@@ -1,6 +1,6 @@
 # A workflow to run next.js integration test with turbopack for each day.
 # This runs against main branch with latest Next.js release.
-name: Daily Next.js integration test with turbopack
+name: Daily Next.js integration test with Turbopack
 
 on:
   schedule:
@@ -26,10 +26,8 @@ jobs:
       version: ${{ inputs.version || 'canary' }}
 
   # Upload test results to KV, but only for scheduled runs.
-  upload_test_results:
-    name: Upload test results
-    needs: [next_js_integration]
-    # if: github.repository_owner == 'vercel' && ${{ github.event_name == 'schedule' }} && always()
-    if: always()
-    uses: ./.github/workflows/upload-nextjs-integration-test-results.yml
+  upload_turbopack_tests_manifest:
+    name: Upload Turbopack tests manifest to areweturboyet.com
+    if: ${{ !cancelled() }}
+    uses: ./.github/workflows/turbopack-upload-tests-manifest.yml
     secrets: inherit

@@ -537,6 +537,50 @@ describe('Error overlay for hydration errors', () => {
     await cleanup()
   })
 
+  it('should show error if script is directly placed under html instead of body', async () => {
+    const { cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/layout.js',
+          outdent`
+            import Script from 'next/script'
+
+            export default function Layout({ children }) {
+              return (
+                <html>
+                  <body>{children}</body>
+                  <Script
+                    src="https://example.com/script.js"
+                    strategy="beforeInteractive"
+                  />
+                </html>
+              )
+            }
+          `,
+        ],
+        [
+          'app/page.js',
+          outdent`
+            export default function Page() {
+              return <div>Hello World</div>
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
+
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <script> cannot be a child of <html>.\nThis will cause a hydration error.'
+    )
+
+    await cleanup()
+  })
+
   it('should collapse and uncollapse properly when there are many frames', async () => {
     const { cleanup, session } = await sandbox(
       next,
