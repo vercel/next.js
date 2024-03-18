@@ -231,7 +231,8 @@ export function Errors({
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
-        .replace('%s', '') // remove the last %s for stack
+        .replace('%s', '') // remove the %s for stack
+        .replace(/%s$/, '') // If there's still a %s at the end, remove it
         .replace(/^Warning: /, '')
     : null
 
@@ -269,16 +270,18 @@ export function Errors({
             >
               {error.name}: <HotlinkedText text={error.message} />
             </p>
-            {hydrationWarning && activeError.componentStackFrames && (
+            {hydrationWarning && (
               <>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
-                <PseudoHtmlDiff
-                  className="nextjs__container_errors__extra_code"
-                  hydrationMismatchType={hydrationErrorType}
-                  componentStackFrames={activeError.componentStackFrames}
-                  firstContent={serverContent}
-                  secondContent={clientContent}
-                />
+                {activeError.componentStackFrames?.length ? (
+                  <PseudoHtmlDiff
+                    className="nextjs__container_errors__extra_code"
+                    hydrationMismatchType={hydrationErrorType}
+                    componentStackFrames={activeError.componentStackFrames}
+                    firstContent={serverContent}
+                    secondContent={clientContent}
+                  />
+                ) : null}
               </>
             )}
             {isServerError ? (

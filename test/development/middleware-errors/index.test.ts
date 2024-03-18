@@ -30,9 +30,16 @@ createNextDescribe(
         await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
         await check(() => {
-          expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ Object.default \[as handler\]/
-          )
+          if (process.env.TURBOPACK) {
+            expect(stripAnsi(next.cliOutput)).toMatch(
+              /middleware.js \(\d+:\d+\) @ Object.__TURBOPACK__default__export__ \[as handler\]/
+            )
+          } else {
+            expect(stripAnsi(next.cliOutput)).toMatch(
+              /middleware.js \(\d+:\d+\) @ Object.default \[as handler\]/
+            )
+          }
+
           expect(stripAnsi(next.cliOutput)).toMatch(/boom/)
           return 'success'
         }, 'success')
@@ -280,8 +287,9 @@ createNextDescribe(
       })
 
       it('logs the error correctly', async () => {
-        await next.fetch('/')
         await next.patchFile('middleware.js', `export default function () }`)
+        await next.fetch('/')
+
         await check(() => {
           expect(next.cliOutput).toContain(`Expected '{', got '}'`)
           expect(next.cliOutput.split(`Expected '{', got '}'`).length).toEqual(
