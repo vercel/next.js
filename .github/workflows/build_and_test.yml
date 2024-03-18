@@ -196,7 +196,7 @@ jobs:
     with:
       nodeVersion: 18.17.0
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
-      stepName: 'test-turbopack-integration-${{ matrix.group }}'
+      stepName: 'test-turbopack-production-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-production-integration:
@@ -212,7 +212,7 @@ jobs:
     with:
       nodeVersion: 18.17.0
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
-      stepName: 'test-turbopack-integration-${{ matrix.group }}'
+      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
