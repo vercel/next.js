@@ -3757,6 +3757,7 @@
     "passed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
+      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing",
       "app dir - metadata dynamic routes should error when id is missing in generateImageMetadata",
       "app dir - metadata dynamic routes should error when id is missing in generateSitemaps",
       "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
@@ -3776,7 +3777,6 @@
       "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
     ],
     "failed": [
-      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing",
       "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
     ],
     "pending": [],
