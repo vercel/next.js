@@ -1,4 +1,8 @@
 {
   "version": 2,
-  "suites": {}
+  "suites": {},
+  "rules": {
+    "include": [],
+    "exclude": []
+  }
 }
