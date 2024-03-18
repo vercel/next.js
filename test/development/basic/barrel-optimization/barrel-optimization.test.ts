@@ -129,3 +129,9 @@ import { createNextDescribe } from 'e2e-utils'
     )
   }
 )
+;(process.env.TURBOPACK ? describe : describe.skip)(
+  'turbopack should support barrel-optimization',
+  () => {
+    it('should support barrel-optimization', () => {})
+  }
+)
