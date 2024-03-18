@@ -203,10 +203,12 @@ export interface ExperimentalConfig {
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * This will enable a plugin that attempts to keep CSS entries below a certain amount
-   * by merging smaller chunks into larger ones
+   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * between CSS files to keep ordering of them.
+   * An alternative is 'strict', which will try to keep correct ordering as
+   * much as possible, even when this leads to many requests.
    */
-  mergeCssChunks?: boolean
+  cssChunking?: 'strict' | 'loose'
   /**
    * @deprecated use config.cacheHandler instead
    */
@@ -919,7 +921,6 @@ export const defaultConfig: NextConfig = {
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
-    mergeCssChunks: true,
   },
 }
 
