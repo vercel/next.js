@@ -161,13 +161,15 @@ pub async fn get_server_resolve_options_context(
     custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
 
     match ty {
-        ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
-        ServerContextType::AppRoute { .. }
-        | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
         | ServerContextType::PagesApi { .. }
+        | ServerContextType::Middleware { .. } => {
+            custom_conditions.push("react-server".to_string())
+        }
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
