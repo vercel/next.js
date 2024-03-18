@@ -40,7 +40,7 @@ export function isEquivalentUint8Arrays(a: Uint8Array, b: Uint8Array) {
  */
 export function removeFromUint8Array(a: Uint8Array, b: Uint8Array) {
   const tagIndex = indexOfUint8Array(a, b)
-  if (tagIndex) {
+  if (tagIndex > -1) {
     const removed = new Uint8Array(a.length - b.length)
     removed.set(a.slice(0, tagIndex))
     removed.set(a.slice(tagIndex + b.length), tagIndex)
