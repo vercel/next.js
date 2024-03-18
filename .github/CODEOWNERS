@@ -41,5 +41,5 @@ Cargo.toml                                                       @timneutkens @i
 Cargo.lock                                                       @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
 /.cargo/config.toml                                              @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
 /.config/nextest.toml                                            @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
-/test/build-turbopack-tests-manifest.js                          @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
+/test/build-turbopack-dev-tests-manifest.js                          @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
 /test/turbopack-dev-tests-manifest.json                              @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
