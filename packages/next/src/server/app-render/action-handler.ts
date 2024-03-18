@@ -182,12 +182,13 @@ async function createRedirectRenderResult(
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
 
-    // For standalone or the serverful mode, use the internal hostname directly
-    // other than the headers from the request.
-    const host = process.env.__NEXT_PRIVATE_HOST || originalHost.value
+    // For standalone or the serverful mode, use the internal origin directly
+    // other than the host headers from the request.
+    const origin =
+      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
 
     const fetchUrl = new URL(
-      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
+      `${origin}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {
