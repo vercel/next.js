@@ -2,6 +2,7 @@
 import { context, getOctokit } from '@actions/github'
 import { setFailed, info } from '@actions/core'
 import { WebClient } from '@slack/web-api'
+import { formattedDate, ninetyDaysAgo } from '../lib/util.mjs'
 
 function generateBlocks(prs) {
   let text = ''
@@ -17,7 +18,7 @@ function generateBlocks(prs) {
     if (pr.reactions['+1'] > 1) {
       text += `${i + 1}. [<${pr.html_url}|#${pr.number}>, :+1: ${
         pr.reactions['+1']
-      }]: ${pr.title}\n`
+      }, ${formattedDate(pr.created_at)}]: ${pr.title}\n`
       count++
     }
   })
@@ -26,7 +27,7 @@ function generateBlocks(prs) {
     type: 'section',
     text: {
       type: 'mrkdwn',
-      text: `*A list of the top ${count} PRs sorted by most :+1: reactions (> 1) over the last 90 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._`,
+      text: `*A list of the top ${count} PRs sorted by most :+1: reactions (> 1) over the last 90 days.*\n_Note: This :github2:  <https://github.com/vercel/next.js/blob/canary/.github/workflows/pull_request_popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-prs.mjs|action> will run every Monday at 1PM UTC (9AM EST)._`,
     },
   })
 
@@ -49,16 +50,11 @@ async function run() {
     const octoClient = getOctokit(process.env.GITHUB_TOKEN)
     const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
-    // Get the date 90 days ago (YYYY-MM-DD)
-    const date = new Date()
-    date.setDate(date.getDate() - 90)
-    const ninetyDaysAgo = date.toISOString().split('T')[0]
-
     const { owner, repo } = context.repo
     const { data } = await octoClient.rest.search.issuesAndPullRequests({
       order: 'desc',
       per_page: 15,
-      q: `repo:${owner}/${repo} is:pr is:open created:>=${ninetyDaysAgo}`,
+      q: `repo:${owner}/${repo} is:pr is:open created:>=${ninetyDaysAgo()}`,
       sort: 'reactions-+1',
     })
 
