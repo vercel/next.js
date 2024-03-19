@@ -439,38 +439,27 @@ export function createRootLayoutValidatorStream(): TransformStream<
 > {
   let foundHtml = false
   let foundBody = false
-  let chunks: Uint8Array[] = []
-  let size = 0
   return new TransformStream({
     async transform(chunk, controller) {
-      chunks.push(chunk)
-      size += chunk.length
-      controller.enqueue(chunk)
-    },
-    flush(controller) {
-      const content = new Uint8Array(size)
-      let offset = 0
-      for (const chunk of chunks) {
-        content.set(chunk, offset)
-        offset += chunk.length
-      }
-
       // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
         if (
           !foundHtml &&
-          indexOfUint8Array(content, ENCODED_TAGS.OPENING.HTML) > -1
+          indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
         ) {
           foundHtml = true
         }
         if (
           !foundBody &&
-          indexOfUint8Array(content, ENCODED_TAGS.OPENING.BODY) > -1
+          indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
         ) {
           foundBody = true
         }
       }
 
+      controller.enqueue(chunk)
+    },
+    flush(controller) {
       const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
