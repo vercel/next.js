@@ -1,3 +1,4 @@
+pub(crate) mod dynamic_code_linter;
 pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_amp_attributes;
@@ -17,6 +18,7 @@ pub(crate) mod styled_components;
 pub(crate) mod styled_jsx;
 pub(crate) mod swc_ecma_transform_plugins;
 
+pub use dynamic_code_linter::get_dynamic_code_linter_rule;
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
