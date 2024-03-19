@@ -128,10 +128,10 @@ describe('app-dir - logging', () => {
 
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-            expect(logs).toInclude(' GET /default-cache')
-            expect(logs).toInclude(' │ GET ')
-            expect(logs).toInclude(' │ │ Cache skipped reason')
-            expect(logs).toInclude(' │ │ GET ')
+            expect(logs).toContain(' GET /default-cache')
+            expect(logs).toContain(' │ GET ')
+            expect(logs).toContain(' │ │ Cache skipped reason')
+            expect(logs).toContain(' │ │ GET ')
           })
         })
 
