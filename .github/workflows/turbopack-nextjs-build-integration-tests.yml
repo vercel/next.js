@@ -3,7 +3,7 @@
 #
 # Refer test.yml for how this workflow is being initialized
 # - Workflow can specify `inputs.version` to specify which version of next.js to use, otherwise will use latest release version.
-name: Turbopack Next.js integration tests
+name: Turbopack Next.js production integration tests
 
 on:
   workflow_call:
@@ -33,7 +33,7 @@ env:
   NEXT_TEST_JOB: 1
 
 jobs:
-  # First, build next-dev and Next.js both to execute across tests.
+  # First, build Next.js to execute across tests.
   setup_nextjs:
     name: Setup Next.js build
     uses: ./.github/workflows/setup-nextjs-build.yml
@@ -43,10 +43,10 @@ jobs:
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
   # which we do allow some of duplications to make it easier to update if upstream changes.
   # Refer build_and_test.yml in the Next.js repo for more details.
-  test-dev:
+  test-production:
     # This job name is being used in github action to collect test results. Do not change it, or should update
     # ./.github/actions/next-integration-stat to match the new name.
-    name: Next.js integration test (Development)
+    name: Next.js integration test (Production)
     # Currently it is possible test grouping puts large number of failing tests suites in a single group,
     # which ends up job timeouts. Temporarily relieve the timeout until we make progresses on the failing suites.
     # ref: https://github.com/vercel/turbo/pull/5668
@@ -80,70 +80,72 @@ jobs:
         run: |
           pnpm playwright install
 
-      - name: Run test/development
+      - name: Run test/production
         run: |
-          NEXT_TEST_MODE=dev TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type development
+          NEXT_TEST_MODE=start TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type production
         # It is currently expected to fail some of next.js integration test, do not fail CI check.
         continue-on-error: true
 
       - name: Upload test report artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-dev-${{ matrix.group }}
+          name: test-reports-start-${{ matrix.group }}
           if-no-files-found: 'error'
           path: |
             test/turbopack-test-junit-report
 
-  test-integration:
-    name: Next.js integration test (Integration)
-    needs: [setup_nextjs]
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+  # TODO: Implement specifically running production tests only for Turbopack. Enabling this now enables running `test/integration` with development mode too.
+  # test-integration-production:
+  #   name: Next.js production integration test (Integration)
+  #   needs: [setup_nextjs]
+  #   runs-on:
+  #     - 'self-hosted'
+  #     - 'linux'
+  #     - 'x64'
+  #     - 'metal'
 
-    timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  #   timeout-minutes: 180
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
-    steps:
-      - uses: actions/cache/restore@v3
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ inputs.version }}-${{ github.sha }}
-          fail-on-cache-miss: true
+  #   steps:
+  #     - uses: actions/cache/restore@v3
+  #       id: restore-build
+  #       with:
+  #         path: ./*
+  #         key: ${{ inputs.version }}-${{ github.sha }}
+  #         fail-on-cache-miss: true
 
-      - name: Enable corepack and install yarn
-        run: |
-          corepack enable
-          corepack prepare --activate yarn@1.22.19
+  #     - name: Enable corepack and install yarn
+  #       run: |
+  #         corepack enable
+  #         corepack prepare --activate yarn@1.22.19
 
-      - name: Setup playwright
-        run: |
-          pnpm playwright install
+  #     - name: Setup playwright
+  #       run: |
+  #         pnpm playwright install
 
-      - name: Run test/integration
-        run: |
-          TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
-        continue-on-error: true
+  #     - name: Run test/integration
+  #       run: |
+  #         TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
+  #       continue-on-error: true
 
-      - name: Upload test report artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-integration-${{ matrix.group }}
-          if-no-files-found: 'error'
-          path: |
-            test/turbopack-test-junit-report
+  #     - name: Upload test report artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: test-reports-build-integration-${{ matrix.group }}
+  #         if-no-files-found: 'error'
+  #         path: |
+  #           test/turbopack-test-junit-report
 
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
-  collect_nextjs_integration_stat:
-    needs: [test-dev, test-integration]
-    name: Next.js integration test status report
+  collect_nextjs_production_integration_stat:
+    # needs: [test-production, test-integration-production]
+    needs: [test-production]
+    name: Next.js integration test production status report
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -165,14 +167,15 @@ jobs:
       - name: Store artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-turbopack-production
           path: |
             nextjs-test-results.json
             failed-test-path-list.json
             passed-test-path-list.json
 
   upload_test_report:
-    needs: [test-dev, test-integration]
+    # needs: [test-production, test-integration-production]
+    needs: [test-production]
     name: Upload test report to datadog
     runs-on:
       - 'self-hosted'
@@ -196,4 +199,4 @@ jobs:
           DD_ENV: 'ci'
         run: |
           # We'll tag this to the "Turbopack" datadog service, not "nextjs"
-          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/reports
+          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack-build.daily --service Turbopack ./test/reports
