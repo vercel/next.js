@@ -19,7 +19,7 @@ Hydration errors can occur from:
    4. [Interactive Content](https://html.spec.whatwg.org/#interactive-content-2) cannot be nested (`<a>` nested in a `<a>` tag, `<button>` nested in a `<button>` tag, etc.)
 2. Using checks like `typeof window !== 'undefined'` in your rendering logic
 3. Using browser-only APIs like `window` or `localStorage` in your rendering logic
-4. Rendering a time-dependant text like "Received 10 seconds ago" as time is likely to be different between the server render and the client hydratation.
+4. Using time-dependent APIs such as the `Date()` constructor in your rendering logic
 5. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
 6. Incorrectly configured [CSS-in-JS libraries](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)
    1. Ensure your code is following [our official examples](https://github.com/vercel/next.js/tree/canary/examples)
