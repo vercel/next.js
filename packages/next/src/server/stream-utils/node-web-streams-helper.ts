@@ -442,19 +442,18 @@ export function createRootLayoutValidatorStream(): TransformStream<
   return new TransformStream({
     async transform(chunk, controller) {
       // Peek into the streamed chunk to see if the tags are present.
-      if (!foundHtml || !foundBody) {
-        if (
-          !foundHtml &&
-          indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
-        ) {
-          foundHtml = true
-        }
-        if (
-          !foundBody &&
-          indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
-        ) {
-          foundBody = true
-        }
+      if (
+        !foundHtml &&
+        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
+      ) {
+        foundHtml = true
+      }
+
+      if (
+        !foundBody &&
+        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
+      ) {
+        foundBody = true
       }
 
       controller.enqueue(chunk)
