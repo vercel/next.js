@@ -82,6 +82,11 @@ export function pageBootrap(assetPrefix: string) {
             break
           }
           case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES: {
+            if (RuntimeErrorHandler.hadRuntimeError) {
+              console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
+              performFullReload(null)
+            }
+
             const { pages } = payload
 
             // Make sure to reload when the dev-overlay is showing for an
