@@ -94,7 +94,7 @@ jobs:
           path: |
             test/turbopack-test-junit-report
 
-  test-integration:
+  test-integration-development:
     name: Next.js integration test (Integration)
     needs: [setup_nextjs]
     runs-on:
@@ -141,9 +141,9 @@ jobs:
 
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
-  collect_nextjs_integration_stat:
-    needs: [test-dev, test-integration]
-    name: Next.js integration test status report
+  collect_nextjs_development_integration_stat:
+    needs: [test-dev, test-integration-development]
+    name: Next.js integration test development status report
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -172,7 +172,7 @@ jobs:
             passed-test-path-list.json
 
   upload_test_report:
-    needs: [test-dev, test-integration]
+    needs: [test-dev, test-integration-development]
     name: Upload test report to datadog
     runs-on:
       - 'self-hosted'

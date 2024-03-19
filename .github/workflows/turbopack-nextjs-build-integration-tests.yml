@@ -43,7 +43,7 @@ jobs:
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
   # which we do allow some of duplications to make it easier to update if upstream changes.
   # Refer build_and_test.yml in the Next.js repo for more details.
-  test-build:
+  test-production:
     # This job name is being used in github action to collect test results. Do not change it, or should update
     # ./.github/actions/next-integration-stat to match the new name.
     name: Next.js integration test (Production)
@@ -94,7 +94,7 @@ jobs:
           path: |
             test/turbopack-test-junit-report
 
-  test-integration:
+  test-integration-production:
     name: Next.js production integration test (Integration)
     needs: [setup_nextjs]
     runs-on:
@@ -141,9 +141,9 @@ jobs:
 
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
-  collect_nextjs_integration_stat:
-    needs: [test-build, test-integration]
-    name: Next.js integration test status report
+  collect_nextjs_production_integration_stat:
+    needs: [test-production, test-integration-production]
+    name: Next.js integration test production status report
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -172,7 +172,7 @@ jobs:
             passed-test-path-list.json
 
   upload_test_report:
-    needs: [test-build, test-integration]
+    needs: [test-production, test-integration-production]
     name: Upload test report to datadog
     runs-on:
       - 'self-hosted'
