@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-6c3b8dbfe-20240226';
+var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -86,9 +86,6 @@ function stringToChunk(content) {
 }
 function stringToPrecomputedChunk(content) {
   return content;
-}
-function clonePrecomputedChunk(chunk) {
-  return chunk;
 }
 function closeWithError(destination, error) {
   if (typeof destination.error === 'function') {
@@ -3151,7 +3148,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     if (requiresStyleInsertion) {
       if ((resumableState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction | SentCompleteBoundaryFunction;
-        writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
+        writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
       } else if ((resumableState.instructions & SentStyleInsertionFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction;
         writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
