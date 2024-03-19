@@ -3,7 +3,13 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  normalizeRegEx,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
@@ -32,6 +38,15 @@ createNextDescribe(
         )
         buildCliOutputIndex = next.cliOutput.length
       }
+    })
+
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
     })
 
     if (isNextStart) {
@@ -209,6 +224,33 @@ createNextDescribe(
         expect(newData).not.toEqual(data)
       }
     })
+
+    if (!isDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should properly revalidate a route handler that triggers dynamic usage with force-static', async () => {
+        // wait for the revalidation period
+        let res = await next.fetch('/route-handler/no-store-force-static')
+
+        let data = await res.json()
+        // grab the initial timestamp
+        const initialTimestamp = data.now
+
+        // confirm its cached still
+        res = await next.fetch('/route-handler/no-store-force-static')
+
+        data = await res.json()
+
+        expect(data.now).toBe(initialTimestamp)
+
+        // wait for the revalidation time
+        await waitFor(3000)
+
+        // verify fresh data
+        res = await next.fetch('/route-handler/no-store-force-static')
+        data = await res.json()
+
+        expect(data.now).not.toBe(initialTimestamp)
+      })
+    }
 
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
@@ -639,6 +681,8 @@ createNextDescribe(
             "response-url/page.js",
             "response-url/page_client-reference-manifest.js",
             "route-handler-edge/revalidate-360/route.js",
+            "route-handler/no-store-force-static/route.js",
+            "route-handler/no-store/route.js",
             "route-handler/post/route.js",
             "route-handler/revalidate-360-isr/route.js",
             "route-handler/revalidate-360/route.js",
@@ -667,6 +711,8 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "too-many-cache-tags/page.js",
+            "too-many-cache-tags/page_client-reference-manifest.js",
             "unstable-cache/dynamic-undefined/page.js",
             "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
             "unstable-cache/dynamic/page.js",
@@ -1274,6 +1320,26 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/route-handler/no-store-force-static": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
+              },
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/route-handler/no-store-force-static",
             },
             "/route-handler/revalidate-360-isr": {
               "dataRoute": null,

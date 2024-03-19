@@ -95,7 +95,14 @@ export default defineType({
           description: "Important for accessibility and SEO.",
           title: "Alternative text",
           type: "string",
-          validation: (rule) => rule.required(),
+          validation: (rule) => {
+            return rule.custom((alt, context) => {
+              if ((context.document?.ogImage as any)?.asset?._ref && !alt) {
+                return "Required";
+              }
+              return true;
+            });
+          },
         }),
         defineField({
           name: "metadataBase",

@@ -44,6 +44,7 @@ initialize({
         devClient.addTurbopackMessageListener(cb)
       },
       sendMessage: devClient.sendTurbopackMessage,
+      onUpdateError: devClient.handleUpdateError,
     })
 
     return pageBootrap(assetPrefix)

@@ -536,6 +536,7 @@ async function ReactServerError({
       <head></head>
       <body></body>
     </html>,
+    null,
   ]
   return (
     <AppRouter

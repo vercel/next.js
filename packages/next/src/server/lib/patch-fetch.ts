@@ -9,6 +9,7 @@ import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_IMPLICIT_TAG_ID,
+  NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
@@ -54,7 +55,9 @@ export function validateTags(tags: any[], description: string) {
     reason: string
   }> = []
 
-  for (const tag of tags) {
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i]
+
     if (typeof tag !== 'string') {
       invalidTags.push({ tag, reason: 'invalid type, must be a string' })
     } else if (tag.length > NEXT_CACHE_TAG_MAX_LENGTH) {
@@ -64,6 +67,14 @@ export function validateTags(tags: any[], description: string) {
       })
     } else {
       validTags.push(tag)
+    }
+
+    if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
+      console.warn(
+        `Warning: exceeded max tag count for ${description}, dropped tags:`,
+        tags.slice(i).join(', ')
+      )
+      break
     }
   }
 

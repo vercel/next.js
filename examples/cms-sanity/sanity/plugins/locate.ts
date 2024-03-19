@@ -27,7 +27,6 @@ export const locate: DocumentLocationResolver = (params, context) => {
     >;
     return doc$.pipe(
       map((docs) => {
-        console.log(docs);
         return {
           message: "This document is used on all pages",
           tone: "caution",
