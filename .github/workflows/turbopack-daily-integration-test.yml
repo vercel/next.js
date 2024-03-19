@@ -13,13 +13,23 @@ on:
         default: 'canary'
 
 jobs:
-  # Trigger actual next.js integration tests.
-  next_js_integration:
+  next_js_dev_integration:
     name: Execute Next.js integration workflow
     if: github.repository_owner == 'vercel'
     permissions:
       pull-requests: write
-    uses: ./.github/workflows/turbopack-nextjs-integration-tests.yml
+    uses: ./.github/workflows/turbopack-nextjs-dev-integration-tests.yml
+    secrets: inherit
+    with:
+      diff_base: 'none'
+      version: ${{ inputs.version || 'canary' }}
+
+  next_js_build_integration:
+    name: Execute Next.js integration workflow
+    if: github.repository_owner == 'vercel'
+    permissions:
+      pull-requests: write
+    uses: ./.github/workflows/turbopack-nextjs-build-integration-tests.yml
     secrets: inherit
     with:
       diff_base: 'none'
