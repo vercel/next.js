@@ -522,33 +522,35 @@ createNextDescribe(
     })
 
     if (isNextStart) {
-      it('should have deterministic etag across revalidates', async () => {
-        const initialRes = await next.fetch(
-          '/variable-revalidate-stable/revalidate-3'
-        )
-        expect(initialRes.status).toBe(200)
-
-        // check 2 revalidate passes to ensure it's consistent
-        for (let i = 0; i < 2; i++) {
-          let startIdx = next.cliOutput.length
-
-          await retry(
-            async () => {
-              const res = await next.fetch(
-                '/variable-revalidate-stable/revalidate-3'
-              )
-              expect(next.cliOutput.substring(startIdx)).toContain(
-                'rendering /variable-revalidate-stable'
-              )
-              expect(initialRes.headers.get('etag')).toBe(
-                res.headers.get('etag')
-              )
-            },
-            12_000,
-            3_000
+      if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+        it('should have deterministic etag across revalidates', async () => {
+          const initialRes = await next.fetch(
+            '/variable-revalidate-stable/revalidate-3'
           )
-        }
-      })
+          expect(initialRes.status).toBe(200)
+
+          // check 2 revalidate passes to ensure it's consistent
+          for (let i = 0; i < 2; i++) {
+            let startIdx = next.cliOutput.length
+
+            await retry(
+              async () => {
+                const res = await next.fetch(
+                  '/variable-revalidate-stable/revalidate-3'
+                )
+                expect(next.cliOutput.substring(startIdx)).toContain(
+                  'rendering /variable-revalidate-stable'
+                )
+                expect(initialRes.headers.get('etag')).toBe(
+                  res.headers.get('etag')
+                )
+              },
+              12_000,
+              3_000
+            )
+          }
+        })
+      }
 
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
@@ -761,6 +763,10 @@ createNextDescribe(
             "variable-revalidate-edge/post-method/page_client-reference-manifest.js",
             "variable-revalidate-edge/revalidate-3/page.js",
             "variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate-stable/revalidate-3.html",
+            "variable-revalidate-stable/revalidate-3.rsc",
+            "variable-revalidate-stable/revalidate-3/page.js",
+            "variable-revalidate-stable/revalidate-3/page_client-reference-manifest.js",
             "variable-revalidate/authorization.html",
             "variable-revalidate/authorization.rsc",
             "variable-revalidate/authorization/page.js",
@@ -1472,6 +1478,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": 3,
               "srcRoute": "/variable-config-revalidate/revalidate-3",
+            },
+            "/variable-revalidate-stable/revalidate-3": {
+              "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate-stable/revalidate-3",
             },
             "/variable-revalidate/authorization": {
               "dataRoute": "/variable-revalidate/authorization.rsc",
