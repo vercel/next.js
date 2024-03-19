@@ -1,18 +1,9 @@
 import React from 'react'
-import type { FetchServerResponseResult } from './fetch-server-response'
-import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
+import { clearCacheNodeDataForSegmentPath } from './clear-cache-node-data-for-segment-path'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
-describe('fillCacheWithDataProperty', () => {
-  it('should add data property', () => {
-    const fetchServerResponseMock: jest.Mock<
-      Promise<FetchServerResponseResult>
-    > = jest.fn(() =>
-      Promise.resolve([
-        /* TODO-APP: replace with actual FlightData */ '',
-        undefined,
-      ])
-    )
+describe('clearCacheNodeDataForSegmentPath', () => {
+  it('should clear the data property', () => {
     const pathname = '/dashboard/settings'
     const segments = pathname.split('/')
 
@@ -80,9 +71,7 @@ describe('fillCacheWithDataProperty', () => {
       ]),
     }
 
-    fillCacheWithDataProperty(cache, existingCache, flightSegmentPath, () =>
-      fetchServerResponseMock()
-    )
+    clearCacheNodeDataForSegmentPath(cache, existingCache, flightSegmentPath)
 
     expect(cache).toMatchInlineSnapshot(`
       {
@@ -121,7 +110,7 @@ describe('fillCacheWithDataProperty', () => {
             },
             "dashboard" => {
               "head": null,
-              "lazyData": Promise {},
+              "lazyData": null,
               "lazyDataResolved": false,
               "loading": null,
               "parallelRoutes": Map {},
