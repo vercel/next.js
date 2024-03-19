@@ -62,9 +62,11 @@ describe('app-dir - logging', () => {
 
         await retry(() => {
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-          const hasLogs = logs.includes('GET /default-cache 200')
-
-          expect(isNextDev ? hasLogs : !hasLogs).toBe(true)
+          if (isNextDev) {
+            expect(logs).toContain('GET /default-cache 200')
+          } else {
+            expect(logs).not.toContain('GET /default-cache 200')
+          }
         })
       })
 
@@ -126,13 +128,10 @@ describe('app-dir - logging', () => {
 
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-            const hasLogs =
-              logs.includes(' GET /default-cache') &&
-              logs.includes('  │ GET ') &&
-              logs.includes('  │  │ GET ') &&
-              logs.includes('  │  │  Cache missed reason')
-
-            expect(hasLogs).toBe(true)
+            expect(logs).toInclude(' GET /default-cache')
+            expect(logs).toInclude(' │ GET ')
+            expect(logs).toInclude(' │ │ Cache skipped reason')
+            expect(logs).toInclude(' │ │ GET ')
           })
         })
 
