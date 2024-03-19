@@ -27,12 +27,6 @@ jobs:
         shell: bash
         run: pnpm i
 
-      # Always run build manifest script to get the latest value
-      - run: |
-          node ./test/build-turbopack-tests-manifest.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
-
       - name: 'Upload results to "Are We Turbo Yet" KV'
         env:
           TURBOYET_KV_REST_API_URL: ${{ secrets.TURBOYET_KV_REST_API_URL }}
