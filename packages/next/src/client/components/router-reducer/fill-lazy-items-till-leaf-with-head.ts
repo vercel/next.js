@@ -56,6 +56,7 @@ export function fillLazyItemsTillLeafWithHead(
         if (parallelSeedData !== null) {
           // New data was sent from the server.
           const seedNode = parallelSeedData[2]
+          const loading = parallelSeedData[3]
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
@@ -67,6 +68,7 @@ export function fillLazyItemsTillLeafWithHead(
             prefetchRsc: null,
             head: null,
             prefetchHead: null,
+            loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             lazyDataResolved: false,
           }
@@ -84,6 +86,7 @@ export function fillLazyItemsTillLeafWithHead(
             prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
             lazyDataResolved: existingCacheNode.lazyDataResolved,
+            loading: existingCacheNode.loading,
           } as CacheNode
         } else {
           // No data available for this node. This will trigger a lazy fetch
@@ -96,6 +99,7 @@ export function fillLazyItemsTillLeafWithHead(
             prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             lazyDataResolved: false,
+            loading: null,
           }
         }
 
@@ -120,6 +124,7 @@ export function fillLazyItemsTillLeafWithHead(
     if (parallelSeedData !== null) {
       // New data was sent from the server.
       const seedNode = parallelSeedData[2]
+      const loading = parallelSeedData[3]
       newCacheNode = {
         lazyData: null,
         rsc: seedNode,
@@ -128,6 +133,7 @@ export function fillLazyItemsTillLeafWithHead(
         prefetchHead: null,
         parallelRoutes: new Map(),
         lazyDataResolved: false,
+        loading,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
@@ -140,6 +146,7 @@ export function fillLazyItemsTillLeafWithHead(
         prefetchHead: null,
         parallelRoutes: new Map(),
         lazyDataResolved: false,
+        loading: null,
       }
     }
 

@@ -89,5 +89,6 @@ pub async fn get_app_route_favicon_entry(
         // TODO(alexkirsz) Get this from the metadata?
         AppPage(vec![PageSegment::Static("/favicon.ico".to_string())]),
         project_root,
+        None,
     ))
 }

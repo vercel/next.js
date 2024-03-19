@@ -3,7 +3,13 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  normalizeRegEx,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
@@ -32,6 +38,15 @@ createNextDescribe(
         )
         buildCliOutputIndex = next.cliOutput.length
       }
+    })
+
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
     })
 
     if (isNextStart) {
@@ -696,6 +711,8 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "too-many-cache-tags/page.js",
+            "too-many-cache-tags/page_client-reference-manifest.js",
             "unstable-cache/dynamic-undefined/page.js",
             "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
             "unstable-cache/dynamic/page.js",
