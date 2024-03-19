@@ -1,6 +1,6 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/runtime/default_build_runtime";
-const ASSET_PREFIX = "";
+const ASSET_PREFIX = "/";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
