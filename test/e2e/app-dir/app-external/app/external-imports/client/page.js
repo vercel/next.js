@@ -2,7 +2,7 @@
 
 import getType, { named, value, array, obj } from 'non-isomorphic-text'
 
-import add from 'untranspiled-module'
+import add from 'transpile-ts-lib'
 
 // ESM externals has react has a peer dependency
 import useSWR from 'swr'

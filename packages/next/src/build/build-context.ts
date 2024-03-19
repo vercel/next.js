@@ -1,5 +1,4 @@
 import type { LoadedEnvFiles } from '@next/env'
-import type { Ora } from 'next/dist/compiled/ora'
 import type { Rewrite, Redirect } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
@@ -41,6 +40,10 @@ export function getPluginState() {
   return pluginState
 }
 
+export interface MappedPages {
+  [page: string]: string
+}
+
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
 // to pass it through function arguments.
@@ -67,25 +70,14 @@ export const NextBuildContext: Partial<{
   originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
-  mappedPages:
-    | {
-        [page: string]: string
-      }
-    | undefined
-  mappedAppPages:
-    | {
-        [page: string]: string
-      }
-    | undefined
-  mappedRootPaths: {
-    [page: string]: string
-  }
+  mappedPages: MappedPages | undefined
+  mappedAppPages: MappedPages | undefined
+  mappedRootPaths: MappedPages
   hasInstrumentationHook: boolean
 
   // misc fields
   telemetry: Telemetry
   telemetryState: TelemetryPluginState
-  buildSpinner: Ora
   nextBuildSpan: Span
 
   // cli fields

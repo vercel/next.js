@@ -39,6 +39,7 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 ## Example Loader Configuration
 
 - [Akamai](#akamai)
+- [AWS CloudFront](#aws-cloudfront)
 - [Cloudinary](#cloudinary)
 - [Cloudflare](#cloudflare)
 - [Contentful](#contentful)
@@ -48,6 +49,7 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 - [Imgix](#imgix)
 - [Thumbor](#thumbor)
 - [Sanity](#sanity)
+- [Sirv](#sirv)
 - [Supabase](#supabase)
 
 ### Akamai
@@ -57,6 +59,18 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 export default function akamaiLoader({ src, width, quality }) {
   return `https://example.com/${src}?imwidth=${width}`
 }
+```
+
+### AWS CloudFront
+
+```js
+// Docs: https://aws.amazon.com/developer/application-security-performance/articles/image-optimization
+export default function cloudfrontLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('format', 'auto')
+  url.searchParams.set('width', width.toString())
+  url.searchParams.set('quality', (quality || 75).toString())
+  return url.href
 ```
 
 ### Cloudinary
@@ -168,6 +182,20 @@ export default function sanityLoader({ src, width, quality }) {
   if (quality) {
     url.searchParams.set('q', quality.toString())
   }
+  return url.href
+}
+```
+
+### Sirv
+
+```js
+// Docs: https://sirv.com/help/articles/dynamic-imaging/
+export default function sirvLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  const params = url.searchParams
+  params.set('format', params.getAll('format').join(',') || 'optimal')
+  params.set('w', params.get('w') || width.toString())
+  params.set('q', (quality || 85).toString())
   return url.href
 }
 ```

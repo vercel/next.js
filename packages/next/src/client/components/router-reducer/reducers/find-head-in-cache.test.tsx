@@ -29,6 +29,10 @@ describe('findHeadInCache', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -39,6 +43,10 @@ describe('findHeadInCache', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                lazyDataResolved: false,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -47,6 +55,10 @@ describe('findHeadInCache', () => {
                         'about',
                         {
                           lazyData: null,
+                          lazyDataResolved: false,
+                          head: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -57,6 +69,9 @@ describe('findHeadInCache', () => {
                                     lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
+                                    prefetchHead: null,
+                                    lazyDataResolved: false,
+                                    loading: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -93,11 +108,14 @@ describe('findHeadInCache', () => {
     }
 
     const result = findHeadInCache(cache, routerTree[1])
+    expect(result).not.toBeNull()
 
-    expect(result).toMatchObject(
+    const [cacheNode, key] = result!
+    expect(cacheNode.head).toMatchObject(
       <>
         <title>About page!</title>
       </>
     )
+    expect(key).toBe('/linking/about/')
   })
 })

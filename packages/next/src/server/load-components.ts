@@ -12,20 +12,25 @@ import type {
 } from 'next/types'
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
+import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
-import { loadManifest } from './load-manifest'
+import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
+import { setReferenceManifestsSingleton } from './app-render/action-encryption-utils'
+import { createServerModuleMap } from './app-render/action-utils'
+
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -66,13 +71,32 @@ export type LoadComponentsReturnType<NextModule = any> = {
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-export async function loadManifestWithRetries<T>(
+export async function loadManifestWithRetries(
   manifestPath: string,
   attempts = 3
-): Promise<T> {
+): Promise<unknown> {
   while (true) {
     try {
       return loadManifest(manifestPath)
+    } catch (err) {
+      attempts--
+      if (attempts <= 0) throw err
+
+      await wait(100)
+    }
+  }
+}
+
+/**
+ * Load manifest file with retries, defaults to 3 attempts.
+ */
+export async function evalManifestWithRetries(
+  manifestPath: string,
+  attempts = 3
+): Promise<unknown> {
+  while (true) {
+    try {
+      return evalManifest(manifestPath)
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
@@ -86,14 +110,11 @@ async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
-  process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(manifestPath)
-    : require(manifestPath)
   try {
-    return (globalThis as any).__RSC_MANIFEST[
-      entryName
-    ] as ClientReferenceManifest
+    const context = (await evalManifestWithRetries(manifestPath)) as {
+      __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
+    }
+    return context.__RSC_MANIFEST[entryName] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
@@ -116,25 +137,24 @@ async function loadComponentsImpl<N = any>({
       Promise.resolve().then(() => requirePage('/_app', distDir, false)),
     ])
   }
-  const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(page, distDir, isAppPath)
-  )
 
   // Make sure to avoid loading the manifest for Route Handlers
   const hasClientManifest =
-    isAppPath &&
-    (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
+    isAppPath && (page.endsWith('/page') || page === UNDERSCORE_NOT_FOUND_ROUTE)
 
+  // Load the manifest files first
   const [
     buildManifest,
     reactLoadableManifest,
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
-    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
-    loadManifestWithRetries<ReactLoadableManifest>(
+    loadManifestWithRetries(
+      join(distDir, BUILD_MANIFEST)
+    ) as Promise<BuildManifest>,
+    loadManifestWithRetries(
       join(distDir, REACT_LOADABLE_MANIFEST)
-    ),
+    ) as Promise<ReactLoadableManifest>,
     hasClientManifest
       ? loadClientReferenceManifest(
           join(
@@ -147,11 +167,29 @@ async function loadComponentsImpl<N = any>({
         )
       : undefined,
     isAppPath
-      ? loadManifestWithRetries(
+      ? (loadManifestWithRetries(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
-        ).catch(() => null)
+        ).catch(() => null) as Promise<ActionManifest | null>)
       : null,
   ])
+
+  // Before requring the actual page module, we have to set the reference manifests
+  // to our global store so Server Action's encryption util can access to them
+  // at the top level of the page module.
+  if (serverActionsManifest && clientReferenceManifest) {
+    setReferenceManifestsSingleton({
+      clientReferenceManifest,
+      serverActionsManifest,
+      serverModuleMap: createServerModuleMap({
+        serverActionsManifest,
+        pageName: page,
+      }),
+    })
+  }
+
+  const ComponentMod = await Promise.resolve().then(() =>
+    requirePage(page, distDir, isAppPath)
+  )
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)

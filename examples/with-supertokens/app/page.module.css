@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: Menlo;
-  src: url('../assets/fonts/MenloRegular.ttf');
+  src: url("../assets/fonts/MenloRegular.ttf");
 }
 
 .appContainer {
@@ -20,21 +20,21 @@
 }
 
 .bold400 {
-  font-variation-settings: 'wght' 400;
+  font-variation-settings: "wght" 400;
 }
 
 .bold500 {
-  font-variation-settings: 'wght' 500;
+  font-variation-settings: "wght" 500;
 }
 
 .bold600 {
-  font-variation-settings: 'wght' 600;
+  font-variation-settings: "wght" 600;
 }
 
 .homeContainer {
   min-height: 100vh;
   min-width: 100vw;
-  background: url('../assets/images/background.png');
+  background: url("../assets/images/background.png");
   background-size: cover;
 
   display: flex;
@@ -44,7 +44,7 @@
 }
 
 .bold700 {
-  font-variation-settings: 'wght' 700;
+  font-variation-settings: "wght" 700;
 }
 
 .mainContainer {
@@ -93,7 +93,7 @@
 }
 
 .userId:before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 9px;

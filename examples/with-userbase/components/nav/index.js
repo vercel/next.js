@@ -1,23 +1,23 @@
-import { useState } from 'react'
-import LoginModal from '../modal'
+import { useState } from "react";
+import LoginModal from "../modal";
 
-import userbase from 'userbase-js'
+import userbase from "userbase-js";
 
 export default function Nav({ user, setUser }) {
-  const [open, setOpen] = useState()
-  const [modalType, setModalType] = useState()
+  const [open, setOpen] = useState();
+  const [modalType, setModalType] = useState();
 
   function openModal(type) {
-    setOpen(true)
-    setModalType(type)
+    setOpen(true);
+    setModalType(type);
   }
 
   async function logOut() {
     try {
-      await userbase.signOut()
-      setUser(null)
+      await userbase.signOut();
+      setUser(null);
     } catch (e) {
-      console.error(e.message)
+      console.error(e.message);
     }
   }
 
@@ -29,7 +29,7 @@ export default function Nav({ user, setUser }) {
             <li>
               <button
                 className="font-bold mx-2"
-                onClick={() => openModal('logIn')}
+                onClick={() => openModal("logIn")}
               >
                 Log In
               </button>
@@ -37,7 +37,7 @@ export default function Nav({ user, setUser }) {
             <li>
               <button
                 className="btn-yellow mx-2"
-                onClick={() => openModal('signUp')}
+                onClick={() => openModal("signUp")}
               >
                 Sign Up
               </button>
@@ -61,5 +61,5 @@ export default function Nav({ user, setUser }) {
         </div>
       )}
     </nav>
-  )
+  );
 }

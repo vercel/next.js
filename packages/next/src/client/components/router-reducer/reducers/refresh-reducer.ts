@@ -13,6 +13,7 @@ import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -69,7 +70,7 @@ export function refreshReducer(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {

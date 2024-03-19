@@ -77,28 +77,32 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
-    issues.get_plain_issues().await
+    Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
-/// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
-/// returns [turbopack::core::diagnostics::PlainDiagnostic]
-pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
+/// Reads the [turbopack_binding::turbopack::core::diagnostics::Diagnostic] held
+/// by the given source and returns it as a
+/// [turbopack_binding::turbopack::core::diagnostics::PlainDiagnostic]. It does
+/// not consume any Diagnostics held by the source.
+pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
 
-    captured_diags
-        .diagnostics
-        .iter()
-        .map(|d| d.into_plain())
-        .try_join()
-        .await
+    Ok(Arc::new(
+        captured_diags
+            .diagnostics
+            .iter()
+            .map(|d| d.into_plain())
+            .try_join()
+            .await?,
+    ))
 }
 
 #[napi(object)]
 pub struct NapiIssue {
     pub severity: String,
-    pub category: String,
+    pub stage: String,
     pub file_path: String,
     pub title: serde_json::Value,
     pub description: Option<serde_json::Value>,
@@ -115,7 +119,7 @@ impl From<&PlainIssue> for NapiIssue {
                 .description
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
-            category: issue.category.clone(),
+            stage: issue.stage.to_string(),
             file_path: issue.file_path.clone(),
             detail: issue
                 .detail

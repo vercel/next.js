@@ -11,25 +11,29 @@ createNextDescribe(
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     packageJson: {
       scripts: {
+        dev: 'node server.js',
+        build: 'yarn next build apps/host && yarn next build apps/guest',
+        start: 'NODE_ENV=production node server.js',
         'post-build': 'echo done',
       },
     },
+    dependencies: require('./app/package.json').dependencies,
   },
   ({ next, isNextDev }) => {
     it.each([
-      { pathname: '/first', content: ['hello from first app'] },
-      { pathname: '/second', content: ['hello from second app'] },
+      { pathname: '/', content: ['hello from host app'] },
+      { pathname: '/guest', content: ['hello from guest app'] },
       {
-        pathname: '/first/blog/post-1',
-        content: ['hello from first app /blog/[slug]'],
+        pathname: '/blog/post-1',
+        content: ['hello from host app /blog/[slug]'],
       },
       {
-        pathname: '/second/blog/post-1',
-        content: ['hello from second app /blog/[slug]'],
+        pathname: '/guest/blog/post-1',
+        content: ['hello from guest app /blog/[slug]'],
       },
       {
-        pathname: '/second/another/post-1',
-        content: ['hello from second app /another/[slug]'],
+        pathname: '/guest/another/post-1',
+        content: ['hello from guest app /another/[slug]'],
       },
     ])(
       'should correctly respond for $pathname',
@@ -49,7 +53,8 @@ createNextDescribe(
 
     if (isNextDev) {
       async function runHMRTest(app: string) {
-        const browser = await next.browser(`/${app}`)
+        const isHostApp = app === 'host'
+        const browser = await next.browser(isHostApp ? '/' : app)
         expect(await browser.elementByCss('body').text()).toContain(
           `hello from ${app} app`
         )
@@ -82,8 +87,8 @@ createNextDescribe(
       }
 
       it('should support HMR in both apps', async () => {
-        await runHMRTest('first')
-        await runHMRTest('second')
+        await runHMRTest('host')
+        await runHMRTest('guest')
       })
     }
   }

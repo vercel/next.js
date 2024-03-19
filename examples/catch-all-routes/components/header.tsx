@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Header = () => (
   <header>
@@ -27,6 +27,6 @@ const Header = () => (
       </li>
     </ul>
   </header>
-)
+);
 
-export default Header
+export default Header;

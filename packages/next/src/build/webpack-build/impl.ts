@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -327,7 +327,6 @@ export async function webpackBuildImpl(
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
-      NextBuildContext.buildSpinner?.stopAndPersist()
       Log.event('Compiled successfully')
     }
 

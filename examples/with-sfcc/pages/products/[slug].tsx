@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import getProducts from '../../sfcc.js'
+import Image from "next/image";
+import getProducts from "../../sfcc.js";
 
 export default function Product({ product }) {
   return (
@@ -28,30 +28,30 @@ export default function Product({ product }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export async function getStaticProps({ params }) {
-  const searchResults = await getProducts(params.slug)
-  const coffeeProduct = searchResults[0]
+  const searchResults = await getProducts(params.slug);
+  const coffeeProduct = searchResults[0];
 
   return {
     props: {
       product: coffeeProduct,
     },
-  }
+  };
 }
 
 export async function getStaticPaths() {
-  const coffeeProducts = await getProducts('coffee')
-  let fullPaths = []
+  const coffeeProducts = await getProducts("coffee");
+  let fullPaths = [];
 
   for (let product of coffeeProducts) {
-    fullPaths.push({ params: { slug: product.id } })
+    fullPaths.push({ params: { slug: product.id } });
   }
 
   return {
     paths: fullPaths,
-    fallback: 'blocking',
-  }
+    fallback: "blocking",
+  };
 }

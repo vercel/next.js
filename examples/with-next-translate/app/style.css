@@ -133,7 +133,7 @@ footer a {
   height: 1em;
 }
 
-[dir='rtl'] p {
+[dir="rtl"] p {
   text-align: right;
 }
 

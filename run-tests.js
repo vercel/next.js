@@ -124,7 +124,15 @@ ${output}
   }
 }
 
+let exiting = false
+
 const cleanUpAndExit = async (code) => {
+  if (exiting) {
+    return
+  }
+  exiting = true
+  console.log(`exiting with code ${code}`)
+
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
       recursive: true,
@@ -140,11 +148,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
-  console.log(`exiting with code ${code}`)
-
-  setTimeout(() => {
-    process.exit(code)
-  }, 1)
+  process.exit(code)
 }
 
 const isMatchingPattern = (pattern, file) => {
@@ -352,9 +356,12 @@ async function main() {
     }
   }
 
+  if (!tests) {
+    tests = []
+  }
+
   if (tests.length === 0) {
     console.log('No tests found for', options.type, 'exiting..')
-    return cleanUpAndExit(1)
   }
 
   console.log(`${GROUP}Running tests:
@@ -422,6 +429,7 @@ ${ENDGROUP}`)
         ...(shouldRecordTestWithReplay
           ? [`--config=jest.replay.config.js`]
           : []),
+        ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
         '--verbose',

@@ -226,7 +226,9 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
+      expect(style.text()).toMatch(
+        new RegExp(`p.${styleId}{color:(?:blue|#00f)`)
+      )
     })
 
     test('renders styled jsx external', async () => {
@@ -234,7 +236,9 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
+      expect(style.text()).toMatch(
+        new RegExp(`p.${styleId}{color:(?:blue|#00f)`)
+      )
     })
 
     test('renders properties populated asynchronously', async () => {
@@ -253,7 +257,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const expectedErrorMessage =
         'Circular structure in "getInitialProps" result of page "/circular-json-error".'
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toContain(expectedErrorMessage)
     })
@@ -267,7 +271,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const expectedErrorMessage =
         '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toContain(expectedErrorMessage)
     })
@@ -277,7 +281,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const expectedErrorMessage =
         '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toContain(expectedErrorMessage)
     })
@@ -313,14 +317,14 @@ export default function (next: NextInstance, render, fetch, ctx) {
 
     test('default export is not a React Component', async () => {
       const browser = await webdriver(ctx.appPort, '/no-default-export')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/The default export is not a React Component/)
     })
 
     test('error-inside-page', async () => {
       const browser = await webdriver(ctx.appPort, '/error-inside-page')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/This is an expected error/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
@@ -328,7 +332,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
 
     test('error-in-the-global-scope', async () => {
       const browser = await webdriver(ctx.appPort, '/error-in-the-global-scope')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
@@ -428,7 +432,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
 
     it('should show a valid error when undefined is thrown', async () => {
       const browser = await webdriver(ctx.appPort, '/throw-undefined')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
 
       expect(text).toContain(

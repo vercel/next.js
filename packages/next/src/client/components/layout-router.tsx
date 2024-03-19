@@ -12,7 +12,13 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, use, startTransition, Suspense } from 'react'
+import React, {
+  useContext,
+  use,
+  startTransition,
+  Suspense,
+  useDeferredValue,
+} from 'react'
 import ReactDOM from 'react-dom'
 import {
   LayoutRouterContext,
@@ -20,7 +26,7 @@ import {
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
-import { createInfinitePromise } from './infinite-promise'
+import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
@@ -348,7 +354,10 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      prefetchHead: null,
       parallelRoutes: new Map(),
+      lazyDataResolved: false,
+      loading: null,
     }
 
     /**
@@ -358,12 +367,30 @@ function InnerLayoutRouter({
     childNodes.set(cacheKey, newLazyCacheNode)
   }
 
-  // `rsc` represents the renderable node for this segment. It's either a
-  // React node or a promise for a React node, except we special case `null` to
-  // represent that this segment's data is missing. If it's a promise, we need
-  // to unwrap it so we can determine whether or not the data is missing.
-  const rsc: any = childNode.rsc
-  const resolvedRsc =
+  // `rsc` represents the renderable node for this segment.
+
+  // If this segment has a `prefetchRsc`, it's the statically prefetched data.
+  // We should use that on initial render instead of `rsc`. Then we'll switch
+  // to `rsc` when the dynamic response streams in.
+  //
+  // If no prefetch data is available, then we go straight to rendering `rsc`.
+  const resolvedPrefetchRsc =
+    childNode.prefetchRsc !== null ? childNode.prefetchRsc : childNode.rsc
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument.
+  //
+  // @ts-expect-error The second argument to `useDeferredValue` is only
+  // available in the experimental builds. When its disabled, it will always
+  // return `rsc`.
+  const rsc: any = useDeferredValue(childNode.rsc, resolvedPrefetchRsc)
+
+  // `rsc` is either a React node or a promise for a React node, except we
+  // special case `null` to represent that this segment's data is missing. If
+  // it's a promise, we need to unwrap it so we can determine whether or not the
+  // data is missing.
+  const resolvedRsc: React.ReactNode =
     typeof rsc === 'object' && rsc !== null && typeof rsc.then === 'function'
       ? use(rsc)
       : rsc
@@ -387,25 +414,33 @@ function InnerLayoutRouter({
         context.nextUrl,
         buildId
       )
+      childNode.lazyDataResolved = false
     }
 
     /**
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(lazyData)
+    const serverResponse = use(lazyData)
 
-    // segmentPath from the server does not match the layout's segmentPath
-    childNode.lazyData = null
-
-    // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-    setTimeout(() => {
-      startTransition(() => {
-        changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
+    if (!childNode.lazyDataResolved) {
+      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
+      setTimeout(() => {
+        startTransition(() => {
+          changeByServerResponse({
+            previousTree: fullTree,
+            serverResponse,
+          })
+        })
       })
-    })
+
+      // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
+      // the patch to the tree.
+      childNode.lazyDataResolved = true
+    }
+
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(createInfinitePromise()) as never
+    use(unresolvedThenable) as never
   }
 
   // If we get to this point, then we know we have something we can render.
@@ -417,6 +452,7 @@ function InnerLayoutRouter({
         childNodes: childNode.parallelRoutes,
         // TODO-APP: overriding of url for parallel routes
         url: url,
+        loading: childNode.loading,
       }}
     >
       {resolvedRsc}
@@ -435,15 +471,13 @@ function LoadingBoundary({
   loading,
   loadingStyles,
   loadingScripts,
-  hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
   loadingStyles?: React.ReactNode
   loadingScripts?: React.ReactNode
-  hasLoading: boolean
 }): JSX.Element {
-  if (hasLoading) {
+  if (loading) {
     return (
       <Suspense
         fallback={
@@ -474,10 +508,6 @@ export default function OuterLayoutRouter({
   errorScripts,
   templateStyles,
   templateScripts,
-  loading,
-  loadingStyles,
-  loadingScripts,
-  hasLoading,
   template,
   notFound,
   notFoundStyles,
@@ -485,16 +515,12 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
-  error: ErrorComponent
+  error: ErrorComponent | undefined
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
-  loading: React.ReactNode | undefined
-  loadingStyles: React.ReactNode | undefined
-  loadingScripts: React.ReactNode | undefined
-  hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
   styles?: React.ReactNode
@@ -504,7 +530,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url } = context
+  const { childNodes, tree, url, loading } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -555,10 +581,9 @@ export default function OuterLayoutRouter({
                   errorScripts={errorScripts}
                 >
                   <LoadingBoundary
-                    hasLoading={hasLoading}
-                    loading={loading}
-                    loadingStyles={loadingStyles}
-                    loadingScripts={loadingScripts}
+                    loading={loading?.[0]}
+                    loadingStyles={loading?.[1]}
+                    loadingScripts={loading?.[2]}
                   >
                     <NotFoundBoundary
                       notFound={notFound}

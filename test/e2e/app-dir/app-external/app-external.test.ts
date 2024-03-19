@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, shouldRunTurboDevTest } from 'next-test-utils'
+import { check, hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -20,23 +20,18 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       swr: 'latest',
     },
     packageJson: {
       scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
+        build: 'next build',
+        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
     skipDeployment: true,
   },
   ({ next }) => {
@@ -154,6 +149,26 @@ createNextDescribe(
         )
       ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
     })
+    // TODO: This test depends on `new Worker` which is not supported in Turbopack yet.
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should not apply swc optimizer transform for external packages in browser layer in web worker',
+      async () => {
+        const browser = await next.browser('/browser')
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(await browser.elementByCss('#worker-state').text()).toBe(
+          'default'
+        )
+
+        await browser.elementByCss('button').click()
+
+        await retry(async () => {
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await browser.elementByCss('#worker-state').text()).toBe(
+            'worker.js:browser-module/other'
+          )
+        })
+      }
+    )
 
     describe('react in external esm packages', () => {
       it('should use the same react in client app', async () => {
@@ -208,6 +223,11 @@ createNextDescribe(
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
       })
+
+      it('should support namespace import with ESM packages', async () => {
+        const $ = await next.render$('/esm/react-namespace-import')
+        expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
+      })
     })
 
     describe('mixed syntax external modules', () => {
@@ -228,6 +248,15 @@ createNextDescribe(
       })
     })
 
+    it('should emit cjs helpers for external cjs modules when compiled', async () => {
+      const $ = await next.render$('/cjs/client')
+      expect($('#private-prop').text()).toBe('prop')
+      expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
+
+      const browser = await next.browser('/cjs/client')
+      expect(await hasRedbox(browser)).toBe(false)
+    })
+
     it('should export client module references in esm', async () => {
       const html = await next.render('/esm-client-ref')
       expect(html).toContain('hello')
@@ -239,11 +268,13 @@ createNextDescribe(
     })
 
     it('should have proper tree-shaking for known modules in CJS', async () => {
-      const html = await next.render('/test-middleware')
-      expect(html).toContain('it works')
+      const html = await next.render('/cjs/server')
+      expect(html).toContain('resolve response')
 
-      const middlewareBundle = await next.readFile('.next/server/middleware.js')
-      expect(middlewareBundle).not.toContain('image-response')
+      const outputFile = await next.readFile(
+        '.next/server/app/cjs/server/page.js'
+      )
+      expect(outputFile).not.toContain('image-response')
     })
 
     it('should use the same async storages if imported directly', async () => {
@@ -251,21 +282,39 @@ createNextDescribe(
       expect(html).toContain('success')
     })
 
-    it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
-      const browser = await next.browser('/optout/action')
-      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+    describe('server actions', () => {
+      it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+        const browser = await next.browser('/optout/action')
+        expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
 
-      browser.elementByCss('#dual-pkg-outout button').click()
-      await check(async () => {
-        const text = await browser.elementByCss('#dual-pkg-outout p').text()
-        if (process.env.TURBOPACK) {
-          // The prefer esm won't effect turbopack resolving
-          expect(text).toBe('dual-pkg-optout:mjs')
-        } else {
+        browser.elementByCss('#dual-pkg-outout button').click()
+        await check(async () => {
+          const text = await browser.elementByCss('#dual-pkg-outout p').text()
           expect(text).toBe('dual-pkg-optout:cjs')
-        }
-        return 'success'
-      }, /success/)
+          return 'success'
+        }, /success/)
+      })
+
+      it('should compile server actions from node_modules in client components', async () => {
+        // before action there's no action log
+        expect(next.cliOutput).not.toContain('action-log:server:action1')
+        const browser = await next.browser('/action/client')
+        await browser.elementByCss('#action').click()
+
+        await check(() => {
+          expect(next.cliOutput).toContain('action-log:server:action1')
+          return 'success'
+        }, /success/)
+      })
+    })
+
+    describe('app route', () => {
+      it('should resolve next/server api from external esm package', async () => {
+        const res = await next.fetch('/app-routes')
+        const text = await res.text()
+        expect(res.status).toBe(200)
+        expect(text).toBe('get route')
+      })
     })
   }
 )
