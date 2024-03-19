@@ -49,12 +49,8 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let mut code = CodeBuilder::default();
         let output_root = output_root.to_string();
-        let asset_prefix = this
-            .chunking_context
-            .asset_prefix()
-            .await?
-            .clone_value()
-            .unwrap_or("".to_string());
+        let asset_prefix = this.chunking_context.asset_prefix().await?;
+        let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
         writedoc!(
             code,
@@ -65,7 +61,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root.as_str()),
-            StringifyJs(asset_prefix.as_str()),
+            StringifyJs(asset_prefix),
         )?;
 
         match this.chunking_context.await?.runtime_type() {
