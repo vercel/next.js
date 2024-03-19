@@ -18,47 +18,91 @@ async function collectResults(manifestFile) {
   const isoString = currentDate.toISOString()
   const timestamp = isoString.slice(0, 19).replace('T', ' ')
 
-  for (const [testFileName, result] of Object.entries(results)) {
-    let suitePassCount = 0
-    let suiteFailCount = 0
+  if (results.version === 2) {
+    for (const [testFileName, result] of Object.entries(results.suites)) {
+      let suitePassCount = 0
+      let suiteFailCount = 0
 
-    suitePassCount += result.passed.length
-    suiteFailCount += result.failed.length
+      suitePassCount += result.passed.length
+      suiteFailCount += result.failed.length
 
-    if (suitePassCount > 0) {
-      passingTests += `${testFileName}\n`
+      if (suitePassCount > 0) {
+        passingTests += `${testFileName}\n`
+      }
+
+      if (suiteFailCount > 0) {
+        failingTests += `${testFileName}\n`
+      }
+
+      for (const passed of result.passed) {
+        const passedName = passed.replaceAll('`', '\\`')
+        passingTests += `* ${passedName}\n`
+      }
+
+      for (const passed of result.failed) {
+        const failedName = passed.replaceAll('`', '\\`')
+        failingTests += `* ${failedName}\n`
+      }
+
+      passCount += suitePassCount
+      failCount += suiteFailCount
+
+      if (suitePassCount > 0) {
+        passingTests += `\n`
+      }
+
+      if (suiteFailCount > 0) {
+        failingTests += `\n`
+      }
     }
 
-    if (suiteFailCount > 0) {
-      failingTests += `${testFileName}\n`
-    }
+    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
+      passCount + failCount
+    }`
+    return { testRun, passingTests, failingTests }
+  } else {
+    for (const [testFileName, result] of Object.entries(results)) {
+      let suitePassCount = 0
+      let suiteFailCount = 0
 
-    for (const passed of result.passed) {
-      const passedName = passed.replaceAll('`', '\\`')
-      passingTests += `* ${passedName}\n`
-    }
+      suitePassCount += result.passed.length
+      suiteFailCount += result.failed.length
 
-    for (const passed of result.failed) {
-      const failedName = passed.replaceAll('`', '\\`')
-      failingTests += `* ${failedName}\n`
-    }
+      if (suitePassCount > 0) {
+        passingTests += `${testFileName}\n`
+      }
 
-    passCount += suitePassCount
-    failCount += suiteFailCount
+      if (suiteFailCount > 0) {
+        failingTests += `${testFileName}\n`
+      }
 
-    if (suitePassCount > 0) {
-      passingTests += `\n`
-    }
+      for (const passed of result.passed) {
+        const passedName = passed.replaceAll('`', '\\`')
+        passingTests += `* ${passedName}\n`
+      }
 
-    if (suiteFailCount > 0) {
-      failingTests += `\n`
+      for (const passed of result.failed) {
+        const failedName = passed.replaceAll('`', '\\`')
+        failingTests += `* ${failedName}\n`
+      }
+
+      passCount += suitePassCount
+      failCount += suiteFailCount
+
+      if (suitePassCount > 0) {
+        passingTests += `\n`
+      }
+
+      if (suiteFailCount > 0) {
+        failingTests += `\n`
+      }
     }
+    const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
+      passCount + failCount
+    }`
+
+    return { testRun, passingTests, failingTests }
   }
-  const testRun = `${process.env.GITHUB_SHA}\t${timestamp}\t${passCount}/${
-    passCount + failCount
-  }`
-
-  return { testRun, passingTests, failingTests }
 }
 
 async function main() {
