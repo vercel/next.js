@@ -27,5 +27,4 @@ export type FontLoader = (options: {
   adjustFontFallback?: AdjustFontFallback
   weight?: string
   style?: string
-  disableFontFamilyHashing?: boolean
 }>

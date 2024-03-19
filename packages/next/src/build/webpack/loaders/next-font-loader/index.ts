@@ -93,32 +93,25 @@ export default async function nextFontLoader(this: any) {
       // Import the font loader function from either next/font/local or next/font/google
       // The font loader function emits font files and returns @font-faces and fallback font metrics
       const fontLoader: FontLoader = require(fontLoaderPath).default
-      let {
-        css,
-        fallbackFonts,
-        adjustFontFallback,
-        weight,
-        style,
-        variable,
-        disableFontFamilyHashing,
-      } = await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
-        fontLoader({
-          functionName,
-          variableName,
-          data,
-          emitFontFile,
-          resolve: (src: string) =>
-            promisify(this.resolve)(
-              path.dirname(
-                path.join(this.rootContext, relativeFilePathFromRoot)
+      let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
+        await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
+          fontLoader({
+            functionName,
+            variableName,
+            data,
+            emitFontFile,
+            resolve: (src: string) =>
+              promisify(this.resolve)(
+                path.dirname(
+                  path.join(this.rootContext, relativeFilePathFromRoot)
+                ),
+                src.startsWith('.') ? src : `./${src}`
               ),
-              src.startsWith('.') ? src : `./${src}`
-            ),
-          isDev,
-          isServer,
-          loaderContext: this,
-        })
-      )
+            isDev,
+            isServer,
+            loaderContext: this,
+          })
+        )
 
       const { postcss } = await getPostcss()
 
@@ -126,7 +119,6 @@ export default async function nextFontLoader(this: any) {
       const exports: { name: any; value: any }[] = []
 
       // Generate a hash from the CSS content. Used to generate classnames and font families
-      // While css hashing can be disabled with an option, className always stays hashed
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
         'sha1',
@@ -141,9 +133,7 @@ export default async function nextFontLoader(this: any) {
           postcss(
             postcssNextFontPlugin({
               exports,
-              fontFamilyHash: disableFontFamilyHashing
-                ? undefined
-                : fontFamilyHash,
+              fontFamilyHash,
               fallbackFonts,
               weight,
               style,

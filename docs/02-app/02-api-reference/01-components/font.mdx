@@ -12,20 +12,19 @@ This API reference will help you understand how to use [`next/font/google`](/doc
 
 For usage, review [Google Fonts](/docs/app/building-your-application/optimizing/fonts#google-fonts) and [Local Fonts](/docs/app/building-your-application/optimizing/fonts#local-fonts).
 
-| Key                                                     | `font/google`       | `font/local`        | Type                       | Required          |
-| ------------------------------------------------------- | ------------------- | ------------------- | -------------------------- | ----------------- |
-| [`src`](#src)                                           | <Cross size={18} /> | <Check size={18} /> | String or Array of Objects | Yes               |
-| [`weight`](#weight)                                     | <Check size={18} /> | <Check size={18} /> | String or Array            | Required/Optional |
-| [`style`](#style)                                       | <Check size={18} /> | <Check size={18} /> | String or Array            | -                 |
-| [`subsets`](#subsets)                                   | <Check size={18} /> | <Cross size={18} /> | Array of Strings           | -                 |
-| [`axes`](#axes)                                         | <Check size={18} /> | <Cross size={18} /> | Array of Strings           | -                 |
-| [`display`](#display)                                   | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
-| [`preload`](#preload)                                   | <Check size={18} /> | <Check size={18} /> | Boolean                    | -                 |
-| [`fallback`](#fallback)                                 | <Check size={18} /> | <Check size={18} /> | Array of Strings           | -                 |
-| [`adjustFontFallback`](#adjustfontfallback)             | <Check size={18} /> | <Check size={18} /> | Boolean or String          | -                 |
-| [`variable`](#variable)                                 | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
-| [`declarations`](#declarations)                         | <Cross size={18} /> | <Check size={18} /> | Array of Objects           | -                 |
-| [`disableFontFamilyHashing`](#disablefontfamilyhashing) | <Check size={18} /> | <Check size={18} /> | Boolean                    | -                 |
+| Key                                         | `font/google`       | `font/local`        | Type                       | Required          |
+| ------------------------------------------- | ------------------- | ------------------- | -------------------------- | ----------------- |
+| [`src`](#src)                               | <Cross size={18} /> | <Check size={18} /> | String or Array of Objects | Yes               |
+| [`weight`](#weight)                         | <Check size={18} /> | <Check size={18} /> | String or Array            | Required/Optional |
+| [`style`](#style)                           | <Check size={18} /> | <Check size={18} /> | String or Array            | -                 |
+| [`subsets`](#subsets)                       | <Check size={18} /> | <Cross size={18} /> | Array of Strings           | -                 |
+| [`axes`](#axes)                             | <Check size={18} /> | <Cross size={18} /> | Array of Strings           | -                 |
+| [`display`](#display)                       | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
+| [`preload`](#preload)                       | <Check size={18} /> | <Check size={18} /> | Boolean                    | -                 |
+| [`fallback`](#fallback)                     | <Check size={18} /> | <Check size={18} /> | Array of Strings           | -                 |
+| [`adjustFontFallback`](#adjustfontfallback) | <Check size={18} /> | <Check size={18} /> | Boolean or String          | -                 |
+| [`variable`](#variable)                     | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
+| [`declarations`](#declarations)             | <Cross size={18} /> | <Check size={18} /> | Array of Objects           | -                 |
 
 ### `src`
 
@@ -174,19 +173,6 @@ Used in `next/font/local`
 Examples:
 
 - `declarations: [{ prop: 'ascent-override', value: '90%' }]`
-
-### `disableFontFamilyHashing`
-
-A boolean value to disable the default font-family name hashing in the @font-face declarations.
-This argument is useful when the font-family name is already defined in a 3rd party library and you need the loaded font to match it.
-
-Used in `next/font/google` and `next/font/local`
-
-- Optional
-
-Examples:
-
-- `disableFontFamilyHashing: true`
 
 ## Applying Styles
 

@@ -33,7 +33,6 @@ export function validateGoogleFontFunctionCall(
     adjustFontFallback = true,
     variable,
     subsets,
-    disableFontFamilyHashing,
   } = fontFunctionArgument || ({} as any)
   if (functionName === '') {
     nextFontError(`next/font/google has no default export`)
@@ -143,7 +142,6 @@ export function validateGoogleFontFunctionCall(
 
   return {
     fontFamily,
-    disableFontFamilyHashing,
     weights,
     styles,
     display,
