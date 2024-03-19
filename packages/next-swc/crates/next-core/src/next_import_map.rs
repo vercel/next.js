@@ -26,6 +26,7 @@ use crate::{
     mode::NextMode,
     next_client::context::ClientContextType,
     next_config::NextConfig,
+    next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::{
         google::{
             NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
@@ -37,6 +38,57 @@ use crate::{
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
+
+const NODE_INTERNALS: [&str; 48] = [
+    "assert",
+    "async_hooks",
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "events",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "stream",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "util",
+    "util/types",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+    "pnpapi",
+];
 
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
@@ -416,7 +468,27 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
+    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+
     Ok(import_map.cell())
+}
+
+/// Insert default aliases for the node.js's internal to raise unsupported
+/// runtime errors. User may provide polyfills for their own by setting user
+/// config's alias.
+fn insert_unsupported_node_internal_aliases(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+) {
+    let unsupported_replacer = ImportMapping::Dynamic(Vc::upcast(
+        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context),
+    ))
+    .into();
+
+    NODE_INTERNALS.iter().for_each(|module| {
+        import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
+    });
 }
 
 pub fn get_next_client_resolved_map(
