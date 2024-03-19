@@ -29,7 +29,7 @@ jobs:
 
       # Always run build manifest script to get the latest value
       - run: |
-          node ./test/build-turbopack-tests-manifest.js
+          node ./test/build-turbopack-dev-tests-manifest.js
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
 

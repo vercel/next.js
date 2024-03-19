@@ -38,6 +38,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
-          SCRIPT: test/build-turbopack-tests-manifest.js
+          SCRIPT: test/build-turbopack-dev-tests-manifest.js
           PR_TITLE: Update Turbopack test manifest
           PR_BODY: This auto-generated PR updates the integration test manifest used when testing Turbopack.
