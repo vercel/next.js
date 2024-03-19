@@ -443,8 +443,6 @@ If you need a different provider, you can use the [`loader`](#loader) prop with 
 
 > Images can not be optimized at build time using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
-> The `next/legacy/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `npm i sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
-
 ## Advanced
 
 The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.

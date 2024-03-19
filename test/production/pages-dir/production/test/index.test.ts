@@ -178,7 +178,7 @@ createNextDescribe(
         ).toBe(false)
         expect(
           serverTrace.files.some((file) => file.includes('node_modules/sharp'))
-        ).toBe(false)
+        ).toBe(true)
       }
 
       const checks = [
