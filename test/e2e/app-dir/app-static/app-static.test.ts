@@ -711,6 +711,8 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "too-many-cache-tags/page.js",
+            "too-many-cache-tags/page_client-reference-manifest.js",
             "unstable-cache/dynamic-undefined/page.js",
             "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
             "unstable-cache/dynamic/page.js",
