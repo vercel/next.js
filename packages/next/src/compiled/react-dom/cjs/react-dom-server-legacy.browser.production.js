@@ -26,7 +26,7 @@ function formatProdErrorMessage(code) {
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
 }
 
-var ReactVersion = '18.3.0-canary-60a927d04-20240113';
+var ReactVersion = '18.3.0-canary-4b84f1161-20240318';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we
@@ -139,9 +139,6 @@ function stringToChunk(content) {
 }
 function stringToPrecomputedChunk(content) {
   return content;
-}
-function clonePrecomputedChunk(chunk) {
-  return chunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
@@ -3094,7 +3091,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     if (requiresStyleInsertion) {
       if ((resumableState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction | SentCompleteBoundaryFunction;
-        writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
+        writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
       } else if ((resumableState.instructions & SentStyleInsertionFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction;
         writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
