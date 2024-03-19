@@ -78,7 +78,7 @@ export async function sendRenderResult({
       // ordering can differ even if underlying content
       // does not differ
       etagPayload = payload.split('\n').sort().join('\n')
-    } else if (type === 'html') {
+    } else if (type === 'html' && payload.includes('__next_f')) {
       const { parse } =
         require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
 
@@ -88,20 +88,15 @@ export async function sendRenderResult({
 
         // Get script tags in the body element
         let scriptTags = root
-          ?.querySelector('body')
-          ?.childNodes.filter(
-            (node: any) =>
-              node.tagName === 'script' &&
-              !node.hasAttribute('src') &&
-              node.innerHTML?.startsWith('self.__next_f.push')
+          .querySelector('body')
+          ?.querySelectorAll('script')
+          .filter(
+            (node) =>
+              !node.hasAttribute('src') && node.innerHTML?.includes('__next_f')
           )
 
         // Sort the script tags by their inner text
-        scriptTags?.sort((a: any, b: any) => {
-          let aLog = parseInt(a.rawText.match(/\d+/)[0])
-          let bLog = parseInt(b.rawText.match(/\d+/)[0])
-          return aLog - bLog
-        })
+        scriptTags?.sort((a, b) => a.innerHTML.localeCompare(b.innerHTML))
 
         // Remove the original script tags
         scriptTags?.forEach((script: any) => script.remove())
