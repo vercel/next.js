@@ -4,6 +4,7 @@ use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
+        browser::BrowserChunkingContext,
         core::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
@@ -12,7 +13,6 @@ use turbopack_binding::{
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
-        dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
         node::{debug::should_debug, execution_context::ExecutionContext},
         turbopack::resolve_options_context::ResolveOptionsContext,
@@ -101,7 +101,7 @@ pub async fn get_edge_resolve_options_context(
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![
-        mode.await?.node_env().to_string(),
+        mode.await?.condition().to_string(),
         "edge-light".to_string(),
         "worker".to_string(),
     ];
@@ -148,25 +148,58 @@ pub async fn get_edge_resolve_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_chunking_context(
+pub async fn get_edge_chunking_context_with_client_assets(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
-    Vc::upcast(
-        DevChunkingContext::builder(
+    let next_mode = mode.await?;
+    Ok(Vc::upcast(
+        BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
             output_root.join("chunks".to_string()),
             client_root.join("static/media".to_string()),
             environment,
+            next_mode.runtime_type(),
         )
         .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
+        .minify_type(next_mode.minify_type())
         .build(),
-    )
+    ))
+}
+
+#[turbo_tasks::function]
+pub async fn get_edge_chunking_context(
+    mode: Vc<NextMode>,
+    project_path: Vc<FileSystemPath>,
+    node_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+    let output_root = node_root.join("server/edge".to_string());
+    let next_mode = mode.await?;
+    Ok(Vc::upcast(
+        BrowserChunkingContext::builder(
+            project_path,
+            output_root,
+            output_root,
+            output_root.join("chunks".to_string()),
+            output_root.join("assets".to_string()),
+            environment,
+            next_mode.runtime_type(),
+        )
+        // Since one can't read files in edge directly, any asset need to be fetched
+        // instead. This special blob url is handled by the custom fetch
+        // implementation in the edge sandbox. It will respond with the
+        // asset from the output directory.
+        .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
+        .reference_chunk_source_maps(should_debug("edge"))
+        .build(),
+    ))
 }

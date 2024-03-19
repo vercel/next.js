@@ -210,6 +210,33 @@ createNextDescribe(
       }
     })
 
+    if (!isDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should properly revalidate a route handler that triggers dynamic usage with force-static', async () => {
+        // wait for the revalidation period
+        let res = await next.fetch('/route-handler/no-store-force-static')
+
+        let data = await res.json()
+        // grab the initial timestamp
+        const initialTimestamp = data.now
+
+        // confirm its cached still
+        res = await next.fetch('/route-handler/no-store-force-static')
+
+        data = await res.json()
+
+        expect(data.now).toBe(initialTimestamp)
+
+        // wait for the revalidation time
+        await waitFor(3000)
+
+        // verify fresh data
+        res = await next.fetch('/route-handler/no-store-force-static')
+        data = await res.json()
+
+        expect(data.now).not.toBe(initialTimestamp)
+      })
+    }
+
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
         {
@@ -499,9 +526,9 @@ createNextDescribe(
             "(new)/custom/page.js",
             "(new)/custom/page_client-reference-manifest.js",
             "_not-found.html",
-            "_not-found.js",
             "_not-found.rsc",
-            "_not-found_client-reference-manifest.js",
+            "_not-found/page.js",
+            "_not-found/page_client-reference-manifest.js",
             "api/draft-mode/route.js",
             "api/large-data/route.js",
             "api/revalidate-path-edge/route.js",
@@ -639,6 +666,8 @@ createNextDescribe(
             "response-url/page.js",
             "response-url/page_client-reference-manifest.js",
             "route-handler-edge/revalidate-360/route.js",
+            "route-handler/no-store-force-static/route.js",
+            "route-handler/no-store/route.js",
             "route-handler/post/route.js",
             "route-handler/revalidate-360-isr/route.js",
             "route-handler/revalidate-360/route.js",
@@ -667,6 +696,10 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "unstable-cache/dynamic-undefined/page.js",
+            "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
+            "unstable-cache/dynamic/page.js",
+            "unstable-cache/dynamic/page_client-reference-manifest.js",
             "variable-config-revalidate/revalidate-3.html",
             "variable-config-revalidate/revalidate-3.rsc",
             "variable-config-revalidate/revalidate-3/page.js",
@@ -1270,6 +1303,26 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/route-handler/no-store-force-static": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
+              },
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/route-handler/no-store-force-static",
             },
             "/route-handler/revalidate-360-isr": {
               "dataRoute": null,
@@ -3009,6 +3062,31 @@ createNextDescribe(
         const data2 = cheerio.load(html2)('#data').text()
 
         expect(data).toEqual(data2)
+      })
+    })
+
+    describe('unstable_cache', () => {
+      it('should retrieve the same value on second request', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+      })
+
+      it('should not error when retrieving the value undefined', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+        expect(data).toEqual('typeof cachedData: undefined')
       })
     })
 

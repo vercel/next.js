@@ -51,8 +51,10 @@ pub async fn get_app_page_entry(
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
+    let base_path = next_config.await?.base_path.clone();
     let loader_tree =
-        LoaderTreeModule::build(loader_tree, context, server_component_transition).await?;
+        LoaderTreeModule::build(loader_tree, context, server_component_transition, base_path)
+            .await?;
 
     let LoaderTreeModule {
         inner_assets,

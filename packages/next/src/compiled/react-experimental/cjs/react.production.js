@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-a515d753b-20240220';
+var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -162,7 +162,7 @@ Component.prototype.isReactComponent = {};
 
 Component.prototype.setState = function (partialState, callback) {
   if (typeof partialState !== 'object' && typeof partialState !== 'function' && partialState != null) {
-    throw new Error('setState(...): takes an object of state variables to update or a ' + 'function which returns an object of state variables.');
+    throw new Error('takes an object of state variables to update or a ' + 'function which returns an object of state variables.');
   }
 
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
@@ -222,6 +222,19 @@ const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 function isArray(a) {
   return isArrayImpl(a);
 }
+
+// -----------------------------------------------------------------------------
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to true for easier skimming.
+// -----------------------------------------------------------------------------
+
+const __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+// as a normal prop instead of stripping it from the props object.
+// Passes `ref` as a normal prop instead of stripping it from the props object
+// during element creation.
+
+const enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
 
 /**
  * Keeps track of the current dispatcher.
@@ -302,18 +315,38 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type,
-    key,
-    ref,
-    props,
-    // Record the component responsible for creating this element.
-    _owner: owner
-  };
+function ReactElement(type, key, _ref, self, source, owner, props) {
+  let ref;
+
+  {
+    // When enableRefAsProp is on, ignore whatever was passed as the ref
+    // argument and treat `props.ref` as the source of truth. The only thing we
+    // use this for is `element.ref`, which will log a deprecation warning on
+    // access. In the next release, we can remove `element.ref` as well as the
+    // `ref` argument.
+    const refProp = props.ref; // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+    ref = refProp !== undefined ? refProp : null;
+  }
+
+  let element;
+
+  {
+    // In prod, `ref` is a regular property. It will be removed in a
+    // future release.
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      // Built-in properties that belong on the element
+      type,
+      key,
+      ref,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: owner
+    };
+  }
 
   return element;
 }
@@ -331,9 +364,6 @@ function createElement(type, config, children) {
   let ref = null;
 
   if (config != null) {
-    if (hasValidRef(config)) {
-      ref = config.ref;
-    }
 
     if (hasValidKey(config)) {
 
@@ -343,13 +373,10 @@ function createElement(type, config, children) {
 
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
-      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
-      // warnings and debug information in dev. Need to decide if we're OK
-      // with dropping them. In the jsx() runtime it's not an issue because
-      // the data gets passed as separate arguments instead of props, but
-      // it would be nice to stop relying on them entirely so we can drop
-      // them from the internal Fiber field.
+      propName !== 'key' && (enableRefAsProp ) && // Even though we don't use these anymore in the runtime, we don't want
+      // them to appear as props, so in createElement we filter them out.
+      // We don't have to do this in the jsx() runtime because the jsx()
+      // transform never passed these as props; it used separate arguments.
       propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
@@ -404,7 +431,9 @@ function createFactory(type) {
   return factory;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  return ReactElement(oldElement.type, newKey, oldElement.ref, undefined, undefined, oldElement._owner, oldElement.props);
+  return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
+  // exists to avoid the `ref` access warning.
+  null , undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
@@ -413,7 +442,7 @@ function cloneAndReplaceKey(oldElement, newKey) {
 
 function cloneElement(element, config, children) {
   if (element === null || element === undefined) {
-    throw new Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
+    throw new Error("The argument must be a React element, but you passed " + element + ".");
   }
 
   let propName; // Original props are copied
@@ -421,14 +450,13 @@ function cloneElement(element, config, children) {
   const props = assign({}, element.props); // Reserved names are extracted
 
   let key = element.key;
-  let ref = element.ref; // Owner will be preserved, unless ref is overridden
+  let ref = null ; // Owner will be preserved, unless ref is overridden
 
   let owner = element._owner;
 
   if (config != null) {
     if (hasValidRef(config)) {
-      // Silently steal the ref from the parent.
-      ref = config.ref;
+
       owner = ReactCurrentOwner.current;
     }
 
@@ -446,14 +474,16 @@ function cloneElement(element, config, children) {
 
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
-      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      propName !== 'key' && (enableRefAsProp ) && // ...and maybe these, too, though we currently rely on them for
       // warnings and debug information in dev. Need to decide if we're OK
       // with dropping them. In the jsx() runtime it's not an issue because
       // the data gets passed as separate arguments instead of props, but
       // it would be nice to stop relying on them entirely so we can drop
       // them from the internal Fiber field.
-      propName !== '__self' && propName !== '__source') {
+      propName !== '__self' && propName !== '__source' && // Undefined `ref` is ignored by cloneElement. We treat it the same as
+      // if the property were missing. This is mostly for
+      // backwards compatibility.
+      !(propName === 'ref' && config.ref === undefined)) {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -481,6 +511,7 @@ function cloneElement(element, config, children) {
   }
 
   const clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props);
+
   return clonedElement;
 }
 /**

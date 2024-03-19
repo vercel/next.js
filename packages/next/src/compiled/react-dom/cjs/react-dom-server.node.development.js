@@ -20,7 +20,7 @@ var crypto = require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-a515d753b-20240220';
+var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -76,9 +76,6 @@ function printWarning(level, format, args) {
     Function.prototype.apply.call(console[level], console, argsWithFormat);
   }
 }
-
-// -----------------------------------------------------------------------------
-var enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -468,15 +465,9 @@ function writeViewChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
-    {
-      if (precomputedChunkSet && precomputedChunkSet.has(chunk)) {
-        error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
-      }
-    } // this chunk may overflow a single view which implies it was not
+    // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
-
-
     if (writtenBytes > 0) {
       writeToDestination(destination, currentView.subarray(0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -552,20 +543,16 @@ var textEncoder = new util.TextEncoder();
 function stringToChunk(content) {
   return content;
 }
-var precomputedChunkSet = new Set() ;
 function stringToPrecomputedChunk(content) {
   var precomputedChunk = textEncoder.encode(content);
 
   {
-    if (precomputedChunkSet) {
-      precomputedChunkSet.add(precomputedChunk);
+    if (precomputedChunk.byteLength > VIEW_SIZE) {
+      error('precomputed chunks must be smaller than the view size configured for this host. This is a bug in React.');
     }
   }
 
   return precomputedChunk;
-}
-function clonePrecomputedChunk(precomputedChunk) {
-  return precomputedChunk.length > VIEW_SIZE ? precomputedChunk.slice() : precomputedChunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
@@ -674,6 +661,9 @@ function checkHtmlStringCoercion(value) {
     }
   }
 }
+
+// -----------------------------------------------------------------------------
+var enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -1570,6 +1560,7 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       case 'defaultChecked':
       case 'innerHTML':
+      case 'ref':
         {
           return true;
         }
@@ -1986,7 +1977,7 @@ var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
 var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
-var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'A React form was unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.getRootNode(),(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,\nd,b))}});';
+var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.ownerDocument||c,(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,d,b))}});';
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
@@ -2593,7 +2584,7 @@ function makeFormFieldPrefix(resumableState) {
 
 
 var actionJavaScriptURL = stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
-"javascript:throw new Error('A React form was unexpectedly submitted.')"));
+"javascript:throw new Error('React form unexpectedly submitted.')"));
 var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 
 function pushAdditionalFormField(value, key) {
@@ -2755,6 +2746,7 @@ function pushAttribute(target, name, value) // not null or undefined
 
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
+    case 'ref':
       // Ignored. These are built-in to React on the client.
       return;
 
@@ -4454,6 +4446,7 @@ function pushStartCustomElement(target, props, tag) {
 
         case 'suppressContentEditableWarning':
         case 'suppressHydrationWarning':
+        case 'ref':
           // Ignored. These are built-in to React on the client.
           break;
 
@@ -5094,7 +5087,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     if (requiresStyleInsertion) {
       if ((resumableState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction | SentCompleteBoundaryFunction;
-        writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
+        writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
       } else if ((resumableState.instructions & SentStyleInsertionFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction;
         writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
@@ -5723,6 +5716,7 @@ function writeStyleResourceAttributeInJS(destination, name, value) // not null o
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
     case 'style':
+    case 'ref':
       // Ignored
       return;
     // Attribute renames
@@ -5893,6 +5887,7 @@ function writeStyleResourceAttributeInAttr(destination, name, value) // not null
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
     case 'style':
+    case 'ref':
       // Ignored
       return;
     // Attribute renames
@@ -7293,18 +7288,19 @@ var didWarnOnInvalidCallback;
   didWarnOnInvalidCallback = new Set();
 }
 
-function warnOnInvalidCallback(callback, callerName) {
+function warnOnInvalidCallback(callback) {
   {
     if (callback === null || typeof callback === 'function') {
       return;
-    }
+    } // eslint-disable-next-line react-internal/safe-string-coercion
 
-    var key = callerName + '_' + callback;
+
+    var key = String(callback);
 
     if (!didWarnOnInvalidCallback.has(key)) {
       didWarnOnInvalidCallback.add(key);
 
-      error('%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback);
+      error('Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callback);
     }
   }
 }
@@ -7333,7 +7329,7 @@ function warnNoop(publicInstance, callerName) {
       return;
     }
 
-    error('%s(...): Can only update a mounting component. ' + 'This usually means you called %s() outside componentWillMount() on the server. ' + 'This is a no-op.\n\nPlease check the code for the %s component.', callerName, callerName, componentName);
+    error('Can only update a mounting component. ' + 'This usually means you called %s() outside componentWillMount() on the server. ' + 'This is a no-op.\n\nPlease check the code for the %s component.', callerName, componentName);
 
     didWarnAboutNoopUpdateForComponent[warningKey] = true;
   }
@@ -7354,7 +7350,7 @@ var classComponentUpdater = {
 
       {
         if (callback !== undefined && callback !== null) {
-          warnOnInvalidCallback(callback, 'setState');
+          warnOnInvalidCallback(callback);
         }
       }
     }
@@ -7366,7 +7362,7 @@ var classComponentUpdater = {
 
     {
       if (callback !== undefined && callback !== null) {
-        warnOnInvalidCallback(callback, 'setState');
+        warnOnInvalidCallback(callback);
       }
     }
   },
@@ -7379,7 +7375,7 @@ var classComponentUpdater = {
     } else {
       {
         if (callback !== undefined && callback !== null) {
-          warnOnInvalidCallback(callback, 'setState');
+          warnOnInvalidCallback(callback);
         }
       }
     }
@@ -7495,9 +7491,9 @@ function checkClassInstance(instance, ctor, newProps) {
 
     if (!renderPresent) {
       if (ctor.prototype && typeof ctor.prototype.render === 'function') {
-        error('%s(...): No `render` method found on the returned component ' + 'instance: did you accidentally return an object from the constructor?', name);
+        error('No `render` method found on the %s ' + 'instance: did you accidentally return an object from the constructor?', name);
       } else {
-        error('%s(...): No `render` method found on the returned component ' + 'instance: you may have forgotten to define `render`.', name);
+        error('No `render` method found on the %s ' + 'instance: you may have forgotten to define `render`.', name);
       }
     }
 
@@ -7556,7 +7552,7 @@ function checkClassInstance(instance, ctor, newProps) {
     var hasMutatedProps = instance.props !== newProps;
 
     if (instance.props !== undefined && hasMutatedProps) {
-      error('%s(...): When calling super() in `%s`, make sure to pass ' + "up the same props that your component's constructor was passed.", name, name);
+      error('When calling super() in `%s`, make sure to pass ' + "up the same props that your component's constructor was passed.", name);
     }
 
     if (instance.defaultProps) {
@@ -9837,7 +9833,7 @@ function validateFunctionComponentInDev(Component) {
   {
     if (Component) {
       if (Component.childContextTypes) {
-        error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+        error('childContextTypes cannot be defined on a function component.\n' + '  %s.childContextTypes = ...', Component.displayName || Component.name || 'Component');
       }
     }
 
@@ -9894,7 +9890,13 @@ function resolveDefaultProps(Component, baseProps) {
 function renderForwardRef(request, task, keyPath, type, props, ref) {
   var previousComponentStack = task.componentStack;
   task.componentStack = createFunctionComponentStack(task, type.render);
-  var children = renderWithHooks(request, task, keyPath, type.render, props, ref);
+  var propsWithoutRef;
+
+  {
+    propsWithoutRef = props;
+  }
+
+  var children = renderWithHooks(request, task, keyPath, type.render, propsWithoutRef, ref);
   var hasId = checkDidRenderIdHook();
   var formStateCount = getFormStateCount();
   var formStateMatchingIndex = getFormStateMatchingIndex();
@@ -10286,7 +10288,12 @@ function renderNodeDestructive(request, task, node, childIndex) {
           var type = element.type;
           var key = element.key;
           var props = element.props;
-          var ref = element.ref;
+          var ref;
+
+          {
+            ref = element.ref;
+          }
+
           var name = getComponentNameFromType(type);
           var keyOrIndex = key == null ? childIndex === -1 ? 0 : childIndex : key;
           var keyPath = [task.keyPath, name, keyOrIndex];

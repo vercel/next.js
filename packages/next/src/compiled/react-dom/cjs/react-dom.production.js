@@ -1783,6 +1783,9 @@ function describeBuiltInComponentFrame(name, ownerFn) {
     return '\n' + prefix + name;
   }
 }
+function describeDebugInfoFrame(name, env) {
+  return describeBuiltInComponentFrame(name + (env ? ' (' + env + ')' : ''));
+}
 let reentry = false;
 let componentFrameCache;
 /**
@@ -2045,7 +2048,10 @@ function getStackByFiberInDevAndProd(workInProgress) {
     let node = workInProgress;
 
     do {
-      info += describeFiber(node); // $FlowFixMe[incompatible-type] we bail out when we get a null
+      info += describeFiber(node);
+
+      if (false) ; // $FlowFixMe[incompatible-type] we bail out when we get a null
+
 
       node = node.return;
     } while (node);
@@ -3948,18 +3954,19 @@ function claimHydratableSingleton(fiber) {
 function tryToClaimNextHydratableInstance(fiber) {
   if (!isHydrating) {
     return;
-  }
-
+  } // Validate that this is ok to render here before any mismatches.
   const initialInstance = nextHydratableInstance;
   const nextInstance = nextHydratableInstance;
 
   if (!nextInstance) {
     if (shouldClientRenderOnMismatch(fiber)) {
+
       throwOnHydrationMismatch();
     } // Nothing to hydrate. Make it an insertion.
 
 
     insertNonHydratedInstance(hydrationParentFiber, fiber);
+
     isHydrating = false;
     hydrationParentFiber = fiber;
     nextHydratableInstance = initialInstance;
@@ -3970,6 +3977,7 @@ function tryToClaimNextHydratableInstance(fiber) {
 
   if (!tryHydrateInstance(fiber, nextInstance)) {
     if (shouldClientRenderOnMismatch(fiber)) {
+
       throwOnHydrationMismatch();
     } // If we can't hydrate this instance let's try the next one.
     // We use this as a heuristic. It's based on intuition and not data so it
@@ -3982,15 +3990,12 @@ function tryToClaimNextHydratableInstance(fiber) {
     if (!nextHydratableInstance || !tryHydrateInstance(fiber, nextHydratableInstance)) {
       // Nothing to hydrate. Make it an insertion.
       insertNonHydratedInstance(hydrationParentFiber, fiber);
+
       isHydrating = false;
       hydrationParentFiber = fiber;
       nextHydratableInstance = initialInstance;
       return;
     } // We matched the next one, we'll now assume that the first one was
-    // superfluous and we'll delete it. Since we can't eagerly delete it
-    // we'll have to schedule a deletion. To do that, this node needs a dummy
-    // fiber associated with it.
-
 
     deleteHydratableInstance(prevHydrationParentFiber, firstAttemptedInstance);
   }
@@ -4003,6 +4008,7 @@ function tryToClaimNextHydratableTextInstance(fiber) {
 
   const text = fiber.pendingProps;
   const isHydratable = isHydratableText(text);
+
   const initialInstance = nextHydratableInstance;
   const nextInstance = nextHydratableInstance;
 
@@ -4010,11 +4016,13 @@ function tryToClaimNextHydratableTextInstance(fiber) {
     // We exclude non hydrabable text because we know there are no matching hydratables.
     // We either throw or insert depending on the render mode.
     if (shouldClientRenderOnMismatch(fiber)) {
+
       throwOnHydrationMismatch();
     } // Nothing to hydrate. Make it an insertion.
 
 
     insertNonHydratedInstance(hydrationParentFiber, fiber);
+
     isHydrating = false;
     hydrationParentFiber = fiber;
     nextHydratableInstance = initialInstance;
@@ -4025,6 +4033,7 @@ function tryToClaimNextHydratableTextInstance(fiber) {
 
   if (!tryHydrateText(fiber, nextInstance)) {
     if (shouldClientRenderOnMismatch(fiber)) {
+
       throwOnHydrationMismatch();
     } // If we can't hydrate this instance let's try the next one.
     // We use this as a heuristic. It's based on intuition and not data so it
@@ -4037,15 +4046,12 @@ function tryToClaimNextHydratableTextInstance(fiber) {
     if (!nextHydratableInstance || !tryHydrateText(fiber, nextHydratableInstance)) {
       // Nothing to hydrate. Make it an insertion.
       insertNonHydratedInstance(hydrationParentFiber, fiber);
+
       isHydrating = false;
       hydrationParentFiber = fiber;
       nextHydratableInstance = initialInstance;
       return;
     } // We matched the next one, we'll now assume that the first one was
-    // superfluous and we'll delete it. Since we can't eagerly delete it
-    // we'll have to schedule a deletion. To do that, this node needs a dummy
-    // fiber associated with it.
-
 
     deleteHydratableInstance(prevHydrationParentFiber, firstAttemptedInstance);
   }
@@ -4093,11 +4099,6 @@ function tryToClaimNextHydratableSuspenseInstance(fiber) {
       nextHydratableInstance = initialInstance;
       return;
     } // We matched the next one, we'll now assume that the first one was
-    // superfluous and we'll delete it. Since we can't eagerly delete it
-    // we'll have to schedule a deletion. To do that, this node needs a dummy
-    // fiber associated with it.
-
-
     deleteHydratableInstance(prevHydrationParentFiber, firstAttemptedInstance);
   }
 }
@@ -5749,62 +5750,72 @@ function unwrapThenable(thenable) {
   return trackUsedThenable(thenableState$1, thenable, index);
 }
 
-function coerceRef(returnFiber, current, element) {
-  const mixedRef = element.ref;
+function convertStringRefToCallbackRef(returnFiber, current, element, mixedRef) {
+  const owner = element._owner;
 
-  if (mixedRef !== null && typeof mixedRef !== 'function' && typeof mixedRef !== 'object') {
-
-    if (element._owner) {
-      const owner = element._owner;
-      let inst;
-
-      if (owner) {
-        const ownerFiber = owner;
-
-        if (ownerFiber.tag !== ClassComponent) {
-          throw Error(formatProdErrorMessage(309));
-        }
-
-        inst = ownerFiber.stateNode;
-      }
-
-      if (!inst) {
-        throw Error(formatProdErrorMessage(147, mixedRef));
-      } // Assigning this to a const so Flow knows it won't change in the closure
-
-
-      const resolvedInst = inst;
-
-      const stringRef = '' + mixedRef; // Check if previous string ref matches new string ref
-
-      if (current !== null && current.ref !== null && typeof current.ref === 'function' && current.ref._stringRef === stringRef) {
-        return current.ref;
-      }
-
-      const ref = function (value) {
-        const refs = resolvedInst.refs;
-
-        if (value === null) {
-          delete refs[stringRef];
-        } else {
-          refs[stringRef] = value;
-        }
-      };
-
-      ref._stringRef = stringRef;
-      return ref;
-    } else {
-      if (typeof mixedRef !== 'string') {
-        throw Error(formatProdErrorMessage(284));
-      }
-
-      if (!element._owner) {
-        throw Error(formatProdErrorMessage(290, mixedRef));
-      }
+  if (!owner) {
+    if (typeof mixedRef !== 'string') {
+      throw Error(formatProdErrorMessage(284));
     }
+
+    throw Error(formatProdErrorMessage(290, mixedRef));
   }
 
-  return mixedRef;
+  if (owner.tag !== ClassComponent) {
+    throw Error(formatProdErrorMessage(309));
+  } // At this point, we know the ref isn't an object or function but it could
+
+  const stringRef = '' + mixedRef;
+
+  const inst = owner.stateNode;
+
+  if (!inst) {
+    throw Error(formatProdErrorMessage(147, stringRef));
+  } // Check if previous string ref matches new string ref
+
+
+  if (current !== null && current.ref !== null && typeof current.ref === 'function' && current.ref._stringRef === stringRef) {
+    // Reuse the existing string ref
+    const currentRef = current.ref;
+    return currentRef;
+  } // Create a new string ref
+
+
+  const ref = function (value) {
+    const refs = inst.refs;
+
+    if (value === null) {
+      delete refs[stringRef];
+    } else {
+      refs[stringRef] = value;
+    }
+  };
+
+  ref._stringRef = stringRef;
+  return ref;
+}
+
+function coerceRef(returnFiber, current, workInProgress, element) {
+  let mixedRef;
+
+  {
+    // Old behavior.
+    mixedRef = element.ref;
+  }
+
+  let coercedRef;
+
+  if (mixedRef !== null && typeof mixedRef !== 'function' && typeof mixedRef !== 'object') {
+    // Assume this is a string ref. If it's not, then this will throw an error
+    // to the user.
+    coercedRef = convertStringRefToCallbackRef(returnFiber, current, element, mixedRef);
+  } else {
+    coercedRef = mixedRef;
+  } // TODO: If enableRefAsProp is on, we shouldn't use the `ref` field. We
+  // should always read the ref from the prop.
+
+
+  workInProgress.ref = coercedRef;
 }
 
 function throwOnInvalidObjectType(returnFiber, newChild) {
@@ -5959,7 +5970,7 @@ function createChildReconciler(shouldTrackSideEffects) {
       typeof elementType === 'object' && elementType !== null && elementType.$$typeof === REACT_LAZY_TYPE && resolveLazy(elementType) === current.type) {
         // Move based on index
         const existing = useFiber(current, element.props);
-        existing.ref = coerceRef(returnFiber, current, element);
+        coerceRef(returnFiber, current, existing, element);
         existing.return = returnFiber;
 
         return existing;
@@ -5968,7 +5979,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
 
     const created = createFiberFromElement(element, returnFiber.mode, lanes);
-    created.ref = coerceRef(returnFiber, current, element);
+    coerceRef(returnFiber, current, created, element);
     created.return = returnFiber;
 
     return created;
@@ -6022,7 +6033,7 @@ function createChildReconciler(shouldTrackSideEffects) {
         case REACT_ELEMENT_TYPE:
           {
             const created = createFiberFromElement(newChild, returnFiber.mode, lanes);
-            created.ref = coerceRef(returnFiber, null, newChild);
+            coerceRef(returnFiber, null, created, newChild);
             created.return = returnFiber;
 
             return created;
@@ -6535,7 +6546,7 @@ function createChildReconciler(shouldTrackSideEffects) {
           typeof elementType === 'object' && elementType !== null && elementType.$$typeof === REACT_LAZY_TYPE && resolveLazy(elementType) === child.type) {
             deleteRemainingChildren(returnFiber, child.sibling);
             const existing = useFiber(child, element.props);
-            existing.ref = coerceRef(returnFiber, child, element);
+            coerceRef(returnFiber, child, existing, element);
             existing.return = returnFiber;
 
             return existing;
@@ -6559,7 +6570,7 @@ function createChildReconciler(shouldTrackSideEffects) {
       return created;
     } else {
       const created = createFiberFromElement(element, returnFiber.mode, lanes);
-      created.ref = coerceRef(returnFiber, currentFirstChild, element);
+      coerceRef(returnFiber, currentFirstChild, created, element);
       created.return = returnFiber;
 
       return created;
@@ -10024,14 +10035,20 @@ function updateForwardRef(current, workInProgress, Component, nextProps, renderL
   // hasn't yet mounted. This happens after the first render suspends.
   // We'll need to figure out if this is fine or can cause issues.
   const render = Component.render;
-  const ref = workInProgress.ref; // The rest is a fork of updateFunctionComponent
+  const ref = workInProgress.ref;
+  let propsWithoutRef;
+
+  {
+    propsWithoutRef = nextProps;
+  } // The rest is a fork of updateFunctionComponent
+
 
   let nextChildren;
   let hasId;
   prepareToReadContext(workInProgress, renderLanes);
 
   {
-    nextChildren = renderWithHooks(current, workInProgress, render, nextProps, ref, renderLanes);
+    nextChildren = renderWithHooks(current, workInProgress, render, propsWithoutRef, ref, renderLanes);
     hasId = checkDidRenderIdHook();
   }
 
@@ -10672,12 +10689,11 @@ function mountHostRootWithoutHydrating(current, workInProgress, nextChildren, re
 }
 
 function updateHostComponent$1(current, workInProgress, renderLanes) {
-  pushHostContext(workInProgress);
-
   if (current === null) {
     tryToClaimNextHydratableInstance(workInProgress);
   }
 
+  pushHostContext(workInProgress);
   const type = workInProgress.type;
   const nextProps = workInProgress.pendingProps;
   const prevProps = current !== null ? current.memoizedProps : null;
@@ -19568,7 +19584,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-a515d753b-20240220';
+var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -21023,7 +21039,8 @@ function retryIfBlockedOn(unblocked) {
 
   {
     // Check the document if there are any queued form actions.
-    const root = unblocked.getRootNode();
+    // If there's no ownerDocument, then this is the document.
+    const root = unblocked.ownerDocument || unblocked;
     const formReplayingQueue = root.$$reactFormReplay;
 
     if (formReplayingQueue != null) {
@@ -23845,7 +23862,9 @@ function setProp(domElement, tag, key, value, props, prevValue) {
 
     case 'defaultChecked':
     case 'innerHTML':
+    case 'ref':
       {
+        // TODO: `ref` is pretty common, should we move it up?
         // Noop
         break;
       }
@@ -24118,6 +24137,7 @@ function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
     case 'innerHTML':
+    case 'ref':
       {
         // Noop
         break;
@@ -27441,7 +27461,7 @@ function scheduleHydration(target) {
 ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = scheduleHydration;
 function hydrateRoot$1(container, initialChildren, options) {
   if (!isValidContainer(container)) {
-    throw Error(formatProdErrorMessage(405));
+    throw Error(formatProdErrorMessage(299));
   }
   // the hydration callbacks.
 
@@ -27598,7 +27618,7 @@ function findDOMNode(componentOrElement) {
 function hydrate(element, container, callback) {
 
   if (!isValidContainerLegacy(container)) {
-    throw Error(formatProdErrorMessage(200));
+    throw Error(formatProdErrorMessage(299));
   }
 
 
@@ -27607,7 +27627,7 @@ function hydrate(element, container, callback) {
 function render(element, container, callback) {
 
   if (!isValidContainerLegacy(container)) {
-    throw Error(formatProdErrorMessage(200));
+    throw Error(formatProdErrorMessage(299));
   }
 
   return legacyRenderSubtreeIntoContainer(null, element, container, false, callback);
@@ -27615,7 +27635,7 @@ function render(element, container, callback) {
 function unstable_renderSubtreeIntoContainer(parentComponent, element, containerNode, callback) {
 
   if (!isValidContainerLegacy(containerNode)) {
-    throw Error(formatProdErrorMessage(200));
+    throw Error(formatProdErrorMessage(299));
   }
 
   if (parentComponent == null || !has(parentComponent)) {
@@ -27626,7 +27646,7 @@ function unstable_renderSubtreeIntoContainer(parentComponent, element, container
 }
 function unmountComponentAtNode(container) {
   if (!isValidContainerLegacy(container)) {
-    throw Error(formatProdErrorMessage(40));
+    throw Error(formatProdErrorMessage(299));
   }
 
   if (container._reactRootContainer) {
@@ -27790,7 +27810,7 @@ function createPortal(children, container) {
   let key = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
 
   if (!isValidContainer(container)) {
-    throw Error(formatProdErrorMessage(200));
+    throw Error(formatProdErrorMessage(299));
   } // TODO: pass ReactDOM portal implementation as third argument
   // $FlowFixMe[incompatible-return] The Flow type is opaque but there's no way to actually create it.
 

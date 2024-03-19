@@ -19,7 +19,7 @@ const enablePostpone = true;
 function scheduleWork(callback) {
   setTimeout(callback, 0);
 }
-const VIEW_SIZE = 512;
+const VIEW_SIZE = 2048;
 let currentView = null;
 let writtenBytes = 0;
 function beginWriting(destination) {
@@ -32,10 +32,9 @@ function writeChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
+    // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
-
-
     if (writtenBytes > 0) {
       destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -1586,6 +1585,8 @@ function renderElement(request, task, type, key, ref, props) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
     // cases.
+    // TODO: `ref` is now just a prop when `enableRefAsProp` is on. Should we
+    // do what the above comment says?
     throw new Error('Refs cannot be used in Server Components, nor passed to Client Components.');
   }
 
@@ -2038,9 +2039,20 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
           const element = value;
 
+          const props = element.props;
+          let ref;
+
+          {
+            // TODO: This is a temporary, intermediate step. Once the feature
+            // flag is removed, we should get the ref off the props object right
+            // before using it.
+            const refProp = props.ref;
+            ref = refProp !== undefined ? refProp : null;
+          } // Attempt to render the Server Component.
+
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, element.ref, element.props);
+          element.key, ref, props);
         }
 
       case REACT_LAZY_TYPE:
@@ -2317,13 +2329,40 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 }
 
 function logPostpone(request, reason) {
-  const onPostpone = request.onPostpone;
-  onPostpone(reason);
+  const prevRequest = currentRequest;
+  currentRequest = null;
+
+  try {
+    const onPostpone = request.onPostpone;
+
+    if (supportsRequestStorage) {
+      // Exit the request context while running callbacks.
+      requestStorage.run(undefined, onPostpone, reason);
+    } else {
+      onPostpone(reason);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 }
 
 function logRecoverableError(request, error) {
-  const onError = request.onError;
-  const errorDigest = onError(error);
+  const prevRequest = currentRequest;
+  currentRequest = null;
+  let errorDigest;
+
+  try {
+    const onError = request.onError;
+
+    if (supportsRequestStorage) {
+      // Exit the request context while running callbacks.
+      errorDigest = requestStorage.run(undefined, onError, error);
+    } else {
+      errorDigest = onError(error);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 
   if (errorDigest != null && typeof errorDigest !== 'string') {
     // eslint-disable-next-line react-internal/prod-error-codes

@@ -8,23 +8,12 @@ import {
   getVersionCheckerText,
   hasRedbox,
   retry,
-  shouldRunTurboDevTest,
 } from 'next-test-utils'
 
 createNextDescribe(
   'Error overlay - RSC runtime errors',
   {
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-runtime-errors')),
-    packageJson: {
-      scripts: {
-        build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'pnpm i',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-    buildCommand: 'pnpm build',
   },
   ({ next }) => {
     it('should show runtime errors if invalid client API from node_modules is executed', async () => {
@@ -137,11 +126,6 @@ createNextDescribe(
       })
       const versionText = await getVersionCheckerText(browser)
       await expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
-      if (process.env.TURBOPACK) {
-        await expect(versionText).toContain('(turbo)')
-      } else {
-        await expect(versionText).not.toContain('(turbo)')
-      }
     })
 
     it('should not show the bundle layer info in the file trace', async () => {

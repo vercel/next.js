@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../app/error-overlay-reducer'
-import type {
-  UnhandledErrorAction,
-  UnhandledRejectionAction,
-} from '../../app/error-overlay-reducer'
+  type UnhandledErrorAction,
+  type UnhandledRejectionAction,
+} from '../../shared'
 import {
   Dialog,
   DialogBody,
@@ -25,6 +23,11 @@ import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
+import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
+import {
+  type HydrationErrorState,
+  getHydrationWarningType,
+} from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
   id: number
@@ -214,9 +217,24 @@ export function Errors({
     )
   }
 
+  const error = activeError.error
   const isServerError = ['server', 'edge-server'].includes(
-    getErrorSource(activeError.error) || ''
+    getErrorSource(error) || ''
   )
+
+  const errorDetails: HydrationErrorState = (error as any).details || {}
+  const [warningTemplate, serverContent, clientContent] =
+    errorDetails.warning || [null, '', '']
+
+  const hydrationErrorType = getHydrationWarningType(warningTemplate)
+  const hydrationWarning = warningTemplate
+    ? warningTemplate
+        .replace('%s', serverContent)
+        .replace('%s', clientContent)
+        .replace('%s', '') // remove the %s for stack
+        .replace(/%s$/, '') // If there's still a %s at the end, remove it
+        .replace(/^Warning: /, '')
+    : null
 
   return (
     <Overlay>
@@ -235,7 +253,10 @@ export function Errors({
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
-                <span>{readyErrors.length}</span> unhandled error
+                <span data-nextjs-dialog-header-total-count>
+                  {readyErrors.length}
+                </span>{' '}
+                unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
@@ -243,10 +264,26 @@ export function Errors({
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
-            <p id="nextjs__container_errors_desc">
-              {activeError.error.name}:{' '}
-              <HotlinkedText text={activeError.error.message} />
+            <p
+              id="nextjs__container_errors_desc"
+              className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+            >
+              {error.name}: <HotlinkedText text={error.message} />
             </p>
+            {hydrationWarning && (
+              <>
+                <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
+                {activeError.componentStackFrames?.length ? (
+                  <PseudoHtmlDiff
+                    className="nextjs__container_errors__extra_code"
+                    hydrationMismatchType={hydrationErrorType}
+                    componentStackFrames={activeError.componentStackFrames}
+                    firstContent={serverContent}
+                    secondContent={clientContent}
+                  />
+                ) : null}
+              </>
+            )}
             {isServerError ? (
               <div>
                 <small>
@@ -281,15 +318,23 @@ export const styles = css`
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
-  .nextjs-container-errors-header > p {
+  .nextjs-container-errors-header p {
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
     margin-top: var(--size-gap-half);
-    color: var(--color-ansi-red);
     white-space: pre-wrap;
+  }
+  .nextjs__container_errors_desc--error {
+    color: var(--color-ansi-red);
+  }
+  .nextjs__container_errors__extra {
+    margin: 20px 0;
+  }
+  nextjs__container_errors__extra__code {
+    margin: 10px 0;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
@@ -306,7 +351,12 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-
+  .nextjs__container_errors__extra_code {
+    margin: 20px 0;
+    padding: 12px 32px;
+    color: var(--color-ansi-fg);
+    background: var(--color-ansi-bg);
+  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;

@@ -755,6 +755,22 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
   return result
 }
 
+export async function hasErrorToast(
+  browser: BrowserInterface
+): Promise<boolean> {
+  return browser.eval(() => {
+    return Boolean(
+      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-toast]')
+      )
+    )
+  })
+}
+
+export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+}
+
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
@@ -815,6 +831,27 @@ export async function getRedboxDescription(browser: BrowserInterface) {
     3000,
     500,
     'getRedboxDescription'
+  )
+}
+
+export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__extra'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
   )
 }
 
@@ -1017,18 +1054,26 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-component-stack-frame]',
+    '[data-nextjs-container-errors-pseudo-html] code',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-component-stack-frame]'
+    '[data-nextjs-container-errors-pseudo-html] code'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
   return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function toggleCollapseComponentStack(
+  browser: BrowserInterface
+): Promise<void> {
+  await browser
+    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
+    .click()
 }
 
 export async function expandCallStack(
@@ -1064,6 +1109,34 @@ export async function getVersionCheckerText(
   )
   const versionCheckerText = await versionCheckerElement.innerText()
   return versionCheckerText.trim()
+}
+
+export function colorToRgb(color) {
+  switch (color) {
+    case 'blue':
+      return 'rgb(0, 0, 255)'
+    case 'red':
+      return 'rgb(255, 0, 0)'
+    case 'green':
+      return 'rgb(0, 128, 0)'
+    case 'yellow':
+      return 'rgb(255, 255, 0)'
+    case 'purple':
+      return 'rgb(128, 0, 128)'
+    case 'black':
+      return 'rgb(0, 0, 0)'
+    default:
+      throw new Error('Unknown color')
+  }
+}
+
+export function getUrlFromBackgroundImage(backgroundImage: string) {
+  const matches = backgroundImage.match(/url\("[^)]+"\)/g).map((match) => {
+    // Extract the URL part from each match. The match includes 'url("' and '"")', so we remove those.
+    return match.slice(5, -2)
+  })
+
+  return matches
 }
 
 /**

@@ -36,7 +36,6 @@ use turbopack_binding::{
         File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
     },
     turbopack::{
-        build::{BuildChunkingContext, EntryChunkGroupResult},
         core::{
             asset::AssetContent,
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
@@ -57,6 +56,7 @@ use turbopack_binding::{
             resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
+        nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -72,10 +72,12 @@ use crate::{
         DynamicImportedChunks,
     },
     font::create_font_manifest,
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    paths::{
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
+        wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -263,7 +265,9 @@ impl PagesProject {
         Vc::cell(
             [(
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             )]
             .into_iter()
             .collect(),
@@ -656,7 +660,7 @@ impl PageEndpoint {
         project_root: Vc<FileSystemPath>,
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
-        chunking_context: Vc<BuildChunkingContext>,
+        chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
@@ -791,7 +795,7 @@ impl PageEndpoint {
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -811,7 +815,7 @@ impl PageEndpoint {
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
             this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -831,7 +835,7 @@ impl PageEndpoint {
             this.pages_project.api_module_context(),
             this.pages_project.edge_api_module_context(),
             this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().edge_chunking_context(false),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -1018,6 +1022,7 @@ impl PageEndpoint {
             this.pages_project.pages_dir(),
             &original_name,
             &get_asset_prefix_from_pathname(&pathname),
+            &pathname,
             client_assets,
             false,
         )
@@ -1171,6 +1176,11 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .clone_value();
 
+            let client_relative_root = this.pages_project.project().client_relative_path();
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .await?
+                .clone_value();
+
             let node_root = &node_root.await?;
             let written_endpoint = match *output.await? {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => WrittenEndpoint::NodeJs {
@@ -1179,8 +1189,12 @@ impl Endpoint for PageEndpoint {
                         .context("ssr chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,
+                    client_paths,
                 },
-                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
+                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge {
+                    server_paths,
+                    client_paths,
+                },
             };
 
             Ok(written_endpoint.cell())
