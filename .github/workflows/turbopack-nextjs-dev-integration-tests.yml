@@ -3,7 +3,7 @@
 #
 # Refer test.yml for how this workflow is being initialized
 # - Workflow can specify `inputs.version` to specify which version of next.js to use, otherwise will use latest release version.
-name: Turbopack Next.js integration tests
+name: Turbopack Next.js development integration tests
 
 on:
   workflow_call:
