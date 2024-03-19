@@ -81,7 +81,10 @@ async function fetchLatestTestArtifact() {
   const { stdout } = await exec(
     'Getting latest test artifacts from GitHub actions',
     'gh',
-    ['api', '/repos/vercel/next.js/actions/artifacts?name=test-results-build']
+    [
+      'api',
+      '/repos/vercel/next.js/actions/artifacts?name=test-results-turbopack-production',
+    ]
   )
 
   /** @type {ListArtifactsResponse} */
