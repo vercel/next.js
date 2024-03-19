@@ -5,7 +5,6 @@ import { googleFontsMetadata } from './google-fonts-metadata'
 
 type FontOptions = {
   fontFamily: string
-  disableFontFamilyHashing?: boolean
   weights: string[]
   styles: string[]
   display: string
