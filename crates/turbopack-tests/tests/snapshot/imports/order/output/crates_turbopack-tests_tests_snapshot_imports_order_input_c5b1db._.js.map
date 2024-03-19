@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "sources": [],
   "sections": [
     {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/order/input/posts.ts"],"sourcesContent":["export default {\n  js: true,\n};\n"],"names":[],"mappings":";;;uCAAe;IACb,IAAI;AACN"}},
     {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},

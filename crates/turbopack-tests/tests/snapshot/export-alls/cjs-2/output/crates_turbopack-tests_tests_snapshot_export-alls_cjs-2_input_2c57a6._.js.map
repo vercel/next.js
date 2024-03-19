@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "sources": [],
   "sections": [
     {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js"],"sourcesContent":["// commonjs.js\nexports.hello = \"World\";\n\n"],"names":[],"mappings":"AAAA,cAAc;AACd,QAAQ,KAAK,GAAG"}},
     {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},

@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "sources": [],
   "sections": [
     {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/foo.js"],"sourcesContent":["export default \"foo\";\n"],"names":[],"mappings":";;;uCAAe"}},
     {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},

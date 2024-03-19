@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "sources": [],
   "sections": [
     {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/css-modules/input/style.module.css [test] (css module)"],"sourcesContent":["__turbopack_export_value__({\n  \"actions\": \"style-module__mnEziG__actions\",\n  \"avatar\": \"style-module__mnEziG__avatar\",\n  \"checkbox\": \"style-module__mnEziG__checkbox\",\n  \"content\": \"style-module__mnEziG__content\",\n  \"menu\": \"style-module__mnEziG__menu\",\n  \"module-style\": \"style-module__mnEziG__module-style\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA"}},
     {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
