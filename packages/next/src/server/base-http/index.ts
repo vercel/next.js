@@ -27,6 +27,7 @@ export type FetchMetrics = Array<FetchMetric>
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
+  public abstract fetchMetrics?: FetchMetric[]
 
   constructor(public method: string, public url: string, public body: Body) {}
 

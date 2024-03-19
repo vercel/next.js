@@ -18,6 +18,7 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
+import type { FetchMetric } from '../../../../server/base-http'
 
 export function getRender({
   dev,
@@ -151,7 +152,10 @@ export function getRender({
 
   const handler = server.getRequestHandler()
 
-  return async function render(request: Request, event: NextFetchEvent) {
+  return async function render(
+    request: RequestWithFetchMetrics,
+    event: NextFetchEvent
+  ) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
 
@@ -167,7 +171,11 @@ export function getRender({
 
     // fetchMetrics is attached to the web request that going through the server,
     // wait for the handler result is ready and attach it back to the original request.
-    ;(request as any).fetchMetrics = extendedReq.fetchMetrics
+    request.fetchMetrics = extendedReq.fetchMetrics
     return result
   }
+}
+
+type RequestWithFetchMetrics = Request & {
+  fetchMetrics?: FetchMetric[]
 }

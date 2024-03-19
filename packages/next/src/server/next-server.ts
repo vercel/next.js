@@ -1156,15 +1156,11 @@ export default class NextNodeServer extends BaseServer {
               const duration = metric.end - metric.start
               if (cacheStatus === 'hit') {
                 cacheColor = green
-              } else if (cacheStatus === 'skip') {
-                cacheColor = yellow
-                cacheReasonStr = gray(
-                  `Cache skipped reason: (${white(cacheReason)})`
-                )
               } else {
                 cacheColor = yellow
+                const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
                 cacheReasonStr = gray(
-                  `Cache missed reason: (${white(cacheReason)})`
+                  `Cache ${status} reason: (${white(cacheReason)})`
                 )
               }
               let url = metric.url
@@ -1211,7 +1207,7 @@ export default class NextNodeServer extends BaseServer {
                 )
 
                 writeStdoutLine(
-                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}}`
+                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}`
                 )
               }
             }
@@ -1887,7 +1883,7 @@ export default class NextNodeServer extends BaseServer {
     })
 
     if (result.fetchMetrics) {
-      ;(params.req as any).fetchMetrics = result.fetchMetrics
+      params.req.fetchMetrics = result.fetchMetrics
     }
 
     if (!params.res.statusCode || params.res.statusCode < 400) {
