@@ -4,26 +4,26 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+const cahceReasonRe = /Cache (missed|skipped) reason: /
+
+interface ParsedLog {
+  method: string
+  url: string
+  statusCode: number
+  responseTime: number
+  cache: string
+}
+
 function parseLogsFromCli(cliOutput: string) {
-  function cacheReasonTest(log: string) {
-    return /Cache (missed|skipped) reason/.test(log)
-  }
-  interface ParsedLog {
-    method: string
-    url: string
-    statusCode: number
-    responseTime: number
-    cache: string
-  }
   const logs = stripAnsi(cliOutput)
     .split('\n')
-    .filter((log) => cacheReasonTest(log) || log.includes('GET'))
+    .filter((log) => cahceReasonRe.test(log) || log.includes('GET'))
 
   return logs.reduce<ParsedLog[]>((parsedLogs, log) => {
-    if (cacheReasonTest(log)) {
+    if (cahceReasonRe.test(log)) {
       // cache miss/skip reason
-      const reasonSegment = (log.split('Cache missed reason: ', 2) ??
-        log.split('Cache skipped reason: ', 2))[1].trim()
+      // Example of `log`: "│ │ Cache skipped reason: (cache: no-cache)"
+      const reasonSegment = log.split(cahceReasonRe, 3)[2].trim()
       const reason = reasonSegment.slice(1, -1)
       parsedLogs[parsedLogs.length - 1].cache = reason
     } else {
