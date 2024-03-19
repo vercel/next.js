@@ -3,13 +3,13 @@ export default function sitemap() {
     {
       url: 'https://acme.com',
       lastModified: new Date(),
-      changeFrequency: 'yearly',
+      changeFrequency: 'secondly',
       priority: 1,
     },
     {
       url: 'https://acme.com/about',
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: 'secondly',
       priority: 0.8,
     },
   ]
