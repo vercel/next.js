@@ -82,7 +82,7 @@ jobs:
 
       - name: Run test/production
         run: |
-          NEXT_TEST_MODE=start TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type start
+          NEXT_TEST_MODE=start TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type production
         # It is currently expected to fail some of next.js integration test, do not fail CI check.
         continue-on-error: true
 
