@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "sources": [],
   "sections": [
     {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js"],"sourcesContent":["import { foo } from \"foo\";\nimport { bar } from \"bar\";\nimport \"./shared\";\n\nfoo(true);\nbar(true);\n"],"names":[],"mappings":";;;;;;;;AAIA,CAAA,GAAA,kNAAA,CAAA,MAAG,AAAD,EAAE;AACJ,CAAA,GAAA,kNAAA,CAAA,MAAG,AAAD,EAAE"}},
     {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},

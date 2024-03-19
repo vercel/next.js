@@ -394,7 +394,15 @@ const transform = (
         }
         if (!result.result) return reject(new Error("No result from loaders"));
         const [source, map] = result.result;
-        resolve({ source, map });
+        resolve({
+          source,
+          map:
+            typeof map === "string"
+              ? map
+              : typeof map === "object"
+              ? JSON.stringify(map)
+              : undefined,
+        });
       }
     );
   });

@@ -493,6 +493,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
         }
     }
+    let mut source_map_from_comment = false;
     if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
         let origin_path = origin.origin_path();
         if path.ends_with(".map") {
@@ -504,11 +505,24 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 source_map,
                 source_map_origin,
             ));
+            source_map_from_comment = true;
         } else if path.starts_with("data:application/json;base64,") {
             let source_map_origin = origin_path;
             let source_map = maybe_decode_data_url(path.to_string());
             analysis.set_source_map(convert_to_turbopack_source_map(
                 source_map,
+                source_map_origin,
+            ));
+            source_map_from_comment = true;
+        }
+    }
+    if !source_map_from_comment {
+        if let Some(generate_source_map) =
+            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
+        {
+            let source_map_origin = source.ident().path();
+            analysis.set_source_map(convert_to_turbopack_source_map(
+                generate_source_map.generate_source_map(),
                 source_map_origin,
             ));
         }

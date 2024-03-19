@@ -1,5 +1,6 @@
 {
   "version": 3,
+  "sources": [],
   "sections": [
     {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js"],"sourcesContent":["export default function MyApp() {\n  return <div>App</div>;\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBAAO,6MAAC;kBAAI;;;;;;AACd"}},
     {"offset": {"line": 20, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
