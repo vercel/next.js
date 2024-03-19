@@ -68,7 +68,7 @@ export function validateTags(tags: any[], description: string) {
       validTags.push(tag)
     }
 
-    if (validTags.length >= NEXT_CACHE_TAG_MAX_ITEMS) {
+    if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
       console.warn(
         `Warning: exceeded max tag count for ${description}, dropped tags:`,
         tags.slice(i, tags.length).join(', ')
