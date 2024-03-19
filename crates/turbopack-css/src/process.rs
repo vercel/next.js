@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
@@ -368,7 +368,7 @@ pub async fn process_css_with_placeholder(
             let code = code.await?;
             let code = match &*code {
                 FileContent::Content(v) => v.content().to_str()?,
-                _ => unreachable!("this case should be filtered out while parsing"),
+                _ => bail!("this case should be filtered out while parsing"),
             };
 
             let (result, _) = stylesheet.to_css(cm.clone(), &code, false, false, false)?;
