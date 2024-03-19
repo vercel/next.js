@@ -134,7 +134,7 @@ jobs:
       - name: Upload test report artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-integration-${{ matrix.group }}
+          name: test-reports-build-integration-${{ matrix.group }}
           if-no-files-found: 'error'
           path: |
             test/turbopack-test-junit-report
