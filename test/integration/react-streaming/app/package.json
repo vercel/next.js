@@ -1,9 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "dev": "pnpm next dev",
-    "build": "pnpm next build",
-    "start": "pnpm next start"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "moment": "*"
