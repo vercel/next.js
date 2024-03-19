@@ -1106,8 +1106,7 @@ export default class NextNodeServer extends BaseServer {
             return
           }
           const reqEnd = Date.now()
-          const fetchMetrics: FetchMetric[] =
-            (normalizedReq as any).fetchMetrics || []
+          const fetchMetrics: FetchMetric[] = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
 
           const statusColor = (status: number) => {
