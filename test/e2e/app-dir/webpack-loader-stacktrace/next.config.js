@@ -32,6 +32,30 @@ const nextConfig = {
       },
     },
   },
+  webpack(config) {
+    config.module.rules.push({
+      test: /pages\/index.tsx$/,
+      use: {
+        loader: require.resolve('./test-file-loader.js'),
+        options: { type: 'pages' },
+      },
+    })
+    config.module.rules.push({
+      test: /app\/app\/page.tsx$/,
+      use: {
+        loader: require.resolve('./test-file-loader.js'),
+        options: { type: 'app-page' },
+      },
+    })
+    config.module.rules.push({
+      test: /app\/route\/route.tsx$/,
+      use: {
+        loader: require.resolve('./test-file-loader.js'),
+        options: { type: 'app-route' },
+      },
+    })
+    return config
+  },
 }
 
 module.exports = nextConfig
