@@ -25,8 +25,8 @@ import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
-  isHtmlTagsWarning,
   type HydrationErrorState,
+  getHydrationWarningType,
 } from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
@@ -226,12 +226,13 @@ export function Errors({
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
-  const isHtmlTagsWarningTemplate = isHtmlTagsWarning(warningTemplate)
+  const hydrationErrorType = getHydrationWarningType(warningTemplate)
   const hydrationWarning = warningTemplate
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
-        .replace('%s', '') // remove the last %s for stack
+        .replace('%s', '') // remove the %s for stack
+        .replace(/%s$/, '') // If there's still a %s at the end, remove it
         .replace(/^Warning: /, '')
     : null
 
@@ -269,18 +270,18 @@ export function Errors({
             >
               {error.name}: <HotlinkedText text={error.message} />
             </p>
-            {hydrationWarning && activeError.componentStackFrames && (
+            {hydrationWarning && (
               <>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
-                <PseudoHtmlDiff
-                  className="nextjs__container_errors__extra_code"
-                  hydrationMismatchType={
-                    isHtmlTagsWarningTemplate ? 'tag' : 'text'
-                  }
-                  componentStackFrames={activeError.componentStackFrames}
-                  serverContent={serverContent}
-                  clientContent={clientContent}
-                />
+                {activeError.componentStackFrames?.length ? (
+                  <PseudoHtmlDiff
+                    className="nextjs__container_errors__extra_code"
+                    hydrationMismatchType={hydrationErrorType}
+                    componentStackFrames={activeError.componentStackFrames}
+                    firstContent={serverContent}
+                    secondContent={clientContent}
+                  />
+                ) : null}
               </>
             )}
             {isServerError ? (

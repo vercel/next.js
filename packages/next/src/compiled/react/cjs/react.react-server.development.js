@@ -2338,7 +2338,7 @@ reportError : function (error) {
   console['error'](error);
 };
 
-var ReactVersion = '18.3.0-canary-6c3b8dbfe-20240226';
+var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
 
 // Patch fetch
 var Children = {
