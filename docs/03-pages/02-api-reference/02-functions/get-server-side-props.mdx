@@ -131,55 +131,6 @@ export async function getServerSideProps(context) {
 }
 ```
 
-## Caveats
-
-### Accidentally opting out from Server-Side Rendering (SSR)
-
-When using `getServerSideProps`, it is often the case that you want the response to contain the HTML for your page. However, one can accidentally opt-out from this behavior by having conditional branches in `_app`'s Custom `App` component.
-
-For example:
-
-```tsx
-import type { AppProps } from 'next/app'
-import { useEffect, useState } from 'react'
-
-export default function MyApp({ Component, pageProps }: AppProps) {
-  const [isServer, setIsServer] = useState(true)
-
-  useEffect(() => {
-    setIsServer(false)
-  }, [])
-
-  // This may not be what you want!
-  // It depends on your use case!
-  if (isServer) return <div>Loading...</div>
-  // The page is only rendered in the client
-  return <Component {...pageProps} />
-}
-```
-
-The above snippet, means that, the page component associated with the current route, won't render in the server.
-
-Do remember that the result of calling `getServerSideProps` is passed as `pageProps` to the `App` component, and from there, the page is rendered with the given `pageProps`.
-
-So in the above, when inspecting the initial HTML of the page, we'll see the loading element. In other words, the page is not rendered in the server.
-
-This can often happen when:
-
-- using authentication or authorization patterns
-- hoisting loading states from other pages into the `App` component
-- or wrapping the `Component` element with at least one Provider that conditionally skips rendering its children
-
-Solutions to this issue, depends on your implementation, but in short, a page using `getServerSideProps`, should be reachable by during server side rendering, and not be hidden behind conditional logic.
-
-In the case of authentication or authorization, it might as well be the case that you don't want to send the rendered HTML from the server, and would rather defer to client side rendering exclusively. That is to say that, this isn't always a bug.
-
-In order to see if your page is opting out from SSR:
-
-- navigate to your page
-- inspect the page's source code
-- SEO, and other bits of data rendered by your page, should be present
-
 ## Version History
 
 | Version   | Changes                                                                                                     |

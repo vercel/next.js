@@ -36,6 +36,52 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 > - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
 > - `App` does not support Next.js [Data Fetching methods](/docs/pages/building-your-application/data-fetching) like [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) or [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props).
 
+### Accidentally opting out from Server-Side Rendering (SSR)
+
+When you use a custom `App` component, you must be careful with conditional logic and the rendering of `Component`. For example:
+
+```tsx filename="pages/_app.tsx"
+import type { AppProps } from 'next/app'
+import { useEffect, useState } from 'react'
+
+export default function MyApp({ Component, pageProps }: AppProps) {
+  const [isServer, setIsServer] = useState(true)
+
+  useEffect(() => {
+    setIsServer(false)
+  }, [])
+
+  // This may not be what you want!
+  // It depends on your use case!
+  if (isServer) return <div>Loading...</div>
+  // The page is only rendered in the client
+  return <Component {...pageProps} />
+}
+```
+
+In this case, `isServer` is only set to false in the client. That means that on the server, only a div with the text, `Loading...` is rendered.
+
+On the client, after hydration takes place, the page `Component` will be rendered.
+
+In other words, the page component associated with the current route, is not rendered in the server.
+
+When inspecting the initial HTML of the page, you'll see the `Loading...` div element.
+
+This can often happen when:
+
+- using authentication or authorization patterns with your custom `App` component
+- hoisting loading states from other pages into the `App` component
+- wrapping the `Component` element with at least one Provider that renders its children conditionally
+
+Note that is not always an issue, but you have to be aware of it, because it will prevent proper pre-rendering, and on-demand rendering, of a route.
+
+In order to see if your page is opting out from SSR:
+
+- navigate to your page
+- inspect the page's source code
+- verify that meta data rendered by your page is present
+- verify that the content of your page is present
+
 ## `getInitialProps` with `App`
 
 Using [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) in `App` will disable [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) for pages without [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props).

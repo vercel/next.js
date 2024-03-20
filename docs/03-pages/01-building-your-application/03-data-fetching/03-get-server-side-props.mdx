@@ -122,30 +122,3 @@ export async function getServerSideProps({ req, res }) {
 ```
 
 However, before reaching for `cache-control`, we recommend seeing if [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) with [ISR](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration) is a better fit for your use case.
-
-### Accidentally opting out from Server-Side Rendering (SSR)
-
-When a custom `App` component is used, one must be careful with conditional logic and the rendering of `Component`.
-
-```tsx
-import type { AppProps } from 'next/app'
-import { useEffect, useState } from 'react'
-
-export default function MyApp({ Component, pageProps }: AppProps) {
-  const [isServer, setIsServer] = useState(true)
-
-  useEffect(() => {
-    setIsServer(false)
-  }, [])
-
-  // This may not be what you want!
-  // It depends on your use case!
-  if (isServer) return <div>Loading...</div>
-  // The page is only rendered in the client
-  return <Component {...pageProps} />
-}
-```
-
-In the above snippet, incoming requests, will not render the page `Component`, and only see `Loading` in the initial HTML. Depending on your use case, this might be what you want, but in other cases, it will affect what users with disabled JavaScript, as well as bots, see.
-
-The page `Component` will be rendered, on the client, after hydration takes place.
