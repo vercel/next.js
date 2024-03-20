@@ -1443,8 +1443,9 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+        const sema = new Sema(1)
         const enqueue = (fn: () => Promise<void>) => {
+          if (promises.length > 100) return
           promises.push(
             (async () => {
               await sema.acquire()
@@ -1452,6 +1453,9 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
+                console.log(
+                  `Memory: ${Math.round(project.memoryUsage() / 10.24) / 100}MB`
+                )
                 progress()
               }
             })()

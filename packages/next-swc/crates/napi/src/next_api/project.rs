@@ -25,6 +25,7 @@ use tracing_subscriber::{
 use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
+        malloc::TurboMalloc,
         tasks_fs::{FileContent, FileSystem},
         tasks_memory::MemoryBackend,
     },
@@ -302,6 +303,11 @@ pub async fn project_update(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(())
+}
+
+#[napi]
+pub fn memory_usage() -> u32 {
+    (TurboMalloc::memory_usage() / 1024) as u32
 }
 
 #[napi(object)]

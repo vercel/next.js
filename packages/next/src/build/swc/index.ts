@@ -629,6 +629,8 @@ export interface UpdateInfo {
 }
 
 export interface Project {
+  memoryUsage(): number
+
   update(options: Partial<ProjectOptions>): Promise<void>
 
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
@@ -874,6 +876,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
           await rustifyProjectOptions(options)
         )
       )
+    }
+
+    memoryUsage() {
+      return binding.memoryUsage()
     }
 
     entrypointsSubscribe() {
