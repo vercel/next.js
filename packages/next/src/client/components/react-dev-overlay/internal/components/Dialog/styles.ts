@@ -93,7 +93,6 @@ const styles = css`
     gap: var(--size-gap);
   }
   [data-nextjs-dialog-header] > h1 {
-    flex-basis: 100%;
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
