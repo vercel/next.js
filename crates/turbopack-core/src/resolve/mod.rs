@@ -1513,7 +1513,9 @@ async fn resolve_internal_inline(
                 // Typescript resolution algorithm does in case an alias match
                 // doesn't resolve to anything: fall back to resolving the request normally.
                 if let Some(result) = resolved_result {
-                    return Ok(result);
+                    if !*result.is_unresolveable().await? {
+                        return Ok(result);
+                    }
                 }
             }
         }
