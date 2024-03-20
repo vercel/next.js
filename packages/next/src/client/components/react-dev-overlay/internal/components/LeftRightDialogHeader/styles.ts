@@ -12,7 +12,6 @@ const styles = css`
     flex: 1;
     display: flex;
     align-items: center;
-    margin-right: var(--size-gap);
   }
   [data-nextjs-dialog-left-right] > nav > button {
     display: inline-flex;

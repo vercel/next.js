@@ -252,15 +252,14 @@ export function Errors({
               close={isServerError ? undefined : minimize}
             >
               <small>
-                <span>{activeIdx + 1}</span> of{' '}
-                <span data-nextjs-dialog-header-total-count>
-                  {readyErrors.length}
-                </span>{' '}
-                unhandled error
-                {readyErrors.length < 2 ? '' : 's'}
+                {`${activeIdx + 1} of ${readyErrors.length} error${
+                  readyErrors.length < 2 ? '' : 's'
+                }`}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
+          </DialogHeader>
+          <DialogBody className="nextjs-container-errors-body">
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
@@ -271,7 +270,7 @@ export function Errors({
               {error.name}: <HotlinkedText text={error.message} />
             </p>
             {hydrationWarning && (
-              <>
+              <span>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
                 {activeError.componentStackFrames?.length ? (
                   <PseudoHtmlDiff
@@ -282,7 +281,7 @@ export function Errors({
                     secondContent={clientContent}
                   />
                 ) : null}
-              </>
+              </span>
             )}
             {isServerError ? (
               <div>
@@ -292,8 +291,6 @@ export function Errors({
                 </small>
               </div>
             ) : undefined}
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
             <RuntimeError key={activeError.id.toString()} error={activeError} />
           </DialogBody>
         </DialogContent>
@@ -303,60 +300,55 @@ export function Errors({
 }
 
 export const styles = css`
-  .nextjs-container-errors-header > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: 0;
-    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
-  }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
-    color: var(--color-accents-1);
+    color: var(--color-font);
     margin-left: var(--size-gap-double);
   }
-  .nextjs-container-errors-header small > span {
+
+  .nextjs-container-errors-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-gap);
+  }
+
+  .nextjs-container-errors-body small {
     font-family: var(--font-stack-monospace);
   }
-  .nextjs-container-errors-header p {
+  .nextjs-container-errors-body p {
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
-    margin-top: var(--size-gap-half);
     white-space: pre-wrap;
   }
+  .nextjs-container-errors-body > h1 {
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
+    margin: 0;
+    color: var(--color-ansi-black);
+  }
   .nextjs__container_errors_desc--error {
-    color: var(--color-ansi-red);
+    padding-left: var(--size-gap);
+    border-left: 4px solid var(--color-accents-1);
+    color: var(--color-font);
   }
   .nextjs__container_errors__extra {
     margin: 20px 0;
   }
-  nextjs__container_errors__extra__code {
-    margin: 10px 0;
-  }
-  .nextjs-container-errors-header > div > small {
-    margin: 0;
-    margin-top: var(--size-gap-half);
-  }
-  .nextjs-container-errors-header > p > a {
-    color: var(--color-ansi-red);
-  }
-
-  .nextjs-container-errors-body > h2:not(:first-child) {
-    margin-top: calc(var(--size-gap-double) + var(--size-gap));
-  }
   .nextjs-container-errors-body > h2 {
-    margin-bottom: var(--size-gap);
+    margin-bottom: 0;
     font-size: var(--size-font-big);
   }
   .nextjs__container_errors__extra_code {
-    margin: 20px 0;
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);
+    margin: 0;
   }
+
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;
