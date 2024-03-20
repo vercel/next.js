@@ -1,5 +1,4 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
-import type { Languages } from '../../../../lib/metadata/types/alternative-urls-types'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
@@ -60,13 +59,14 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
   for (const item of data) {
     content += '<url>\n'
     content += `<loc>${item.url}</loc>\n`
-    if (
-      item.alternates?.languages &&
-      Object.keys(item.alternates.languages).length
-    ) {
-      for (const language in item.alternates.languages) {
+
+    const languages = item.alternates?.languages
+    if (languages && Object.keys(languages).length) {
+      // Since sitemap is separated from the page rendering, there's not metadataBase accessible yet.
+      // we give the default setting that won't effect the languages resolving.
+      for (const language in languages) {
         content += `<xhtml:link rel="alternate" hreflang="${language}" href="${
-          item.alternates.languages[language as keyof Languages<string>]
+          languages[language as keyof typeof languages]
         }" />\n`
       }
     }

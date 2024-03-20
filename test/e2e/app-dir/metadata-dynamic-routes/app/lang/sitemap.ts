@@ -1,18 +1,22 @@
-import 'server-only'
 import { MetadataRoute } from 'next'
 
-/* without generateSitemaps */
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: 'https://example.com',
       lastModified: '2021-01-01',
-      changeFrequency: 'weekly',
+      changeFrequency: 'daily',
       priority: 0.5,
     },
     {
       url: 'https://example.com/about',
       lastModified: '2021-01-01',
+      alternates: {
+        languages: {
+          es: 'https://example.com/es/about',
+          de: 'https://example.com/de/about',
+        },
+      },
     },
   ]
 }
