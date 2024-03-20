@@ -3,6 +3,8 @@ import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
 
 const MKCERT_VERSION = 'v1.4.4'
 
@@ -53,10 +55,11 @@ async function downloadBinary() {
 
     Log.info(`Download response was successful, writing to disk`)
 
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    await pipeline(
+      Readable.fromWeb(response.body as any), // type definition of ReadableStream from @types/node and lib.dom.d.ts are incompatible
+      fs.createWriteStream(binaryPath)
+    )
 
-    await fs.promises.writeFile(binaryPath, buffer)
     await fs.promises.chmod(binaryPath, 0o755)
 
     return binaryPath
