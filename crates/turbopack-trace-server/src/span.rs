@@ -10,6 +10,7 @@ pub struct Span {
     // These values won't change after creation:
     pub index: SpanIndex,
     pub parent: Option<SpanIndex>,
+    pub depth: u32,
     pub start: u64,
     pub ignore_self_time: bool,
     pub category: String,
