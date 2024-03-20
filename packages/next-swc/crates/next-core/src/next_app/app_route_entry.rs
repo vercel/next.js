@@ -16,6 +16,7 @@ use turbopack_binding::{
 };
 
 use crate::{
+    app_segment_config::NextSegmentConfig,
     next_app::{AppEntry, AppPage, AppPath},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
@@ -23,6 +24,12 @@ use crate::{
 };
 
 /// Computes the entry for a Next.js app route.
+/// # Arguments
+///
+/// * `original_segment_config` - A next segment config to be specified
+///   explicitly for the given source.
+/// For some cases `source` may not be the original but the handler (dynamic
+/// metadata) which will lose segment config.
 #[turbo_tasks::function]
 pub async fn get_app_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
@@ -30,8 +37,10 @@ pub async fn get_app_route_entry(
     source: Vc<Box<dyn Source>>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
+    original_segment_config: Option<Vc<NextSegmentConfig>>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_source(source);
+    let config =
+        original_segment_config.unwrap_or_else(|| parse_segment_config_from_source(source));
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
