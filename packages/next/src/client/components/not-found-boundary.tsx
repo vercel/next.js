@@ -1,10 +1,10 @@
 'use client'
 
 import React, { useContext } from 'react'
-import { usePathname } from './navigation'
 import { isNotFoundError } from './not-found'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
+import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
@@ -114,7 +114,7 @@ export function NotFoundBoundary({
   asNotFound,
   children,
 }: NotFoundBoundaryProps) {
-  const pathname = usePathname()
+  const pathname = useContext(PathnameContext) as string
   const missingSlots = useContext(MissingSlotContext)
   return notFound ? (
     <NotFoundErrorBoundary

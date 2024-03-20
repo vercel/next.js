@@ -1,14 +1,13 @@
 'use client'
+
 import { usePathname } from 'next/navigation'
 import { Suspense } from 'react'
 
-export const dynamicParams = false
-
 function Pathname() {
-  return <p id="pathname">{usePathname()}</p>
+  return <p>pathname: {usePathname()}</p>
 }
 
-export default function Page() {
+export function ShowPathname() {
   return (
     <Suspense fallback={null}>
       <Pathname />

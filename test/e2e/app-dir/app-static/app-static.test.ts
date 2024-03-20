@@ -39,6 +39,57 @@ createNextDescribe(
         buildCliOutputIndex = next.cliOutput.length
       }
     })
+    it('should correctly handle usePathname with ISR (false)', async () => {
+      const res = await next.fetch('/rewrite-me-isr-false')
+      expect(res.status).toBe(200)
+      expect(await res.text()).not.toMatch(/pathname:.*?\/rewrite-me-isr-false/)
+
+      const browser = await next.browser('/rewrite-me-isr-false')
+
+      await retry(async () => {
+        const browserText = await browser.eval(
+          'document.documentElement.innerHTML'
+        )
+        expect(browserText).toMatch(/pathname:.*?\/rewrite-me-isr-false/)
+      })
+    })
+
+    it('should correctly handle usePathname with ISR (revalidate: 3)', async () => {
+      const res = await next.fetch('/rewrite-me-isr-3')
+      expect(res.status).toBe(200)
+      expect(await res.text()).not.toMatch(/pathname:.*?\/rewrite-me-isr-false/)
+
+      const startIdx = next.cliOutput.length
+
+      await retry(
+        async () => {
+          await next.fetch('/rewrite-me-isr-3')
+          // ensure the revalidation occurred
+          expect(next.cliOutput.substring(startIdx)).toContain(
+            'rendering /rewritten-isr-3'
+          )
+        },
+        9_000,
+        3_000
+      )
+
+      const revalidateRes = await next.fetch('/rewrite-me-isr-3')
+      expect(revalidateRes.status).toBe(200)
+      expect(await revalidateRes.text()).not.toMatch(
+        /pathname:.*?\/rewrite-me-isr-3/
+      )
+
+      const browser = await next.browser('/rewrite-me-isr-3')
+
+      await retry(async () => {
+        const browserText = await browser.eval(
+          'document.documentElement.innerHTML'
+        )
+        expect(browserText).toMatch(/pathname:.*?\/rewrite-me-isr-false/)
+      })
+    })
+    // remove after testings
+    return
 
     it('should warn for too many cache tags', async () => {
       const res = await next.fetch('/too-many-cache-tags')

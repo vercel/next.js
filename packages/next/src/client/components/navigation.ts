@@ -79,6 +79,17 @@ function useSearchParams(): ReadonlyURLSearchParams {
  * Read more: [Next.js Docs: `usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname)
  */
 function usePathname(): string {
+  // Same as with useSearchParams(), we should bail to client
+  // rendering during static generation so that we don't
+  // include the wrong URL pathname value during initial render
+  if (typeof window === 'undefined') {
+    // AsyncLocalStorage should not be included in the client bundle.
+    const { bailoutToClientRendering } =
+      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
+    // TODO-APP: handle dynamic = 'force-static' here and on the client
+    bailoutToClientRendering('usePathname()')
+  }
+
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   return useContext(PathnameContext) as string

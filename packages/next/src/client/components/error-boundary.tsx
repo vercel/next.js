@@ -1,8 +1,8 @@
 'use client'
 
-import React from 'react'
-import { usePathname } from './navigation'
+import React, { useContext } from 'react'
 import { isNextRouterError } from './is-next-router-error'
+import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
 
 const styles = {
   error: {
@@ -172,7 +172,7 @@ export function ErrorBoundary({
   errorScripts,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
-  const pathname = usePathname()
+  const pathname = useContext(PathnameContext) as string
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler

@@ -1410,8 +1410,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
   query,
   renderOpts
 ) => {
-  // TODO: this includes query string, should it?
-  const pathname = validateURL(req.url)
+  // This should include query as well as that is parsed
+  // from this value further down in app-router via new URL
+  // TODO: should we normalize/stub this value for the static
+  // generation case so that revalidate doesn't accidentally
+  // "leak" a request URL to rendering
+  const urlPathname = validateURL(req.url)
 
   return RequestAsyncStorageWrapper.wrap(
     renderOpts.ComponentMod.requestAsyncStorage,
@@ -1420,7 +1424,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       StaticGenerationAsyncStorageWrapper.wrap(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
-          urlPathname: pathname,
+          urlPathname,
           renderOpts,
           postpone: React.unstable_postpone,
         },
