@@ -79,15 +79,14 @@ const styles = css`
     flex-direction: column;
     gap: var(--size-gap-double);
   }
-  [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
-    flex-shrink: 0;
-  }
+
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
     position: relative;
     flex: 1 1 auto;
   }
 
   [data-nextjs-dialog-header] {
+    flex-shrink: 0;
     display: flex;
     flex-wrap: wrap;
     gap: var(--size-gap);
@@ -98,11 +97,6 @@ const styles = css`
     font-weight: bold;
     margin: 0;
     color: var(--color-ansi-black);
-  }
-  [data-nextjs-dialog-header] small {
-    font-size: var(--size-font-small);
-    color: var(--color-font);
-    margin-left: var(--size-gap-double);
   }
 `
 

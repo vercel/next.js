@@ -300,6 +300,12 @@ export function Errors({
 }
 
 export const styles = css`
+  [data-nextjs-dialog-header] small {
+    font-size: var(--size-font-small);
+    color: var(--color-font);
+    margin-left: var(--size-gap-double);
+  }
+
   .nextjs-container-errors-body {
     display: flex;
     flex-direction: column;
