@@ -101,7 +101,7 @@ pub async fn get_edge_resolve_options_context(
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![
-        mode.await?.node_env().to_string(),
+        mode.await?.condition().to_string(),
         "edge-light".to_string(),
         "worker".to_string(),
     ];
@@ -163,7 +163,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks".to_string()),
+            output_root.join("chunks/ssr".to_string()),
             client_root.join("static/media".to_string()),
             environment,
             next_mode.runtime_type(),
@@ -200,6 +200,7 @@ pub async fn get_edge_chunking_context(
         // asset from the output directory.
         .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
         .reference_chunk_source_maps(should_debug("edge"))
+        .minify_type(next_mode.minify_type())
         .build(),
     ))
 }
