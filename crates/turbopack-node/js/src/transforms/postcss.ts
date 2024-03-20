@@ -79,6 +79,7 @@ export default async function transform(
     to: name,
     map: {
       inline: false,
+      annotation: false,
     },
   });
 
