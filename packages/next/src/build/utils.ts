@@ -1654,8 +1654,6 @@ export async function isPageStatic({
           {}
         )
 
-        console.log('builtConfig.dynamic', page, appConfig.dynamic, appConfig)
-
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
             `Page "${page}" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
