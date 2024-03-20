@@ -790,6 +790,13 @@ export async function getRedboxHeader(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
+  return parseInt(
+    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
+    10
+  )
+}
+
 export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
