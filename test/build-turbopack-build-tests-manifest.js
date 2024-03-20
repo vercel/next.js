@@ -81,7 +81,10 @@ async function fetchLatestTestArtifact() {
   const { stdout } = await exec(
     'Getting latest test artifacts from GitHub actions',
     'gh',
-    ['api', '/repos/vercel/next.js/actions/artifacts?name=test-results-build']
+    [
+      'api',
+      '/repos/vercel/next.js/actions/artifacts?name=test-results-turbopack-production',
+    ]
   )
 
   /** @type {ListArtifactsResponse} */
@@ -250,7 +253,23 @@ async function updatePassingTests() {
 
   fs.writeFileSync(
     PASSING_JSON_PATH,
-    await format(JSON.stringify(ordered, null, 2))
+    await format(
+      JSON.stringify(
+        {
+          version: 2,
+          suites: ordered,
+          rules: {
+            include: [
+              'test/e2e/**/*.test.{t,j}s{,x}',
+              'test/production/**/*.test.{t,j}s{,x}',
+            ],
+            exclude: [],
+          },
+        },
+        null,
+        2
+      )
+    )
   )
 }
 

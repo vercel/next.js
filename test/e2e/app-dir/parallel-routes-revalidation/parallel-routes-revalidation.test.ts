@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 createNextDescribe(
   'parallel-routes-revalidation',
@@ -78,6 +78,84 @@ createNextDescribe(
 
       await check(() => browser.hasElementByCssSelector('#redirect'), false)
       await check(() => browser.elementByCss('body').text(), /Current Data/)
+    })
+
+    it.each([
+      { path: '/detail-page' },
+      { path: '/dynamic/foobar', param: 'foobar' },
+      { path: '/catchall/foobar', param: 'foobar' },
+    ])(
+      'should not trigger interception when calling router.refresh() on an intercepted route ($path)',
+      async (route) => {
+        const browser = await next.browser(route.path)
+
+        // directly loaded the detail page, so it should not be intercepted.
+        expect(await browser.elementById('detail-title').text()).toBe(
+          'Detail Page (Non-Intercepted)'
+        )
+        const randomNumber = (await browser.elementById('random-number')).text()
+
+        // confirm that if the route contained a dynamic parameter, that it's reflected in the UI
+        if (route.param) {
+          expect(await browser.elementById('params').text()).toBe(route.param)
+        }
+
+        // click the refresh button
+        await browser.elementByCss('button').click()
+
+        await retry(async () => {
+          const newRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+
+          // we should have received a new random number, indicating the non-intercepted page was refreshed
+          expect(randomNumber).not.toBe(newRandomNumber)
+
+          // confirm that the page is still not intercepted
+          expect(await browser.elementById('detail-title').text()).toBe(
+            'Detail Page (Non-Intercepted)'
+          )
+
+          // confirm the params (if previously present) are still present
+          if (route.param) {
+            expect(await browser.elementById('params').text()).toBe(route.param)
+          }
+        })
+      }
+    )
+
+    it('should not trigger full page when calling router.refresh() on an intercepted route', async () => {
+      const browser = await next.browser('/dynamic')
+      await browser.elementByCss('a').click()
+
+      // we soft-navigated to the route, so it should be intercepted
+      expect(await browser.elementById('detail-title').text()).toBe(
+        'Detail Page (Intercepted)'
+      )
+      const randomNumber = (await browser.elementById('random-number')).text()
+
+      // confirm the dynamic param is reflected in the UI
+      expect(await browser.elementById('params').text()).toBe('foobar')
+
+      // click the refresh button
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        // confirm that the intercepted page data was refreshed
+        const newRandomNumber = await browser
+          .elementById('random-number')
+          .text()
+
+        // confirm that the page is still intercepted
+        expect(randomNumber).not.toBe(newRandomNumber)
+
+        expect(await browser.elementById('detail-title').text()).toBe(
+          'Detail Page (Intercepted)'
+        )
+
+        // confirm the paramsare still present
+        expect(await browser.elementById('params').text()).toBe('foobar')
+      })
     })
   }
 )

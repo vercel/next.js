@@ -94,55 +94,57 @@ jobs:
           path: |
             test/turbopack-test-junit-report
 
-  test-integration-production:
-    name: Next.js production integration test (Integration)
-    needs: [setup_nextjs]
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+  # TODO: Implement specifically running production tests only for Turbopack. Enabling this now enables running `test/integration` with development mode too.
+  # test-integration-production:
+  #   name: Next.js production integration test (Integration)
+  #   needs: [setup_nextjs]
+  #   runs-on:
+  #     - 'self-hosted'
+  #     - 'linux'
+  #     - 'x64'
+  #     - 'metal'
 
-    timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  #   timeout-minutes: 180
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
-    steps:
-      - uses: actions/cache/restore@v3
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ inputs.version }}-${{ github.sha }}
-          fail-on-cache-miss: true
+  #   steps:
+  #     - uses: actions/cache/restore@v3
+  #       id: restore-build
+  #       with:
+  #         path: ./*
+  #         key: ${{ inputs.version }}-${{ github.sha }}
+  #         fail-on-cache-miss: true
 
-      - name: Enable corepack and install yarn
-        run: |
-          corepack enable
-          corepack prepare --activate yarn@1.22.19
+  #     - name: Enable corepack and install yarn
+  #       run: |
+  #         corepack enable
+  #         corepack prepare --activate yarn@1.22.19
 
-      - name: Setup playwright
-        run: |
-          pnpm playwright install
+  #     - name: Setup playwright
+  #       run: |
+  #         pnpm playwright install
 
-      - name: Run test/integration
-        run: |
-          TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
-        continue-on-error: true
+  #     - name: Run test/integration
+  #       run: |
+  #         TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
+  #       continue-on-error: true
 
-      - name: Upload test report artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-build-integration-${{ matrix.group }}
-          if-no-files-found: 'error'
-          path: |
-            test/turbopack-test-junit-report
+  #     - name: Upload test report artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: test-reports-build-integration-${{ matrix.group }}
+  #         if-no-files-found: 'error'
+  #         path: |
+  #           test/turbopack-test-junit-report
 
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
   collect_nextjs_production_integration_stat:
-    needs: [test-production, test-integration-production]
+    # needs: [test-production, test-integration-production]
+    needs: [test-production]
     name: Next.js integration test production status report
     runs-on:
       - 'self-hosted'
@@ -165,14 +167,15 @@ jobs:
       - name: Store artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-build
+          name: test-results-turbopack-production
           path: |
             nextjs-test-results.json
             failed-test-path-list.json
             passed-test-path-list.json
 
   upload_test_report:
-    needs: [test-production, test-integration-production]
+    # needs: [test-production, test-integration-production]
+    needs: [test-production]
     name: Upload test report to datadog
     runs-on:
       - 'self-hosted'

@@ -1,16 +1,14 @@
-import type { FetchServerResponseResult } from './fetch-server-response'
 import type { FlightSegmentPath } from '../../../server/app-render/types'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
- * Kick off fetch based on the common layout between two routes. Fill cache with data property holding the in-progress fetch.
+ * This will clear the CacheNode data for a particular segment path. This will cause a lazy-fetch in layout router to fill in new data.
  */
-export function fillCacheWithDataProperty(
+export function clearCacheNodeDataForSegmentPath(
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightSegmentPath: FlightSegmentPath,
-  fetchResponse: () => Promise<FetchServerResponseResult>
+  flightSegmentPath: FlightSegmentPath
 ): void {
   const isLastEntry = flightSegmentPath.length <= 2
 
@@ -38,7 +36,7 @@ export function fillCacheWithDataProperty(
       childCacheNode === existingChildCacheNode
     ) {
       childSegmentMap.set(cacheKey, {
-        lazyData: fetchResponse(),
+        lazyData: null,
         rsc: null,
         prefetchRsc: null,
         head: null,
@@ -55,7 +53,7 @@ export function fillCacheWithDataProperty(
     // Start fetch in the place where the existing cache doesn't have the data yet.
     if (!childCacheNode) {
       childSegmentMap.set(cacheKey, {
-        lazyData: fetchResponse(),
+        lazyData: null,
         rsc: null,
         prefetchRsc: null,
         head: null,
@@ -82,10 +80,9 @@ export function fillCacheWithDataProperty(
     childSegmentMap.set(cacheKey, childCacheNode)
   }
 
-  return fillCacheWithDataProperty(
+  return clearCacheNodeDataForSegmentPath(
     childCacheNode,
     existingChildCacheNode,
-    flightSegmentPath.slice(2),
-    fetchResponse
+    flightSegmentPath.slice(2)
   )
 }
