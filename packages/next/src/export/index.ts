@@ -749,7 +749,6 @@ export async function exportAppImpl(
 
         const orig = join(distPagesDir, route)
         const handlerSrc = `${orig}.body`
-        console.log('handlerSrc', handlerSrc)
         const handlerDest = join(outDir, route)
 
         if (isAppRouteHandler && existsSync(handlerSrc)) {

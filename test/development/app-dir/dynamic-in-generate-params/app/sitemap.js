@@ -18,6 +18,5 @@ export default function sitemap() {
 export const dynamic = 'force-dynamic'
 
 export async function generateSitemaps() {
-  await fetch('https://example.com')
   return [{ id: 0 }, { id: 1 }]
 }
