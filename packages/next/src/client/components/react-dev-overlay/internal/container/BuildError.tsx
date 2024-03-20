@@ -27,9 +27,16 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
         onClose={noop}
       >
         <DialogContent>
-          <DialogHeader className="nextjs-container-build-error-header">
-            <h4 id="nextjs__container_build_error_label">Failed to compile</h4>
-            {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+          <DialogHeader title="Failed to compile">
+            {true ? (
+              <VersionStalenessInfo
+                {...{
+                  installed: '9.5.3',
+                  staleness: 'stale-minor',
+                  expected: '9.5.3',
+                }}
+              />
+            ) : null}
           </DialogHeader>
           <DialogBody className="nextjs-container-build-error-body">
             <Terminal content={message} />
@@ -49,11 +56,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
 }
 
 export const styles = css`
-  .nextjs-container-build-error-header {
-    display: flex;
-    align-items: center;
-  }
-  .nextjs-container-build-error-header > h4 {
+  #nextjs__container_build_error_label {
     line-height: 1.5;
     margin: 0;
     padding: 0;

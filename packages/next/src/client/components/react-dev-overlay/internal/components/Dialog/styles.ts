@@ -86,6 +86,25 @@ const styles = css`
     position: relative;
     flex: 1 1 auto;
   }
+
+  [data-nextjs-dialog-header] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--size-gap);
+  }
+  [data-nextjs-dialog-header] > h1 {
+    flex-basis: 100%;
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
+    margin: 0;
+    color: var(--color-ansi-black);
+  }
+  [data-nextjs-dialog-header] small {
+    font-size: var(--size-font-small);
+    color: var(--color-font);
+    margin-left: var(--size-gap-double);
+  }
 `
 
 export { styles }

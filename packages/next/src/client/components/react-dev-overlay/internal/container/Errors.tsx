@@ -245,7 +245,9 @@ export function Errors({
         onClose={isServerError ? undefined : minimize}
       >
         <DialogContent>
-          <DialogHeader>
+          <DialogHeader
+            title={isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+          >
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
@@ -258,9 +260,6 @@ export function Errors({
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">
-              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
-            </h1>
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             <p
@@ -275,6 +274,7 @@ export function Errors({
                 {activeError.componentStackFrames?.length ? (
                   <PseudoHtmlDiff
                     className="nextjs__container_errors__extra_code"
+                    data-nextjs-terminal
                     hydrationMismatchType={hydrationErrorType}
                     componentStackFrames={activeError.componentStackFrames}
                     firstContent={serverContent}
@@ -300,26 +300,11 @@ export function Errors({
 }
 
 export const styles = css`
-  [data-nextjs-dialog-header],
   .nextjs-container-errors-body {
     display: flex;
     flex-direction: column;
     gap: var(--size-gap);
   }
-
-  [data-nextjs-dialog-header] > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: 0;
-    color: var(--color-ansi-black);
-  }
-  [data-nextjs-dialog-header] small {
-    font-size: var(--size-font-small);
-    color: var(--color-font);
-    margin-left: var(--size-gap-double);
-  }
-
   .nextjs-container-errors-body small {
     font-family: var(--font-stack-monospace);
   }
@@ -342,12 +327,6 @@ export const styles = css`
   .nextjs-container-errors-body > h2 {
     margin-bottom: 0;
     font-size: var(--size-font-big);
-  }
-  .nextjs__container_errors__extra_code {
-    padding: 12px 32px;
-    color: var(--color-ansi-fg);
-    background: var(--color-ansi-bg);
-    margin: 0;
   }
 
   .nextjs-toast-errors-parent {

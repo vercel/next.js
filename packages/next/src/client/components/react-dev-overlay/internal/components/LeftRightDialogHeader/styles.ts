@@ -7,6 +7,8 @@ const styles = css`
     align-content: center;
     align-items: center;
     justify-content: space-between;
+    flex: 1;
+    order: -1;
   }
   [data-nextjs-dialog-left-right] > nav {
     flex: 1;
