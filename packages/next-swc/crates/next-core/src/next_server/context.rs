@@ -9,7 +9,6 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -720,6 +719,7 @@ pub async fn get_server_chunking_context(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
@@ -730,12 +730,9 @@ pub async fn get_server_chunking_context(
         node_root.join("server/chunks".to_string()),
         client_root.join("static/media".to_string()),
         environment,
+        next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
-    .minify_type(if mode.await?.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .build())
 }
