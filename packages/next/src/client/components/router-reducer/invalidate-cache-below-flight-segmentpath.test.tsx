@@ -33,6 +33,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
     }
@@ -43,6 +44,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       head: null,
       prefetchHead: null,
       lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -56,6 +58,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 head: null,
                 prefetchHead: null,
                 lazyDataResolved: false,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -69,6 +72,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           head: null,
                           prefetchHead: null,
                           lazyDataResolved: false,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -110,6 +114,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       lazyDataResolved: false,
       head: null,
       prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -121,6 +126,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 lazyDataResolved: false,
                 head: null,
                 prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -129,6 +135,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         '',
                         {
                           lazyData: null,
+                          loading: null,
                           parallelRoutes: new Map(),
                           rsc: <React.Fragment>Page</React.Fragment>,
                           prefetchRsc: null,

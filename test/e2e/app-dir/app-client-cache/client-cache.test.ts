@@ -373,9 +373,7 @@ createNextDescribe(
           expect(newNumber).toBe(initialNumber)
         })
 
-        // TODO: Rather than reusing parts of a stale prefetch cache entry to make this work,
-        // we should be able to copy over the existing loading from a previous cache node on navigation.
-        it.skip('should refetch below the fold after 30 seconds', async () => {
+        it('should refetch below the fold after 30 seconds', async () => {
           const randomLoadingNumber = await browser
             .elementByCss('[href="/1?timeout=1000"]')
             .click()

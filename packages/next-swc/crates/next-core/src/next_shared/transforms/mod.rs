@@ -71,7 +71,7 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
         ModuleRuleCondition::All(vec![
             ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
             ModuleRuleCondition::Not(Box::new(ModuleRuleCondition::ResourcePathEndsWith(
-                "d.ts".to_string(),
+                ".d.ts".to_string(),
             ))),
         ]),
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),

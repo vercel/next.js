@@ -32,6 +32,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
     }
@@ -42,6 +43,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       head: null,
       prefetchHead: null,
       lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -55,6 +57,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                 head: null,
                 prefetchHead: null,
                 lazyDataResolved: false,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -68,6 +71,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                           head: null,
                           prefetchHead: null,
                           lazyDataResolved: false,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -99,6 +103,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       head: null,
       prefetchHead: null,
       lazyDataResolved: false,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -112,6 +117,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                 head: null,
                 prefetchHead: null,
                 lazyDataResolved: false,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -126,6 +132,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                           head: null,
                           prefetchHead: null,
                           lazyDataResolved: false,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -136,6 +143,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                           lazyDataResolved: false,
                           head: null,
                           prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -148,6 +156,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                                     prefetchRsc: null,
                                     parallelRoutes: new Map(),
                                     prefetchHead: null,
+                                    loading: null,
                                     head: (
                                       <>
                                         <title>Head Injected!</title>
