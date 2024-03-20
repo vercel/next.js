@@ -245,7 +245,7 @@ export function Errors({
         onClose={isServerError ? undefined : minimize}
       >
         <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
+          <DialogHeader>
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
@@ -258,11 +258,11 @@ export function Errors({
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
+          </DialogHeader>
+          <DialogBody className="nextjs-container-errors-body">
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
@@ -300,16 +300,24 @@ export function Errors({
 }
 
 export const styles = css`
-  .nextjs-container-errors-header small {
-    font-size: var(--size-font-small);
-    color: var(--color-font);
-    margin-left: var(--size-gap-double);
-  }
-
+  [data-nextjs-dialog-header],
   .nextjs-container-errors-body {
     display: flex;
     flex-direction: column;
     gap: var(--size-gap);
+  }
+
+  [data-nextjs-dialog-header] > h1 {
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
+    margin: 0;
+    color: var(--color-ansi-black);
+  }
+  [data-nextjs-dialog-header] small {
+    font-size: var(--size-font-small);
+    color: var(--color-font);
+    margin-left: var(--size-gap-double);
   }
 
   .nextjs-container-errors-body small {
@@ -322,13 +330,6 @@ export const styles = css`
     font-weight: bold;
     margin: 0;
     white-space: pre-wrap;
-  }
-  .nextjs-container-errors-body > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: 0;
-    color: var(--color-ansi-black);
   }
   .nextjs__container_errors_desc--error {
     padding-left: var(--size-gap);
