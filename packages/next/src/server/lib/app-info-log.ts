@@ -12,7 +12,7 @@ export function logStartInfo({
   appUrl,
   envInfo,
   expFeatureInfo,
-  maxExperimentalFeatures,
+  maxExperimentalFeatures = Infinity,
 }: {
   networkUrl: string | null
   appUrl: string | null
@@ -35,12 +35,12 @@ export function logStartInfo({
 
   if (expFeatureInfo?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
-    // only show maximum 3 flags
+    // only show a maximum number of flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
       Log.bootstrap(`  · ${exp}`)
     }
-    /* ${expFeatureInfo.length - 3} more */
-    if (expFeatureInfo.length > 3 && maxExperimentalFeatures) {
+    /* indicate if there are more than the maximum shown no. flags */
+    if (expFeatureInfo.length > maxExperimentalFeatures) {
       Log.bootstrap(`  · ...`)
     }
   }
