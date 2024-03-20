@@ -9,6 +9,18 @@ Middleware allows you to run code before a request is completed. Then, based on 
 
 Middleware runs before cached content and routes are matched. See [Matching Paths](#matching-paths) for more details.
 
+## Usae Cases
+
+Integrating Middleware into your application can lead to significant improvements in performance, security, and user experience. Some common scenarios where Middleware is particularly effective include:
+
+- Authentication: Ensure secure access to sensitive content by authenticating users before allowing entry to certain pages.
+- Server-Side Redirects: Direct users to the optimal page based on their role, location, or device type.
+- Path Rewriting: Support A/B testing, feature rollouts, or legacy paths by dynamically adjusting request paths according to specific criteria.
+- Cookie Management: Handle cookies efficiently for setting session tokens, reading authentication details, or clearing cookies upon user logout.
+- Bot Detection and Mitigation: Safeguard your resources and maintain service availability for real users by detecting and blocking unwanted bot traffic.
+- Logging and Analytics: At the request entry point, capture data for analytics or logging to analyze traffic patterns, understand user behavior, or address issues swiftly.
+- Feature Flagging: Without full deployments, dynamically manage feature availability for users, facilitating gradual rollouts or testing.
+
 ## Convention
 
 Use the file `middleware.ts` (or `.js`) in the root of your project to define Middleware. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
