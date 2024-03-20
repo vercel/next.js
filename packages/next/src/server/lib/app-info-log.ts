@@ -23,7 +23,7 @@ export function logStartInfo({
   Log.bootstrap(
     `${bold(
       purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
-    )}${process.env.TURBOPACK ? ' with Turbopack' : ''}`
+    )}${process.env.TURBOPACK ? ' (turbo)' : ''}`
   )
   if (appUrl) {
     Log.bootstrap(`- Local:        ${appUrl}`)
