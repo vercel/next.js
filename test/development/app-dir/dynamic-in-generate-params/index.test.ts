@@ -24,7 +24,7 @@ createNextDescribe(
       expect(firstTime).not.toEqual(secondTime)
     })
 
-    it('should generate multiple sitemaps', async () => {
+    it('should be able to call while generating multiple dynamic sitemaps', async () => {
       expect(
         (await next.fetch(isNextDev ? 'sitemap.xml/0' : '/sitemap/0.xml'))
           .status
@@ -33,6 +33,11 @@ createNextDescribe(
         (await next.fetch(isNextDev ? 'sitemap.xml/1' : '/sitemap/1.xml'))
           .status
       ).toBe(200)
+    })
+
+    it('should be able to call fetch while generating multiple dynamic pages', async () => {
+      expect((await next.fetch('/dynamic/0')).status).toBe(200)
+      expect((await next.fetch('/dynamic/1')).status).toBe(200)
     })
   }
 )
