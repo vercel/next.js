@@ -427,6 +427,17 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+  /**
+   * Establishes a budget for the `First Load JS` of a given route.
+   * 
+   * When defined, the `First Load JS` will be color-coded for each route. 
+   * This will make it easier to see which pages could benefit from further optimization techniques.
+   */
+  firstLoadBudget?: {
+    good: number
+    needsImprovement: number
+    poor: number
+  }
 }
 
 export type ExportPathMap = {

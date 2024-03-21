@@ -3362,6 +3362,7 @@ export default async function build(
           buildManifest,
           middlewareManifest,
           gzipSize: config.experimental.gzipSize,
+          firstLoadBudget: config.experimental.firstLoadBudget
         })
       )
 
