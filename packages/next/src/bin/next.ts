@@ -343,4 +343,18 @@ program
   )
   .usage('[options]')
 
+program
+  .command('test')
+  .argument(
+    '[directory]',
+    `A directory on which to start the application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory, options) =>
+    import('../cli/next-test.js').then((mod) =>
+      mod.nextTest(options, directory)
+    )
+  )
+
 program.parse(process.argv)
