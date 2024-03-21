@@ -1109,15 +1109,15 @@ export default class NextNodeServer extends BaseServer {
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
 
-          const statusColor = (status: number) => {
-            if (status < 200) return white
+          const statusColor = (status?: number) => {
+            if (!status || status < 200) return white
             else if (status < 300) return green
             else if (status < 400) return blue
             else if (status < 500) return yellow
             return red
           }
 
-          const color = statusColor(res.statusCode ?? 200)
+          const color = statusColor(res.statusCode)
           const method = req.method || 'GET'
           writeStdoutLine(
             `${color(method)} ${color(req.url ?? '')} ${
