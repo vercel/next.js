@@ -3,19 +3,19 @@ title: Authentication
 description: Learn how to implement authentication in Next.js.
 ---
 
-This page will guide you through implementing authentication in Next.js, it covers best practices and patterns so you can choose the best solution for your application.
+Authentication is a common feature in web applications, and knowing how to implement it securely is crucial for protecting your user's data and ensuring a smooth experience. This page will guide you through the Next.js features, third-party providers, and patterns you can use to implement authentication - so that you can choose the best approach for your application.
 
-Before starting, it helps to be familiar with the following concepts:
+Before starting, it helps to break down the authentication process into three key concepts or steps:
 
-- **[Authentication](#authentication)**: Verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as a username and password, or use a 3rd-party service like Google.
-  - **[Auth Providers](#auth-providers)**: Services that handle the authentication process for you. They often provide a set of helpful APIs and/or SDKs, making it easier and safer to implement auth in your application.
-- **[Session Management](#session-management)**: Tracks the user's auth state (e.g. logged-in) across requests.
-  - **[Session Management Libraries](#session-management-libraries)**: Libraries that help you manage user sessions, including setting, storing and retrieving cookie data, and handling expiration.
-- **[Authorization](#authorization)**: Decides what parts of the application the user is allowed to access. It includes redirecting users to different routes based on their auth state or role.
+1. **[Authentication](#authentication)**: Verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as a username and password, or use a 3rd-party service like Google.
+2. **[Session Management](#session-management)**: Tracks the user's auth state (e.g. logged-in) across requests. It involves creating, storing, updating, and deleting sessions.
+3. **[Authorization](#authorization)**: Decides what routes and data the user can access. It includes redirecting users based on their auth state or role, and preventing unauthorized access to data.
 
-This diagram illustrates the flow, and what Next.js features you can use for authentication, session management, and authorization:
+This diagram illustrates the authentication flow, and what Next.js features you can use for authentication, session management, and authorization:
 
 {/* TODO: Auth Diagram */}
+
+> While you can implement your custom auth solution, for increased security, simplicity and better DX, we recommend using an Auth Provider. These offer pre-built solutions for authentication, session management, and authorization, as well as additional features like social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Auth Providers](#auth-providers) section.
 
 ## Authentication
 
