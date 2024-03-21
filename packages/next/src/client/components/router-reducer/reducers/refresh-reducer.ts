@@ -15,6 +15,7 @@ import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -44,7 +45,7 @@ export function refreshReducer(
   )
 
   return cache.lazyData.then(
-    ([flightData, canonicalUrlOverride]) => {
+    async ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
@@ -113,10 +114,18 @@ export function refreshReducer(
             cacheNodeSeedData,
             head
           )
-          mutable.cache = cache
           mutable.prefetchCache = new Map()
         }
 
+        await refreshInactiveParallelSegments({
+          state,
+          newTree,
+          newCache: cache,
+          includeNextUrl,
+          clearExistingCache: true,
+        })
+
+        mutable.cache = cache
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 

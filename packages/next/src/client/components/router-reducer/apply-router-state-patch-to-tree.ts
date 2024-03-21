@@ -4,6 +4,7 @@ import type {
 } from '../../../server/app-render/types'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
 /**
  * Deep merge of the two router states. Parallel route keys are preserved if the patch doesn't have them.
@@ -138,6 +139,8 @@ export function applyRouterStatePatchToTree(
   if (isRootLayout) {
     tree[4] = true
   }
+
+  addRefreshMarkerToActiveParallelSegments(tree, href)
 
   return tree
 }
