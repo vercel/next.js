@@ -10,7 +10,7 @@ import { shouldRunTurboDevTest } from './next-test-utils'
 
 export type { NextInstance }
 
-// increase timeout to account for yarn install time
+// increase timeout to account for pnpm install time
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
@@ -89,6 +89,22 @@ if (testMode === 'dev') {
 } else {
   ;(global as any).isNextStart = true
 }
+
+/**
+ * Whether the test is running in dev mode.
+ * Based on `process.env.NEXT_TEST_MODE` and the test directory.
+ */
+export const isNextDev = testMode === 'dev'
+/**
+ * Whether the test is running in deploy mode.
+ * Based on `process.env.NEXT_TEST_MODE`.
+ */
+export const isNextDeploy = testMode === 'deploy'
+/**
+ * Whether the test is running in start mode.
+ * Default mode. `true` when both `isNextDev` and `isNextDeploy` are false.
+ */
+export const isNextStart = !isNextDev && !isNextDeploy
 
 if (!testMode) {
   throw new Error(
@@ -229,7 +245,7 @@ export function nextTestSetup(
 
   if (options.skipDeployment) {
     // When the environment is running for deployment tests.
-    if ((global as any).isNextDeploy) {
+    if (isNextDeploy) {
       // eslint-disable-next-line jest/no-focused-tests
       it.only('should skip next deploy', () => {})
       // No tests are run.
@@ -265,22 +281,22 @@ export function nextTestSetup(
   })
 
   return {
-    get isNextDev(): boolean {
-      return Boolean((global as any).isNextDev)
+    get isNextDev() {
+      return isNextDev
     },
     get isTurbopack(): boolean {
       return Boolean(
-        (global as any).isNextDev &&
+        isNextDev &&
           !process.env.TEST_WASM &&
           (options.turbo ?? shouldRunTurboDevTest())
       )
     },
 
-    get isNextDeploy(): boolean {
-      return Boolean((global as any).isNextDeploy)
+    get isNextDeploy() {
+      return isNextDeploy
     },
-    get isNextStart(): boolean {
-      return Boolean((global as any).isNextStart)
+    get isNextStart() {
+      return isNextStart
     },
     get next() {
       return nextProxy

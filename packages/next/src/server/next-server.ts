@@ -256,6 +256,16 @@ export default class NextNodeServer extends BaseServer {
     }
 
     this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST)
+
+    // This is just optimization to fire prepare as soon as possible. It will be
+    // properly awaited later. We add the catch here to ensure that it does not
+    // cause a unhandled promise rejection. The promise rejection will be
+    // handled later on via the `await` when the request handler is called.
+    if (!options.dev) {
+      this.prepare().catch((err) => {
+        console.error('Failed to prepare server', err)
+      })
+    }
   }
 
   protected async handleUpgrade(): Promise<void> {
