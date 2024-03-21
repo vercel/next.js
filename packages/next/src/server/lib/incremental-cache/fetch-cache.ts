@@ -228,7 +228,9 @@ export default class FetchCache implements CacheHandler {
         }
 
         // if new tags were specified, merge those tags to the existing tags
-        cached.tags = [...new Set([...(cached.tags ?? []), ...(tags ?? [])])]
+        if (cached.kind === 'FETCH') {
+          cached.tags = [...new Set([...(cached.tags ?? []), ...(tags ?? [])])]
+        }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)
         const age = res.headers.get('age')
