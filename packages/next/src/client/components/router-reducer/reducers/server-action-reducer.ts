@@ -31,7 +31,7 @@ import type {
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
-import { applyRouterStatePatchToFullTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
@@ -211,11 +211,12 @@ export function serverActionReducer(
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToFullTree(
+        const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
-          treePatch
+          treePatch,
+          state.canonicalUrl
         )
 
         if (newTree === null) {
