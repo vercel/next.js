@@ -30,7 +30,7 @@ You can self-host Next.js in three different ways:
 - [A Node.js server](#nodejs-server)
 - [A Docker container](#docker-image)
 - [A static export](#static-html-export)
-- [Configuring self-hosted Next.js behind firewalls and load balancers](#configuring-self-hosted-next-js-behind-firewalls-and-load-balancers)
+- [Configuring self-hosted Next.js behind firewalls and load balancers](#configuring-self-hosted-nextjs-behind-firewalls-and-load-balancers)
 
 ### Node.js Server
 
@@ -81,11 +81,6 @@ When self-hosting Next.js behind firewalls, load balancers, or caching layers, e
 - `Next-Url`
 
 Consider these headers when defining cache keys for unique requests. Note that navigation between pages with RSC and `next/link` uses the `fetch` API, including a query parameter `_rsc` (e.g., `GET /new-page?_rsc=1234`). Decide if `_rsc` should be part of your cache key, which may result in each page navigation being treated as a unique request, thus bypassing the cache.
-
-> **Good to know:**
->
-> - Adjust your cache configuration to handle `_rsc` according to your caching strategy and desired behavior.
-> - Ensure that your firewall or load balancer is configured to pass through the necessary headers and query parameters for optimal Next.js functionality.
 
 ## Features
 
