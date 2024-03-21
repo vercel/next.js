@@ -113,6 +113,9 @@
     },
     "@opentelemetry/api": {
       "optional": true
+    },
+    "@playwright/test": {
+      "optional": true
     }
   },
   "devDependencies": {
