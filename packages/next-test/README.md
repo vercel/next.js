@@ -31,7 +31,8 @@ import { getProduct } from '@/data/products'
 
 test.describe('integration tests', () => {
   test('/product/shoe', async ({ page, stub }) => {
-    // by using `stub` here, the test will proxy all fetches to the test proxy server
+    // by using `stub` here, playwright will inform Next.js to proxy all fetches
+    // to the test proxy server
     stub(getProduct, ['shoe'], {
       title: 'A shoe',
     })
@@ -44,7 +45,8 @@ test.describe('integration tests', () => {
 
 test.describe('e2e tests', () => {
   test('/product/shoe', async ({ page }) => {
-    // since we are not using `stub` here, the test will make real fetches
+    // since we are not using `stub` here, Next.js will not proxy any fetches
+    //  and will make real requests
     await page.goto('/product/shoe')
 
     await expect(page.locator('body')).toHaveText('A real shoe!')
