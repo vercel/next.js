@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "allowImportingTsExtensions": true,
+    "module": "ES6",
+    "allowJs": true,
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  }
+}
