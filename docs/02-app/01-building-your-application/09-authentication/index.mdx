@@ -3,7 +3,7 @@ title: Authentication
 description: Learn how to implement authentication in Next.js.
 ---
 
-Authentication is a common feature in web applications, and knowing how to implement it securely is crucial for protecting your user's data and ensuring a smooth experience. This page will guide you through the Next.js features, third-party providers, and patterns you can use to implement authentication - so that you can choose the best approach for your application.
+Authentication is a common feature in web applications, and knowing how to implement it securely is crucial for protecting your user's data and ensuring a smooth experience. This page will guide you through the features, patterns, and third-party providers you can use to implement authentication in your Next.js application.
 
 Before starting, it helps to break down the authentication process into three key concepts or steps:
 
@@ -15,170 +15,404 @@ This diagram illustrates the authentication flow, and what Next.js features you 
 
 {/* TODO: Auth Diagram */}
 
-> While you can implement your custom auth solution, for increased security, simplicity and better DX, we recommend using an Auth Provider. These offer pre-built solutions for authentication, session management, and authorization, as well as additional features like social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Auth Providers](#auth-providers) section.
+> While you can implement your custom auth solution, for increased security, simplicity and better DX, we recommend using an auth provider. These offer pre-built solutions for authentication, session management, and authorization, as well as additional features like social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Auth Providers](#auth-providers) section.
 
 ## Authentication
+
+For educational purposes, the examples in this section will walk you through basic username and password authentication. However, you can replace this with your preferred authentication provider.
 
 <AppOnly>
 
 ### Sign-up and login functionality
 
-You can use [Server Actions](/docs/app/building-your-application/rendering/server-components) with React [`<form>`](https://react.dev/reference/react-dom/components/form) to create login or sign-up UI. Since Server Actions execute on the server, they provide a secure environment for handling sensitive operations.
+You can use React's [`<form>`](https://react.dev/reference/react-dom/components/form), [Server Actions](/docs/app/building-your-application/rendering/server-components), [useFormStatus()](https://react.dev/reference/react-dom/hooks/useFormStatus), and [useFormState()](https://react.dev/reference/react-dom/hooks/useFormState), to capture user data, validate form fields on the server, and call your Authentication Provider's API or database. Since Server Actions execute on the server, they provide a secure environment for handling sensitive operations.
 
-1. The user submits their credentials through a login or registration form.
-2. The form invokes a Server Action, which calls your authentication provider's API to verify the user's credentials, and manage the user's session.
-3. If verification is successful, the user is authenticated and redirected to a protected route.
-4. If verification is unsuccessful, an error message is shown.
+Here are the steps to implement a sign-up and/or login form:
 
-For example, consider a login form where users can enter their credentials:
+#### 1. Capture user credentials
 
-```tsx filename="app/login/page.tsx" switcher
-import { login } from '@/app/lib/auth'
+To capture user credentials, create a form that invokes a Server Action on submission. For example, a signup form that accepts the user's name, email, and password:
 
-export default function Page() {
+```tsx filename="app/ui/signup-form.tsx" switcher
+import { signup } from '@/app/actions/auth'
+
+export function SignupForm() {
   return (
-    <form action={login}>
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password" placeholder="Password" required />
-      <button type="submit">Login</button>
+    <form action={signup}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input id="name" name="name" placeholder="Name" />
+      </div>
+      <div>
+        <label htmlFor="email">Email</label>
+        <input id="email" name="email" placeholder="Email" />
+      </div>
+      <div>
+        <label htmlFor="password">Password</label>
+        <input id="password" name="password" type="password" />
+      </div>
+      <button type="submit">Sign Up</button>
     </form>
   )
 }
 ```
 
-```jsx filename="app/login/page.jsx" switcher
-import { login } from '@/app/lib/auth'
+```jsx filename="app/ui/signup-form.js" switcher
+import { signup } from '@/app/actions/auth'
 
-export default function Page() {
+export function SignupForm() {
   return (
-    <form action={login}>
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password" placeholder="Password" required />s<button type="submit">Login</button>
+    <form action={signup}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input id="name" name="name" placeholder="Name" />
+      </div>
+      <div>
+        <label htmlFor="email">Email</label>
+        <input id="email" name="email" placeholder="Email" />
+      </div>
+      <div>
+        <label htmlFor="password">Password</label>
+        <input id="password" name="password" type="password" />
+      </div>
+      <button type="submit">Sign Up</button>
     </form>
   )
 }
 ```
 
-The form above has two input fields for capturing the user's email and password. On submission, it calls the `login` Server Action.
-
-Inside the Server Action, you can do the following:
-
-1. Extract and validate the form input values. For example, check if the email is valid and the password is not empty.
-2. Call your authentication provider's API to verify the user's credentials.
-3. If the credentials are valid, create a session for the user that persists across requests. See [Session Management](#session-management) for more details.
-
-```ts filename="app/lib/actions.ts" switcher
-'use server'
-
-import { signIn } from 'auth-provider'
-
-export async function login(formData: FormData) {
-  try {
-    await signIn('credentials', formData)
-    redirect('/dashboard')
-  } catch (error) {
-    if (error) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.'
-        default:
-          return 'Something went wrong.'
-      }
-    }
-    throw error
-  }
+```tsx filename="app/actions/auth.tsx" switcher
+export async function signup(formData: FormData) {
+  // ...
 }
 ```
 
-```js filename="app/lib/actions.js" switcher
-'use server'
-
-import { signIn } from 'auth-provider'
-
-export async function authenticate(formData) {
-  try {
-    await signIn('credentials', formData)
-  } catch (error) {
-    if (error) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.'
-        default:
-          return 'Something went wrong.'
-      }
-    }
-    throw error
-  }
+```jsx filename="app/actions/auth.js" switcher
+export async function signup(formData) {
+  // ...
 }
 ```
 
-Finally, in your `login-form.tsx` component, you can use React's `useFormState` to call the Server Action and handle form errors, and use `useFormStatus` to handle the pending state of the form:
+#### 2. Validate form fields on the server
 
-```tsx filename="app/login/page.tsx" switcher
+Use the Server Action to validate the form fields on the the server and prevent client-side tampering. If your authentication provider doesn't provide field validation (or verification), you can use a schema validation library like [Zod](https://zod.dev/) or [Yup](https://github.com/jquense/yup).
+
+Normal form validation practices apply here. For example, you should check that the user has entered a valid email address, a password that meets your security requirements, and name is not empty. Using Zod as an example, you can define a schema for your form fields:
+
+```ts filename="app/lib/definitions.ts" switcher
+import { z } from 'zod'
+
+export const SignupFormSchema = z.object({
+  name: z
+    .string()
+    .min(2, { message: 'Name must be at least 2 characters long.' })
+    .trim(),
+  email: z.string().email({ message: 'Please enter a valid email.' }).trim(),
+  password: z
+    .string()
+    .min(8, { message: 'Be at least 8 characters long' })
+    .regex(/[a-zA-Z]/, { message: 'Contain at least one letter.' })
+    .regex(/[0-9]/, { message: 'Contain at least one number.' })
+    .regex(/[^a-zA-Z0-9]/, {
+      message: 'Contain at least one special character.',
+    })
+    .trim(),
+})
+
+export type FormState =
+  | {
+      errors?: {
+        name?: string[]
+        email?: string[]
+        password?: string[]
+      }
+      message?: string
+    }
+  | undefined
+```
+
+```ts filename="app/lib/definitions.ts" switcher
+import { z } from 'zod'
+
+export const SignupFormSchema = z.object({
+  name: z
+    .string()
+    .min(2, { message: 'Name must be at least 2 characters long.' })
+    .trim(),
+  email: z.string().email({ message: 'Please enter a valid email.' }).trim(),
+  password: z
+    .string()
+    .min(8, { message: 'Be at least 8 characters long' })
+    .regex(/[a-zA-Z]/, { message: 'Contain at least one letter.' })
+    .regex(/[0-9]/, { message: 'Contain at least one number.' })
+    .regex(/[^a-zA-Z0-9]/, {
+      message: 'Contain at least one special character.',
+    })
+    .trim(),
+})
+```
+
+Then, in your Server Action, after validation, return early if any form fields do not match the criteria. This will prevent unecessary calls to your authentication provider's API or database:
+
+```tsx filename="app/actions/auth.tsx" switcher
+import { SignupFormSchema, FormState } from '@/app/lib/definitions'
+
+export async function signup(state: FormState, formData: FormData) {
+  // Validate form fields
+  const validatedFields = SignupFormSchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+  })
+
+  // If any form fields are invalid, return early
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  // TODO: Call provider or db to create user...
+}
+```
+
+Back in your `<SignupForm/>`, you can use React's `useFormState()` hook to conditionally display validation errors to the user:
+
+```tsx filename="app/ui/signup-form.tsx" switcher highlight={6,14,20,26-35}
 'use client'
 
-import { authenticate } from '@/app/lib/actions'
-import { useFormState, useFormStatus } from 'react-dom'
+import { useFormState } from 'react-dom'
 
-export default function Page() {
-  const [errorMessage, dispatch] = useFormState(authenticate, undefined)
+export function SignupForm() {
+  const [state, action] = useFormState(signup, undefined)
 
   return (
-    <form action={dispatch}>
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password" placeholder="Password" required />
-      <div>{errorMessage && <p>{errorMessage}</p>}</div>
-      <LoginButton />
+    <form action={action}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input id="name" name="name" placeholder="Name" />
+      </div>
+      {state?.errors?.name && <p>{state.errors.name}</p>}
+
+      <div>
+        <label htmlFor="email">Email</label>
+        <input id="email" name="email" placeholder="Email" />
+      </div>
+      {state?.errors?.email && <p>{state.errors.email}</p>}
+
+      <div>
+        <label htmlFor="password">Password</label>
+        <input id="password" name="password" type="password" />
+      </div>
+      {state?.errors?.password && (
+        <div>
+          <p>Password must:</p>
+          <ul>
+            {state.errors.password.map((error) => (
+              <li key={error}>- {error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <SignupButton />
     </form>
   )
 }
+```
 
-function LoginButton() {
+```jsx filename="app/ui/signup-form.js" switcher highlight={6,14,20,26-35}
+'use client'
+
+import { useFormState } from 'react-dom'
+
+export function SignupForm() {
+  const [state, action] = useFormState(signup, undefined)
+
+  return (
+    <form action={action}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input id="name" name="name" placeholder="John Doe" />
+      </div>
+      {state.errors.name && <p>{state.errors.name}</p>}
+
+      <div>
+        <label htmlFor="email">Email</label>
+        <input id="email" name="email" placeholder="john@example.com" />
+      </div>
+      {state.errors.email && <p>{state.errors.email}</p>}
+
+      <div>
+        <label htmlFor="password">Password</label>
+        <input id="password" name="password" type="password" />
+      </div>
+      {state.errors.password && (
+        <div>
+          <p>Password must:</p>
+          <ul>
+            {state.errors.password.map((error) => (
+              <li key={error}>- {error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <SignupButton />
+    </form>
+  )
+}
+```
+
+> **Tip:** Remove the `required` attribute from the input fields to allow `useFormState()` to handle validation. `required` uses the browser's native form validation, and will prevent the form from being submitted if the field is empty.
+
+You can also use the `useFormStatus()` hook to handle the pending state of the form on submission:
+
+```tsx filename="app/ui/signup-form.tsx" switcher
+'use client'
+
+import { useFormStatus, useFormState } from 'react-dom'
+
+// <SignupForm/> Component
+
+export function SignupButton() {
   const { pending } = useFormStatus()
 
   return (
     <button aria-disabled={pending} type="submit">
-      Login
+      Sign Up
     </button>
   )
 }
 ```
 
-```jsx filename="app/login/page.jsx" switcher
+```jsx filename="app/ui/signup-form.js" switcher
 'use client'
 
-import { authenticate } from '@/app/lib/actions'
-import { useFormState, useFormStatus } from 'react-dom'
+import { useFormStatus, useFormState } from 'react-dom'
 
-export default function Page() {
-  const [errorMessage, dispatch] = useFormState(authenticate, undefined)
+// <SignupForm/> Component
 
-  return (
-    <form action={dispatch}>
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password" placeholder="Password" required />
-      <div>{errorMessage && <p>{errorMessage}</p>}</div>
-      <LoginButton />
-    </form>
-  )
-}
-
-function LoginButton() {
+export function SignupButton() {
   const { pending } = useFormStatus()
 
   return (
     <button aria-disabled={pending} type="submit">
-      Login
+      Sign Up
     </button>
   )
 }
 ```
 
-### Logout functionality
+> **Tip:** `useFormStatus()` should be used in a separate component to avoid re-rendering the entire form when the form status changes.
 
-### Auth Providers
+#### 3. Create or check user credentials
 
-The following Auth Providers offer a range of authentication solutions for Next.js applications:
+After validating the form fields, you can call your authentication provider's API or database to create a new user account or check if the user exists.
+
+Continuing from the previous example, you should ensure the user's email is unique and passwords are stored securely:
+
+```tsx filename="app/actions/auth.tsx" switcher
+// ...
+
+export async function signup(state: FormState, formData: FormData) {
+  // 1. Validate form fields
+  // ...
+
+  // 2. Prepare data for insertion into database
+  const { name, email, password } = validatedFields.data
+
+  // Check if the user's email already exists
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  })
+
+  // If the user already exists, return early
+  if (existingUser) {
+    return {
+      message: 'Email already exists, please login or use a different email.',
+    }
+  }
+
+  // Hash the user's password before storing it
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  // 3. Insert the user into the database or call an Auth Provider's API
+  const data = await db
+    .insert(users)
+    .values({
+      name,
+      email,
+      password: hashedPassword,
+    })
+    // Only return the user information you need to store in the session
+    .returning({ id: users.id })
+
+  const user = data[0]
+
+  if (!user) {
+    return {
+      message: 'An error occurred while creating your account.',
+    }
+  }
+
+  // TODO: 4. Create user session
+}
+```
+
+```jsx filename="app/actions/auth.js" switcher
+// ...
+
+export async function signup(state, formData) {
+  // 1. Validate form fields
+  // ...
+
+  // 2. Prepare data for insertion into database
+  const { name, email, password } = validatedFields.data
+
+  // Check if the user's email already exists
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  })
+
+  // If the user already exists, return early
+  if (existingUser) {
+    return {
+      message: 'Email already exists, please login or use a different email.',
+    }
+  }
+
+  // Hash the user's password before storing it
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  // 3. Insert the user into the database or call an Auth Provider's API
+  const data = await db
+    .insert(users)
+    .values({
+      name,
+      email,
+      password: hashedPassword,
+    })
+    // Only return the user information you need to store in the session
+    .returning({ id: users.id })
+
+  const user = data[0]
+
+  if (!user) {
+    return {
+      message: 'An error occurred while creating your account.',
+    }
+  }
+
+  // TODO: 4. Create user session
+}
+```
+
+> **Tips:**
+>
+> - Inversely, on login, you should check if the hashed password matches the user's input.
+> - To improve the user experience, you may want to check for duplicate emails or usernames earlier in the authentication flow. For example, as the user types in their email or the input field loses focus. This can help prevent unnecessary form submissions and provide immediate feedback to the user. Consider libraries such as [use-debounce](https://www.npmjs.com/package/use-debounce) to manage the frequency of these checks.
+> - The example above breaks down the authentication steps for the purpose of teaching, making it verbose. This highlights that implementing your own secure auth solution can quickly become complex and verbose too. Consider using an [Auth Provider](#auth-provider) to simplify the process.
+
+After successfully creating the user account or verifying the user, you can create a session to manage the user's auth state. Depending on your session management strategy, the session can be stored in a cookie or database, or both. Continue to the [Session Management](#session-management) section to learn more.
 
 </AppOnly>
 
