@@ -217,6 +217,7 @@ pub trait EvaluateContext {
     type InfoMessage: DeserializeOwned;
     type RequestMessage: DeserializeOwned;
     type ResponseMessage: Serialize;
+    type State: Default;
 
     fn compute(self, sender: Vc<JavaScriptStreamSender>);
     fn pool(&self) -> Vc<NodeJsPool>;
@@ -226,12 +227,19 @@ pub trait EvaluateContext {
     fn args(&self) -> &[Vc<JsonValue>];
     fn cwd(&self) -> Vc<FileSystemPath>;
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()>;
-    async fn info(&self, data: Self::InfoMessage, pool: &NodeJsPool) -> Result<()>;
+    async fn info(
+        &self,
+        state: &mut Self::State,
+        data: Self::InfoMessage,
+        pool: &NodeJsPool,
+    ) -> Result<()>;
     async fn request(
         &self,
+        state: &mut Self::State,
         data: Self::RequestMessage,
         pool: &NodeJsPool,
     ) -> Result<Self::ResponseMessage>;
+    async fn finish(&self, _state: Self::State, _pool: &NodeJsPool) -> Result<()>;
 }
 
 pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptEvaluation> {
@@ -317,6 +325,7 @@ pub async fn compute(
 
     let stream = generator! {
         let pool = evaluate_context.pool();
+        let mut state = Default::default();
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
@@ -351,7 +360,7 @@ pub async fn compute(
         // need to spawn a new thread to continually pull data out of the process,
         // and ferry that along.
         loop {
-            let output = pull_operation(&mut operation, &pool, &evaluate_context).await?;
+            let output = pull_operation(&mut operation, &pool, &evaluate_context, &mut state).await?;
 
             match output {
                 LoopResult::Continue(data) => {
@@ -371,6 +380,8 @@ pub async fn compute(
                 }
             }
         }
+
+        evaluate_context.finish(state, &pool).await?;
 
         if kill {
             operation.wait_or_kill().await?;
@@ -393,10 +404,11 @@ pub async fn compute(
 
 /// Repeatedly pulls from the NodeJsOperation until we receive a
 /// value/error/end.
-async fn pull_operation(
+async fn pull_operation<T: EvaluateContext>(
     operation: &mut NodeJsOperation,
     pool: &NodeJsPool,
-    evaluate_context: &impl EvaluateContext,
+    evaluate_context: &T,
+    state: &mut T::State,
 ) -> Result<LoopResult> {
     let guard = duration_span!("Node.js evaluation");
 
@@ -412,12 +424,12 @@ async fn pull_operation(
             EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
             EvalJavaScriptIncomingMessage::Info { data } => {
                 evaluate_context
-                    .info(serde_json::from_value(data)?, pool)
+                    .info(state, serde_json::from_value(data)?, pool)
                     .await?;
             }
             EvalJavaScriptIncomingMessage::Request { id, data } => {
                 match evaluate_context
-                    .request(serde_json::from_value(data)?, pool)
+                    .request(state, serde_json::from_value(data)?, pool)
                     .await
                 {
                     Ok(response) => {
@@ -474,6 +486,7 @@ impl EvaluateContext for BasicEvaluateContext {
     type InfoMessage = ();
     type RequestMessage = ();
     type ResponseMessage = ();
+    type State = ();
 
     fn compute(self, sender: Vc<JavaScriptStreamSender>) {
         let _ = basic_compute(self, sender);
@@ -517,16 +530,26 @@ impl EvaluateContext for BasicEvaluateContext {
         Ok(())
     }
 
-    async fn info(&self, _data: Self::InfoMessage, _pool: &NodeJsPool) -> Result<()> {
+    async fn info(
+        &self,
+        _state: &mut Self::State,
+        _data: Self::InfoMessage,
+        _pool: &NodeJsPool,
+    ) -> Result<()> {
         bail!("BasicEvaluateContext does not support info messages")
     }
 
     async fn request(
         &self,
+        _state: &mut Self::State,
         _data: Self::RequestMessage,
         _pool: &NodeJsPool,
     ) -> Result<Self::ResponseMessage> {
         bail!("BasicEvaluateContext does not support request messages")
+    }
+
+    async fn finish(&self, _state: Self::State, _pool: &NodeJsPool) -> Result<()> {
+        Ok(())
     }
 }
 
