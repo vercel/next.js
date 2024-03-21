@@ -169,14 +169,16 @@ export default class FetchCache implements CacheHandler {
     let data = memoryCache?.get(key)
 
     const isCacheable = !data && this.cacheEndpoint
-    const hasFetchKindAndIncludesTags =
-      tags?.every(
-        (tag) => data?.value?.kind === 'FETCH' && data.value.tags?.includes(tag)
-      ) ?? false
+    const hasFetchKindAndIncludesAllTags = tags?.every((tag) => {
+      if (data?.value?.kind !== 'FETCH') {
+        return false
+      }
+      return data.value.tags?.includes(tag)
+    })
 
     // Get data from fetch cache. Also check if new tags have been
     // specified with the same cache key (fetch URL)
-    if (isCacheable || hasFetchKindAndIncludesTags) {
+    if (isCacheable || !hasFetchKindAndIncludesAllTags) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
