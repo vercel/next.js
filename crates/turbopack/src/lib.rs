@@ -532,7 +532,25 @@ async fn process_default_internal(
         }
     }
 
-    let module_type = current_module_type.unwrap_or(ModuleType::Raw).cell();
+    let module_type = match current_module_type {
+        Some(module_type) => module_type,
+        None => {
+            ModuleIssue {
+                ident,
+                title: StyledString::Text("Unknown module type".to_string()).cell(),
+                description: StyledString::Text(
+                    r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
+
+Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".to_string(),
+                )
+                .cell(),
+            }
+            .cell()
+            .emit();
+
+            return Ok(ProcessResult::Ignore.cell());
+        }
+    }.cell();
 
     Ok(apply_module_type(
         current_source,

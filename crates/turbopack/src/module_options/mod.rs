@@ -332,6 +332,12 @@ impl ModuleOptions {
             ),
             ModuleRule::new(
                 ModuleRuleCondition::any(vec![ModuleRuleCondition::ResourcePathEndsWith(
+                    ".node".to_string(),
+                )]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::any(vec![ModuleRuleCondition::ResourcePathEndsWith(
                     ".wasm".to_string(),
                 )]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
