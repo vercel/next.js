@@ -25,6 +25,8 @@ Integrating Middleware into your application can lead to significant improvement
 
 Use the file `middleware.ts` (or `.js`) in the root of your project to define Middleware. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
+> **Note**: While you can break out code into separate `.ts` or `.js` files and import them for use in your `middleware.ts`, it's important to remember that only one `middleware.ts` file is supported per project. This ensures a centralized approach to handling middleware logic, allowing for better organization and maintainability.
+
 ## Example
 
 ```ts filename="middleware.ts" switcher
