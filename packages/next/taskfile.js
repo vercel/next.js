@@ -1640,9 +1640,13 @@ export async function copy_vendor_react(task_) {
             /require\(["']react["']\)/g,
             `require("next/dist/compiled/react${packageSuffix}")`
           )
+          .replace(
+            /require\(["']react-dom["']\)/g,
+            `require("next/dist/compiled/react-dom${packageSuffix}")`
+          )
 
         // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
+        // as it might be aliased to the server rendering stub.
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
