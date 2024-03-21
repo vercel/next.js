@@ -18,6 +18,7 @@ use next_core::{
         get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
+    util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -809,6 +810,7 @@ impl Project {
                 Value::new(ServerContextType::Middleware),
                 self.next_mode(),
                 self.next_config(),
+                NextRuntime::Edge,
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
@@ -842,6 +844,7 @@ impl Project {
                 Value::new(ServerContextType::Instrumentation),
                 self.next_mode(),
                 self.next_config(),
+                NextRuntime::NodeJs,
             ),
             get_server_resolve_options_context(
                 self.project_path(),
