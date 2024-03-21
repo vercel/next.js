@@ -3,7 +3,7 @@ title: Authentication
 description: Learn how to implement authentication in Next.js.
 ---
 
-Authentication is a common feature in web applications, and knowing how to implement it securely is crucial for protecting your user's data and ensuring a smooth experience. This page will guide you through the features, patterns, and third-party providers you can use to implement authentication in your Next.js application.
+Authentication is a common feature in web applications, and knowing how to implement it securely is crucial for protecting your user's data and ensuring a smooth experience. This page will guide you through the best practices, Next.js and React features, and third-party libraries you can use to implement authentication in your application.
 
 Before starting, it helps to break down the authentication process into three key concepts or steps:
 
@@ -354,7 +354,9 @@ export async function signup(state: FormState, formData: FormData) {
     }
   }
 
-  // TODO: 4. Create user session
+  // TODO:
+  // 4. Create user session
+  // 5. Redirect user
 }
 ```
 
@@ -402,7 +404,9 @@ export async function signup(state, formData) {
     }
   }
 
-  // TODO: 4. Create user session
+  // TODO:
+  // 4. Create user session
+  // 5. Redirect user
 }
 ```
 
@@ -547,76 +551,50 @@ export default async function handler(req, res) {
 
 </PagesOnly>
 
-In this code, the `signIn` method checks the credentials against stored user data.
-After the authentication provider processes the credentials, there are two possible outcomes:
-
-- **Successful Authentication**: This outcome implies that the login was successful. Further actions, such as accessing protected routes and fetching user information, can then be initiated.
-- **Failed Authentication**: In cases where the credentials are incorrect or an error is encountered, the function returns a corresponding error message to indicate the authentication failure.
-
-For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#examples).
-
 ## Session Management
 
-Session management involves tracking and managing a user's interaction with the application over time, ensuring that their authenticated state is preserved across different parts of the application.
+Session management ensures that an user's authenticated state is preserved across requests, and sometimes, devices. This makes it more convenient for users as it prevents the need for repeated logins.
 
-This prevents the need for repeated logins, enhancing both security and user convenience. There are two primary methods used for session management: cookie-based and database sessions.
+There are two types of sessions:
 
-### Cookie-Based Sessions
+1. **Stateless (or Optimistic) Sessions**: Store session data in browser cookies. The cookie is sent with each request, and the is session verified on the server. This method is simpler, but can be less secure.
+2. **Database (or Secure) Sessions**: Store session data on the server, with the user's browser only receiving the encrypted session ID. This method is more secure, but can be more complex and use more server resources.
 
-> **🎥 Watch:** Learn more about cookie-based sessions and authentication with Next.js → [YouTube (11 minutes)](https://www.youtube.com/watch?v=DJvM2lSPn6w).
+> While you can use either method, or a combination of both, we recommend using a third-party library for session management. See [Session Management Libraries](#session-management-libraries) for more information.
 
-Cookie-based sessions manage user data by storing encrypted session information directly in browser cookies. Upon user login, this encrypted data is stored in the cookie. Each subsequent server request includes this cookie, minimizing the need for repeated server queries and enhancing client-side efficiency.
-
-However, this method requires careful encryption to protect sensitive data, as cookies are susceptible to client-side security risks. Encrypting session data in cookies is key to safeguarding user information from unauthorized access. It ensures that even if a cookie is stolen, the data inside remains unreadable.
-
-Additionally, while individual cookies are limited in size (typically around 4KB), techniques like cookie-chunking can overcome this limitation by dividing large session data into multiple cookies.
-
-Setting a cookie in a Next.js project might look something like this:
-
-**Setting a cookie on the server:**
-
-<PagesOnly>
-
-```ts filename="pages/api/login.ts" switcher
-import { serialize } from 'cookie'
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const sessionData = req.body
-  const encryptedSessionData = encrypt(sessionData)
-
-  const cookie = serialize('session', encryptedSessionData, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // One week
-    path: '/',
-  })
-  res.setHeader('Set-Cookie', cookie)
-  res.status(200).json({ message: 'Successfully set cookie!' })
-}
-```
-
-```js filename="pages/api/login.js" switcher
-import { serialize } from 'cookie'
-
-export default function handler(req, res) {
-  const sessionData = req.body
-  const encryptedSessionData = encrypt(sessionData)
-
-  const cookie = serialize('session', encryptedSessionData, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // One week
-    path: '/',
-  })
-  res.setHeader('Set-Cookie', cookie)
-  res.status(200).json({ message: 'Successfully set cookie!' })
-}
-```
-
-</PagesOnly>
+### Stateless Sessions
 
 <AppOnly>
+
+You can use Next.js' [`cookies()`](/docs/app/api-reference/functions/cookies) API to store session data in the browser. But, before setting the cookies, you should:
+
+1. Generate a secret key to sign the session data, and store it in your [environment variables file](/docs/app/building-your-application/configuring/environment-variables).
+2. Encrypt your key and session to prevent tampering.
+3. Set the cookies using the recommended options.
+
+In addition to the above, consider introducing functionality to manage session data, such as decrypting, extending, and deleting sessions.
+
+> **Tip:** If you're using a [Auth Provider](#auth-provider), check if they handle session management. If they do, you can skip this section.
+
+Continuing from the previous example, we'll demonstrate how you manage a sessions using [Jose](https://www.npmjs.com/package/jose) (a popular session management library), and set the cookie on the server using Next.js.
+
+#### 1. Generating a secret key
+
+#### 2. Encrypting the session
+
+#### 3. Setting the cookie (recommended options)
+
+#### Decrypting the session data
+
+#### Updating the session
+
+#### Deleting the session
+
+> **Tips**:
+>
+> - Use the React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that session management logic is only executed on the server.
+> - For improved security, cookies should always be set on the server. This prevents client-side tampering and ensures that sensitive data is not exposed to the client.
+> - 🎥 Watch: Learn more about stateless sessions and authentication with Next.js → [YouTube (11 minutes)](https://www.youtube.com/watch?v=DJvM2lSPn6w).
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -674,6 +652,49 @@ export async function getSessionData(req) {
 
 </AppOnly>
 
+<PagesOnly>
+
+**Setting a cookie on the server:**
+
+```ts filename="pages/api/login.ts" switcher
+import { serialize } from 'cookie'
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const sessionData = req.body
+  const encryptedSessionData = encrypt(sessionData)
+
+  const cookie = serialize('session', encryptedSessionData, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7, // One week
+    path: '/',
+  })
+  res.setHeader('Set-Cookie', cookie)
+  res.status(200).json({ message: 'Successfully set cookie!' })
+}
+```
+
+```js filename="pages/api/login.js" switcher
+import { serialize } from 'cookie'
+
+export default function handler(req, res) {
+  const sessionData = req.body
+  const encryptedSessionData = encrypt(sessionData)
+
+  const cookie = serialize('session', encryptedSessionData, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7, // One week
+    path: '/',
+  })
+  res.setHeader('Set-Cookie', cookie)
+  res.status(200).json({ message: 'Successfully set cookie!' })
+}
+```
+
+</PagesOnly>
+
 ### Database Sessions
 
 Database session management involves storing session data on the server, with the user's browser only receiving a session ID. This ID references the session data stored server-side, without containing the data itself. This method enhances security, as it keeps sensitive session data away from the client-side environment, reducing the risk of exposure to client-side attacks. Database sessions are also more scalable, accommodating larger data storage needs.
@@ -682,9 +703,35 @@ However, this approach has its tradeoffs. It can increase performance overhead d
 
 Here's a simplified example of implementing database sessions in a Next.js application:
 
-**Creating a Session on the Server**:
+<AppOnly>
+
+```js
+import db from './lib/db'
+
+export async function createSession(user) {
+  const sessionId = generateSessionId() // Generate a unique session ID
+  await db.insertSession({ sessionId, userId: user.id, createdAt: new Date() })
+  return sessionId
+}
+```
+
+**Retrieving a Session in Middleware or Server-Side Logic**:
+
+```js
+import { cookies } from 'next/headers'
+import db from './lib/db'
+
+export async function getSession() {
+  const sessionId = cookies().get('sessionId')?.value
+  return sessionId ? await db.findSession(sessionId) : null
+}
+```
+
+</AppOnly>
 
 <PagesOnly>
+
+**Creating a Session on the Server**:
 
 ```ts filename="pages/api/create-session.ts" switcher
 import db from '../../lib/db'
@@ -732,32 +779,6 @@ export default async function handler(req, res) {
 
 </PagesOnly>
 
-<AppOnly>
-
-```js
-import db from './lib/db'
-
-export async function createSession(user) {
-  const sessionId = generateSessionId() // Generate a unique session ID
-  await db.insertSession({ sessionId, userId: user.id, createdAt: new Date() })
-  return sessionId
-}
-```
-
-**Retrieving a Session in Middleware or Server-Side Logic**:
-
-```js
-import { cookies } from 'next/headers'
-import db from './lib/db'
-
-export async function getSession() {
-  const sessionId = cookies().get('sessionId')?.value
-  return sessionId ? await db.findSession(sessionId) : null
-}
-```
-
-</AppOnly>
-
 ### Selecting Session Management in Next.js
 
 Deciding between cookie-based and database sessions in Next.js depends on your application's needs. Cookie-based sessions are simpler and suit smaller applications with lower server load but may offer less security. Database sessions, while more complex, provide better security and scalability, ideal for larger, data-sensitive applications.
@@ -765,28 +786,6 @@ Deciding between cookie-based and database sessions in Next.js depends on your a
 With [authentication solutions](#examples) such as [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5), session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
 
 Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
-
-## Examples
-
-Here are authentication solutions compatible with Next.js, please refer to the quickstart guides below to learn how to configure them in your Next.js application:
-
-{/* TODO: Change link to authjs.dev when new documentation is ready */}
-
-- [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
-- [Clerk](https://clerk.com/docs/quickstarts/nextjs)
-- [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
-- [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
-- [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5)
-- [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
-- [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
-- [Iron Session](https://github.com/vvo/iron-session)
-
-## Further Reading
-
-To continue learning about authentication and security, check out the following resources:
-
-- [Understanding XSS Attacks](https://vercel.com/guides/understanding-xss-attacks)
-- [Understanding CSRF Attacks](https://vercel.com/guides/understanding-csrf-attacks)
 
 ## Authorization
 
@@ -1105,6 +1104,24 @@ In this example, the Dashboard component renders different UIs for 'admin', 'use
 - **Dynamic Role Management**: Use a flexible system for user roles to easily adjust to changes in permissions and roles, avoiding hardcoded roles.
 - **Security-First Approach**: In all aspects of authorization logic, prioritize security to safeguard user data and maintain the integrity of your application. This includes thorough testing and considering potential security vulnerabilities.
 
-## FAQs
+## Auth Providers
 
-### Why can't I handle auth in layouts?
+Here are authentication solutions compatible with Next.js, please refer to the quickstart guides below to learn how to configure them in your Next.js application:
+
+{/* TODO: Change link to authjs.dev when new documentation is ready */}
+
+- [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
+- [Clerk](https://clerk.com/docs/quickstarts/nextjs)
+- [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
+- [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
+- [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5)
+- [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
+- [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
+- [Iron Session](https://github.com/vvo/iron-session)
+
+## Further Reading
+
+To continue learning about authentication and security, check out the following resources:
+
+- [Understanding XSS Attacks](https://vercel.com/guides/understanding-xss-attacks)
+- [Understanding CSRF Attacks](https://vercel.com/guides/understanding-csrf-attacks)
