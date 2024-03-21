@@ -13,7 +13,6 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
-import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -106,6 +105,9 @@ export async function initialize(opts: {
   let devBundlerService: DevBundlerService | undefined
 
   if (opts.dev) {
+    const { Telemetry } =
+      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
+
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
