@@ -1,17 +1,17 @@
 ---
 title: Authentication
-description: Learn how to implement authentication in Next.js.
+description: Learn how to implement authentication in your Next.js application.
 ---
 
-Authentication is a common feature in web applications, and knowing how to implement it securely is crucial for protecting your user's data and ensuring a smooth experience. This page will guide you through the best practices, Next.js and React features, and third-party libraries you can use to implement authentication in your application.
+Authentication is a feature common to many web applications, and understanding how to implement it is crucial to protect data and ensure a smooth user experience. This page will guide you through how you can use Next.js and React features with third-party libraries to implement authentication. It also covers best practices and patterns so you can choose the right approach for your application.
 
-Before starting, it helps to break down the authentication process into three key concepts or steps:
+Before starting, it helps to break down the authentication process into three key concepts, or steps:
 
 1. **[Authentication](#authentication)**: Verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as a username and password, or use a 3rd-party service like Google.
 2. **[Session Management](#session-management)**: Tracks the user's auth state (e.g. logged-in) across requests. It involves creating, storing, updating, and deleting sessions.
 3. **[Authorization](#authorization)**: Decides what routes and data the user can access. It includes redirecting users based on their auth state or role, and preventing unauthorized access to data.
 
-This diagram illustrates the authentication flow, and what Next.js features you can use for authentication, session management, and authorization:
+This diagram illustrates the authentication flow in Next.js:
 
 {/* TODO: Auth Diagram */}
 
@@ -25,7 +25,7 @@ For educational purposes, the examples in this section will walk you through bas
 
 ### Sign-up and login functionality
 
-You can use React's [`<form>`](https://react.dev/reference/react-dom/components/form), [Server Actions](/docs/app/building-your-application/rendering/server-components), [useFormStatus()](https://react.dev/reference/react-dom/hooks/useFormStatus), and [useFormState()](https://react.dev/reference/react-dom/hooks/useFormState), to capture user data, validate form fields on the server, and call your Authentication Provider's API or database. Since Server Actions execute on the server, they provide a secure environment for handling sensitive operations.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [useFormStatus()](https://react.dev/reference/react-dom/hooks/useFormStatus), and [useFormState()](https://react.dev/reference/react-dom/hooks/useFormState), to capture user data, validate form fields on the server, and call your Authentication Provider's API or database. Since Server Actions execute on the server, they provide a secure environment for handling sensitive data.
 
 Here are the steps to implement a sign-up and/or login form:
 
@@ -95,9 +95,9 @@ export async function signup(formData) {
 
 #### 2. Validate form fields on the server
 
-Use the Server Action to validate the form fields on the the server and prevent client-side tampering. If your authentication provider doesn't provide field validation (or verification), you can use a schema validation library like [Zod](https://zod.dev/) or [Yup](https://github.com/jquense/yup).
+Use the Server Action tos validate the form fields on the the server. If your authentication provider doesn't provide form validation, you can use a schema validation library like [Zod](https://zod.dev/) or [Yup](https://github.com/jquense/yup).
 
-Normal form validation practices apply here. For example, you should check that the user has entered a valid email address, a password that meets your security requirements, and name is not empty. Using Zod as an example, you can define a schema for your form fields:
+Normal validation practices apply here. For example, you should check that the user has entered a valid email address, a password that meets your security requirements, name is not empty, etc. Using Zod as an example, you can define a schema for your form with appropriate error messages:
 
 ```ts filename="app/lib/definitions.ts" switcher
 import { z } from 'zod'
@@ -152,7 +152,7 @@ export const SignupFormSchema = z.object({
 })
 ```
 
-Then, in your Server Action, after validation, return early if any form fields do not match the criteria. This will prevent unecessary calls to your authentication provider's API or database:
+Then, in your Server Action, after validation, return early if any form fields do not match the criteria. By returning early, you prevent unecessary calls to your authentication provider's API or database:
 
 ```tsx filename="app/actions/auth.tsx" switcher
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
@@ -262,9 +262,9 @@ export function SignupForm() {
 }
 ```
 
-> **Tip:** Remove the `required` attribute from the input fields to allow `useFormState()` to handle validation. `required` uses the browser's native form validation, and will prevent the form from being submitted if the field is empty.
+> **Tip:** Remove the `required` attribute from the input fields to allow `useFormState()` to handle validation. `required` uses the browser's native form validation, and will prevent `useFormState()` from showing validation errors.
 
-You can also use the `useFormStatus()` hook to handle the pending state of the form on submission:
+You can also use the `useFormStatus()` hook to handle the pending state on form submission:
 
 ```tsx filename="app/ui/signup-form.tsx" switcher
 'use client'
@@ -304,15 +304,13 @@ export function SignupButton() {
 
 > **Tip:** `useFormStatus()` should be used in a separate component to avoid re-rendering the entire form when the form status changes.
 
-#### 3. Create or check user credentials
+#### 3. Create user or check user credentials
 
-After validating the form fields, you can call your authentication provider's API or database to create a new user account or check if the user exists.
+After validating the form fields, you can create a new user account or check if the user exists by calling your authentication provider's API or database.
 
 Continuing from the previous example, you should ensure the user's email is unique and passwords are stored securely:
 
 ```tsx filename="app/actions/auth.tsx" switcher
-// ...
-
 export async function signup(state: FormState, formData: FormData) {
   // 1. Validate form fields
   // ...
@@ -361,8 +359,6 @@ export async function signup(state: FormState, formData: FormData) {
 ```
 
 ```jsx filename="app/actions/auth.js" switcher
-// ...
-
 export async function signup(state, formData) {
   // 1. Validate form fields
   // ...
@@ -410,13 +406,14 @@ export async function signup(state, formData) {
 }
 ```
 
-> **Tips:**
->
-> - Inversely, on login, you should check if the hashed password matches the user's input.
-> - To improve the user experience, you may want to check for duplicate emails or usernames earlier in the authentication flow. For example, as the user types in their email or the input field loses focus. This can help prevent unnecessary form submissions and provide immediate feedback to the user. Consider libraries such as [use-debounce](https://www.npmjs.com/package/use-debounce) to manage the frequency of these checks.
-> - The example above breaks down the authentication steps for the purpose of teaching, making it verbose. This highlights that implementing your own secure auth solution can quickly become complex and verbose too. Consider using an [Auth Provider](#auth-provider) to simplify the process.
+Inversely, on login, you should check if the hashed password matches the user's input.
 
 After successfully creating the user account or verifying the user, you can create a session to manage the user's auth state. Depending on your session management strategy, the session can be stored in a cookie or database, or both. Continue to the [Session Management](#session-management) section to learn more.
+
+> **Tips:**
+>
+> - To improve the user experience, you may want to check for duplicate emails or usernames earlier in the authentication flow. For example, as the user types in their email or the input field loses focus. This can help prevent unnecessary form submissions and provide immediate feedback to the user. Consider libraries such as [use-debounce](https://www.npmjs.com/package/use-debounce) to manage the frequency of these checks.
+> - The example above breaks down the authentication steps for the purpose of teaching, making it verbose. This highlights that implementing your own secure auth solution can quickly become complex and verbose too. Consider using an [Auth Provider](#auth-provider) to simplify the process.
 
 </AppOnly>
 
@@ -553,100 +550,212 @@ export default async function handler(req, res) {
 
 ## Session Management
 
-Session management ensures that an user's authenticated state is preserved across requests, and sometimes, devices. This makes it more convenient for users as it prevents the need for repeated logins.
+Session management ensures that an user's authenticated state is preserved across requests, and sometimes, across multiple devices. It involves creating, storing, updating, and deleting sessions.
 
 There are two types of sessions:
 
-1. **Stateless (or Optimistic) Sessions**: Store session data in browser cookies. The cookie is sent with each request, and the is session verified on the server. This method is simpler, but can be less secure.
-2. **Database (or Secure) Sessions**: Store session data on the server, with the user's browser only receiving the encrypted session ID. This method is more secure, but can be more complex and use more server resources.
+1. **Stateless (or Optimistic) Sessions**: Session data is stored in browser's cookies. The cookie is sent with each request, allowing the session verified to be verified on the server. This method is simpler, but can be less secure if not implemented correctly.
+2. **Database (or Secure) Sessions**: Session data is stored on a databases, with the user's browser only receiving the encrypted session ID. This method is more secure, but can be more complex and use more server resources.
 
-> While you can use either method, or a combination of both, we recommend using a third-party library for session management. See [Session Management Libraries](#session-management-libraries) for more information.
+> While you can use either method, or both, we recommend using a third-party library for session management. See [Session Management Libraries](#session-management-libraries) for more information.
 
 ### Stateless Sessions
 
 <AppOnly>
 
-You can use Next.js' [`cookies()`](/docs/app/api-reference/functions/cookies) API to store session data in the browser. But, before setting the cookies, you should:
+To create and manage stateless sessions in your Next.js application, there are a few steps you need to follow:
 
-1. Generate a secret key to sign the session data, and store it in your [environment variables file](/docs/app/building-your-application/configuring/environment-variables).
-2. Encrypt your key and session to prevent tampering.
-3. Set the cookies using the recommended options.
+1. Generate a secret key, which will be used to signed your session, and store the key as an [environment variable](/docs/app/building-your-application/configuring/environment-variables).
+2. Encrypt/decrypt session data using a session management library.
+3. Save the session as cookie using the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the recommended options.
 
-In addition to the above, consider introducing functionality to manage session data, such as decrypting, extending, and deleting sessions.
+In addition to the above, consider adding functionality update (or extend) the session when the user returns to the application, and delete the session when the user logs out.
 
-> **Tip:** If you're using a [Auth Provider](#auth-provider), check if they handle session management. If they do, you can skip this section.
-
-Continuing from the previous example, we'll demonstrate how you manage a sessions using [Jose](https://www.npmjs.com/package/jose) (a popular session management library), and set the cookie on the server using Next.js.
+> **Tip:**
+>
+> - If you're using a [Auth Provider](#auth-provider), check if they provide session management.
+> - Here, we're using sessions, but the same principles apply to tokens.
 
 #### 1. Generating a secret key
 
-#### 2. Encrypting the session
+You'll need a secret key to sign the session data. There are a few ways you can generate this key. For example, you may choose to use the `openssl` command in your terminal:
+
+```bash filename="terminal"
+openssl rand -base64 32
+```
+
+This command generates a 32-character random string that you can use as your secret key. Store this key in your environment variables file:
+
+```bash filename=".env"
+SESSION_SECRET=your_secret_key
+```
+
+You can then reference this key in your session management logic:
+
+```tsx filename="app/actions/session.ts" switcher
+const secretKey = process.env.SESSION_SECRET
+```
+
+#### 2. Encrypting and decrypting sessions
+
+Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt your session. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (which is compatible with the Edge Runtime) to demonstrate how to encrypt and decrypt session data:
+
+```tsx filename="app/actions/session.ts" switcher
+import 'server-only'
+import { SignJWT, jwtVerify } from 'jose'
+
+const secretKey = process.env.SESSION_SECRET
+const encodedKey = new TextEncoder().encode(secretKey)
+
+export async function encrypt(payload: SessionPayload) {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(encodedKey)
+}
+
+export async function decrypt(session: string | undefined = '') {
+  try {
+    const { payload } = await jwtVerify(session, encodedKey, {
+      algorithms: ['HS256'],
+    })
+    return payload
+  } catch (error) {
+    console.log('Failed to verify session')
+  }
+}
+```
+
+```jsx filename="app/actions/session.js" switcher
+import 'server-only'
+import { SignJWT, jwtVerify } from 'jose'
+
+const secretKey = process.env.SESSION_SECRET
+const encodedKey = new TextEncoder().encode(secretKey)
+
+export async function encrypt(payload) {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d') // For database sessions
+    .sign(encodedKey)
+}
+
+export async function decrypt(session) {
+  try {
+    const { payload } = await jwtVerify(session, encodedKey, {
+      algorithms: ['HS256'],
+    })
+    return payload
+  } catch (error) {
+    console.log('Failed to verify session')
+  }
+}
+```
+
+> **Tip**:
+>
+> - The payload should contain the **minimum**, unique user data that'll be used in subsequent requests, such as the user's ID, role, session expiration date, etc. It should not contain sensitive data like passwords, phone numbers, or credit card information.
 
 #### 3. Setting the cookie (recommended options)
 
-#### Decrypting the session data
+To set the session as a cookie, use the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the recommended options:
 
-#### Updating the session
+- **HttpOnly**: Prevents client-side JavaScript from accessing the cookie.
+- **Secure**: Use HTTPS to send the cookie.
+- **SameSite**: Specify whether the cookie can be sent with cross-site requests.
+- **Max-Age or Expires**: Delete the cookie after a certain period.
+- **Path**: Define the URL path for the cookie.
 
-#### Deleting the session
+Please refer to [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies) for more information on cookie options.
+
+Continuing from the previous example, here's an example of how you'd save the session information as cookie:
+
+```tsx filename="app/actions/session.ts" switcher
+import 'server-only'
+import { cookies } from 'next/headers'
+
+// Decrypt and encrypt functions
+
+export async function createSession(userId: string) {
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  const session = await encrypt({ userId, expiresAt })
+
+  cookies().set('session', session, {
+    httpOnly: true,
+    secure: true,
+    expires: expiresAt,
+    sameSite: 'lax',
+    path: '/',
+  })
+}
+```
+
+Back in your Server Action, you can invoke the `createSession()` function after successfully creating the user or verifying their credentials, and use the [`redirect()`](/docs/app/building-your-application/routing/redirecting) API to redirect the user to the appropriate page:
+
+```tsx filename="app/actions/auth.ts" switcher
+import { createSession } from '@/app/actions/session'
+
+export async function signup(state: FormState, formData: FormData) {
+  // Previous steps:
+  // 1. Validate form fields
+  // 2. Prepare data for insertion into database
+  // 3. Insert the user into the database or call an Auth Provider's API
+
+  // Current steps:
+  // 4. Create user session
+  await createSession(user.id)
+  // 5. Redirect user
+  redirect('/profile')
+}
+```
 
 > **Tips**:
 >
-> - Use the React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that session management logic is only executed on the server.
-> - For improved security, cookies should always be set on the server. This prevents client-side tampering and ensures that sensitive data is not exposed to the client.
+> - For improved security, cookies should always be set on the server to prevent client-side tampering.
+> - Use the React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management utilities are only executed on the server.
 > - 🎥 Watch: Learn more about stateless sessions and authentication with Next.js → [YouTube (11 minutes)](https://www.youtube.com/watch?v=DJvM2lSPn6w).
 
-```ts filename="app/actions.ts" switcher
-'use server'
+#### Updating the session
 
+You can also extend the session's expiration time. This is useful for keeping the user logged in after they access the appplication again. For example:
+
+```tsx filename="app/actions/session.ts" switcher
+import 'server-only'
 import { cookies } from 'next/headers'
 
-export async function handleLogin(sessionData) {
-  const encryptedSessionData = encrypt(sessionData) // Encrypt your session data
-  cookies().set('session', encryptedSessionData, {
+// Decrypt and encrypt utils
+
+export async function updateSession() {
+  const session = cookies().get('session')?.value
+  if (!session) return
+
+  // Refresh the session
+  const parsed = await decrypt(session)
+  parsed.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  cookies.set({
+    name: 'session',
+    value: await encrypt(parsed),
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // One week
-    path: '/',
+    expires: parsed.expires,
   })
-  // Redirect or handle the response after setting the cookie
 }
 ```
 
-```js filename="app/actions.js" switcher
-'use server'
+#### Deleting the session
 
+To delete the cookie, you can clear the cookie on the server:
+
+```tsx filename="app/actions/session.ts" switcher
+import 'server-only'
 import { cookies } from 'next/headers'
 
-export async function handleLogin(sessionData) {
-  const encryptedSessionData = encrypt(sessionData) // Encrypt your session data
-  cookies().set('session', encryptedSessionData, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // One week
-    path: '/',
-  })
-  // Redirect or handle the response after setting the cookie
-}
-```
+// Other session management utils
 
-**Accessing the session data stored in the cookie in a server component:**
-
-```tsx filename="app/page.tsx" switcher
-import { cookies } from 'next/headers'
-
-export async function getSessionData(req) {
-  const encryptedSessionData = cookies().get('session')?.value
-  return encryptedSessionData ? JSON.parse(decrypt(encryptedSessionData)) : null
-}
-```
-
-```jsx filename="app/page.jsx" switcher
-import { cookies } from 'next/headers'
-
-export async function getSessionData(req) {
-  const encryptedSessionData = cookies().get('session')?.value
-  return encryptedSessionData ? JSON.parse(decrypt(encryptedSessionData)) : null
+export async function deleteSession() {
+  cookies().delete('session')
 }
 ```
 
@@ -697,35 +806,54 @@ export default function handler(req, res) {
 
 ### Database Sessions
 
-Database session management involves storing session data on the server, with the user's browser only receiving a session ID. This ID references the session data stored server-side, without containing the data itself. This method enhances security, as it keeps sensitive session data away from the client-side environment, reducing the risk of exposure to client-side attacks. Database sessions are also more scalable, accommodating larger data storage needs.
+To create and manage database sessions in your Next.js application, you'll need to follow these steps:
 
-However, this approach has its tradeoffs. It can increase performance overhead due to the need for database lookups at each user interaction. Strategies like session data caching can help mitigate this. Additionally, reliance on the database means that session management is as reliable as the database's performance and availability.
-
-Here's a simplified example of implementing database sessions in a Next.js application:
+1. Create a table in your database to store session data.
+2. Implement functionality to insert, find, update, and delete sessions.
+3. Encrypt the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic checks in [Middleware](#middleware))
 
 <AppOnly>
 
-```js
-import db from './lib/db'
+Here's a breakdown of how you can create a new database session, and encrypt the session ID before storing it in a cookie:
 
-export async function createSession(user) {
-  const sessionId = generateSessionId() // Generate a unique session ID
-  await db.insertSession({ sessionId, userId: user.id, createdAt: new Date() })
-  return sessionId
+```tsx
+import cookies from 'next/headers'
+
+// Decrypt and encrypt utils
+
+export async function createSession(id: number) {
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  // 1. Create a session in the database
+  const data = await db
+    .insert(sessions)
+    .values({
+      userId: id,
+      expiresAt,
+    })
+    // Return the session ID
+    .returning({ id: sessions.id })
+
+  const sessionId = data[0].id
+
+  // 2. Encrypt the session ID
+  const session = await encrypt({ sessionId, expiresAt })
+
+  // 3. Store the session in cookies for optimistic auth checks
+  cookies().set('session', session, {
+    httpOnly: true,
+    secure: true,
+    expires: expiresAt,
+    sameSite: 'lax',
+    path: '/',
+  })
 }
 ```
 
-**Retrieving a Session in Middleware or Server-Side Logic**:
-
-```js
-import { cookies } from 'next/headers'
-import db from './lib/db'
-
-export async function getSession() {
-  const sessionId = cookies().get('sessionId')?.value
-  return sessionId ? await db.findSession(sessionId) : null
-}
-```
+> **Tips**:
+>
+> - For faster data retrieval, consider using a database like [Vercel Redis](https://vercel.com/docs/storage/vercel-kv). However, you can also keep the session data in your primary database, and combine data requests to reduce the number of queries.
+> - Database sessions can be used to keep track of user activity, such as the last time a user logged in, or number of active devices. You can also give your users the ability to log out of all devices, or view their active sessions.
 
 </AppOnly>
 
@@ -779,17 +907,14 @@ export default async function handler(req, res) {
 
 </PagesOnly>
 
-### Selecting Session Management in Next.js
-
-Deciding between cookie-based and database sessions in Next.js depends on your application's needs. Cookie-based sessions are simpler and suit smaller applications with lower server load but may offer less security. Database sessions, while more complex, provide better security and scalability, ideal for larger, data-sensitive applications.
-
-With [authentication solutions](#examples) such as [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5), session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
-
-Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
-
 ## Authorization
 
-Once a user is authenticated, you'll need to ensure the user is allowed to visit certain routes, and perform operations such as mutating data with Server Actions and calling Route Handlers.
+Once a user is authenticated and a session is created, you can implement authorization to control what the user can access and do within your application.
+
+There are two main types of authorization:
+
+1. **Role-Based Authorization**: Users are assigned roles that determine what they can access. For example, an admin user might have access to all parts of the application, while a regular user might only have access to their profile.
+2. **Permission-Based Authorization**: Users are assigned permissions that determine what they can access. For example, a user might have permission to view their profile, but not edit it.
 
 ### Protecting Routes with Middleware
 
