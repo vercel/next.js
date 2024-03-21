@@ -4,13 +4,14 @@ import type { FetchMetrics } from './index'
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
 import { DetachedPromise } from '../../lib/detached-promise'
+import { NextRequestHint } from '../web/adapter'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
   public fetchMetrics?: FetchMetrics
 
-  constructor(request: Request) {
+  constructor(request: NextRequestHint | Request) {
     const url = new URL(request.url)
 
     super(
@@ -19,6 +20,8 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
       request.clone().body
     )
     this.request = request
+    this.fetchMetrics =
+      request instanceof NextRequestHint ? request.fetchMetrics : undefined
 
     this.headers = {}
     for (const [name, value] of request.headers.entries()) {
