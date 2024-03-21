@@ -5,8 +5,6 @@ import type { NextOptions } from './fixtures/next-options'
 import type { NextWorkerFixture } from './fixtures/next-worker-fixture'
 import { applyNextWorkerFixture } from './fixtures/next-worker-fixture'
 import { applyNextFixture } from './fixtures/next-fixture'
-import type { NextStubFixture } from './fixtures/next-stub'
-import { applyNextStubFixture } from './fixtures/next-stub'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
@@ -28,7 +26,7 @@ export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
 }
 
 export const test = base.test.extend<
-  { next: NextFixture; nextOptions: NextOptions; stub: NextStubFixture },
+  { next: NextFixture; nextOptions: NextOptions },
   { _nextWorker: NextWorkerFixture }
 >({
   nextOptions: [{ fetchLoopback: false }, { option: true }],
@@ -47,12 +45,6 @@ export const test = base.test.extend<
       nextWorker: _nextWorker,
       page,
       nextOptions,
-    })
-  },
-
-  stub: async ({ next }, use) => {
-    await applyNextStubFixture(use, {
-      next,
     })
   },
 })
