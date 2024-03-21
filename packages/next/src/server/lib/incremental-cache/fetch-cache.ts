@@ -168,8 +168,15 @@ export default class FetchCache implements CacheHandler {
     // on successive requests
     let data = memoryCache?.get(key)
 
-    // get data from fetch cache
-    if (!data && this.cacheEndpoint) {
+    const isCacheable = !data && this.cacheEndpoint
+    const hasFetchKindAndIncludesTags =
+      tags?.every(
+        (tag) => data?.value?.kind === 'FETCH' && data.value.tags?.includes(tag)
+      ) ?? false
+
+    // Get data from fetch cache. Also check if new tags have been
+    // specified with the same cache key (fetch URL)
+    if (isCacheable || hasFetchKindAndIncludesTags) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
@@ -218,6 +225,13 @@ export default class FetchCache implements CacheHandler {
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
           throw new Error(`invalid cache value`)
+        }
+
+        // if new tags were specified, merge those tags to the existing tags
+        if (data?.value?.kind === 'FETCH') {
+          data.value.tags = [
+            ...new Set([...(data.value.tags ?? []), ...(tags ?? [])]),
+          ]
         }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)
