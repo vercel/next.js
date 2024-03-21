@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::{fs, path::MAIN_SEPARATOR};
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -157,6 +157,8 @@ pub struct ProjectContainer {
 impl ProjectContainer {
     #[turbo_tasks::function]
     pub fn new(options: ProjectOptions) -> Vc<Self> {
+        // let json = serde_json::to_string_pretty(&options).unwrap();
+        // fs::write("project_options.json", json).unwrap();
         ProjectContainer {
             options_state: State::new(options),
             versioned_content_map: VersionedContentMap::new(),

@@ -3130,6 +3130,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "next-build-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "next-api",
+ "next-core",
+ "serde_json",
+ "tokio",
+ "turbo-tasks",
+ "turbo-tasks-malloc",
+ "turbopack-binding",
+]
+
+[[package]]
 name = "next-core"
 version = "0.1.0"
 dependencies = [
