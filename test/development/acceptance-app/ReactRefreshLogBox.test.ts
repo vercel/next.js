@@ -164,7 +164,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   })
 
   // TODO: investigate why this fails when running outside of the Next.js
-  // monorepo e.g. fails when using yarn create next-app
+  // monorepo e.g. fails when using pnpm create next-app
   // https://github.com/vercel/next.js/pull/23203
   test.skip('internal package errors', async () => {
     const { session, cleanup } = await sandbox(next)
@@ -357,7 +357,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
-    await session.patch('index.module.css', `.button {`)
+    await session.patch('index.module.css', `.button`)
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
@@ -365,9 +365,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     if (!IS_TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
-      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('Unknown word')
     }
-    expect(source).toMatch('> 1 | .button {')
+    expect(source).toMatch('> 1 | .button')
     expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
 
     // Checks for selectors that can't be prefixed.

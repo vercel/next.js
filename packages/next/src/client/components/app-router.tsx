@@ -182,8 +182,11 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
+    head: null,
+    prefetchHead: null,
     parallelRoutes: new Map(),
     lazyDataResolved: false,
+    loading: null,
   }
 }
 
@@ -225,38 +228,15 @@ function useChangeByServerResponse(
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, shouldScroll) => {
-      const navigateWrapper = process.env.__NEXT_NAVIGATION_RAF
-        ? (cb: () => void) => {
-            let finished = false
+      const url = new URL(addBasePath(href), location.href)
 
-            // if the frame is hidden or requestAnimationFrame
-            // is delayed too long add upper bound timeout
-            setTimeout(() => {
-              if (!finished) {
-                finished = true
-                cb()
-              }
-            }, 1000)
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                finished = true
-                cb()
-              }, 1)
-            })
-          }
-        : (cb: () => void) => cb()
-
-      navigateWrapper(() => {
-        const url = new URL(addBasePath(href), location.href)
-
-        return dispatch({
-          type: ACTION_NAVIGATE,
-          url,
-          isExternalUrl: isExternalURL(url),
-          locationSearch: location.search,
-          shouldScroll: shouldScroll ?? true,
-          navigateType,
-        })
+      return dispatch({
+        type: ACTION_NAVIGATE,
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
+        shouldScroll: shouldScroll ?? true,
+        navigateType,
       })
     },
     [dispatch]
@@ -414,7 +394,6 @@ function Router({
           })
         })
       },
-      // @ts-ignore we don't want to expose this method at all
       fastRefresh: () => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
@@ -472,6 +451,11 @@ function Router({
       ) {
         return
       }
+
+      // Clear the pendingMpaPath value so that a subsequent MPA navigation to the same URL can be triggered.
+      // This is necessary because if the browser restored from bfcache, the pendingMpaPath would still be set to the value
+      // of the last MPA navigation.
+      globalMutable.pendingMpaPath = undefined
 
       dispatch({
         type: ACTION_RESTORE,
@@ -700,6 +684,7 @@ function Router({
                     // Root node always has `url`
                     // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                     url: canonicalUrl,
+                    loading: cache.loading,
                   }}
                 >
                   {content}

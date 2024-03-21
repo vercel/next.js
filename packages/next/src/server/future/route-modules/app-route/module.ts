@@ -314,7 +314,7 @@ export class AppRouteRouteModule extends RouteModule<
                       // We should never be in this case but since it can happen based on the way our build/execution is structured
                       // We defend against it for the time being
                       throw new Error(
-                        'Invariant: `dynamic-error` during static generation not expected for app routes. This is a bug in Next.js'
+                        'Invariant: `force-dynamic` during static generation not expected for app routes. This is a bug in Next.js'
                       )
                       break
                     case 'force-static':
@@ -688,7 +688,7 @@ const staticGenerationRequestHandlers = {
       case 'arrayBuffer':
       case 'formData':
         throw new DynamicServerError(
-          `Route couldn't be rendered statically because it accessed \`request.${prop}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+          `Route ${target.nextUrl.pathname} couldn't be rendered statically because it accessed \`request.${prop}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
         )
       case 'clone':
         return (
@@ -733,7 +733,7 @@ const staticGenerationNextUrlHandlers = {
       case 'toString':
       case 'origin':
         throw new DynamicServerError(
-          `Route couldn't be rendered statically because it accessed \`nextUrl.${prop}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+          `Route ${target.pathname} couldn't be rendered statically because it accessed \`nextUrl.${prop}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
         )
       case 'clone':
         return (
@@ -776,7 +776,7 @@ const requireStaticRequestHandlers = {
       case 'arrayBuffer':
       case 'formData':
         throw new StaticGenBailoutError(
-          `Route with \`dynamic = "error"\` couldn't be rendered statically because it accessed \`request.${prop}\`.`
+          `Route ${target.nextUrl.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it accessed \`request.${prop}\`.`
         )
       case 'clone':
         return (
@@ -821,7 +821,7 @@ const requireStaticNextUrlHandlers = {
       case 'toString':
       case 'origin':
         throw new StaticGenBailoutError(
-          `Route with \`dynamic = "error"\` couldn't be rendered statically because it accessed \`nextUrl.${prop}\`.`
+          `Route ${target.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it accessed \`nextUrl.${prop}\`.`
         )
       case 'clone':
         return (

@@ -354,8 +354,10 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      prefetchHead: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
+      loading: null,
     }
 
     /**
@@ -450,6 +452,7 @@ function InnerLayoutRouter({
         childNodes: childNode.parallelRoutes,
         // TODO-APP: overriding of url for parallel routes
         url: url,
+        loading: childNode.loading,
       }}
     >
       {resolvedRsc}
@@ -468,15 +471,13 @@ function LoadingBoundary({
   loading,
   loadingStyles,
   loadingScripts,
-  hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
   loadingStyles?: React.ReactNode
   loadingScripts?: React.ReactNode
-  hasLoading: boolean
 }): JSX.Element {
-  if (hasLoading) {
+  if (loading) {
     return (
       <Suspense
         fallback={
@@ -507,10 +508,6 @@ export default function OuterLayoutRouter({
   errorScripts,
   templateStyles,
   templateScripts,
-  loading,
-  loadingStyles,
-  loadingScripts,
-  hasLoading,
   template,
   notFound,
   notFoundStyles,
@@ -524,10 +521,6 @@ export default function OuterLayoutRouter({
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
-  loading: React.ReactNode | undefined
-  loadingStyles: React.ReactNode | undefined
-  loadingScripts: React.ReactNode | undefined
-  hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
   styles?: React.ReactNode
@@ -537,7 +530,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url } = context
+  const { childNodes, tree, url, loading } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -588,10 +581,9 @@ export default function OuterLayoutRouter({
                   errorScripts={errorScripts}
                 >
                   <LoadingBoundary
-                    hasLoading={hasLoading}
-                    loading={loading}
-                    loadingStyles={loadingStyles}
-                    loadingScripts={loadingScripts}
+                    loading={loading?.[0]}
+                    loadingStyles={loading?.[1]}
+                    loadingScripts={loading?.[2]}
                   >
                     <NotFoundBoundary
                       notFound={notFound}

@@ -38,9 +38,6 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
   const originalPayload = atob(arg)
   const ivValue = originalPayload.slice(0, 16)
   const payload = originalPayload.slice(16)
-  if (payload === undefined) {
-    throw new Error('Invalid Server Action payload.')
-  }
 
   const decrypted = textDecoder.decode(
     await decrypt(key, stringToUint8Array(ivValue), stringToUint8Array(payload))
@@ -104,7 +101,7 @@ export async function decryptActionBoundArgs(
   const deserialized = await createFromReadableStream(
     new ReadableStream({
       start(controller) {
-        controller.enqueue(new TextEncoder().encode(decryped))
+        controller.enqueue(textEncoder.encode(decryped))
         controller.close()
       },
     }),

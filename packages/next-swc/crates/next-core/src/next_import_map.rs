@@ -26,6 +26,7 @@ use crate::{
     mode::NextMode,
     next_client::context::ClientContextType,
     next_config::NextConfig,
+    next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::{
         google::{
             NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
@@ -37,6 +38,57 @@ use crate::{
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
+
+const NODE_INTERNALS: [&str; 48] = [
+    "assert",
+    "async_hooks",
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "events",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "stream",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "util",
+    "util/types",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+    "pnpapi",
+];
 
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
@@ -416,7 +468,27 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
+    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+
     Ok(import_map.cell())
+}
+
+/// Insert default aliases for the node.js's internal to raise unsupported
+/// runtime errors. User may provide polyfills for their own by setting user
+/// config's alias.
+fn insert_unsupported_node_internal_aliases(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+) {
+    let unsupported_replacer = ImportMapping::Dynamic(Vc::upcast(
+        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context),
+    ))
+    .into();
+
+    NODE_INTERNALS.iter().for_each(|module| {
+        import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
+    });
 }
 
 pub fn get_next_client_resolved_map(
@@ -603,31 +675,34 @@ async fn rsc_aliases(
     };
 
     if runtime == NextRuntime::NodeJs {
-        if let ServerContextType::AppSSR { .. } = ty {
-            alias.extend(indexmap! {
-                "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
-                "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-                "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
-                "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
-                "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-            })
-        }
+        match ty {
+            ServerContextType::AppSSR { .. } => {
+                alias.extend(indexmap! {
+                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
+                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
+                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                })
+            }
+            ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+                alias.extend(indexmap! {
+                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
+                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
+                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
-        if let ServerContextType::AppRSC { .. } = ty {
-            alias.extend(indexmap! {
-                "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
-                "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-                "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
-                "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
-                "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-
-                // Needed to make `react-dom/server` work.
-                "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
-            })
+                    // Needed to make `react-dom/server` work.
+                    "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
+                })
+            }
+            _ => {}
         }
     }
 

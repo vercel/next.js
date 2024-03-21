@@ -25,6 +25,7 @@ export function VersionStalenessInfo(props: VersionInfo) {
           (learn more)
         </a>
       )}
+      {process.env.TURBOPACK ? ' (turbo)' : ''}
     </small>
   )
 }
@@ -37,7 +38,7 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
   switch (staleness) {
     case 'newer-than-npm':
     case 'fresh':
-      text = `${versionLabel} ${process.env.TURBOPACK ? ' (turbo)' : ''}`
+      text = versionLabel
       title = `Latest available version is detected (${installed}).`
       indicatorClass = 'fresh'
       break
