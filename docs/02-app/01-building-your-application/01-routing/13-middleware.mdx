@@ -60,7 +60,7 @@ export function middleware(request: NextRequest) {
 ```js filename="middleware.js" switcher
 import { NextResponse } from 'next/server'
 import { authMatcher, authMiddleware } from '/auth'
-import { rateLimitMatcher, rateLimitMiddleware } from '/middleware/rateLimit'
+import { rateLimitMatcher, rateLimitMiddleware } from '/rateLimit'
 
 export const config = {
   matcher: [...authMatcher, ...rateLimitMatcher],
