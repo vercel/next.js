@@ -6,16 +6,20 @@
 name: Turbopack Next.js production integration tests
 
 on:
-  workflow_call:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
     inputs:
       # Allow to specify Next.js version to run integration test against.
       # If not specified, will use latest release version including canary.
       version:
+        description: Next.js version, sha, branch to test
         type: string
+        default: 'canary'
       # The base of the test results to compare against. If not specified, will try to compare with latest main branch's test results.
       diff_base:
         type: string
-        default: 'main'
+        default: 'none'
 
 # Workflow-common env variables
 env:
@@ -199,4 +203,4 @@ jobs:
           DD_ENV: 'ci'
         run: |
           # We'll tag this to the "Turbopack" datadog service, not "nextjs"
-          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack-build.daily --service Turbopack ./test/reports
+          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack-build.daily --service Turbopack-build ./test/reports

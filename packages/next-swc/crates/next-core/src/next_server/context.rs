@@ -67,7 +67,7 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{foreign_code_context_condition, load_next_js_templateon},
+    util::{foreign_code_context_condition, load_next_js_templateon, NextRuntime},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -161,13 +161,15 @@ pub async fn get_server_resolve_options_context(
     custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
 
     match ty {
-        ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
-        ServerContextType::AppRoute { .. }
-        | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
         | ServerContextType::PagesApi { .. }
+        | ServerContextType::Middleware { .. } => {
+            custom_conditions.push("react-server".to_string())
+        }
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
@@ -323,11 +325,14 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
+    next_runtime: NextRuntime,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false, next_runtime)
+            .await?;
     let mut foreign_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true).await?;
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
+            .await?;
     let internal_custom_rules =
         get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
             .await?;
@@ -435,7 +440,8 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     };
 
-    let module_options_context = match ty.into_value() {
+    let ty = ty.into_value();
+    let module_options_context = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -445,7 +451,7 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            if let ServerContextType::Pages { .. } = ty.into_value() {
+            if let ServerContextType::Pages { .. } = ty {
                 custom_source_transform_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
                         .await?,
@@ -460,7 +466,7 @@ pub async fn get_server_module_options_context(
 
             let url_rewrite_behavior = Some(
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
-                if let ServerContextType::PagesApi { .. } = ty.into_value() {
+                if let ServerContextType::PagesApi { .. } = ty {
                     UrlRewriteBehavior::Full
                 } else {
                     UrlRewriteBehavior::Relative
@@ -647,6 +653,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
+                enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
@@ -676,6 +683,10 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
 
+            let module_options_context = ModuleOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+                ..module_options_context
+            };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
@@ -716,6 +727,17 @@ pub async fn get_server_module_options_context(
 }
 
 #[turbo_tasks::function]
+pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
+    ModuleOptionsContext {
+        enable_typescript_transform: Some(Default::default()),
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+        ..Default::default()
+    }
+    .cell()
+}
+
+#[turbo_tasks::function]
 pub fn get_server_runtime_entries(
     _ty: Value<ServerContextType>,
     _mode: Vc<NextMode>,
@@ -725,12 +747,10 @@ pub fn get_server_runtime_entries(
 }
 
 #[turbo_tasks::function]
-pub async fn get_server_chunking_context(
+pub async fn get_server_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
-    // anyway?
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
@@ -743,12 +763,36 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks".to_string()),
+        node_root.join("server/chunks/ssr".to_string()),
         client_root.join("static/media".to_string()),
         environment,
         next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
+    .minify_type(next_mode.minify_type())
+    .build())
+}
+
+#[turbo_tasks::function]
+pub async fn get_server_chunking_context(
+    mode: Vc<NextMode>,
+    project_path: Vc<FileSystemPath>,
+    node_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
+    // TODO(alexkirsz) This should return a trait that can be implemented by the
+    // different server chunking contexts. OR the build chunking context should
+    // support both production and development modes.
+    Ok(NodeJsChunkingContext::builder(
+        project_path,
+        node_root,
+        node_root,
+        node_root.join("server/chunks".to_string()),
+        node_root.join("server/assets".to_string()),
+        environment,
+        next_mode.runtime_type(),
+    )
     .minify_type(next_mode.minify_type())
     .build())
 }
