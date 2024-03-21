@@ -11,17 +11,14 @@ import { matchSegment } from '../match-segments'
 function applyPatch(
   initialTree: FlightRouterState,
   patchTree: FlightRouterState,
-  applyPatchToDefaultSegment: boolean = false
+  flightSegmentPath: FlightSegmentPath
 ): FlightRouterState {
   const [initialSegment, initialParallelRoutes] = initialTree
   const [patchSegment, patchParallelRoutes] = patchTree
 
   // if the applied patch segment is __DEFAULT__ then it can be ignored in favor of the initial tree
   // this is because the __DEFAULT__ segment is used as a placeholder on navigation
-  // however, there are cases where we _do_ want to apply the patch to the default segment,
-  // such as when revalidating the router cache with router.refresh/revalidatePath
   if (
-    !applyPatchToDefaultSegment &&
     patchSegment === DEFAULT_SEGMENT_KEY &&
     initialSegment !== DEFAULT_SEGMENT_KEY
   ) {
@@ -37,7 +34,7 @@ function applyPatch(
         newParallelRoutes[key] = applyPatch(
           initialParallelRoutes[key],
           patchParallelRoutes[key],
-          applyPatchToDefaultSegment
+          flightSegmentPath
         )
       } else {
         newParallelRoutes[key] = initialParallelRoutes[key]
@@ -54,6 +51,7 @@ function applyPatch(
 
     const tree: FlightRouterState = [initialSegment, newParallelRoutes]
 
+    // Copy over the existing tree
     if (initialTree[2]) {
       tree[2] = initialTree[2]
     }
@@ -72,20 +70,26 @@ function applyPatch(
   return patchTree
 }
 
-function applyRouterStatePatchToTreeImpl(
+/**
+ * Apply the router state from the Flight response, but skip patching default segments.
+ * Useful for patching the router cache when navigating, where we persist the existing default segment if there isn't a new one.
+ * Creates a new router state tree.
+ */
+export function applyRouterStatePatchToTree(
   flightSegmentPath: FlightSegmentPath,
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState,
-  applyPatchDefaultSegment: boolean = false
+  href: string
 ): FlightRouterState | null {
-  const [segment, parallelRoutes, , , isRootLayout] = flightRouterState
+  const [segment, parallelRoutes, url, refetch, isRootLayout] =
+    flightRouterState
 
   // Root refresh
   if (flightSegmentPath.length === 1) {
     const tree: FlightRouterState = applyPatch(
       flightRouterState,
       treePatch,
-      applyPatchDefaultSegment
+      flightSegmentPath
     )
 
     return tree
@@ -105,14 +109,14 @@ function applyRouterStatePatchToTreeImpl(
     parallelRoutePatch = applyPatch(
       parallelRoutes[parallelRouteKey],
       treePatch,
-      applyPatchDefaultSegment
+      flightSegmentPath
     )
   } else {
-    parallelRoutePatch = applyRouterStatePatchToTreeImpl(
+    parallelRoutePatch = applyRouterStatePatchToTree(
       flightSegmentPath.slice(2),
       parallelRoutes[parallelRouteKey],
       treePatch,
-      applyPatchDefaultSegment
+      href
     )
 
     if (parallelRoutePatch === null) {
@@ -126,6 +130,8 @@ function applyRouterStatePatchToTreeImpl(
       ...parallelRoutes,
       [parallelRouteKey]: parallelRoutePatch,
     },
+    url,
+    refetch,
   ]
 
   // Current segment is the root layout
@@ -134,40 +140,4 @@ function applyRouterStatePatchToTreeImpl(
   }
 
   return tree
-}
-
-/**
- * Apply the router state from the Flight response to the tree, including default segments.
- * Useful for patching the router cache when we expect to revalidate the full tree, such as with router.refresh or revalidatePath.
- * Creates a new router state tree.
- */
-export function applyRouterStatePatchToFullTree(
-  flightSegmentPath: FlightSegmentPath,
-  flightRouterState: FlightRouterState,
-  treePatch: FlightRouterState
-): FlightRouterState | null {
-  return applyRouterStatePatchToTreeImpl(
-    flightSegmentPath,
-    flightRouterState,
-    treePatch,
-    true
-  )
-}
-
-/**
- * Apply the router state from the Flight response, but skip patching default segments.
- * Useful for patching the router cache when navigating, where we persist the existing default segment if there isn't a new one.
- * Creates a new router state tree.
- */
-export function applyRouterStatePatchToTreeSkipDefault(
-  flightSegmentPath: FlightSegmentPath,
-  flightRouterState: FlightRouterState,
-  treePatch: FlightRouterState
-): FlightRouterState | null {
-  return applyRouterStatePatchToTreeImpl(
-    flightSegmentPath,
-    flightRouterState,
-    treePatch,
-    false
-  )
 }
