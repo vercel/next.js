@@ -14,8 +14,10 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
+        next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
+    util::NextRuntime,
 };
 
 /// Returns a list of module rules which apply server-side, Next.js-specific
@@ -25,6 +27,7 @@ pub async fn get_next_server_transforms_rules(
     context_ty: ServerContextType,
     mode: Vc<NextMode>,
     foreign_code: bool,
+    next_runtime: NextRuntime,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -111,6 +114,10 @@ pub async fn get_next_server_transforms_rules(
         // optimize_use_state))
 
         rules.push(get_next_image_rule());
+
+        if let NextRuntime::Edge = next_runtime {
+            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+        }
     }
 
     Ok(rules)

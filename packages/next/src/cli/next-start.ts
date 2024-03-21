@@ -13,14 +13,12 @@ type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
-  experimentalTestProxy?: boolean
 }
 
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
   const host = options.hostname
   const port = options.port
-  const isExperimentalTestProxy = options.experimentalTestProxy
   let keepAliveTimeout = options.keepAliveTimeout
 
   if (isPortIsReserved(port)) {
@@ -30,7 +28,6 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
   await startServer({
     dir,
     isDev: false,
-    isExperimentalTestProxy,
     hostname: host,
     port,
     keepAliveTimeout,
