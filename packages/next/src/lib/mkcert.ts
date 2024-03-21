@@ -3,8 +3,10 @@ import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
-import { Readable } from 'stream'
-import { pipeline } from 'stream/promises'
+import { DetachedPromise } from './detached-promise'
+const { WritableStream } = require('node:stream/web') as {
+  WritableStream: typeof global.WritableStream
+}
 
 const MKCERT_VERSION = 'v1.4.4'
 
@@ -55,9 +57,35 @@ async function downloadBinary() {
 
     Log.info(`Download response was successful, writing to disk`)
 
-    await pipeline(
-      Readable.fromWeb(response.body as any), // type definition of ReadableStream from @types/node and lib.dom.d.ts are incompatible
-      fs.createWriteStream(binaryPath)
+    const binaryWriteStream = fs.createWriteStream(binaryPath)
+
+    await response.body.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          const { promise, resolve, reject } = new DetachedPromise<void>()
+          binaryWriteStream.write(chunk, (error) => {
+            if (error) {
+              reject(error)
+              return
+            }
+
+            resolve()
+          })
+          return promise
+        },
+        close() {
+          const { promise, resolve, reject } = new DetachedPromise<void>()
+          binaryWriteStream.close((error) => {
+            if (error) {
+              reject(error)
+              return
+            }
+
+            resolve()
+          })
+          return promise
+        },
+      })
     )
 
     await fs.promises.chmod(binaryPath, 0o755)
