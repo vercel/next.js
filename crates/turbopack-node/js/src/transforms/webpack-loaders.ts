@@ -35,6 +35,13 @@ export type IpcInfoMessage =
       type: "emittedError";
       severity: "warning" | "error";
       error: StructuredError;
+    }
+  | {
+      type: "log";
+      time: number;
+      logType: string;
+      args: any[];
+      trace?: StackFrame[];
     };
 
 export type IpcRequestMessage = {
@@ -333,36 +340,111 @@ const transform = (
           emitWarning: makeErrorEmitter("warning", ipc),
           emitError: makeErrorEmitter("error", ipc),
           getLogger(name: unknown) {
-            const logger = (type: unknown, args: unknown) => {
+            const logFn = (logType: string, ...args: unknown[]) => {
               let trace;
-              switch (type) {
+              switch (logType) {
                 case LogType.warn:
                 case LogType.error:
                 case LogType.trace:
-                  trace = cutOffLoaderExecution(new Error("Trace").stack!)
-                    .split("\n")
-                    .slice(3);
+                case LogType.debug:
+                  trace = parseStackTrace(
+                    cutOffLoaderExecution(new Error("Trace").stack!)
+                      .split("\n")
+                      .slice(3)
+                      .join("\n")
+                  );
                   break;
               }
-              const logEntry = {
+
+              ipc.sendInfo({
+                type: "log",
                 time: Date.now(),
-                type,
+                logType,
                 args,
                 trace,
-              };
-
-              this.hooks.log.call(name, logEntry);
+              });
             };
+            let timers: Map<string, [number, number]> | undefined;
+            let timersAggregates: Map<string, [number, number]> | undefined;
 
             // See https://github.com/webpack/webpack/blob/a48c34b34d2d6c44f9b2b221d7baf278d34ac0be/lib/logging/Logger.js#L8
-            // for the full logger interface if this isn't suffecient
-            logger.error = logger.bind(this, LogType.error);
-            logger.warn = logger.bind(this, LogType.warn);
-            logger.info = logger.bind(this, LogType.info);
-            logger.log = logger.bind(this, LogType.log);
-            logger.debug = logger.bind(this, LogType.debug);
-
-            return logger;
+            return {
+              error: logFn.bind(this, LogType.error),
+              warn: logFn.bind(this, LogType.warn),
+              info: logFn.bind(this, LogType.info),
+              log: logFn.bind(this, LogType.log),
+              debug: logFn.bind(this, LogType.debug),
+              assert: (assertion: boolean, ...args: any[]) => {
+                if (!assertion) {
+                  logFn(LogType.error, ...args);
+                }
+              },
+              trace: logFn.bind(this, LogType.trace),
+              clear: logFn.bind(this, LogType.clear),
+              status: logFn.bind(this, LogType.status),
+              group: logFn.bind(this, LogType.group),
+              groupCollapsed: logFn.bind(this, LogType.groupCollapsed),
+              groupEnd: logFn.bind(this, LogType.groupEnd),
+              profile: logFn.bind(this, LogType.profile),
+              profileEnd: logFn.bind(this, LogType.profileEnd),
+              time: (label: string) => {
+                timers = timers || new Map();
+                timers.set(label, process.hrtime());
+              },
+              timeLog: (label: string) => {
+                const prev = timers && timers.get(label);
+                if (!prev) {
+                  throw new Error(
+                    `No such label '${label}' for WebpackLogger.timeLog()`
+                  );
+                }
+                const time = process.hrtime(prev);
+                logFn(LogType.time, [label, ...time]);
+              },
+              timeEnd: (label: string) => {
+                const prev = timers && timers.get(label);
+                if (!prev) {
+                  throw new Error(
+                    `No such label '${label}' for WebpackLogger.timeEnd()`
+                  );
+                }
+                const time = process.hrtime(prev);
+                /** @type {Map<string | undefined, [number, number]>} */
+                timers!.delete(label);
+                logFn(LogType.time, [label, ...time]);
+              },
+              timeAggregate: (label: string) => {
+                const prev = timers && timers.get(label);
+                if (!prev) {
+                  throw new Error(
+                    `No such label '${label}' for WebpackLogger.timeAggregate()`
+                  );
+                }
+                const time = process.hrtime(prev);
+                /** @type {Map<string | undefined, [number, number]>} */
+                timers!.delete(label);
+                /** @type {Map<string | undefined, [number, number]>} */
+                timersAggregates = timersAggregates || new Map();
+                const current = timersAggregates.get(label);
+                if (current !== undefined) {
+                  if (time[1] + current[1] > 1e9) {
+                    time[0] += current[0] + 1;
+                    time[1] = time[1] - 1e9 + current[1];
+                  } else {
+                    time[0] += current[0];
+                    time[1] += current[1];
+                  }
+                }
+                timersAggregates.set(label, time);
+              },
+              timeAggregateEnd: (label: string) => {
+                if (timersAggregates === undefined) return;
+                const time = timersAggregates.get(label);
+                if (time === undefined) return;
+                timersAggregates.delete(label);
+                logFn(LogType.time, [label, ...time]);
+              },
+            };
           },
         },
 
