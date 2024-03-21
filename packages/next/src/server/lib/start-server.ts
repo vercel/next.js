@@ -264,7 +264,7 @@ export async function startServer(
         maxExperimentalFeatures: 3,
       })
 
-      Log.event(`Starting`)
+      Log.event(`Starting...`)
 
       try {
         const cleanup = () => {
