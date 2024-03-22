@@ -86,7 +86,11 @@ impl NextPrefixSuffixParamsMatcher {
     /// Converts a filename within the server root into a regular expression
     /// with named capture groups for every dynamic segment.
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<String>, prefix: String, suffix: String) -> Result<Vc<Self>> {
+    pub async fn new(
+        path: Vc<String>,
+        prefix: Arc<String>,
+        suffix: Arc<String>,
+    ) -> Result<Vc<Self>> {
         Ok(Self::cell(NextPrefixSuffixParamsMatcher {
             matcher: PrefixSuffixMatcher::new(
                 prefix.to_string(),
@@ -128,12 +132,12 @@ impl NextFallbackMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextFallbackMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: Arc<String>) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: Arc<String>) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }

@@ -141,7 +141,7 @@ pub async fn get_server_resolve_options_context(
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
         project_path,
-        "dist/lib/server-external-packages.json".to_string(),
+        "dist/lib/server-external-packages.json".to_string().into(),
     )
     .await?;
 
