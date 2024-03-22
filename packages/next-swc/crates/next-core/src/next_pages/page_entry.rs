@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, sync::Arc};
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
@@ -154,8 +154,8 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_page.clone(),
-                definition_pathname.clone(),
+                definition_page.clone().into(),
+                definition_pathname.clone().into(),
                 Value::new(reference_type),
                 pages_structure,
                 next_config,
@@ -165,7 +165,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.to_string(),
+                definition_pathname.to_string().into(),
             );
         }
     }
@@ -197,8 +197,8 @@ async fn wrap_edge_page(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    page: String,
-    pathname: String,
+    page: Arc<String>,
+    pathname: Arc<String>,
     reference_type: Value<ReferenceType>,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,

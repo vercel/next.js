@@ -217,9 +217,10 @@ impl ClientReferenceManifest {
         // path still (same as webpack does)
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(Vc::upcast(VirtualOutputAsset::new(
-            node_root.join(format!(
-                "server/app{normalized_manifest_entry}_client-reference-manifest.js",
-            )),
+            node_root.join(
+                format!("server/app{normalized_manifest_entry}_client-reference-manifest.js",)
+                    .into(),
+            ),
             AssetContent::file(
                 File::from(formatdoc! {
                     r#"
