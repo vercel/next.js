@@ -11,9 +11,11 @@ error - [resolve] [project]/crates/turbopack-tests/tests/execution/turbopack/bas
        7 | 
        8 | function maybeReturn(x) {
   
+  Import map: No import map entry
+  
+  
   | It was not possible to find the requested file.
   | Parsed request as written in source code: relative "./not-existing-file"
   | Path where resolving has started: [project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js
   | Type of request: commonjs request
-  | Import map: No import map entry
   |

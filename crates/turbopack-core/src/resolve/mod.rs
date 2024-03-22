@@ -1493,10 +1493,13 @@ async fn resolve_internal_inline(
         #[allow(clippy::explicit_auto_deref)]
         let options_value: &ResolveOptions = &*options.await?;
 
+        let mut has_alias = false;
+
         // Apply import mappings if provided
         if let Some(import_map) = &options_value.import_map {
             let result = import_map.await?.lookup(lookup_path, request).await?;
             if !matches!(result, ImportMapResult::NoEntry) {
+                has_alias = true;
                 let resolved_result = resolve_import_map_result(
                     &result,
                     lookup_path,
@@ -1610,21 +1613,23 @@ async fn resolve_internal_inline(
                 new_pat.push_front(".".to_string().into());
                 let relative = Request::relative(Value::new(new_pat), *query, true);
 
-                ResolvingIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    request_type: "server relative import: not implemented yet".to_string(),
-                    request,
-                    file_path: lookup_path,
-                    resolve_options: options,
-                    error_message: Some(
-                        "server relative imports are not implemented yet. Please try an import \
-                         relative to the file you are importing from."
-                            .to_string(),
-                    ),
-                    source: None,
+                if !has_alias {
+                    ResolvingIssue {
+                        severity: IssueSeverity::Error.cell(),
+                        request_type: "server relative import: not implemented yet".to_string(),
+                        request,
+                        file_path: lookup_path,
+                        resolve_options: options,
+                        error_message: Some(
+                            "server relative imports are not implemented yet. Please try an \
+                             import relative to the file you are importing from."
+                                .to_string(),
+                        ),
+                        source: None,
+                    }
+                    .cell()
+                    .emit();
                 }
-                .cell()
-                .emit();
 
                 resolve_internal_boxed(
                     lookup_path.root().resolve().await?,
@@ -1634,17 +1639,19 @@ async fn resolve_internal_inline(
                 .await?
             }
             Request::Windows { path: _, query: _ } => {
-                ResolvingIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    request_type: "windows import: not implemented yet".to_string(),
-                    request,
-                    file_path: lookup_path,
-                    resolve_options: options,
-                    error_message: Some("windows imports are not implemented yet".to_string()),
-                    source: None,
+                if !has_alias {
+                    ResolvingIssue {
+                        severity: IssueSeverity::Error.cell(),
+                        request_type: "windows import: not implemented yet".to_string(),
+                        request,
+                        file_path: lookup_path,
+                        resolve_options: options,
+                        error_message: Some("windows imports are not implemented yet".to_string()),
+                        source: None,
+                    }
+                    .cell()
+                    .emit();
                 }
-                .cell()
-                .emit();
 
                 ResolveResult::unresolveable().into()
             }
@@ -1684,17 +1691,19 @@ async fn resolve_internal_inline(
                 .into()
             }
             Request::Unknown { path } => {
-                ResolvingIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    request_type: format!("unknown import: `{}`", path),
-                    request,
-                    file_path: lookup_path,
-                    resolve_options: options,
-                    error_message: None,
-                    source: None,
+                if !has_alias {
+                    ResolvingIssue {
+                        severity: IssueSeverity::Error.cell(),
+                        request_type: format!("unknown import: `{}`", path),
+                        request,
+                        file_path: lookup_path,
+                        resolve_options: options,
+                        error_message: None,
+                        source: None,
+                    }
+                    .cell()
+                    .emit();
                 }
-                .cell()
-                .emit();
                 ResolveResult::unresolveable().into()
             }
         };
@@ -1713,7 +1722,9 @@ async fn resolve_internal_inline(
                 )
                 .await?;
                 if let Some(result) = resolved_result {
-                    return Ok(result);
+                    if !*result.is_unresolveable().await? {
+                        return Ok(result);
+                    }
                 }
             }
         }
