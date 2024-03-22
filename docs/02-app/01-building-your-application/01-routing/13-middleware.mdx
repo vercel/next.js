@@ -56,7 +56,6 @@ export function middleware(request: NextRequest) {
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
 import { authMatcher, authMiddleware } from '/auth'
 import { rateLimitMatcher, rateLimitMiddleware } from '/rateLimit'
 
@@ -72,10 +71,7 @@ export function middleware(request) {
   if (request.nextUrl.pathname.startsWith('/api/')) {
     return rateLimitMiddleware(request)
   }
-
-  return NextResponse.next()
 }
-```
 
 ## Example
 
