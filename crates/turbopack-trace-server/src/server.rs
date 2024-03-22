@@ -108,7 +108,10 @@ struct ConnectionState {
 }
 
 pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
-    let mut server = Server::bind("127.0.0.1:57475")?;
+    let mut server: websocket::server::WsServer<
+        websocket::server::NoTlsAcceptor,
+        std::net::TcpListener,
+    > = Server::bind("127.0.0.1:5747")?;
     loop {
         let Ok(connection) = server.accept() else {
             continue;
