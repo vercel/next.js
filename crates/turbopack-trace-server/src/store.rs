@@ -13,49 +13,52 @@ pub struct Store {
     pub(crate) spans: Vec<Span>,
 }
 
+fn new_root_span() -> Span {
+    Span {
+        index: SpanIndex::MAX,
+        parent: None,
+        depth: 0,
+        start: 0,
+        ignore_self_time: false,
+        self_end: 0,
+        category: "".into(),
+        name: "(root)".into(),
+        args: vec![],
+        events: vec![],
+        is_complete: true,
+        end: OnceLock::new(),
+        nice_name: OnceLock::new(),
+        group_name: OnceLock::new(),
+        max_depth: OnceLock::new(),
+        graph: OnceLock::new(),
+        bottom_up: OnceLock::new(),
+        self_time: 0,
+        self_allocations: 0,
+        self_allocation_count: 0,
+        self_deallocations: 0,
+        self_deallocation_count: 0,
+        total_time: OnceLock::new(),
+        total_allocations: OnceLock::new(),
+        total_deallocations: OnceLock::new(),
+        total_persistent_allocations: OnceLock::new(),
+        total_allocation_count: OnceLock::new(),
+        total_span_count: OnceLock::new(),
+        corrected_self_time: OnceLock::new(),
+        corrected_total_time: OnceLock::new(),
+        search_index: OnceLock::new(),
+    }
+}
+
 impl Store {
     pub fn new() -> Self {
         Self {
-            spans: vec![Span {
-                index: SpanIndex::MAX,
-                parent: None,
-                depth: 0,
-                start: 0,
-                ignore_self_time: false,
-                self_end: 0,
-                category: "".into(),
-                name: "(root)".into(),
-                args: vec![],
-                events: vec![],
-                is_complete: true,
-                end: OnceLock::new(),
-                nice_name: OnceLock::new(),
-                group_name: OnceLock::new(),
-                max_depth: OnceLock::new(),
-                graph: OnceLock::new(),
-                bottom_up: OnceLock::new(),
-                self_time: 0,
-                self_allocations: 0,
-                self_allocation_count: 0,
-                self_deallocations: 0,
-                self_deallocation_count: 0,
-                total_time: OnceLock::new(),
-                total_allocations: OnceLock::new(),
-                total_deallocations: OnceLock::new(),
-                total_persistent_allocations: OnceLock::new(),
-                total_allocation_count: OnceLock::new(),
-                total_span_count: OnceLock::new(),
-                corrected_self_time: OnceLock::new(),
-                corrected_total_time: OnceLock::new(),
-                search_index: OnceLock::new(),
-            }],
+            spans: vec![new_root_span()],
         }
     }
 
     pub fn reset(&mut self) {
         self.spans.truncate(1);
-        let root = &mut self.spans[0];
-        root.events.clear();
+        self.spans[0] = new_root_span();
     }
 
     pub fn add_span(
@@ -114,6 +117,17 @@ impl Store {
         let span = &mut self.spans[id.get()];
         span.depth = depth;
         id
+    }
+
+    pub fn add_args(
+        &mut self,
+        span_index: SpanIndex,
+        args: Vec<(String, String)>,
+        outdated_spans: &mut HashSet<SpanIndex>,
+    ) {
+        let span = &mut self.spans[span_index.get()];
+        span.args.extend(args);
+        outdated_spans.insert(span_index);
     }
 
     pub fn add_self_time(

@@ -207,6 +207,30 @@ fn process(store: &mut StoreWriteGuard, state: &mut ReaderState, row: TraceRow<'
             );
             state.active_ids.insert(id, span_id);
         }
+        TraceRow::Record { id, values } => {
+            let Some(&id) = state.active_ids.get(&id) else {
+                state
+                    .queued_rows
+                    .entry(id)
+                    .or_default()
+                    .push(TraceRow::Record {
+                        id,
+                        values: values
+                            .into_iter()
+                            .map(|(k, v)| (k.into_owned().into(), v.into_static()))
+                            .collect(),
+                    });
+                return;
+            };
+            store.add_args(
+                id,
+                values
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect(),
+                &mut state.outdated_spans,
+            );
+        }
         TraceRow::End { ts: _, id } => {
             // id might be reused
             let index = state.active_ids.remove(&id);

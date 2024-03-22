@@ -120,6 +120,20 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
             values: values.values,
         });
     }
+
+    fn on_record(
+        &self,
+        id: &span::Id,
+        record: &span::Record<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let mut values = ValuesVisitor::new();
+        record.record(&mut values);
+        self.write(TraceRow::Record {
+            id: id.into_u64(),
+            values: values.values,
+        });
+    }
 }
 
 struct ValuesVisitor {

@@ -61,6 +61,14 @@ pub enum TraceRow<'a> {
         #[serde(borrow)]
         values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
     },
+    /// Additional fields for a span
+    Record {
+        /// Unique id for this span. Must be created by a `Start` event before.
+        id: u64,
+        /// A list of key-value pairs for all attributes of the span.
+        #[serde(borrow)]
+        values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
+    },
     /// Data about (de)allocations that happened
     Allocation {
         /// Timestamp
