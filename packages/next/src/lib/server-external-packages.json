@@ -25,7 +25,6 @@
   "jest",
   "jsdom",
   "libsql",
-  "lodash",
   "mdx-bundler",
   "mongodb",
   "mongoose",
