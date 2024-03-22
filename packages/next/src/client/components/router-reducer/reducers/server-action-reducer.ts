@@ -216,7 +216,7 @@ export function serverActionReducer(
           [''],
           currentTree,
           treePatch,
-          state.canonicalUrl
+          location.pathname
         )
 
         if (newTree === null) {

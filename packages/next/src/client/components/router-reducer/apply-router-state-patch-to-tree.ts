@@ -79,7 +79,7 @@ export function applyRouterStatePatchToTree(
   flightSegmentPath: FlightSegmentPath,
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState,
-  href: string
+  pathname: string
 ): FlightRouterState | null {
   const [segment, parallelRoutes, url, refetch, isRootLayout] =
     flightRouterState
@@ -116,7 +116,7 @@ export function applyRouterStatePatchToTree(
       flightSegmentPath.slice(2),
       parallelRoutes[parallelRouteKey],
       treePatch,
-      href
+      pathname
     )
 
     if (parallelRoutePatch === null) {

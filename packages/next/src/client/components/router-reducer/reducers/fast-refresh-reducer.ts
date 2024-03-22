@@ -74,7 +74,7 @@ function fastRefreshReducerImpl(
           [''],
           currentTree,
           treePatch,
-          state.canonicalUrl
+          location.pathname
         )
 
         if (newTree === null) {
