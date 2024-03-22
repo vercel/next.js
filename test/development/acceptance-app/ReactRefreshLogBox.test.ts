@@ -164,7 +164,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   })
 
   // TODO: investigate why this fails when running outside of the Next.js
-  // monorepo e.g. fails when using yarn create next-app
+  // monorepo e.g. fails when using pnpm create next-app
   // https://github.com/vercel/next.js/pull/23203
   test.skip('internal package errors', async () => {
     const { session, cleanup } = await sandbox(next)

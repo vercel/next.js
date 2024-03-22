@@ -196,8 +196,7 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID =
-      this.nextConfig.experimental.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -253,6 +252,16 @@ export default class NextNodeServer extends BaseServer {
     }
 
     this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST)
+
+    // This is just optimization to fire prepare as soon as possible. It will be
+    // properly awaited later. We add the catch here to ensure that it does not
+    // cause a unhandled promise rejection. The promise rejection will be
+    // handled later on via the `await` when the request handler is called.
+    if (!options.dev) {
+      this.prepare().catch((err) => {
+        console.error('Failed to prepare server', err)
+      })
+    }
   }
 
   protected async handleUpgrade(): Promise<void> {
@@ -1422,7 +1431,7 @@ export default class NextNodeServer extends BaseServer {
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
-    assets: { filePath: string; name: string }[]
+    assets?: { filePath: string; name: string }[]
   } | null {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
@@ -1455,12 +1464,14 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
-      assets: (pageInfo.assets ?? []).map((binding) => {
-        return {
-          ...binding,
-          filePath: join(this.distDir, binding.filePath),
-        }
-      }),
+      assets:
+        pageInfo.assets &&
+        pageInfo.assets.map((binding) => {
+          return {
+            ...binding,
+            filePath: join(this.distDir, binding.filePath),
+          }
+        }),
     }
   }
 
