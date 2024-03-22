@@ -948,13 +948,15 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.to_string(), Some(project_path)).cell()
+            ImportMapping::PrimaryAlternative(result[0].0.to_string().into(), Some(project_path))
+                .cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative(m.to_string(), Some(project_path)).cell()
+                        ImportMapping::PrimaryAlternative(m.to_string().into(), Some(project_path))
+                            .cell()
                     })
                     .collect(),
             )
