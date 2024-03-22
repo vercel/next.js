@@ -51,7 +51,10 @@ export function isWellKnownError(issue: Issue): boolean {
   const { title } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title)
   // TODO: add more well known errors
-  if (formattedTitle.includes('Module not found')) {
+  if (
+    formattedTitle.includes('Module not found') ||
+    formattedTitle.includes('Unknown module type')
+  ) {
     return true
   }
 
