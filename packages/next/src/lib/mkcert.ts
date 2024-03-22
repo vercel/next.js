@@ -3,7 +3,6 @@ import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
-import { DetachedPromise } from './detached-promise'
 const { WritableStream } = require('node:stream/web') as {
   WritableStream: typeof global.WritableStream
 }
@@ -62,28 +61,28 @@ async function downloadBinary() {
     await response.body.pipeTo(
       new WritableStream({
         write(chunk) {
-          const { promise, resolve, reject } = new DetachedPromise<void>()
-          binaryWriteStream.write(chunk, (error) => {
-            if (error) {
-              reject(error)
-              return
-            }
+          return new Promise((resolve, reject) => {
+            binaryWriteStream.write(chunk, (error) => {
+              if (error) {
+                reject(error)
+                return
+              }
 
-            resolve()
+              resolve()
+            })
           })
-          return promise
         },
         close() {
-          const { promise, resolve, reject } = new DetachedPromise<void>()
-          binaryWriteStream.close((error) => {
-            if (error) {
-              reject(error)
-              return
-            }
+          return new Promise((resolve, reject) => {
+            binaryWriteStream.close((error) => {
+              if (error) {
+                reject(error)
+                return
+              }
 
-            resolve()
+              resolve()
+            })
           })
-          return promise
         },
       })
     )
