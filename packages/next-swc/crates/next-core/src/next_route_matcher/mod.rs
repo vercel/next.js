@@ -63,12 +63,12 @@ impl NextParamsMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: Arc<String>) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: Arc<String>) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }
@@ -100,12 +100,12 @@ impl NextPrefixSuffixParamsMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextPrefixSuffixParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: Arc<String>) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: Arc<String>) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }

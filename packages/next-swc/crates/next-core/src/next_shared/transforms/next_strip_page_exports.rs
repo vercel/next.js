@@ -36,21 +36,21 @@ pub async fn get_next_pages_transforms_rule(
             ModuleRuleCondition::all(vec![
                 ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
                 ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api".to_string()).await?,
+                    pages_dir.join("api".to_string().into()).await?,
                 )),
                 ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.js".to_string()).await?,
+                        pages_dir.join("_document.js".to_string().into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.jsx".to_string()).await?,
+                        pages_dir.join("_document.jsx".to_string().into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.ts".to_string()).await?,
+                        pages_dir.join("_document.ts".to_string().into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.tsx".to_string()).await?,
+                        pages_dir.join("_document.tsx".to_string().into()).await?,
                     ),
                 ])),
             ]),
