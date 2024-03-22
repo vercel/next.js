@@ -83,6 +83,7 @@ export function getLayerAssets({
         return (
           <link
             rel="stylesheet"
+            type="text/css"
             href={fullHref}
             // @ts-ignore
             precedence={precedence}

@@ -472,6 +472,7 @@ export class Head extends React.Component<HeadProps> {
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
+          type="text/css"
           href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
