@@ -24,7 +24,7 @@ const runTests = () => {
 const runRelayCompiler = () => {
   // Relay expects the current directory to contain a relay.json
   // This ensures the CWD is the one with relay.json since running
-  // the relay-compiler through yarn would make the root of the repo the CWD.
+  // the relay-compiler through pnpm would make the root of the repo the CWD.
   execSync('../../../node_modules/relay-compiler/cli.js', {
     cwd: './test/integration/relay-graphql-swc-single-project',
   })

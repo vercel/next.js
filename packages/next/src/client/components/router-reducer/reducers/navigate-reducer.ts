@@ -9,11 +9,12 @@ import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below
 import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import type {
-  Mutable,
-  NavigateAction,
-  ReadonlyReducerState,
-  ReducerState,
+import {
+  PrefetchCacheEntryStatus,
+  type Mutable,
+  type NavigateAction,
+  type ReadonlyReducerState,
+  type ReducerState,
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
@@ -28,6 +29,7 @@ import {
   getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
 } from '../prefetch-cache-utils'
+import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -67,6 +69,32 @@ function generateSegmentsFromPatch(
   }
 
   return segments
+}
+
+function triggerLazyFetchForLeafSegments(
+  newCache: CacheNode,
+  currentCache: CacheNode,
+  flightSegmentPath: FlightSegmentPath,
+  treePatch: FlightRouterState
+) {
+  let appliedPatch = false
+
+  newCache.rsc = currentCache.rsc
+  newCache.prefetchRsc = currentCache.prefetchRsc
+  newCache.loading = currentCache.loading
+  newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
+
+  const segmentPathsToFill = generateSegmentsFromPatch(treePatch).map(
+    (segment) => [...flightSegmentPath, ...segment]
+  )
+
+  for (const segmentPaths of segmentPathsToFill) {
+    clearCacheNodeDataForSegmentPath(newCache, currentCache, segmentPaths)
+
+    appliedPatch = true
+  }
+
+  return appliedPatch
 }
 
 // These implementations are expected to diverge significantly, so I've forked
@@ -109,10 +137,12 @@ function navigateReducer_noPPR(
 
   return data.then(
     ([flightData, canonicalUrlOverride]) => {
+      let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
         prefetchValues.lastUsedTime = Date.now()
+        isFirstRead = true
       }
 
       // Handle case when navigating to page in `pages` from `app`
@@ -159,12 +189,33 @@ function navigateReducer_noPPR(
           }
 
           const cache: CacheNode = createEmptyCacheNode()
-          let applied = applyFlightData(
-            currentCache,
-            cache,
-            flightDataPath,
-            prefetchValues
-          )
+          let applied = false
+
+          if (
+            prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+            !isFirstRead
+          ) {
+            // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
+            // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
+            // while copying over the `loading` for the segment that contains the page data.
+            // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+            applied = triggerLazyFetchForLeafSegments(
+              cache,
+              currentCache,
+              flightSegmentPath,
+              treePatch
+            )
+            // since we re-used the stale cache's loading state & refreshed the data,
+            // update the `lastUsedTime` so that it can continue to be re-used for the next 30s
+            prefetchValues.lastUsedTime = Date.now()
+          } else {
+            applied = applyFlightData(
+              currentCache,
+              cache,
+              flightDataPath,
+              prefetchValues
+            )
+          }
 
           const hardNavigate = shouldHardNavigate(
             // TODO-APP: remove ''
@@ -252,10 +303,12 @@ function navigateReducer_PPR(
 
   return data.then(
     ([flightData, canonicalUrlOverride, _postponed]) => {
+      let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
         prefetchValues.lastUsedTime = Date.now()
+        isFirstRead = true
       }
 
       // Handle case when navigating to page in `pages` from `app`
@@ -379,12 +432,33 @@ function navigateReducer_PPR(
             // tree. Or in the meantime we could factor it out into a
             // separate function.
             const cache: CacheNode = createEmptyCacheNode()
-            let applied = applyFlightData(
-              currentCache,
-              cache,
-              flightDataPath,
-              prefetchValues
-            )
+            let applied = false
+
+            if (
+              prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+              !isFirstRead
+            ) {
+              // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
+              // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
+              // while copying over the `loading` for the segment that contains the page data.
+              // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+              applied = triggerLazyFetchForLeafSegments(
+                cache,
+                currentCache,
+                flightSegmentPath,
+                treePatch
+              )
+              // since we re-used the stale cache's loading state & refreshed the data,
+              // update the `lastUsedTime` so that it can continue to be re-used for the next 30s
+              prefetchValues.lastUsedTime = Date.now()
+            } else {
+              applied = applyFlightData(
+                currentCache,
+                cache,
+                flightDataPath,
+                prefetchValues
+              )
+            }
 
             const hardNavigate = shouldHardNavigate(
               // TODO-APP: remove ''

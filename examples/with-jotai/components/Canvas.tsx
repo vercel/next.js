@@ -1,3 +1,5 @@
+"use client";
+
 import { atom, useAtom } from "jotai";
 
 type Point = [number, number];

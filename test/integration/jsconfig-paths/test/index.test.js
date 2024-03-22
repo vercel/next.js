@@ -68,15 +68,14 @@ function runTests() {
 
       try {
         await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
-        await renderViaHTTP(appPort, '/basic-alias')
 
         const found = await check(
-          () => stripAnsi(output),
-          process.env.TURBOPACK
-            ? /unable to resolve module "@c\/worldd"/
-            : /Module not found: Can't resolve '@c\/worldd'/,
-          false,
-          10
+          async () => {
+            await renderViaHTTP(appPort, '/basic-alias')
+            return stripAnsi(output)
+          },
+          /Module not found: Can't resolve '@c\/worldd'/,
+          false
         )
         expect(found).toBe(true)
       } finally {
