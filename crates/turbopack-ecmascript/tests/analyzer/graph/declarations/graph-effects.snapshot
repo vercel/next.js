@@ -30,15 +30,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                166,
-            ),
-            hi: BytePos(
-                167,
-            ),
-            ctxt: #1,
-        },
+        span: 166..167#1,
         in_try: false,
     },
 ]

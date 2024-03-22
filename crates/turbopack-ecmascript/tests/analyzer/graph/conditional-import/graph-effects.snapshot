@@ -134,15 +134,7 @@
                 Test,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                18,
-            ),
-            hi: BytePos(
-                34,
-            ),
-            ctxt: #0,
-        },
+        span: 18..34#0,
         in_try: false,
     },
     Call {
@@ -187,15 +179,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                11,
-            ),
-            hi: BytePos(
-                35,
-            ),
-            ctxt: #0,
-        },
+        span: 11..35#0,
         in_try: false,
     },
     Member {
@@ -269,15 +253,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                77,
-            ),
-            ctxt: #0,
-        },
+        span: 53..77#0,
         in_try: false,
     },
     Member {
@@ -347,15 +323,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                64,
-            ),
-            ctxt: #0,
-        },
+        span: 53..64#0,
         in_try: false,
     },
     FreeVar {
@@ -424,15 +392,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                60,
-            ),
-            ctxt: #1,
-        },
+        span: 53..60#1,
         in_try: false,
     },
     Conditional {
@@ -601,15 +561,7 @@
                 Test,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                188,
-            ),
-            ctxt: #0,
-        },
+        span: 53..188#0,
         in_try: false,
     },
     Call {
@@ -698,15 +650,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                46,
-            ),
-            hi: BytePos(
-                189,
-            ),
-            ctxt: #0,
-        },
+        span: 46..189#0,
         in_try: false,
     },
     Conditional {
@@ -770,15 +714,7 @@
                                 Call,
                             ),
                         ],
-                        span: Span {
-                            lo: BytePos(
-                                216,
-                            ),
-                            hi: BytePos(
-                                227,
-                            ),
-                            ctxt: #0,
-                        },
+                        span: 216..227#0,
                         in_try: false,
                     },
                 ],
@@ -855,15 +791,7 @@
                                 Call,
                             ),
                         ],
-                        span: Span {
-                            lo: BytePos(
-                                243,
-                            ),
-                            hi: BytePos(
-                                254,
-                            ),
-                            ctxt: #0,
-                        },
+                        span: 243..254#0,
                         in_try: false,
                     },
                 ],
@@ -901,15 +829,7 @@
                 Test,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                198,
-            ),
-            hi: BytePos(
-                256,
-            ),
-            ctxt: #0,
-        },
+        span: 198..256#0,
         in_try: false,
     },
 ]

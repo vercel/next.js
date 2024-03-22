@@ -34,15 +34,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                158,
-            ),
-            hi: BytePos(
-                159,
-            ),
-            ctxt: #2,
-        },
+        span: 158..159#2,
         in_try: false,
     },
     ImportedBinding {
@@ -80,15 +72,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                170,
-            ),
-            hi: BytePos(
-                171,
-            ),
-            ctxt: #2,
-        },
+        span: 170..171#2,
         in_try: false,
     },
     ImportedBinding {
@@ -124,15 +108,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                182,
-            ),
-            hi: BytePos(
-                183,
-            ),
-            ctxt: #2,
-        },
+        span: 182..183#2,
         in_try: false,
     },
 ]

@@ -53,15 +53,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                77,
-            ),
-            hi: BytePos(
-                81,
-            ),
-            ctxt: #0,
-        },
+        span: 77..81#0,
         in_try: false,
     },
     Call {
@@ -121,15 +113,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                77,
-            ),
-            hi: BytePos(
-                84,
-            ),
-            ctxt: #0,
-        },
+        span: 77..84#0,
         in_try: false,
     },
     Conditional {
@@ -273,15 +257,7 @@
                                 Call,
                             ),
                         ],
-                        span: Span {
-                            lo: BytePos(
-                                159,
-                            ),
-                            hi: BytePos(
-                                167,
-                            ),
-                            ctxt: #0,
-                        },
+                        span: 159..167#0,
                         in_try: false,
                     },
                 ],
@@ -353,15 +329,7 @@
                 Test,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                105,
-            ),
-            hi: BytePos(
-                176,
-            ),
-            ctxt: #0,
-        },
+        span: 105..176#0,
         in_try: false,
     },
     Call {
@@ -409,15 +377,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                190,
-            ),
-            hi: BytePos(
-                194,
-            ),
-            ctxt: #0,
-        },
+        span: 190..194#0,
         in_try: false,
     },
     Call {
@@ -474,15 +434,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                271,
-            ),
-            hi: BytePos(
-                281,
-            ),
-            ctxt: #0,
-        },
+        span: 271..281#0,
         in_try: false,
     },
     Call {
@@ -530,15 +482,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                295,
-            ),
-            hi: BytePos(
-                305,
-            ),
-            ctxt: #0,
-        },
+        span: 295..305#0,
         in_try: false,
     },
 ]

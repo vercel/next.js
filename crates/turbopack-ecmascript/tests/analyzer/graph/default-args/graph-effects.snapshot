@@ -51,15 +51,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                62,
-            ),
-            hi: BytePos(
-                67,
-            ),
-            ctxt: #2,
-        },
+        span: 62..67#2,
         in_try: false,
     },
     ImportedBinding {
@@ -119,15 +111,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                117,
-            ),
-            hi: BytePos(
-                122,
-            ),
-            ctxt: #2,
-        },
+        span: 117..122#2,
         in_try: false,
     },
 ]

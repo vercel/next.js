@@ -40,15 +40,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                35,
-            ),
-            hi: BytePos(
-                43,
-            ),
-            ctxt: #0,
-        },
+        span: 35..43#0,
         in_try: false,
     },
     Member {
@@ -101,15 +93,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                70,
-            ),
-            hi: BytePos(
-                82,
-            ),
-            ctxt: #0,
-        },
+        span: 70..82#0,
         in_try: false,
     },
     MemberCall {
@@ -231,15 +215,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                70,
-            ),
-            hi: BytePos(
-                119,
-            ),
-            ctxt: #0,
-        },
+        span: 70..119#0,
         in_try: false,
     },
     Member {
@@ -329,15 +305,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                139,
-            ),
-            hi: BytePos(
-                160,
-            ),
-            ctxt: #0,
-        },
+        span: 139..160#0,
         in_try: false,
     },
     Member {
@@ -423,15 +391,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                139,
-            ),
-            hi: BytePos(
-                153,
-            ),
-            ctxt: #0,
-        },
+        span: 139..153#0,
         in_try: false,
     },
     FreeVar {
@@ -487,15 +447,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                171,
-            ),
-            hi: BytePos(
-                178,
-            ),
-            ctxt: #1,
-        },
+        span: 171..178#1,
         in_try: false,
     },
     MemberCall {
@@ -610,15 +562,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                139,
-            ),
-            hi: BytePos(
-                180,
-            ),
-            ctxt: #0,
-        },
+        span: 139..180#0,
         in_try: false,
     },
     Member {
@@ -708,15 +652,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                200,
-            ),
-            hi: BytePos(
-                221,
-            ),
-            ctxt: #0,
-        },
+        span: 200..221#0,
         in_try: false,
     },
     Member {
@@ -802,15 +738,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                200,
-            ),
-            hi: BytePos(
-                214,
-            ),
-            ctxt: #0,
-        },
+        span: 200..214#0,
         in_try: false,
     },
     FreeVar {
@@ -855,15 +783,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                231,
-            ),
-            hi: BytePos(
-                238,
-            ),
-            ctxt: #1,
-        },
+        span: 231..238#1,
         in_try: false,
     },
     MemberCall {
@@ -978,15 +898,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                200,
-            ),
-            hi: BytePos(
-                239,
-            ),
-            ctxt: #0,
-        },
+        span: 200..239#0,
         in_try: false,
     },
     Member {
@@ -1030,15 +942,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                304,
-            ),
-            hi: BytePos(
-                313,
-            ),
-            ctxt: #0,
-        },
+        span: 304..313#0,
         in_try: false,
     },
     Member {
@@ -1091,15 +995,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                348,
-            ),
-            hi: BytePos(
-                360,
-            ),
-            ctxt: #0,
-        },
+        span: 348..360#0,
         in_try: false,
     },
     MemberCall {
@@ -1174,15 +1070,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                348,
-            ),
-            hi: BytePos(
-                371,
-            ),
-            ctxt: #0,
-        },
+        span: 348..371#0,
         in_try: false,
     },
 ]

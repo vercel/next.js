@@ -29,15 +29,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                1,
-            ),
-            hi: BytePos(
-                4,
-            ),
-            ctxt: #0,
-        },
+        span: 1..4#0,
         in_try: false,
     },
     FreeVar {
@@ -69,15 +61,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                1,
-            ),
-            hi: BytePos(
-                2,
-            ),
-            ctxt: #1,
-        },
+        span: 1..2#1,
         in_try: false,
     },
 ]
