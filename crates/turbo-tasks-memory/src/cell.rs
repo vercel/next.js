@@ -220,9 +220,14 @@ impl Cell {
                 ref mut dependent_tasks,
             } => {
                 event.notify(usize::MAX);
+                // Assigning to a cell will invalidate all dependent tasks as the content might
+                // have changed.
+                if !dependent_tasks.is_empty() {
+                    turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
+                }
                 *self = Cell::Value {
                     content,
-                    dependent_tasks: take(dependent_tasks),
+                    dependent_tasks: AutoSet::default(),
                 };
             }
             &mut Cell::TrackedValueless {

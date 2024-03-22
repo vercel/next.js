@@ -5,7 +5,9 @@ use futures::{
     pin_mut, SinkExt, StreamExt, TryStreamExt,
 };
 use parking_lot::Mutex;
-use turbo_tasks::{duration_span, mark_finished, util::SharedError, RawVc, ValueToString, Vc};
+use turbo_tasks::{
+    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ValueToString, Vc,
+};
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{File, FileSystemPath};
@@ -210,6 +212,10 @@ fn render_stream(
     data: Vc<RenderData>,
     debug: bool,
 ) -> Vc<RenderStream> {
+    // TODO: The way we invoke render_stream_internal as side effect is not
+    // GC-safe, so we disable GC for this task.
+    prevent_gc();
+
     // Note the following code uses some hacks to create a child task that produces
     // a stream that is returned by this task.
 

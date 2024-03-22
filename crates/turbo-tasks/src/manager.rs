@@ -1396,6 +1396,10 @@ pub fn mark_stateful() {
     })
 }
 
+pub fn prevent_gc() {
+    mark_stateful();
+}
+
 /// Notifies scheduled tasks for execution.
 pub fn notify_scheduled_tasks() {
     with_turbo_tasks(|tt| tt.notify_scheduled_tasks())
