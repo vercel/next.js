@@ -207,7 +207,6 @@ const transform = (
           },
           getResolve: (options: ResolveOptions) => {
             const rustOptions = {
-              noAlias: false,
               aliasFields: undefined as undefined | string[],
               conditionNames: undefined as undefined | string[],
               noPackageJson: false,
@@ -222,7 +221,6 @@ const transform = (
               if (!Array.isArray(options.alias) || options.alias.length > 0) {
                 throw new Error("alias resolve option is not supported");
               }
-              rustOptions.noAlias = true;
             }
             if (options.aliasFields) {
               if (!Array.isArray(options.aliasFields)) {

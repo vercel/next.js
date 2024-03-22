@@ -325,7 +325,6 @@ pub enum InfoMessage {
 #[serde(rename_all = "camelCase")]
 
 pub struct WebpackResolveOptions {
-    no_alias: bool,
     alias_fields: Option<Vec<String>>,
     condition_names: Option<Vec<String>>,
     no_package_json: bool,
@@ -558,10 +557,6 @@ async fn apply_webpack_resolve_options(
     webpack_resolve_options: WebpackResolveOptions,
 ) -> Result<Vc<ResolveOptions>> {
     let mut resolve_options = resolve_options.await?.clone_value();
-    if webpack_resolve_options.no_alias {
-        resolve_options.import_map = None;
-        resolve_options.fallback_import_map = None;
-    }
     if let Some(alias_fields) = webpack_resolve_options.alias_fields {
         let mut old = resolve_options
             .in_package
