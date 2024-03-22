@@ -1,10 +1,16 @@
 import type { FlightRouterState } from '../../../server/app-render/types'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { AppRouterState } from './router-reducer-types'
-import { createEmptyCacheNode } from '../app-router'
 import { applyFlightData } from './apply-flight-data'
 import { fetchServerResponse } from './fetch-server-response'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+
+interface RefreshInactiveParallelSegments {
+  state: AppRouterState
+  updatedTree: FlightRouterState
+  updatedCache: CacheNode
+  includeNextUrl: boolean
+}
 
 /**
  * Refreshes inactive segments that are still in the current FlightRouterState.
@@ -17,52 +23,61 @@ import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
  * the data for it. This function traverses parallel routes looking for these markers so that it can re-fetch
  * and patch the new data into the tree.
  */
-export async function refreshInactiveParallelSegments({
+export async function refreshInactiveParallelSegments(
+  options: RefreshInactiveParallelSegments
+) {
+  const fetchedSegments = new Set<string>()
+  await refreshInactiveParallelSegmentsImpl({ ...options, fetchedSegments })
+}
+
+async function refreshInactiveParallelSegmentsImpl({
   state,
-  newTree,
-  newCache,
+  updatedTree,
+  updatedCache,
   includeNextUrl,
-  clearExistingCache,
-}: {
-  state: AppRouterState
-  newTree: FlightRouterState
-  newCache: CacheNode
-  includeNextUrl: boolean
-  clearExistingCache: boolean
-}) {
-  const [, parallelRoutes, refetchUrl, refetchMarker] = newTree
+  fetchedSegments,
+}: RefreshInactiveParallelSegments & { fetchedSegments: Set<string> }) {
+  const [, parallelRoutes, refetchUrl, refetchMarker] = updatedTree
 
   if (
     refetchUrl &&
     refetchUrl !== state.canonicalUrl &&
-    refetchMarker === 'refetch'
+    refetchMarker === 'refetch' &&
+    // it's possible for the tree to contain multiple segments that contain data at the same URL
+    // we keep track of them so we can dedupe the requests
+    !fetchedSegments.has(refetchUrl)
   ) {
+    fetchedSegments.add(refetchUrl) // Mark this URL as fetched
+
     const fetchResponse = await fetchServerResponse(
       new URL(refetchUrl, location.origin),
-      [newTree[0], newTree[1], newTree[2], 'refetch'],
+      [updatedTree[0], updatedTree[1], updatedTree[2], 'refetch'],
       includeNextUrl ? state.nextUrl : null,
       state.buildId
     )
 
-    const newFlightData = fetchResponse[0]
-    if (typeof newFlightData !== 'string') {
-      for (const flightDataPath2 of newFlightData) {
-        const existingCache = clearExistingCache
-          ? createEmptyCacheNode()
-          : state.cache
-
-        applyFlightData(existingCache, newCache, flightDataPath2)
+    const flightData = fetchResponse[0]
+    if (typeof flightData !== 'string') {
+      for (const flightDataPath of flightData) {
+        // we only pass the new cache as this function is called after clearing the router cache
+        // and filling in the new page data from the server. Meaning the existing cache is actually the cache that's
+        // just been created & has been written to, but hasn't been "committed" yet.
+        applyFlightData(updatedCache, updatedCache, flightDataPath)
       }
+    } else {
+      // When flightData is a string, it suggests that the server response should have triggered an MPA navigation
+      // I'm not 100% sure of this decision, but it seems unlikely that we'd want to introduce a redirect side effect
+      // when refreshing on-screen data, so handling this has been ommitted.
     }
   }
 
   for (const key in parallelRoutes) {
-    await refreshInactiveParallelSegments({
+    await refreshInactiveParallelSegmentsImpl({
       state,
-      newTree: parallelRoutes[key],
-      newCache,
+      updatedTree: parallelRoutes[key],
+      updatedCache,
       includeNextUrl,
-      clearExistingCache,
+      fetchedSegments,
     })
   }
 }

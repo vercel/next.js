@@ -119,10 +119,9 @@ export function refreshReducer(
 
         await refreshInactiveParallelSegments({
           state,
-          newTree,
-          newCache: cache,
+          updatedTree: newTree,
+          updatedCache: cache,
           includeNextUrl,
-          clearExistingCache: true,
         })
 
         mutable.cache = cache

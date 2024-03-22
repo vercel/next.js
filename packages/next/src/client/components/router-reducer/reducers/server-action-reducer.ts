@@ -261,10 +261,9 @@ export function serverActionReducer(
 
           await refreshInactiveParallelSegments({
             state,
-            newTree,
-            newCache: cache,
+            updatedTree: newTree,
+            updatedCache: cache,
             includeNextUrl: Boolean(nextUrl),
-            clearExistingCache: !redirectLocation,
           })
 
           mutable.cache = cache

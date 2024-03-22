@@ -48,6 +48,11 @@
         "app dir - navigation bots should block rendering for bots and return 404 status"
       ]
     },
+    "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
+      "failed": [
+        "parallel-routes-revalidation router.refresh should correctly refresh data for previously intercepted modal and active page slot"
+      ]
+    },
     "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
       "failed": [
         "app-dir static/dynamic handling should output debug info for static bailouts",
