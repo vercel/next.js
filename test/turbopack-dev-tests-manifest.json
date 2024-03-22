@@ -9480,9 +9480,7 @@
   "test/integration/edge-runtime-configurable-guards/test/index.test.js": {
     "passed": [
       "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
-      "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime"
-    ],
-    "failed": [
+      "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
       "Edge runtime configurable guards Edge API using lib with allowed, used dynamic code still warns in dev at runtime",
       "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
       "Edge runtime configurable guards Edge API with allowed, used dynamic code still warns in dev at runtime",
@@ -9492,6 +9490,7 @@
       "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
       "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code"
     ],
+    "failed": [],
     "pending": [
       "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
       "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
