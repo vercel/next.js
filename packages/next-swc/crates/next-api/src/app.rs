@@ -177,6 +177,19 @@ impl AppProject {
             Value::new(self.rsc_ty()),
             self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(self.rsc_ty()),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
@@ -188,6 +201,19 @@ impl AppProject {
             Value::new(self.route_ty()),
             self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(self.route_ty()),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
@@ -292,7 +318,7 @@ impl AppProject {
         ModuleAssetContext::new(
             Vc::cell(transitions),
             self.project().edge_compile_time_info(),
-            self.rsc_module_options_context(),
+            self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
             Vc::cell("app-edge-rsc".to_string()),
         )
@@ -314,7 +340,7 @@ impl AppProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.route_module_options_context(),
+            self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
             Vc::cell("app-edge-route".to_string()),
         )
@@ -339,6 +365,19 @@ impl AppProject {
             Value::new(self.ssr_ty()),
             self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(self.ssr_ty()),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
@@ -378,7 +417,7 @@ impl AppProject {
     fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
         ContextTransition::new(
             self.project().edge_compile_time_info(),
-            self.ssr_module_options_context(),
+            self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-ssr".to_string()),
         )

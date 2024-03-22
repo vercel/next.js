@@ -97,7 +97,7 @@ export const config = {
 }
 ```
 
-You can also ignore prefetches (from `next/link`) that don't need to go through the Middleware using the `missing` array:
+You can also bypass Middleware for certain requests by using the `missing` or `has` arrays, or a combination of both:
 
 ```js filename="middleware.js"
 export const config = {
@@ -115,6 +115,20 @@ export const config = {
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
       ],
+    },
+
+    {
+      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      has: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+
+    {
+      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      has: [{ type: 'header', key: 'x-present' }],
+      missing: [{ type: 'header', key: 'x-missing', value: 'prefetch' }],
     },
   ],
 }
