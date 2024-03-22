@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -803,12 +805,12 @@ pub fn virtual_next_js_template_path(
     file: String,
 ) -> Vc<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}").into())
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
-    path: String,
+    path: Arc<String>,
 ) -> Result<T> {
     let file_path = get_next_package(project_path).join(path.clone());
 
