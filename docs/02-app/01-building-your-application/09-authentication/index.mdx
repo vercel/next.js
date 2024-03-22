@@ -19,7 +19,7 @@ This diagram provides an overview of auth flow in Next.js:
 
 For educational purpose, the examples in this section will walk you through basic username and password authentication.
 
-> While you can implement your custom auth solution, for increased security, simplicity and better DX, we recommend using an authentication provider. These offer pre-built solutions for authentication, session management, and authorization, as well as additional features like social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Authentication Providers](#authentication-providerss) section.
+> While you can implement your custom auth solution, for increased security, simplicity and better DX, we recommend using an authentication provider. These offer pre-built solutions for authentication, session management, and authorization, as well as additional features like social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Authentication Providers](#authentication-providers) section.
 
 <AppOnly>
 
@@ -588,7 +588,7 @@ To create and manage stateless sessions in your Next.js application, there are a
 2. Write logic to encrypt/decrypt session data (using a session management library).
 3. Save the session as cookie using the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the recommended options.
 
-In addition to the above, consider adding functionality [update (or extend)](#updating-the-session) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
+In addition to the above, consider adding functionality [update (or extend)](#updating-or-extending-the-session) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
 
 > **Tip:**
 >
@@ -910,7 +910,7 @@ To create and manage database sessions in your Next.js application, you'll need 
 
 1. Create a table in your database to store session data (or check if your Auth Provider handles this).
 2. Implement functionality to insert, find, update, and delete sessions.
-3. Encrypt the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic auth checks in [Middleware](#middleware))
+3. Encrypt the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic auth checks in [Middleware](#optimistic-checks-with-middleware-optional)).
 
 <AppOnly>
 
@@ -1048,7 +1048,7 @@ There are two main types of authorization checks:
 1. **Optimistic**: Checks if the user is authorized to access a route or perform an action using the session data stored in the cookie. These checks are useful for quick operations, such as showing/hiding UI elements or redirecting users based on permissions.
 2. **Secure**: Checks if the user is authorized to access a route or perform an action using the session data stored in the database. These checks are more secure and are used for operations that require access to sensitive data or actions.
 
-For both cases, we recommed creating a [Data Access Layer](#verifying-sessions-with-a-data-access-layer-dal) to centralize your authorization logic, use [Data Transfer Objects (DTO)](#data-transfer-objects-dto) only return the necessary data, and optionally use [Middleware](#optimistic-checks-with-middleware-optional) to perform optimistic checks.
+For both cases, we recommed creating a [Data Access Layer](#creating-a-data-access-layer-dal) to centralize your authorization logic, use [Data Transfer Objects (DTO)](#using-data-transfer-objects-dto) only return the necessary data, and optionally use [Middleware](#optimistic-checks-with-middleware-optional) to perform optimistic checks.
 
 ### Optimistic checks with Middleware (Optional)
 
