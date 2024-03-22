@@ -2,6 +2,8 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
+use std::sync::Arc;
+
 use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{ValueToString, Vc};
@@ -46,7 +48,7 @@ async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
 pub async fn dynamic_image_metadata_source(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: Vc<FileSystemPath>,
-    ty: String,
+    ty: Arc<String>,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
@@ -126,7 +128,7 @@ pub async fn dynamic_image_metadata_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--metadata.js")),
+        path.parent().join(format!("{stem}--metadata.js").into()),
         AssetContent::file(file.into()),
     );
 

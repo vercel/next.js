@@ -202,6 +202,6 @@ async fn wrap_edge_page(
         context,
         project_root,
         wrapped,
-        AppPath::from(page).to_string(),
+        AppPath::from(page).to_string().into(),
     ))
 }
