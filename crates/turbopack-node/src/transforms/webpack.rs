@@ -207,7 +207,7 @@ impl WebpackLoadersProcessedAsset {
             bail!("Resource path need to be on project filesystem");
         };
         let loaders = transform.loaders.await?;
-        let config_value = custom_evaluate(WebpackLoaderContext {
+        let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             module_asset: webpack_loaders_executor,
             cwd: project_path,
             env,
