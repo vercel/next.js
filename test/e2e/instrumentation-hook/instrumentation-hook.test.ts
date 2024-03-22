@@ -67,14 +67,12 @@ describe('Instrumentation Hook', () => {
 
   describeCase('with-node-api', ({ next }) => {
     it('with-node-api should run the instrumentation hook', async () => {
-      await next.render('/api')
       await check(() => next.cliOutput, /instrumentation hook on nodejs/)
     })
   })
 
   describeCase('with-node-page', ({ next }) => {
     it('with-node-page should run the instrumentation hook', async () => {
-      await next.render('/')
       await check(() => next.cliOutput, /instrumentation hook on nodejs/)
     })
   })

@@ -39,17 +39,14 @@ export const test = base.test.extend<
     { scope: 'worker', auto: true },
   ],
 
-  next: [
-    async ({ nextOptions, _nextWorker, page }, use, testInfo) => {
-      await applyNextFixture(use, {
-        testInfo,
-        nextWorker: _nextWorker,
-        page,
-        nextOptions,
-      })
-    },
-    { auto: true },
-  ],
+  next: async ({ nextOptions, _nextWorker, page }, use, testInfo) => {
+    await applyNextFixture(use, {
+      testInfo,
+      nextWorker: _nextWorker,
+      page,
+      nextOptions,
+    })
+  },
 })
 
 export default test
