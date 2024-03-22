@@ -46,7 +46,7 @@ describe('app-fetch-deduping', () => {
           }`
         )
         await next.build()
-        expect(requests).toBe(1)
+        expect(requests.length).toBe(1)
       })
     })
   } else if (isNextDev) {
