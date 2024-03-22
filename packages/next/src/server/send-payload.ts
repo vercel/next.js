@@ -45,7 +45,7 @@ export async function sendRenderResult({
   req: IncomingMessage
   res: ServerResponse
   result: RenderResult
-  type: 'html' | 'json' | 'rsc'
+  type: 'html' | 'json' | 'rsc' | 'css'
   generateEtags: boolean
   poweredByHeader: boolean
   revalidate: Revalidate | undefined
@@ -120,16 +120,26 @@ export async function sendRenderResult({
   }
 
   if (!res.getHeader('Content-Type')) {
-    res.setHeader(
-      'Content-Type',
-      result.contentType
-        ? result.contentType
-        : type === 'rsc'
-        ? RSC_CONTENT_TYPE_HEADER
-        : type === 'json'
-        ? 'application/json'
-        : 'text/html; charset=utf-8'
-    )
+    let contentType = result.contentType
+
+    if (!contentType) {
+      switch (type) {
+        case 'rsc':
+          contentType = RSC_CONTENT_TYPE_HEADER
+          break
+        case 'json':
+          contentType = 'application/json'
+          break
+        case 'css':
+          contentType = 'text/css'
+          break
+        case 'html':
+        default:
+          contentType = 'text/html; charset=utf-8'
+      }
+    }
+
+    res.setHeader('Content-Type', contentType)
   }
 
   if (payload) {

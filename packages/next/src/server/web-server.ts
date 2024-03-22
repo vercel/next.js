@@ -263,7 +263,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: WebNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
+      type: 'html' | 'json' | 'css'
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
@@ -279,14 +279,24 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
 
     if (!res.getHeader('Content-Type')) {
-      res.setHeader(
-        'Content-Type',
-        options.result.contentType
-          ? options.result.contentType
-          : options.type === 'json'
-          ? 'application/json'
-          : 'text/html; charset=utf-8'
-      )
+      let contentType = options.result.contentType
+
+      if (!contentType) {
+        switch (options.type) {
+          case 'json':
+            contentType = 'application/json'
+            break
+          case 'css':
+            contentType = 'text/css'
+            break
+          case 'html':
+          default:
+            contentType = 'text/html; charset=utf-8'
+            break
+        }
+      }
+
+      res.setHeader('Content-Type', contentType)
     }
 
     let promise: Promise<void> | undefined

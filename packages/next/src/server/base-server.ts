@@ -257,7 +257,7 @@ export class WrappedBuildError extends Error {
 }
 
 type ResponsePayload = {
-  type: 'html' | 'json' | 'rsc'
+  type: 'html' | 'json' | 'rsc' | 'css'
   body: RenderResult
   revalidate?: Revalidate
 }
@@ -328,7 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json' | 'rsc'
+      type: 'html' | 'json' | 'rsc' | 'css'
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate?: Revalidate
