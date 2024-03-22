@@ -54,15 +54,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                54,
-            ),
-            hi: BytePos(
-                61,
-            ),
-            ctxt: #1,
-        },
+        span: 54..61#1,
         in_try: false,
     },
     Call {
@@ -121,15 +113,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                54,
-            ),
-            hi: BytePos(
-                64,
-            ),
-            ctxt: #0,
-        },
+        span: 54..64#0,
         in_try: false,
     },
 ]

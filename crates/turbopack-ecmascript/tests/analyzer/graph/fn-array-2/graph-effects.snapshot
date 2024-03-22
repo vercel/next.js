@@ -53,15 +53,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                72,
-            ),
-            hi: BytePos(
-                83,
-            ),
-            ctxt: #0,
-        },
+        span: 72..83#0,
         in_try: false,
     },
 ]

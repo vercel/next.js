@@ -30,15 +30,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                9,
-            ),
-            hi: BytePos(
-                16,
-            ),
-            ctxt: #1,
-        },
+        span: 9..16#1,
         in_try: false,
     },
     Conditional {
@@ -134,15 +126,7 @@
                                 Call,
                             ),
                         ],
-                        span: Span {
-                            lo: BytePos(
-                                153,
-                            ),
-                            hi: BytePos(
-                                162,
-                            ),
-                            ctxt: #0,
-                        },
+                        span: 153..162#0,
                         in_try: false,
                     },
                 ],
@@ -250,15 +234,7 @@
                 Test,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                137,
-            ),
-            hi: BytePos(
-                167,
-            ),
-            ctxt: #0,
-        },
+        span: 137..167#0,
         in_try: false,
     },
 ]

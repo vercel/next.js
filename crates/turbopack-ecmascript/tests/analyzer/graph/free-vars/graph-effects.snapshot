@@ -46,15 +46,7 @@
                 Member,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                13,
-            ),
-            hi: BytePos(
-                24,
-            ),
-            ctxt: #0,
-        },
+        span: 13..24#0,
         in_try: false,
     },
     FreeVar {
@@ -103,15 +95,7 @@
                 Ident,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                13,
-            ),
-            hi: BytePos(
-                19,
-            ),
-            ctxt: #1,
-        },
+        span: 13..19#1,
         in_try: false,
     },
     MemberCall {
@@ -163,15 +147,7 @@
                 Call,
             ),
         ],
-        span: Span {
-            lo: BytePos(
-                13,
-            ),
-            hi: BytePos(
-                39,
-            ),
-            ctxt: #0,
-        },
+        span: 13..39#0,
         in_try: false,
     },
 ]
