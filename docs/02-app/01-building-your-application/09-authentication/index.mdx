@@ -1146,7 +1146,7 @@ However, since Middleware runs on every route, including [prefetched](/docs/app/
 - Avoid doing heavy computations or database queries to prevent performance issues.
 - Use Middleware only to read the session from the cookie (optimistic checks).
 
-While Middleware can be useful for initial checks, it should not be your only line of defense in protecting your data. The majority of security checks should be performed as close as possible to your data source, see [Data Access Layer](#verifying-sessions-with-a-data-access-layer) for more information.
+While Middleware can be useful for initial checks, it should not be your only line of defense in protecting your data. The majority of security checks should be performed as close as possible to your data source, see [Data Access Layer](#creating-a-data-access-layer-dal) for more information.
 
 > **Tips**:
 >
