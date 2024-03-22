@@ -227,8 +227,10 @@ export async function loadBindings(
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
     const isWebContainer = process.versions.webcontainer
+    // if the env is webcontainer or unsupportedPlatform, it can only load wasm
     const shouldLoadWasmFallbackFirst =
-      (!disableWasmFallback && unsupportedPlatform && useWasmBinary) ||
+      (!disableWasmFallback && useWasmBinary) ||
+      unsupportedPlatform ||
       isWebContainer
 
     if (!unsupportedPlatform && useWasmBinary) {
