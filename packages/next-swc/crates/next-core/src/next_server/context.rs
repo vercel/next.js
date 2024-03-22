@@ -67,7 +67,7 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{foreign_code_context_condition, load_next_js_templateon},
+    util::{foreign_code_context_condition, load_next_js_templateon, NextRuntime},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -325,11 +325,14 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
+    next_runtime: NextRuntime,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false, next_runtime)
+            .await?;
     let mut foreign_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true).await?;
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
+            .await?;
     let internal_custom_rules =
         get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
             .await?;

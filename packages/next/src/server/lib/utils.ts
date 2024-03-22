@@ -62,7 +62,7 @@ export function checkNodeDebugType() {
 
 export function getMaxOldSpaceSize() {
   const maxOldSpaceSize = process.env.NODE_OPTIONS?.match(
-    /--max-old-space-size=(\d+)/
+    /--max[-_]old[-_]space[-_]size=(\d+)/
   )?.[1]
 
   return maxOldSpaceSize ? parseInt(maxOldSpaceSize, 10) : undefined
