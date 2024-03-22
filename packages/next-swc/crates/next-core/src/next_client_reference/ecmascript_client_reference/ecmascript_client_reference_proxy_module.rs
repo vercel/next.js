@@ -86,7 +86,7 @@ impl EcmascriptClientReferenceProxyModule {
             )?;
 
             for export_name in exports.exports.keys() {
-                if export_name == "default" {
+                if &**export_name == "default" {
                     writedoc!(
                         code,
                         r#"
@@ -143,7 +143,9 @@ impl EcmascriptClientReferenceProxyModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_module_ident.path().join("proxy.js".to_string()),
+            self.server_module_ident
+                .path()
+                .join("proxy.js".to_string().into()),
             proxy_module_content,
         );
 

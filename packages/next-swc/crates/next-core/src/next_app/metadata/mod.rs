@@ -339,7 +339,9 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         ))?;
 
         if !is_static_route {
-            page.push(PageSegment::OptionalCatchAll("__metadata_id__".to_string()))?;
+            page.push(PageSegment::OptionalCatchAll(
+                "__metadata_id__".to_string().into(),
+            ))?;
         }
 
         page.push(PageSegment::PageType(PageType::Route))?;
