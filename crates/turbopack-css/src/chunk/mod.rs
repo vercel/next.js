@@ -78,33 +78,11 @@ impl CssChunk {
             }
 
             writeln!(body, "/* {} */", id)?;
-            let mut close: Vec<String> = vec![];
-            if let Some(import_context) = content.import_context {
-                let import_context = &*import_context.await?;
-                if !&import_context.layers.is_empty() {
-                    writeln!(body, "@layer {} {{", import_context.layers.join("."))?;
-                    close.push("}\n".to_owned());
-                }
-                if !&import_context.media.is_empty() {
-                    writeln!(body, "@media {} {{", import_context.media.join(" and "))?;
-                    close.push("}\n".to_owned());
-                }
-                if !&import_context.supports.is_empty() {
-                    writeln!(
-                        body,
-                        "@supports {} {{",
-                        import_context.supports.join(" and ")
-                    )?;
-                    close.push("}\n".to_owned());
-                }
-            }
+            let close = write_import_context(&mut body, content.import_context).await?;
 
             body.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
-            writeln!(body)?;
 
-            for line in &close {
-                body.push_source(&Rope::from(line.to_string()), None);
-            }
+            writeln!(body, "{close}")?;
             writeln!(body)?;
         }
 
@@ -140,6 +118,33 @@ impl CssChunk {
             File::from(code.source_code().clone()).into(),
         ))
     }
+}
+
+pub async fn write_import_context(
+    body: &mut impl std::io::Write,
+    import_context: Option<Vc<ImportContext>>,
+) -> Result<String> {
+    let mut close = String::new();
+    if let Some(import_context) = import_context {
+        let import_context = &*import_context.await?;
+        if !&import_context.layers.is_empty() {
+            writeln!(body, "@layer {} {{", import_context.layers.join("."))?;
+            close.push_str("\n}");
+        }
+        if !&import_context.media.is_empty() {
+            writeln!(body, "@media {} {{", import_context.media.join(" and "))?;
+            close.push_str("\n}");
+        }
+        if !&import_context.supports.is_empty() {
+            writeln!(
+                body,
+                "@supports {} {{",
+                import_context.supports.join(" and ")
+            )?;
+            close.push_str("\n}");
+        }
+    }
+    Ok(close)
 }
 
 #[turbo_tasks::value]
