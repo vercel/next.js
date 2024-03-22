@@ -704,7 +704,7 @@ fn directory_tree_to_entrypoints(
     directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
-        "".to_string(),
+        "".to_string().into(),
         directory_tree,
         AppPage::new(),
         root_layouts,
@@ -865,7 +865,7 @@ async fn directory_tree_to_loader_tree(
             "children".to_string(),
             LoaderTree {
                 page: app_page.clone(),
-                segment: "__PAGE__".to_string(),
+                segment: "__PAGE__".to_string().into(),
                 parallel_routes: IndexMap::new(),
                 components: Components {
                     page: Some(page),
@@ -879,7 +879,7 @@ async fn directory_tree_to_loader_tree(
         );
 
         if current_level_is_parallel_route {
-            tree.segment = "page$".to_string();
+            tree.segment = "page$".to_string().into();
         }
     }
 
@@ -902,7 +902,7 @@ async fn directory_tree_to_loader_tree(
         let subtree = *directory_tree_to_loader_tree(
             app_dir,
             global_metadata,
-            subdir_name.clone(),
+            subdir_name.clone().into(),
             *subdirectory,
             child_app_page.clone(),
             for_app_path.clone(),
@@ -967,7 +967,7 @@ async fn directory_tree_to_loader_tree(
     }
 
     if tree.parallel_routes.is_empty() {
-        tree.segment = "__DEFAULT__".to_string();
+        tree.segment = "__DEFAULT__".to_string().into();
         if let Some(default) = components.default {
             tree.components = Components {
                 default: Some(default),
@@ -978,8 +978,11 @@ async fn directory_tree_to_loader_tree(
             // default fallback component
             tree.components = Components {
                 default: Some(
-                    get_next_package(app_dir)
-                        .join("dist/client/components/parallel-route-default.js".to_string()),
+                    get_next_package(app_dir).join(
+                        "dist/client/components/parallel-route-default.js"
+                            .to_string()
+                            .into(),
+                    ),
                 ),
                 ..Default::default()
             }
@@ -992,7 +995,7 @@ async fn directory_tree_to_loader_tree(
             "children".to_string(),
             LoaderTree {
                 page: app_page.clone(),
-                segment: "__DEFAULT__".to_string(),
+                segment: "__DEFAULT__".to_string().into(),
                 parallel_routes: IndexMap::new(),
                 components: if let Some(default) = components.default {
                     Components {
@@ -1005,7 +1008,9 @@ async fn directory_tree_to_loader_tree(
                     Components {
                         default: Some(
                             get_next_package(app_dir).join(
-                                "dist/client/components/parallel-route-default.js".to_string(),
+                                "dist/client/components/parallel-route-default.js"
+                                    .to_string()
+                                    .into(),
                             ),
                         ),
                         ..Default::default()
@@ -1033,7 +1038,7 @@ async fn directory_tree_to_loader_tree(
 async fn directory_tree_to_entrypoints_internal(
     app_dir: Vc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
-    directory_name: String,
+    directory_name: Arc<String>,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
@@ -1054,7 +1059,7 @@ async fn directory_tree_to_entrypoints_internal(
 async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: Vc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
-    directory_name: String,
+    directory_name: Arc<String>,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
@@ -1163,14 +1168,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
                         page: app_page.clone(),
-                        segment: "/_not-found".to_string(),
+                        segment: "/_not-found".to_string().into(),
                         parallel_routes: indexmap! {
                             "children".to_string() => LoaderTree {
                                 page: app_page.clone(),
-                                segment: "__PAGE__".to_string(),
+                                segment: "__PAGE__".to_string().into(),
                                 parallel_routes: IndexMap::new(),
                                 components: Components {
-                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()))),
+                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string().into()))),
                                     ..Default::default()
                                 }.cell(),
                                 global_metadata
