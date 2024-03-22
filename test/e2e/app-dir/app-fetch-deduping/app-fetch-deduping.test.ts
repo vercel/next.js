@@ -9,12 +9,12 @@ describe('app-fetch-deduping', () => {
       const { next } = nextTestSetup({ files: __dirname, skipStart: true })
       let externalServerPort: number
       let externalServer: http.Server
-      let requests = 0
+      let requests = []
 
       beforeAll(async () => {
         externalServerPort = await findPort()
         externalServer = http.createServer((req, res) => {
-          requests++
+          requests.push(req.url)
           res.end(`Request ${req.url} received at ${Date.now()}`)
         })
 
@@ -28,9 +28,12 @@ describe('app-fetch-deduping', () => {
           })
         })
       })
-      afterAll(externalServer.close)
 
-      beforeEach(() => (requests = 0))
+      beforeEach(() => {
+        requests = []
+      })
+
+      afterAll(() => externalServer.close())
 
       it('dedupes requests amongst static workers when experimental.staticWorkerRequestDeduping is enabled', async () => {
         await next.patchFileFast(
