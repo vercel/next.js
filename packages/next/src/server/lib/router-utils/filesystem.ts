@@ -421,12 +421,13 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      const { basePath } = opts.config
+      const { basePath, assetPrefix } = opts.config
 
       if (basePath && !pathHasPrefix(itemPath, basePath)) {
         return null
       }
       itemPath = removePathPrefix(itemPath, basePath) || '/'
+      itemPath = removePathPrefix(itemPath, assetPrefix) || '/'
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
