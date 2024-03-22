@@ -905,106 +905,216 @@ export default async function handler(req, res) {
 
 Once a user is authenticated and a session is created, you can implement authorization to control what the user can access and do within your application.
 
-There are three main types of authorization checks:
+There are two main types of authorization checks:
 
-1. **Optimistic Authorization**:
-2. **Secure Authorization**:
+1. **Optimistic**: Checks if the user is authorized to access a route or perform an action using the session data stored in the cookie. These checks are useful for quick operations, such as showing/hiding UI elements or redirecting users based on their permissions.
+2. **Secure**: Checks if the user is authorized to access a route or perform an action using the session data stored in the database. These checks are more secure and are used for operations that require access to sensitive data or actions.
 
-### Protecting Routes with Middleware
+In addition to the above, you should also consider creating a [Data Access Layer](#verifying-sessions-with-a-data-access-layer-dal) to centralize your authorization logic, follow the [Data Transfer Objects (DTO)](#data-transfer-objects-dto) pattern to only return the necessary data, optionally use [Middleware](#optimistic-checks-with-middleware-optional) to perform optimistic checks.
 
-[Middleware](/docs/app/building-your-application/routing/middleware) in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard protected while having other pages like marketing pages be public. It's recommended to apply Middleware across all routes and specify exclusions for public access.
+### Optimistic checks with Middleware (Optional)
 
-Here's how to implement Middleware for authentication in Next.js:
+You can use [Middleware](/docs/app/building-your-application/routing/middleware) to perform optimistic checks and redirect users based on their permissions. Since middleware runs on every route, it's a good way to centralize your routing logic. For example:
 
-1. **Setting Up Middleware:**
-   - Create a `middleware.ts` or `.js` file in your project's root directory.
-   - Include logic to authorize user access, such as checking for authentication tokens.
-2. **Defining Protected Routes:**
-   - Not all routes require authorization. Use the `matcher` option in your Middleware to specify any routes that do not require authorization checks.
-3. **Middleware Logic:**
-   - Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
-4. **Handling Unauthorized Access:**
-   - Redirect unauthorized users to a login or error page as appropriate.
+```tsx filename="middleware.ts" switcher
+import { NextRequest, NextResponse } from 'next/server'
+import { decrypt } from '@/app/lib/session'
+import { cookies } from 'next/headers'
 
-Example Middleware file:
+// 1. Specify protected and public routes
+const protectedRoutes = ['/dashboard']
+const publicRoutes = ['/login', '/signup', '/']
 
-```ts filename="middleware.ts" switcher
-import type { NextRequest } from 'next/server'
+export default async function middleware(req: NextRequest) {
+  // 2. Check if the current route is protected or public
+  const path = req.nextUrl.pathname
+  const isProtectedRoute = protectedRoutes.includes(path)
+  const isPublicRoute = publicRoutes.includes(path)
 
-export function middleware(request: NextRequest) {
-  const currentUser = request.cookies.get('currentUser')?.value
+  // 3. Decrypt the session from the cookie
+  const cookie = cookies().get('session')?.value
+  const session = await decrypt(cookie)
 
-  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
-    return Response.redirect(new URL('/dashboard', request.url))
+  // 5. Redirect to /login if the user is not authenticated
+  if (isProtectedRoute && !session?.userId) {
+    return NextResponse.redirect(new URL('/login', req.nextUrl))
   }
 
-  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
-    return Response.redirect(new URL('/login', request.url))
+  // 6. Redirect to /dashboard if the user is authenticated
+  if (
+    isPublicRoute &&
+    session?.userId &&
+    !req.nextUrl.pathname.startsWith('/dashboard')
+  ) {
+    return NextResponse.redirect(new URL('/dashboard', req.nextUrl))
   }
+
+  return NextResponse.next()
 }
 
+// Routes Middleware should not run on
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 }
 ```
 
-```js filename="middleware.js" switcher
-export function middleware(request) {
-  const currentUser = request.cookies.get('currentUser')?.value
+However, due to [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching), and since Middleware runs on every route, it's important to:
 
-  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
-    return Response.redirect(new URL('/dashboard', request.url))
-  }
+- Avoid doing heavy computations or database queries in Middleware to prevent performance issues.
+- Use Middleware only to read the session from the cookie, and not make any changes to data
 
-  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
-    return Response.redirect(new URL('/login', request.url))
-  }
-}
+While Middleware can be useful for initial checks, it should not be your only line of defense in protecting your data. The majority of security checks should be performed closer to your data source, see [Data Access Layer](#verifying-sessions-with-a-data-access-layer) for more information.
 
-export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
-}
-```
+> **Tips**:
+>
+> - In Middleware, you can also read cookies using `req.cookies.get('session).value`.
+> - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, it's recommended Middleware runs on all routes for authentication.
 
-This example uses [`Response.redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Response/redirect_static) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
+### Verifying Sessions with a Data Access Layer (DAL)
 
-<AppOnly>
+We recommend creating a Data Access Layer (DAL) to centralize your data requests and authorization logic. The DAL should include a function that verifies the user's session as they interact with your application.
 
-For specific redirection needs, the `redirect` function can be used in Server Components, Route Handlers, and Server Actions to provide more control. This is useful for role-based navigation or context-sensitive scenarios.
+At the very least, the function should check if the session is valid, redirect or return the user information needed to make further requests. You can do an **optimistic** or **secure** check, depending on whether you're using [stateless](#stateless-sessions) or [database](#database-sessions) sessions.
 
-```ts filename="app/page.tsx" switcher
-import { redirect } from 'next/navigation'
+For example, create a separate file for your DAL that includes a `verifySession()` function:
 
-export default function Page() {
-  // Logic to determine if a redirect is needed
-  const accessDenied = true
-  if (accessDenied) {
+```tsx filename="app/lib/dal.ts" switcher
+import 'server-only'
+
+import { cookies } from 'next/headers'
+import { decrypt } from '@/app/lib/session'
+
+export async function verifySession() {
+  const cookie = cookies().get('session')?.value
+  const session = await decrypt(cookie)
+
+  if (!session?.userId) {
     redirect('/login')
   }
 
-  // Define other routes and logic
+  return { isAuth: true, userId: session.userId }
 }
 ```
 
-```js filename="app/page.jsx" switcher
-import { redirect } from 'next/navigation'
+You can then invoke the `verifySession()` function in your data requests before performing any operations:
 
-export default function Page() {
-  // Logic to determine if a redirect is needed
-  const accessDenied = true
-  if (accessDenied) {
+```tsx filename="app/lib/dal.ts" switcher
+// ...
+
+export const getUser = cache(async () => {
+  const session = await verifySession()
+  if (!session) return null
+
+  try {
+    const data = await db.query.users.findMany({
+      where: eq(users.id, session.userId),
+      // Explicitly return the columns you need rather than the whole user object
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    })
+
+    const user = data[0]
+
+    return user
+  } catch (error) {
+    console.log('Failed to fetch user')
+    return null
+  }
+})
+```
+
+> **Tip**:
+>
+> - For secure checks, you can check if the session is valid by comparing the session ID with your database. Use React's [cache](https://react.dev/reference/react/cache) function to avoid unnecessary requests to the database during a render pass.
+> - You may wish to consolidate all your data requests in a JavaScript class that runs `verifySession()` before any methods, however, keep in mind that [constructors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/constructor) are synchronous by default and cannot run async code.
+
+### Data Transfer Objects (DTO)
+
+When retrieving data, it's recommended you retrieve only the necessary data to be used in your application, and not entire objects. For example, if you're fetching user data, you might only return the user's ID, name, and username, rather than the entire user object which could contain passwords, phone numbers, etc.
+
+However, if you have no control over the data structure, or are working in a team where you want to avoid whole object being passed to the client, you should specify what data is ok to be exposed to the client.
+
+```tsx filename="app/lib/dto.ts" switcher
+import 'server-only'
+import { getUser } from './dal'
+
+function canSeeUsername(viewer: User) {
+  return true
+}
+
+function canSeePhoneNumber(viewer: User, team: string) {
+  return viewer.isAdmin || team === viewer.team
+}
+
+export async function getProfileDTO(slug: string) {
+  const data = await db.query.users.findMany({
+    where: eq(users.slug, slug),
+    // Return specific columns here
+  })
+  const user = data[0]
+
+  const currentUser = await getUser(user.id)
+
+  // Or return only what's specific to the query here
+  return {
+    username: canSeeUsername(currentUser) ? user.username : null,
+    phonenumber: canSeePhoneNumber(currentUser, user.team)
+      ? user.phonenumber
+      : null,
+  }
+}
+```
+
+By centralizing your data requests and authorization logic in a DAL and using DTOs, you can ensure that all data requests are secure and consistent, making it it easier to maintain and debug as you scale your application.
+
+> **Tip**:
+>
+> - Learn more about security best practices in [Security in Next.js article](/blog/security-nextjs-server-components-actions).
+
+## Server Components
+
+You can do auth checks and use the [`redirect()`](/docs/app/api-reference/functions/redirect) API in [Server Components](/docs/app/building-your-application/rendering/server-components). This is useful for role-based navigation. For example, to display different components based on the user's role:
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import { verifySession } from '@/app/lib/dal'
+
+export default function Dashboard() {
+  const session = await verifySession()
+  const userRole = session?.role
+
+  if (userRole === 'admin') {
+    return <AdminDashboard />
+  } else if (userRole === 'user') {
+    return <UserDashboard />
+  } else {
     redirect('/login')
   }
-
-  // Define other routes and logic
 }
 ```
 
-</AppOnly>
+```jsx filename="app/dashboard/page.jsx" switcher
+import { verifySession } from '@/app/lib/dal'
 
-After successful authentication, it's important to manage user navigation based on their roles. For example, an admin user might be redirected to an admin dashboard, while a regular user is sent to a different page. This is important for role-specific experiences and conditional navigation, such as prompting users to complete their profile if needed.
+export default function Dashboard() {
+  const session = await verifySession()
+  const userRole = session.role
 
-When setting up authorization, it's important to ensure that the main security checks happen where your app accesses or changes data. While Middleware can be useful for initial validation, it should not be the sole line of defense in protecting your data. The bulk of security checks should be performed in the Data Access Layer (DAL).
+  if (userRole === 'admin') {
+    return <AdminDashboard />
+  } else if (userRole === 'user') {
+    return <UserDashboard />
+  } else {
+    redirect('/login')
+  }
+}
+```
+
+In the example, we use the `verifySession()` function from our DAL to check for 'admin', 'user', and unauthorized roles. This pattern ensures that each user interacts only with components appropriate to their role.
+
+However, due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in shared [Layouts](/docs/app/building-your-application/routing/pages-and-layouts) as these don't re-render on navigation. Instead, you can call the `verifySession()
 
 <PagesOnly>
 
@@ -1078,12 +1188,6 @@ This example demonstrates an API Route with a two-tier security check for authen
 <AppOnly>
 
 This approach, highlighted in [this security blog](/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. This strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance. To ensure comprehensive security, consider the following key areas:
-
-- Server Actions: Implement security checks in server-side processes, especially for sensitive operations.
-- Route Handlers: Manage incoming requests with security measures to ensure access is limited to authorized users.
-- Data Access Layer (DAL): Directly interacts with the database and is crucial for validating and authorizing data transactions. It's vital to perform critical checks within the DAL to secure data at its most crucial interaction point—access or modification.
-
-For a detailed guide on securing the DAL, including example code snippets and advanced security practices, refer to our [Data Access Layer section](/blog/security-nextjs-server-components-actions#data-access-layer) of the security guide.
 
 #### Protecting Server Actions
 
@@ -1175,59 +1279,15 @@ export async function GET() {
 
 This example demonstrates a Route Handler with a two-tier security check for authentication and authorization. It first checks for an active session, and then verifies if the logged-in user is an 'admin'. This approach ensures secure access, limited to authenticated and authorized users, maintaining robust security for request processing.
 
-#### Authorization Using Server Components
-
-[Server Components](/docs/app/building-your-application/rendering/server-components) in Next.js are designed for server-side execution and offer a secure environment for integrating complex logic like authorization. They enable direct access to back-end resources, optimizing performance for data-heavy tasks and enhancing security for sensitive operations.
-
-In Server Components, a common practice is to conditionally render UI elements based on the user's role. This approach enhances user experience and security by ensuring users only access content they are authorized to view.
-
-**Example:**
-
-```tsx filename="app/dashboard/page.tsx" switcher
-export default function Dashboard() {
-  const session = await getSession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
-
-  if (userRole === 'admin') {
-    return <AdminDashboard /> // Component for admin users
-  } else if (userRole === 'user') {
-    return <UserDashboard /> // Component for regular users
-  } else {
-    return <AccessDenied /> // Component shown for unauthorized access
-  }
-}
-```
-
-```jsx filename="app/dashboard/page.jsx" switcher
-export default function Dashboard() {
-  const session = await getSession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
-
-  if (userRole === 'admin') {
-    return <AdminDashboard /> // Component for admin users
-  } else if (userRole === 'user') {
-    return <UserDashboard /> // Component for regular users
-  } else {
-    return <AccessDenied /> // Component shown for unauthorized access
-  }
-}
-```
-
-In this example, the Dashboard component renders different UIs for 'admin', 'user', and unauthorized roles. This pattern ensures that each user interacts only with components appropriate to their role, enhancing both security and user experience.
-
 </AppOnly>
 
-### Best Practices
+## Resources
 
-- **Secure Session Management**: Prioritize the security of session data to prevent unauthorized access and data breaches. Use encryption and secure storage practices.
-- **Dynamic Role Management**: Use a flexible system for user roles to easily adjust to changes in permissions and roles, avoiding hardcoded roles.
-- **Security-First Approach**: In all aspects of authorization logic, prioritize security to safeguard user data and maintain the integrity of your application. This includes thorough testing and considering potential security vulnerabilities.
+Now that you've learned about authentication in Next.js, here are Next.js-compatible libraries and resources to help you implement secure authentication and session management in your application:
 
-## Auth Providers
+### Auth Providers
 
-Here are authentication solutions compatible with Next.js, please refer to the quickstart guides below to learn how to configure them in your Next.js application:
-
-{/* TODO: Change link to authjs.dev when new documentation is ready */}
+Here are authentication providers compatible with Next.js, please refer to the quickstart guides below to learn how to configure them in your Next.js application:
 
 - [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
@@ -1236,11 +1296,17 @@ Here are authentication solutions compatible with Next.js, please refer to the q
 - [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
-- [Iron Session](https://github.com/vvo/iron-session)
 
-## Further Reading
+### Session Management Libraries
+
+- [Iron Session](https://github.com/vvo/iron-session)
+- [Jose](https://github.com/panva/jose)
+
+### Further Reading
 
 To continue learning about authentication and security, check out the following resources:
 
+- [How to think about security in Next.js](/blog/security-nextjs-server-components-actions)
 - [Understanding XSS Attacks](https://vercel.com/guides/understanding-xss-attacks)
 - [Understanding CSRF Attacks](https://vercel.com/guides/understanding-csrf-attacks)
+- [The Copenhagen Book](https://thecopenhagenbook.com/)
