@@ -20,7 +20,10 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
-import { formatBarrelOptimizedResource } from '../utils'
+import {
+  formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
+} from '../utils'
 import type { ChunkGroup } from 'webpack'
 
 interface Options {
@@ -409,8 +412,10 @@ export class ClientReferenceManifestPlugin {
               continue
             }
 
-            const connections =
-              compilation.moduleGraph.getOutgoingConnections(mod)
+            const connections = getModuleReferencesInOrder(
+              mod,
+              compilation.moduleGraph
+            )
 
             for (const connection of connections) {
               const dependency = connection.dependency

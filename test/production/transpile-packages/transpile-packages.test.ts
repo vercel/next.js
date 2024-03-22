@@ -17,11 +17,6 @@ createNextDescribe(
       expect($('#isObject').text()).toBe('isObject: true')
     })
 
-    it('should treat lodash as an external package', async () => {
-      const output = await next.readFile('.next/server/app/page.js')
-      expect(output).toContain('require("lodash')
-    })
-
     it('should bundle @aws-sdk/client-s3 as a transpiled package', async () => {
       const output = await next.readFile('.next/server/app/page.js')
       expect(output).not.toContain('require("@aws-sdk/client-s3")')

@@ -208,13 +208,20 @@ module.exports = (actionInfo) => {
               }
             }
 
-            const { stdout } = await execa('pnpm', ['pack'], {
+            const options = {
               cwd: pkgPath,
               env: {
                 ...process.env,
                 COREPACK_ENABLE_STRICT: '0',
               },
-            })
+            }
+            let execResult
+            try {
+              execResult = await execa('pnpm', ['pack'], options)
+            } catch {
+              execResult = await execa('pnpm', ['pack'], options)
+            }
+            const { stdout } = execResult
 
             const packedFileName = stdout.trim()
 
