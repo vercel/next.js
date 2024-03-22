@@ -31,47 +31,7 @@ Recognizing situations where middleware may not be the optimal approach is just 
 
 Use the file `middleware.ts` (or `.js`) in the root of your project to define Middleware. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
-> **Note**: While only one `middleware.ts` file is supported per project, you can still organize your middleware logic modularly. Break out middleware functionalities into separate `.ts` or `.js` files and import them into your main `middleware.ts`. This allows for cleaner management of route-specific middleware through [matchers](#matching-paths), aggregated in the `middleware.ts` for centralized control. By enforcing a single middleware file, it simplifies configuration, prevents potential conflicts, and optimizes performance by avoiding multiple middleware layers.
-
-### Example
-
-```ts filename="middleware.ts" switcher
-import type { NextRequest } from 'next/server'
-import { authMatcher, authMiddleware } from '/auth'
-import { rateLimitMatcher, rateLimitMiddleware } from '/middleware/rateLimit'
-
-export const config = {
-  matcher: [...authMatcher, ...rateLimitMatcher],
-}
-
-export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/api/private')) {
-    return authMiddleware(request)
-  }
-
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    return rateLimitMiddleware(request)
-  }
-}
-```
-
-```js filename="middleware.js" switcher
-import { authMatcher, authMiddleware } from '/auth'
-import { rateLimitMatcher, rateLimitMiddleware } from '/rateLimit'
-
-export const config = {
-  matcher: [...authMatcher, ...rateLimitMatcher],
-}
-
-export function middleware(request) {
-  if (request.nextUrl.pathname.startsWith('/api/private')) {
-    return authMiddleware(request)
-  }
-
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    return rateLimitMiddleware(request)
-  }
-}
+> **Note**: While only one `middleware.ts` file is supported per project, you can still organize your middleware logic modularly. Break out middleware functionalities into separate `.ts` or `.js` files and import them into your main `middleware.ts`. This allows for cleaner management of route-specific middleware, aggregated in the `middleware.ts` for centralized control. By enforcing a single middleware file, it simplifies configuration, prevents potential conflicts, and optimizes performance by avoiding multiple middleware layers.
 
 ## Example
 
