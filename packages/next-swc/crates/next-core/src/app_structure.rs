@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use async_recursion::async_recursion;
@@ -421,7 +421,7 @@ async fn get_directory_tree_internal(
 #[derive(Debug, Clone)]
 pub struct LoaderTree {
     pub page: AppPage,
-    pub segment: String,
+    pub segment: Arc<String>,
     pub parallel_routes: IndexMap<String, Vc<LoaderTree>>,
     pub components: Vc<Components>,
     pub global_metadata: Vc<GlobalMetadata>,
@@ -432,7 +432,7 @@ impl LoaderTree {
     /// Returns true if there's a page match in this loader tree.
     #[turbo_tasks::function]
     pub async fn has_page(&self) -> Result<Vc<bool>> {
-        if self.segment == "__PAGE__" {
+        if &**self.segment == "__PAGE__" {
             return Ok(Vc::cell(true));
         }
 
@@ -449,7 +449,7 @@ impl LoaderTree {
     /// route.
     #[turbo_tasks::function]
     pub async fn has_only_catchall(&self) -> Result<Vc<bool>> {
-        if self.segment == "__PAGE__" && !self.page.is_catchall() {
+        if &**self.segment == "__PAGE__" && !self.page.is_catchall() {
             return Ok(Vc::cell(false));
         }
 
@@ -795,7 +795,7 @@ async fn check_duplicate(
 async fn directory_tree_to_loader_tree(
     app_dir: Vc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
-    directory_name: String,
+    directory_name: Arc<String>,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     // the page this loader tree is constructed for
@@ -843,7 +843,7 @@ async fn directory_tree_to_loader_tree(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = "children".to_string();
+        tree.segment = "children".to_string().into();
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
