@@ -36,9 +36,9 @@ type OpenGraphMetadata = {
   determiner?: 'a' | 'an' | 'the' | 'auto' | ''
   title?: string | TemplateString
   description?: string
-  emails?: string | Array<string>
-  phoneNumbers?: string | Array<string>
-  faxNumbers?: string | Array<string>
+  emails?: Array<string>
+  phoneNumbers?: Array<string>
+  faxNumbers?: Array<string>
   siteName?: string
   locale?: Locale
   alternateLocale?: Locale | Array<Locale>
