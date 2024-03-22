@@ -354,7 +354,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // mark as external
                 Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
+                        request_str.into(),
                         ExternalType::CommonJs,
                     ))
                     .cell(),
@@ -391,7 +391,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // mark as external
                     Ok(ResolveResultOption::some(
                         ResolveResult::primary(ResolveResultItem::External(
-                            request_str,
+                            request_str.into(),
                             if resolves_equal {
                                 ExternalType::CommonJs
                             } else {
@@ -406,7 +406,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // mark as external
                 Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
+                        request_str.into(),
                         ExternalType::EcmaScriptModule,
                     ))
                     .cell(),
