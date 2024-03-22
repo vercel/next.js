@@ -39,9 +39,13 @@ use crate::{
     util::NextRuntime,
 };
 
-const NODE_INTERNALS: [&str; 48] = [
-    "assert",
-    "async_hooks",
+/// List of node.js internals that are not supported by edge runtime.
+/// If these imports are used & user does not provide alias for the polyfill,
+/// runtime error will be thrown.
+/// This is not identical to the list of entire node.js internals, refer
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+/// for the allowed imports.
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
     "child_process",
     "cluster",
     "console",
@@ -51,7 +55,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "dns",
     "dns/promises",
     "domain",
-    "events",
     "fs",
     "fs/promises",
     "http",
@@ -80,8 +83,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "tls",
     "trace_events",
     "tty",
-    "util",
-    "util/types",
     "v8",
     "vm",
     "wasi",
@@ -486,7 +487,7 @@ fn insert_unsupported_node_internal_aliases(
     ))
     .into();
 
-    NODE_INTERNALS.iter().for_each(|module| {
+    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
         import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
     });
 }
