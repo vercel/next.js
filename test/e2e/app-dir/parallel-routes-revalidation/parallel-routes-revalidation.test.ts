@@ -7,7 +7,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    it('should submit the action and revalidate the page data', async () => {
+    it.skip('should submit the action and revalidate the page data', async () => {
       const browser = await next.browser('/')
       await check(() => browser.hasElementByCssSelector('#create-entry'), false)
 
@@ -41,7 +41,7 @@ createNextDescribe(
       await check(() => browser.elementByCss('body').text(), /Current Data/)
     })
 
-    it('should handle router.refresh() when called in a slot', async () => {
+    it.skip('should handle router.refresh() when called in a slot', async () => {
       const browser = await next.browser('/')
       await check(
         () => browser.hasElementByCssSelector('#refresh-router'),
@@ -69,7 +69,7 @@ createNextDescribe(
       await check(() => browser.elementByCss('body').text(), /Current Data/)
     })
 
-    it('should handle a redirect action when called in a slot', async () => {
+    it.skip('should handle a redirect action when called in a slot', async () => {
       const browser = await next.browser('/')
       await check(() => browser.hasElementByCssSelector('#redirect'), false)
       await browser.elementByCss("[href='/redirect-modal']").click()

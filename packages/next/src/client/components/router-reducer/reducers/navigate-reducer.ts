@@ -170,7 +170,7 @@ function navigateReducer_noPPR(
           flightSegmentPathWithLeadingEmpty,
           currentTree,
           treePatch,
-          href
+          url.pathname
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
@@ -181,7 +181,7 @@ function navigateReducer_noPPR(
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
             treePatch,
-            state.canonicalUrl
+            url.pathname
           )
         }
 
@@ -342,7 +342,7 @@ function navigateReducer_PPR(
           flightSegmentPathWithLeadingEmpty,
           currentTree,
           treePatch,
-          state.canonicalUrl
+          url.pathname
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
@@ -353,7 +353,7 @@ function navigateReducer_PPR(
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
             treePatch,
-            state.canonicalUrl
+            url.pathname
           )
         }
 

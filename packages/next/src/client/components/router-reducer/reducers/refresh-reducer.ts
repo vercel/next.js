@@ -73,7 +73,7 @@ export function refreshReducer(
           [''],
           currentTree,
           treePatch,
-          state.canonicalUrl
+          location.pathname
         )
 
         if (newTree === null) {
