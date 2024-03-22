@@ -25,8 +25,12 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("css".to_string())
+fn modifier(use_swc_css: bool) -> Vc<String> {
+    if use_swc_css {
+        Vc::cell("swc css".to_string())
+    } else {
+        Vc::cell("css".to_string())
+    }
 }
 
 #[turbo_tasks::value]
@@ -107,10 +111,15 @@ impl ProcessCss for CssModuleAsset {
 impl Module for CssModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+        let mut ident = self
+            .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+            .with_modifier(modifier(self.use_swc_css))
+            .with_layer(self.asset_context.layer());
+        if let Some(import_context) = self.import_context {
+            ident = ident.with_modifier(import_context.modifier())
+        }
+        ident
     }
 
     #[turbo_tasks::function]

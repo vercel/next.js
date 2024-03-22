@@ -1,10 +1,10 @@
-/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css) */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, ) */
 .imported {
   color: #0ff;
 }
 
 
-/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css) */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, layer(layer) print) */
 @layer layer {
 @media print {
 .imported {
@@ -50,4 +50,4 @@
 }
 
 
-/*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_css_input_64af3a._.css.map*/
+/*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_css_input_f3a64b._.css.map*/
