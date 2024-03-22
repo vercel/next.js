@@ -13,8 +13,8 @@ use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, util::SharedError, Completion, RawVc, TaskInput, TryJoinIterExt,
-    Value, Vc,
+    duration_span, mark_finished, prevent_gc, util::SharedError, Completion, RawVc, TaskInput,
+    TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -243,6 +243,10 @@ pub trait EvaluateContext {
 }
 
 pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptEvaluation> {
+    // TODO: The way we invoke compute_evaluate_stream as side effect is not
+    // GC-safe, so we disable GC for this task.
+    prevent_gc();
+
     // Note the following code uses some hacks to create a child task that produces
     // a stream that is returned by this task.
 
