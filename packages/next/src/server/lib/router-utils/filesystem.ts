@@ -423,7 +423,11 @@ export async function setupFsCheck(opts: {
 
       const { basePath, assetPrefix } = opts.config
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
+      if (
+        (basePath || assetPrefix) &&
+        !pathHasPrefix(itemPath, basePath) &&
+        !pathHasPrefix(itemPath, assetPrefix)
+      ) {
         return null
       }
       itemPath = removePathPrefix(itemPath, basePath) || '/'
