@@ -96,24 +96,20 @@ export function resolveImages(
   return nonNullableImages
 }
 
+const ogTypeToFields: Record<string, readonly string[]> = {
+  article: OgTypeFields.article,
+  book: OgTypeFields.article,
+  'music.song': OgTypeFields.song,
+  'music.album': OgTypeFields.song,
+  'music.playlist': OgTypeFields.playlist,
+  'music.radio_station': OgTypeFields.radio,
+  'video.movie': OgTypeFields.video,
+  'video.episode': OgTypeFields.video,
+}
+
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
-  switch (ogType) {
-    case 'article':
-    case 'book':
-      return OgTypeFields.article
-    case 'music.song':
-    case 'music.album':
-      return OgTypeFields.song
-    case 'music.playlist':
-      return OgTypeFields.playlist
-    case 'music.radio_station':
-      return OgTypeFields.radio
-    case 'video.movie':
-    case 'video.episode':
-      return OgTypeFields.video
-    default:
-      return OgTypeFields.basic
-  }
+  if (!ogType || !(ogType in ogTypeToFields)) return OgTypeFields.basic
+  return ogTypeToFields[ogType].concat(OgTypeFields.basic)
 }
 
 function validateResolvedImageUrl(
