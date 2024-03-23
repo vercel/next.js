@@ -482,6 +482,9 @@ createNextDescribe(
           'og:description': 'My custom description',
           'og:type': 'article',
           'og:image': 'https://example.com/og-image.jpg',
+          'og:email': 'author@vercel.com',
+          'og:phone_number': '1234567890',
+          'og:fax_number': '1234567890',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
