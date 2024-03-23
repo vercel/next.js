@@ -469,7 +469,24 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+    // Look for where 'server/web/globals.ts` are imported to find out corresponding
+    // context
+    match ty {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
+            insert_unsupported_node_internal_aliases(
+                &mut import_map,
+                project_path,
+                execution_context,
+            );
+        }
+        _ => {}
+    }
 
     Ok(import_map.cell())
 }
