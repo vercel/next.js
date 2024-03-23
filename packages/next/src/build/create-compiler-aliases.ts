@@ -296,6 +296,9 @@ export function createRSCAliases(
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
     }
     // Use server rendering stub for RSC and SSR
     // x-ref: https://github.com/facebook/react/pull/25436
