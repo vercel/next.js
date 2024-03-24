@@ -182,6 +182,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/router-reducer/clear-cache-node-data-for-segment-path.test.tsx": {
+    "passed": [
+      "clearCacheNodeDataForSegmentPath should clear the data property"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/router-reducer/compute-changed-path.test.ts": {
     "passed": ["computeChangedPath should return the correct path"],
     "failed": [],
@@ -217,13 +226,6 @@
       "createRouterCacheKey should support dynamic segment",
       "createRouterCacheKey should support string segment"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/fill-cache-with-data-property.test.tsx": {
-    "passed": ["fillCacheWithDataProperty should add data property"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2889,6 +2891,7 @@
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
@@ -2968,6 +2971,7 @@
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
@@ -4241,6 +4245,10 @@
     "passed": [
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
+      "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/dynamic/foobar)",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
     "failed": [],
@@ -9479,19 +9487,18 @@
   },
   "test/integration/edge-runtime-configurable-guards/test/index.test.js": {
     "passed": [
-      "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
-      "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime"
-    ],
-    "failed": [
       "Edge runtime configurable guards Edge API using lib with allowed, used dynamic code still warns in dev at runtime",
       "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
       "Edge runtime configurable guards Edge API with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
       "Edge runtime configurable guards Middleware using lib with allowed, used dynamic code still warns in dev at runtime",
       "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code warns in dev at runtime",
       "Edge runtime configurable guards Middleware with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
       "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
       "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code"
     ],
+    "failed": [],
     "pending": [
       "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
       "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
@@ -9510,15 +9517,15 @@
     "passed": [
       "Edge route usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
       "Edge route usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
-      "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
-      "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
-      "Page using eval in dev mode does issue dynamic code evaluation warnings",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running code with eval",
+      "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
-      "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval"
+      "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval",
+      "Page using eval in dev mode does issue dynamic code evaluation warnings"
     ],
     "failed": [],
     "pending": [
@@ -9530,22 +9537,18 @@
   },
   "test/integration/edge-runtime-module-errors/test/index.test.js": {
     "passed": [
-      "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
-      "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
-      "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
-      "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
-      "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime",
-      "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
-    ],
-    "failed": [
       "Edge runtime code with imports Edge API dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
+      "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
       "Edge runtime code with imports Middleware dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line"
+      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
+      "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime"
     ],
+    "failed": [],
     "pending": [
       "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
       "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
@@ -9563,16 +9566,16 @@
   },
   "test/integration/edge-runtime-module-errors/test/module-imports.test.js": {
     "passed": [
-      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime"
+      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
+      "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
+      "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
     ],
     "failed": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-      "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
+      "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
     ],
     "pending": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module production mode does not build and reports module not found error",
