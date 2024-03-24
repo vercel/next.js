@@ -316,9 +316,6 @@ impl SourceMap {
             SourceMap::Decoded(map) => {
                 let mut token = map
                     .lookup_token(line as u32, column as u32)
-                    // The sourcemap crate incorrectly returns a previous line's token when there's
-                    // not a match on this line.
-                    .filter(|t| t.get_dst_line() == line as u32)
                     .map(Token::from)
                     .unwrap_or_else(|| {
                         Token::Synthetic(SyntheticToken {
