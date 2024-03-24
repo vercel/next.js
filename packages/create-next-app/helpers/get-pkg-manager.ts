@@ -5,15 +5,9 @@ export function getPkgManager(): PackageManager {
 
   if (userAgent.startsWith('yarn')) {
     return 'yarn'
-  }
-
-  if (userAgent.startsWith('pnpm')) {
+  } else if (userAgent.startsWith('pnpm')) {
     return 'pnpm'
-  }
-
-  if (userAgent.startsWith('bun')) {
+  } else if (userAgent.startsWith('bun')) {
     return 'bun'
-  }
-
-  return 'npm'
+  } else return 'npm'
 }
