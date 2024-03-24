@@ -3,9 +3,8 @@
 import { createFile, exists, readFile, writeFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
-;(process.env.TURBOPACK ? describe.skip : describe)(
-  'tsconfig.json verifier',
-  () => {
+describe('tsconfig.json verifier', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     const appDir = path.join(__dirname, '../')
     const tsConfig = path.join(appDir, 'tsconfig.json')
     const tsConfigBase = path.join(appDir, 'tsconfig.base.json')
@@ -753,5 +752,5 @@ import path from 'path'
       "
     `)
     })
-  }
-)
+  })
+})

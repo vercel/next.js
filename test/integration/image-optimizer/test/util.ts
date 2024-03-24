@@ -1407,54 +1407,55 @@ export const setupTests = (ctx) => {
       runTests(curCtx)
     })
     ;(process.env.TURBOPACK ? describe.skip : describe)(
-      'Production Mode Server support w/o next.config.js',
+      'production mode',
       () => {
-        if (ctx.nextConfigImages) {
-          // skip this test because it requires next.config.js
-          return
-        }
-        const size = 384 // defaults defined in server/config.ts
-        const curCtx = {
-          ...ctx,
-          w: size,
-          isDev: false,
-        }
-        beforeAll(async () => {
-          const json = JSON.stringify({
-            experimental: {
-              outputFileTracingRoot: join(__dirname, '../../../..'),
-            },
+        describe('Production Mode Server support w/o next.config.js', () => {
+          if (ctx.nextConfigImages) {
+            // skip this test because it requires next.config.js
+            return
+          }
+          const size = 384 // defaults defined in server/config.ts
+          const curCtx = {
+            ...ctx,
+            w: size,
+            isDev: false,
+          }
+          beforeAll(async () => {
+            const json = JSON.stringify({
+              experimental: {
+                outputFileTracingRoot: join(__dirname, '../../../..'),
+              },
+            })
+            nextConfig.replace('{ /* replaceme */ }', json)
+            curCtx.nextOutput = ''
+            await nextBuild(curCtx.appDir)
+            await cleanImagesDir(ctx)
+            curCtx.appPort = await findPort()
+            curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
+              onStderr(msg) {
+                curCtx.nextOutput += msg
+              },
+              env: {
+                NEXT_SHARP_PATH: curCtx.isSharp
+                  ? join(curCtx.appDir, 'node_modules', 'sharp')
+                  : '',
+              },
+              cwd: curCtx.appDir,
+            })
           })
-          nextConfig.replace('{ /* replaceme */ }', json)
-          curCtx.nextOutput = ''
-          await nextBuild(curCtx.appDir)
-          await cleanImagesDir(ctx)
-          curCtx.appPort = await findPort()
-          curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
-            onStderr(msg) {
-              curCtx.nextOutput += msg
-            },
-            env: {
-              NEXT_SHARP_PATH: curCtx.isSharp
-                ? join(curCtx.appDir, 'node_modules', 'sharp')
-                : '',
-            },
-            cwd: curCtx.appDir,
+          afterAll(async () => {
+            nextConfig.restore()
+            if (curCtx.app) await killApp(curCtx.app)
           })
-        })
-        afterAll(async () => {
-          nextConfig.restore()
-          if (curCtx.app) await killApp(curCtx.app)
-        })
 
-        runTests(curCtx)
+          runTests(curCtx)
+        })
       }
     )
   }
 
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
-    'Production Mode Server support with next.config.js',
-    () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('Production Mode Server support with next.config.js', () => {
       const size = 399
       const curCtx = {
         ...ctx,
@@ -1522,6 +1523,6 @@ export const setupTests = (ctx) => {
       })
 
       runTests(curCtx)
-    }
-  )
+    })
+  })
 }

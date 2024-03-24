@@ -177,16 +177,18 @@ describe('Font Optimization', () => {
         })
 
         // Re-run build to check if it works when build is cached
-        ;(process.env.TURBOPACK ? it.skip : it)(
-          'should work when build is cached',
-          async () => {
-            await nextBuild(appDir)
-            const testJson = JSON.parse(
-              await fs.readFile(builtPage('font-manifest.json'), {
-                encoding: 'utf-8',
-              })
-            )
-            expect(testJson.length).toBeGreaterThan(0)
+        ;(process.env.TURBOPACK ? describe.skip : describe)(
+          'production mode',
+          () => {
+            it('should work when build is cached', async () => {
+              await nextBuild(appDir)
+              const testJson = JSON.parse(
+                await fs.readFile(builtPage('font-manifest.json'), {
+                  encoding: 'utf-8',
+                })
+              )
+              expect(testJson.length).toBeGreaterThan(0)
+            })
           }
         )
       }
@@ -249,24 +251,21 @@ describe('Font Optimization', () => {
       })
     }
   )
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'Spread operator regression on <link>',
-    async () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('Spread operator regression on <link>', async () => {
       const appDir = join(fixturesDir, 'spread-operator-regression')
       const { code } = await nextBuild(appDir)
       // eslint-disable-next-line
       expect(code).toBe(0)
-    }
-  )
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'makeStylesheetInert regression',
-    async () => {
+    })
+
+    it('makeStylesheetInert regression', async () => {
       const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
       const { code } = await nextBuild(appDir)
       // eslint-disable-next-line
       expect(code).toBe(0)
-    }
-  )
+    })
+  })
 
   describe('font override', () => {
     ;(process.env.TURBOPACK ? describe.skip : describe)(
