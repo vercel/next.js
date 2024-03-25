@@ -9,7 +9,7 @@ describe.each(['default', 'turbo'])('basic app-dir tests', () => {
 
   it('should reload app pages without error', async () => {
     const { session, cleanup, browser } = await sandbox(next, undefined, '/')
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     browser.refresh()
 
@@ -17,7 +17,7 @@ describe.each(['default', 'turbo'])('basic app-dir tests', () => {
     await waitForHydration(browser)
 
     for (let i = 0; i < 15; i++) {
-      expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox()).toBe(false)
       await waitFor(1000)
     }
 

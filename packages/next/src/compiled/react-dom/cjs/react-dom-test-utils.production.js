@@ -932,8 +932,10 @@ const getInstanceFromNode = EventInternals[0];
 const getNodeFromInstance = EventInternals[1];
 const getFiberCurrentPropsFromNode = EventInternals[2];
 const enqueueStateRestore = EventInternals[3];
-const restoreStateIfNeeded = EventInternals[4];
-const act = React.unstable_act;
+const restoreStateIfNeeded = EventInternals[4]; // TODO: Add a warning if this API is accessed with advice to switch to
+// importing directly from the React package instead.
+
+const act = React.act;
 
 function Event(suffix) {}
 /**
@@ -955,7 +957,7 @@ function findAllInRenderedFiberTreeInternal(fiber, test) {
   const ret = [];
 
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionComponent || (node.tag === HostHoistable ) || (node.tag === HostSingleton )) {
+    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionComponent || (node.tag === HostHoistable ) || node.tag === HostSingleton) {
       const publicInst = node.stateNode;
 
       if (test(publicInst)) {
@@ -1010,7 +1012,7 @@ function validateClassInstance(inst, methodName) {
     received = stringified;
   }
 
-  throw new Error(methodName + "(...): the first argument must be a React class instance. " + ("Instead received: " + received + "."));
+  throw new Error("The first argument must be a React class instance. " + ("Instead received: " + received + "."));
 }
 /**
  * Utilities for making it easy to test React components.
@@ -1070,7 +1072,7 @@ function isCompositeComponentWithType(inst, type) {
 }
 
 function findAllInRenderedTree(inst, test) {
-  validateClassInstance(inst, 'findAllInRenderedTree');
+  validateClassInstance(inst);
 
   if (!inst) {
     return [];
@@ -1087,7 +1089,7 @@ function findAllInRenderedTree(inst, test) {
 
 
 function scryRenderedDOMComponentsWithClass(root, classNames) {
-  validateClassInstance(root, 'scryRenderedDOMComponentsWithClass');
+  validateClassInstance(root);
   return findAllInRenderedTree(root, function (inst) {
     if (isDOMComponent(inst)) {
       let className = inst.className;
@@ -1124,7 +1126,7 @@ function scryRenderedDOMComponentsWithClass(root, classNames) {
 
 
 function findRenderedDOMComponentWithClass(root, className) {
-  validateClassInstance(root, 'findRenderedDOMComponentWithClass');
+  validateClassInstance(root);
   const all = scryRenderedDOMComponentsWithClass(root, className);
 
   if (all.length !== 1) {
@@ -1141,7 +1143,7 @@ function findRenderedDOMComponentWithClass(root, className) {
 
 
 function scryRenderedDOMComponentsWithTag(root, tagName) {
-  validateClassInstance(root, 'scryRenderedDOMComponentsWithTag');
+  validateClassInstance(root);
   return findAllInRenderedTree(root, function (inst) {
     return isDOMComponent(inst) && inst.tagName.toUpperCase() === tagName.toUpperCase();
   });
@@ -1155,7 +1157,7 @@ function scryRenderedDOMComponentsWithTag(root, tagName) {
 
 
 function findRenderedDOMComponentWithTag(root, tagName) {
-  validateClassInstance(root, 'findRenderedDOMComponentWithTag');
+  validateClassInstance(root);
   const all = scryRenderedDOMComponentsWithTag(root, tagName);
 
   if (all.length !== 1) {
@@ -1171,7 +1173,7 @@ function findRenderedDOMComponentWithTag(root, tagName) {
 
 
 function scryRenderedComponentsWithType(root, componentType) {
-  validateClassInstance(root, 'scryRenderedComponentsWithType');
+  validateClassInstance(root);
   return findAllInRenderedTree(root, function (inst) {
     return isCompositeComponentWithType(inst, componentType);
   });
@@ -1185,7 +1187,7 @@ function scryRenderedComponentsWithType(root, componentType) {
 
 
 function findRenderedComponentWithType(root, componentType) {
-  validateClassInstance(root, 'findRenderedComponentWithType');
+  validateClassInstance(root);
   const all = scryRenderedComponentsWithType(root, componentType);
 
   if (all.length !== 1) {
@@ -1299,7 +1301,7 @@ function getParent(inst) {
     // events to their parent. We could also go through parentNode on the
     // host node but that wouldn't work for React Native and doesn't let us
     // do the portal feature.
-  } while (inst && inst.tag !== HostComponent && (inst.tag !== HostSingleton));
+  } while (inst && inst.tag !== HostComponent && inst.tag !== HostSingleton);
 
   if (inst) {
     return inst;

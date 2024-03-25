@@ -1,16 +1,16 @@
-import { inngest } from '@/inngest/inngest.client'
-import { redirect } from 'next/navigation'
+import { inngest } from "@/inngest/inngest.client";
+import { redirect } from "next/navigation";
 
 export default function Home() {
   async function triggerInngestEvent() {
-    'use server'
+    "use server";
     await inngest.send({
-      name: 'test/hello.world',
+      name: "test/hello.world",
       data: {
-        message: 'Hello from Next.js!',
+        message: "Hello from Next.js!",
       },
-    })
-    redirect('http://localhost:8288/stream')
+    });
+    redirect("http://localhost:8288/stream");
   }
   return (
     <main>
@@ -20,5 +20,5 @@ export default function Home() {
         </form>
       </div>
     </main>
-  )
+  );
 }

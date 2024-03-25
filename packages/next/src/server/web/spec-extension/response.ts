@@ -26,6 +26,11 @@ function handleMiddlewareField(
   }
 }
 
+/**
+ * This class extends the [Web `Response` API](https://developer.mozilla.org/docs/Web/API/Response) with additional convenience methods.
+ *
+ * Read more: [Next.js Docs: `NextResponse`](https://nextjs.org/docs/app/api-reference/functions/next-response)
+ */
 export class NextResponse<Body = unknown> extends Response {
   [INTERNALS]: {
     cookies: ResponseCookies

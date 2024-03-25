@@ -2,9 +2,7 @@ import type { Dirent } from 'fs'
 import { promises } from 'fs'
 import { join, isAbsolute, dirname } from 'path'
 import isError from './is-error'
-
-const sleep = (timeout: number) =>
-  new Promise((resolve) => setTimeout(resolve, timeout))
+import { wait } from './wait'
 
 const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
   try {
@@ -22,7 +20,7 @@ const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
         code === 'EMFILE') &&
       t < 3
     ) {
-      await sleep(t * 100)
+      await wait(t * 100)
       return unlinkPath(p, isDir, t++)
     }
 

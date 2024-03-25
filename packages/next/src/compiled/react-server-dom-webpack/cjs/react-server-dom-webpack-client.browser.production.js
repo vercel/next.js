@@ -11,7 +11,6 @@
 'use strict';
 
 var ReactDOM = require('react-dom');
-var React = require('react');
 
 // -----------------------------------------------------------------------------
 const enableBinaryFlight = false;
@@ -313,7 +312,7 @@ function dispatchHint(code, model) {
         }
     }
   }
-} // Flow is having troulbe refining the HintModels so we help it a bit.
+} // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
 
 function refineModel(code, model) {
@@ -325,10 +324,7 @@ function refineModel(code, model) {
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
 // The Symbol used to tag the ReactElement-like types.
 const REACT_ELEMENT_TYPE = Symbol.for('react.element');
-const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_LAZY_TYPE = Symbol.for('react.lazy');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -621,12 +617,12 @@ function processReply(root, formFieldPrefix, resolve, reject) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
 
   knownServerReferences.set(proxy, reference);
 } // $FlowFixMe[method-unbinding]
 
-function createServerReference(id, callServer) {
+function createServerReference(id, callServer, encodeFormAction) {
   const proxy = function () {
     // $FlowFixMe[method-unbinding]
     const args = Array.prototype.slice.call(arguments);
@@ -638,40 +634,6 @@ function createServerReference(id, callServer) {
     bound: null
   });
   return proxy;
-}
-
-const ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-const ContextRegistry = ReactSharedInternals.ContextRegistry;
-function getOrCreateServerContext(globalName) {
-  if (!ContextRegistry[globalName]) {
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  return ContextRegistry[globalName];
 }
 
 const ROW_ID = 0;
@@ -968,17 +930,20 @@ function reportGlobalError(response, error) {
 }
 
 function createElement(type, key, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  let element;
+
+  {
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      type,
+      key,
+      ref: null,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: null
+    };
+  }
 
   return element;
 }
@@ -989,6 +954,7 @@ function createLazyChunkWrapper(chunk) {
     _payload: chunk,
     _init: readChunk
   };
+
   return lazyType;
 }
 
@@ -1122,6 +1088,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(() => {});
+          }
+
           const id = parseInt(value.slice(2), 16);
           const chunk = getChunk(response, id);
           return chunk;
@@ -1131,12 +1102,6 @@ function parseModelString(response, parentObject, key, value) {
         {
           // Symbol
           return Symbol.for(value.slice(2));
-        }
-
-      case 'P':
-        {
-          // Server Context Provider
-          return getOrCreateServerContext(value.slice(2)).Provider;
         }
 
       case 'F':
@@ -1204,6 +1169,8 @@ function parseModelString(response, parentObject, key, value) {
           return BigInt(value.slice(2));
         }
 
+      case 'E':
+
       default:
         {
           // We assume that anything else is a reference ID.
@@ -1223,7 +1190,9 @@ function parseModelString(response, parentObject, key, value) {
 
           switch (chunk.status) {
             case INITIALIZED:
-              return chunk.value;
+              const chunkValue = chunk.value;
+
+              return chunkValue;
 
             case PENDING:
             case BLOCKED:
@@ -1258,12 +1227,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   const chunks = new Map();
   const response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -1403,6 +1373,18 @@ function processFullRow(response, id, tag, buffer, chunk) {
       {
         resolveText(response, id, row);
         return;
+      }
+
+    case 68
+    /* "D" */
+    :
+
+    case 87
+    /* "W" */
+    :
+      {
+
+        throw new Error('Failed to read a RSC payload created by a development version of React ' + 'on the server while using a production version on the client. Always use ' + 'matching versions on the server and the client.');
       }
 
     case 80
@@ -1581,7 +1563,8 @@ function close(response) {
 }
 
 function createResponseFromOptions(options) {
-  return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined // nonce
+  return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined, // encodeFormAction
+  undefined // nonce
   );
 }
 

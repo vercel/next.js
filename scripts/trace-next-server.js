@@ -2,7 +2,6 @@ const os = require('os')
 const path = require('path')
 const execa = require('execa')
 const fsp = require('fs/promises')
-const { copy } = require('fs-extra')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
@@ -25,7 +24,7 @@ async function main() {
   const origTestDir = path.join(origRepoDir, 'test')
   const dotDir = path.join(origRepoDir, './') + '.'
 
-  await copy(origRepoDir, repoDir, {
+  await fsp.cp(origRepoDir, repoDir, {
     filter: (item) => {
       return (
         !item.startsWith(origTestDir) &&
@@ -33,6 +32,8 @@ async function main() {
         !item.includes('node_modules')
       )
     },
+    force: true,
+    recursive: true,
   })
 
   console.log('using workdir', workDir)

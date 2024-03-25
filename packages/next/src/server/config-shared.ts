@@ -10,6 +10,7 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../../types'
+import type { SwrDelta } from './lib/revalidate'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -19,9 +20,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
+export type I18NDomains = DomainLocale[]
+
 export interface I18NConfig {
   defaultLocale: string
-  domains?: DomainLocale[]
+  domains?: I18NDomains
   localeDetection?: false
   locales: string[]
 }
@@ -93,12 +96,18 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRule =
+export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
-  | {
-      loaders: TurboLoaderItem[]
-      as: string
-    }
+  | TurboRuleConfigItem
+
+export type TurboRuleConfigItemOptions = {
+  loaders: TurboLoaderItem[]
+  as: string
+}
+
+export type TurboRuleConfigItem =
+  | TurboRuleConfigItemOptions
+  | { [condition: string]: TurboRuleConfigItem }
 
 export interface ExperimentalTurboOptions {
   /**
@@ -112,6 +121,13 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
+   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   */
+  resolveExtensions?: string[]
+
+  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
@@ -123,7 +139,12 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRule>
+  rules?: Record<string, TurboRuleConfigItemOrShortcut>
+
+  /**
+   * Use swc_css instead of lightningcss for turbopakc
+   */
+  useSwcCss?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -159,10 +180,9 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  prerenderEarlyExit?: boolean
+  linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  useDeploymentId?: boolean
-  useDeploymentIdServerActions?: boolean
-  deploymentId?: string
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -176,10 +196,28 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
+  /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
-  // custom path to a cache handler to use
+  /**
+   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * between CSS files to keep ordering of them.
+   * An alternative is 'strict', which will try to keep correct ordering as
+   * much as possible, even when this leads to many requests.
+   */
+  cssChunking?: 'strict' | 'loose'
+  /**
+   * @deprecated use config.cacheHandler instead
+   */
   incrementalCacheHandlerPath?: string
+  /**
+   * @deprecated use config.cacheMaxMemorySize instead
+   *
+   */
+  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
@@ -203,12 +241,6 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
-  /**
-   * In-memory cache size in bytes.
-   *
-   * If `isrMemoryCacheSize: 0` disables in-memory caching.
-   */
-  isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -282,7 +314,40 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
-   * This option is to enable running the Webpack build in a worker thread.
+   * Runs the compilations for server and edge in parallel instead of in serial.
+   * This will make builds faster if there is enough server and edge functions
+   * in the application at the cost of more memory.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerCompiles?: boolean
+
+  /**
+   * Runs the logic to collect build traces for the server routes in parallel
+   * with other work during the compilation. This will increase the speed of
+   * the build at the cost of more memory. This option may incur some additional
+   * work compared to if the option was disabled since the work is started
+   * before data from the client compilation is available to potentially reduce
+   * the amount of code that needs to be traced. Despite that, this may still
+   * result in faster builds for some applications.
+   *
+   * Valid values are:
+   * - `true`: Collect the server build traces in parallel.
+   * - `false`: Do not collect the server build traces in parallel.
+   * - `undefined`: Collect server build traces in parallel only in the `experimental-compile` mode.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerBuildTraces?: boolean
+
+  /**
+   * Run the Webpack build in a separate process to optimize memory usage during build.
+   * Valid values are:
+   * - `false`: Disable the Webpack build worker
+   * - `true`: Enable the Webpack build worker
+   * - `undefined`: Enable the Webpack build worker only if the webpack config is not customized
    */
   webpackBuildWorker?: boolean
 
@@ -312,7 +377,7 @@ export interface ExperimentalConfig {
      * Allowed origins that can bypass Server Action's CSRF check. This is helpful
      * when you have reverse proxy in front of your app.
      * @example
-     * ["my-app.com"]
+     * ["my-app.com", "*.my-app.com"]
      */
     allowedOrigins?: string[]
   }
@@ -341,6 +406,32 @@ export interface ExperimentalConfig {
   staticWorkerRequestDeduping?: boolean
 
   useWasmBinary?: boolean
+
+  /**
+   * Use lightningcss instead of postcss-loader
+   */
+  useLightningcss?: boolean
+
+  /**
+   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
+   * if they are not wrapped in a suspense boundary.
+   *
+   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
+   *
+   * @note This flag will be removed in Next.js 15.
+   * @default true
+   */
+  missingSuspenseWithCSRBailout?: boolean
+
+  /**
+   * Enables early import feature for app router modules
+   */
+  useEarlyImport?: boolean
+
+  /**
+   * Enables `fetch` requests to be proxied to the experimental text proxy server
+   */
+  testProxy?: boolean
 }
 
 export type ExportPathMap = {
@@ -354,8 +445,11 @@ export type ExportPathMap = {
 }
 
 /**
- * Next configuration object
- * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Next.js can be configured through a `next.config.js` file in the root of your project directory.
+ *
+ * This can change the behavior, enable experimental features, and configure other advanced options.
+ *
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
   exportPathMap?: (
@@ -440,7 +534,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
-  env?: Record<string, string>
+  env?: Record<string, string | undefined>
 
   /**
    * Destination directory (defaults to `.next`)
@@ -458,6 +552,21 @@ export interface NextConfig extends Record<string, any> {
    * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
    */
   assetPrefix?: string
+
+  /**
+   * The default cache handler for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler if you prefer.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
+   */
+  cacheHandler?: string | undefined
+
+  /**
+   * Configure the in-memory cache size in bytes. Defaults to 50 MB.
+   * If `cacheMaxMemorySize: 0`, this disables in-memory caching entirely.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching).
+   */
+  cacheMaxMemorySize?: number
 
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
@@ -487,7 +596,8 @@ export interface NextConfig extends Record<string, any> {
    * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
+   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
+   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
    */
   analyticsId?: string
 
@@ -525,6 +635,11 @@ export interface NextConfig extends Record<string, any> {
   amp?: {
     canonicalBase?: string
   }
+
+  /**
+   * A unique identifier for a deployment that will be included in each request's query string or header.
+   */
+  deploymentId?: string
 
   /**
    * Deploy a Next.js application under a sub-path of a domain
@@ -610,7 +725,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
-  crossOrigin?: false | 'anonymous' | 'use-credentials'
+  crossOrigin?: 'anonymous' | 'use-credentials'
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
@@ -644,6 +759,12 @@ export interface NextConfig extends Record<string, any> {
         }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
+
+    styledJsx?:
+      | boolean
+      | {
+          useLightningcss?: boolean
+        }
   }
 
   /**
@@ -701,6 +822,9 @@ export const defaultConfig: NextConfig = {
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
+  cacheHandler: undefined,
+  // default to 50MB limit
+  cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
@@ -708,7 +832,7 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -741,18 +865,18 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    prerenderEarlyExit: false,
     serverMinification: true,
     serverSourceMaps: false,
+    linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    useDeploymentId: false,
-    deploymentId: undefined,
-    useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
+    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,
@@ -771,9 +895,6 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: true,
-    // default to 50MB limit
-    isrMemoryCacheSize: 50 * 1024 * 1024,
-    incrementalCacheHandlerPath: undefined,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
@@ -790,7 +911,21 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    ppr: false,
+    parallelServerCompiles: false,
+    parallelServerBuildTraces: false,
+    ppr:
+      // TODO: remove once we've made PPR default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+      // has been set to `true`, enable the experimental PPR feature so long as it
+      // wasn't explicitly disabled in the config.
+      process.env.__NEXT_TEST_MODE &&
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? true
+        : false,
+    webpackBuildWorker: undefined,
+    missingSuspenseWithCSRBailout: true,
+    optimizeServerReact: true,
+    useEarlyImport: false,
   },
 }
 

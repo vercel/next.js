@@ -1,6 +1,6 @@
-import type { NextPage } from 'next'
-import Link from 'next/link'
-import Layout from '../components/Layout'
+import type { NextPage } from "next";
+import Link from "next/link";
+import Layout from "../components/Layout";
 
 const AboutPage: NextPage = () => (
   <Layout title="About | Next.js + Temporal Example">
@@ -10,6 +10,6 @@ const AboutPage: NextPage = () => (
       <Link href="/">Go home</Link>
     </p>
   </Layout>
-)
+);
 
-export default AboutPage
+export default AboutPage;

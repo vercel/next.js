@@ -13,6 +13,18 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
+const { getTestFilter } = require('./test/get-test-filter')
+
+let argv = require('yargs/yargs')(process.argv.slice(2))
+  .string('type')
+  .string('test-pattern')
+  .boolean('timings')
+  .boolean('write-timings')
+  .boolean('debug')
+  .string('g')
+  .alias('g', 'group')
+  .number('c')
+  .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -25,11 +37,8 @@ function escapeRegexp(str) {
 const GROUP = process.env.CI ? '##[group]' : ''
 const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 
-// Try to read an external array-based json to filter tests to be allowed / or disallowed.
-// If process.argv contains a test to be executed, this'll append it to the list.
-const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
-  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
-  : null
+const externalTestsFilter = getTestFilter()
+
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -115,7 +124,15 @@ ${output}
   }
 }
 
+let exiting = false
+
 const cleanUpAndExit = async (code) => {
+  if (exiting) {
+    return
+  }
+  exiting = true
+  console.log(`exiting with code ${code}`)
+
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
       recursive: true,
@@ -131,11 +148,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
-  console.log(`exiting with code ${code}`)
-
-  setTimeout(() => {
-    process.exit(code)
-  }, 1)
+  process.exit(code)
 }
 
 const isMatchingPattern = (pattern, file) => {
@@ -173,23 +186,25 @@ async function getTestTimings() {
 
 async function main() {
   let numRetries = DEFAULT_NUM_RETRIES
-  let concurrencyIdx = process.argv.indexOf('-c')
-  let concurrency =
-    (concurrencyIdx > -1 && parseInt(process.argv[concurrencyIdx + 1], 10)) ||
-    DEFAULT_CONCURRENCY
 
-  const hideOutput = !process.argv.includes('--debug')
-  const outputTimings = process.argv.includes('--timings')
-  const writeTimings = process.argv.includes('--write-timings')
-  const groupIdx = process.argv.indexOf('-g')
-  const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
-  const testPatternIdx = process.argv.indexOf('--test-pattern')
-  const testPattern = testPatternIdx !== -1 && process.argv[testPatternIdx + 1]
-  const testTypeIdx = process.argv.indexOf('--type')
-  const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
+  // Ensure we have the arguments awaited from yargs.
+  argv = await argv
+
+  const options = {
+    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    debug: argv.debug ?? false,
+    timings: argv.timings ?? false,
+    writeTimings: argv.writeTimings ?? false,
+    group: argv.group ?? false,
+    testPattern: argv.testPattern ?? false,
+    type: argv.type ?? false,
+  }
+
+  const hideOutput = !options.debug
+
   let filterTestsBy
 
-  switch (testType) {
+  switch (options.type) {
     case 'unit': {
       numRetries = 0
       filterTestsBy = testFilters.unit
@@ -200,27 +215,27 @@ async function main() {
       break
     }
     default: {
-      filterTestsBy = testFilters[testType]
+      filterTestsBy = testFilters[options.type]
       break
     }
   }
 
-  console.log('Running tests with concurrency:', concurrency)
+  console.log('Running tests with concurrency:', options.concurrency)
 
   /** @type TestFile[] */
-  let tests = process.argv
-    .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
-    .map((file) => ({
+  let tests = argv._.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/)).map(
+    (file) => ({
       file,
       excludedCases: [],
-    }))
+    })
+  )
   let prevTimings
 
   if (tests.length === 0) {
     let testPatternRegex
 
-    if (testPattern) {
-      testPatternRegex = new RegExp(testPattern)
+    if (options.testPattern) {
+      testPatternRegex = new RegExp(options.testPattern)
     }
 
     tests = (
@@ -252,7 +267,7 @@ async function main() {
       }))
   }
 
-  if (outputTimings && groupArg) {
+  if (options.timings && options.group) {
     console.log('Fetching previous timings data')
     try {
       const timingsFile = path.join(process.cwd(), 'test-timings.json')
@@ -267,7 +282,7 @@ async function main() {
         prevTimings = await getTestTimings()
         console.log('Fetched previous timings data successfully')
 
-        if (writeTimings) {
+        if (options.writeTimings) {
           await fsp.writeFile(timingsFile, JSON.stringify(prevTimings))
           console.log('Wrote previous timings data to', timingsFile)
           await cleanUpAndExit(0)
@@ -280,20 +295,8 @@ async function main() {
   }
 
   // If there are external manifest contains list of tests, apply it to the test lists.
-  if (externalTestsFilterLists) {
-    tests = tests
-      .filter((test) => {
-        const info = externalTestsFilterLists[test.file]
-        return info && info.passed.length > 0 && !info.runtimeError
-      })
-      .map((test) => {
-        const info = externalTestsFilterLists[test.file]
-        // Exclude failing and flakey tests, newly added tests are automatically included
-        if (info.failed.length > 0 || info.flakey.length > 0) {
-          test.excludedCases = info.failed.concat(info.flakey)
-        }
-        return test
-      })
+  if (externalTestsFilter) {
+    tests = externalTestsFilter(tests)
   }
 
   let testSet = new Set()
@@ -308,8 +311,8 @@ async function main() {
       return true
     })
 
-  if (groupArg) {
-    const groupParts = groupArg.split('/')
+  if (options.group) {
+    const groupParts = options.group.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
 
@@ -353,9 +356,12 @@ async function main() {
     }
   }
 
+  if (!tests) {
+    tests = []
+  }
+
   if (tests.length === 0) {
-    console.log('No tests found for', testType, 'exiting..')
-    return cleanUpAndExit(1)
+    console.log('No tests found for', options.type, 'exiting..')
   }
 
   console.log(`${GROUP}Running tests:
@@ -373,7 +379,7 @@ ${ENDGROUP}`)
   if (
     process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
-    ((testType && testType !== 'unit') || hasIsolatedTests)
+    ((options.type && options.type !== 'unit') || hasIsolatedTests)
   ) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
@@ -400,7 +406,7 @@ ${ENDGROUP}`)
     console.log(`${ENDGROUP}`)
   }
 
-  const sema = new Sema(concurrency, { capacity: tests.length })
+  const sema = new Sema(options.concurrency, { capacity: tests.length })
   const outputSema = new Sema(1, { capacity: tests.length })
   const children = new Set()
   const jestPath = path.join(
@@ -423,6 +429,7 @@ ${ENDGROUP}`)
         ...(shouldRecordTestWithReplay
           ? [`--config=jest.replay.config.js`]
           : []),
+        ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
         '--verbose',
@@ -462,8 +469,8 @@ ${ENDGROUP}`)
         // [NOTE]: This won't affect if junit reporter is not enabled
         JEST_SUITE_NAME: [
           `${process.env.NEXT_TEST_MODE ?? 'default'}`,
-          groupArg,
-          testType,
+          options.group,
+          options.type,
           test.file,
         ]
           .filter(Boolean)
@@ -509,7 +516,8 @@ ${ENDGROUP}`)
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code !== 0 || signal !== null) {
+        const isChildExitWithNonZero = code !== 0 || signal !== null
+        if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
             const isExpanded =
@@ -551,18 +559,27 @@ ${ENDGROUP}`)
 
           return reject(err)
         }
-        await fsp
-          .rm(
-            path.join(
-              __dirname,
-              'test/traces',
-              path
-                .relative(path.join(__dirname, 'test'), test.file)
-                .replace(/\//g, '-')
-            ),
-            { recursive: true, force: true }
-          )
-          .catch(() => {})
+
+        // If environment is CI and if this test execution is failed after retry, preserve test traces
+        // to upload into github actions artifacts for debugging purpose
+        const shouldPreserveTracesOutput =
+          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          process.env.PRESERVE_TRACES_OUTPUT
+        if (!shouldPreserveTracesOutput) {
+          await fsp
+            .rm(
+              path.join(
+                __dirname,
+                'test/traces',
+                path
+                  .relative(path.join(__dirname, 'test'), test.file)
+                  .replace(/\//g, '-')
+              ),
+              { recursive: true, force: true }
+            )
+            .catch(() => {})
+        }
+
         resolve(new Date().getTime() - start)
       })
     })
@@ -681,7 +698,7 @@ ${ENDGROUP}`)
     })
   )
 
-  if (outputTimings) {
+  if (options.timings) {
     const curTimings = {}
     // let junitData = `<testsuites name="jest tests">`
     /*

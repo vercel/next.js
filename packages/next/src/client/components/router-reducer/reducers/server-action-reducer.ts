@@ -10,7 +10,6 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
@@ -27,15 +26,19 @@ import type {
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,
+  ServerActionMutable,
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToFullTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
+import { createEmptyCacheNode } from '../../app-router'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -54,19 +57,25 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const body = await encodeReply(actionArgs)
 
+  // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
+  // If the route has been intercepted, the action should be as well.
+  // Otherwise the server action might be intercepted with the wrong action id
+  // (ie, one that corresponds with the intercepted route)
+  const includeNextUrl =
+    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
+
   const res = await fetch('', {
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
       [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
-      ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
-      process.env.NEXT_DEPLOYMENT_ID
+      ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
           }
         : {}),
-      ...(state.nextUrl
+      ...(includeNextUrl
         ? {
             [NEXT_URL]: state.nextUrl,
           }
@@ -146,23 +155,14 @@ export function serverActionReducer(
   state: ReadonlyReducerState,
   action: ServerActionAction
 ): ReducerState {
-  const { mutable, cache, resolve, reject } = action
+  const { resolve, reject } = action
+  const mutable: ServerActionMutable = {}
   const href = state.canonicalUrl
 
   let currentTree = state.tree
 
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(currentTree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
-
-  mutable.inFlightServerAction = createRecordFromThenable(
-    fetchServerAction(state, action)
-  )
-
-  // suspends until the server action is resolved.
+  mutable.preserveCustomHistoryState = false
+  mutable.inFlightServerAction = fetchServerAction(state, action)
 
   return mutable.inFlightServerAction.then(
     ({ actionResult, actionFlightData: flightData, redirectLocation }) => {
@@ -173,13 +173,8 @@ export function serverActionReducer(
         mutable.pendingPush = true
       }
 
-      mutable.previousTree = state.tree
-
       if (!flightData) {
-        if (!mutable.actionResultResolved) {
-          resolve(actionResult)
-          mutable.actionResultResolved = true
-        }
+        resolve(actionResult)
 
         // If there is a redirect but no flight data we need to do a mpaNavigation.
         if (redirectLocation) {
@@ -214,9 +209,9 @@ export function serverActionReducer(
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToTree(
+        const newTree = applyRouterStatePatchToFullTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
@@ -224,7 +219,7 @@ export function serverActionReducer(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -237,24 +232,26 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
+        const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (subTreeData !== null) {
-          cache.status = CacheStates.READY
-          cache.subTreeData = subTreeData
+        if (rsc !== null) {
+          const cache: CacheNode = createEmptyCacheNode()
+          cache.rsc = rsc
+          cache.prefetchRsc = null
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache
           mutable.prefetchCache = new Map()
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 
@@ -266,24 +263,15 @@ export function serverActionReducer(
         mutable.canonicalUrl = newHref
       }
 
-      if (!mutable.actionResultResolved) {
-        resolve(actionResult)
-        mutable.actionResultResolved = true
-      }
+      resolve(actionResult)
+
       return handleMutable(state, mutable)
     },
     (e: any) => {
-      if (e.status === 'rejected') {
-        if (!mutable.actionResultResolved) {
-          reject(e.reason)
-          mutable.actionResultResolved = true
-        }
+      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
+      reject(e.reason)
 
-        // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
-        return state
-      }
-
-      throw e
+      return state
     }
   )
 }

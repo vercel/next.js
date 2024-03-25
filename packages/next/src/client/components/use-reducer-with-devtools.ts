@@ -9,6 +9,8 @@ import {
 } from './router-reducer/router-reducer-types'
 import { ActionQueueContext } from '../../shared/lib/router/action-queue'
 
+export type ReduxDevtoolsSyncFn = (state: AppRouterState) => void
+
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
     const obj: { [key: string]: any } = {}
@@ -74,7 +76,7 @@ export interface ReduxDevToolsInstance {
   init(initialState: any): void
 }
 
-export function useUnwrapState(state: ReducerState) {
+export function useUnwrapState(state: ReducerState): AppRouterState {
   // reducer actions can be async, so sometimes we need to suspend until the state is resolved
   if (isThenable(state)) {
     const result = use(state)
@@ -86,13 +88,13 @@ export function useUnwrapState(state: ReducerState) {
 
 function useReducerWithReduxDevtoolsNoop(
   initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, () => void] {
+): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
   return [initialState, () => {}, () => {}]
 }
 
 function useReducerWithReduxDevtoolsImpl(
   initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, () => void] {
+): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
   const [state, setState] = React.useState<ReducerState>(initialState)
 
   const actionQueue = useContext(ActionQueueContext)
@@ -149,14 +151,20 @@ function useReducerWithReduxDevtoolsImpl(
     [actionQueue, initialState]
   )
 
-  const sync = useCallback(() => {
+  // Sync is called after a state update in the HistoryUpdater,
+  // for debugging purposes. Since the reducer state may be a Promise,
+  // we let the app router use() it and sync on the resolved value if
+  // something changed.
+  // Using the `state` here would be referentially unstable and cause
+  // undesirable re-renders and history updates.
+  const sync = useCallback<ReduxDevtoolsSyncFn>((resolvedState) => {
     if (devtoolsConnectionRef.current) {
       devtoolsConnectionRef.current.send(
         { type: 'RENDER_SYNC' },
-        normalizeRouterState(state)
+        normalizeRouterState(resolvedState)
       )
     }
-  }, [state])
+  }, [])
 
   return [state, dispatch, sync]
 }

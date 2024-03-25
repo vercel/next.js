@@ -16,6 +16,7 @@ use turbopack_binding::{
 };
 
 use crate::{
+    app_segment_config::NextSegmentConfig,
     next_app::{AppEntry, AppPage, AppPath},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
@@ -23,6 +24,12 @@ use crate::{
 };
 
 /// Computes the entry for a Next.js app route.
+/// # Arguments
+///
+/// * `original_segment_config` - A next segment config to be specified
+///   explicitly for the given source.
+/// For some cases `source` may not be the original but the handler (dynamic
+/// metadata) which will lose segment config.
 #[turbo_tasks::function]
 pub async fn get_app_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
@@ -30,8 +37,10 @@ pub async fn get_app_route_entry(
     source: Vc<Box<dyn Source>>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
+    original_segment_config: Option<Vc<NextSegmentConfig>>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_source(source);
+    let config =
+        original_segment_config.unwrap_or_else(|| parse_segment_config_from_source(source));
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
@@ -67,19 +76,23 @@ pub async fn get_app_route_entry(
     )
     .await?;
 
-    let userland_module = context.process(
-        source,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
-    );
+    let userland_module = context
+        .process(
+            source,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+        )
+        .module();
 
     let inner_assets = indexmap! {
         INNER.to_string() => userland_module
     };
 
-    let mut rsc_entry = context.process(
-        Vc::upcast(virtual_source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let mut rsc_entry = context
+        .process(
+            Vc::upcast(virtual_source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     if is_edge {
         rsc_entry = wrap_edge_route(
@@ -129,10 +142,12 @@ async fn wrap_edge_route(
         INNER.to_string() => entry
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(wrap_edge_entry(context, project_root, wrapped, pathname))
 }

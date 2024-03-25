@@ -1,6 +1,6 @@
-import { GoogleMapsEmbed } from '@next/third-parties/google'
+import { GoogleMapsEmbed } from "@next/third-parties/google";
 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 export default function Page() {
   return (
@@ -13,5 +13,5 @@ export default function Page() {
         q="Brooklyn+Bridge,New+York,NY"
       />
     </div>
-  )
+  );
 }

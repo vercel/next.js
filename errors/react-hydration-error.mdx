@@ -15,13 +15,15 @@ Hydration errors can occur from:
 1. Incorrect nesting of HTML tags
    1. `<p>` nested in another `<p>` tag
    2. `<div>` nested in a `<p>` tag
-   3. [Interactive Content](https://html.spec.whatwg.org/#interactive-content-2) cannot be nested (`<a>` nested in a `<a>` tag, `<button>` nested in a `<button>` tag, etc)
+   3. `<ul>` or `<ol>` nested in a `<p>` tag
+   4. [Interactive Content](https://html.spec.whatwg.org/#interactive-content-2) cannot be nested (`<a>` nested in a `<a>` tag, `<button>` nested in a `<button>` tag, etc.)
 2. Using checks like `typeof window !== 'undefined'` in your rendering logic
 3. Using browser-only APIs like `window` or `localStorage` in your rendering logic
-4. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
-5. Incorrectly configured [CSS-in-JS libraries](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)
+4. Using time-dependent APIs such as the `Date()` constructor in your rendering logic
+5. [Browser extensions](https://github.com/facebook/react/issues/24430) modifying the HTML
+6. Incorrectly configured [CSS-in-JS libraries](https://nextjs.org/docs/app/building-your-application/styling/css-in-js)
    1. Ensure your code is following [our official examples](https://github.com/vercel/next.js/tree/canary/examples)
-6. Incorrectly configured Edge/CDN that attempts to modify the html response, such as Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/auto-minify/)
+7. Incorrectly configured Edge/CDN that attempts to modify the html response, such as Cloudflare [Auto Minify](https://developers.cloudflare.com/speed/optimization/content/auto-minify/)
 
 ## Possible Ways to Fix It
 

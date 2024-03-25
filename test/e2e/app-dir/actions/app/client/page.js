@@ -16,7 +16,7 @@ export default function Counter() {
   const [count, setCount] = useState(0)
   return (
     <div>
-      <h1>{count}</h1>
+      <h1 id="count">{count}</h1>
       <button
         id="inc"
         onClick={async () => {
@@ -74,6 +74,16 @@ export default function Counter() {
           }
         >
           redirect external
+        </button>
+      </form>
+      <form>
+        <button
+          id="redirect-absolute"
+          formAction={() =>
+            redirectAction(location.origin + '/redirect-target')
+          }
+        >
+          redirect internal with domain
         </button>
       </form>
       <form action={getHeaders}>

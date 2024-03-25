@@ -149,7 +149,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 export default function Component() {
   noStore()
   // cookies(), headers(), and other dynamic functions
-  // will also opt into dynamic rendering, making
+  // will also opt into dynamic rendering, meaning
   // this env variable is evaluated at runtime
   const value = process.env.MY_VALUE
   // ...
@@ -158,7 +158,7 @@ export default function Component() {
 
 **Good to know:**
 
-- You can run code on server startup using the `[register` function](/docs/app/building-your-application/optimizing/instrumentation).
+- You can run code on server startup using the [`register` function](/docs/app/building-your-application/optimizing/instrumentation).
 - We do not recommend using the [runtimeConfig](/docs/pages/api-reference/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
 
 ## Default Environment Variables
@@ -173,7 +173,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 ## Environment Variables on Vercel
 
-When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/concepts/projects/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website).
 
 All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/concepts/projects/environment-variables#development-environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) afterwards.
 
@@ -182,6 +182,8 @@ If you've configured [Development Environment Variables](https://vercel.com/docs
 ```bash filename="Terminal"
 vercel env pull .env.local
 ```
+
+> **Good to know**: When deploying your Next.js application to [Vercel](https://vercel.com), your environment variables in `.env*` files will not be made available to Edge Runtime, unless their name are prefixed with `NEXT_PUBLIC_`. We strongly recommend managing your environment variables in [Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website) instead, from where all environment variables are available.
 
 ## Test Environment Variables
 
