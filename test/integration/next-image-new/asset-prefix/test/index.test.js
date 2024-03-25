@@ -87,6 +87,7 @@ describe('Image Component assetPrefix Tests', () => {
         expect(bgImage).toMatch('data:image/jpeg;base64')
       })
 
+      // eslint-disable-next-line jest/no-identical-title
       it('should not log a deprecation warning about using `images.domains`', async () => {
         await webdriver(appPort, '/')
         const warningMessage =

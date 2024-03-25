@@ -72,6 +72,7 @@ const runRelayCompiler = () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
+        // eslint-disable-next-line jest/no-identical-title
         describe('project-a', () => {
           beforeAll(async () => {
             await nextBuild(projectAAppDir, [], { cwd: projectAAppDir })
@@ -84,6 +85,7 @@ const runRelayCompiler = () => {
           runTests('Project A')
         })
 
+        // eslint-disable-next-line jest/no-identical-title
         describe('project-b', () => {
           beforeAll(async () => {
             await nextBuild(projectBAppDir, [], { cwd: projectBAppDir })

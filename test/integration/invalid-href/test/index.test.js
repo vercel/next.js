@@ -164,6 +164,7 @@ describe('Invalid hrefs', () => {
         await noError('/second')
       })
 
+      // eslint-disable-next-line jest/no-identical-title
       it('shows error when dynamic route mismatch is used on Link', async () => {
         await showsError(
           '/dynamic-route-mismatch',
@@ -184,6 +185,7 @@ describe('Invalid hrefs', () => {
         await noError('/dynamic-route-mismatch-manual', true)
       })
 
+      // eslint-disable-next-line jest/no-identical-title
       it("doesn't fail on invalid url", async () => {
         await noError('/third')
       })

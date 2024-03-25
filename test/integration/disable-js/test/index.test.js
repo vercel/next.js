@@ -69,11 +69,13 @@ describe('disabled runtime JS', () => {
 
       afterAll(() => killApp(app))
 
+      // eslint-disable-next-line jest/no-identical-title
       it('should render the page', async () => {
         const html = await renderViaHTTP(appPort, '/')
         expect(html).toMatch(/Hello World/)
       })
 
+      // eslint-disable-next-line jest/no-identical-title
       it('should not have __NEXT_DATA__ script', async () => {
         const html = await renderViaHTTP(appPort, '/')
 

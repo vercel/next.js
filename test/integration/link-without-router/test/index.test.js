@@ -42,6 +42,7 @@ describe('Link without a router', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
+      // eslint-disable-next-line jest/no-identical-title
       it('should not throw when rendered', () => {
         jest.useFakeTimers()
 

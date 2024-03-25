@@ -85,6 +85,7 @@ function createContext() {
       })
     })
     afterAll(() => killApp(context.app))
+    // eslint-disable-next-line jest/no-identical-title
     it('logs the error correctly', test(context))
   }
 )

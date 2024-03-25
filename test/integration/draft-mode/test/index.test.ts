@@ -156,6 +156,7 @@ describe('Test Draft Mode', () => {
         expect(rand).toBe(initialRand)
       })
 
+      // eslint-disable-next-line jest/no-identical-title
       it('should enable draft mode', async () => {
         const res = await fetchViaHTTP(appPort, '/api/enable')
         expect(res.status).toBe(200)
