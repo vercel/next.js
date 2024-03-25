@@ -101,6 +101,7 @@
     "styled-jsx": "5.1.1"
   },
   "peerDependencies": {
+    "@playwright/test": "^1.41.2",
     "@opentelemetry/api": "^1.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -111,6 +112,9 @@
       "optional": true
     },
     "@opentelemetry/api": {
+      "optional": true
+    },
+    "@playwright/test": {
       "optional": true
     }
   },
