@@ -237,24 +237,27 @@ function runInvalidPagesTests(buildFn) {
 }
 
 describe('Dynamic Optional Routing', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-
-    runInvalidPagesTests(async (appDir) => {
-      stderr = ''
-      await launchApp(appDir, await findPort(), {
-        onStderr: (msg) => {
-          stderr += msg
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
-    })
-  })
+      afterAll(() => killApp(app))
+
+      runTests()
+
+      runInvalidPagesTests(async (appDir) => {
+        stderr = ''
+        await launchApp(appDir, await findPort(), {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
+      })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

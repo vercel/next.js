@@ -23,18 +23,21 @@ const runTests = (isProd = false) => {
 }
 
 describe('Client 404', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      context.appPort = await findPort()
-      context.server = await launchApp(appDir, context.appPort)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        context.appPort = await findPort()
+        context.server = await launchApp(appDir, context.appPort)
 
-      // pre-build page at the start
-      await renderViaHTTP(context.appPort, '/')
-    })
-    afterAll(() => killApp(context.server))
+        // pre-build page at the start
+        await renderViaHTTP(context.appPort, '/')
+      })
+      afterAll(() => killApp(context.server))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

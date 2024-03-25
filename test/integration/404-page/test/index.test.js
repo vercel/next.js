@@ -70,15 +70,18 @@ const runTests = (mode = 'server') => {
 }
 
 describe('404 Page Support', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('dev')
-  })
+      runTests('dev')
+    }
+  )
   describe('development mode 2', () => {
     it('falls back to _error correctly without pages/404', async () => {
       await fs.move(pages404, `${pages404}.bak`)

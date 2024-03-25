@@ -263,18 +263,20 @@ describe('Static Image Component Tests', () => {
       runTests(false)
     }
   )
-
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      html = await renderViaHTTP(appPort, '/static-img')
-      $ = cheerio.load(html)
-      browser = await webdriver(appPort, '/static-img')
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        html = await renderViaHTTP(appPort, '/static-img')
+        $ = cheerio.load(html)
+        browser = await webdriver(appPort, '/static-img')
+      })
+      afterAll(() => {
+        killApp(app)
+      })
+      runTests(true)
+    }
+  )
 })

@@ -55,34 +55,39 @@ describe('TypeScript Image Component', () => {
       })
     }
   )
-
-  describe('development mode', () => {
-    beforeAll(async () => {
-      output = ''
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStdout: handleOutput,
-        onStderr: handleOutput,
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        output = ''
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStdout: handleOutput,
+          onStderr: handleOutput,
+        })
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    it('should have image types when enabled', async () => {
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
-      expect(envTypes).toContain('image-types/global')
-    })
+      it('should have image types when enabled', async () => {
+        const envTypes = await fs.readFile(
+          join(appDir, 'next-env.d.ts'),
+          'utf8'
+        )
+        expect(envTypes).toContain('image-types/global')
+      })
 
-    it('should render the valid Image usage and not print error', async () => {
-      const html = await renderViaHTTP(appPort, '/valid', {})
-      expect(html).toMatch(/This is valid usage of the Image component/)
-      expect(output).not.toMatch(/Error: Image/)
-    })
+      it('should render the valid Image usage and not print error', async () => {
+        const html = await renderViaHTTP(appPort, '/valid', {})
+        expect(html).toMatch(/This is valid usage of the Image component/)
+        expect(output).not.toMatch(/Error: Image/)
+      })
 
-    it('should print error when invalid Image usage', async () => {
-      await renderViaHTTP(appPort, '/invalid', {})
-      expect(output).toMatch(/Error: Image/)
-    })
-  })
+      it('should print error when invalid Image usage', async () => {
+        await renderViaHTTP(appPort, '/invalid', {})
+        expect(output).toMatch(/Error: Image/)
+      })
+    }
+  )
 
   describe('development mode 2', () => {
     it('should remove global image types when disabled (dev)', async () => {

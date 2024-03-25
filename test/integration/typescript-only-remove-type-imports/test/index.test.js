@@ -45,15 +45,17 @@ const runTests = () => {
         runTests()
       }
     )
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
 
-    describe('development mode', () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-
-      runTests()
-    })
+        runTests()
+      }
+    )
   }
 )
