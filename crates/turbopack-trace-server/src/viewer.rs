@@ -315,10 +315,14 @@ impl Viewer {
         };
         let mut children = Vec::new();
         let mut current = 0;
+        let offset = root_spans
+            .iter()
+            .min_by_key(|span| span.start())
+            .map_or(0, |span| span.start());
         for span in root_spans {
             if matches!(value_mode, ValueMode::Duration) {
                 // Move current to start if needed.
-                current = max(current, span.start());
+                current = max(current, span.start() - offset);
             }
             if add_child_item(
                 &mut children,
