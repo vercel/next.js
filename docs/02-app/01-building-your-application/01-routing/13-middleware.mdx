@@ -13,19 +13,19 @@ Middleware runs before cached content and routes are matched. See [Matching Path
 
 Integrating Middleware into your application can lead to significant improvements in performance, security, and user experience. Some common scenarios where Middleware is particularly effective include:
 
-- Authentication: Ensure secure access to sensitive content by authenticating users before allowing entry to certain pages. This process can also include checking session cookies to confirm user identity and maintain their session state.
-- Server-Side Redirects: Direct users to the optimal page based on their role, location, or device type.
-- Path Rewriting: Support A/B testing, feature rollouts, or legacy paths by dynamically adjusting request paths according to specific criteria.
-- Bot Detection and Mitigation: Safeguard your resources and maintain service availability for real users by detecting and blocking unwanted bot traffic.
-- Logging and Analytics: At the request entry point, capture data for analytics or logging to analyze traffic patterns, understand user behavior, or address issues swiftly.
-- Feature Flagging: Without full deployments, dynamically manage feature availability for users, facilitating gradual rollouts or testing.
+- Authentication and Authorization: Ensure user identity and check session cookies before granting access to specific pages or API routes.
+- Server-Side Redirects: Redirect users at the server level based on certain conditions (e.g., locale, user role).
+- Path Rewriting: Support A/B testing, feature rollouts, or legacy paths by dynamically rewriting paths to API routes or pages based on request properties.
+- Bot Detection: Safeguard your resources by detecting and blocking bot traffic.
+- Logging and Analytics: Capture and analyze request data for insights before processing by the page or API.
+- Feature Flagging: Enable or disable features dynamically for seamless feature rollouts or testing.
 
 Recognizing situations where middleware may not be the optimal approach is just as crucial. Here are some scenarios to be mindful of:
 
-- Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation. These complex operations should be handled within route handlers or server-side utilities.
-- Heavy Computational Tasks: Middleware should be lightweight to ensure quick response times. Heavy computational tasks or long-running processes should be offloaded to background services or dedicated Route Handlers.
-- Extensive Session Management: While Middleware can manage basic session tasks, it is not suited for extensive session management that requires persistent state, frequent updates, or complex logic. Such tasks should be managed by dedicated authentication services or within Route Handlers.
-- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should be encapsulated within Route Handlers or server-side utilities to ensure data integrity and security.
+- Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation, this should be done within Route Handlers or server-side utilities instead.
+- Heavy Computational Tasks: Middleware should be lightweight. Heavy computational tasks or long-running processes should be offloaded to background services or dedicated Route Handlers.
+- Extensive Session Management: While Middleware can manage basic session tasks, extensive session management should be managed by dedicated authentication services or within Route Handlers.
+- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should done within Route Handlers or server-side utilities.
 
 ## Convention
 
