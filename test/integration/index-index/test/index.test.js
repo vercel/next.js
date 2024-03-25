@@ -182,7 +182,7 @@ function runTests() {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('nested index.js', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

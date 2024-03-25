@@ -74,7 +74,7 @@ describe.each([
 ])(
   '$title usage of dynamic code evaluation',
   ({ extractValue, computeRoute }) => {
-    describe('dev mode', () => {
+    describe('development mode', () => {
       let output = ''
 
       beforeAll(async () => {

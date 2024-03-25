@@ -27,7 +27,7 @@ function runTests(dev) {
 }
 
 describe('Dynamic Routing', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

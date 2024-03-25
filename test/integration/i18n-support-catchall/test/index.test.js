@@ -221,7 +221,7 @@ function runTests(isDev) {
 }
 
 describe('i18n Support Root Catch-all', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

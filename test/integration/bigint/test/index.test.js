@@ -33,7 +33,7 @@ const runTests = () => {
 }
 
 describe('bigint API route support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

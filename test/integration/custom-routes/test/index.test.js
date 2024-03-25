@@ -2636,7 +2636,7 @@ describe('Custom routes', () => {
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let nextConfigContent
 
     beforeAll(async () => {
@@ -2810,7 +2810,7 @@ describe('Custom routes', () => {
       })
     }
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       runSoloTests(true)
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

@@ -41,7 +41,7 @@ describe('i18n Support basePath', () => {
     )
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     const curCtx = {
       ...ctx,
       isDev: true,

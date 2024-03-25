@@ -40,7 +40,7 @@ const runTests = () => {
 }
 
 describe('Hydration', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(path.join(appDir, '.next'))
       appPort = await findPort()

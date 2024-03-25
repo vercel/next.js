@@ -39,7 +39,7 @@ const runTests = () => {
 }
 
 describe('rewrites persist with browser history actions', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

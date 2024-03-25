@@ -85,7 +85,7 @@ function runTests() {
 }
 
 describe('i18n Support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

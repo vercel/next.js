@@ -29,7 +29,7 @@ const runTests = () => {
 }
 
 describe('Optional chaining and nullish coalescing support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

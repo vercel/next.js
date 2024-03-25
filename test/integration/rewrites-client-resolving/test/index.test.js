@@ -61,7 +61,7 @@ const runTests = () => {
 }
 
 describe('Client-side rewrites resolving', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

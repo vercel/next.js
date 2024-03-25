@@ -73,7 +73,7 @@ describe('Default 404 Page with custom _error', () => {
     }
   )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

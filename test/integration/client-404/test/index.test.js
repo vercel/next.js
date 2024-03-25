@@ -23,7 +23,7 @@ const runTests = (isProd = false) => {
 }
 
 describe('Client 404', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       context.appPort = await findPort()
       context.server = await launchApp(appDir, context.appPort)

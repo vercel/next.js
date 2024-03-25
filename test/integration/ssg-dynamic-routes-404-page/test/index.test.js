@@ -46,7 +46,7 @@ describe('Custom 404 Page for static site generation with dynamic routes', () =>
     }
   )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

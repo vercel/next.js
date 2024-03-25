@@ -267,7 +267,7 @@ function runTests(isDev) {
 }
 
 describe('Preview mode with fallback pages', () => {
-  describe('dev Mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

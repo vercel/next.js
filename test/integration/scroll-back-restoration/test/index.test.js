@@ -64,7 +64,7 @@ const runTests = () => {
 }
 
 describe('Scroll Back Restoration Support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

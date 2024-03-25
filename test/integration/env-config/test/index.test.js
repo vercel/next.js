@@ -132,7 +132,7 @@ const runTests = (mode = 'dev', didReload = false) => {
 }
 
 describe('Env Config', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       output = ''
       appPort = await findPort()

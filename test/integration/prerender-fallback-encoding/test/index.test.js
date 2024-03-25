@@ -325,7 +325,7 @@ function runTests(isDev) {
 }
 
 describe('Fallback path encoding', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

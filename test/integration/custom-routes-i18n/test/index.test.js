@@ -168,7 +168,7 @@ describe('Custom routes i18n', () => {
     nextConfig.restore()
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

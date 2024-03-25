@@ -480,7 +480,7 @@ const runTests = (isDev) => {
 }
 
 describe('GS(S)P Redirect Support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

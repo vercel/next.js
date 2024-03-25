@@ -22,7 +22,7 @@ describe('Link without a router', () => {
     container = null
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     it('should not throw when rendered', () => {
       jest.useFakeTimers()
 

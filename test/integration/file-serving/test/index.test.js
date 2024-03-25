@@ -4465,7 +4465,7 @@ const copyTestFileToDist = () =>
   fs.copy(join(appDir, 'test-file.txt'), join(appDir, '.next', 'test-file.txt'))
 
 describe('File Serving', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {

@@ -136,7 +136,7 @@ const runTests = () => {
 describe('Errors on invalid custom middleware matchers', () => {
   afterAll(() => fs.remove(middlewarePath))
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(() => {
       getStderr = async () => {
         let stderr = ''

@@ -579,7 +579,7 @@ const runTests = () => {
 describe('Errors on invalid custom routes', () => {
   afterAll(() => fs.remove(nextConfigPath))
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let stderr = ''
     beforeAll(() => {
       getStderr = async () => {

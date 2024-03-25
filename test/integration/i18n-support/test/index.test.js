@@ -39,7 +39,7 @@ describe('i18n Support', () => {
   })
   afterAll(() => ctx.externalApp.close())
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     const curCtx = {
       ...ctx,
       isDev: true,
@@ -421,7 +421,7 @@ describe('i18n Support', () => {
       })
     }
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       const curCtx = {
         ...ctx,
         isDev: true,
@@ -488,7 +488,7 @@ describe('i18n Support', () => {
       })
     }
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       const curCtx = {
         ...ctx,
         isDev: true,

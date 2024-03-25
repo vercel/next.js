@@ -465,7 +465,7 @@ function runTests(mode) {
 }
 
 describe('Image Component basePath Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

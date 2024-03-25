@@ -90,7 +90,7 @@ describe.each([
   beforeAll(() => setup())
   afterAll(() => teardown())
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
