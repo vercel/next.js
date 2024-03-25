@@ -21,31 +21,40 @@ const handleOutput = (msg) => {
 }
 
 describe('TypeScript Image Component', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should fail to build invalid usage of the Image component', async () => {
-      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      expect(stderr).toMatch(/Failed to compile/)
-      expect(stderr).toMatch(/is not assignable to type/)
-      expect(code).toBe(1)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
-      expect(envTypes).toContain('image-types/global')
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should fail to build invalid usage of the Image component', async () => {
+        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+        expect(stderr).toMatch(/Failed to compile/)
+        expect(stderr).toMatch(/is not assignable to type/)
+        expect(code).toBe(1)
+        const envTypes = await fs.readFile(
+          join(appDir, 'next-env.d.ts'),
+          'utf8'
+        )
+        expect(envTypes).toContain('image-types/global')
+      })
 
-    it('should remove global image types when disabled', async () => {
-      const content = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        content.replace('// disableStaticImages', 'disableStaticImages')
-      )
-      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
-      expect(stderr).toMatch(/Failed to compile/)
-      expect(stderr).toMatch(/is not assignable to type/)
-      expect(code).toBe(1)
-      await fs.writeFile(nextConfig, content)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
-      expect(envTypes).not.toContain('image-types/global')
-    })
-  })
+      it('should remove global image types when disabled', async () => {
+        const content = await fs.readFile(nextConfig, 'utf8')
+        await fs.writeFile(
+          nextConfig,
+          content.replace('// disableStaticImages', 'disableStaticImages')
+        )
+        const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+        expect(stderr).toMatch(/Failed to compile/)
+        expect(stderr).toMatch(/is not assignable to type/)
+        expect(code).toBe(1)
+        await fs.writeFile(nextConfig, content)
+        const envTypes = await fs.readFile(
+          join(appDir, 'next-env.d.ts'),
+          'utf8'
+        )
+        expect(envTypes).not.toContain('image-types/global')
+      })
+    }
+  )
 
   describe('development mode', () => {
     beforeAll(async () => {

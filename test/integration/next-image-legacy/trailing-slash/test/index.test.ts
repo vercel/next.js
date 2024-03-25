@@ -17,7 +17,7 @@ let appPort
 let app
 
 describe('Image Component Trailing Slash Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -44,33 +44,36 @@ describe('Image Component Trailing Slash Tests', () => {
       }
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    it('should include trailing slash when trailingSlash is set on config file during next start', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/')
-        const id = 'test1'
-        await check(async () => {
-          const srcImage = await browser.eval(
-            `document.getElementById('${id}').src`
-          )
-          expect(srcImage).toMatch(
-            /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
-          )
-          return 'success'
-        }, 'success')
-      } finally {
-        if (browser) {
-          await browser.close()
+      it('should include trailing slash when trailingSlash is set on config file during next start', async () => {
+        let browser
+        try {
+          browser = await webdriver(appPort, '/')
+          const id = 'test1'
+          await check(async () => {
+            const srcImage = await browser.eval(
+              `document.getElementById('${id}').src`
+            )
+            expect(srcImage).toMatch(
+              /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
+            )
+            return 'success'
+          }, 'success')
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
         }
-      }
-    })
-  })
+      })
+    }
+  )
 })

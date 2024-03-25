@@ -16,7 +16,7 @@ let app
 let stderr = ''
 
 describe('next/image with output export config', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {

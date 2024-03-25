@@ -18,7 +18,7 @@ let devOutput
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'svgo-webpack with Image Component',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should not fail to build invalid usage of the Image component', async () => {

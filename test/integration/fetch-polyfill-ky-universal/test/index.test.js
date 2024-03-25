@@ -68,22 +68,25 @@ describe('Fetch polyfill with ky-universal', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await startApiServer()
-      await nextBuild(appDir, [], {
-        env: {
-          NEXT_PUBLIC_API_PORT: apiServerPort,
-        },
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await startApiServer()
+        await nextBuild(appDir, [], {
+          env: {
+            NEXT_PUBLIC_API_PORT: apiServerPort,
+          },
+        })
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
       })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await killApp(apiServer)
-    })
+      afterAll(async () => {
+        await killApp(app)
+        await killApp(apiServer)
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

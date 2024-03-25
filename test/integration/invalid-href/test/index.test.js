@@ -84,68 +84,71 @@ const noError = async (pathname, click = false) => {
 }
 
 describe('Invalid hrefs', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    it('does not show error in production when mailto: is used as href on Link', async () => {
-      await noError('/first')
-    })
+      it('does not show error in production when mailto: is used as href on Link', async () => {
+        await noError('/first')
+      })
 
-    it('does not show error in production when https://google.com is used as href on Link', async () => {
-      await noError('/second')
-    })
+      it('does not show error in production when https://google.com is used as href on Link', async () => {
+        await noError('/second')
+      })
 
-    it('does not show error when internal href is used with external as', async () => {
-      await noError('/invalid-relative', true)
-    })
+      it('does not show error when internal href is used with external as', async () => {
+        await noError('/invalid-relative', true)
+      })
 
-    it('shows error when dynamic route mismatch is used on Link', async () => {
-      const browser = await webdriver(appPort, '/dynamic-route-mismatch')
-      try {
-        await browser.eval(`(function() {
+      it('shows error when dynamic route mismatch is used on Link', async () => {
+        const browser = await webdriver(appPort, '/dynamic-route-mismatch')
+        try {
+          await browser.eval(`(function() {
           window.caughtErrors = []
           window.addEventListener('unhandledrejection', (error) => {
             window.caughtErrors.push(error.reason.message)
           })
         })()`)
-        await browser.elementByCss('a').click()
-        await waitFor(500)
-        const errors = await browser.eval('window.caughtErrors')
-        expect(
-          errors.find((err) =>
-            err.includes(
-              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
+          await browser.elementByCss('a').click()
+          await waitFor(500)
+          const errors = await browser.eval('window.caughtErrors')
+          expect(
+            errors.find((err) =>
+              err.includes(
+                'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
+              )
             )
-          )
-        ).toBeTruthy()
-      } finally {
-        await browser.close()
-      }
-    })
+          ).toBeTruthy()
+        } finally {
+          await browser.close()
+        }
+      })
 
-    it("doesn't fail on invalid url", async () => {
-      await noError('/third')
-    })
+      it("doesn't fail on invalid url", async () => {
+        await noError('/third')
+      })
 
-    it('renders a link with invalid href', async () => {
-      const res = await fetchViaHTTP(appPort, '/third')
-      const $ = cheerio.load(await res.text())
-      expect($('#click-me').attr('href')).toBe('https://')
-    })
+      it('renders a link with invalid href', async () => {
+        const res = await fetchViaHTTP(appPort, '/third')
+        const $ = cheerio.load(await res.text())
+        expect($('#click-me').attr('href')).toBe('https://')
+      })
 
-    it('renders a link with mailto: href', async () => {
-      const res = await fetchViaHTTP(appPort, '/first')
-      const $ = cheerio.load(await res.text())
-      expect($('#click-me').attr('href')).toBe('mailto:idk@idk.com')
-    })
-  })
+      it('renders a link with mailto: href', async () => {
+        const res = await fetchViaHTTP(appPort, '/first')
+        const $ = cheerio.load(await res.text())
+        expect($('#click-me').attr('href')).toBe('mailto:idk@idk.com')
+      })
+    }
+  )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

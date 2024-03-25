@@ -102,7 +102,7 @@ describe('Edge runtime configurable guards', () => {
         )
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('fails to build because of unallowed code', async () => {
@@ -306,7 +306,7 @@ describe('Edge runtime configurable guards', () => {
     },
   ])('$title with allowed, unused dynamic code', ({ init, url }) => {
     beforeEach(() => init())
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('build and does not warn at runtime', async () => {
@@ -391,7 +391,7 @@ describe('Edge runtime configurable guards', () => {
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('fails to build because of dynamic code evaluation', async () => {
@@ -449,7 +449,7 @@ describe('Edge runtime configurable guards', () => {
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         // eslint-disable-next-line jest/no-identical-title

@@ -16,7 +16,7 @@ let appPort
 let app
 
 describe('Image Component assetPrefix Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -45,28 +45,31 @@ describe('Image Component assetPrefix Tests', () => {
       }
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    it('should use base64 data url with placeholder=blur during next start', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/')
-        const id = 'test1'
-        const bgImage = await browser.eval(
-          `document.getElementById('${id}').style['background-image']`
-        )
-        expect(bgImage).toMatch('data:image/jpeg;base64')
-      } finally {
-        if (browser) {
-          await browser.close()
+      it('should use base64 data url with placeholder=blur during next start', async () => {
+        let browser
+        try {
+          browser = await webdriver(appPort, '/')
+          const id = 'test1'
+          const bgImage = await browser.eval(
+            `document.getElementById('${id}').style['background-image']`
+          )
+          expect(bgImage).toMatch('data:image/jpeg;base64')
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
         }
-      }
-    })
-  })
+      })
+    }
+  )
 })
