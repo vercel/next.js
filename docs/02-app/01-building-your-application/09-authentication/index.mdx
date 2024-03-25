@@ -3,7 +3,7 @@ title: Authentication
 description: Learn how to implement authentication in your Next.js application.
 ---
 
-Understanding authentication and authorization is crucial protecting your application's data and ensuring a smooth user experience. This page will guide you through how to use Next.js features and third-party libraries to implement auth, as well as principles and best practices so you can choose the right strategy for your application.
+Understanding authentication and authorization is crucial for protecting your application's data and ensuring a smooth user experience. This page will guide you through how to use Next.js features and third-party libraries to implement auth, as well as principles and best practices so you can choose the right strategy for your application.
 
 Before starting, it helps to break down the process into three key concepts, or steps:
 
@@ -19,7 +19,7 @@ This diagram provides an overview of auth flow in Next.js:
 
 For educational purpose, the examples in this section will walk you through basic username and password authentication.
 
-> While you can implement your custom auth solution, for increased security, simplicity and better DX, you may consider using a third-party authentication provider. They offer in-built solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Authentication Providers](#authentication-providers) section.
+> While you can implement a custom auth solution, for increased security, simplicity and better DX, you should use a third-party authentication provider. They offer built-in solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Authentication Providers](#authentication-providers) section.
 
 <AppOnly>
 
@@ -27,7 +27,7 @@ For educational purpose, the examples in this section will walk you through basi
 
 You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [useFormStatus()](https://react.dev/reference/react-dom/hooks/useFormStatus), and [useFormState()](https://react.dev/reference/react-dom/hooks/useFormState), to capture user data, validate form fields, and call your Authentication Provider's API or database. Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
-Here are the steps to implement a sign-up and/or login form:
+Here are the steps to implement signup/login functionality:
 
 #### 1. Capture user credentials
 
@@ -422,13 +422,14 @@ export async function signup(state, formData) {
 }
 ```
 
+Inversely, on login, you would check if the hashed password matches the user's input.
+
 After successfully creating the user account or verifying the user, you can create a session to manage the user's auth state. Depending on your session management strategy, the session can be stored in a cookie or database, or both. Continue to the [Session Management](#session-management) section to learn more.
 
 > **Tips:**
 >
-> - Inversely, on login, you should check if the hashed password matches the user's input.
-> - To improve the user experience, you may want to check for duplicate emails or usernames earlier in the authentication flow. For example, as the user types in their email or the input field loses focus. This can help prevent unnecessary form submissions and provide immediate feedback to the user. Consider debouncing requests with libraries such as [use-debounce](https://www.npmjs.com/package/use-debounce) to manage the frequency of these checks.
-> - The example is verbose since it breaks down the authentication steps for the purpose of education. This highlights that implementing your own secure auth solution can quickly become complex and verbose too. Consider using an [Auth Provider](#authentication-providers) to simplify the process.
+> - - The example is verbose since it breaks down the authentication steps for the purpose of education. This highlights that implementing your own secure auth solution can quickly become complex and verbose too. Consider using an [Auth Provider](#authentication-providers) to simplify the process.
+> - To improve the user experience, you may want to check for duplicate emails or usernames earlier in the authentication flow. For example, as the user types in their email or the input field loses focus. This can help prevent unnecessary form submissions and provide immediate feedback to the user. You can debounce requests with libraries such as [use-debounce](https://www.npmjs.com/package/use-debounce) to manage the frequency of these checks.
 
 </AppOnly>
 
@@ -574,7 +575,7 @@ There are two types of sessions:
 1. **Stateless**: Session data (or a token) is stored in browser's cookies. The cookie is sent with each request, allowing the session to be verified on the server. This method is simpler, but can be less secure if not implemented correctly.
 2. **Database**: Session data is stored in a database, with the user's browser only receiving the encrypted session ID. This method is more secure, but can be more complex and use more server resources.
 
-> While you can use either method, or both, we recommend using a third-party library for session management. See [Session Management Libraries](#session-management-libraries) for more information.
+> While you can use either method, or both, you should a library for session management. See [Session Management Libraries](#session-management-libraries) for more information.
 
 ### Stateless Sessions
 
@@ -1051,11 +1052,11 @@ There are two main types of authorization checks:
 1. **Optimistic**: Checks if the user is authorized to access a route or perform an action using the session data stored in the cookie. These checks are useful for quick operations, such as showing/hiding UI elements or redirecting users based on permissions.
 2. **Secure**: Checks if the user is authorized to access a route or perform an action using the session data stored in the database. These checks are more secure and are used for operations that require access to sensitive data or actions.
 
-For both cases, we recommed creating a [Data Access Layer](#creating-a-data-access-layer-dal) to centralize your authorization logic, use [Data Transfer Objects (DTO)](#using-data-transfer-objects-dto) to only return the necessary data, and optionally use [Middleware](#optimistic-checks-with-middleware-optional) to perform optimistic checks.
+For both cases, we recommed creating a [Data Access Layer](#creating-a-data-access-layer-dal) to centralize your authorization logic, using [Data Transfer Objects (DTO)](#using-data-transfer-objects-dto) to only return the necessary data, and optionally use [Middleware](#optimistic-checks-with-middleware-optional) to perform optimistic checks.
 
 ### Optimistic checks with Middleware (Optional)
 
-You can use [Middleware](/docs/app/building-your-application/routing/middleware) to perform optimistic checks and redirect users based on their permissions. Since middleware runs on every route, it's a good way to centralize your redirecting logic. For example:
+You can use [Middleware](/docs/app/building-your-application/routing/middleware) to perform optimistic checks and redirect users based on their permissions. Since Middleware runs on every route, it's a good way to centralize your redirecting logic. For example:
 
 ```tsx filename="middleware.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
@@ -1151,7 +1152,7 @@ While Middleware can be useful for initial checks, it should not be your only li
 > **Tips**:
 >
 > - In Middleware, you can also read cookies using `req.cookies.get('session).value`.
-> - Middleware uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes), check if your session management library is compatible.
+> - Middleware uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes), check if your Auth Provider and Seession management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
 <AppOnly>
