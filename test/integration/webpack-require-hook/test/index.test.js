@@ -30,7 +30,7 @@ const appDir = path.join(__dirname, '..')
       })
     })
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       it('Applies and does not error during development', async () => {
         let output
         const handleOutput = (msg) => {

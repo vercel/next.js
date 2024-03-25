@@ -22,7 +22,7 @@ const context = {
   appDir: join(__dirname, '../'),
 }
 
-describe('Page using eval in dev mode', () => {
+describe('Page using eval in development mode', () => {
   let output = ''
 
   beforeAll(async () => {
@@ -74,7 +74,7 @@ describe.each([
 ])(
   '$title usage of dynamic code evaluation',
   ({ extractValue, computeRoute }) => {
-    describe('dev mode', () => {
+    describe('development mode', () => {
       let output = ''
 
       beforeAll(async () => {
@@ -158,7 +158,7 @@ describe.each([
         expect(output).not.toContain('DynamicWasmCodeGenerationWarning')
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let buildResult

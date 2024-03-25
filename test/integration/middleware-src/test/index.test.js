@@ -90,7 +90,7 @@ describe.each([
   beforeAll(() => setup())
   afterAll(() => teardown())
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -99,27 +99,30 @@ describe.each([
 
     runTest()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let exportOutput = ''
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let exportOutput = ''
 
-    beforeAll(async () => {
-      nextConfig.write(`module.exports = { output: 'export' }`)
-      const result = await nextBuild(appDir, [], {
-        stderr: true,
-        stdout: true,
+      beforeAll(async () => {
+        nextConfig.write(`module.exports = { output: 'export' }`)
+        const result = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+
+        const outdir = join(__dirname, '..', 'out')
+        await fs.remove(outdir).catch(() => {})
+
+        exportOutput = result.stderr + result.stdout
       })
+      afterAll(() => nextConfig.delete())
 
-      const outdir = join(__dirname, '..', 'out')
-      await fs.remove(outdir).catch(() => {})
-
-      exportOutput = result.stderr + result.stdout
-    })
-    afterAll(() => nextConfig.delete())
-
-    it('should warn about middleware on export', async () => {
-      expect(exportOutput).toContain(
-        'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
-      )
-    })
-  })
+      it('should warn about middleware on export', async () => {
+        expect(exportOutput).toContain(
+          'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
+        )
+      })
+    }
+  )
 })
