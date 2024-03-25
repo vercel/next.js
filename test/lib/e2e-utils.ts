@@ -91,7 +91,7 @@ if (testMode === 'dev') {
 }
 
 /**
- * Whether the test is running in dev mode.
+ * Whether the test is running in development mode.
  * Based on `process.env.NEXT_TEST_MODE` and the test directory.
  */
 export const isNextDev = testMode === 'dev'

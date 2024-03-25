@@ -2636,7 +2636,7 @@ describe('Custom routes', () => {
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let nextConfigContent
 
     beforeAll(async () => {
@@ -2686,31 +2686,34 @@ describe('Custom routes', () => {
       )
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-      stdout = buildStdout
-      stderr = buildStderr
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-    runTests()
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+          appDir,
+          ['-d'],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
+        stdout = buildStdout
+        stderr = buildStderr
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(() => killApp(app))
+      runTests()
 
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-  })
+      it('should not show warning for custom routes when not next export', async () => {
+        expect(stderr).not.toContain(
+          `rewrites, redirects, and headers are not applied when exporting your application detected`
+        )
+      })
+    }
+  )
 
   describe('should load custom routes when only one type is used', () => {
     const runSoloTests = (isDev) => {
@@ -2807,10 +2810,10 @@ describe('Custom routes', () => {
       })
     }
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       runSoloTests(true)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         runSoloTests()
@@ -2820,27 +2823,30 @@ describe('Custom routes', () => {
 })
 
 describe('export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// REPLACEME', `output: 'export',`)
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace('// REPLACEME', `output: 'export',`)
+        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+          appDir,
+          ['-d'],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
 
-      stdout = buildStdout
-      stderr = buildStderr
-    })
-    afterAll(() => nextConfig.restore())
+        stdout = buildStdout
+        stderr = buildStderr
+      })
+      afterAll(() => nextConfig.restore())
 
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-  })
+      it('should not show warning for custom routes when not next export', async () => {
+        expect(stderr).not.toContain(
+          `rewrites, redirects, and headers are not applied when exporting your application detected`
+        )
+      })
+    }
+  )
 })

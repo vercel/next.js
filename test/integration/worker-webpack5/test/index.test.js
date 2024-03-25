@@ -35,7 +35,7 @@ const runTests = () => {
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'Web Workers with webpack 5',
   () => {
-    describe('dev mode', () => {
+    describe('development mode', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
@@ -44,7 +44,7 @@ const runTests = () => {
 
       runTests()
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
