@@ -1,4 +1,10 @@
-use std::{cmp::max, collections::HashSet, mem::replace, num::NonZeroUsize, sync::OnceLock};
+use std::{
+    cmp::{max, min},
+    collections::HashSet,
+    mem::replace,
+    num::NonZeroUsize,
+    sync::OnceLock,
+};
 
 use crate::{
     span::{Span, SpanEvent, SpanIndex},
@@ -18,7 +24,7 @@ fn new_root_span() -> Span {
         index: SpanIndex::MAX,
         parent: None,
         depth: 0,
-        start: 0,
+        start: u64::MAX,
         ignore_self_time: false,
         self_end: 0,
         category: "".into(),
@@ -110,6 +116,7 @@ impl Store {
         } else {
             &mut self.spans[0]
         };
+        parent.start = min(parent.start, start);
         let depth = parent.depth + 1;
         if depth < CUT_OFF_DEPTH {
             parent.events.push(SpanEvent::Child { id });
@@ -154,8 +161,6 @@ impl Store {
         total_time: u64,
         outdated_spans: &mut HashSet<SpanIndex>,
     ) {
-        self.invalidate_outdated_spans(outdated_spans);
-        outdated_spans.clear();
         let span = SpanRef {
             span: &self.spans[span_index.get()],
             store: self,
@@ -165,11 +170,20 @@ impl Store {
             .map(|c| (c.span.start, c.span.self_end, c.span.index))
             .collect::<Vec<_>>();
         children.sort();
+        let self_end = start_time + total_time;
         let mut self_time = 0;
         let mut current = start_time;
         let mut events = Vec::new();
         for (start, end, index) in children {
             if start > current {
+                if start > self_end {
+                    events.push(SpanEvent::SelfTime {
+                        start: current,
+                        end: self_end,
+                    });
+                    self_time += self_end - current;
+                    break;
+                }
                 events.push(SpanEvent::SelfTime {
                     start: current,
                     end: start,
@@ -179,15 +193,16 @@ impl Store {
             events.push(SpanEvent::Child { id: index });
             current = max(current, end);
         }
-        if current < start_time + total_time {
-            self_time += start_time + total_time - current;
+        current -= start_time;
+        if current < total_time {
+            self_time += total_time - current;
         }
         let span = &mut self.spans[span_index.get()];
         outdated_spans.insert(span_index);
         span.self_time = self_time;
         span.events = events;
         span.start = start_time;
-        span.self_end = start_time + total_time;
+        span.self_end = self_end;
     }
 
     pub fn set_parent(
