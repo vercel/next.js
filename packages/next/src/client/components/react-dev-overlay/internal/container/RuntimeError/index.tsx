@@ -216,6 +216,6 @@ export const styles = css`
     font-size: 0;
   }
   [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
-    color: var(--color-accents-3);
+    color: var(--color-accents-1);
   }
 `

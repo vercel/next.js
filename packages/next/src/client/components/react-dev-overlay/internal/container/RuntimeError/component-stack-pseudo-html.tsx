@@ -73,7 +73,10 @@ export function PseudoHtmlDiff({
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
   const htmlComponents = useMemo(() => {
-    const tagNames = isHtmlTagsWarning ? [firstContent, secondContent] : []
+    const tagNames = isHtmlTagsWarning
+      ? // tags could have < or > in the name, so we always remove them to match
+        [firstContent.replace(/<|>/g, ''), secondContent.replace(/<|>/g, '')]
+      : []
     const nestedHtmlStack: React.ReactNode[] = []
     let lastText = ''
 
