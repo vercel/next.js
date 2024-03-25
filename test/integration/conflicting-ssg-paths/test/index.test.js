@@ -186,4 +186,40 @@ describe('Conflicting SSG paths', () => {
       )
     })
   })
+
+  it('should show proper error when a non-string value is supplied as the parameter to a catch-all segment', async () => {
+    await fs.ensureDir(join(pagesDir, 'blog'))
+    await fs.writeFile(
+      join(pagesDir, 'blog/[...slug].js'),
+      `
+      export const getStaticProps = () => {
+        return {
+          props: {}
+        }
+      }
+
+      export const getStaticPaths = () => {
+        return {
+          paths: [
+            { params: { slug: ['string', 4] }}
+          ],
+          fallback: false
+        }
+      }
+
+      export default function Page() {
+        return '/blog/[...slug]'
+      }
+    `
+    )
+
+    const result = await nextBuild(appDir, undefined, {
+      stdout: true,
+      stderr: true,
+    })
+    const output = result.stdout + result.stderr
+    expect(output).toContain(
+      'A required parameter (slug) was not provided as an array of string received object in getStaticPaths for /blog/[...slug]'
+    )
+  })
 })

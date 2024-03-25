@@ -1093,6 +1093,9 @@ export async function buildStaticPaths({
         }
         if (
           (repeat && !Array.isArray(paramValue)) ||
+          (repeat &&
+            Array.isArray(paramValue) &&
+            paramValue.some((param) => typeof param !== 'string')) ||
           (!repeat && typeof paramValue !== 'string')
         ) {
           // If from appDir and not all params were provided from
@@ -1104,9 +1107,9 @@ export async function buildStaticPaths({
             return
           }
 
-          throw new Error(
+          throw new TypeError(
             `A required parameter (${validParamKey}) was not provided as ${
-              repeat ? 'an array' : 'a string'
+              repeat ? 'an array of string' : 'a string'
             } received ${typeof paramValue} in ${
               appDir ? 'generateStaticParams' : 'getStaticPaths'
             } for ${page}`
