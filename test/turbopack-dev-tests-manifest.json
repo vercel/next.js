@@ -3367,12 +3367,11 @@
       "app dir - draft mode in nodejs runtime should not perform full page navigation on router.refresh()",
       "app dir - draft mode in nodejs runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
-      "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
-    ],
-    "failed": [
+      "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies",
       "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should read other cookies when draft mode enabled"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
