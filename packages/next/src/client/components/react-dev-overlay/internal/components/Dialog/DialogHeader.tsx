@@ -1,19 +1,16 @@
-import * as React from 'react'
-
-export type DialogHeaderProps = {
-  children?: React.ReactNode
-  className?: string
-}
-
-const DialogHeader: React.FC<DialogHeaderProps> = function DialogHeader({
+export function DialogHeader({
+  title,
   children,
   className,
+}: {
+  children: React.ReactNode
+  className?: string
+  title: string
 }) {
   return (
     <div data-nextjs-dialog-header className={className}>
+      <h1>{title}</h1>
       {children}
     </div>
   )
 }
-
-export { DialogHeader }

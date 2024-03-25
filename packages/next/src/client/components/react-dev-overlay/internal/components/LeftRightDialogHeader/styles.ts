@@ -7,12 +7,13 @@ const styles = css`
     align-content: center;
     align-items: center;
     justify-content: space-between;
+    flex-basis: 100%;
+    order: -1;
   }
   [data-nextjs-dialog-left-right] > nav {
     flex: 1;
     display: flex;
     align-items: center;
-    margin-right: var(--size-gap);
   }
   [data-nextjs-dialog-left-right] > nav > button {
     display: inline-flex;
