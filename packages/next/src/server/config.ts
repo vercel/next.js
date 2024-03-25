@@ -896,17 +896,6 @@ function assignDefaults(
     ]),
   ]
 
-  if (!result.transpilePackages) {
-    result.transpilePackages = []
-  }
-  // ensure all optimize package imports is in transpile packages
-  // as well so that it just works for pages without experimental.bundlePagesExternals
-  for (const pkg of result.experimental.optimizePackageImports || []) {
-    if (!result.transpilePackages.includes(pkg)) {
-      result.transpilePackages.push(pkg)
-    }
-  }
-
   return result
 }
 
