@@ -316,10 +316,10 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-monospace);
+    font-family: sans-serif;
   }
   .nextjs-container-errors-header p {
-    font-family: var(--font-stack-monospace);
+    font-family: sans-serif;
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
