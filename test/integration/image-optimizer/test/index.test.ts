@@ -539,7 +539,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('Server support for headers in next.config.js', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         const size = 96 // defaults defined in server/config.ts
@@ -682,7 +682,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('External rewrite support with for serving static content in images', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let app

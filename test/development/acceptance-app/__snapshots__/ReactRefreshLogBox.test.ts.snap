@@ -106,6 +106,8 @@ Module not found: Can't resolve './boom.css'
 > 1 | @import "./boom.css"
     |  ^
 
+Import map: No import map entry
+
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
@@ -114,6 +116,8 @@ exports[`ReactRefreshLogBox app turbo Import trace when module not found in layo
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import "non-existing-module"
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Import map: No import map entry
 
 https://nextjs.org/docs/messages/module-not-found"
 `;

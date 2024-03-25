@@ -469,7 +469,24 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+    // Look for where 'server/web/globals.ts` are imported to find out corresponding
+    // context
+    match ty {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
+            insert_unsupported_node_internal_aliases(
+                &mut import_map,
+                project_path,
+                execution_context,
+            );
+        }
+        _ => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -710,11 +727,13 @@ async fn rsc_aliases(
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+        } else {
+            // x-ref: https://github.com/facebook/react/pull/25436
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
         }
-        // Use server rendering stub for RSC and SSR
-        // x-ref: https://github.com/facebook/react/pull/25436
-        alias["react-dom"] =
-            format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
