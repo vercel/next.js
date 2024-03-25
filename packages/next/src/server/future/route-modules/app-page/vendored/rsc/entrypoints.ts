@@ -1,5 +1,5 @@
 import * as React from 'react'
-import * as ReactDOM from 'react-dom/server-rendering-stub'
+import * as ReactDOM from 'react-dom'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
 
@@ -65,6 +65,14 @@ if (process.env.TURBOPACK) {
       'react-server-dom-webpack/server.node'
     )
   }
+}
+
+if (ReactDOM.version === undefined) {
+  // FIXME: ReactDOM's 'react-server' entrypoint is missing `.version`,
+  // which makes our tests fail when it's used, so this is an ugly workaround
+  // (but should be safe because these are always kept in sync anyway)
+  // @ts-expect-error
+  ReactDOM.version = React.version
 }
 
 export {
