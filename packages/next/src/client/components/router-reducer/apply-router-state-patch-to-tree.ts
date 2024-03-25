@@ -140,7 +140,7 @@ export function applyRouterStatePatchToTree(
     tree[4] = true
   }
 
-  addRefreshMarkerToActiveParallelSegments(tree, href)
+  addRefreshMarkerToActiveParallelSegments(tree, pathname)
 
   return tree
 }

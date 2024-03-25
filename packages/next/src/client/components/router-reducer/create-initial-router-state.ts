@@ -49,15 +49,7 @@ export function createInitialRouterState({
     loading: initialSeedData[3],
   }
 
-  const canonicalUrl =
-    // location.href is read as the initial value for canonicalUrl in the browser
-    // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-    location
-      ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-        createHrefFromUrl(location)
-      : initialCanonicalUrl
-
-  addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
+  addRefreshMarkerToActiveParallelSegments(initialTree, initialCanonicalUrl)
 
   const prefetchCache = new Map<string, PrefetchCacheEntry>()
 
@@ -90,7 +82,13 @@ export function createInitialRouterState({
       hashFragment: null,
       segmentPaths: [],
     },
-    canonicalUrl,
+    canonicalUrl:
+      // location.href is read as the initial value for canonicalUrl in the browser
+      // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+      location
+        ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
+          createHrefFromUrl(location)
+        : initialCanonicalUrl,
     nextUrl:
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??

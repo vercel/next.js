@@ -37,20 +37,22 @@ async function refreshInactiveParallelSegmentsImpl({
   includeNextUrl,
   fetchedSegments,
 }: RefreshInactiveParallelSegments & { fetchedSegments: Set<string> }) {
-  const [, parallelRoutes, refetchUrl, refetchMarker] = updatedTree
+  const [, parallelRoutes, refetchPathname, refetchMarker] = updatedTree
 
   if (
-    refetchUrl &&
-    refetchUrl !== state.canonicalUrl &&
+    refetchPathname &&
+    refetchPathname !== location.pathname &&
     refetchMarker === 'refetch' &&
     // it's possible for the tree to contain multiple segments that contain data at the same URL
     // we keep track of them so we can dedupe the requests
-    !fetchedSegments.has(refetchUrl)
+    !fetchedSegments.has(refetchPathname)
   ) {
-    fetchedSegments.add(refetchUrl) // Mark this URL as fetched
+    fetchedSegments.add(refetchPathname) // Mark this URL as fetched
 
     const fetchResponse = await fetchServerResponse(
-      new URL(refetchUrl, location.origin),
+      // we capture the pathname of the refetch without search params, so that it can be refetched with
+      // the "latest" search params when it comes time to actually trigger the fetch (below)
+      new URL(refetchPathname + location.search, location.origin),
       [updatedTree[0], updatedTree[1], updatedTree[2], 'refetch'],
       includeNextUrl ? state.nextUrl : null,
       state.buildId
@@ -90,15 +92,15 @@ async function refreshInactiveParallelSegmentsImpl({
  */
 export function addRefreshMarkerToActiveParallelSegments(
   tree: FlightRouterState,
-  canonicalUrl: string
+  pathname: string
 ) {
   const [segment, parallelRoutes, , refetchMarker] = tree
   if (segment === PAGE_SEGMENT_KEY && refetchMarker !== 'refetch') {
-    tree[2] = canonicalUrl
+    tree[2] = pathname
     tree[3] = 'refetch'
   }
 
   for (const key in parallelRoutes) {
-    addRefreshMarkerToActiveParallelSegments(parallelRoutes[key], canonicalUrl)
+    addRefreshMarkerToActiveParallelSegments(parallelRoutes[key], pathname)
   }
 }
