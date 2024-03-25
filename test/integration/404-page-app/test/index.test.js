@@ -62,7 +62,7 @@ describe('404 Page Support with _app', () => {
     }
   )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let stderr = ''
     let stdout = ''
 

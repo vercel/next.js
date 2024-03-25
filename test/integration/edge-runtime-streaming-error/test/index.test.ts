@@ -50,7 +50,7 @@ function createContext() {
   return ctx
 }
 
-describe('dev mode', () => {
+describe('development mode', () => {
   const context = createContext()
 
   beforeAll(async () => {

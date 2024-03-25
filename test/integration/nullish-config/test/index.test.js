@@ -63,7 +63,7 @@ const runTests = (type) => {
 describe('Nullish configs in next.config.js', () => {
   afterAll(() => fs.remove(nextConfig))
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(() => {
       getStdout = async () => {
         let stdout = ''

@@ -28,7 +28,7 @@ const runTests = () => {
 }
 
 describe('Custom routes invalid multi-match', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {

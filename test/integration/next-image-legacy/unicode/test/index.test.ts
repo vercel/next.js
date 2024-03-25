@@ -68,7 +68,7 @@ function runTests() {
 }
 
 describe('Image Component Unicode Image URL', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

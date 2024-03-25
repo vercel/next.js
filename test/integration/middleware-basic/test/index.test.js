@@ -23,7 +23,7 @@ function runTest() {
   })
 }
 
-describe('dev mode', () => {
+describe('development mode', () => {
   beforeAll(async () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
@@ -33,7 +33,7 @@ describe('dev mode', () => {
   runTest()
 })
 
-// TODO enable that once turbopack supports middleware in dev mode
+// TODO enable that once turbopack supports middleware in development mode
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {

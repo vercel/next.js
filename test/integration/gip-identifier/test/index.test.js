@@ -87,7 +87,7 @@ const runTests = (isDev) => {
 }
 
 describe('gip identifiers', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     runTests(true)
   })
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

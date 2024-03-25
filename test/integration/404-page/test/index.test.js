@@ -70,7 +70,7 @@ const runTests = (mode = 'server') => {
 }
 
 describe('404 Page Support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -79,7 +79,7 @@ describe('404 Page Support', () => {
 
     runTests('dev')
   })
-  describe('dev mode 2', () => {
+  describe('development mode 2', () => {
     it('falls back to _error correctly without pages/404', async () => {
       await fs.move(pages404, `${pages404}.bak`)
       appPort = await findPort()

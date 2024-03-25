@@ -22,7 +22,7 @@ const runTests = () => {
 }
 
 describe('PORT environment variable', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await runNextCommandDev([appDir], undefined, {

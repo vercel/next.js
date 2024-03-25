@@ -57,7 +57,7 @@ describe('disabled runtime JS', () => {
     }
   )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let appPort
     let app
 

@@ -40,7 +40,7 @@ const runTests = () => {
 }
 
 describe('Fallback Dynamic Route Params', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

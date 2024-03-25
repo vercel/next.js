@@ -92,7 +92,7 @@ function runTests(url: string) {
 }
 
 describe('Unoptimized Image Tests', () => {
-  describe('dev mode - component', () => {
+  describe('development mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -118,7 +118,7 @@ describe('Unoptimized Image Tests', () => {
       runTests('/')
     }
   )
-  describe('dev mode - getImageProps', () => {
+  describe('development mode - getImageProps', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

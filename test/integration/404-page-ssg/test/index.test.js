@@ -114,7 +114,7 @@ describe('404 Page Support SSG', () => {
     }
   )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       stderr = ''

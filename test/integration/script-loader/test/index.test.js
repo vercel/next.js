@@ -22,7 +22,7 @@ let appPort
 
 const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
-  // Don't skip the test case for dev mode (strict mode) once refactoring is finished
+  // Don't skip the test case for development mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
     let browser
     try {

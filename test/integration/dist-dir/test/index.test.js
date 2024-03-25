@@ -48,7 +48,7 @@ describe('distDir', () => {
     )
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await fs.remove(join(appDir, 'dist'))

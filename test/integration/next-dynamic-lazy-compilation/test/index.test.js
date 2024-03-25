@@ -50,7 +50,7 @@ function runTests() {
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'next/dynamic lazy compilation',
   () => {
-    describe('dev mode', () => {
+    describe('development mode', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)

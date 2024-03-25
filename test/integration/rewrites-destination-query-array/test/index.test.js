@@ -23,7 +23,7 @@ const runTests = () => {
 }
 
 describe('rewrites destination query', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

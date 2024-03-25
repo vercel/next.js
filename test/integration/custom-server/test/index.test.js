@@ -211,7 +211,7 @@ describe.each([
   describe('Error when rendering without starting slash', () => {
     afterEach(() => killApp(server))
 
-    it('should warn in dev mode', async () => {
+    it('should warn in development mode', async () => {
       let stderr = ''
       await startServer(
         {},

@@ -60,7 +60,7 @@ describe.each([
 ])('$title using Node.js API', ({ computeRoute }) => {
   const appDir = join(__dirname, '..')
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let output = ''
     let appPort: number
     let app = null

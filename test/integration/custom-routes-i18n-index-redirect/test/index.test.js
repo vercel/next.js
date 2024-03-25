@@ -61,7 +61,7 @@ describe('Custom routes i18n with index redirect', () => {
     server.close()
   })
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

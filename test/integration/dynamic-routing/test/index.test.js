@@ -1579,7 +1579,7 @@ describe('Dynamic Routing', () => {
     afterAll(() => fs.remove(middlewarePath))
   }
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
 

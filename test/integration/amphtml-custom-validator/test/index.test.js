@@ -37,7 +37,7 @@ const appDir = join(__dirname, '../')
     )
 
     describe('development mode', () => {
-      it('should run in dev mode successfully', async () => {
+      it('should run in development mode successfully', async () => {
         let stderr = ''
 
         appPort = await findPort()

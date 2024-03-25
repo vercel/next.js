@@ -49,7 +49,7 @@ function runTests({ isDev }) {
 }
 
 describe('Missing Import Image Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       stderr = ''
       appPort = await findPort()

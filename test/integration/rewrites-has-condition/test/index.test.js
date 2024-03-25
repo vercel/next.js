@@ -46,7 +46,7 @@ const runTests = () => {
 }
 
 describe('rewrites has condition', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

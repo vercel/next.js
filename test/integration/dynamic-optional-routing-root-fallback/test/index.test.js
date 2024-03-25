@@ -51,7 +51,7 @@ function runTests() {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Optional Routing Root Fallback', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
 

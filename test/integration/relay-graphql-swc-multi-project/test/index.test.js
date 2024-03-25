@@ -40,7 +40,7 @@ const runRelayCompiler = () => {
       runRelayCompiler()
     })
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       describe('project-a', () => {
         beforeAll(async () => {
           appPort = await findPort()

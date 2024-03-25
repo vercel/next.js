@@ -43,7 +43,7 @@ function runTests() {
 }
 
 describe('Image Loader Config with Edge Runtime', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

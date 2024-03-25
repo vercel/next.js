@@ -107,7 +107,7 @@ const runTests = () => {
 }
 
 describe('fallback: false rewrite', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

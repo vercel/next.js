@@ -16,7 +16,7 @@ let appPort
 let app
 
 describe('Image Component assetPrefix Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let stdout = ''
     let stderr = ''
     beforeAll(async () => {

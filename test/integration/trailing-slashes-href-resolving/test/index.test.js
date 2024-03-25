@@ -93,7 +93,7 @@ const runTests = (dev) => {
 }
 
 describe('href resolving trailing-slash', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

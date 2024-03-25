@@ -76,7 +76,7 @@ describe('Trailing Slash Rewrite Proxying', () => {
     }
   )
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       proxyPort = await findPort()
       proxyServer = await initNextServerScript(

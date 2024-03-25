@@ -60,7 +60,7 @@ const runTests = (mode = 'server') => {
 }
 
 describe('500 Page Support', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()

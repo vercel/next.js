@@ -129,7 +129,7 @@ describe('GS(S)P Page Errors', () => {
   })
   afterAll(() => fs.writeFile(indexPage, origIndexPage))
 
-  describe('dev mode', () => {
+  describe('development mode', () => {
     runTests(true)
   })
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
