@@ -8,7 +8,6 @@ error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolv
        4 | console.log({}[dne]);
        5 | 
   
-  Import map: No import map entry
   
   
   | It was not possible to find the requested file.

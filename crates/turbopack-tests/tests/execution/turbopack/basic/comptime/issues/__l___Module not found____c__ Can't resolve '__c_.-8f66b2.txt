@@ -11,7 +11,6 @@ error - [resolve] [project]/crates/turbopack-tests/tests/execution/turbopack/bas
        7 | 
        8 | function maybeReturn(x) {
   
-  Import map: No import map entry
   
   
   | It was not possible to find the requested file.

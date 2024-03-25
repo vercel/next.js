@@ -9,7 +9,7 @@ use crate::{
     error::PrettyPrintError,
     issue::IssueSeverity,
     resolve::{
-        options::{ImportMap, ResolveOptions},
+        options::{ImportMap, ImportMapResult, ResolveOptions},
         parse::Request,
     },
 };
@@ -66,7 +66,8 @@ impl Issue for ResolvingIssue {
         }
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             match lookup_import_map(*import_map, self.file_path, self.request).await {
-                Ok(str) => writeln!(description, "Import map: {}", str)?,
+                Ok(None) => {}
+                Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
                 Err(err) => {
                     writeln!(
                         description,
@@ -119,8 +120,11 @@ async fn lookup_import_map(
     import_map: Vc<ImportMap>,
     file_path: Vc<FileSystemPath>,
     request: Vc<Request>,
-) -> Result<ReadRef<String>> {
+) -> Result<Option<ReadRef<String>>> {
     let result = import_map.await?.lookup(file_path, request).await?;
 
-    result.cell().to_string().await
+    if matches!(result, ImportMapResult::NoEntry) {
+        return Ok(None);
+    }
+    Ok(Some(result.cell().to_string().await?))
 }
