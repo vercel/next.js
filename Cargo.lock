@@ -3156,6 +3156,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-binding",
+ "urlencoding",
 ]
 
 [[package]]
