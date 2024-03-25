@@ -159,117 +159,115 @@ function getCrossOriginString(input) {
 }
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
 function dispatchHint(code, model) {
   const dispatcher = ReactDOMCurrentDispatcher.current;
 
-  if (dispatcher) {
-    switch (code) {
-      case 'D':
-        {
-          const refined = refineModel(code, model);
+  switch (code) {
+    case 'D':
+      {
+        const refined = refineModel(code, model);
+        const href = refined;
+        dispatcher.prefetchDNS(href);
+        return;
+      }
+
+    case 'C':
+      {
+        const refined = refineModel(code, model);
+
+        if (typeof refined === 'string') {
           const href = refined;
-          dispatcher.prefetchDNS(href);
-          return;
-        }
-
-      case 'C':
-        {
-          const refined = refineModel(code, model);
-
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preconnect(href);
-          } else {
-            const href = refined[0];
-            const crossOrigin = refined[1];
-            dispatcher.preconnect(href, crossOrigin);
-          }
-
-          return;
-        }
-
-      case 'L':
-        {
-          const refined = refineModel(code, model);
+          dispatcher.preconnect(href);
+        } else {
           const href = refined[0];
-          const as = refined[1];
-
-          if (refined.length === 3) {
-            const options = refined[2];
-            dispatcher.preload(href, as, options);
-          } else {
-            dispatcher.preload(href, as);
-          }
-
-          return;
+          const crossOrigin = refined[1];
+          dispatcher.preconnect(href, crossOrigin);
         }
 
-      case 'm':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preloadModule(href);
-          } else {
-            const href = refined[0];
-            const options = refined[1];
-            dispatcher.preloadModule(href, options);
-          }
+    case 'L':
+      {
+        const refined = refineModel(code, model);
+        const href = refined[0];
+        const as = refined[1];
 
-          return;
+        if (refined.length === 3) {
+          const options = refined[2];
+          dispatcher.preload(href, as, options);
+        } else {
+          dispatcher.preload(href, as);
         }
 
-      case 'S':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preinitStyle(href);
-          } else {
-            const href = refined[0];
-            const precedence = refined[1] === 0 ? undefined : refined[1];
-            const options = refined.length === 3 ? refined[2] : undefined;
-            dispatcher.preinitStyle(href, precedence, options);
-          }
+    case 'm':
+      {
+        const refined = refineModel(code, model);
 
-          return;
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preloadModule(href);
+        } else {
+          const href = refined[0];
+          const options = refined[1];
+          dispatcher.preloadModule(href, options);
         }
 
-      case 'X':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preinitScript(href);
-          } else {
-            const href = refined[0];
-            const options = refined[1];
-            dispatcher.preinitScript(href, options);
-          }
+    case 'S':
+      {
+        const refined = refineModel(code, model);
 
-          return;
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preinitStyle(href);
+        } else {
+          const href = refined[0];
+          const precedence = refined[1] === 0 ? undefined : refined[1];
+          const options = refined.length === 3 ? refined[2] : undefined;
+          dispatcher.preinitStyle(href, precedence, options);
         }
 
-      case 'M':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preinitModuleScript(href);
-          } else {
-            const href = refined[0];
-            const options = refined[1];
-            dispatcher.preinitModuleScript(href, options);
-          }
+    case 'X':
+      {
+        const refined = refineModel(code, model);
 
-          return;
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preinitScript(href);
+        } else {
+          const href = refined[0];
+          const options = refined[1];
+          dispatcher.preinitScript(href, options);
         }
-    }
+
+        return;
+      }
+
+    case 'M':
+      {
+        const refined = refineModel(code, model);
+
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preinitModuleScript(href);
+        } else {
+          const href = refined[0];
+          const options = refined[1];
+          dispatcher.preinitModuleScript(href, options);
+        }
+
+        return;
+      }
   }
 } // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
@@ -319,12 +317,29 @@ function isArray(a) {
 
 const getPrototypeOf = Object.getPrototypeOf;
 
+function writeTemporaryReference(set, object) {
+  // We always create a new entry regardless if we've already written the same
+  // object. This ensures that we always generate a deterministic encoding of
+  // each slot in the reply for cacheability.
+  const newId = set.length;
+  set.push(object);
+  return newId;
+}
+function readTemporaryReference(set, id) {
+  if (id < 0 || id >= set.length) {
+    throw new Error("The RSC response contained a reference that doesn't exist in the temporary reference set. " + 'Always pass the matching set that was used to create the reply when parsing its response.');
+  }
+
+  return set[id];
+}
+
 const ObjectPrototype = Object.prototype;
 const knownServerReferences = new WeakMap(); // Serializable values
 // Thenable<ReactServerValue>
-// function serializeByValueID(id: number): string {
-//   return '$' + id.toString(16);
-// }
+
+function serializeByValueID(id) {
+  return '$' + id.toString(16);
+}
 
 function serializePromiseID(id) {
   return '$@' + id.toString(16);
@@ -334,8 +349,8 @@ function serializeServerReferenceID(id) {
   return '$F' + id.toString(16);
 }
 
-function serializeSymbolReference(name) {
-  return '$S' + name;
+function serializeTemporaryReferenceID(id) {
+  return '$T' + id.toString(16);
 }
 
 function serializeFormDataReference(id) {
@@ -393,7 +408,7 @@ function escapeStringValue(value) {
   }
 }
 
-function processReply(root, formFieldPrefix, resolve, reject) {
+function processReply(root, formFieldPrefix, temporaryReferences, resolve, reject) {
   let nextPartId = 1;
   let pendingParts = 0;
   let formData = null;
@@ -406,7 +421,82 @@ function processReply(root, formFieldPrefix, resolve, reject) {
     }
 
     if (typeof value === 'object') {
-      // $FlowFixMe[method-unbinding]
+      switch (value.$$typeof) {
+        case REACT_ELEMENT_TYPE:
+          {
+            if (temporaryReferences === undefined) {
+              throw new Error('React Element cannot be passed to Server Functions from the Client without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (''));
+            }
+
+            return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
+          }
+
+        case REACT_LAZY_TYPE:
+          {
+            // Resolve lazy as if it wasn't here. In the future this will be encoded as a Promise.
+            const lazy = value;
+            const payload = lazy._payload;
+            const init = lazy._init;
+
+            if (formData === null) {
+              // Upgrade to use FormData to allow us to stream this value.
+              formData = new FormData();
+            }
+
+            pendingParts++;
+
+            try {
+              const resolvedModel = init(payload); // We always outline this as a separate part even though we could inline it
+              // because it ensures a more deterministic encoding.
+
+              const lazyId = nextPartId++;
+              const partJSON = JSON.stringify(resolvedModel, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+
+              const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+              data.append(formFieldPrefix + lazyId, partJSON);
+              return serializeByValueID(lazyId);
+            } catch (x) {
+              if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+                // Suspended
+                pendingParts++;
+                const lazyId = nextPartId++;
+                const thenable = x;
+
+                const retry = function () {
+                  // While the first promise resolved, its value isn't necessarily what we'll
+                  // resolve into because we might suspend again.
+                  try {
+                    const partJSON = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+
+                    const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+                    data.append(formFieldPrefix + lazyId, partJSON);
+                    pendingParts--;
+
+                    if (pendingParts === 0) {
+                      resolve(data);
+                    }
+                  } catch (reason) {
+                    reject(reason);
+                  }
+                };
+
+                thenable.then(retry, retry);
+                return serializeByValueID(lazyId);
+              } else {
+                // In the future we could consider serializing this as an error
+                // that throws on the server instead.
+                reject(x);
+                return null;
+              }
+            } finally {
+              pendingParts--;
+            }
+          }
+      } // $FlowFixMe[method-unbinding]
+
+
       if (typeof value.then === 'function') {
         // We assume that any object with a .then property is a "Thenable" type,
         // or a Promise type. Either of which can be represented by a Promise.
@@ -419,15 +509,19 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         const promiseId = nextPartId++;
         const thenable = value;
         thenable.then(partValue => {
-          const partJSON = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+          try {
+            const partJSON = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
-          const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+            const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-          data.append(formFieldPrefix + promiseId, partJSON);
-          pendingParts--;
+            data.append(formFieldPrefix + promiseId, partJSON);
+            pendingParts--;
 
-          if (pendingParts === 0) {
-            resolve(data);
+            if (pendingParts === 0) {
+              resolve(data);
+            }
+          } catch (reason) {
+            reject(reason);
           }
         }, reason => {
           // In the future we could consider serializing this as an error
@@ -496,7 +590,12 @@ function processReply(root, formFieldPrefix, resolve, reject) {
       const proto = getPrototypeOf(value);
 
       if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
-        throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
+        if (temporaryReferences === undefined) {
+          throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
+        } // We can serialize class instances as temporary references.
+
+
+        return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
       }
 
 
@@ -548,19 +647,19 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         return serializeServerReferenceID(refId);
       }
 
-      throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
+      if (temporaryReferences === undefined) {
+        throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
+      }
+
+      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
     }
 
     if (typeof value === 'symbol') {
-      // $FlowFixMe[incompatible-type] `description` might be undefined
-      const name = value.description;
-
-      if (Symbol.for(name) !== value) {
-        throw new Error('Only global symbols received from Symbol.for(...) can be passed to Server Functions. ' + ("The symbol Symbol.for(" + // $FlowFixMe[incompatible-type] `description` might be undefined
-        value.description + ") cannot be found among global symbols."));
+      if (temporaryReferences === undefined) {
+        throw new Error('Symbols cannot be passed to a Server Function without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (''));
       }
 
-      return serializeSymbolReference(name);
+      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
     }
 
     if (typeof value === 'bigint') {
@@ -596,7 +695,8 @@ function encodeFormData(reference) {
     resolve = res;
     reject = rej;
   });
-  processReply(reference, '', body => {
+  processReply(reference, '', undefined, // TODO: This means React Elements can't be used as state in progressive enhancement.
+  body => {
     if (typeof body === 'string') {
       const data = new FormData();
       data.append('0', body);
@@ -1308,6 +1408,19 @@ function parseModelString(response, parentObject, key, value) {
           return createServerReferenceProxy(response, metadata);
         }
 
+      case 'T':
+        {
+          // Temporary Reference
+          const id = parseInt(value.slice(2), 16);
+          const temporaryReferences = response._tempRefs;
+
+          if (temporaryReferences == null) {
+            throw new Error('Missing a temporary reference set but the RSC response returned a temporary reference. ' + 'Pass a temporaryReference option with the set that was used with the reply.');
+          }
+
+          return readTemporaryReference(temporaryReferences, id);
+        }
+
       case 'Q':
         {
           // Map
@@ -1423,7 +1536,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences) {
   const chunks = new Map();
   const response = {
     _bundlerConfig: bundlerConfig,
@@ -1438,7 +1551,8 @@ function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormActi
     _rowID: 0,
     _rowTag: 0,
     _rowLength: 0,
-    _buffer: []
+    _buffer: [],
+    _tempRefs: temporaryReferences
   }; // Don't inline this call because it causes closure to outline the call above.
 
   response._fromJSON = createFromJSONCallback(response);
@@ -1943,7 +2057,8 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  const response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+  const response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined // TODO: If encodeReply is supported, this should support temporaryReferences
+  );
   stream.on('data', chunk => {
     processBinaryChunk(response, chunk);
   });
