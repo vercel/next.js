@@ -39,34 +39,36 @@ const runRelayCompiler = () => {
     beforeAll(() => {
       runRelayCompiler()
     })
-
-    describe('development mode', () => {
-      describe('project-a', () => {
-        beforeAll(async () => {
-          appPort = await findPort()
-          app = await launchApp(projectAAppDir, appPort, {
-            cwd: projectAAppDir,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        describe('project-a', () => {
+          beforeAll(async () => {
+            appPort = await findPort()
+            app = await launchApp(projectAAppDir, appPort, {
+              cwd: projectAAppDir,
+            })
           })
+
+          afterAll(() => killApp(app))
+
+          runTests('Project A')
         })
 
-        afterAll(() => killApp(app))
-
-        runTests('Project A')
-      })
-
-      describe('project-b', () => {
-        beforeAll(async () => {
-          appPort = await findPort()
-          app = await launchApp(projectBAppDir, appPort, {
-            cwd: projectBAppDir,
+        describe('project-b', () => {
+          beforeAll(async () => {
+            appPort = await findPort()
+            app = await launchApp(projectBAppDir, appPort, {
+              cwd: projectBAppDir,
+            })
           })
+
+          afterAll(() => killApp(app))
+
+          runTests('Project B')
         })
-
-        afterAll(() => killApp(app))
-
-        runTests('Project B')
-      })
-    })
+      }
+    )
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {

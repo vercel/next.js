@@ -62,23 +62,25 @@ const runTests = (type) => {
 
 describe('Nullish configs in next.config.js', () => {
   afterAll(() => fs.remove(nextConfig))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(() => {
+        getStdout = async () => {
+          let stdout = ''
+          const app = await launchApp(appDir, await findPort(), {
+            onStdout: (msg) => {
+              stdout += msg
+            },
+          })
+          await killApp(app)
+          return stdout
+        }
+      })
 
-  describe('development mode', () => {
-    beforeAll(() => {
-      getStdout = async () => {
-        let stdout = ''
-        const app = await launchApp(appDir, await findPort(), {
-          onStdout: (msg) => {
-            stdout += msg
-          },
-        })
-        await killApp(app)
-        return stdout
-      }
-    })
-
-    runTests('dev')
-  })
+      runTests('dev')
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

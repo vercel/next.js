@@ -72,28 +72,30 @@ describe('Root components import order', () => {
     }
   )
 })
+;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+  'development mode',
+  () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(join(__dirname, '../'), appPort)
+    })
 
-describe('development mode', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(join(__dirname, '../'), appPort)
-  })
+    afterAll(() => killApp(app))
 
-  afterAll(() => killApp(app))
+    it(
+      'root components should be imported in this order _document > _app > page in order to respect side effects',
+      respectsSideEffects
+    )
 
-  it(
-    'root components should be imported in this order _document > _app > page in order to respect side effects',
-    respectsSideEffects
-  )
-
-  // Test relies on webpack splitChunks overrides.
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
-    'Skipped in Turbopack',
-    () => {
-      it(
-        '_app chunks should be attached to de dom before page chunks',
-        respectsChunkAttachmentOrder
-      )
-    }
-  )
-})
+    // Test relies on webpack splitChunks overrides.
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'Skipped in Turbopack',
+      () => {
+        it(
+          '_app chunks should be attached to de dom before page chunks',
+          respectsChunkAttachmentOrder
+        )
+      }
+    )
+  }
+)

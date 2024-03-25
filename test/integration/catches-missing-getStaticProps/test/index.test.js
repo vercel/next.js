@@ -13,16 +13,19 @@ const appDir = join(__dirname, '../')
 const errorRegex = /getStaticPaths was added without a getStaticProps in/
 
 describe('Catches Missing getStaticProps', () => {
-  describe('development mode', () => {
-    it('should catch it in development mode', async () => {
-      const appPort = await findPort()
-      const app = await launchApp(appDir, appPort)
-      const html = await renderViaHTTP(appPort, '/hello')
-      await killApp(app)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      it('should catch it in development mode', async () => {
+        const appPort = await findPort()
+        const app = await launchApp(appDir, appPort)
+        const html = await renderViaHTTP(appPort, '/hello')
+        await killApp(app)
 
-      expect(html).toMatch(errorRegex)
-    })
-  })
+        expect(html).toMatch(errorRegex)
+      })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

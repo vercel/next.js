@@ -56,38 +56,40 @@ describe('disabled runtime JS', () => {
       })
     }
   )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let appPort
+      let app
 
-  describe('development mode', () => {
-    let appPort
-    let app
-
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(join(__dirname, '../'), appPort)
-    })
-
-    afterAll(() => killApp(app))
-
-    it('should render the page', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      expect(html).toMatch(/Hello World/)
-    })
-
-    it('should not have __NEXT_DATA__ script', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-
-      const $ = cheerio.load(html)
-      expect($('script#__NEXT_DATA__').length).toBe(1)
-    })
-
-    it('should have a script for each preload link', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      const $ = cheerio.load(html)
-      const preloadLinks = $('link[rel=preload]')
-      preloadLinks.each((idx, element) => {
-        const url = $(element).attr('href')
-        expect($(`script[src="${url}"]`).length).toBe(1)
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(join(__dirname, '../'), appPort)
       })
-    })
-  })
+
+      afterAll(() => killApp(app))
+
+      it('should render the page', async () => {
+        const html = await renderViaHTTP(appPort, '/')
+        expect(html).toMatch(/Hello World/)
+      })
+
+      it('should not have __NEXT_DATA__ script', async () => {
+        const html = await renderViaHTTP(appPort, '/')
+
+        const $ = cheerio.load(html)
+        expect($('script#__NEXT_DATA__').length).toBe(1)
+      })
+
+      it('should have a script for each preload link', async () => {
+        const html = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(html)
+        const preloadLinks = $('link[rel=preload]')
+        preloadLinks.each((idx, element) => {
+          const url = $(element).attr('href')
+          expect($(`script[src="${url}"]`).length).toBe(1)
+        })
+      })
+    }
+  )
 })

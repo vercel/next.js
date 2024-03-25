@@ -32,91 +32,94 @@ function getData(html: string) {
 }
 
 describe('Test Draft Mode', () => {
-  describe('Development Mode', () => {
-    let appPort, app, browser, cookieString
-    it('should start development application', async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let appPort, app, browser, cookieString
+      it('should start development application', async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
 
-    it('should enable draft mode', async () => {
-      const res = await fetchViaHTTP(appPort, '/api/enable')
-      expect(res.status).toBe(200)
+      it('should enable draft mode', async () => {
+        const res = await fetchViaHTTP(appPort, '/api/enable')
+        expect(res.status).toBe(200)
 
-      const cookies = res.headers
-        .get('set-cookie')
-        .split(',')
-        .map((c) => cookie.parse(c))
+        const cookies = res.headers
+          .get('set-cookie')
+          .split(',')
+          .map((c) => cookie.parse(c))
 
-      expect(cookies[0]).toBeTruthy()
-      expect(cookies[0].__prerender_bypass).toBeTruthy()
-      cookieString = cookie.serialize(
-        '__prerender_bypass',
-        cookies[0].__prerender_bypass
-      )
-    })
+        expect(cookies[0]).toBeTruthy()
+        expect(cookies[0].__prerender_bypass).toBeTruthy()
+        cookieString = cookie.serialize(
+          '__prerender_bypass',
+          cookies[0].__prerender_bypass
+        )
+      })
 
-    it('should return cookies to be expired after dev server reboot', async () => {
-      await killApp(app)
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      it('should return cookies to be expired after dev server reboot', async () => {
+        await killApp(app)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
 
-      const res = await fetchViaHTTP(
-        appPort,
-        '/',
-        {},
-        { headers: { Cookie: cookieString } }
-      )
-      expect(res.status).toBe(200)
+        const res = await fetchViaHTTP(
+          appPort,
+          '/',
+          {},
+          { headers: { Cookie: cookieString } }
+        )
+        expect(res.status).toBe(200)
 
-      const body = await res.text()
-      // "err":{"name":"TypeError","message":"Cannot read property 'previewModeId' of undefined"
-      expect(body).not.toContain('"err"')
-      expect(body).not.toContain('TypeError')
-      expect(body).not.toContain('previewModeId')
+        const body = await res.text()
+        // "err":{"name":"TypeError","message":"Cannot read property 'previewModeId' of undefined"
+        expect(body).not.toContain('"err"')
+        expect(body).not.toContain('TypeError')
+        expect(body).not.toContain('previewModeId')
 
-      const cookies = res.headers
-        .get('set-cookie')
-        .replace(/(=(?!Lax)\w{3}),/g, '$1')
-        .split(',')
-        .map((c) => cookie.parse(c))
+        const cookies = res.headers
+          .get('set-cookie')
+          .replace(/(=(?!Lax)\w{3}),/g, '$1')
+          .split(',')
+          .map((c) => cookie.parse(c))
 
-      expect(cookies[0]).toBeTruthy()
-    })
+        expect(cookies[0]).toBeTruthy()
+      })
 
-    it('should start the client-side browser', async () => {
-      browser = await webdriver(appPort, '/api/enable')
-    })
+      it('should start the client-side browser', async () => {
+        browser = await webdriver(appPort, '/api/enable')
+      })
 
-    it('should fetch draft data on SSR', async () => {
-      await browser.get(`http://localhost:${appPort}/`)
-      await browser.waitForElementByCss('#draft')
-      expect(await browser.elementById('draft').text()).toBe('true')
-    })
+      it('should fetch draft data on SSR', async () => {
+        await browser.get(`http://localhost:${appPort}/`)
+        await browser.waitForElementByCss('#draft')
+        expect(await browser.elementById('draft').text()).toBe('true')
+      })
 
-    it('should fetch draft data on CST', async () => {
-      await browser.get(`http://localhost:${appPort}/to-index`)
-      await browser.waitForElementByCss('#to-index')
-      await browser.eval('window.itdidnotrefresh = "yep"')
-      await browser.elementById('to-index').click()
-      await browser.waitForElementByCss('#draft')
-      expect(await browser.eval('window.itdidnotrefresh')).toBe('yep')
-      expect(await browser.elementById('draft').text()).toBe('true')
-    })
+      it('should fetch draft data on CST', async () => {
+        await browser.get(`http://localhost:${appPort}/to-index`)
+        await browser.waitForElementByCss('#to-index')
+        await browser.eval('window.itdidnotrefresh = "yep"')
+        await browser.elementById('to-index').click()
+        await browser.waitForElementByCss('#draft')
+        expect(await browser.eval('window.itdidnotrefresh')).toBe('yep')
+        expect(await browser.elementById('draft').text()).toBe('true')
+      })
 
-    it('should disable draft mode', async () => {
-      await browser.get(`http://localhost:${appPort}/api/disable`)
+      it('should disable draft mode', async () => {
+        await browser.get(`http://localhost:${appPort}/api/disable`)
 
-      await browser.get(`http://localhost:${appPort}/`)
-      await browser.waitForElementByCss('#draft')
-      expect(await browser.elementById('draft').text()).toBe('false')
-    })
+        await browser.get(`http://localhost:${appPort}/`)
+        await browser.waitForElementByCss('#draft')
+        expect(await browser.elementById('draft').text()).toBe('false')
+      })
 
-    afterAll(async () => {
-      await browser.close()
-      await killApp(app)
-    })
-  })
+      afterAll(async () => {
+        await browser.close()
+        await killApp(app)
+      })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

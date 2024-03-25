@@ -50,21 +50,24 @@ function createContext() {
   return ctx
 }
 
-describe('development mode', () => {
-  const context = createContext()
+;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+  'development mode',
+  () => {
+    const context = createContext()
 
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.app = await launchApp(appDir, context.appPort, {
-      ...context.handler,
-      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
+    beforeAll(async () => {
+      context.appPort = await findPort()
+      context.app = await launchApp(appDir, context.appPort, {
+        ...context.handler,
+        env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
+      })
     })
-  })
 
-  afterAll(() => killApp(context.app))
+    afterAll(() => killApp(context.app))
 
-  it('logs the error correctly', test(context))
-})
+    it('logs the error correctly', test(context))
+  }
+)
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {
