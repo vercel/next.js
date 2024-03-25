@@ -88,7 +88,8 @@ export async function handleFetch(
 ): Promise<Response> {
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
-    throw new Error(`No test info for ${request.method} ${request.url}`)
+    // Passthrough non-test requests.
+    return originalFetch(request)
   }
 
   const { testData, proxyPort } = testInfo

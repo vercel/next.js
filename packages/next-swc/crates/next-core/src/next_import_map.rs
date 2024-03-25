@@ -39,9 +39,13 @@ use crate::{
     util::NextRuntime,
 };
 
-const NODE_INTERNALS: [&str; 48] = [
-    "assert",
-    "async_hooks",
+/// List of node.js internals that are not supported by edge runtime.
+/// If these imports are used & user does not provide alias for the polyfill,
+/// runtime error will be thrown.
+/// This is not identical to the list of entire node.js internals, refer
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+/// for the allowed imports.
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
     "child_process",
     "cluster",
     "console",
@@ -51,7 +55,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "dns",
     "dns/promises",
     "domain",
-    "events",
     "fs",
     "fs/promises",
     "http",
@@ -80,8 +83,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "tls",
     "trace_events",
     "tty",
-    "util",
-    "util/types",
     "v8",
     "vm",
     "wasi",
@@ -468,7 +469,24 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+    // Look for where 'server/web/globals.ts` are imported to find out corresponding
+    // context
+    match ty {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
+            insert_unsupported_node_internal_aliases(
+                &mut import_map,
+                project_path,
+                execution_context,
+            );
+        }
+        _ => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -486,7 +504,7 @@ fn insert_unsupported_node_internal_aliases(
     ))
     .into();
 
-    NODE_INTERNALS.iter().for_each(|module| {
+    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
         import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
     });
 }
@@ -675,43 +693,47 @@ async fn rsc_aliases(
     };
 
     if runtime == NextRuntime::NodeJs {
-        if let ServerContextType::AppSSR { .. } = ty {
-            alias.extend(indexmap! {
-                "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
-                "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-                "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
-                "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
-                "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-            })
-        }
+        match ty {
+            ServerContextType::AppSSR { .. } => {
+                alias.extend(indexmap! {
+                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
+                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
+                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                })
+            }
+            ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+                alias.extend(indexmap! {
+                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
+                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
+                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
-        if let ServerContextType::AppRSC { .. } = ty {
-            alias.extend(indexmap! {
-                "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
-                "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-                "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
-                "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
-                "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                "next/navigation" => format!("next/dist/api/navigation.react-server"),
-
-                // Needed to make `react-dom/server` work.
-                "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
-            })
+                    // Needed to make `react-dom/server` work.
+                    "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
+                })
+            }
+            _ => {}
         }
     }
 
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+        } else {
+            // x-ref: https://github.com/facebook/react/pull/25436
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
         }
-        // Use server rendering stub for RSC and SSR
-        // x-ref: https://github.com/facebook/react/pull/25436
-        alias["react-dom"] =
-            format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
