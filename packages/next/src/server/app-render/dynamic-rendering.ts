@@ -49,12 +49,12 @@ export type PrerenderState = {
   /**
    * When true, stack information will also be tracked during dynamic access.
    */
-  isDebugSkeleton: boolean | undefined
+  readonly isDebugSkeleton: boolean | undefined
 
   /**
    * The dynamic accesses that occurred during the render.
    */
-  dynamicAccesses: DynamicAccess[]
+  readonly dynamicAccesses: DynamicAccess[]
 }
 
 export function createPrerenderState(

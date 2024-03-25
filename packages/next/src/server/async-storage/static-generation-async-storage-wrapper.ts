@@ -38,7 +38,6 @@ export type StaticGenerationContext = {
     | 'originalPathname'
     | 'supportsDynamicHTML'
     | 'isRevalidate'
-    | 'isBot'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugPPRSkeleton'
