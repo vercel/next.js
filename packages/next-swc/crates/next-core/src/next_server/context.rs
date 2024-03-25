@@ -820,8 +820,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".to_string()),
-        client_root.join("static/media".to_string()),
+        node_root.join("server/chunks/ssr".to_string().into()),
+        client_root.join("static/media".to_string().into()),
         environment,
         next_mode.runtime_type(),
     )
@@ -845,8 +845,8 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         node_root,
-        node_root.join("server/chunks".to_string()),
-        node_root.join("server/assets".to_string()),
+        node_root.join("server/chunks".to_string().into()),
+        node_root.join("server/assets".to_string().into()),
         environment,
         next_mode.runtime_type(),
     )

@@ -419,6 +419,6 @@ fn next_router_path_for_basename(
     if basename == "index" {
         next_router_path
     } else {
-        next_router_path.join(basename.to_string())
+        next_router_path.join(basename.to_string().into())
     }
 }

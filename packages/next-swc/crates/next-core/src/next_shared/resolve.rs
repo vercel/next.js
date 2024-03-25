@@ -178,7 +178,11 @@ pub(crate) struct InvalidImportResolvePlugin {
 #[turbo_tasks::value_impl]
 impl InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, invalid_import: String, message: Vec<String>) -> Vc<Self> {
+    pub fn new(
+        root: Vc<FileSystemPath>,
+        invalid_import: Arc<String>,
+        message: Vec<Arc<String>>,
+    ) -> Vc<Self> {
         InvalidImportResolvePlugin {
             root,
             invalid_import,
