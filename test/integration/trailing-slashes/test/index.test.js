@@ -207,7 +207,7 @@ function testWithTrailingSlash() {
 }
 
 describe('Trailing slashes', () => {
-  describe('dev mode, trailingSlash: false', () => {
+  describe('development mode, trailingSlash: false', () => {
     beforeAll(async () => {
       nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
       appPort = await findPort()
@@ -221,7 +221,7 @@ describe('Trailing slashes', () => {
     testWithoutTrailingSlash()
   })
 
-  describe('dev mode, trailingSlash: true', () => {
+  describe('development mode, trailingSlash: true', () => {
     beforeAll(async () => {
       nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       appPort = await findPort()
@@ -310,7 +310,7 @@ describe('Trailing slashes', () => {
     }
   )
 
-  describe('dev mode, with basepath, trailingSlash: true', () => {
+  describe('development mode, with basepath, trailingSlash: true', () => {
     beforeAll(async () => {
       nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       nextConfig.replace('// basePath:', 'basePath:')

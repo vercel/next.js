@@ -272,7 +272,7 @@ describe('AMP Usage', () => {
     })
   })
 
-  describe('AMP dev mode', () => {
+  describe('AMP development mode', () => {
     let dynamicAppPort
     let ampDynamic
     let output = ''

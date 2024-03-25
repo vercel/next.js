@@ -45,7 +45,7 @@ function runTests(url: string) {
 }
 
 describe('Image Loader Config', () => {
-  describe('dev mode - component', () => {
+  describe('development mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -69,7 +69,7 @@ describe('Image Loader Config', () => {
       runTests('/')
     }
   )
-  describe('dev mode - getImageProps', () => {
+  describe('development mode - getImageProps', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

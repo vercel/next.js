@@ -40,7 +40,7 @@ const runTests = (isDev) => {
   })
 
   if (!isDev) {
-    // cache-control is set to "0, no-store" in dev mode
+    // cache-control is set to "0, no-store" in development mode
     it('Should use immutable cache-control header for static import', async () => {
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`

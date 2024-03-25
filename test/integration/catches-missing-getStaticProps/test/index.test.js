@@ -14,7 +14,7 @@ const errorRegex = /getStaticPaths was added without a getStaticProps in/
 
 describe('Catches Missing getStaticProps', () => {
   describe('development mode', () => {
-    it('should catch it in dev mode', async () => {
+    it('should catch it in development mode', async () => {
       const appPort = await findPort()
       const app = await launchApp(appDir, appPort)
       const html = await renderViaHTTP(appPort, '/hello')

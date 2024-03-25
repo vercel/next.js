@@ -24,7 +24,7 @@ const expectedErr =
       }
     )
 
-    it('should show in dev mode', async () => {
+    it('should show in development mode', async () => {
       let output = ''
 
       await launchApp(appDir, await findPort(), {

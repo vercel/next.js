@@ -42,7 +42,7 @@ describe('Image Component Tests In Prod Mode', () => {
   )
 })
 
-describe('Image Component Tests In Dev Mode', () => {
+describe('Image Component Tests In development mode', () => {
   beforeAll(async () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort)

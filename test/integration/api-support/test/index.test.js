@@ -547,7 +547,7 @@ function runTests(dev = false) {
       expect(getPageFileFromPagesManifest(appDir, '/api/users')).toBeTruthy()
     })
 
-    it('should show warning when the API resolves without ending the request in dev mode', async () => {
+    it('should show warning when the API resolves without ending the request in development mode', async () => {
       const controller = new AbortController()
       setTimeout(() => {
         controller.abort()

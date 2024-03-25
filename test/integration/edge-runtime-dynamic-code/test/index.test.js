@@ -22,7 +22,7 @@ const context = {
   appDir: join(__dirname, '../'),
 }
 
-describe('Page using eval in dev mode', () => {
+describe('Page using eval in development mode', () => {
   let output = ''
 
   beforeAll(async () => {

@@ -46,7 +46,7 @@ describe('Image Component from node_modules prod mode', () => {
   )
 })
 
-describe('Image Component from node_modules dev mode', () => {
+describe('Image Component from node_modules development mode', () => {
   beforeAll(async () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort)

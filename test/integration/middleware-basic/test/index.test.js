@@ -33,7 +33,7 @@ describe('development mode', () => {
   runTest()
 })
 
-// TODO enable that once turbopack supports middleware in dev mode
+// TODO enable that once turbopack supports middleware in development mode
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {
