@@ -276,54 +276,56 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                     )?;
                                 }
                                 ClientToServerMessage::Query { id } => {
-                                    let message = if let Some((span, is_graph)) =
-                                        state.store.read().span(id)
-                                    {
-                                        let span_start = span.start();
-                                        let span_end = span.end();
-                                        let duration = span.corrected_total_time();
-                                        let allocations = span.total_allocations();
-                                        let deallocations = span.total_deallocations();
-                                        let allocation_count = span.total_allocation_count();
-                                        let persistent_allocations =
-                                            span.total_persistent_allocations();
-                                        let args = span
-                                            .args()
-                                            .map(|(k, v)| (k.to_string(), v.to_string()))
-                                            .collect();
-                                        let mut path = Vec::new();
-                                        let mut current = span;
-                                        while let Some(parent) = current.parent() {
-                                            path.push(parent.nice_name().1.to_string());
-                                            current = parent;
-                                        }
-                                        path.reverse();
-                                        ServerToClientMessage::QueryResult {
-                                            id,
-                                            is_graph,
-                                            start: span_start,
-                                            end: span_end,
-                                            duration,
-                                            allocations,
-                                            deallocations,
-                                            allocation_count,
-                                            persistent_allocations,
-                                            args,
-                                            path,
-                                        }
-                                    } else {
-                                        ServerToClientMessage::QueryResult {
-                                            id,
-                                            is_graph: false,
-                                            start: 0,
-                                            end: 0,
-                                            duration: 0,
-                                            allocations: 0,
-                                            deallocations: 0,
-                                            allocation_count: 0,
-                                            persistent_allocations: 0,
-                                            args: Vec::new(),
-                                            path: Vec::new(),
+                                    let message = {
+                                        let store = state.store.read();
+                                        if let Some((span, is_graph)) = store.span(id) {
+                                            let root_start = store.root_span().start();
+                                            let span_start = span.start() - root_start;
+                                            let span_end = span.end() - root_start;
+                                            let duration = span.corrected_total_time();
+                                            let allocations = span.total_allocations();
+                                            let deallocations = span.total_deallocations();
+                                            let allocation_count = span.total_allocation_count();
+                                            let persistent_allocations =
+                                                span.total_persistent_allocations();
+                                            let args = span
+                                                .args()
+                                                .map(|(k, v)| (k.to_string(), v.to_string()))
+                                                .collect();
+                                            let mut path = Vec::new();
+                                            let mut current = span;
+                                            while let Some(parent) = current.parent() {
+                                                path.push(parent.nice_name().1.to_string());
+                                                current = parent;
+                                            }
+                                            path.reverse();
+                                            ServerToClientMessage::QueryResult {
+                                                id,
+                                                is_graph,
+                                                start: span_start,
+                                                end: span_end,
+                                                duration,
+                                                allocations,
+                                                deallocations,
+                                                allocation_count,
+                                                persistent_allocations,
+                                                args,
+                                                path,
+                                            }
+                                        } else {
+                                            ServerToClientMessage::QueryResult {
+                                                id,
+                                                is_graph: false,
+                                                start: 0,
+                                                end: 0,
+                                                duration: 0,
+                                                allocations: 0,
+                                                deallocations: 0,
+                                                allocation_count: 0,
+                                                persistent_allocations: 0,
+                                                args: Vec::new(),
+                                                path: Vec::new(),
+                                            }
                                         }
                                     };
                                     let message = serde_json::to_string(&message).unwrap();
