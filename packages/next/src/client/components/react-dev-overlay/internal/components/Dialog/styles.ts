@@ -77,26 +77,14 @@ const styles = css`
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: var(--size-gap-double);
   }
-
+  [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
+    flex-shrink: 0;
+    margin-bottom: var(--size-gap-double);
+  }
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
     position: relative;
     flex: 1 1 auto;
-  }
-
-  [data-nextjs-dialog-header] {
-    flex-shrink: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--size-gap);
-  }
-  [data-nextjs-dialog-header] > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: 0;
-    color: var(--color-ansi-black);
   }
 `
 

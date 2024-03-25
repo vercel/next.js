@@ -22,7 +22,10 @@ export const RootLayoutMissingTagsError: React.FC<RootLayoutMissingTagsErrorProp
           onClose={noop}
         >
           <DialogContent>
-            <DialogHeader title="Missing required html tags">
+            <DialogHeader className="nextjs-container-errors-header">
+              <h3 id="nextjs__container_errors_label">
+                Missing required html tags
+              </h3>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
               <p
                 id="nextjs__container_errors_desc"

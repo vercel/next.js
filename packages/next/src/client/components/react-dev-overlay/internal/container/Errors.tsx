@@ -245,23 +245,25 @@ export function Errors({
         onClose={isServerError ? undefined : minimize}
       >
         <DialogContent>
-          <DialogHeader
-            title={isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
-          >
+          <DialogHeader className="nextjs-container-errors-header">
             <LeftRightDialogHeader
               previous={activeIdx > 0 ? previous : null}
               next={activeIdx < readyErrors.length - 1 ? next : null}
               close={isServerError ? undefined : minimize}
             >
               <small>
-                {`${activeIdx + 1} of ${readyErrors.length} error${
-                  readyErrors.length < 2 ? '' : 's'
-                }`}
+                <span>{activeIdx + 1}</span> of{' '}
+                <span data-nextjs-dialog-header-total-count>
+                  {readyErrors.length}
+                </span>
+                {' error'}
+                {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
+            <h1 id="nextjs__container_errors_label">
+              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+            </h1>
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
@@ -269,19 +271,18 @@ export function Errors({
               {error.name}: <HotlinkedText text={error.message} />
             </p>
             {hydrationWarning && (
-              <span>
+              <>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
                 {activeError.componentStackFrames?.length ? (
                   <PseudoHtmlDiff
                     className="nextjs__container_errors__extra_code"
-                    data-nextjs-terminal
                     hydrationMismatchType={hydrationErrorType}
                     componentStackFrames={activeError.componentStackFrames}
                     firstContent={serverContent}
                     secondContent={clientContent}
                   />
                 ) : null}
-              </span>
+              </>
             )}
             {isServerError ? (
               <div>
@@ -291,6 +292,8 @@ export function Errors({
                 </small>
               </div>
             ) : undefined}
+          </DialogHeader>
+          <DialogBody className="nextjs-container-errors-body">
             <RuntimeError key={activeError.id.toString()} error={activeError} />
           </DialogBody>
         </DialogContent>
@@ -300,26 +303,28 @@ export function Errors({
 }
 
 export const styles = css`
-  [data-nextjs-dialog-header] small {
+  .nextjs-container-errors-header > h1 {
+    font-size: var(--size-font-big);
+    line-height: var(--size-font-bigger);
+    font-weight: bold;
+    margin: 0;
+    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
+  }
+  .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
-    color: var(--color-font);
+    color: var(--color-accents-1);
     margin-left: var(--size-gap-double);
   }
-
-  .nextjs-container-errors-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--size-gap);
-  }
-  .nextjs-container-errors-body small {
+  .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
-  .nextjs-container-errors-body p {
+  .nextjs-container-errors-header p {
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
+    margin-top: var(--size-gap-half);
     white-space: pre-wrap;
   }
   .nextjs__container_errors_desc--error {
@@ -330,11 +335,27 @@ export const styles = css`
   .nextjs__container_errors__extra {
     margin: 20px 0;
   }
-  .nextjs-container-errors-body > h2 {
-    margin-bottom: 0;
-    font-size: var(--size-font-big);
+  .nextjs-container-errors-header > div > small {
+    margin: 0;
+    margin-top: var(--size-gap-half);
+  }
+  .nextjs-container-errors-header > p > a {
+    color: var(--color-ansi-red);
   }
 
+  .nextjs-container-errors-body > h2:not(:first-child) {
+    margin-top: calc(var(--size-gap-double) + var(--size-gap));
+  }
+  .nextjs-container-errors-body > h2 {
+    margin-bottom: var(--size-gap);
+    font-size: var(--size-font-big);
+  }
+  .nextjs__container_errors__extra_code {
+    margin: 20px 0;
+    padding: 12px 32px;
+    color: var(--color-ansi-fg);
+    background: var(--color-ansi-bg);
+  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;
