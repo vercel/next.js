@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -390,20 +391,24 @@ describe('Image Optimizer', () => {
           },
         })
       )
-      let stderr = ''
+      try {
+        let stderr = ''
 
-      app = await launchApp(appDir, await findPort(), {
-        onStderr(msg) {
-          stderr += msg || ''
-        },
-      })
-      await waitFor(1000)
-      await killApp(app).catch(() => {})
-      await nextConfig.restore()
+        app = await launchApp(appDir, await findPort(), {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
 
-      expect(stderr).toContain(
-        `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
-      )
+        await retry(() => {
+          expect(stderr).toContain(
+            `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
+          )
+        })
+      } finally {
+        await killApp(app).catch(() => {})
+        await nextConfig.restore()
+      }
     })
 
     it('should error when images.remotePatterns is invalid', async () => {
@@ -534,7 +539,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('Server support for headers in next.config.js', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         const size = 96 // defaults defined in server/config.ts
@@ -677,7 +682,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('External rewrite support with for serving static content in images', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let app

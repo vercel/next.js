@@ -1,9 +1,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
-use anyhow::bail;
 use either::Either;
 use fxhash::FxHashSet;
-use lightningcss::targets::Browsers;
 use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
 use swc_core::ecma::visit::as_folder;
@@ -16,11 +14,7 @@ use turbopack_binding::swc::{
             FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
-            ast::EsVersion,
-            parser::parse_file_as_module,
-            preset_env::{Version, Versions},
-            transforms::base::pass::noop,
-            visit::Fold,
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -67,7 +61,7 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
+    pub styled_jsx: BoolOr<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
     pub styled_components:
@@ -161,7 +155,7 @@ where
         .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
-    let styled_jsx = if let Some(config) = opts.styled_jsx {
+    let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
         Either::Left(
             turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                 cm.clone(),
@@ -171,38 +165,7 @@ where
                     browsers: target_browsers,
                 },
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {
-                    process_css: if config.use_lightningcss || target_browsers.is_any_target() {
-                        None
-                    } else {
-                        let targets = lightningcss::targets::Targets {
-                            browsers: Some(convert_browsers_to_lightningcss(&target_browsers)),
-                            ..Default::default()
-                        };
-
-                        Some(Box::new(move |css| {
-                            let ss = lightningcss::stylesheet::StyleSheet::parse(
-                                css,
-                                Default::default(),
-                            );
-
-                            let ss = match ss {
-                                Ok(v) => v,
-                                Err(err) => {
-                                    bail!("failed to parse css using lightningcss: {}", err)
-                                }
-                            };
-
-                            let output = ss.to_css(lightningcss::stylesheet::PrinterOptions {
-                                minify: true,
-                                source_map: None,
-                                project_root: None,
-                                targets,
-                                analyze_dependencies: None,
-                                pseudo_classes: None,
-                            })?;
-                            Ok(output.code)
-                        }))
-                    },
+                    process_css: None,
                 },
             ),
         )
@@ -343,7 +306,9 @@ impl TransformOptions {
         self.swc.swcrc = false;
 
         let should_enable_commonjs = self.swc.config.module.is_none()
-            && (fm.src.contains("module.exports") || fm.src.contains("__esModule"))
+            && (fm.src.contains("module.exports")
+                || fm.src.contains("exports.")
+                || fm.src.contains("__esModule"))
             && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
@@ -363,20 +328,71 @@ impl TransformOptions {
     }
 }
 
-fn convert_browsers_to_lightningcss(browsers: &Versions) -> Browsers {
-    fn convert(v: Option<Version>) -> Option<u32> {
-        v.map(|v| v.major << 16 | v.minor << 8 | v.patch)
-    }
+/// Defaults to false
 
-    Browsers {
-        android: convert(browsers.android),
-        chrome: convert(browsers.chrome),
-        edge: convert(browsers.edge),
-        firefox: convert(browsers.firefox),
-        ie: convert(browsers.ie),
-        ios_saf: convert(browsers.ios),
-        opera: convert(browsers.opera),
-        safari: convert(browsers.safari),
-        samsung: convert(browsers.samsung),
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BoolOr<T> {
+    Bool(bool),
+    Data(T),
+}
+
+impl<T> Default for BoolOr<T> {
+    fn default() -> Self {
+        BoolOr::Bool(false)
+    }
+}
+
+impl<T> BoolOr<T> {
+    pub fn to_option(&self) -> Option<T>
+    where
+        T: Default + Clone,
+    {
+        match self {
+            BoolOr::Bool(false) => None,
+            BoolOr::Bool(true) => Some(Default::default()),
+            BoolOr::Data(v) => Some(v.clone()),
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for BoolOr<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Deser<T> {
+            Bool(bool),
+            Obj(T),
+            EmptyObject(EmptyStruct),
+        }
+
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct EmptyStruct {}
+
+        use serde::__private::de;
+
+        let content = de::Content::deserialize(deserializer)?;
+
+        let deserializer = de::ContentRefDeserializer::<D::Error>::new(&content);
+
+        let res = Deser::deserialize(deserializer);
+
+        match res {
+            Ok(v) => Ok(match v {
+                Deser::Bool(v) => BoolOr::Bool(v),
+                Deser::Obj(v) => BoolOr::Data(v),
+                Deser::EmptyObject(_) => BoolOr::Bool(true),
+            }),
+            Err(..) => {
+                let d = de::ContentDeserializer::<D::Error>::new(content);
+                Ok(BoolOr::Data(T::deserialize(d)?))
+            }
+        }
     }
 }

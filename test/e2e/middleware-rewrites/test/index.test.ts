@@ -4,9 +4,10 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
+import { Request } from 'playwright'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance
@@ -23,6 +24,29 @@ describe('Middleware Rewrite', () => {
   })
 
   function tests() {
+    it('should handle catch-all rewrite correctly', async () => {
+      const browser = await next.browser('/', { waitHydration: false })
+
+      if (!(global as any).isNextDev) {
+        let requests = []
+
+        browser.on('request', (req: Request) => {
+          requests.push(new URL(req.url()).pathname)
+        })
+
+        browser.elementByCss('#to-article-rewrite').moveTo()
+
+        await retry(async () => {
+          expect(requests.some((item) => item.includes('article'))).toBe(true)
+        })
+      }
+
+      await browser.elementByCss('#to-article-rewrite').click()
+
+      const preQuery = JSON.parse(await browser.elementByCss('pre').text())
+      expect(preQuery).toEqual({ slug: ['foo', 'bar', '123'] })
+    })
+
     it('should handle next.config.js rewrite with body correctly', async () => {
       const body = JSON.stringify({ hello: 'world' })
       const res = await next.fetch('/external-rewrite-body', {
@@ -816,9 +840,9 @@ describe('Middleware Rewrite', () => {
       const element = await browser.elementByCss('.title')
       expect(await element.text()).toEqual('Parts page')
       const logs = await browser.log()
-      expect(
-        logs.every((log) => log.source === 'log' || log.source === 'info')
-      ).toEqual(true)
+      expect(logs).toSatisfyAll(
+        (log) => log.source === 'log' || log.source === 'info'
+      )
     })
 
     it('should not have unexpected errors', async () => {

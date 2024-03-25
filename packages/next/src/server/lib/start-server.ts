@@ -33,14 +33,13 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
-  hostname: string
+  hostname?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
-  isExperimentalTestProxy?: boolean
 }
 
 export async function getRequestHandlers({
@@ -52,18 +51,16 @@ export async function getRequestHandlers({
   minimalMode,
   isNodeDebugging,
   keepAliveTimeout,
-  experimentalTestProxy,
   experimentalHttpsServer,
 }: {
   dir: string
   port: number
   isDev: boolean
   server?: import('http').Server
-  hostname: string
+  hostname?: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -75,7 +72,6 @@ export async function getRequestHandlers({
     server,
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
-    experimentalTestProxy,
     experimentalHttpsServer,
     startServerSpan,
   })
@@ -91,7 +87,6 @@ export async function startServer(
     minimalMode,
     allowRetry,
     keepAliveTimeout,
-    isExperimentalTestProxy,
     selfSignedCertificate,
   } = serverOptions
   let { port } = serverOptions
@@ -246,6 +241,7 @@ export async function startServer(
 
       // expose the main port to render workers
       process.env.PORT = port + ''
+      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
@@ -301,7 +297,6 @@ export async function startServer(
           minimalMode,
           isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
-          experimentalTestProxy: !!isExperimentalTestProxy,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]

@@ -1,7 +1,11 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import {
+  check,
+  describeVariants as describe,
+  expandCallStack,
+} from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -160,7 +164,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   })
 
   // TODO: investigate why this fails when running outside of the Next.js
-  // monorepo e.g. fails when using yarn create next-app
+  // monorepo e.g. fails when using pnpm create next-app
   // https://github.com/vercel/next.js/pull/23203
   test.skip('internal package errors', async () => {
     const { session, cleanup } = await sandbox(next)
@@ -222,7 +226,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (IS_TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:7:0
+        "./index.js:7:1
         Parsing ecmascript source code failed
           5 |     div
           6 |   )
@@ -353,17 +357,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
-    await session.patch('index.module.css', `.button {`)
+    await session.patch('index.module.css', `.button`)
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      IS_TURBOPACK ? './index.module.css:1:8' : './index.module.css:1:1'
+      IS_TURBOPACK ? './index.module.css:1:9' : './index.module.css:1:1'
     )
     if (!IS_TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
-      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('Unknown word')
     }
-    expect(source).toMatch('> 1 | .button {')
+    expect(source).toMatch('> 1 | .button')
     expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
 
     // Checks for selectors that can't be prefixed.
@@ -780,55 +784,127 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test.each(['server', 'client'])(
-    'Call stack count is correct for %s error',
-    async (pageType) => {
-      const fixture =
-        pageType === 'server'
-          ? new Map([
-              [
-                'app/page.js',
-                outdent`
-                  export default function Page() {
-                    throw new Error('Server error')
-                  }
-                `,
-              ],
-            ])
-          : new Map([
-              [
-                'app/page.js',
-                outdent`
-                  'use client'
-                  export default function Page() {
-                    if (typeof window !== 'undefined') {
-                      throw new Error('Client error')
-                    }
-                    return null
-                  }
-                `,
-              ],
-            ])
+  test.each([
+    [
+      'client',
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+        'use client'
+        export default function Page() {
+          if (typeof window !== 'undefined') {
+            throw new Error('Client error')
+          }
+          return null
+        }
+      `,
+        ],
+      ]),
+    ],
+    [
+      'server',
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+        export default function Page() {
+          throw new Error('Server error')
+        }
+      `,
+        ],
+      ]),
+    ],
+  ])('Call stack count is correct for %s error', async (_, fixture) => {
+    const { session, browser, cleanup } = await sandbox(next, fixture)
 
-      const { session, browser, cleanup } = await sandbox(next, fixture)
+    expect(await session.hasRedbox()).toBe(true)
 
-      const getCallStackCount = async () =>
-        (await browser.elementsByCss('[data-nextjs-call-stack-frame]')).length
+    await expandCallStack(browser)
 
-      expect(await session.hasRedbox()).toBe(true)
+    // Expect more than the default amount of frames
+    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
 
-      // Open full Call Stack
-      await browser
-        .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-        .click()
+    expect(callStackFrames.length).toBeGreaterThan(9)
 
-      // Expect more than the default amount of frames
-      // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-      expect(await getCallStackCount()).toBeGreaterThan(9)
+    const moduleGroup = await browser.elementsByCss(
+      '[data-nextjs-collapsed-call-stack-details]'
+    )
+    // Expect some of the call stack frames to be grouped (by React or Next.js)
+    expect(moduleGroup.length).toBeGreaterThan(0)
 
-      await cleanup()
-    }
-  )
+    await cleanup()
+  })
+
+  test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          // TODO: repro stringify (<anonymous>)
+          outdent`
+        export default function Page() {
+          const e = new Error("Boom!");
+          e.stack += \`
+          at stringify (<anonymous>)
+          at <unknown> (<anonymous>)
+          at foo (bar:1:1)\`;
+          throw e;
+        }
+      `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+    let callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    let texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    expect(texts).not.toContain('stringify\n<anonymous>')
+    expect(texts).not.toContain('<unknown>\n<anonymous>')
+    expect(texts).toContain('foo\nbar (1:1)')
+
+    await cleanup()
+  })
+
+  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          // Node.js will throw an error about the invalid URL since this is a server component
+          outdent`
+          export default function Page() {
+            new URL("/", "invalid");
+          }`,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+
+    // Should still show the errored line in source code
+    const source = await session.getRedboxSource()
+    expect(source).toContain('app/page.js')
+    expect(source).toContain(`new URL("/", "invalid")`)
+
+    await expandCallStack(browser)
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+
+    expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
+
+    await cleanup()
+  })
 
   test('Server component errors should open up in fullscreen', async () => {
     const { session, browser, cleanup } = await sandbox(

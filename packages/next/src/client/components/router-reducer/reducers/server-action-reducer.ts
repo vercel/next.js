@@ -37,7 +37,7 @@ import type { CacheNode } from '../../../../shared/lib/app-router-context.shared
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
-import { extractPathFromFlightRouterState } from '../compute-changed-path'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 type FetchServerActionResult = {
@@ -57,12 +57,12 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const body = await encodeReply(actionArgs)
 
-  const newNextUrl = extractPathFromFlightRouterState(state.tree)
-  // only pass along the `nextUrl` param (used for interception routes) if it exists and
-  // if it's different from the current `nextUrl`. This indicates the route has already been intercepted,
-  // and so the action should be as well. Otherwise the server action might be intercepted
-  // with the wrong action id (ie, one that corresponds with the intercepted route)
-  const includeNextUrl = state.nextUrl && state.nextUrl !== newNextUrl
+  // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
+  // If the route has been intercepted, the action should be as well.
+  // Otherwise the server action might be intercepted with the wrong action id
+  // (ie, one that corresponds with the intercepted route)
+  const includeNextUrl =
+    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
 
   const res = await fetch('', {
     method: 'POST',
@@ -70,8 +70,7 @@ async function fetchServerAction(
       Accept: RSC_CONTENT_TYPE_HEADER,
       [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
-      ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
-      process.env.NEXT_DEPLOYMENT_ID
+      ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
           }
@@ -165,8 +164,6 @@ export function serverActionReducer(
   mutable.preserveCustomHistoryState = false
   mutable.inFlightServerAction = fetchServerAction(state, action)
 
-  // suspends until the server action is resolved.
-
   return mutable.inFlightServerAction.then(
     ({ actionResult, actionFlightData: flightData, redirectLocation }) => {
       // Make sure the redirection is a push instead of a replace.
@@ -177,10 +174,7 @@ export function serverActionReducer(
       }
 
       if (!flightData) {
-        if (!mutable.actionResultResolved) {
-          resolve(actionResult)
-          mutable.actionResultResolved = true
-        }
+        resolve(actionResult)
 
         // If there is a redirect but no flight data we need to do a mpaNavigation.
         if (redirectLocation) {
@@ -269,24 +263,15 @@ export function serverActionReducer(
         mutable.canonicalUrl = newHref
       }
 
-      if (!mutable.actionResultResolved) {
-        resolve(actionResult)
-        mutable.actionResultResolved = true
-      }
+      resolve(actionResult)
+
       return handleMutable(state, mutable)
     },
     (e: any) => {
-      if (e.status === 'rejected') {
-        if (!mutable.actionResultResolved) {
-          reject(e.reason)
-          mutable.actionResultResolved = true
-        }
+      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
+      reject(e.reason)
 
-        // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
-        return state
-      }
-
-      throw e
+      return state
     }
   )
 }

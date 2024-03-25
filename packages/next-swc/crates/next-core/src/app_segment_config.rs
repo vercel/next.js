@@ -3,26 +3,28 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use swc_core::{
-    common::{source_map::Pos, Span, Spanned, GLOBALS},
-    ecma::ast::{Expr, Ident, Program},
-};
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        file_source::FileSource,
-        ident::AssetIdent,
-        issue::{
-            Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
-            StyledString,
-        },
-        source::Source,
+use turbopack_binding::{
+    swc::core::{
+        common::{source_map::Pos, Span, Spanned, GLOBALS},
+        ecma::ast::{Expr, Ident, Program},
     },
-    ecmascript::{
-        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-        parse::{parse, ParseResult},
-        EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    turbopack::{
+        core::{
+            file_source::FileSource,
+            ident::AssetIdent,
+            issue::{
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
+            },
+            source::Source,
+        },
+        ecmascript::{
+            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+            parse::{parse, ParseResult},
+            EcmascriptInputTransforms, EcmascriptModuleAssetType,
+        },
     },
 };
 
@@ -171,8 +173,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -219,23 +221,30 @@ pub async fn parse_segment_config_from_source(
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
-    if !(path.path.ends_with(".js")
-        || path.path.ends_with(".jsx")
-        || path.path.ends_with(".ts")
-        || path.path.ends_with(".tsx"))
+    if path.path.ends_with(".d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
     {
         return Ok(Default::default());
     }
 
     let result = &*parse(
         source,
-        turbo_tasks::Value::new(
-            if path.path.ends_with(".ts") || path.path.ends_with(".tsx") {
-                EcmascriptModuleAssetType::Typescript
-            } else {
-                EcmascriptModuleAssetType::Ecmascript
-            },
-        ),
+        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: false,
+                analyze_types: false,
+            }
+        } else if path.path.ends_with(".tsx") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: true,
+                analyze_types: false,
+            }
+        } else {
+            EcmascriptModuleAssetType::Ecmascript
+        }),
         EcmascriptInputTransforms::empty(),
     )
     .await?;

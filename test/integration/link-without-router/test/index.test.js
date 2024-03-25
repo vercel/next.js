@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react'
+// eslint-disable-next-line react/no-deprecated
 import { render, unmountComponentAtNode } from 'react-dom'
 import { act } from 'react-dom/test-utils'
 
@@ -20,35 +21,41 @@ describe('Link without a router', () => {
     container.remove()
     container = null
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      it('should not throw when rendered', () => {
+        jest.useFakeTimers()
 
-  describe('dev mode', () => {
-    it('should not throw when rendered', () => {
-      jest.useFakeTimers()
+        act(() => {
+          render(<Hello />, container)
+        })
 
-      act(() => {
-        render(<Hello />, container)
+        act(() => {
+          jest.runAllTimers()
+        })
+
+        expect(container.textContent).toBe('Click me')
       })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      // eslint-disable-next-line jest/no-identical-title
+      it('should not throw when rendered', () => {
+        jest.useFakeTimers()
 
-      act(() => {
-        jest.runAllTimers()
+        act(() => {
+          render(<Hello />, container)
+        })
+
+        act(() => {
+          jest.runAllTimers()
+        })
+
+        expect(container.textContent).toBe('Click me')
       })
-
-      expect(container.textContent).toBe('Click me')
-    })
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should not throw when rendered', () => {
-      jest.useFakeTimers()
-
-      act(() => {
-        render(<Hello />, container)
-      })
-
-      act(() => {
-        jest.runAllTimers()
-      })
-
-      expect(container.textContent).toBe('Click me')
-    })
-  })
+    }
+  )
 })

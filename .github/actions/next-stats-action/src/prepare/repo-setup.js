@@ -13,23 +13,23 @@ module.exports = (actionInfo) => {
         `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
       )
     },
-    async getLastStable(repoDir = '') {
-      const { stdout } = await exec(`cd ${repoDir} && git describe`)
-      const tag = stdout.trim()
+    async getLastStable() {
+      const res = await fetch(
+        `https://api.github.com/repos/vercel/next.js/releases/latest`,
+        {
+          headers: {
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        }
+      )
 
-      if (!tag || !tag.startsWith('v')) {
-        throw new Error(`Failed to get tag info: "${stdout}"`)
-      }
-      const [major, minor, patch] = tag.split('-canary')[0].split('.')
-      if (!major || !minor || !patch) {
+      if (!res.ok) {
         throw new Error(
-          `Failed to split tag into major/minor/patch: "${stdout}"`
+          `Failed to get latest stable tag ${res.status}: ${await res.text()}`
         )
       }
-      // last stable tag will always be 1 patch less than canary
-      return `${major}.${minor}.${
-        Number(patch) - tag.includes('-canary') ? 1 : 0
-      }`
+      const data = await res.json()
+      return data.tag_name
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
@@ -208,13 +208,20 @@ module.exports = (actionInfo) => {
               }
             }
 
-            const { stdout } = await execa('pnpm', ['pack'], {
+            const options = {
               cwd: pkgPath,
               env: {
                 ...process.env,
                 COREPACK_ENABLE_STRICT: '0',
               },
-            })
+            }
+            let execResult
+            try {
+              execResult = await execa('pnpm', ['pack'], options)
+            } catch {
+              execResult = await execa('pnpm', ['pack'], options)
+            }
+            const { stdout } = execResult
 
             const packedFileName = stdout.trim()
 

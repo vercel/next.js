@@ -8,6 +8,7 @@
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
+  APP_CLIENT_INTERNALS,
   BARREL_OPTIMIZATION_PREFIX,
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
@@ -19,7 +20,11 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
-import { formatBarrelOptimizedResource } from '../utils'
+import {
+  formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
+} from '../utils'
+import type { ChunkGroup } from 'webpack'
 
 interface Options {
   dev: boolean
@@ -38,7 +43,8 @@ export type ManifestChunks = Array<string>
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  ASYNC_CLIENT_MODULES: [] as string[],
+  // Use an object to simulate Set lookup
+  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 })
 
 export interface ManifestNode {
@@ -173,13 +179,11 @@ export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   appDirBase: string
-  ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
-    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -243,9 +247,16 @@ export class ClientReferenceManifestPlugin {
         }
       })
 
-    compilation.chunkGroups.forEach((chunkGroup) => {
-      // By default it's the shared chunkGroup (main-app) for every page.
-      let entryName = ''
+    for (let [entryName, entrypoint] of compilation.entrypoints) {
+      if (
+        entryName === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
+        entryName === APP_CLIENT_INTERNALS
+      ) {
+        entryName = ''
+      } else if (!/^app[\\/]/.test(entryName)) {
+        continue
+      }
+
       const manifest: ClientReferenceManifest = {
         moduleLoading: {
           prefix,
@@ -257,28 +268,17 @@ export class ClientReferenceManifestPlugin {
         entryCSSFiles: {},
       }
 
-      if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {
-        // Absolute path without the extension
-        const chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
-          /[\\/]/g,
-          path.sep
-        )
-        manifest.entryCSSFiles[chunkEntryName] = chunkGroup
-          .getFiles()
-          .filter(
-            (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-          )
+      // Absolute path without the extension
+      const chunkEntryName = (this.appDirBase + entryName).replace(
+        /[\\/]/g,
+        path.sep
+      )
+      manifest.entryCSSFiles[chunkEntryName] = entrypoint
+        .getFiles()
+        .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
 
-        entryName = chunkGroup.name
-      }
-
-      const requiredChunks = getAppPathRequiredChunks(chunkGroup, rootMainFiles)
-      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
-        // Skip all modules from the pages folder.
-        if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) {
-          return
-        }
-
+      const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
+      const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
@@ -304,7 +304,7 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
+        const isAsyncModule = !!pluginState.ASYNC_CLIENT_MODULES[mod.resource]
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
@@ -330,7 +330,7 @@ export class ClientReferenceManifestPlugin {
         function addClientReference() {
           const exportName = resource
           manifest.clientModules[exportName] = {
-            id,
+            id: modId,
             name: '*',
             chunks: requiredChunks,
             async: isAsyncModule,
@@ -347,8 +347,8 @@ export class ClientReferenceManifestPlugin {
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id]['*'] = {
+            moduleIdMapping[modId] = moduleIdMapping[modId] || {}
+            moduleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -362,8 +362,8 @@ export class ClientReferenceManifestPlugin {
             typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
             'undefined'
           ) {
-            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id]['*'] = {
+            edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
+            edgeModuleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -382,57 +382,76 @@ export class ClientReferenceManifestPlugin {
         manifest.edgeSSRModuleMapping = edgeModuleIdMapping
       }
 
-      // Only apply following logic to client module requests from client entry,
-      // or if the module is marked as client module. That's because other
-      // client modules don't need to be in the manifest at all as they're
-      // never be referenced by the server/client boundary.
-      // This saves a lot of bytes in the manifest.
-      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-        const entryMods =
-          compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
-        for (const mod of entryMods) {
-          if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
+      const checkedChunkGroups = new Set()
+      const checkedChunks = new Set()
 
-          const request = (mod as webpack.NormalModule).request
+      function recordChunkGroup(chunkGroup: ChunkGroup) {
+        // Ensure recursion is stopped if we've already checked this chunk group.
+        if (checkedChunkGroups.has(chunkGroup)) return
+        checkedChunkGroups.add(chunkGroup)
+        // Only apply following logic to client module requests from client entry,
+        // or if the module is marked as client module. That's because other
+        // client modules don't need to be in the manifest at all as they're
+        // never be referenced by the server/client boundary.
+        // This saves a lot of bytes in the manifest.
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Ensure recursion is stopped if we've already checked this chunk.
+          if (checkedChunks.has(chunk)) return
+          checkedChunks.add(chunk)
+          const entryMods =
+            compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
+          for (const mod of entryMods) {
+            if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
 
-          if (
-            !request ||
-            !request.includes('next-flight-client-entry-loader.js?')
-          ) {
-            continue
-          }
+            const request = (mod as webpack.NormalModule).request
 
-          const connections =
-            compilation.moduleGraph.getOutgoingConnections(mod)
+            if (
+              !request ||
+              !request.includes('next-flight-client-entry-loader.js?')
+            ) {
+              continue
+            }
 
-          for (const connection of connections) {
-            const dependency = connection.dependency
-            if (!dependency) continue
+            const connections = getModuleReferencesInOrder(
+              mod,
+              compilation.moduleGraph
+            )
 
-            const clientEntryMod = compilation.moduleGraph.getResolvedModule(
-              dependency
-            ) as webpack.NormalModule
-            const modId = compilation.chunkGraph.getModuleId(clientEntryMod) as
-              | string
-              | number
-              | null
+            for (const connection of connections) {
+              const dependency = connection.dependency
+              if (!dependency) continue
 
-            if (modId !== null) {
-              recordModule(modId, clientEntryMod)
-            } else {
-              // If this is a concatenation, register each child to the parent ID.
-              if (
-                connection.module?.constructor.name === 'ConcatenatedModule'
-              ) {
-                const concatenatedMod = connection.module
-                const concatenatedModId =
-                  compilation.chunkGraph.getModuleId(concatenatedMod)
-                recordModule(concatenatedModId, clientEntryMod)
+              const clientEntryMod = compilation.moduleGraph.getResolvedModule(
+                dependency
+              ) as webpack.NormalModule
+              const modId = compilation.chunkGraph.getModuleId(
+                clientEntryMod
+              ) as string | number | null
+
+              if (modId !== null) {
+                recordModule(modId, clientEntryMod)
+              } else {
+                // If this is a concatenation, register each child to the parent ID.
+                if (
+                  connection.module?.constructor.name === 'ConcatenatedModule'
+                ) {
+                  const concatenatedMod = connection.module
+                  const concatenatedModId =
+                    compilation.chunkGraph.getModuleId(concatenatedMod)
+                  recordModule(concatenatedModId, clientEntryMod)
+                }
               }
             }
           }
+        })
+
+        // Walk through all children chunk groups too.
+        for (const child of chunkGroup.childrenIterable) {
+          recordChunkGroup(child)
         }
-      })
+      }
+
+      recordChunkGroup(entrypoint)
 
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
@@ -441,19 +460,12 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
-      // Special case for the root not-found page.
-      // dev: app/not-found
-      // prod: app/_not-found
-      if (/^app\/_?not-found(\.[^.]+)?$/.test(entryName)) {
-        manifestEntryFiles.push(this.dev ? 'app/not-found' : 'app/_not-found')
-      }
-
       const groupName = entryNameToGroupName(entryName)
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
       manifestsPerGroup.get(groupName)!.push(manifest)
-    })
+    }
 
     // Generate per-page manifests.
     for (const pageName of manifestEntryFiles) {
@@ -488,18 +500,8 @@ export class ClientReferenceManifestPlugin {
           pagePath.slice('app'.length)
         )}]=${json}`
       ) as unknown as webpack.sources.RawSource
-
-      if (pagePath === 'app/not-found') {
-        // Create a separate special manifest for the root not-found page.
-        assets['server/app/_not-found_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
-          new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              '/_not-found'
-            )}]=${json}`
-          ) as unknown as webpack.sources.RawSource
-      }
     }
 
-    pluginState.ASYNC_CLIENT_MODULES = []
+    pluginState.ASYNC_CLIENT_MODULES = {}
   }
 }

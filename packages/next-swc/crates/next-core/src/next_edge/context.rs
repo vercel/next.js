@@ -4,17 +4,17 @@ use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
+        browser::BrowserChunkingContext,
         core::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
             },
-            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
+            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
-        dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
-        node::{debug::should_debug, execution_context::ExecutionContext},
+        node::execution_context::ExecutionContext,
         turbopack::resolve_options_context::ResolveOptionsContext,
     },
 };
@@ -55,6 +55,8 @@ async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefin
     Ok(defines(&*define_env.await?).cell())
 }
 
+/// Define variables for the edge runtime can be accessibly globally.
+/// See [here](https://github.com/vercel/next.js/blob/160bb99b06e9c049f88e25806fd995f07f4cc7e1/packages/next/src/build/webpack-config.ts#L1715-L1718) how webpack configures it.
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
@@ -63,14 +65,9 @@ async fn next_edge_free_vars(
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "next/dist/compiled/buffer".to_string(),
+            request: "buffer".to_string(),
             lookup_path: Some(project_path),
             export: Some("Buffer".to_string()),
-        },
-        process = FreeVarReference::EcmaScriptModule {
-            request: "next/dist/build/polyfills/process".to_string(),
-            lookup_path: Some(project_path),
-            export: Some("default".to_string()),
         },
     )
     .cell())
@@ -79,11 +76,10 @@ async fn next_edge_free_vars(
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
+        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
     )))
     .defines(next_edge_defines(define_env))
     .free_var_references(next_edge_free_vars(project_path, define_env))
@@ -94,7 +90,7 @@ pub fn get_edge_compile_time_info(
 pub async fn get_edge_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -105,7 +101,7 @@ pub async fn get_edge_resolve_options_context(
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![
-        mode.node_env().to_string(),
+        mode.await?.condition().to_string(),
         "edge-light".to_string(),
         "worker".to_string(),
     ];
@@ -141,6 +137,7 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
@@ -151,25 +148,57 @@ pub async fn get_edge_resolve_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_edge_chunking_context(
+pub async fn get_edge_chunking_context_with_client_assets(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
-    Vc::upcast(
-        DevChunkingContext::builder(
+    let next_mode = mode.await?;
+    Ok(Vc::upcast(
+        BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks".to_string()),
+            output_root.join("chunks/ssr".to_string()),
             client_root.join("static/media".to_string()),
             environment,
+            next_mode.runtime_type(),
         )
         .asset_base_path(asset_prefix)
-        .reference_chunk_source_maps(should_debug("edge"))
+        .minify_type(next_mode.minify_type())
         .build(),
-    )
+    ))
+}
+
+#[turbo_tasks::function]
+pub async fn get_edge_chunking_context(
+    mode: Vc<NextMode>,
+    project_path: Vc<FileSystemPath>,
+    node_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+    let output_root = node_root.join("server/edge".to_string());
+    let next_mode = mode.await?;
+    Ok(Vc::upcast(
+        BrowserChunkingContext::builder(
+            project_path,
+            output_root,
+            output_root,
+            output_root.join("chunks".to_string()),
+            output_root.join("assets".to_string()),
+            environment,
+            next_mode.runtime_type(),
+        )
+        // Since one can't read files in edge directly, any asset need to be fetched
+        // instead. This special blob url is handled by the custom fetch
+        // implementation in the edge sandbox. It will respond with the
+        // asset from the output directory.
+        .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
+        .minify_type(next_mode.minify_type())
+        .build(),
+    ))
 }

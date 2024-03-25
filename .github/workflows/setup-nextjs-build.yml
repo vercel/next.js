@@ -17,7 +17,7 @@ jobs:
       output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
     steps:
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: 'Setup Rust toolchain'
@@ -45,13 +45,13 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Checkout Next.js
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: vercel/next.js
           ref: ${{ env.NEXTJS_VERSION }}
 
       - name: Checkout failed test lists
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: vercel/turbo
           ref: nextjs-integration-test-data
