@@ -515,6 +515,7 @@ impl EcmascriptModuleAsset {
             chunking_context,
             analyze.references,
             analyze.code_generation,
+            analyze.async_module,
             analyze.source_map,
             analyze.exports,
             async_module_info,
@@ -660,7 +661,7 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn is_self_async(&self) -> Result<Vc<bool>> {
         if let Some(async_module) = *self.module.get_async_module().await? {
-            Ok(async_module.is_self_async())
+            Ok(async_module.is_self_async(self.module.failsafe_analyze().await?.references))
         } else {
             Ok(Vc::cell(false))
         }
@@ -727,6 +728,7 @@ impl EcmascriptModuleContent {
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
+        async_module: Vc<OptionAsyncModule>,
         source_map: Vc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
@@ -743,6 +745,13 @@ impl EcmascriptModuleContent {
             {
                 code_gens.push(code_gen.code_generation(chunking_context));
             }
+        }
+        if let Some(async_module) = *async_module.await? {
+            code_gens.push(async_module.code_generation(
+                chunking_context,
+                async_module_info,
+                references,
+            ));
         }
         for c in code_generation.await?.iter() {
             match c {

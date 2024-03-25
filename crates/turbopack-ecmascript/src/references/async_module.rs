@@ -6,9 +6,9 @@ use swc_core::{
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident, Program},
     quote,
 };
-use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -16,7 +16,7 @@ use turbopack_core::{
 use super::esm::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-    code_gen::{CodeGenerateableWithAsyncModuleInfo, CodeGeneration},
+    code_gen::CodeGeneration,
     create_visitor,
     references::esm::base::insert_hoisted_stmt,
 };
@@ -48,7 +48,6 @@ impl OptionAsyncModuleOptions {
 #[turbo_tasks::value(shared)]
 pub struct AsyncModule {
     pub placeable: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub references: Vc<ModuleReferences>,
     pub has_top_level_await: bool,
     pub import_externals: bool,
 }
@@ -81,6 +80,23 @@ impl OptionAsyncModule {
 #[turbo_tasks::value(transparent)]
 struct AsyncModuleIdents(IndexSet<String>);
 
+async fn get_inherit_async_referenced_asset(
+    r: Vc<Box<dyn ModuleReference>>,
+) -> Result<Option<ReadRef<ReferencedAsset>>> {
+    let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
+        return Ok(None);
+    };
+    let Some(ty) = *r.chunking_type().await? else {
+        return Ok(None);
+    };
+    if !matches!(ty, ChunkingType::ParallelInheritAsync) {
+        return Ok(None);
+    };
+    let referenced_asset: turbo_tasks::ReadRef<ReferencedAsset> =
+        ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
+    Ok(Some(referenced_asset))
+}
+
 #[turbo_tasks::value_impl]
 impl AsyncModule {
     #[turbo_tasks::function]
@@ -88,16 +104,17 @@ impl AsyncModule {
         &self,
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         async_module_info: Vc<AsyncModuleInfo>,
+        references: Vc<ModuleReferences>,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let async_module_info = async_module_info.await?;
 
-        let reference_idents = self
-            .references
+        let reference_idents = references
             .await?
             .iter()
             .map(|r| async {
-                let referenced_asset =
-                    ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
+                    return Ok(None);
+                };
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(
                         _,
@@ -134,20 +151,21 @@ impl AsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn is_self_async(&self) -> Result<Vc<bool>> {
+    pub(crate) async fn is_self_async(&self, references: Vc<ModuleReferences>) -> Result<Vc<bool>> {
         if self.has_top_level_await {
             return Ok(Vc::cell(true));
         }
 
         Ok(Vc::cell(
             self.import_externals
-                && self
-                    .references
+                && references
                     .await?
                     .iter()
                     .map(|r| async {
-                        let referenced_asset =
-                            ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
+                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
+                        else {
+                            return Ok(false);
+                        };
                         Ok(matches!(
                             &*referenced_asset,
                             ReferencedAsset::External(
@@ -177,21 +195,19 @@ impl AsyncModule {
             has_top_level_await: self.await?.has_top_level_await,
         })))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateableWithAsyncModuleInfo for AsyncModule {
     #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        references: Vc<ModuleReferences>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
         if let Some(async_module_info) = async_module_info {
             let async_idents = self
-                .get_async_idents(chunking_context, async_module_info)
+                .get_async_idents(chunking_context, async_module_info, references)
                 .await?;
 
             if !async_idents.is_empty() {

@@ -68,9 +68,10 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let mut code = RopeBuilder::default();
 
-        let references = self.module.references().await?;
-        let mut code_gens = Vec::with_capacity(references.len() + 2);
-        for r in references.iter() {
+        let references = self.module.references();
+        let references_ref = references.await?;
+        let mut code_gens = Vec::with_capacity(references_ref.len() + 2);
+        for r in references_ref.iter() {
             let r = r.resolve().await?;
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
@@ -82,12 +83,11 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 code_gens.push(code_gen.code_generation(chunking_context));
             }
         }
-
-        code_gens.push(
-            self.module
-                .async_module()
-                .code_generation(chunking_context, async_module_info),
-        );
+        code_gens.push(self.module.async_module().code_generation(
+            chunking_context,
+            async_module_info,
+            references,
+        ));
         code_gens.push(exports.code_generation(chunking_context));
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
@@ -182,5 +182,19 @@ impl ChunkItem for EcmascriptModuleFacadeChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(self.module)
+    }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(&self) -> Result<Vc<bool>> {
+        let module = self.module;
+        let async_module = module.async_module();
+        let references = module.references();
+        let is_self_async = async_module
+            .resolve()
+            .await?
+            .is_self_async(references.resolve().await?)
+            .resolve()
+            .await?;
+        Ok(is_self_async)
     }
 }

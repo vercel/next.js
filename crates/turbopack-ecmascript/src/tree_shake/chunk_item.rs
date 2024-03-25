@@ -10,8 +10,8 @@ use turbopack_core::{
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
 use crate::{
     chunk::{
-        placeable::EcmascriptChunkPlaceable, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkType, EcmascriptChunkingContext,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
+        EcmascriptChunkingContext,
     },
     EcmascriptModuleContent,
 };
@@ -40,15 +40,12 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let module = this.module.await?;
-        let async_module_options = module
-            .full_module
-            .get_async_module()
-            .module_options(async_module_info);
 
         let split_data = split_module(module.full_module);
         let parsed = part_of_module(split_data, module.part);
 
         let analyze = this.module.analyze().await?;
+        let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
 
@@ -59,6 +56,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             this.chunking_context,
             analyze.references,
             analyze.code_generation,
+            analyze.async_module,
             analyze.source_map,
             analyze.exports,
             async_module_info,

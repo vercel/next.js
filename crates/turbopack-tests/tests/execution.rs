@@ -32,6 +32,10 @@ use turbopack_core::{
     file_source::FileSource,
     issue::{Issue, IssueDescriptionExt},
     reference_type::{EntryReferenceSubType, ReferenceType},
+    resolve::{
+        options::{ImportMap, ImportMapping},
+        ExternalType,
+    },
     source::Source,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -256,6 +260,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         )
         .cell();
 
+    let mut import_map = ImportMap::empty();
+    import_map.insert_wildcard_alias(
+        "esm-external/",
+        ImportMapping::External(Some("*".to_string()), ExternalType::EcmaScriptModule).cell(),
+    );
+
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Vc::cell(HashMap::new()),
         compile_time_info,
@@ -263,6 +273,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
             enable_typescript_transform: Some(Default::default()),
             preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
+            import_externals: true,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
                 ModuleOptionsContext {
@@ -290,6 +301,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
             )],
             browser: true,
             module: true,
+            import_map: Some(import_map.cell()),
             ..Default::default()
         }
         .cell(),

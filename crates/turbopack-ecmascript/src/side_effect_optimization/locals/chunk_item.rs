@@ -39,12 +39,12 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
         let chunking_context = self.chunking_context;
         let exports = self.module.get_exports();
         let original_module = module.module;
-        let async_module_options = original_module
-            .get_async_module()
-            .module_options(async_module_info);
         let parsed = original_module.parse().resolve().await?;
 
-        let analyze_result = original_module.analyze().await?.clone_value();
+        let analyze_result = original_module.analyze().await?;
+        let async_module_options = analyze_result
+            .async_module
+            .module_options(async_module_info);
 
         let module_type_result = *original_module.determine_module_type().await?;
 
@@ -55,6 +55,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             chunking_context,
             analyze_result.local_references,
             analyze_result.code_generation,
+            analyze_result.async_module,
             analyze_result.source_map,
             exports,
             async_module_info,
@@ -103,8 +104,11 @@ impl ChunkItem for EcmascriptModuleLocalsChunkItem {
 
     #[turbo_tasks::function]
     async fn is_self_async(&self) -> Result<Vc<bool>> {
-        if let Some(async_module) = *self.module.get_async_module().await? {
-            Ok(async_module.is_self_async())
+        let module = self.module.await?;
+        let analyze = module.module.analyze().await?;
+        if let Some(async_module) = *analyze.async_module.await? {
+            let is_self_async = async_module.is_self_async(analyze.local_references);
+            Ok(is_self_async)
         } else {
             Ok(Vc::cell(false))
         }

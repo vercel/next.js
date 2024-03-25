@@ -575,7 +575,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         *r = r.resolve().await?;
     }
     for r in import_references.iter() {
-        // `add_reference` will avoid adding duplicate references
+        // `add_import_reference` will avoid adding duplicate references
         analysis.add_import_reference(*r);
     }
     for i in evaluation_references {
@@ -750,13 +750,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
         let async_module = AsyncModule {
             placeable: Vc::upcast(module),
-            references: Vc::cell(import_references.iter().map(|&r| Vc::upcast(r)).collect()),
             has_top_level_await,
             import_externals,
         }
         .cell();
         analysis.set_async_module(async_module);
-        analysis.add_code_gen_with_availability_info(async_module);
     } else if let Some(span) = top_level_await_span {
         AnalyzeIssue {
             code: None,
