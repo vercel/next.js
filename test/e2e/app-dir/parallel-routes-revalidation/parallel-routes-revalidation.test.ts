@@ -240,5 +240,52 @@ createNextDescribe(
         })
       })
     })
+
+    describe('server action revalidation', () => {
+      it('handles refreshing when multiple parallel slots are active', async () => {
+        const browser = await next.browser('/nested-revalidate')
+
+        const currentPageTime = await browser.elementById('page-now').text()
+
+        expect(await browser.hasElementByCssSelector('#modal')).toBe(false)
+        expect(await browser.hasElementByCssSelector('#drawer')).toBe(false)
+
+        // renders the drawer parallel slot
+        await browser.elementByCss("[href='/nested-revalidate/drawer']").click()
+        await browser.waitForElementByCss('#drawer')
+
+        // renders the modal slot
+        await browser.elementByCss("[href='/nested-revalidate/modal']").click()
+        await browser.waitForElementByCss('#modal')
+
+        // Both should be visible, despite only one "matching"
+        expect(await browser.hasElementByCssSelector('#modal')).toBe(true)
+        expect(await browser.hasElementByCssSelector('#drawer')).toBe(true)
+
+        // grab the current time of the drawer
+        const currentDrawerTime = await browser.elementById('drawer-now').text()
+
+        // trigger the revalidation action in the modal.
+        await browser.elementById('modal-submit-button').click()
+
+        await retry(async () => {
+          // Revalidation should close the modal
+          expect(await browser.hasElementByCssSelector('#modal')).toBe(false)
+
+          // But the drawer should still be open
+          expect(await browser.hasElementByCssSelector('#drawer')).toBe(true)
+
+          // And the drawer should have a new time
+          expect(await browser.elementById('drawer-now').text()).not.toEqual(
+            currentDrawerTime
+          )
+
+          // And the underlying page should have a new time
+          expect(await browser.elementById('page-now').text()).not.toEqual(
+            currentPageTime
+          )
+        })
+      })
+    })
   }
 )
