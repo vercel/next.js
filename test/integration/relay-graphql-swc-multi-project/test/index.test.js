@@ -40,7 +40,7 @@ const runRelayCompiler = () => {
       runRelayCompiler()
     })
 
-    describe('dev mode', () => {
+    describe('development mode', () => {
       describe('project-a', () => {
         beforeAll(async () => {
           appPort = await findPort()
@@ -67,7 +67,7 @@ const runRelayCompiler = () => {
         runTests('Project B')
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         describe('project-a', () => {

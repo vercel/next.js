@@ -95,7 +95,7 @@ describe('Edge runtime code with imports', () => {
         return 'success'
       }, 'success')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -126,7 +126,7 @@ describe('Edge runtime code with imports', () => {
             new (${importStatement})()
             return Response.json({ ok: true })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -137,7 +137,7 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-  
+
           export async function middleware(request) {
             new (${importStatement})()
             return NextResponse.next()
@@ -165,7 +165,7 @@ describe('Edge runtime code with imports', () => {
         return 'success'
       }, 'success')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not build and reports module not found error', async () => {
@@ -193,7 +193,7 @@ describe('Edge runtime code with imports', () => {
             }
             return Response.json({ ok: true })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -204,7 +204,7 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-  
+
           export async function middleware(request) {
             if (process.env === 'production') {
               new (${importStatement})()
@@ -233,7 +233,7 @@ describe('Edge runtime code with imports', () => {
         return 'success'
       }, 'success')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not build and reports module not found error', async () => {
@@ -262,7 +262,7 @@ describe('Edge runtime code with imports', () => {
             }
             return Response.json({ ok: true })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -273,7 +273,7 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-  
+
           export async function middleware(request) {
             if (process.env === 'production') {
               (${importStatement}).spawn('ls', ['-lh', '/usr'])
@@ -295,7 +295,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.status).toBe(200)
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {

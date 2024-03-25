@@ -3056,7 +3056,7 @@ createNextDescribe(
           })
         }
       })
-      // Don't run these tests in dev mode since they won't be statically generated
+      // Don't run these tests in development mode since they won't be statically generated
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - with suspense boundary', async () => {
@@ -3215,7 +3215,7 @@ createNextDescribe(
         })
       }
       if (!process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode', async () => {
+        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
@@ -3243,7 +3243,7 @@ createNextDescribe(
         })
       }
       if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should cache request if response data size is greater than 2MB in Dev mode', async () => {
+        it('should cache request if response data size is greater than 2MB in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()

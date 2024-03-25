@@ -101,7 +101,7 @@ describe('Edge runtime code with imports', () => {
         })
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -187,7 +187,7 @@ describe('Edge runtime code with imports', () => {
           }, 'success')
         })
       })
-      ;(process.env.TURBOPACK ? describe.skip : describe)(
+      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
         'production mode',
         () => {
           it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -258,7 +258,7 @@ describe('Edge runtime code with imports', () => {
         return 'success'
       }, 'success')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not build and reports', async () => {
@@ -320,7 +320,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBeDefined()
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {
@@ -389,7 +389,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBe('false')
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {

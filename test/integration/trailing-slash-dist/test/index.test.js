@@ -27,7 +27,7 @@ const runTest = (mode = 'server') => {
 }
 
 describe('Trailing slash in distDir', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
