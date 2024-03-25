@@ -56,39 +56,42 @@ describe('Image Component assetPrefix Tests', () => {
       expect(stdout).not.toContain(warningMessage)
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let stdout = ''
-    let stderr = ''
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let stdout = ''
+      let stderr = ''
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    it('should use base64 data url with placeholder=blur during next start', async () => {
-      let browser = await webdriver(appPort, '/')
-      const id = 'test1'
-      const bgImage = await browser.eval(
-        `document.getElementById('${id}').style['background-image']`
-      )
-      expect(bgImage).toMatch('data:image/jpeg;base64')
-    })
+      it('should use base64 data url with placeholder=blur during next start', async () => {
+        let browser = await webdriver(appPort, '/')
+        const id = 'test1'
+        const bgImage = await browser.eval(
+          `document.getElementById('${id}').style['background-image']`
+        )
+        expect(bgImage).toMatch('data:image/jpeg;base64')
+      })
 
-    it('should not log a deprecation warning about using `images.domains`', async () => {
-      await webdriver(appPort, '/')
-      const warningMessage =
-        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+      it('should not log a deprecation warning about using `images.domains`', async () => {
+        await webdriver(appPort, '/')
+        const warningMessage =
+          'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
 
-      expect(stderr).not.toContain(warningMessage)
-      expect(stdout).not.toContain(warningMessage)
-    })
-  })
+        expect(stderr).not.toContain(warningMessage)
+        expect(stdout).not.toContain(warningMessage)
+      })
+    }
+  )
 })

@@ -315,23 +315,26 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
 
-      const app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
+        const app = nextServer({
+          dir: appDir,
+          dev: false,
+          quiet: true,
+        })
+
+        server = await startApp(app)
+        appPort = server.address().port
+      })
+      afterAll(async () => {
+        await stopApp(server)
       })
 
-      server = await startApp(app)
-      appPort = server.address().port
-    })
-    afterAll(async () => {
-      await stopApp(server)
-    })
-
-    runTests(false)
-  })
+      runTests(false)
+    }
+  )
 })

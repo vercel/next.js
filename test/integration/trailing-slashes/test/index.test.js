@@ -234,7 +234,7 @@ describe('Trailing slashes', () => {
 
     testWithTrailingSlash()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode, trailingSlash: false',
     () => {
       beforeAll(async () => {
@@ -268,7 +268,7 @@ describe('Trailing slashes', () => {
       })
     }
   )
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode, trailingSlash: true',
     () => {
       beforeAll(async () => {
@@ -334,7 +334,7 @@ describe('Trailing slashes', () => {
       ['/docs/linker?href=/', '/docs/'],
     ])
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode, with basepath, trailingSlash: true',
     () => {
       beforeAll(async () => {

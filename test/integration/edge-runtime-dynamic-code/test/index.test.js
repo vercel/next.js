@@ -158,7 +158,7 @@ describe.each([
         expect(output).not.toContain('DynamicWasmCodeGenerationWarning')
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let buildResult

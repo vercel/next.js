@@ -83,26 +83,29 @@ describe('Invalid hrefs', () => {
       await noError('/child-ref-func')
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runCommonTests()
+      runCommonTests()
 
-    it('should preload with forwardRef', async () => {
-      await didPrefetch('/function')
-    })
+      it('should preload with forwardRef', async () => {
+        await didPrefetch('/function')
+      })
 
-    it('should preload with child ref with React.createRef', async () => {
-      await didPrefetch('/child-ref')
-    })
+      it('should preload with child ref with React.createRef', async () => {
+        await didPrefetch('/child-ref')
+      })
 
-    it('should preload with child ref with function', async () => {
-      await didPrefetch('/child-ref-func')
-    })
-  })
+      it('should preload with child ref with function', async () => {
+        await didPrefetch('/child-ref-func')
+      })
+    }
+  )
 })

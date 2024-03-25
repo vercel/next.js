@@ -31,7 +31,7 @@ const runTests = () => {
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'TypeScript onlyRemoveTypeImports',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

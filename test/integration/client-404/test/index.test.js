@@ -35,23 +35,26 @@ describe('Client 404', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      context.appPort = await findPort()
-      context.server = await nextStart(appDir, context.appPort)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        context.appPort = await findPort()
+        context.server = await nextStart(appDir, context.appPort)
 
-      const manifest = await getBuildManifest(appDir)
-      const files = manifest.pages['/missing'].filter((d) =>
-        /static[\\/]chunks[\\/]pages/.test(d)
-      )
-      if (files.length < 1) {
-        throw new Error('oops!')
-      }
-      await Promise.all(files.map((f) => fs.remove(join(appDir, '.next', f))))
-    })
-    afterAll(() => killApp(context.server))
+        const manifest = await getBuildManifest(appDir)
+        const files = manifest.pages['/missing'].filter((d) =>
+          /static[\\/]chunks[\\/]pages/.test(d)
+        )
+        if (files.length < 1) {
+          throw new Error('oops!')
+        }
+        await Promise.all(files.map((f) => fs.remove(join(appDir, '.next', f))))
+      })
+      afterAll(() => killApp(context.server))
 
-    runTests(true)
-  })
+      runTests(true)
+    }
+  )
 })

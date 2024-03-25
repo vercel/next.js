@@ -18,7 +18,7 @@ const appDir = join(__dirname, '../')
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'AMP Custom Validator',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should build and start successfully', async () => {

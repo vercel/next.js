@@ -23,12 +23,15 @@ describe('Catches Missing getStaticProps', () => {
       expect(html).toMatch(errorRegex)
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should catch it in server build mode', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
-        stderr: true,
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should catch it in server build mode', async () => {
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+        })
+        expect(stderr).toMatch(errorRegex)
       })
-      expect(stderr).toMatch(errorRegex)
-    })
-  })
+    }
+  )
 })

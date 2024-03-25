@@ -231,16 +231,19 @@ describe('i18n Support Root Catch-all', () => {
 
     runTests(true)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildPagesDir = join(appDir, '.next/server')
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        buildPagesDir = join(appDir, '.next/server')
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

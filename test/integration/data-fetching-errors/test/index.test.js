@@ -132,14 +132,16 @@ describe('GS(S)P Page Errors', () => {
   describe('dev mode', () => {
     runTests(true)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runTests()
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runTests()
 
-    it('Error stack printed to stderr', async () => {
-      try {
-        await fs.writeFile(
-          indexPage,
-          `export default function Page() {
+      it('Error stack printed to stderr', async () => {
+        try {
+          await fs.writeFile(
+            indexPage,
+            `export default function Page() {
             return <div/>
           }
             export function getStaticProps() {
@@ -147,31 +149,32 @@ describe('GS(S)P Page Errors', () => {
               if(process.env.NEXT_PHASE === "${PHASE_PRODUCTION_BUILD}") {
                 return { props: { foo: 'bar' }, revalidate: 1 }
               }
-    
+
               throw new Error("Oops")
             }
             `
-        )
+          )
 
-        await nextBuild(appDir)
+          await nextBuild(appDir)
 
-        appPort = await findPort()
+          appPort = await findPort()
 
-        let stderr = ''
-        app = await nextStart(appDir, appPort, {
-          onStderr: (msg) => {
-            stderr += msg || ''
-          },
-        })
-        await check(async () => {
-          await renderViaHTTP(appPort, '/')
-          return stderr
-        }, /error: oops/i)
+          let stderr = ''
+          app = await nextStart(appDir, appPort, {
+            onStderr: (msg) => {
+              stderr += msg || ''
+            },
+          })
+          await check(async () => {
+            await renderViaHTTP(appPort, '/')
+            return stderr
+          }, /error: oops/i)
 
-        expect(stderr).toContain('Error: Oops')
-      } finally {
-        await killApp(app)
-      }
-    })
-  })
+          expect(stderr).toContain('Error: Oops')
+        } finally {
+          await killApp(app)
+        }
+      })
+    }
+  )
 })

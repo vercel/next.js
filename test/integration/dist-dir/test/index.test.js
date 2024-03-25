@@ -19,7 +19,7 @@ let app
 
 describe('distDir', () => {
   describe('With basic usage', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
@@ -71,28 +71,31 @@ describe('distDir', () => {
       expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should throw error with invalid distDir', async () => {
-      const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
-      const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      await fs.writeFile(nextConfig, origNextConfig)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should throw error with invalid distDir', async () => {
+        const origNextConfig = await fs.readFile(nextConfig, 'utf8')
+        await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        await fs.writeFile(nextConfig, origNextConfig)
 
-      expect(stderr).toContain(
-        'Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined'
-      )
-    })
+        expect(stderr).toContain(
+          'Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined'
+        )
+      })
 
-    it('should handle undefined distDir', async () => {
-      const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
-      )
-      const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      await fs.writeFile(nextConfig, origNextConfig)
+      it('should handle undefined distDir', async () => {
+        const origNextConfig = await fs.readFile(nextConfig, 'utf8')
+        await fs.writeFile(
+          nextConfig,
+          `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
+        )
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        await fs.writeFile(nextConfig, origNextConfig)
 
-      expect(stderr.length).toBe(0)
-    })
-  })
+        expect(stderr.length).toBe(0)
+      })
+    }
+  )
 })

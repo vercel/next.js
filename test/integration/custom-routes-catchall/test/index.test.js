@@ -53,14 +53,17 @@ describe('Custom routes', () => {
     afterAll(() => killApp(app))
     runTests(true)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
 })

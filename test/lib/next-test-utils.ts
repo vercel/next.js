@@ -1009,9 +1009,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**

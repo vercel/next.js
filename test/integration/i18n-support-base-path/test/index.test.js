@@ -59,26 +59,29 @@ describe('i18n Support basePath', () => {
 
     runTests(curCtx)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort)
-      ctx.buildPagesDir = join(appDir, '.next/server/pages')
-      ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(ctx.app)
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        ctx.appPort = await findPort()
+        ctx.app = await nextStart(appDir, ctx.appPort)
+        ctx.buildPagesDir = join(appDir, '.next/server/pages')
+        ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(ctx.app)
+      })
 
-    runTests(ctx)
-  })
+      runTests(ctx)
+    }
+  )
 
   describe('with localeDetection disabled', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

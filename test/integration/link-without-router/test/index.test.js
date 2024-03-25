@@ -37,19 +37,22 @@ describe('Link without a router', () => {
       expect(container.textContent).toBe('Click me')
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should not throw when rendered', () => {
-      jest.useFakeTimers()
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should not throw when rendered', () => {
+        jest.useFakeTimers()
 
-      act(() => {
-        render(<Hello />, container)
+        act(() => {
+          render(<Hello />, container)
+        })
+
+        act(() => {
+          jest.runAllTimers()
+        })
+
+        expect(container.textContent).toBe('Click me')
       })
-
-      act(() => {
-        jest.runAllTimers()
-      })
-
-      expect(container.textContent).toBe('Click me')
-    })
-  })
+    }
+  )
 })

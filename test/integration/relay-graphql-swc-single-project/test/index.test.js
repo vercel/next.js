@@ -41,16 +41,19 @@ describe('Relay Compiler Transform - Single Project Config', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      runRelayCompiler()
-      await nextBuild(appDir, [], { cwd: appDir })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        runRelayCompiler()
+        await nextBuild(appDir, [], { cwd: appDir })
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
 
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

@@ -358,25 +358,28 @@ describe('Env Config', () => {
 
     runTests('test')
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const { code } = await nextBuild(appDir, [], {
-        env: {
-          PROCESS_ENV_KEY: 'processenvironment',
-          ENV_FILE_PROCESS_ENV: 'env-cli',
-        },
-      })
-      if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { code } = await nextBuild(appDir, [], {
+          env: {
+            PROCESS_ENV_KEY: 'processenvironment',
+            ENV_FILE_PROCESS_ENV: 'env-cli',
+          },
+        })
+        if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        env: {
-          ENV_FILE_PROCESS_ENV: 'env-cli',
-        },
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          env: {
+            ENV_FILE_PROCESS_ENV: 'env-cli',
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

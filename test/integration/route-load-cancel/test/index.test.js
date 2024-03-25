@@ -44,21 +44,24 @@ describe('next/dynamic', () => {
 
     runTests(true)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await runNextCommand(['build', appDir])
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await runNextCommand(['build', appDir])
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
+        app = nextServer({
+          dir: appDir,
+          dev: false,
+          quiet: true,
+        })
+
+        server = await startApp(app)
+        appPort = server.address().port
       })
+      afterAll(() => stopApp(server))
 
-      server = await startApp(app)
-      appPort = server.address().port
-    })
-    afterAll(() => stopApp(server))
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

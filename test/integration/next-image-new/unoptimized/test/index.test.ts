@@ -103,7 +103,7 @@ describe('Unoptimized Image Tests', () => {
 
     runTests('/')
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode - component',
     () => {
       beforeAll(async () => {
@@ -129,7 +129,7 @@ describe('Unoptimized Image Tests', () => {
 
     runTests('/get-img-props')
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode - getImageProps',
     () => {
       beforeAll(async () => {

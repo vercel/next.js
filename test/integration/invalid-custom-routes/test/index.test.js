@@ -598,14 +598,17 @@ describe('Errors on invalid custom routes', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(() => {
-      getStderr = async () => {
-        const { stderr } = await nextBuild(appDir, [], { stderr: true })
-        return stderr
-      }
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(() => {
+        getStderr = async () => {
+          const { stderr } = await nextBuild(appDir, [], { stderr: true })
+          return stderr
+        }
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

@@ -48,20 +48,23 @@ describe('Dynamic Optional Routing', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
-      }
-      await nextBuild(appDir)
+        if (curConfig.includes('target')) {
+          await fs.writeFile(nextConfig, `module.exports = {}`)
+        }
+        await nextBuild(appDir)
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

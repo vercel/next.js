@@ -110,30 +110,33 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       expect(stripAnsi(output)).toInclude(errorHighlight)
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let buildResult
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let buildResult
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      buildResult = await nextBuild(appDir, undefined, {
-        stderr: true,
-        stdout: true,
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+        buildResult = await nextBuild(appDir, undefined, {
+          stderr: true,
+          stdout: true,
+        })
       })
-    })
 
-    it.each(
-      [...unsupportedFunctions, ...unsupportedClasses].map((api, index) => ({
-        api,
-      }))
-    )(`warns for $api during build`, ({ api }) => {
-      expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
-    })
-
-    it.each([...undefinedProperties].map((api) => ({ api })))(
-      'does not warn on using $api',
-      ({ api }) => {
+      it.each(
+        [...unsupportedFunctions, ...unsupportedClasses].map((api, index) => ({
+          api,
+        }))
+      )(`warns for $api during build`, ({ api }) => {
         expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
-      }
-    )
-  })
+      })
+
+      it.each([...undefinedProperties].map((api) => ({ api })))(
+        'does not warn on using $api',
+        ({ api }) => {
+          expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
+        }
+      )
+    }
+  )
 })

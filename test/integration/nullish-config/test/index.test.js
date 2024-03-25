@@ -79,14 +79,17 @@ describe('Nullish configs in next.config.js', () => {
 
     runTests('dev')
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(() => {
-      getStdout = async () => {
-        const { stdout } = await nextBuild(appDir, [], { stdout: true })
-        return stdout
-      }
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(() => {
+        getStdout = async () => {
+          const { stdout } = await nextBuild(appDir, [], { stdout: true })
+          return stdout
+        }
+      })
 
-    runTests('build')
-  })
+      runTests('build')
+    }
+  )
 })
