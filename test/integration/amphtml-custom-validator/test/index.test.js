@@ -18,7 +18,7 @@ const appDir = join(__dirname, '../')
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'AMP Custom Validator',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should build and start successfully', async () => {
@@ -37,7 +37,7 @@ const appDir = join(__dirname, '../')
     )
 
     describe('development mode', () => {
-      it('should run in dev mode successfully', async () => {
+      it('should run in development mode successfully', async () => {
         let stderr = ''
 
         appPort = await findPort()

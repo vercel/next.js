@@ -53,12 +53,12 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.api.write(`
           import { NextResponse } from 'next/server'
-  
+
           export default async function handler(request) {
             const { writeFile } = ${importStatement}
             return Response.json({ ok: writeFile() })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -69,7 +69,7 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-  
+
           export async function middleware(request) {
             const { writeFile } = ${importStatement}
             return NextResponse.next()
@@ -101,7 +101,7 @@ describe('Edge runtime code with imports', () => {
         })
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -129,11 +129,11 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.api.write(`
           import throwAsync from '../../lib'
-  
+
           export default async function handler(request) {
             return Response.json({ ok: await throwAsync() })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -145,7 +145,7 @@ describe('Edge runtime code with imports', () => {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
           import throwAsync from './lib'
-  
+
           export async function middleware(request) {
             await throwAsync()
             return NextResponse.next()
@@ -187,7 +187,7 @@ describe('Edge runtime code with imports', () => {
           }, 'success')
         })
       })
-      ;(process.env.TURBOPACK ? describe.skip : describe)(
+      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
         'production mode',
         () => {
           it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -216,12 +216,12 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.api.write(`
           ${importStatement}
-  
+
           export default async function handler(request) {
             new Unknown()
             return Response.json({ ok: true })
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -233,7 +233,7 @@ describe('Edge runtime code with imports', () => {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
           ${importStatement}
-  
+
           export async function middleware(request) {
             new Unknown()
             return NextResponse.next()
@@ -252,16 +252,13 @@ describe('Edge runtime code with imports', () => {
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
 
+      const text = await res.text()
       await check(async () => {
-        expectModuleNotFoundDevError(
-          moduleName,
-          importStatement,
-          await res.text()
-        )
+        expectModuleNotFoundDevError(moduleName, importStatement, text)
         return 'success'
       }, 'success')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not build and reports', async () => {
@@ -289,7 +286,7 @@ describe('Edge runtime code with imports', () => {
             response.headers.set('x-from-runtime', nanoid())
             return response
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -323,7 +320,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBeDefined()
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {
@@ -358,7 +355,7 @@ describe('Edge runtime code with imports', () => {
             response.headers.set('x-from-runtime', Buffer.isBuffer('a string'))
             return response
           }
-  
+
           export const config = { runtime: 'edge' }
         `)
       },
@@ -392,7 +389,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBe('false')
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {

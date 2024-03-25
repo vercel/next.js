@@ -1,4 +1,4 @@
-import { createNextDescribe, isNextDev } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
 createNextDescribe(
@@ -7,11 +7,8 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
-    startCommand: isNextDev
-      ? 'yarn next dev --experimental-test-proxy'
-      : 'yarn next start --experimental-test-proxy',
   },
-  ({ next, isNextDev }) => {
+  ({ next }) => {
     let proxyServer: Awaited<ReturnType<typeof createProxyServer>>
 
     beforeEach(async () => {
@@ -19,7 +16,10 @@ createNextDescribe(
         onFetch: async (testData, request) => {
           if (
             request.method === 'GET' &&
-            request.url === 'https://example.com/'
+            [
+              'https://example.com/',
+              'https://next-data-api-endpoint.vercel.app/api/random',
+            ].includes(request.url)
           ) {
             return new Response(testData)
           }
@@ -38,19 +38,34 @@ createNextDescribe(
       proxyServer.close()
     })
 
-    const fetchForTest = async (url: string) => {
+    const fetchForTest = async (url: string, testData?: string) => {
       return next.fetch(url, {
         headers: {
           'Next-Test-Proxy-Port': String(proxyServer.port),
-          'Next-Test-Data': 'test1',
+          'Next-Test-Data': testData ?? 'test1',
         },
       })
     }
 
     describe('app router', () => {
+      it('should fetch real data when Next-Test-* headers are not present', async () => {
+        const html = await (await next.fetch('/app/rsc-fetch')).text()
+        expect(html).not.toContain('<pre>test1</pre>')
+      })
+
       it('should handle RSC with fetch in serverless function', async () => {
         const html = await (await fetchForTest('/app/rsc-fetch')).text()
         expect(html).toContain('<pre>test1</pre>')
+      })
+
+      it('should avoid fetch cache', async () => {
+        const html1 = await (await fetchForTest('/app/rsc-fetch')).text()
+        expect(html1).toContain('<pre>test1</pre>')
+
+        const html2 = await (
+          await fetchForTest('/app/rsc-fetch', 'test2')
+        ).text()
+        expect(html2).toContain('<pre>test2</pre>')
       })
 
       it('should handle RSC with http.get in serverless function', async () => {

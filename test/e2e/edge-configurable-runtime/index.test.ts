@@ -14,9 +14,8 @@ const apiPath = 'pages/api/edge.js'
   let next: NextInstance
   const page = new File(join(appDir, pagePath))
   const api = new File(join(appDir, apiPath))
-
   if (isNextDev) {
-    describe('In dev mode', () => {
+    describe('In development mode', () => {
       beforeAll(async () => {
         next = await createNext({
           files: new FileRef(appDir),

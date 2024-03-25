@@ -472,14 +472,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      process.env.NEXT_DEPLOYMENT_ID =
-        this.nextConfig.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
     }
 
     this.renderOpts = {
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.experimental.deploymentId,
+      deploymentId: this.nextConfig.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -890,7 +889,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       const { originalRequest } = req as NodeNextRequest
-      const isHttps = !!(originalRequest?.socket as TLSSocket)?.encrypted
+      const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
+      const isHttps = xForwardedProto
+        ? xForwardedProto === 'https'
+        : !!(originalRequest?.socket as TLSSocket)?.encrypted
+
       req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
       req.headers['x-forwarded-port'] ??= this.port
         ? this.port.toString()
@@ -1851,6 +1854,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
+      res.setHeader('x-matched-path', pathname)
       res.setHeader('x-middleware-skip', '1')
       res.setHeader(
         'cache-control',
