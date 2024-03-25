@@ -10,7 +10,7 @@ let app: Awaited<ReturnType<typeof launchApp>>
 let output = ''
 
 describe('Image with middleware in edge func', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {

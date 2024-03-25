@@ -49,7 +49,7 @@ function runTests({ isDev }) {
 }
 
 describe('Missing Import Image Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       stderr = ''
       appPort = await findPort()
@@ -67,18 +67,21 @@ describe('Missing Import Image Tests', () => {
 
     runTests({ isDev: true })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      stderr = ''
-      const result = await nextBuild(appDir, [], { stderr: true })
-      stderr = result.stderr
-    })
-    afterAll(async () => {
-      if (app) {
-        await killApp(app)
-      }
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        stderr = ''
+        const result = await nextBuild(appDir, [], { stderr: true })
+        stderr = result.stderr
+      })
+      afterAll(async () => {
+        if (app) {
+          await killApp(app)
+        }
+      })
 
-    runTests({ isDev: false })
-  })
+      runTests({ isDev: false })
+    }
+  )
 })

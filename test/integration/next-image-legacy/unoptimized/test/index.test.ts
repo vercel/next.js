@@ -98,7 +98,7 @@ function runTests() {
 }
 
 describe('Unoptimized Image Tests', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -109,16 +109,19 @@ describe('Unoptimized Image Tests', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

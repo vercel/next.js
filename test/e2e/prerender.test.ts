@@ -1076,7 +1076,7 @@ describe('Prerender', () => {
         expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
       })
 
-      it('should log error in console and browser in dev mode', async () => {
+      it('should log error in console and browser in development mode', async () => {
         const indexPage = 'pages/index.js'
         const origContent = await next.readFile(indexPage)
 

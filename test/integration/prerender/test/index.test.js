@@ -15,7 +15,7 @@ let app
 let appPort
 
 describe('SSG Prerender', () => {
-  describe('dev mode getStaticPaths', () => {
+  describe('development mode getStaticPaths', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
