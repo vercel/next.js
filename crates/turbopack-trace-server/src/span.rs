@@ -47,7 +47,7 @@ pub struct Span {
     pub search_index: OnceLock<HashMap<String, Vec<SpanIndex>>>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SpanEvent {
     SelfTime { start: u64, end: u64 },
     Child { id: SpanIndex },

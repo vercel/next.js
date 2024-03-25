@@ -23,6 +23,7 @@ impl TraceWriter {
         let (return_tx, return_rx) = bounded::<Vec<u8>>(1024 * 10);
 
         let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
+            let _ = writer.write(b"TRACEv0");
             let mut buf = Vec::with_capacity(1024 * 1024 * 1024);
             'outer: loop {
                 if !buf.is_empty() {
