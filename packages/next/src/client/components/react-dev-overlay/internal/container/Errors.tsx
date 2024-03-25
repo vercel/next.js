@@ -255,8 +255,8 @@ export function Errors({
                 <span>{activeIdx + 1}</span> of{' '}
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
-                </span>{' '}
-                unhandled error
+                </span>
+                {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
@@ -316,10 +316,10 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-monospace);
+    font-family: sans-serif;
   }
   .nextjs-container-errors-header p {
-    font-family: var(--font-stack-monospace);
+    font-family: sans-serif;
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
@@ -328,13 +328,12 @@ export const styles = css`
     white-space: pre-wrap;
   }
   .nextjs__container_errors_desc--error {
-    color: var(--color-ansi-red);
+    padding-left: var(--size-gap);
+    border-left: 4px solid var(--color-accents-1);
+    color: var(--color-font);
   }
   .nextjs__container_errors__extra {
     margin: 20px 0;
-  }
-  nextjs__container_errors__extra__code {
-    margin: 10px 0;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
