@@ -380,7 +380,10 @@ describe('Prerender Preview Mode', () => {
       await killApp(app)
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runTests()
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runTests()
+    }
+  )
 })

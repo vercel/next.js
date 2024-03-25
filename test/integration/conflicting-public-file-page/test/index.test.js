@@ -27,19 +27,22 @@ describe('Errors on conflict between public file and page file', () => {
       await killApp(app)
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('Throws error during build', async () => {
-      const conflicts = ['/another/conflict', '/another', '/hello']
-      const results = await nextBuild(appDir, [], {
-        stdout: true,
-        stderr: true,
-      })
-      const output = results.stdout + results.stderr
-      expect(output).toMatch(/Conflicting public and page files were found/)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('Throws error during build', async () => {
+        const conflicts = ['/another/conflict', '/another', '/hello']
+        const results = await nextBuild(appDir, [], {
+          stdout: true,
+          stderr: true,
+        })
+        const output = results.stdout + results.stderr
+        expect(output).toMatch(/Conflicting public and page files were found/)
 
-      for (const conflict of conflicts) {
-        expect(output.indexOf(conflict) > 0).toBe(true)
-      }
-    })
-  })
+        for (const conflict of conflicts) {
+          expect(output.indexOf(conflict) > 0).toBe(true)
+        }
+      })
+    }
+  )
 })

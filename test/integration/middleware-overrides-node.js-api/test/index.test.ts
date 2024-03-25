@@ -14,7 +14,7 @@ const context = { appDir: join(__dirname, '../'), appPort: NaN, app: null }
 jest.setTimeout(1000 * 60 * 2)
 
 describe('Middleware overriding a Node.js API', () => {
-  describe('dev mode', () => {
+  describe('development mode', () => {
     let output = ''
 
     beforeAll(async () => {

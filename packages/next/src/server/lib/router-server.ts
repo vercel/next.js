@@ -70,7 +70,6 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
@@ -581,7 +580,7 @@ export async function initialize(opts: {
   }
 
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
-  if (opts.experimentalTestProxy) {
+  if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const {
       wrapRequestHandlerWorker,
@@ -601,7 +600,7 @@ export async function initialize(opts: {
     server: opts.server,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: developmentBundler?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
+    experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
