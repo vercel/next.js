@@ -349,11 +349,10 @@ fn parse_config_value(
                 JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
                     config.revalidate = Some(NextRevalidate::ForceCache);
                 }
-                _ => invalid_config(
-                    "`revalidate` needs to be static false, static 'force-cache' or a static \
-                     positive integer",
-                    &value,
-                ),
+                _ => {
+                    //noop; revalidate validation occurs in runtime at
+                    //https://github.com/vercel/next.js/blob/cd46c221d2b7f796f963d2b81eea1e405023db23/packages/next/src/server/lib/patch-fetch.ts#L20
+                }
             }
         }
         "fetchCache" => {
