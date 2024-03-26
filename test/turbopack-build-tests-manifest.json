@@ -2143,6 +2143,7 @@
         "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
         "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
         "parallel-routes-and-interception parallel routes should render nested parallel routes",
+        "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
         "parallel-routes-and-interception parallel routes should support parallel route tab bars",
         "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
         "parallel-routes-and-interception route intercepting should not have /default paths in the prerender manifest",
@@ -2157,7 +2158,6 @@
         "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
       ],
       "failed": [
-        "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
         "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
         "parallel-routes-and-interception route intercepting should render an intercepted route from a slot"
       ],
@@ -4847,7 +4847,6 @@
         "Prerender should not supply query values to params or useRouter non-dynamic page SSR",
         "Prerender should not throw error for on-demand revalidate for SSR path",
         "Prerender should of formatted build output correctly",
-        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should on-demand revalidate for revalidate: false",
         "Prerender should on-demand revalidate that returns notFound: true",
         "Prerender should only show warning once per page when large amount of page data is returned",
@@ -4873,6 +4872,7 @@
         "Prerender should navigate between pages successfully",
         "Prerender should not error when rewriting to fallback dynamic SSG page",
         "Prerender should not show error for invalid JSON returned from getStaticProps on SSR",
+        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should output traces",
         "Prerender should parse query values on mount correctly",
         "Prerender should render correctly for SSG pages that starts with api-docs",
@@ -5350,7 +5350,10 @@
       "passed": [],
       "failed": [
         "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
-      ]
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
     },
     "test/production/build-spinners/index.test.ts": {
       "passed": [],
@@ -6138,6 +6141,7 @@
   },
   "rules": {
     "include": [
+      "test/integration/**/*.test.{t,j}s{,x}",
       "test/e2e/**/*.test.{t,j}s{,x}",
       "test/production/**/*.test.{t,j}s{,x}"
     ],
