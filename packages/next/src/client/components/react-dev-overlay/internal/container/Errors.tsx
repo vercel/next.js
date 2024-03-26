@@ -312,8 +312,7 @@ export const styles = css`
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
-    margin: 0;
-    margin-top: var(--size-gap-double);
+    margin: var(--size-gap-double) 0;
   }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
@@ -321,10 +320,10 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: sans-serif;
+    font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header p {
-    font-family: sans-serif;
+    font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     margin: 0;
@@ -335,6 +334,7 @@ export const styles = css`
     padding-left: var(--size-gap);
     border-left: 4px solid var(--color-accents-1);
     margin-top: var(--size-gap);
+    font-weight: bold;
     color: var(--color-stack-subline);
   }
   .nextjs__container_errors__extra {
@@ -347,7 +347,6 @@ export const styles = css`
     margin-top: var(--size-gap-half);
   }
   .nextjs-container-errors-header > p > a {
-    color: inherit;
     font-weight: bold;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
