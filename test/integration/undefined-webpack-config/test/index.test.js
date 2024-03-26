@@ -11,7 +11,7 @@ const expectedErr =
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'undefined webpack config error',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it.skip('should show in production mode', async () => {
@@ -24,7 +24,7 @@ const expectedErr =
       }
     )
 
-    it('should show in dev mode', async () => {
+    it('should show in development mode', async () => {
       let output = ''
 
       await launchApp(appDir, await findPort(), {

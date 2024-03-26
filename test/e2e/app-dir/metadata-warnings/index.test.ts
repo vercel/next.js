@@ -12,7 +12,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     // If it's start mode, we get the whole logs since they're from build process.
-    // If it's dev mode, we get the logs after request
+    // If it's development mode, we get the logs after request
     function getCliOutput(logStartPosition: number) {
       return isNextDev ? next.cliOutput.slice(logStartPosition) : next.cliOutput
     }

@@ -727,11 +727,13 @@ async fn rsc_aliases(
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+        } else {
+            // x-ref: https://github.com/facebook/react/pull/25436
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
         }
-        // Use server rendering stub for RSC and SSR
-        // x-ref: https://github.com/facebook/react/pull/25436
-        alias["react-dom"] =
-            format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
@@ -839,10 +841,7 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
     );
 
     import_map.insert_alias(

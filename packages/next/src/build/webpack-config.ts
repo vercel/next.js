@@ -401,6 +401,16 @@ export default async function getBaseWebpackConfig(
     await loadBindings(config.experimental.useWasmBinary)
   }
 
+  // since `pages` doesn't always bundle by default we need to
+  // auto-include optimizePackageImports in transpilePackages
+  const finalTranspilePackages: string[] = config.transpilePackages || []
+
+  for (const pkg of config.experimental.optimizePackageImports || []) {
+    if (!finalTranspilePackages.includes(pkg)) {
+      finalTranspilePackages.push(pkg)
+    }
+  }
+
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
@@ -451,7 +461,7 @@ export default async function getBaseWebpackConfig(
         hasReactRefresh: dev && isClient,
         nextConfig: config,
         jsConfig,
-        transpilePackages: config.transpilePackages,
+        transpilePackages: finalTranspilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
@@ -780,9 +790,9 @@ export default async function getBaseWebpackConfig(
   // the `transpilePackages`.
   if (
     config.experimental.serverComponentsExternalPackages &&
-    config.transpilePackages
+    finalTranspilePackages
   ) {
-    const externalPackageConflicts = config.transpilePackages.filter((pkg) =>
+    const externalPackageConflicts = finalTranspilePackages.filter((pkg) =>
       config.experimental.serverComponentsExternalPackages?.includes(pkg)
     )
     if (externalPackageConflicts.length > 0) {
@@ -797,7 +807,7 @@ export default async function getBaseWebpackConfig(
   // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
-  ).filter((pkg) => !config.transpilePackages?.includes(pkg))
+  ).filter((pkg) => !finalTranspilePackages?.includes(pkg))
   // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
     `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
@@ -806,7 +816,7 @@ export default async function getBaseWebpackConfig(
   )
 
   const transpilePackagesRegex = new RegExp(
-    `[/\\\\]node_modules[/\\\\](${config.transpilePackages
+    `[/\\\\]node_modules[/\\\\](${finalTranspilePackages
       ?.map((p) => p.replace(/\//g, '[/\\\\]'))
       .join('|')})[/\\\\]`
   )
@@ -834,7 +844,7 @@ export default async function getBaseWebpackConfig(
 
       const shouldBeBundled = isResourceInPackages(
         excludePath,
-        config.transpilePackages
+        finalTranspilePackages
       )
       if (shouldBeBundled) return false
 
