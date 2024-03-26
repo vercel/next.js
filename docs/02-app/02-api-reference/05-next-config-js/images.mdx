@@ -18,21 +18,31 @@ module.exports = {
 
 This `loaderFile` must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
+<AppOnly>
+
 ```js filename="loader.mjs"
+'use client'
+
 export default function myImageLoader({ src, width, quality }) {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
 ```
 
-<AppOnly>
-
 Alternatively, you can use the [`loader` prop](/docs/app/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+> **Good to know**: Customizing the image loader file, which accepts a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 To learn more about configuring the behavior of the built-in [Image Optimization API](/docs/app/building-your-application/optimizing/images) and the [Image Component](/docs/app/api-reference/components/image), see [Image Configuration Options](/docs/app/api-reference/components/image#configuration-options) for available options.
 
 </AppOnly>
 
 <PagesOnly>
+
+```js filename="loader.mjs"
+export default function myImageLoader({ src, width, quality }) {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+```
 
 Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
 
