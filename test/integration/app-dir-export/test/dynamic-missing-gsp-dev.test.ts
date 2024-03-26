@@ -15,12 +15,14 @@ describe('app dir - with output export - dynamic missing gsp dev', () => {
       })
 
       it('should error when client component has generateStaticParams', async () => {
+        const expectedErrMsg = process.env.TURBOPACK_DEV
+          ? 'Page "test/integration/app-dir-export/app/another/[slug]/page.js" cannot use both "use client" and export function "generateStaticParams()".'
+          : 'Page "/another/[slug]/page" cannot use both "use client" and export function "generateStaticParams()".'
         await runTests({
           isDev: true,
           dynamicPage: 'undefined',
           generateStaticParamsOpt: 'set client',
-          expectedErrMsg:
-            'Page "/another/[slug]/page" cannot use both "use client" and export function "generateStaticParams()".',
+          expectedErrMsg,
         })
       })
     }
