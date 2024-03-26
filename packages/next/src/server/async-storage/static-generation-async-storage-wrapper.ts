@@ -4,6 +4,7 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 
 import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
+import type { FetchMetric } from '../base-http'
 
 export type StaticGenerationContext = {
   urlPathname: string
@@ -31,6 +32,8 @@ export type StaticGenerationContext = {
      */
     // TODO: remove this when we resolve accessing the store outside the execution context
     store?: StaticGenerationStore
+    /** Fetch metrics attached in patch-fetch.ts */
+    fetchMetrics?: FetchMetric[]
   }
 }
 
