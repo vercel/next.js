@@ -150,8 +150,7 @@ export function createWebpackAliases({
     [RSC_ACTION_PROXY_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
-    [RSC_ACTION_ENCRYPTION_ALIAS]:
-      'next/dist/server/app-render/action-encryption',
+    [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
 
     ...(isClient || isEdgeServer
       ? {

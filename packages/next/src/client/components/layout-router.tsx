@@ -468,16 +468,20 @@ function InnerLayoutRouter({
  */
 function LoadingBoundary({
   children,
+  hasLoading,
   loading,
   loadingStyles,
   loadingScripts,
 }: {
   children: React.ReactNode
+  hasLoading: boolean
   loading?: React.ReactNode
   loadingStyles?: React.ReactNode
   loadingScripts?: React.ReactNode
 }): JSX.Element {
-  if (loading) {
+  // We have an explicit prop for checking if `loading` is provided, to disambiguate between a loading
+  // component that returns `null` / `undefined`, vs not having a loading component at all.
+  if (hasLoading) {
     return (
       <Suspense
         fallback={
@@ -581,6 +585,7 @@ export default function OuterLayoutRouter({
                   errorScripts={errorScripts}
                 >
                   <LoadingBoundary
+                    hasLoading={Boolean(loading)}
                     loading={loading?.[0]}
                     loadingStyles={loading?.[1]}
                     loadingScripts={loading?.[2]}
