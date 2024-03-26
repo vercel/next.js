@@ -5,34 +5,19 @@ description: Custom configuration for the next/image loader
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure `next.config.js` with the following:
-
-```js filename="next.config.js"
-module.exports = {
-  images: {
-    loader: 'custom',
-    loaderFile: './my/image/loader.js',
-  },
-}
-```
-
-This `loaderFile` must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
-
-```js
-export default function myImageLoader({ src, width, quality }) {
-  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
-}
-```
-
 <AppOnly>
 
-Alternatively, you can use the [`loader` prop](/docs/app/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+You can configure the behavior of the built-in [Image Optimization API](/docs/app/building-your-application/optimizing/images) and the [Image Component](/docs/app/api-reference/components/image) in `next.config.js`.
+
+See [Image Configuration Options](/docs/app/api-reference/components/image#configuration-options) for available options.
 
 </AppOnly>
 
 <PagesOnly>
 
-Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+You can configure the behavior of the built-in [Image Optimization API](/docs/pages/building-your-application/optimizing/images) and the [Image Component](/docs/pages/api-reference/components/image) in `next.config.js`.
+
+See [Image Configuration Options](/docs/pages/api-reference/components/image#configuration-options) for available options.
 
 </PagesOnly>
 
