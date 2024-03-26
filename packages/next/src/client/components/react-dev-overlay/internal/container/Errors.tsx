@@ -320,27 +320,27 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-monospace);
+    font-family: var(--font-stack-sans);
   }
   .nextjs-container-errors-header p {
-    font-family: var(--font-stack-monospace);
+    font-family: var(--font-stack-sans);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     margin: 0;
-    margin-top: var(--size-gap-half);
+    margin-top: var(--size-gap);
     white-space: pre-wrap;
   }
   .nextjs__container_errors_desc {
     padding-left: var(--size-gap);
     border-left: 4px solid var(--color-accents-1);
     margin-top: var(--size-gap);
-    font-weight: bold;
+    font-weight: 500;
     color: var(--color-stack-subline);
   }
   .nextjs__container_errors__extra {
     margin: var(--size-gap-half) 0;
     color: var(--color-stack-headline);
-    font-weight: bold;
+    font-weight: 500;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
