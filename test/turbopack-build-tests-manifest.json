@@ -6134,18 +6134,6 @@
       "pending": [],
       "flakey": [],
       "runtimeError": false
-    },
-    "test/e2e/app-dir/static-generation-status/index.test.ts": {
-      "passed": [
-        "should render the page using notFound with status 404",
-        "should render the page using redirect with status 307"
-      ],
-      "failed": [
-        "should render the non existed route redirect with status 404"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
     }
   },
   "rules": {

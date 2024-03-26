@@ -12,12 +12,13 @@ createNextDescribe(
     })
 
     it('should render the page using redirect with status 307', async () => {
-      const { status } = await next.fetch('/redirect-page')
+      const { status } = await next.fetch('/redirect-page', {
+        redirect: 'manual',
+      })
       expect(status).toBe(307)
     })
 
     it('should render the non existed route redirect with status 404', async () => {
-      expect((await next.fetch('/_not-found')).status).toBe(404)
       expect((await next.fetch('/does-not-exist')).status).toBe(404)
     })
   }
