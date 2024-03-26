@@ -39,9 +39,13 @@ use crate::{
     util::NextRuntime,
 };
 
-const NODE_INTERNALS: [&str; 48] = [
-    "assert",
-    "async_hooks",
+/// List of node.js internals that are not supported by edge runtime.
+/// If these imports are used & user does not provide alias for the polyfill,
+/// runtime error will be thrown.
+/// This is not identical to the list of entire node.js internals, refer
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+/// for the allowed imports.
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
     "child_process",
     "cluster",
     "console",
@@ -51,7 +55,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "dns",
     "dns/promises",
     "domain",
-    "events",
     "fs",
     "fs/promises",
     "http",
@@ -80,8 +83,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "tls",
     "trace_events",
     "tty",
-    "util",
-    "util/types",
     "v8",
     "vm",
     "wasi",
@@ -468,7 +469,24 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+    // Look for where 'server/web/globals.ts` are imported to find out corresponding
+    // context
+    match ty {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
+            insert_unsupported_node_internal_aliases(
+                &mut import_map,
+                project_path,
+                execution_context,
+            );
+        }
+        _ => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -486,7 +504,7 @@ fn insert_unsupported_node_internal_aliases(
     ))
     .into();
 
-    NODE_INTERNALS.iter().for_each(|module| {
+    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
         import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
     });
 }
@@ -709,11 +727,13 @@ async fn rsc_aliases(
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+        } else {
+            // x-ref: https://github.com/facebook/react/pull/25436
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
         }
-        // Use server rendering stub for RSC and SSR
-        // x-ref: https://github.com/facebook/react/pull/25436
-        alias["react-dom"] =
-            format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
@@ -821,10 +841,7 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
     );
 
     import_map.insert_alias(

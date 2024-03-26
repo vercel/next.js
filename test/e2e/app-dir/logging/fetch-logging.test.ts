@@ -56,7 +56,7 @@ describe('app-dir - logging', () => {
     withFullUrlFetches?: boolean
   }) {
     if (withFetchesLogging) {
-      it('should only log requests in dev mode', async () => {
+      it('should only log requests in development mode', async () => {
         const outputIndex = next.cliOutput.length
         await next.fetch('/default-cache')
 
