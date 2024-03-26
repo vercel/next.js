@@ -30,6 +30,10 @@ Turbopack currently only supports `next dev` and does not support `next build`. 
 
 These features are currently not supported:
 
+- `webpack()` config in `next.config.js`
+  - Turbopack replaces Webpack, this means that webpack configuration is not supported.
+  - For configuring Turbopack [see the documentation](/docs/app/api-reference/next-config-js/turbo).
+  - A subset of Webpack loaders [are supported](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) in Turbopack.
 - `.babelrc`
   - Turbopack leverages the [SWC](/docs/architecture/nextjs-compiler#why-swc) compiler for all transpilation and optimizations. This means that Babel is not included by default.
   - If you have a `.babelrc` you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in [the compiler documentation](docs/architecture/nextjs-compiler#supported-features).
