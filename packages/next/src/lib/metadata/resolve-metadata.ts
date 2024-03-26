@@ -620,13 +620,24 @@ function collectMetadataExportPreloading<Data, ResolvedData>(
   dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
   resolvers: ((value: ResolvedData) => void)[]
 ) {
-  results.push(
-    dynamicMetadataExportFn(
-      new Promise<any>((resolve) => {
-        resolvers.push(resolve)
-      })
-    )
+  const result = dynamicMetadataExportFn(
+    new Promise<any>((resolve) => {
+      resolvers.push(resolve)
+    })
   )
+
+  if (result instanceof Promise) {
+    // since we eager execute generateMetadata and
+    // they can reject at anytime we need to ensure
+    // we attach the catch handler right away to
+    // prevent unhandled rejections crashing the process
+    result.catch((err) => {
+      return {
+        __nextError: err,
+      }
+    })
+  }
+  results.push(result)
 }
 
 async function getMetadataFromExport<Data, ResolvedData>(
@@ -681,6 +692,11 @@ async function getMetadataFromExport<Data, ResolvedData>(
     resolveParent(currentResolvedMetadata)
     metadata =
       metadataResult instanceof Promise ? await metadataResult : metadataResult
+
+    if (metadata && typeof metadata === 'object' && '__nextError' in metadata) {
+      // re-throw caught metadata error from preloading
+      throw metadata['__nextError']
+    }
   } else if (metadataExport !== null && typeof metadataExport === 'object') {
     // This metadataExport is the object form
     metadata = metadataExport

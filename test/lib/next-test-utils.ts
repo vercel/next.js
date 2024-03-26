@@ -413,7 +413,7 @@ export function runNextCommandDev(
   })
 }
 
-// Launch the app in dev mode.
+// Launch the app in development mode.
 export function launchApp(
   dir: string,
   port: string | number,
@@ -790,6 +790,13 @@ export async function getRedboxHeader(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
+  return parseInt(
+    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
+    10
+  )
+}
+
 export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
@@ -1009,9 +1016,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**
@@ -1054,12 +1064,12 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-container-errors-pseudo-html]',
+    '[data-nextjs-container-errors-pseudo-html] code',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-container-errors-pseudo-html]'
+    '[data-nextjs-container-errors-pseudo-html] code'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
@@ -1068,7 +1078,7 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
-export async function toggleComponentStack(
+export async function toggleCollapseComponentStack(
   browser: BrowserInterface
 ): Promise<void> {
   await browser
@@ -1109,6 +1119,34 @@ export async function getVersionCheckerText(
   )
   const versionCheckerText = await versionCheckerElement.innerText()
   return versionCheckerText.trim()
+}
+
+export function colorToRgb(color) {
+  switch (color) {
+    case 'blue':
+      return 'rgb(0, 0, 255)'
+    case 'red':
+      return 'rgb(255, 0, 0)'
+    case 'green':
+      return 'rgb(0, 128, 0)'
+    case 'yellow':
+      return 'rgb(255, 255, 0)'
+    case 'purple':
+      return 'rgb(128, 0, 128)'
+    case 'black':
+      return 'rgb(0, 0, 0)'
+    default:
+      throw new Error('Unknown color')
+  }
+}
+
+export function getUrlFromBackgroundImage(backgroundImage: string) {
+  const matches = backgroundImage.match(/url\("[^)]+"\)/g).map((match) => {
+    // Extract the URL part from each match. The match includes 'url("' and '"")', so we remove those.
+    return match.slice(5, -2)
+  })
+
+  return matches
 }
 
 /**

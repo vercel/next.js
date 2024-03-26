@@ -22,7 +22,7 @@ let appPort
 
 const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
-  // Don't skip the test case for dev mode (strict mode) once refactoring is finished
+  // Don't skip the test case for development mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
     let browser
     try {
@@ -315,23 +315,26 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
 
-      const app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
+        const app = nextServer({
+          dir: appDir,
+          dev: false,
+          quiet: true,
+        })
+
+        server = await startApp(app)
+        appPort = server.address().port
+      })
+      afterAll(async () => {
+        await stopApp(server)
       })
 
-      server = await startApp(app)
-      appPort = server.address().port
-    })
-    afterAll(async () => {
-      await stopApp(server)
-    })
-
-    runTests(false)
-  })
+      runTests(false)
+    }
+  )
 })

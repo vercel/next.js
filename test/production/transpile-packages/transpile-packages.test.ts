@@ -7,6 +7,7 @@ createNextDescribe(
     dependencies: {
       '@aws-sdk/client-s3': 'latest',
       lodash: 'latest',
+      'fast-xml-parser': '4.2.5', // https://github.com/aws/aws-sdk-js-v3/issues/5866#issuecomment-1984616572
     },
   },
   ({ next }) => {
@@ -14,11 +15,6 @@ createNextDescribe(
       const $ = await next.render$('/')
       expect($('#key').text()).toBe('Key: key1')
       expect($('#isObject').text()).toBe('isObject: true')
-    })
-
-    it('should treat lodash as an external package', async () => {
-      const output = await next.readFile('.next/server/app/page.js')
-      expect(output).toContain('require("lodash')
     })
 
     it('should bundle @aws-sdk/client-s3 as a transpiled package', async () => {

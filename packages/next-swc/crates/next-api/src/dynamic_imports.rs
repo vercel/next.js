@@ -12,7 +12,6 @@ use turbopack_binding::{
         visit::{Visit, VisitWith},
     },
     turbopack::{
-        build::BuildChunkingContext,
         core::{
             chunk::{
                 availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
@@ -31,6 +30,7 @@ use turbopack_binding::{
             resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
+        nodejs::NodeJsChunkingContext,
     },
 };
 
@@ -79,7 +79,7 @@ where
 }
 
 pub(crate) async fn collect_chunk_group(
-    chunking_context: Vc<BuildChunkingContext>,
+    chunking_context: Vc<NodeJsChunkingContext>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {

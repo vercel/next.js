@@ -19,7 +19,7 @@ const enablePostpone = true;
 function scheduleWork(callback) {
   callback();
 }
-const VIEW_SIZE = 512;
+const VIEW_SIZE = 2048;
 let currentView = null;
 let writtenBytes = 0;
 function beginWriting(destination) {
@@ -32,10 +32,9 @@ function writeChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
+    // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
-
-
     if (writtenBytes > 0) {
       destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);

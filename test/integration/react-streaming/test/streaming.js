@@ -98,7 +98,7 @@ export default function (context, { env }) {
     const promises = errPaths.map(async (pagePath) => {
       const html = await renderViaHTTP(context.appPort, pagePath)
       if (env === 'dev') {
-        // In dev mode it should show the error popup.
+        // In development mode it should show the error popup.
         expect(html).toContain('Error: oops')
       } else {
         expect(html).toContain('custom-500-page')

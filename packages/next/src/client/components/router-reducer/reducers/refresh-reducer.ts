@@ -14,6 +14,7 @@ import type { CacheNode } from '../../../../shared/lib/app-router-context.shared
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -28,12 +29,17 @@ export function refreshReducer(
   mutable.preserveCustomHistoryState = false
 
   const cache: CacheNode = createEmptyCacheNode()
+
+  // If the current tree was intercepted, the nextUrl should be included in the request.
+  // This is to ensure that the refresh request doesn't get intercepted, accidentally triggering the interception route.
+  const includeNextUrl = hasInterceptionRouteInCurrentTree(state.tree)
+
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
   cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    state.nextUrl,
+    includeNextUrl ? state.nextUrl : null,
     state.buildId
   )
 

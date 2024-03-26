@@ -80,7 +80,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      // since the router behavior is different in dev mode (no viewport prefetching + liberal revalidation)
+      // since the router behavior is different in development mode (no viewport prefetching + liberal revalidation)
       // we only check the production behavior
       it('should skip dev', () => {})
     } else {
@@ -373,9 +373,7 @@ createNextDescribe(
           expect(newNumber).toBe(initialNumber)
         })
 
-        // TODO: Rather than reusing parts of a stale prefetch cache entry to make this work,
-        // we should be able to copy over the existing loading from a previous cache node on navigation.
-        it.skip('should refetch below the fold after 30 seconds', async () => {
+        it('should refetch below the fold after 30 seconds', async () => {
           const randomLoadingNumber = await browser
             .elementByCss('[href="/1?timeout=1000"]')
             .click()
@@ -435,6 +433,26 @@ createNextDescribe(
           expect(newLoadingNumber).not.toBe(randomLoadingNumber)
 
           expect(newNumber).not.toBe(randomNumber)
+        })
+
+        it('should respect a loading boundary that returns `null`', async () => {
+          await browser.elementByCss('[href="/null-loading"]').click()
+
+          // the page content should disappear immediately
+          expect(
+            await browser.hasElementByCssSelector('[href="/null-loading"]')
+          ).toBeFalse()
+
+          // the root layout should still be visible
+          expect(
+            await browser.hasElementByCssSelector('#root-layout')
+          ).toBeTrue()
+
+          // the dynamic content should eventually appear
+          await browser.waitForElementByCss('#random-number')
+          expect(
+            await browser.hasElementByCssSelector('#random-number')
+          ).toBeTrue()
         })
       })
 

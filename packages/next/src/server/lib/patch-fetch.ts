@@ -9,10 +9,12 @@ import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_IMPLICIT_TAG_ID,
+  NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
 import { trackDynamicFetch } from '../app-render/dynamic-rendering'
+import type { FetchMetric } from '../base-http'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -53,7 +55,9 @@ export function validateTags(tags: any[], description: string) {
     reason: string
   }> = []
 
-  for (const tag of tags) {
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i]
+
     if (typeof tag !== 'string') {
       invalidTags.push({ tag, reason: 'invalid type, must be a string' })
     } else if (tag.length > NEXT_CACHE_TAG_MAX_LENGTH) {
@@ -63,6 +67,14 @@ export function validateTags(tags: any[], description: string) {
       })
     } else {
       validTags.push(tag)
+    }
+
+    if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
+      console.warn(
+        `Warning: exceeded max tag count for ${description}, dropped tags:`,
+        tags.slice(i).join(', ')
+      )
+      break
     }
   }
 
@@ -135,38 +147,23 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
 
 function trackFetchMetric(
   staticGenerationStore: StaticGenerationStore,
-  ctx: {
-    url: string
-    status: number
-    method: string
-    cacheReason: string
-    cacheStatus: 'hit' | 'miss' | 'skip'
-    start: number
-  }
+  ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
   if (!staticGenerationStore) return
-  if (!staticGenerationStore.fetchMetrics) {
-    staticGenerationStore.fetchMetrics = []
-  }
-  const dedupeFields = ['url', 'status', 'method']
+  staticGenerationStore.fetchMetrics ??= []
+
+  const dedupeFields = ['url', 'status', 'method'] as const
 
   // don't add metric if one already exists for the fetch
   if (
-    staticGenerationStore.fetchMetrics.some((metric) => {
-      return dedupeFields.every(
-        (field) => (metric as any)[field] === (ctx as any)[field]
-      )
-    })
+    staticGenerationStore.fetchMetrics.some((metric) =>
+      dedupeFields.every((field) => metric[field] === ctx[field])
+    )
   ) {
     return
   }
   staticGenerationStore.fetchMetrics.push({
-    url: ctx.url,
-    cacheStatus: ctx.cacheStatus,
-    cacheReason: ctx.cacheReason,
-    status: ctx.status,
-    method: ctx.method,
-    start: ctx.start,
+    ...ctx,
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
   })

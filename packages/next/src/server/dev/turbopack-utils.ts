@@ -43,6 +43,24 @@ export async function getTurbopackJsConfig(
 
 class ModuleBuildError extends Error {}
 
+/**
+ * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
+ * to emit certain type of errors into cli.
+ */
+export function isWellKnownError(issue: Issue): boolean {
+  const { title } = issue
+  const formattedTitle = renderStyledStringToErrorAnsi(title)
+  // TODO: add more well known errors
+  if (
+    formattedTitle.includes('Module not found') ||
+    formattedTitle.includes('Unknown module type')
+  ) {
+    return true
+  }
+
+  return false
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, source } = issue
   let { documentationLink } = issue
@@ -118,13 +136,26 @@ export function formatIssue(issue: Issue) {
 }
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
-type IssuesMap = Map<IssueKey, Issue>
+export type IssuesMap = Map<IssueKey, Issue>
 export type EntryIssuesMap = Map<EntryKey, IssuesMap>
+export type TopLevelIssuesMap = IssuesMap
 
 function getIssueKey(issue: Issue): IssueKey {
   return `${issue.severity}-${issue.filePath}-${JSON.stringify(
     issue.title
   )}-${JSON.stringify(issue.description)}`
+}
+
+export function processTopLevelIssues(
+  currentTopLevelIssues: TopLevelIssuesMap,
+  result: TurbopackResult
+) {
+  currentTopLevelIssues.clear()
+
+  for (const issue of result.issues) {
+    const issueKey = getIssueKey(issue)
+    currentTopLevelIssues.set(issueKey, issue)
+  }
 }
 
 export function processIssues(
@@ -143,9 +174,6 @@ export function processIssues(
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
-
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
 
     relevantIssues.add(formatted)
   }
@@ -842,6 +870,11 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.app, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
     processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_app')
@@ -865,6 +898,11 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.error, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
     processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_error')

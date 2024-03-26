@@ -765,12 +765,23 @@ export default class Router implements BaseRouter {
       const { BloomFilter } =
         require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
 
-      const staticFilterData:
-        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
-        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
+      type Filter = ReturnType<
+        import('../../lib/bloom-filter').BloomFilter['export']
+      >
 
-      const dynamicFilterData: typeof staticFilterData = process.env
+      const routerFilterSValue: Filter | false = process.env
+        .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+      const staticFilterData: Filter | undefined = routerFilterSValue
+        ? routerFilterSValue
+        : undefined
+
+      const routerFilterDValue: Filter | false = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+      const dynamicFilterData: Filter | undefined = routerFilterDValue
+        ? routerFilterDValue
+        : undefined
 
       if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
@@ -1498,32 +1509,20 @@ export default class Router implements BaseRouter {
     const isErrorRoute = this.pathname === '/404' || this.pathname === '/_error'
 
     try {
-      let [routeInfo] = await Promise.all([
-        this.getRouteInfo({
-          route,
-          pathname,
-          query,
-          as,
-          resolvedAs,
-          routeProps,
-          locale: nextState.locale,
-          isPreview: nextState.isPreview,
-          hasMiddleware: isMiddlewareMatch,
-          unstable_skipClientCache: options.unstable_skipClientCache,
-          isQueryUpdating: isQueryUpdating && !this.isFallback,
-          isMiddlewareRewrite,
-        }),
-        process.env.__NEXT_NAVIGATION_RAF
-          ? new Promise((resolve) => {
-              // if the frame is hidden or requestAnimationFrame
-              // is delayed too long add upper bound timeout
-              setTimeout(resolve, 1000)
-              requestAnimationFrame(() => {
-                setTimeout(resolve, 1)
-              })
-            })
-          : Promise.resolve(),
-      ])
+      let routeInfo = await this.getRouteInfo({
+        route,
+        pathname,
+        query,
+        as,
+        resolvedAs,
+        routeProps,
+        locale: nextState.locale,
+        isPreview: nextState.isPreview,
+        hasMiddleware: isMiddlewareMatch,
+        unstable_skipClientCache: options.unstable_skipClientCache,
+        isQueryUpdating: isQueryUpdating && !this.isFallback,
+        isMiddlewareRewrite,
+      })
 
       if (!isQueryUpdating && !options.shallow) {
         await this._bfl(

@@ -34,7 +34,6 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
-  UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -83,10 +82,12 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
+    case 'ci':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
+    case 'di':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')

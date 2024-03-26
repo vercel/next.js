@@ -4,6 +4,10 @@ import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
 import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
 
+declare global {
+  var __next_log_error__: undefined | ((err: unknown) => void)
+}
+
 export type ErrorHandler = (
   err: unknown,
   errorInfo: unknown
@@ -98,12 +102,10 @@ export function createErrorHandler({
           errorLogger(err).catch(() => {})
         } else {
           // The error logger is currently not provided in the edge runtime.
-          // Use `log-app-dir-error` instead.
-          // It won't log the source code, but the error will be more useful.
-          if (process.env.NODE_ENV !== 'production') {
-            const { logAppDirError } =
-              require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
-            logAppDirError(err)
+          // Use the exposed `__next_log_error__` instead.
+          // This will trace error traces to the original source code.
+          if (typeof __next_log_error__ === 'function') {
+            __next_log_error__(err)
           } else {
             console.error(err)
           }

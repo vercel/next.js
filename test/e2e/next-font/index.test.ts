@@ -12,7 +12,7 @@ const mockedGoogleFontResponses = require.resolve(
 function getClassNameRegex(className: string): RegExp {
   // Turbopack uses a different format for its css modules than webpack-based Next.js
   return shouldRunTurboDevTest()
-    ? new RegExp(`^${className}__.*__.{8}$`) // e.g. `className__inter_c6e282f1__a8cc5613`
+    ? new RegExp(`^.*__.{6}__${className}$`) // e.g. `ks7jmG__nabla_abb2401d-module__className`
     : new RegExp(`^__${className}_.{6}$`) // e.g. `__className_a8cc56`
 }
 
@@ -608,12 +608,12 @@ describe('next/font', () => {
             const ascentOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).ascentOverride'
             )
-            expect(ascentOverride).toBe('108.04%')
+            expect(ascentOverride).toBe('103.05%')
 
             const descentOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
             )
-            expect(descentOverride).toBe('54.35%')
+            expect(descentOverride).toBe('51.84%')
 
             const lineGapOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).lineGapOverride'
@@ -623,7 +623,7 @@ describe('next/font', () => {
             const sizeAdjust = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).sizeAdjust'
             )
-            expect(sizeAdjust).toBe('89.85%')
+            expect(sizeAdjust).toBe('94.19%')
           })
 
           test('Fraunces', async () => {
@@ -632,12 +632,12 @@ describe('next/font', () => {
             const ascentOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).ascentOverride'
             )
-            expect(ascentOverride).toBe('82.85%')
+            expect(ascentOverride).toBe('84.71%')
 
             const descentOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
             )
-            expect(descentOverride).toBe('21.6%')
+            expect(descentOverride).toBe('22.09%')
 
             const lineGapOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).lineGapOverride'
@@ -647,7 +647,7 @@ describe('next/font', () => {
             const sizeAdjust = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).sizeAdjust'
             )
-            expect(sizeAdjust).toBe('118.05%')
+            expect(sizeAdjust).toBe('115.45%')
           })
         })
       })

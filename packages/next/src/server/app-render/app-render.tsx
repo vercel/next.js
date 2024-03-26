@@ -79,7 +79,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { setReferenceManifestsSingleton } from './action-encryption-utils'
+import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   createStaticRenderer,
   getDynamicDataPostponedState,
@@ -100,6 +100,7 @@ import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
   createPostponedAbortSignal,
+  formatDynamicAPIAccesses,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -536,6 +537,7 @@ async function ReactServerError({
       <head></head>
       <body></body>
     </html>,
+    null,
   ]
   return (
     <AppRouter
@@ -820,16 +822,6 @@ async function renderToHTMLOrFlightImpl(
   }
 
   const validateRootLayout = dev
-    ? {
-        assetPrefix: renderOpts.assetPrefix,
-        getTree: () =>
-          createFlightRouterStateFromLoaderTree(
-            loaderTree,
-            getDynamicParamFromSegment,
-            query
-          ),
-      }
-    : undefined
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -1364,6 +1356,21 @@ async function renderToHTMLOrFlightImpl(
   const buildFailingError =
     digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
 
+  // If we're debugging partial prerendering, print all the dynamic API accesses
+  // that occurred during the render.
+  if (
+    staticGenerationStore.prerenderState &&
+    usedDynamicAPIs(staticGenerationStore.prerenderState) &&
+    staticGenerationStore.prerenderState?.isDebugSkeleton
+  ) {
+    warn('The following dynamic usage was detected:')
+    for (const access of formatDynamicAPIAccesses(
+      staticGenerationStore.prerenderState
+    )) {
+      warn(access)
+    }
+  }
+
   if (!flightDataResolver) {
     throw new Error(
       'Invariant: Flight data resolver is missing when generating static HTML'
@@ -1431,7 +1438,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
         {
           urlPathname: pathname,
           renderOpts,
-          postpone: React.unstable_postpone,
         },
         (staticGenerationStore) =>
           renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {

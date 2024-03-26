@@ -28,7 +28,7 @@ static BOLD_WEIGHT: f64 = 700.0;
 pub(super) async fn get_font_fallbacks(
     context: Vc<FileSystemPath>,
     options_vc: Vc<NextFontLocalOptions>,
-    request_hash: Vc<u32>,
+    request_hash: u32,
 ) -> Result<Vc<FontFallbacks>> {
     let options = &*options_vc.await?;
     let mut font_fallbacks = vec![];

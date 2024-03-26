@@ -8,7 +8,6 @@ use turbopack_binding::{
         tasks_fs::FileSystemPath,
     },
     turbopack::{
-        build::{BuildChunkingContext, MinifyType},
         core::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
@@ -22,6 +21,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        nodejs::NodeJsChunkingContext,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -49,9 +49,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
+            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -67,7 +67,7 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{foreign_code_context_condition, load_next_js_templateon},
+    util::{foreign_code_context_condition, load_next_js_templateon, NextRuntime},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -97,6 +97,21 @@ pub enum ServerContextType {
     Instrumentation,
 }
 
+impl ServerContextType {
+    pub fn conditions(&self) -> &'static [&'static str] {
+        match self {
+            ServerContextType::Pages { .. } => &["next-server", "next-pages", "next-ssr"],
+            ServerContextType::PagesApi { .. } => &["next-server", "next-pages", "next-api"],
+            ServerContextType::PagesData { .. } => &["next-server", "next-pages", "next-data"],
+            ServerContextType::AppSSR { .. } => &["next-server", "next-app", "next-ssr"],
+            ServerContextType::AppRSC { .. } => &["next-server", "next-app", "next-rsc"],
+            ServerContextType::AppRoute { .. } => &["next-server", "next-app", "next-route"],
+            ServerContextType::Middleware => &["next-server", "next-middleware"],
+            ServerContextType::Instrumentation => &["next-server", "next-instrumentation"],
+        }
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
@@ -113,6 +128,8 @@ pub async fn get_server_resolve_options_context(
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
+    let invalid_styled_jsx_client_only_resolve_plugin =
+        get_invalid_styled_jsx_resolve_plugin(project_path);
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
@@ -140,16 +157,19 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.await?.node_env().to_string(), "node".to_string()];
+    let mut custom_conditions = vec![mode.await?.condition().to_string(), "node".to_string()];
+    custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
 
     match ty {
-        ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
-        ServerContextType::AppRoute { .. }
-        | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
         | ServerContextType::PagesApi { .. }
+        | ServerContextType::Middleware { .. } => {
+            custom_conditions.push("react-server".to_string())
+        }
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
@@ -169,10 +189,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(external_cjs_modules_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -180,10 +200,10 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
@@ -197,8 +217,8 @@ pub async fn get_server_resolve_options_context(
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(next_external_plugin),
             ]
         }
     };
@@ -220,6 +240,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Instrumentation => {
             plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -304,9 +325,14 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
+    next_runtime: NextRuntime,
 ) -> Result<Vc<ModuleOptionsContext>> {
-    let mut base_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
+    let mut next_server_rules =
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false, next_runtime)
+            .await?;
+    let mut foreign_next_server_rules =
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
+            .await?;
     let internal_custom_rules =
         get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
             .await?;
@@ -332,11 +358,11 @@ pub async fn get_server_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let foreign_webpack_rules = maybe_add_sass_loader(
-        next_config.sass_config(),
-        *next_config.webpack_rules().await?,
-    )
-    .await?;
+    let mut conditions = vec!["server".to_string(), mode.await?.condition().to_string()];
+    conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let foreign_webpack_rules = *next_config.webpack_rules(conditions).await?;
+    let foreign_webpack_rules =
+        maybe_add_sass_loader(next_config.sass_config(), foreign_webpack_rules).await?;
     let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -360,7 +386,7 @@ pub async fn get_server_module_options_context(
         .cell()
     });
 
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
@@ -405,7 +431,17 @@ pub async fn get_server_module_options_context(
         get_styled_components_transform_rule(next_config).await?;
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
-    let module_options_context = match ty.into_value() {
+    let module_options_context = ModuleOptionsContext {
+        execution_context: Some(execution_context),
+        use_swc_css,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        import_externals: *next_config.import_externals().await?,
+        ignore_dynamic_requests: true,
+        ..Default::default()
+    };
+
+    let ty = ty.into_value();
+    let module_options_context = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -415,21 +451,22 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
-
-            if let ServerContextType::Pages { .. } = ty.into_value() {
+            if let ServerContextType::Pages { .. } = ty {
                 custom_source_transform_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
                         .await?,
                 );
             }
 
-            base_next_server_rules.extend(custom_source_transform_rules);
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            next_server_rules.extend(source_transform_rules);
+
+            foreign_next_server_rules.extend(custom_source_transform_rules);
+            foreign_next_server_rules.extend(internal_custom_rules);
 
             let url_rewrite_behavior = Some(
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
-                if let ServerContextType::PagesApi { .. } = ty.into_value() {
+                if let ServerContextType::PagesApi { .. } = ty {
                     UrlRewriteBehavior::Full
                 } else {
                     UrlRewriteBehavior::Relative
@@ -437,17 +474,12 @@ pub async fn get_server_module_options_context(
             );
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                ..module_options_context
             };
 
-            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: foreign_custom_transform_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -457,7 +489,7 @@ pub async fn get_server_module_options_context(
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
-                custom_rules: foreign_custom_transform_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
 
@@ -478,7 +510,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -489,27 +521,19 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+            foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
 
-            base_next_server_rules.extend(custom_source_transform_rules.clone());
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules.clone());
+            next_server_rules.extend(source_transform_rules);
 
-            let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
-            };
-
-            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: foreign_custom_transform_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -517,7 +541,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: foreign_custom_transform_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
 
@@ -538,7 +562,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -548,7 +572,7 @@ pub async fn get_server_module_options_context(
             ..
         } => {
             let mut custom_source_transform_rules: Vec<ModuleRule> =
-                vec![styled_components_transform_rule]
+                vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
@@ -565,27 +589,19 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
-            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+            foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
 
-            base_next_server_rules.extend(custom_source_transform_rules.clone());
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules.clone());
+            next_server_rules.extend(source_transform_rules);
 
-            let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                use_lightningcss,
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
-            };
-
-            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: foreign_custom_transform_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -593,7 +609,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: foreign_custom_transform_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
@@ -613,18 +629,16 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
         ServerContextType::AppRoute { .. } => {
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+                ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
@@ -639,6 +653,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
+                enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
@@ -654,7 +669,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -665,14 +680,12 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            base_next_server_rules.extend(custom_source_transform_rules);
-            base_next_server_rules.extend(source_transform_rules);
+            next_server_rules.extend(custom_source_transform_rules);
+            next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                execution_context: Some(execution_context),
-                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                import_externals: *next_config.import_externals().await?,
-                ..Default::default()
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+                ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
@@ -703,7 +716,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules: base_next_server_rules,
+                custom_rules: next_server_rules,
                 ..module_options_context
             }
         }
@@ -711,6 +724,17 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
+}
+
+#[turbo_tasks::function]
+pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
+    ModuleOptionsContext {
+        enable_typescript_transform: Some(Default::default()),
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+        ..Default::default()
+    }
+    .cell()
 }
 
 #[turbo_tasks::function]
@@ -723,27 +747,52 @@ pub fn get_server_runtime_entries(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_chunking_context(
+pub async fn get_server_chunking_context_with_client_assets(
+    mode: Vc<NextMode>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
-    // anyway?
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Vc<BuildChunkingContext> {
+) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
-    BuildChunkingContext::builder(
+    Ok(NodeJsChunkingContext::builder(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks".to_string()),
+        node_root.join("server/chunks/ssr".to_string()),
         client_root.join("static/media".to_string()),
         environment,
+        next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
-    .minify_type(MinifyType::NoMinify)
-    .build()
+    .minify_type(next_mode.minify_type())
+    .build())
+}
+
+#[turbo_tasks::function]
+pub async fn get_server_chunking_context(
+    mode: Vc<NextMode>,
+    project_path: Vc<FileSystemPath>,
+    node_root: Vc<FileSystemPath>,
+    environment: Vc<Environment>,
+) -> Result<Vc<NodeJsChunkingContext>> {
+    let next_mode = mode.await?;
+    // TODO(alexkirsz) This should return a trait that can be implemented by the
+    // different server chunking contexts. OR the build chunking context should
+    // support both production and development modes.
+    Ok(NodeJsChunkingContext::builder(
+        project_path,
+        node_root,
+        node_root,
+        node_root.join("server/chunks".to_string()),
+        node_root.join("server/assets".to_string()),
+        environment,
+        next_mode.runtime_type(),
+    )
+    .minify_type(next_mode.minify_type())
+    .build())
 }

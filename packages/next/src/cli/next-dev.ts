@@ -8,11 +8,9 @@ import {
   getDebugPort,
   getMaxOldSpaceSize,
   getNodeOptionsWithoutInspect,
-  getPort,
   printAndExit,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
@@ -35,6 +33,19 @@ import {
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
 import { once } from 'node:events'
+
+type NextDevOptions = {
+  turbo?: boolean
+  port: number
+  hostname?: string
+  experimentalHttps?: boolean
+  experimentalHttpsKey?: string
+  experimentalHttpsCert?: string
+  experimentalHttpsCa?: string
+  experimentalUploadTrace?: string
+}
+
+type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
@@ -117,32 +128,12 @@ process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
 
-const nextDev: CliCommand = async (args) => {
-  if (args['--help']) {
-    console.log(`
-      Description
-        Starts the application in development mode (hot-code reloading, error
-        reporting, etc.)
-
-      Usage
-        $ next dev <dir> -p <port number>
-
-      <dir> represents the directory of the Next.js application.
-      If no directory is provided, the current directory will be used.
-
-      Options
-        --port, -p                              A port number to start the application on
-        --hostname, -H                          Hostname start the application on (default: 0.0.0.0)
-        --experimental-https                    Start the server with HTTPS and generate a self-signed certificate
-        --experimental-https-key <path>         Path to a HTTPS key file
-        --experimental-https-cert <path>        Path to a HTTPS certificate file
-        --experimental-https-ca <path>          Path to a HTTPS certificate authority file
-        --experimental-upload-trace=<trace-url> Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
-        --help, -h                              Displays this message
-    `)
-    process.exit(0)
-  }
-  dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
+const nextDev = async (
+  options: NextDevOptions,
+  portSource: PortSource,
+  directory?: string
+) => {
+  dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
@@ -187,29 +178,26 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  const port = getPort(args)
+  const port = options.port
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
   }
 
   // If neither --port nor PORT were specified, it's okay to retry new ports.
-  const allowRetry =
-    args['--port'] === undefined && process.env.PORT === undefined
+  const allowRetry = portSource === 'default'
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
-  const host = args['--hostname']
+  const host = options.hostname
 
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
-  const isExperimentalTestProxy = args['--experimental-test-proxy']
-
   if (
-    args['--experimental-upload-trace'] &&
+    options.experimentalUploadTrace &&
     !process.env.NEXT_TRACE_UPLOAD_DISABLED
   ) {
-    traceUploadUrl = args['--experimental-upload-trace']
+    traceUploadUrl = options.experimentalUploadTrace
   }
 
   // TODO: remove in the next major version
@@ -225,10 +213,9 @@ const nextDev: CliCommand = async (args) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    isExperimentalTestProxy,
   }
 
-  if (args['--turbo']) {
+  if (options.turbo) {
     process.env.TURBOPACK = '1'
   }
 
@@ -239,7 +226,8 @@ const nextDev: CliCommand = async (args) => {
   setGlobal('distDir', distDir)
 
   const startServerPath = require.resolve('../server/lib/start-server')
-  async function startServer(options: StartServerOptions) {
+
+  async function startServer(startServerOptions: StartServerOptions) {
     return new Promise<void>((resolve) => {
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
@@ -269,8 +257,8 @@ const nextDev: CliCommand = async (args) => {
           ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
-          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
-            ? options.selfSignedCertificate.rootCA
+          NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
+            ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
           NODE_OPTIONS,
         },
@@ -279,7 +267,7 @@ const nextDev: CliCommand = async (args) => {
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (msg.nextWorkerReady) {
-            child?.send({ nextWorkerOptions: options })
+            child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
             resolved = true
             resolve()
@@ -304,7 +292,7 @@ const nextDev: CliCommand = async (args) => {
               sync: true,
             })
           }
-          return startServer(options)
+          return startServer(startServerOptions)
         }
         await handleSessionStop(signal)
       })
@@ -313,16 +301,16 @@ const nextDev: CliCommand = async (args) => {
 
   const runDevServer = async (reboot: boolean) => {
     try {
-      if (!!args['--experimental-https']) {
+      if (!!options.experimentalHttps) {
         Log.warn(
           'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
         let certificate: SelfSignedCertificate | undefined
 
-        const key = args['--experimental-https-key']
-        const cert = args['--experimental-https-cert']
-        const rootCA = args['--experimental-https-ca']
+        const key = options.experimentalHttpsKey
+        const cert = options.experimentalHttpsCert
+        const rootCA = options.experimentalHttpsCa
 
         if (key && cert) {
           certificate = {

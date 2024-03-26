@@ -101,10 +101,12 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
 `;
 
 exports[`ReactRefreshLogBox app turbo Can't resolve @import in CSS file 1`] = `
-"./app/styles2.css:1:9
+"./app/styles2.css:1:2
 Module not found: Can't resolve './boom.css'
 > 1 | @import "./boom.css"
-    |         ^^^^^^^^^^^^
+    |  ^
+
+Import map: No import map entry
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
@@ -114,6 +116,8 @@ exports[`ReactRefreshLogBox app turbo Import trace when module not found in layo
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import "non-existing-module"
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Import map: No import map entry
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
@@ -149,12 +153,9 @@ exports[`ReactRefreshLogBox app turbo conversion to class component (1) 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app turbo css syntax errors 1`] = `
-"./index.module.css:1:1
+"./index.module.css
 Parsing css source code failed
-> 1 | button {}
-    | ^^^^^^
-
-Selector is not pure (pure selectors must contain at least one local class or id)"
+Selector is not pure (pure selectors must contain at least one local class or id), (lightningcss, Selector(button, specificity = 0x1))"
 `;
 
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;

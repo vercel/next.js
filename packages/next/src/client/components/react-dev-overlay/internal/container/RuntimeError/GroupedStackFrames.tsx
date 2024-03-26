@@ -1,31 +1,7 @@
 import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
-import { FrameworkIcon } from './FrameworkIcon'
-
-export function CollapseIcon(
-  { collapsed }: { collapsed?: boolean } = { collapsed: false }
-) {
-  // If is not collapsed, rotate 90 degrees
-  return (
-    <svg
-      data-nextjs-call-stack-chevron-icon
-      data-collapsed={collapsed}
-      fill="none"
-      height="20"
-      width="20"
-      shapeRendering="geometricPrecision"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      // rotate 90 degrees if not collapsed
-      style={{ transform: collapsed ? undefined : 'rotate(90deg)' }}
-    >
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  )
-}
+import { CollapseIcon } from '../../icons/CollapseIcon'
+import { FrameworkIcon } from '../../icons/FrameworkIcon'
 
 function FrameworkGroup({
   framework,

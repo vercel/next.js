@@ -1877,7 +1877,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
   },
   "Bokor": {
     "weights": ["400"],
@@ -2949,7 +2949,7 @@
   "David Libre": {
     "weights": ["400", "500", "700"],
     "styles": ["normal"],
-    "subsets": ["hebrew", "latin", "latin-ext", "vietnamese"]
+    "subsets": ["hebrew", "latin", "latin-ext", "math", "symbols", "vietnamese"]
   },
   "Dawning of a New Day": {
     "weights": ["400"],
@@ -6511,6 +6511,11 @@
     ],
     "subsets": ["arabic", "latin", "latin-ext"]
   },
+  "Madimi One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
+  },
   "Magra": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -7394,7 +7399,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["arabic"]
+    "subsets": ["arabic", "latin", "latin-ext", "math", "symbols"]
   },
   "Noto Music": {
     "weights": ["400"],
@@ -7668,7 +7673,7 @@
   "Noto Sans Brahmi": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["brahmi", "latin", "latin-ext"]
+    "subsets": ["brahmi", "latin", "latin-ext", "math", "symbols"]
   },
   "Noto Sans Buginese": {
     "weights": ["400"],
@@ -7943,7 +7948,15 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["georgian", "latin", "latin-ext"]
+    "subsets": [
+      "cyrillic-ext",
+      "georgian",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
   },
   "Noto Sans Glagolitic": {
     "weights": ["400"],
@@ -10134,6 +10147,19 @@
       "vietnamese"
     ]
   },
+  "Ojuju": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "math", "symbols", "vietnamese"]
+  },
   "Old Standard TT": {
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
@@ -10840,7 +10866,7 @@
   "Poppins": {
     "weights": ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
     "styles": ["normal", "italic"],
-    "subsets": ["devanagari", "latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext"]
   },
   "Port Lligat Sans": {
     "weights": ["400"],
@@ -11312,6 +11338,29 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Reddit Mono": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Redressed": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11472,6 +11521,12 @@
         "min": -200,
         "max": 150,
         "defaultValue": 0
+      },
+      {
+        "tag": "XOPQ",
+        "min": 27,
+        "max": 175,
+        "defaultValue": 96
       },
       {
         "tag": "XTRA",
@@ -13071,6 +13126,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Tac One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols", "vietnamese"]
+  },
   "Tai Heritage Pro": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -14000,6 +14060,26 @@
     "weights": ["100", "300", "400", "500", "700", "900"],
     "styles": ["normal"],
     "subsets": ["devanagari", "latin", "latin-ext"]
+  },
+  "Yarndings 12": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "math", "symbols"]
+  },
+  "Yarndings 12 Charted": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "math", "symbols"]
+  },
+  "Yarndings 20": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "math", "symbols"]
+  },
+  "Yarndings 20 Charted": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "math", "symbols"]
   },
   "Yatra One": {
     "weights": ["400"],

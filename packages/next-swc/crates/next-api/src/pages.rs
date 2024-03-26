@@ -36,7 +36,6 @@ use turbopack_binding::{
         File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
     },
     turbopack::{
-        build::{BuildChunkingContext, EntryChunkGroupResult},
         core::{
             asset::AssetContent,
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
@@ -57,6 +56,7 @@ use turbopack_binding::{
             resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
+        nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -265,7 +265,9 @@ impl PagesProject {
         Vc::cell(
             [(
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             )]
             .into_iter()
             .collect(),
@@ -360,7 +362,7 @@ impl PagesProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.ssr_module_options_context(),
+            self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("edge-ssr".to_string()),
         )
@@ -371,7 +373,7 @@ impl PagesProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.api_module_options_context(),
+            self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("edge-api".to_string()),
         )
@@ -382,7 +384,7 @@ impl PagesProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.ssr_data_module_options_context(),
+            self.edge_ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("edge-ssr-data".to_string()),
         )
@@ -398,6 +400,21 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::Pages {
+                pages_dir: self.pages_dir(),
+            }),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
@@ -411,6 +428,21 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::PagesApi {
+                pages_dir: self.pages_dir(),
+            }),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
@@ -424,6 +456,23 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_ssr_data_module_options_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::PagesData {
+                pages_dir: self.pages_dir(),
+            }),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
@@ -658,7 +707,7 @@ impl PageEndpoint {
         project_root: Vc<FileSystemPath>,
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
-        chunking_context: Vc<BuildChunkingContext>,
+        chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
@@ -792,8 +841,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
-            this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -812,8 +861,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
-            this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -832,8 +881,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.api_module_context(),
             this.pages_project.edge_api_module_context(),
-            this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().server_chunking_context(false),
+            this.pages_project.project().edge_chunking_context(false),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -1020,6 +1069,7 @@ impl PageEndpoint {
             this.pages_project.pages_dir(),
             &original_name,
             &get_asset_prefix_from_pathname(&pathname),
+            &pathname,
             client_assets,
             false,
         )

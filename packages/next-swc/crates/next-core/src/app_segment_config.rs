@@ -221,10 +221,11 @@ pub async fn parse_segment_config_from_source(
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
-    if !(path.path.ends_with(".js")
-        || path.path.ends_with(".jsx")
-        || path.path.ends_with(".ts")
-        || path.path.ends_with(".tsx"))
+    if path.path.ends_with(".d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
     {
         return Ok(Default::default());
     }
