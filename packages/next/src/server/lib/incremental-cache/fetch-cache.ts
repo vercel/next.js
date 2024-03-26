@@ -170,10 +170,7 @@ export default class FetchCache implements CacheHandler {
 
     const isCacheable = !data && this.cacheEndpoint
     const hasFetchKindAndIncludesAllTags = tags?.every((tag) => {
-      if (data?.value?.kind !== 'FETCH') {
-        return false
-      }
-      return data.value.tags?.includes(tag)
+      return data?.value?.kind === 'FETCH' && data.value.tags?.includes(tag)
     })
 
     // Get data from fetch cache. Also check if new tags have been
