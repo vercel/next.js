@@ -1,3 +1,4 @@
+import type webpack from 'webpack'
 import { createHash } from 'crypto'
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
@@ -57,4 +58,38 @@ export function encodeToBase64<T extends {}>(obj: T): string {
 
 export function decodeFromBase64<T extends {}>(str: string): T {
   return JSON.parse(Buffer.from(str, 'base64').toString('utf8'))
+}
+
+export async function getLoaderModuleNamedExports(
+  resourcePath: string,
+  context: webpack.LoaderContext<any>
+): Promise<string[]> {
+  const mod = await new Promise<webpack.NormalModule>((res, rej) => {
+    context.loadModule(
+      resourcePath,
+      (err: null | Error, _source: any, _sourceMap: any, module: any) => {
+        if (err) {
+          return rej(err)
+        }
+        res(module)
+      }
+    )
+  })
+
+  const exportNames =
+    mod.dependencies
+      ?.filter((dep) => {
+        return (
+          [
+            'HarmonyExportImportedSpecifierDependency',
+            'HarmonyExportSpecifierDependency',
+          ].includes(dep.constructor.name) &&
+          'name' in dep &&
+          dep.name !== 'default'
+        )
+      })
+      .map((dep: any) => {
+        return dep.name
+      }) || []
+  return exportNames
 }

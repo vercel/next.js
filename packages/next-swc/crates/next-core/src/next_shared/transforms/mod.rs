@@ -5,6 +5,7 @@ pub(crate) mod next_cjs_optimizer;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;
+pub(crate) mod next_middleware_dynamic_assert;
 pub(crate) mod next_optimize_server_react;
 pub(crate) mod next_page_config;
 pub(crate) mod next_pure;
