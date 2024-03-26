@@ -98,7 +98,7 @@ jobs:
 
   # TODO: Implement specifically running production tests only for Turbopack. Enabling this now enables running `test/integration` with development mode too.
   test-integration-production:
-    name: Next.js production integration test (Integration)
+    name: Next.js integration test (Integration)
     needs: [setup_nextjs]
     runs-on:
       - 'self-hosted'
