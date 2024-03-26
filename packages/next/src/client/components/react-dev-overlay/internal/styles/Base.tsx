@@ -63,7 +63,7 @@ export function Base() {
 
             --color-stack-h6: rgb(200, 200, 204);
             --color-stack-headline: rgb(99, 99, 102);
-            --color-stack-subline: rgba(142, 142, 147);
+            --color-stack-subline: rgb(121, 121, 121);
 
             --color-accents-3: rgb(118, 118, 118);
           }
