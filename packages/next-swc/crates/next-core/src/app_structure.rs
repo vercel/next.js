@@ -1109,26 +1109,24 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             let mut loader_trees = Vec::new();
 
             for (_, entrypoint) in map.iter() {
-                match *entrypoint {
-                    Entrypoint::AppPage {
-                        ref pages,
-                        loader_tree: _,
-                    } => {
-                        for page in pages {
-                            let app_path = AppPath::from(page.clone());
+                if let Entrypoint::AppPage {
+                    ref pages,
+                    loader_tree: _,
+                } = *entrypoint
+                {
+                    for page in pages {
+                        let app_path = AppPath::from(page.clone());
 
-                            let loader_tree = directory_tree_to_loader_tree(
-                                app_dir,
-                                global_metadata,
-                                directory_name.clone(),
-                                directory_tree_vc,
-                                app_page.clone(),
-                                app_path,
-                            );
-                            loader_trees.push(loader_tree);
-                        }
+                        let loader_tree = directory_tree_to_loader_tree(
+                            app_dir,
+                            global_metadata,
+                            directory_name.clone(),
+                            directory_tree_vc,
+                            app_page.clone(),
+                            app_path,
+                        );
+                        loader_trees.push(loader_tree);
                     }
-                    _ => {}
                 }
             }
             Ok((map, loader_trees))
