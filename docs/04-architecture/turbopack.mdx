@@ -27,3 +27,26 @@ Turbopack in Next.js requires zero-configuration for most users and can be exten
 ## Unsupported features
 
 Turbopack currently only supports `next dev` and does not support `next build`. We are currently working on support for builds as we move closer towards stability.
+
+These features are currently not supported:
+
+- `.babelrc`
+  - Turbopack leverages the [SWC](/docs/architecture/nextjs-compiler#why-swc) compiler for all transpilation and optimizations. This means that Babel is not included by default.
+  - If you have a `.babelrc` you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in [the compiler documentation](docs/architecture/nextjs-compiler#supported-features).
+  - If you still need to use Babel after verifying your particular use case is not covered you can leverage Turbopack's [support for custom webpack loaders](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) to include `babel-loader`.
+- Creating a root layout automatically in App Router.
+  - Since this behavior changes input files this is currently not supported, instead an error will be shown to add the root layout manually at the desired location.
+- `@next/font` (legacy font support).
+  - `@next/font` is deprecated in favor of `next/font`. `next/font` is fully supported with Turbopack.
+- `new Worker('file', import.meta.url)`.
+  - We are planning to implement this in the future.
+- [Relay transforms](/docs/architecture/nextjs-compiler#relay)
+  - We are planning to implement this in the future.
+- `experimental.nextScriptWorkers`
+  - We are planning to implement this in the future.
+- [AMP](/docs/pages/building-your-application/configuring/amp).
+  - We are currently not planning to support AMP in Next.js with Turbopack.
+- Yarn PnP
+  - We are currently not planning to support Yarn PnP in Next.js with Turbopack.
+- `experimental.urlImports`
+  - We are currently not planning to support `experimental.urlImports` in Next.js with Turbopack.
