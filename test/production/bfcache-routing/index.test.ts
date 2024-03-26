@@ -22,7 +22,9 @@ describe('bfcache-routing', () => {
   })
 
   afterAll(() => {
-    stopApp(app)
+    if (app) {
+      stopApp(app)
+    }
   })
 
   it('should not suspend indefinitely when page is restored from bfcache after an mpa navigation', async () => {

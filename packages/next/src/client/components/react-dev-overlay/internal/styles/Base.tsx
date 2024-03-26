@@ -31,6 +31,7 @@ export function Base() {
 
           --font-stack-monospace: 'SFMono-Regular', Consolas, 'Liberation Mono',
             Menlo, Courier, monospace;
+          --font-stack-sans: -apple-system, BlinkMacSystemFont, sans-serif;
 
           --color-ansi-selection: rgba(95, 126, 151, 0.48);
           --color-ansi-bg: #111111;
@@ -62,7 +63,7 @@ export function Base() {
 
             --color-stack-h6: rgb(200, 200, 204);
             --color-stack-headline: rgb(99, 99, 102);
-            --color-stack-subline: rgba(142, 142, 147);
+            --color-stack-subline: rgb(121, 121, 121);
 
             --color-accents-3: rgb(118, 118, 118);
           }
