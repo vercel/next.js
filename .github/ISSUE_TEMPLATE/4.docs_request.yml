@@ -2,7 +2,7 @@ name: 'Docs Request for an Update or Improvement'
 description: A request to update or improve Next.js documentation
 title: 'Docs: '
 labels:
-  - 'template: documentation'
+  - 'documentation'
 body:
   - type: markdown
     attributes:
