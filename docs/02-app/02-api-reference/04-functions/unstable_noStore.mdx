@@ -3,7 +3,7 @@ title: unstable_noStore
 description: API Reference for the unstable_noStore function.
 ---
 
-`unstable_noStore` can be used to declaratively opt out of static rendering and indicate a particular component should not be cached.
+`unstable_noStore` can be used to declaratively opt out of static rendering instead of using `no-store` on `fetch` or other methods.
 
 ```jsx
 import { unstable_noStore as noStore } from 'next/cache';
@@ -16,7 +16,7 @@ export default async function Component() {
 ```
 
 > **Good to know**:
->
+> - Even though `noStore` is defined at the component level, the entire route becomes dynamic (until [Partial Prerendering](/docs/app/api-reference/next-config-js/partial-prerendering) is stable)
 > - `unstable_noStore` is equivalent to `cache: 'no-store'` on a `fetch`
 > - `unstable_noStore` is preferred over `export const dynamic = 'force-dynamic'` as it is more granular and can be used on a per-component basis
 
