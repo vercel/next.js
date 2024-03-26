@@ -80,7 +80,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      // since the router behavior is different in dev mode (no viewport prefetching + liberal revalidation)
+      // since the router behavior is different in development mode (no viewport prefetching + liberal revalidation)
       // we only check the production behavior
       it('should skip dev', () => {})
     } else {

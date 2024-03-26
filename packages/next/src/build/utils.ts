@@ -481,7 +481,7 @@ export async function printTreeView(
       if (item === '/_app' || item === '/_app.server') {
         symbol = ' '
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ℇ'
+        symbol = 'ƒ'
       } else if (pageInfo?.isPPR) {
         if (
           // If the page has an empty prelude, then it's equivalent to a dynamic page
@@ -490,7 +490,7 @@ export async function printTreeView(
           // since in this case we're able to partially prerender it
           (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
         ) {
-          symbol = 'λ'
+          symbol = 'ƒ'
         } else if (!pageInfo?.hasPostponed) {
           symbol = '○'
         } else {
@@ -501,7 +501,7 @@ export async function printTreeView(
       } else if (pageInfo?.isSSG) {
         symbol = '●'
       } else {
-        symbol = 'λ'
+        symbol = 'ƒ'
       }
 
       usedSymbols.add(symbol)
@@ -749,16 +749,7 @@ export async function printTreeView(
           '(Partial Prerender)',
           'prerendered as static HTML with dynamic server-streamed content',
         ],
-        usedSymbols.has('λ') && [
-          'λ',
-          '(Dynamic)',
-          `server-rendered on demand using Node.js`,
-        ],
-        usedSymbols.has('ℇ') && [
-          'ℇ',
-          '(Edge Runtime)',
-          `server-rendered on demand using the Edge Runtime`,
-        ],
+        usedSymbols.has('ƒ') && ['ƒ', '(Dynamic)', `server-rendered on demand`],
       ].filter((x) => x) as [string, string, string][],
       {
         align: ['l', 'l', 'l'],

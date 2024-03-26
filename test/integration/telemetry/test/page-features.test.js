@@ -162,7 +162,7 @@ describe('page features telemetry', () => {
         await teardown()
       }
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should detect app page counts', async () => {
