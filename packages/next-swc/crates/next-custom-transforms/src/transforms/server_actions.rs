@@ -424,7 +424,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
-        let current_declared_idents = self.declared_idents.clone();
+        let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
 
         // Visit children
@@ -475,7 +475,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
-            retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+            retain_names_from_declared_idents(
+                &mut child_names,
+                &self.declared_idents[..declared_idents_until],
+            );
 
             let maybe_new_expr =
                 self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
