@@ -63,8 +63,8 @@ pub enum NextRevalidate {
     },
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Default)]
+#[turbo_tasks::value(into = "shared")]
+#[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
@@ -443,6 +443,7 @@ pub async fn parse_segment_config_from_loader_tree(
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
+
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()
