@@ -12,9 +12,7 @@ use turbopack_binding::turbopack::{
     ecmascript::{chunk::EcmascriptChunkingContext, utils::StringifyJs},
 };
 
-use super::{
-    utils::encode_url, ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId,
-};
+use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
@@ -74,7 +72,7 @@ impl ClientReferenceManifest {
                     .id()
                     .await?;
 
-                let client_chunks_urls = if let Some(client_chunks) = client_references_chunks
+                let client_chunks_paths = if let Some(client_chunks) = client_references_chunks
                     .client_component_client_chunks
                     .get(&app_client_reference_ty)
                 {
@@ -88,10 +86,10 @@ impl ClientReferenceManifest {
                     client_chunks_paths
                         .iter()
                         .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
+                        .map(ToString::to_string)
                         // It's possible that a chunk also emits CSS files, that will
                         // be handled separatedly.
                         .filter(|path| path.ends_with(".js"))
-                        .map(encode_url)
                         .collect::<Vec<_>>()
                 } else {
                     Vec::new()
@@ -101,7 +99,7 @@ impl ClientReferenceManifest {
                     ManifestNodeEntry {
                         name: "*".to_string(),
                         id: (&*client_module_id).into(),
-                        chunks: client_chunks_urls,
+                        chunks: client_chunks_paths,
                         // TODO(WEB-434)
                         r#async: false,
                     },
