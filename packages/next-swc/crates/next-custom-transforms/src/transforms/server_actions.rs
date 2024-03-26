@@ -1,6 +1,7 @@
 use std::{
     collections::BTreeMap,
     convert::{TryFrom, TryInto},
+    mem::take,
 };
 
 use hex::encode as hex_encode;
@@ -424,8 +425,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
         let current_declared_idents = self.declared_idents.clone();
-        let current_names = self.names.clone();
-        self.names = vec![];
+        let current_names = take(&mut self.names);
 
         // Visit children
         {
