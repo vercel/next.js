@@ -2143,6 +2143,7 @@
         "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
         "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
         "parallel-routes-and-interception parallel routes should render nested parallel routes",
+        "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
         "parallel-routes-and-interception parallel routes should support parallel route tab bars",
         "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
         "parallel-routes-and-interception route intercepting should not have /default paths in the prerender manifest",
@@ -2157,7 +2158,6 @@
         "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
       ],
       "failed": [
-        "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
         "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
         "parallel-routes-and-interception route intercepting should render an intercepted route from a slot"
       ],
