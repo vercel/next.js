@@ -798,17 +798,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn finish_current_task_state(&self) -> bool {
-        CURRENT_TASK_STATE.with(|cell| {
+        let (stateful, tasks) = CURRENT_TASK_STATE.with(|cell| {
             let CurrentTaskState {
                 tasks_to_notify,
                 stateful,
             } = &mut *cell.borrow_mut();
-            let tasks = take(tasks_to_notify);
-            if !tasks.is_empty() {
-                self.backend.invalidate_tasks(&tasks, self);
-            }
-            *stateful
-        })
+            (*stateful, take(tasks_to_notify))
+        });
+
+        if !tasks.is_empty() {
+            self.backend.invalidate_tasks(&tasks, self);
+        }
+        stateful
     }
 
     pub fn backend(&self) -> &B {
