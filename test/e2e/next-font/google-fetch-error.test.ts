@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -8,10 +8,9 @@ const mockedGoogleFontResponses = require.resolve(
 )
 
 describe('next/font/google fetch error', () => {
-  const isDev = (global as any).isNextDev
   let next: NextInstance
 
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
@@ -29,7 +28,7 @@ describe('next/font/google fetch error', () => {
   })
   afterAll(() => next.destroy())
 
-  if (isDev) {
+  if (isNextDev) {
     it('should use a fallback font in dev', async () => {
       await next.start()
       const outputIndex = next.cliOutput.length

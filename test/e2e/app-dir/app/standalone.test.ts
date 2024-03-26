@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextStart } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
@@ -9,7 +9,7 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-if (!(globalThis as any).isNextStart) {
+if (!isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   createNextDescribe(

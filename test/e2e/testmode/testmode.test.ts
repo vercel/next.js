@@ -8,7 +8,7 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
   },
-  ({ next, isNextDev }) => {
+  ({ next }) => {
     let proxyServer: Awaited<ReturnType<typeof createProxyServer>>
 
     beforeEach(async () => {

@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 jest.setTimeout(2 * 60 * 1000)
@@ -13,7 +13,7 @@ export function runTests(
 ) {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should not run for next deploy', () => {})
     return
   }
@@ -51,9 +51,7 @@ export function runTests(
           )}`
         },
         buildCommand: `yarn next build --no-lint`,
-        startCommand: (global as any).isNextDev
-          ? `yarn next`
-          : `yarn next start`,
+        startCommand: isNextDev ? `yarn next` : `yarn next start`,
       })
     })
     afterAll(() => next?.destroy())

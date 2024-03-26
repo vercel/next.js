@@ -5,7 +5,7 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 import { Request } from 'playwright'
 
@@ -151,7 +151,7 @@ describe('Middleware Rewrite', () => {
     it('should have props for afterFiles rewrite to SSG page', async () => {
       // TODO: investigate test failure during client navigation
       // on deployment
-      if ((global as any).isNextDeploy) {
+      if (isNextDeploy) {
         return
       }
       let browser = await webdriver(next.url, '/')
@@ -362,7 +362,7 @@ describe('Middleware Rewrite', () => {
       expect(await element.text()).toEqual('About Bypassed Page')
     })
 
-    if (!(global as any).isNextDev) {
+    if (!isNextDev) {
       it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 
@@ -791,7 +791,7 @@ describe('Middleware Rewrite', () => {
       }
     })
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       it(`${label}should rewrite when not using localhost`, async () => {
         const customUrl = new URL(next.url)
         customUrl.hostname = 'localtest.me'

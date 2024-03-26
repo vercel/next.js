@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 for (const { app, src, pathname, text } of [
@@ -51,7 +51,7 @@ for (const { app, src, pathname, text } of [
           start: 'next start',
         },
       },
-      startCommand: `pnpm ${(global as any).isNextDev ? 'dev' : 'start'}`,
+      startCommand: `pnpm ${isNextDev ? 'dev' : 'start'}`,
       buildCommand: `pnpm build`,
       dependencies: require('./package.json').dependencies,
     })

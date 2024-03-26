@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDev } from 'e2e-utils'
 
 describe('React Context', () => {
   let next: NextInstance
@@ -26,7 +26,7 @@ describe('React Context', () => {
     expect(html).toMatch(/Value: .*?12345/)
   })
 
-  if ((globalThis as any).isNextDev) {
+  if (isNextDev) {
     it('should render with context after change', async () => {
       const aboutAppPagePath = 'pages/_app.js'
       const originalContent = await next.readFile(aboutAppPagePath)

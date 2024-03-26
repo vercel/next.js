@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -8,7 +8,7 @@ describe('i18n-data-fetching-redirect', () => {
   let next: NextInstance
 
   // TODO: investigate tests failures on deploy
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip temporarily', () => {})
     return
   }

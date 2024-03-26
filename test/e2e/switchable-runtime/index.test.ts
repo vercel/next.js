@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
@@ -34,7 +34,7 @@ describe('Switchable runtime', () => {
   let next: NextInstance
   let context
 
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     // TODO-APP: re-enable after Prerenders are handled on deploy
     it('should skip for deploy temporarily', () => {})
     return
@@ -57,7 +57,7 @@ describe('Switchable runtime', () => {
   })
   afterAll(() => next.destroy())
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     describe('Switchable runtime (dev)', () => {
       it('should not include edge api routes and edge ssr routes into dev middleware manifest', async () => {
         const res = await fetchViaHTTP(

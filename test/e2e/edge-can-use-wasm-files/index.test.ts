@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
@@ -99,7 +99,7 @@ describe('middleware can use wasm files', () => {
     })
   })
 
-  if (!(global as any).isNextDeploy) {
+  if (!isNextDeploy) {
     it('lists the necessary wasm bindings in the manifest', async () => {
       const manifestPath = path.join(
         next.testDir,

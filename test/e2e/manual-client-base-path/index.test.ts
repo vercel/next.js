@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, isNextDeploy } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import httpProxy from 'http-proxy'
 import { join } from 'path'
@@ -8,7 +8,7 @@ import assert from 'assert'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should skip deploy', () => {})
     return
   }
