@@ -18,7 +18,6 @@ import {
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/constants'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -129,7 +128,6 @@ export async function exportAppPage(
       'utf8'
     )
 
-    const isNotFoundRoute = pathname === UNDERSCORE_NOT_FOUND_ROUTE
     const isNonSuccessfulStatusCode = res.statusCode > 300
     // When PPR is enabled, we don't always send 200 for routes that have been
     // pregenerated, so we should grab the status code from the mocked
@@ -137,10 +135,7 @@ export async function exportAppPage(
     let status: number | undefined = renderOpts.experimental.ppr
       ? res.statusCode
       : undefined
-    // For special not-found route, we should always send 404, even the generation of global not-found is successful.
-    if (isNotFoundRoute) {
-      status = 404
-    } else if (isNonSuccessfulStatusCode) {
+    if (isNonSuccessfulStatusCode) {
       status = res.statusCode
     }
 
