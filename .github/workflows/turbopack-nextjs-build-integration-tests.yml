@@ -145,8 +145,7 @@ jobs:
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
   collect_nextjs_production_integration_stat:
-    # needs: [test-production, test-integration-production]
-    needs: [test-production]
+    needs: [test-production, test-integration-production]
     name: Next.js integration test production status report
     runs-on:
       - 'self-hosted'
@@ -176,8 +175,7 @@ jobs:
             passed-test-path-list.json
 
   upload_test_report:
-    # needs: [test-production, test-integration-production]
-    needs: [test-production]
+    needs: [test-production, test-integration-production]
     name: Upload test report to datadog
     runs-on:
       - 'self-hosted'
