@@ -1,3 +1,5 @@
+class AbortSignal {}
+
 export default function Page() {
-  return <p>hello world</p>
+  return <p>{AbortSignal.name}</p>
 }
