@@ -428,6 +428,11 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+
+  /**
+   * Enables `fetch` requests to be proxied to the experimental text proxy server
+   */
+  testProxy?: boolean
 }
 
 export type ExportPathMap = {

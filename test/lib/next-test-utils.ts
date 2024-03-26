@@ -413,7 +413,7 @@ export function runNextCommandDev(
   })
 }
 
-// Launch the app in dev mode.
+// Launch the app in development mode.
 export function launchApp(
   dir: string,
   port: string | number,
@@ -790,6 +790,13 @@ export async function getRedboxHeader(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
+  return parseInt(
+    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
+    10
+  )
+}
+
 export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
@@ -1009,9 +1016,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**
