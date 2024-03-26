@@ -38,6 +38,7 @@ async function refreshInactiveParallelSegmentsImpl({
   fetchedSegments,
 }: RefreshInactiveParallelSegments & { fetchedSegments: Set<string> }) {
   const [, parallelRoutes, refetchPathname, refetchMarker] = updatedTree
+  const fetchPromises = []
 
   if (
     refetchPathname &&
@@ -49,39 +50,47 @@ async function refreshInactiveParallelSegmentsImpl({
   ) {
     fetchedSegments.add(refetchPathname) // Mark this URL as fetched
 
-    const fetchResponse = await fetchServerResponse(
+    // Eagerly kick off the fetch for the refetch path & the parallel routes. This should be fine to do as they each operate
+    // independently on their own cache nodes, and `applyFlightData` will copy anything it doesn't care about from the existing cache.
+    const fetchPromise = fetchServerResponse(
       // we capture the pathname of the refetch without search params, so that it can be refetched with
       // the "latest" search params when it comes time to actually trigger the fetch (below)
       new URL(refetchPathname + location.search, location.origin),
       [updatedTree[0], updatedTree[1], updatedTree[2], 'refetch'],
       includeNextUrl ? state.nextUrl : null,
       state.buildId
-    )
-
-    const flightData = fetchResponse[0]
-    if (typeof flightData !== 'string') {
-      for (const flightDataPath of flightData) {
-        // we only pass the new cache as this function is called after clearing the router cache
-        // and filling in the new page data from the server. Meaning the existing cache is actually the cache that's
-        // just been created & has been written to, but hasn't been "committed" yet.
-        applyFlightData(updatedCache, updatedCache, flightDataPath)
+    ).then((fetchResponse) => {
+      const flightData = fetchResponse[0]
+      if (typeof flightData !== 'string') {
+        for (const flightDataPath of flightData) {
+          // we only pass the new cache as this function is called after clearing the router cache
+          // and filling in the new page data from the server. Meaning the existing cache is actually the cache that's
+          // just been created & has been written to, but hasn't been "committed" yet.
+          applyFlightData(updatedCache, updatedCache, flightDataPath)
+        }
+      } else {
+        // When flightData is a string, it suggests that the server response should have triggered an MPA navigation
+        // I'm not 100% sure of this decision, but it seems unlikely that we'd want to introduce a redirect side effect
+        // when refreshing on-screen data, so handling this has been ommitted.
       }
-    } else {
-      // When flightData is a string, it suggests that the server response should have triggered an MPA navigation
-      // I'm not 100% sure of this decision, but it seems unlikely that we'd want to introduce a redirect side effect
-      // when refreshing on-screen data, so handling this has been ommitted.
-    }
+    })
+
+    fetchPromises.push(fetchPromise)
   }
 
   for (const key in parallelRoutes) {
-    await refreshInactiveParallelSegmentsImpl({
+    const parallelFetchPromise = refreshInactiveParallelSegmentsImpl({
       state,
       updatedTree: parallelRoutes[key],
       updatedCache,
       includeNextUrl,
       fetchedSegments,
     })
+
+    fetchPromises.push(parallelFetchPromise)
   }
+
+  await Promise.all(fetchPromises)
 }
 
 /**
