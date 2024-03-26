@@ -38,7 +38,7 @@ pub async fn create_page_loader_entry_module(
         StringifyJs(&*pathname.await?)
     )?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts".to_string());
+    let page_loader_path = next_js_file_path("entry/page-loader.ts".to_string().into());
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -136,10 +136,15 @@ impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
-        Ok(AssetIdent::from_path(root.join(format!(
-            "static/chunks/pages{}",
-            get_asset_path_from_pathname(&self.pathname.await?, ".js")
-        ))))
+        Ok(AssetIdent::from_path(
+            root.join(
+                format!(
+                    "static/chunks/pages{}",
+                    get_asset_path_from_pathname(&self.pathname.await?, ".js")
+                )
+                .into(),
+            ),
+        ))
     }
 
     #[turbo_tasks::function]

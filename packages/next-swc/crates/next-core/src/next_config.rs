@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
@@ -706,7 +706,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn webpack_rules(
         self: Vc<Self>,
-        active_conditions: Vec<String>,
+        active_conditions: Vec<Arc<String>>,
     ) -> Result<Vc<OptionWebpackRules>> {
         let this = self.await?;
         let Some(turbo_rules) = this
@@ -739,7 +739,7 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &HashSet<String>,
+                active_conditions: &HashSet<Arc<String>>,
             ) -> Option<&'a RuleConfigItemOptions> {
                 match rule {
                     RuleConfigItem::Options(rule) => {
@@ -775,7 +775,7 @@ impl NextConfig {
                             ext.to_string(),
                             LoaderRuleItem {
                                 loaders: transform_loaders(loaders),
-                                rename_as: rename_as.clone(),
+                                rename_as: rename_as.clone().map(Arc::new),
                             },
                         );
                     }

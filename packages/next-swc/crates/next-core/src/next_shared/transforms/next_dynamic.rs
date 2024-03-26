@@ -35,7 +35,7 @@ pub async fn get_next_dynamic_transform_rule(
         is_react_server_layer,
         pages_dir: match pages_dir {
             None => None,
-            Some(path) => Some(path.await?.path.clone().into()),
+            Some(path) => Some((*path.await?.path.clone()).clone().into()),
         },
         mode: *mode.await?,
     }) as _));

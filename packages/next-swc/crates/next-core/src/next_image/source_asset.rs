@@ -45,7 +45,7 @@ impl Source for StructuredImageFileSource {
         self.image
             .ident()
             .with_modifier(modifier())
-            .rename_as("*.mjs".to_string())
+            .rename_as("*.mjs".to_string().into())
     }
 }
 

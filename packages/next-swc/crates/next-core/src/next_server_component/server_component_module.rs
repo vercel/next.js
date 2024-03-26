@@ -103,7 +103,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         let exports = BTreeMap::from([(
-            "default".to_string(),
+            "default".to_string().into(),
             EsmExport::ImportedNamespace(Vc::upcast(NextServerComponentModuleReference::new(
                 Vc::upcast(self.module),
             ))),

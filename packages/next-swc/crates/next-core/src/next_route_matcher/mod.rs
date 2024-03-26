@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Result};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher, RouteMatcherRef};
@@ -29,13 +31,13 @@ impl NextExactMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextExactMatcher {
     #[turbo_tasks::function]
-    async fn matches(&self, path: String) -> Result<Vc<bool>> {
-        Ok(Vc::cell(path == *self.path.await?))
+    async fn matches(&self, path: Arc<String>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(*path == *self.path.await?))
     }
 
     #[turbo_tasks::function]
-    async fn params(&self, path: String) -> Result<Vc<Params>> {
-        Ok(Vc::cell(if path == *self.path.await? {
+    async fn params(&self, path: Arc<String>) -> Result<Vc<Params>> {
+        Ok(Vc::cell(if *path == *self.path.await? {
             Some(Default::default())
         } else {
             None
@@ -63,12 +65,12 @@ impl NextParamsMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: Arc<String>) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: Arc<String>) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }
@@ -86,7 +88,11 @@ impl NextPrefixSuffixParamsMatcher {
     /// Converts a filename within the server root into a regular expression
     /// with named capture groups for every dynamic segment.
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<String>, prefix: String, suffix: String) -> Result<Vc<Self>> {
+    pub async fn new(
+        path: Vc<String>,
+        prefix: Arc<String>,
+        suffix: Arc<String>,
+    ) -> Result<Vc<Self>> {
         Ok(Self::cell(NextPrefixSuffixParamsMatcher {
             matcher: PrefixSuffixMatcher::new(
                 prefix.to_string(),
@@ -100,12 +106,12 @@ impl NextPrefixSuffixParamsMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextPrefixSuffixParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: Arc<String>) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: Arc<String>) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }
@@ -128,12 +134,12 @@ impl NextFallbackMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextFallbackMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: Arc<String>) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: Arc<String>) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }

@@ -245,7 +245,7 @@ impl LoaderTreeBuilder {
                 let source = dynamic_image_metadata_source(
                     Vc::upcast(self.context),
                     *path,
-                    name.to_string(),
+                    name.to_string().into(),
                     app_page.clone(),
                 );
 

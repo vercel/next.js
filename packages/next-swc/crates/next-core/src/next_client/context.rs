@@ -1,4 +1,5 @@
 use core::result::Result::Ok;
+use std::sync::Arc;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -110,7 +111,7 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(
-    browserslist_query: String,
+    browserslist_query: Arc<String>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
@@ -118,7 +119,7 @@ pub fn get_client_compile_time_info(
             dom: true,
             web_worker: false,
             service_worker: false,
-            browserslist_query: browserslist_query.to_owned(),
+            browserslist_query: browserslist_query.to_string(),
         }
         .into(),
     ))))
@@ -160,8 +161,13 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path, project_path, *mode.await?);
-    let mut custom_conditions = vec![mode.await?.condition().to_string()];
-    custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
+    custom_conditions.extend(
+        ty.conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(Arc::new),
+    );
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions,
@@ -182,7 +188,11 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config
+            .resolve_extension()
+            .await?
+            .as_ref()
+            .map(|i| i.iter().cloned().map(Arc::new).collect()),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
@@ -228,8 +238,16 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let mut conditions = vec!["browser".to_string(), mode.await?.condition().to_string()];
-    conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let mut conditions = vec![
+        "browser".to_string().into(),
+        mode.await?.condition().to_string().into(),
+    ];
+    conditions.extend(
+        ty.conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(Arc::new),
+    );
     let foreign_webpack_rules = *next_config.webpack_rules(conditions).await?;
     let foreign_webpack_rules =
         maybe_add_sass_loader(next_config.sass_config(), foreign_webpack_rules).await?;
@@ -355,7 +373,7 @@ pub async fn get_client_chunking_context(
         project_path,
         client_root,
         client_root,
-        client_root.join("static/chunks".to_string()),
+        client_root.join("static/chunks".to_string().into()),
         get_client_assets_path(client_root),
         environment,
         next_mode.runtime_type(),
@@ -373,7 +391,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("static/media".to_string())
+    client_root.join("static/media".to_string().into())
 }
 
 #[turbo_tasks::function]
@@ -398,8 +416,9 @@ pub async fn get_client_runtime_entries(
         // because the bootstrap contains JSX which requires Refresh's global
         // functions to be available.
         if let Some(request) = enable_react_refresh {
-            runtime_entries
-                .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
+            runtime_entries.push(
+                RuntimeEntry::Request(request, project_root.join("_".to_string().into())).cell(),
+            )
         };
     }
 
@@ -409,7 +428,7 @@ pub async fn get_client_runtime_entries(
                 Request::parse(Value::new(Pattern::Constant(
                     "next/dist/client/app-next-turbopack.js".to_string(),
                 ))),
-                project_root.join("_".to_string()),
+                project_root.join("_".to_string().into()),
             )
             .cell(),
         );

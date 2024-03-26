@@ -146,15 +146,15 @@ pub struct NapiTurboEngineOptions {
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
+            root_path: val.root_path.into(),
+            project_path: val.project_path.into(),
             watch: val.watch,
-            next_config: val.next_config,
-            js_config: val.js_config,
+            next_config: val.next_config.into(),
+            js_config: val.js_config.into(),
             env: val
                 .env
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             define_env: val.define_env.into(),
             dev: val.dev,
@@ -165,14 +165,16 @@ impl From<NapiProjectOptions> for ProjectOptions {
 impl From<NapiPartialProjectOptions> for PartialProjectOptions {
     fn from(val: NapiPartialProjectOptions) -> Self {
         PartialProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
+            root_path: val.root_path.map(Arc::new),
+            project_path: val.project_path.map(Arc::new),
             watch: val.watch,
-            next_config: val.next_config,
-            js_config: val.js_config,
-            env: val
-                .env
-                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
+            next_config: val.next_config.map(Arc::new),
+            js_config: val.js_config.map(Arc::new),
+            env: val.env.map(|env| {
+                env.into_iter()
+                    .map(|var| (var.name.into(), var.value.into()))
+                    .collect()
+            }),
             define_env: val.define_env.map(|env| env.into()),
             dev: val.dev,
         }
@@ -185,17 +187,17 @@ impl From<NapiDefineEnv> for DefineEnv {
             client: val
                 .client
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             edge: val
                 .edge
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             nodejs: val
                 .nodejs
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
         }
     }
@@ -551,7 +553,7 @@ struct HmrUpdateWithIssues {
 #[turbo_tasks::function]
 async fn hmr_update(
     project: Vc<Project>,
-    identifier: String,
+    identifier: Arc<String>,
     state: Vc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_operation = project.hmr_update(identifier, state);
@@ -582,7 +584,7 @@ pub fn project_hmr_events(
             let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier = outer_identifier.clone();
+                let identifier = Arc::new(outer_identifier.clone());
                 let session = session.clone();
                 async move {
                     let project = project.project().resolve().await?;
@@ -873,24 +875,27 @@ pub async fn project_trace_source(
                 .container
                 .project()
                 .node_root()
-                .join(chunk_base.to_owned());
+                .join(chunk_base.to_owned().into());
 
             let client_path = project
                 .container
                 .project()
                 .client_relative_path()
-                .join(chunk_base.to_owned());
+                .join(chunk_base.to_owned().into());
 
             let mut map_result = project
                 .container
-                .get_source_map(server_path, module.clone())
+                .get_source_map(server_path, module.clone().map(Arc::new))
                 .await;
             if map_result.is_err() {
                 // If the chunk doesn't exist as a server chunk, try a client chunk.
                 // TODO: Properly tag all server chunks and use the `isServer` query param.
                 // Currently, this is inaccurate as it does not cover RSC server
                 // chunks.
-                map_result = project.container.get_source_map(client_path, module).await;
+                map_result = project
+                    .container
+                    .get_source_map(client_path, module.map(Arc::new))
+                    .await;
             }
             let map = map_result?.context("chunk/module is missing a sourcemap")?;
 
@@ -960,7 +965,7 @@ pub async fn project_get_source_for_asset(
                 .project_path()
                 .fs()
                 .root()
-                .join(file_path.to_string())
+                .join(file_path.to_string().into())
                 .read()
                 .await?;
 

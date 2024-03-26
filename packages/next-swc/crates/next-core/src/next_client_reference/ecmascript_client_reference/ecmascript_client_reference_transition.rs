@@ -58,10 +58,12 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let ident = source.ident().await?;
         let ident_path = ident.path.await?;
         let client_source = if ident_path.path.contains("next/dist/esm/") {
-            let path = ident
-                .path
-                .root()
-                .join(ident_path.path.replace("next/dist/esm/", "next/dist/"));
+            let path = ident.path.root().join(
+                ident_path
+                    .path
+                    .replace("next/dist/esm/", "next/dist/")
+                    .into(),
+            );
             Vc::upcast(FileSource::new_with_query(path, ident.query))
         } else {
             source

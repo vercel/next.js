@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::{Value, ValueToString, Vc};
@@ -99,7 +101,7 @@ pub async fn get_app_route_entry(
             Vc::upcast(context),
             project_root,
             rsc_entry,
-            pathname.clone(),
+            pathname.clone().into(),
         );
     }
 
@@ -110,8 +112,8 @@ pub async fn get_app_route_entry(
     };
 
     Ok(AppEntry {
-        pathname,
-        original_name,
+        pathname: pathname.into(),
+        original_name: original_name.into(),
         rsc_entry,
         config,
     }
@@ -123,7 +125,7 @@ async fn wrap_edge_route(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    pathname: String,
+    pathname: Arc<String>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_ROUTE_ENTRY";
 

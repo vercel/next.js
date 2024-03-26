@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::ecmascript::chunk::EcmascriptChunkPlaceable;
 
@@ -7,10 +9,10 @@ use crate::app_segment_config::NextSegmentConfig;
 #[turbo_tasks::value(shared)]
 pub struct AppEntry {
     /// The pathname of the route or page.
-    pub pathname: String,
+    pub pathname: Arc<String>,
     /// The original Next.js name of the route or page. This is used instead of
     /// the pathname to refer to this entry.
-    pub original_name: String,
+    pub original_name: Arc<String>,
     /// The RSC module asset for the route or page.
     pub rsc_entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The source code config for this entry.

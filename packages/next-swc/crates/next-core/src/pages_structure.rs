@@ -148,12 +148,12 @@ pub async fn find_pages_structure(
     next_router_root: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root.join("pages".to_string());
+    let pages_root = project_root.join("pages".to_string().into());
     let pages_root = Vc::<FileSystemPathOption>::cell(
         if *pages_root.get_type().await? == FileSystemEntryType::Directory {
             Some(pages_root)
         } else {
-            let src_pages_root = project_root.join("src/pages".to_string());
+            let src_pages_root = project_root.join("src/pages".to_string().into());
             if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
                 Some(src_pages_root)
             } else {
@@ -205,7 +205,7 @@ async fn get_pages_structure_for_root_directory(
                         match basename {
                             "_app" => {
                                 let item_next_router_path =
-                                    next_router_path.join("_app".to_string());
+                                    next_router_path.join("_app".to_string().into());
                                 app_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
@@ -214,7 +214,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                             "_document" => {
                                 let item_next_router_path =
-                                    next_router_path.join("_document".to_string());
+                                    next_router_path.join("_document".to_string().into());
                                 document_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
@@ -223,7 +223,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                             "_error" => {
                                 let item_next_router_path =
-                                    next_router_path.join("_error".to_string());
+                                    next_router_path.join("_error".to_string().into());
                                 error_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
@@ -234,7 +234,7 @@ async fn get_pages_structure_for_root_directory(
                                 let item_next_router_path =
                                     next_router_path_for_basename(next_router_path, basename);
                                 let item_original_path =
-                                    next_router_path.join(basename.to_string());
+                                    next_router_path.join(basename.to_string().into());
                                 items.push((
                                     basename,
                                     PagesStructureItem::new(
@@ -250,7 +250,7 @@ async fn get_pages_structure_for_root_directory(
                         "api" => {
                             api_directory = Some(get_pages_structure_for_directory(
                                 *dir_project_path,
-                                next_router_path.join(name.clone()),
+                                next_router_path.join(name.clone().into()),
                                 1,
                                 page_extensions,
                             ));
@@ -260,7 +260,7 @@ async fn get_pages_structure_for_root_directory(
                                 name,
                                 get_pages_structure_for_directory(
                                     *dir_project_path,
-                                    next_router_path.join(name.clone()),
+                                    next_router_path.join(name.clone().into()),
                                     1,
                                     page_extensions,
                                 ),
@@ -292,9 +292,9 @@ async fn get_pages_structure_for_root_directory(
     let app_item = if let Some(app_item) = app_item {
         app_item
     } else {
-        let app_router_path = next_router_path.join("_app".to_string());
+        let app_router_path = next_router_path.join("_app".to_string().into());
         PagesStructureItem::new(
-            get_next_package(project_root).join("app.js".to_string()),
+            get_next_package(project_root).join("app.js".to_string().into()),
             app_router_path,
             app_router_path,
         )
@@ -303,9 +303,9 @@ async fn get_pages_structure_for_root_directory(
     let document_item = if let Some(document_item) = document_item {
         document_item
     } else {
-        let document_router_path = next_router_path.join("_document".to_string());
+        let document_router_path = next_router_path.join("_document".to_string().into());
         PagesStructureItem::new(
-            get_next_package(project_root).join("document.js".to_string()),
+            get_next_package(project_root).join("document.js".to_string().into()),
             document_router_path,
             document_router_path,
         )
@@ -314,9 +314,9 @@ async fn get_pages_structure_for_root_directory(
     let error_item = if let Some(error_item) = error_item {
         error_item
     } else {
-        let error_router_path = next_router_path.join("_error".to_string());
+        let error_router_path = next_router_path.join("_error".to_string().into());
         PagesStructureItem::new(
-            get_next_package(project_root).join("error.js".to_string()),
+            get_next_package(project_root).join("error.js".to_string().into()),
             error_router_path,
             error_router_path,
         )
@@ -360,9 +360,9 @@ async fn get_pages_structure_for_directory(
                         };
                         let item_next_router_path = match basename {
                             "index" => next_router_path,
-                            _ => next_router_path.join(basename.to_string()),
+                            _ => next_router_path.join(basename.to_string().into()),
                         };
-                        let item_original_name = next_router_path.join(basename.to_string());
+                        let item_original_name = next_router_path.join(basename.to_string().into());
                         items.push((
                             basename,
                             PagesStructureItem::new(
@@ -377,7 +377,7 @@ async fn get_pages_structure_for_directory(
                             name,
                             get_pages_structure_for_directory(
                                 *dir_project_path,
-                                next_router_path.join(name.clone()),
+                                next_router_path.join(name.clone().into()),
                                 position + 1,
                                 page_extensions,
                             ),
@@ -419,6 +419,6 @@ fn next_router_path_for_basename(
     if basename == "index" {
         next_router_path
     } else {
-        next_router_path.join(basename.to_string())
+        next_router_path.join(basename.to_string().into())
     }
 }

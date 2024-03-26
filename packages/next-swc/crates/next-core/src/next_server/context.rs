@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
@@ -134,7 +136,7 @@ pub async fn get_server_resolve_options_context(
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
         project_path,
-        "dist/lib/server-external-packages.json".to_string(),
+        "dist/lib/server-external-packages.json".to_string().into(),
     )
     .await?;
 
@@ -157,15 +159,23 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.await?.condition().to_string(), "node".to_string()];
-    custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let mut custom_conditions = vec![
+        mode.await?.condition().to_string().into(),
+        "node".to_string().into(),
+    ];
+    custom_conditions.extend(
+        ty.conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(Arc::new),
+    );
 
     match ty {
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::Middleware { .. } => {
-            custom_conditions.push("react-server".to_string())
+            custom_conditions.push("react-server".to_string().into())
         }
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
@@ -266,7 +276,11 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config
+            .resolve_extension()
+            .await?
+            .as_ref()
+            .map(|i| i.iter().cloned().map(Arc::new).collect()),
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),
@@ -358,8 +372,16 @@ pub async fn get_server_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let mut conditions = vec!["server".to_string(), mode.await?.condition().to_string()];
-    conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let mut conditions = vec![
+        "server".to_string().into(),
+        mode.await?.condition().to_string().into(),
+    ];
+    conditions.extend(
+        ty.conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(Arc::new),
+    );
     let foreign_webpack_rules = *next_config.webpack_rules(conditions).await?;
     let foreign_webpack_rules =
         maybe_add_sass_loader(next_config.sass_config(), foreign_webpack_rules).await?;
@@ -763,8 +785,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".to_string()),
-        client_root.join("static/media".to_string()),
+        node_root.join("server/chunks/ssr".to_string().into()),
+        client_root.join("static/media".to_string().into()),
         environment,
         next_mode.runtime_type(),
     )
@@ -788,8 +810,8 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         node_root,
-        node_root.join("server/chunks".to_string()),
-        node_root.join("server/assets".to_string()),
+        node_root.join("server/chunks".to_string().into()),
+        node_root.join("server/assets".to_string().into()),
         environment,
         next_mode.runtime_type(),
     )

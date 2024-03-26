@@ -62,7 +62,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
-    ResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string()))
+    ResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string().into()))
 }
 
 #[turbo_tasks::value_impl]
@@ -224,7 +224,10 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = request.append_path(".js".to_string()).resolve().await?;
+                    request = request
+                        .append_path(".js".to_string().into())
+                        .resolve()
+                        .await?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it
@@ -355,7 +358,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // mark as external
                 Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
+                        request_str.into(),
                         ExternalType::CommonJs,
                     ))
                     .cell(),
@@ -392,7 +395,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // mark as external
                     Ok(ResolveResultOption::some(
                         ResolveResult::primary(ResolveResultItem::External(
-                            request_str,
+                            request_str.into(),
                             if resolves_equal {
                                 ExternalType::CommonJs
                             } else {
@@ -407,7 +410,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // mark as external
                 Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
+                        request_str.into(),
                         ExternalType::EcmaScriptModule,
                     ))
                     .cell(),
@@ -442,12 +445,9 @@ async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<OptionPackagesGlo
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
-    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")));
-    let request_glob = Glob::new(format!(
-        "{{{},{}/**}}",
-        packages.join(","),
-        packages.join("/**,")
-    ));
+    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")).into());
+    let request_glob =
+        Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
     Ok(Vc::cell(Some(PackagesGlobs {
         path_glob: path_glob.resolve().await?,
         request_glob: request_glob.resolve().await?,

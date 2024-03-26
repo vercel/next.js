@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks_fs::{FileContent, FileSystem, FileSystemPath},
@@ -13,16 +15,16 @@ pub(crate) fn next_js_fs() -> Vc<Box<dyn FileSystem>> {
 }
 
 #[turbo_tasks::function]
-pub(crate) fn next_js_file(path: String) -> Vc<FileContent> {
+pub(crate) fn next_js_file(path: Arc<String>) -> Vc<FileContent> {
     next_js_fs().root().join(path).read()
 }
 
 #[turbo_tasks::function]
-pub(crate) fn next_js_file_path(path: String) -> Vc<FileSystemPath> {
+pub(crate) fn next_js_file_path(path: Arc<String>) -> Vc<FileSystemPath> {
     next_js_fs().root().join(path)
 }
 
 #[turbo_tasks::function]
-pub(crate) fn next_asset(path: String) -> Vc<Box<dyn Source>> {
+pub(crate) fn next_asset(path: Arc<String>) -> Vc<Box<dyn Source>> {
     Vc::upcast(FileSource::new(next_js_file_path(path)))
 }

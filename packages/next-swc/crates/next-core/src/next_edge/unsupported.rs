@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_tasks::Vc;
@@ -46,7 +48,7 @@ impl NextEdgeUnsupportedModuleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: Arc<String>) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 

@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, sync::Arc};
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
@@ -154,8 +154,8 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_page.clone(),
-                definition_pathname.clone(),
+                definition_page.clone().into(),
+                definition_pathname.clone().into(),
                 Value::new(reference_type),
                 pages_structure,
                 next_config,
@@ -165,7 +165,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.to_string(),
+                definition_pathname.to_string().into(),
             );
         }
     }
@@ -197,8 +197,8 @@ async fn wrap_edge_page(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    page: String,
-    pathname: String,
+    page: Arc<String>,
+    pathname: Arc<String>,
     reference_type: Value<ReferenceType>,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
@@ -228,7 +228,7 @@ async fn wrap_edge_page(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => pathname.clone(),
+            "VAR_PAGE" => pathname.to_string(),
             "VAR_BUILD_ID" => build_id.to_string(),
             "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.to_string(),
             "VAR_MODULE_APP" => INNER_APP.to_string(),
@@ -239,7 +239,7 @@ async fn wrap_edge_page(
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
             "nextConfig" => serde_json::to_string(next_config)?,
             "dev" => serde_json::Value::Bool(dev).to_string(),
-            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?,
+            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.to_string(), pathname.to_string()))?,
             "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".to_string(), "/_error".to_string()))?,
             "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".to_string(), "/500".to_string()))?,
         },

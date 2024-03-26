@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::{path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -73,19 +73,19 @@ use crate::{
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: String,
+    pub root_path: Arc<String>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: Arc<String>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: String,
+    pub next_config: Arc<String>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: String,
+    pub js_config: Arc<String>,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Vec<(String, String)>,
+    pub env: Vec<(Arc<String>, Arc<String>)>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -103,19 +103,19 @@ pub struct ProjectOptions {
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: Option<String>,
+    pub root_path: Option<Arc<String>>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: Option<String>,
+    pub project_path: Option<Arc<String>>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: Option<String>,
+    pub next_config: Option<Arc<String>>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<String>,
+    pub js_config: Option<Arc<String>>,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Option<Vec<(String, String)>>,
+    pub env: Option<Vec<(Arc<String>, Arc<String>)>>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -131,9 +131,9 @@ pub struct PartialProjectOptions {
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
-    pub client: Vec<(String, String)>,
-    pub edge: Vec<(String, String)>,
-    pub nodejs: Vec<(String, String)>,
+    pub client: Vec<(Arc<String>, Arc<String>)>,
+    pub edge: Vec<(Arc<String>, Arc<String>)>,
+    pub nodejs: Vec<(Arc<String>, Arc<String>)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
@@ -203,15 +203,46 @@ impl ProjectContainer {
 
         let (env, define_env, next_config, js_config, root_path, project_path, watch, dev) = {
             let options = this.options_state.get();
-            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let env: Vc<EnvMap> = Vc::cell(
+                options
+                    .env
+                    .iter()
+                    .cloned()
+                    .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                    .collect(),
+            );
             let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
-                client: Vc::cell(options.define_env.client.iter().cloned().collect()),
-                edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
-                nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
+                client: Vc::cell(
+                    options
+                        .define_env
+                        .client
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                        .collect(),
+                ),
+                edge: Vc::cell(
+                    options
+                        .define_env
+                        .edge
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                        .collect(),
+                ),
+                nodejs: Vc::cell(
+                    options
+                        .define_env
+                        .nodejs
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                        .collect(),
+                ),
             }
             .cell();
-            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            let next_config = NextConfig::from_string(Vc::cell((*options.next_config).clone()));
+            let js_config = JsConfig::from_string(Vc::cell((*options.js_config).clone()));
             let root_path = options.root_path.clone();
             let project_path = options.project_path.clone();
             let watch = options.watch;
@@ -240,12 +271,13 @@ impl ProjectContainer {
             watch,
             next_config,
             js_config,
-            dist_dir,
+            dist_dir: dist_dir.into(),
             env: Vc::upcast(env),
             define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
-                .to_string(),
+                .to_string()
+                .into(),
             mode: if dev {
                 NextMode::Development.cell()
             } else {
@@ -281,7 +313,7 @@ impl ProjectContainer {
     pub async fn get_source_map(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
-        section: Option<String>,
+        section: Option<Arc<String>>,
     ) -> Result<Vc<OptionSourceMap>> {
         let this = self.await?;
         Ok(this
@@ -294,13 +326,13 @@ impl ProjectContainer {
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    root_path: String,
+    root_path: Arc<String>,
 
     /// A path where to emit the build outputs. next.config.js's distDir.
-    dist_dir: String,
+    dist_dir: Arc<String>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: Arc<String>,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
@@ -318,7 +350,7 @@ pub struct Project {
     /// time.
     define_env: Vc<ProjectDefineEnv>,
 
-    browserslist_query: String,
+    browserslist_query: Arc<String>,
 
     mode: Vc<NextMode>,
 
@@ -406,8 +438,8 @@ impl Project {
     async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.to_string(),
-            this.root_path.to_string(),
+            PROJECT_FILESYSTEM_NAME.to_string().into(),
+            this.root_path.clone(),
             vec![],
         );
         if this.watch {
@@ -425,7 +457,11 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("output".to_string(), this.project_path.clone(), vec![]);
+        let disk_fs = DiskFileSystem::new(
+            "output".to_string().into(),
+            this.project_path.clone(),
+            vec![],
+        );
         Ok(Vc::upcast(disk_fs))
     }
 
@@ -437,7 +473,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.output_fs().root().join(this.dist_dir.to_string()))
+        Ok(self.output_fs().root().join(this.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
@@ -453,25 +489,28 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
-        Ok(self.client_root().join(format!(
-            "{}/_next",
-            next_config
-                .base_path
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        )))
+        Ok(self.client_root().join(
+            format!(
+                "{}/_next",
+                next_config
+                    .base_path
+                    .clone()
+                    .unwrap_or_else(|| "".to_string()),
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
-        let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
+        let project_relative = this.project_path.strip_prefix(&*this.root_path).unwrap();
         let project_relative = project_relative
             .strip_prefix(MAIN_SEPARATOR)
             .unwrap_or(project_relative)
             .replace(MAIN_SEPARATOR, "/");
-        Ok(root.join(project_relative))
+        Ok(root.join(project_relative.into()))
     }
 
     #[turbo_tasks::function]
@@ -504,8 +543,8 @@ impl Project {
                 self.project_path(),
                 node_root,
                 node_root,
-                node_root.join("chunks".to_string()),
-                node_root.join("assets".to_string()),
+                node_root.join("chunks".to_string().into()),
+                node_root.join("assets".to_string().into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
             )
@@ -903,7 +942,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn hmr_content(
         self: Vc<Self>,
-        identifier: String,
+        identifier: Arc<String>,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(self
             .await?
@@ -912,7 +951,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
+    async fn hmr_version(self: Vc<Self>, identifier: Arc<String>) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
         Ok(content.version())
@@ -923,7 +962,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: Vc<Self>,
-        identifier: String,
+        identifier: Arc<String>,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         let version = self.hmr_version(identifier);
@@ -943,7 +982,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: String,
+        identifier: Arc<String>,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();

@@ -66,7 +66,7 @@ pub async fn maybe_add_sass_loader(
             };
             // Only when the result should run through the sass pipeline, we apply
             // sass-loader.
-            if rename_as != "*" {
+            if &**rename_as != "*" {
                 continue;
             }
             let mut loaders = rule.loaders.await?.clone_value();
@@ -78,7 +78,7 @@ pub async fn maybe_add_sass_loader(
                 pattern.to_string(),
                 LoaderRuleItem {
                     loaders: Vc::cell(vec![resolve_url_loader, sass_loader]),
-                    rename_as: Some(format!("*{rename}")),
+                    rename_as: Some(format!("*{rename}").into()),
                 },
             );
         }

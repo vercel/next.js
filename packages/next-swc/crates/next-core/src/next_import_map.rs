@@ -254,7 +254,7 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
     import_map.insert_exact_alias(
         "styled-jsx/style",
         ImportMapping::External(
-            Some("styled-jsx/style.js".to_string()),
+            Some("styled-jsx/style.js".to_string().into()),
             ExternalType::CommonJs,
         )
         .cell(),
@@ -335,7 +335,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "styled-jsx/style",
                 ImportMapping::External(
-                    Some("styled-jsx/style.js".to_string()),
+                    Some("styled-jsx/style.js".to_string().into()),
                     ExternalType::CommonJs,
                 )
                 .cell(),
@@ -927,7 +927,7 @@ async fn package_lookup_resolve_options(
         ResolveOptionsContext {
             enable_node_modules: Some(project_path.root().resolve().await?),
             enable_node_native_modules: true,
-            custom_conditions: vec!["development".to_string()],
+            custom_conditions: vec!["development".to_string().into()],
             ..Default::default()
         }
         .cell(),
@@ -982,13 +982,15 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.to_string(), Some(project_path)).cell()
+            ImportMapping::PrimaryAlternative(result[0].0.to_string().into(), Some(project_path))
+                .cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative(m.to_string(), Some(project_path)).cell()
+                        ImportMapping::PrimaryAlternative(m.to_string().into(), Some(project_path))
+                            .cell()
                     })
                     .collect(),
             )
@@ -1035,7 +1037,7 @@ fn insert_package_alias(
 ) {
     import_map.insert_wildcard_alias(
         prefix,
-        ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
+        ImportMapping::PrimaryAlternative("./*".to_string().into(), Some(package_root)).cell(),
     );
 }
 
@@ -1051,11 +1053,11 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
 fn request_to_import_mapping(context_path: Vc<FileSystemPath>, request: &str) -> Vc<ImportMapping> {
-    ImportMapping::PrimaryAlternative(request.to_string(), Some(context_path)).cell()
+    ImportMapping::PrimaryAlternative(request.to_string().into(), Some(context_path)).cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
 fn external_request_to_import_mapping(request: &str) -> Vc<ImportMapping> {
-    ImportMapping::External(Some(request.to_string()), ExternalType::CommonJs).into()
+    ImportMapping::External(Some(request.to_string().into()), ExternalType::CommonJs).into()
 }

@@ -75,7 +75,7 @@ impl MiddlewareEndpoint {
             self.context,
             self.project.project_path(),
             module,
-            "middleware".to_string(),
+            "middleware".to_string().into(),
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
@@ -167,7 +167,11 @@ impl MiddlewareEndpoint {
             ..Default::default()
         };
         let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-            node_root.join("server/middleware/middleware-manifest.json".to_string()),
+            node_root.join(
+                "server/middleware/middleware-manifest.json"
+                    .to_string()
+                    .into(),
+            ),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
                     &middleware_manifest_v2,

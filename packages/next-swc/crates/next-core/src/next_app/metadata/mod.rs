@@ -327,17 +327,22 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
         page.0.pop();
 
-        page.push(PageSegment::Static(format!(
-            "{}{}{}",
-            base_name,
-            suffix
-                .map(|suffix| format!("-{suffix}"))
-                .unwrap_or_default(),
-            ext.map(|ext| format!(".{ext}")).unwrap_or_default(),
-        )))?;
+        page.push(PageSegment::Static(
+            format!(
+                "{}{}{}",
+                base_name,
+                suffix
+                    .map(|suffix| format!("-{suffix}"))
+                    .unwrap_or_default(),
+                ext.map(|ext| format!(".{ext}")).unwrap_or_default(),
+            )
+            .into(),
+        ))?;
 
         if !is_static_route {
-            page.push(PageSegment::OptionalCatchAll("__metadata_id__".to_string()))?;
+            page.push(PageSegment::OptionalCatchAll(
+                "__metadata_id__".to_string().into(),
+            ))?;
         }
 
         page.push(PageSegment::PageType(PageType::Route))?;

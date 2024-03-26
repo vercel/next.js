@@ -13,9 +13,9 @@ pub async fn get_postcss_package_mapping(
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![
         // Prefer the local installed version over the next.js version
-        ImportMapping::PrimaryAlternative("postcss".to_string(), Some(project_path)).cell(),
+        ImportMapping::PrimaryAlternative("postcss".to_string().into(), Some(project_path)).cell(),
         ImportMapping::PrimaryAlternative(
-            "postcss".to_string(),
+            "postcss".to_string().into(),
             Some(get_next_package(project_path)),
         )
         .cell(),
@@ -28,7 +28,7 @@ pub async fn get_external_next_compiled_package_mapping(
     package_name: Vc<String>,
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![ImportMapping::External(
-        Some(format!("next/dist/compiled/{}", &*package_name.await?)),
+        Some(format!("next/dist/compiled/{}", &*package_name.await?).into()),
         ExternalType::CommonJs,
     )
     .into()])

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{bail, Result};
 use next_core::emit_client_assets;
@@ -101,7 +101,7 @@ impl VersionedContentMap {
     pub async fn get_source_map(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
-        section: Option<String>,
+        section: Option<Arc<String>>,
     ) -> Result<Vc<OptionSourceMap>> {
         if let Some(generate_source_map) =
             Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.get_asset(path)).await?

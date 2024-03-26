@@ -40,7 +40,10 @@ pub async fn maybe_add_babel_loader(
     let has_babel_config = {
         let mut has_babel_config = false;
         for filename in BABEL_CONFIG_FILES {
-            let filetype = *project_root.join(filename.to_string()).get_type().await?;
+            let filetype = *project_root
+                .join(filename.to_string().into())
+                .get_type()
+                .await?;
             if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;
@@ -105,7 +108,7 @@ pub async fn maybe_add_babel_loader(
                         pattern.to_string(),
                         LoaderRuleItem {
                             loaders: Vc::cell(vec![loader]),
-                            rename_as: Some("*".to_string()),
+                            rename_as: Some("*".to_string().into()),
                         },
                     );
                 }
@@ -133,7 +136,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
             ResolveOptionsContext {
                 enable_node_modules: Some(project_path.root().resolve().await?),
                 enable_node_native_modules: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec!["development".to_string().into()],
                 ..Default::default()
             }
             .cell(),

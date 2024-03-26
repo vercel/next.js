@@ -73,7 +73,7 @@ impl InstrumentationEndpoint {
             self.context,
             self.project.project_path(),
             userland_module,
-            "instrumentation".to_string(),
+            "instrumentation".to_string().into(),
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
@@ -126,7 +126,7 @@ impl InstrumentationEndpoint {
             .entry_chunk_group(
                 self.project
                     .node_root()
-                    .join("server/instrumentation.js".to_string()),
+                    .join("server/instrumentation.js".to_string().into()),
                 module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation),
@@ -169,7 +169,11 @@ impl InstrumentationEndpoint {
                 ..Default::default()
             };
             let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join("server/instrumentation/middleware-manifest.json".to_string()),
+                node_root.join(
+                    "server/instrumentation/middleware-manifest.json"
+                        .to_string()
+                        .into(),
+                ),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -96,7 +98,7 @@ pub async fn foreign_code_context_condition(
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
+        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string().into()),
     ));
 
     let result = if transpile_packages.is_empty() {
@@ -471,7 +473,8 @@ pub async fn load_next_js_template(
                     import_request
                 },
             )
-            .context("path should not leave the fs")?,
+            .context("path should not leave the fs")?
+            .into(),
         };
 
         let relative = package_root_value
@@ -683,12 +686,12 @@ pub fn virtual_next_js_template_path(
     file: String,
 ) -> Vc<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}").into())
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
-    path: String,
+    path: Arc<String>,
 ) -> Result<T> {
     let file_path = get_next_package(project_path).join(path.clone());
 

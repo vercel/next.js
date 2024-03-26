@@ -26,10 +26,10 @@ use turbopack_binding::{
 use crate::register;
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
+async fn project_fs(project_dir: Arc<String>, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(
-        PROJECT_FILESYSTEM_NAME.to_string(),
-        project_dir.to_string(),
+        PROJECT_FILESYSTEM_NAME.to_string().into(),
+        project_dir,
         vec![],
     );
     if watching {
@@ -287,7 +287,7 @@ async fn prepare_loader_tree_for_js(
     add_meta(&mut meta.robots, project_path, global_metadata.robots).await?;
 
     Ok(LoaderTreeForJs {
-        segment: segment.clone(),
+        segment: segment.to_string(),
         parallel_routes,
         components,
         global_metadata: meta,
@@ -329,19 +329,24 @@ async fn prepare_entrypoints_for_js(
 
 #[turbo_tasks::function]
 async fn get_value(
-    root_dir: String,
-    project_dir: String,
-    page_extensions: Vec<String>,
+    root_dir: Arc<String>,
+    project_dir: Arc<String>,
+    page_extensions: Vec<Arc<String>>,
     watching: bool,
 ) -> Result<Vc<OptionEntrypointsForJs>> {
-    let page_extensions = Vc::cell(page_extensions);
+    let page_extensions = Vc::cell(
+        page_extensions
+            .iter()
+            .map(|v| (**v).clone())
+            .collect::<Vec<_>>(),
+    );
     let fs = project_fs(root_dir.clone(), watching);
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
+    let project_relative = project_dir.strip_prefix(&**root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/");
-    let project_path = fs.root().join(project_relative);
+    let project_path = fs.root().join(project_relative.into());
 
     let app_dir = find_app_dir(project_path);
 
@@ -382,9 +387,9 @@ pub fn stream_entrypoints(
         let page_extensions: Arc<Vec<String>> = page_extensions.clone();
         Box::pin(async move {
             if let Some(entrypoints) = &*get_value(
-                (*root_dir).clone(),
-                (*project_dir).clone(),
-                page_extensions.iter().map(|s| s.to_string()).collect(),
+                root_dir.clone(),
+                project_dir.clone(),
+                page_extensions.iter().cloned().map(Arc::new).collect(),
                 true,
             )
             .await?
@@ -414,9 +419,9 @@ pub async fn get_entrypoints(
     let result = turbo_tasks
         .run_once(async move {
             let value = if let Some(entrypoints) = &*get_value(
-                root_dir,
-                project_dir,
-                page_extensions.iter().map(|s| s.to_string()).collect(),
+                root_dir.into(),
+                project_dir.into(),
+                page_extensions.iter().cloned().map(Arc::new).collect(),
                 false,
             )
             .await?
