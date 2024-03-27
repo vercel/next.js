@@ -12,8 +12,6 @@ import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, validateNpmName } from './helpers'
 import type { InitialReturnValue } from 'prompts'
 
-const packageManager = getPkgManager()
-
 const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
@@ -142,8 +140,19 @@ const program = new Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
+const packageManager = Boolean(program.useNpm)
+  ? 'npm'
+  : Boolean(program.usePnpm)
+  ? 'pnpm'
+  : Boolean(program.useYarn)
+  ? 'yarn'
+  : Boolean(program.useBun)
+  ? 'bun'
+  : getPkgManager()
+
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
+
   if (program.resetPreferences) {
     conf.clear()
     console.log(`Preferences reset successfully`)
