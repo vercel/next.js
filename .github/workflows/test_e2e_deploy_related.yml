@@ -12,8 +12,13 @@ jobs:
     env:
       CARGO_PROFILE_RELEASE_LTO: 'true'
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+      DD_ENV: 'ci'
       NAPI_CLI_VERSION: 2.16.2
+      NEXT_JUNIT_TEST_REPORT: 'true'
       NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_CONTINUE_ON_ERROR: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_MODE: 'deploy'
       NODE_LTS_VERSION: 20
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
