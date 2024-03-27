@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
-import { cyan, green, red, yellow, bold, blue } from 'picocolors'
-import Commander from 'commander'
+
+// Node.js built-in modules
+import { existsSync } from 'fs'
+import { basename, resolve } from 'path'
+// External modules
 import Conf from 'conf'
-import path from 'path'
 import prompts from 'prompts'
-import type { InitialReturnValue } from 'prompts'
-import checkForUpdate from 'update-check'
-import { createApp, DownloadError } from './create-app'
-import { getPkgManager } from './helpers/get-pkg-manager'
-import { validateNpmName } from './helpers/validate-pkg'
+import updateCheck from 'update-check'
+import { isCI } from 'ci-info'
+import { Command } from 'commander'
+import { blue, bold, cyan, green, red, yellow } from 'picocolors'
+// Local modules
 import packageJson from './package.json'
-import ciInfo from 'ci-info'
-import { isFolderEmpty } from './helpers/is-folder-empty'
-import fs from 'fs'
+import { createApp, DownloadError } from './create-app'
+import { getPkgManager, isFolderEmpty, validateNpmName } from './helpers'
+// Types
+import type { InitialReturnValue } from 'prompts'
 
 let projectPath: string = ''
 
@@ -36,7 +39,7 @@ const onPromptState = (state: {
   }
 }
 
-const program = new Commander.Command(packageJson.name)
+const program = new Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
   .usage(`${green('<project-directory>')} [options]`)
@@ -180,7 +183,7 @@ async function run(): Promise<void> {
       message: 'What is your project named?',
       initial: 'my-app',
       validate: (name) => {
-        const validation = validateNpmName(path.basename(path.resolve(name)))
+        const validation = validateNpmName(basename(resolve(name)))
         if (validation.valid) {
           return true
         }
@@ -204,8 +207,8 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const resolvedProjectPath = path.resolve(projectPath)
-  const projectName = path.basename(resolvedProjectPath)
+  const resolvedProjectPath = resolve(projectPath)
+  const projectName = basename(resolvedProjectPath)
 
   const validation = validateNpmName(projectName)
   if (!validation.valid) {
@@ -231,9 +234,9 @@ async function run(): Promise<void> {
   /**
    * Verify the project dir is empty or doesn't exist
    */
-  const root = path.resolve(resolvedProjectPath)
-  const appName = path.basename(root)
-  const folderExists = fs.existsSync(root)
+  const root = resolve(resolvedProjectPath)
+  const appName = basename(root)
+  const folderExists = existsSync(root)
 
   if (folderExists && !isFolderEmpty(root, appName)) {
     process.exit(1)
@@ -262,7 +265,7 @@ async function run(): Promise<void> {
       preferences[field] ?? defaults[field]
 
     if (!program.typescript && !program.javascript) {
-      if (ciInfo.isCI) {
+      if (isCI) {
         // default to TypeScript in CI as we can't prompt to
         // prevent breaking setup flows
         program.typescript = getPrefOrDefault('typescript')
@@ -301,7 +304,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--eslint') &&
       !process.argv.includes('--no-eslint')
     ) {
-      if (ciInfo.isCI) {
+      if (isCI) {
         program.eslint = getPrefOrDefault('eslint')
       } else {
         const styledEslint = blue('ESLint')
@@ -323,7 +326,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--tailwind') &&
       !process.argv.includes('--no-tailwind')
     ) {
-      if (ciInfo.isCI) {
+      if (isCI) {
         program.tailwind = getPrefOrDefault('tailwind')
       } else {
         const tw = blue('Tailwind CSS')
@@ -345,7 +348,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--src-dir') &&
       !process.argv.includes('--no-src-dir')
     ) {
-      if (ciInfo.isCI) {
+      if (isCI) {
         program.srcDir = getPrefOrDefault('srcDir')
       } else {
         const styledSrcDir = blue('`src/` directory')
@@ -364,7 +367,7 @@ async function run(): Promise<void> {
     }
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      if (ciInfo.isCI) {
+      if (isCI) {
         program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
@@ -385,7 +388,7 @@ async function run(): Promise<void> {
       typeof program.importAlias !== 'string' ||
       !program.importAlias.length
     ) {
-      if (ciInfo.isCI) {
+      if (isCI) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         program.importAlias = defaults.importAlias
       } else if (process.argv.includes('--no-import-alias')) {
@@ -470,12 +473,10 @@ async function run(): Promise<void> {
   conf.set('preferences', preferences)
 }
 
-const update = checkForUpdate(packageJson).catch(() => null)
-
 async function notifyUpdate(): Promise<void> {
   try {
-    const res = await update
-    if (res?.latest) {
+    const update = await updateCheck(packageJson)
+    if (update?.latest) {
       const updateMessage =
         packageManager === 'yarn'
           ? 'yarn global add create-next-app'
