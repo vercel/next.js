@@ -43,7 +43,7 @@ async function refreshInactiveParallelSegmentsImpl({
   if (
     refetchPathname &&
     refetchPathname !== location.pathname &&
-    refetchMarker === 'refetch' &&
+    refetchMarker === 'refresh' &&
     // it's possible for the tree to contain multiple segments that contain data at the same URL
     // we keep track of them so we can dedupe the requests
     !fetchedSegments.has(refetchPathname)
@@ -104,9 +104,9 @@ export function addRefreshMarkerToActiveParallelSegments(
   pathname: string
 ) {
   const [segment, parallelRoutes, , refetchMarker] = tree
-  if (segment === PAGE_SEGMENT_KEY && refetchMarker !== 'refetch') {
+  if (segment === PAGE_SEGMENT_KEY && refetchMarker !== 'refresh') {
     tree[2] = pathname
-    tree[3] = 'refetch'
+    tree[3] = 'refresh'
   }
 
   for (const key in parallelRoutes) {
