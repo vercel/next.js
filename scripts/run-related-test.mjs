@@ -54,11 +54,14 @@ async function getChangedFilesFromPackages(baseBranch = 'canary') {
     .filter((line) => line.startsWith('packages/'))
 }
 
-const args = process.argv.slice(2)
-const paths = args.length ? args : await getChangedFilesFromPackages()
-const marker = '// TEST:'
-const files = await findFiles(paths, marker)
-const lines = []
-for (const file of files) lines.push(...(await readTestLines(file, marker)))
+export async function getRelatedTests(args = []) {
+  const paths = args.length ? args : await getChangedFilesFromPackages()
+  const marker = '// TEST:'
+  const files = await findFiles(paths, marker)
+  const lines = []
+  for (const file of files) lines.push(...(await readTestLines(file, marker)))
 
-console.log(Array.from(new Set(lines)).join('\n'))
+  return Array.from(new Set(lines))
+}
+
+// console.log(await getRelatedTest(process.argv.slice(2)))
