@@ -198,17 +198,15 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
+  // Verify the project dir is empty or doesn't exist
+  if (!isFolderEmpty(appPath, appName)) {
+    process.exit(1)
+  }
+
   if (program.example === true) {
     console.error(
       'Please provide an example name or url, otherwise remove the example option.'
     )
-    process.exit(1)
-  }
-
-  /**
-   * Verify the project dir is empty or doesn't exist
-   */
-  if (!isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 
@@ -217,6 +215,7 @@ async function run(): Promise<void> {
     string,
     boolean | string
   >
+
   /**
    * If the user does not provide the necessary flags, prompt them for whether
    * to use TS or JS.
@@ -231,6 +230,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
     }
+
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
 
@@ -447,15 +447,13 @@ async function notifyUpdate(): Promise<void> {
   try {
     const update = await updateCheck(packageJson)
     if (update?.latest) {
-      const updateMessage =
-        packageManager === 'yarn'
-          ? 'yarn global add create-next-app'
-          : packageManager === 'pnpm'
-          ? 'pnpm add -g create-next-app'
-          : packageManager === 'bun'
-          ? 'bun add -g create-next-app'
-          : 'npm i -g create-next-app'
-
+      const global = {
+        npm: 'npm i -g',
+        yarn: 'yarn global add',
+        pnpm: 'pnpm add -g',
+        bun: 'bun add -g',
+      }
+      const updateMessage = `${global[packageManager]} create-next-app`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
@@ -464,10 +462,8 @@ async function notifyUpdate(): Promise<void> {
           '\n'
       )
     }
-    process.exit()
-  } catch {
-    // ignore error
-  }
+    process.exit(0)
+  } catch {}
 }
 
 async function exit(reason: any) {
