@@ -884,10 +884,7 @@ async fn insert_next_shared_aliases(
     );
     import_map.insert_exact_alias(
         "private-next-rsc-action-encryption",
-        request_to_import_mapping(
-            project_path,
-            "next/dist/server/app-render/action-encryption",
-        ),
+        request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
     );
 
     insert_turbopack_dev_alias(import_map);

@@ -269,7 +269,7 @@ export function serverActionReducer(
     },
     (e: any) => {
       // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
-      reject(e.reason)
+      reject(e)
 
       return state
     }

@@ -210,10 +210,10 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
+  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
 }
 
 export type ChangeSubscriptions = Map<
