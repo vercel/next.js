@@ -245,7 +245,7 @@ async function main() {
     if (options.related) {
       const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
       const tests = await getRelatedTests()
-      testPatternRegex = new RegExp(tests.join('|'))
+      if (tests.length) testPatternRegex = new RegExp(tests.join('|'))
     }
 
     tests = (
