@@ -1,3 +1,5 @@
+import * as log from './log'
+export { log }
 export { copy } from './copy'
 export {
   isUrlOk,

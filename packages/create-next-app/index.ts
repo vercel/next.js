@@ -7,9 +7,9 @@ import packageJson from './package.json'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command } from 'commander'
-import { blue, bold, cyan, green, red, yellow } from 'picocolors'
+import { blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
-import { getPkgManager, isFolderEmpty, validateNpmName } from './helpers'
+import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
 import type { InitialReturnValue } from 'prompts'
 
 const handleSigTerm = () => process.exit(0)
@@ -33,7 +33,7 @@ const onPromptState = (state: {
 const program = new Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
-  .usage(`${green('<project-directory>')} [options]`)
+  .usage(`'<project-directory>' [options]`)
   .option(
     '--ts, --typescript',
     `
@@ -155,8 +155,7 @@ async function run(): Promise<void> {
 
   if (program.resetPreferences) {
     conf.clear()
-    console.log(`Preferences reset successfully`)
-    return
+    return log.event(`Successfully reset preferences!`)
   }
 
   let projectPath = program.args[0]?.trim()
@@ -177,12 +176,12 @@ async function run(): Promise<void> {
     })
 
     if (!response.path || typeof response.path !== 'string') {
-      console.log(
+      log.warn(
         '\nPlease specify the project directory:\n' +
-          `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
+          `  ${program.name()} '<project-directory>'\n` +
           'For example:\n' +
-          `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
-          `Run ${cyan(`${program.name()} --help`)} to see all options.`
+          `  ${program.name()} 'my-next-app'\n\n` +
+          `Run ${program.name()} --help to see all options.`
       )
       process.exit(1)
     }
@@ -195,15 +194,11 @@ async function run(): Promise<void> {
 
   const validation = validateNpmName(appName)
   if (!validation.valid) {
-    console.error(
-      `Could not create a project called ${red(
-        `"${appName}"`
-      )} because of npm naming restrictions:`
+    log.error(
+      `Could not create a project called "${appName}" because of npm naming restrictions:`
     )
 
-    validation.problems.forEach((p) =>
-      console.error(`    ${red(bold('*'))} ${p}`)
-    )
+    validation.problems.forEach((p) => log.info(`  - ${p}`))
     process.exit(1)
   }
 
@@ -212,21 +207,20 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  if (program.example === true) {
-    console.error(
-      'Please provide an example name or url, otherwise remove the example option.'
-    )
-    process.exit(1)
-  }
-
-  const example =
-    typeof program.example === 'string' ? program.example.trim() : undefined
   const preferences = (conf.get('preferences') || {}) as Record<
     string,
     boolean | string
   >
 
-  if (example) {
+  if (program.example) {
+    if (typeof program.example !== 'string') {
+      log.error(
+        'Please provide an example name or url, otherwise remove the example option.'
+      )
+      process.exit(1)
+    }
+
+    const example = program.example.trim()
     return await tryCreateNextApp({ appPath, example, conf, preferences })
   }
 
@@ -303,7 +297,7 @@ async function run(): Promise<void> {
          * process and not write to the file system.
          */
         onCancel: () => {
-          console.error('Exiting.')
+          log.error('Aborted Installation.')
           process.exit(1)
         },
       }
@@ -494,12 +488,9 @@ async function notifyUpdate(): Promise<void> {
         bun: 'bun add -g',
       }
       const updateMessage = `${global[packageManager]} create-next-app`
-      console.log(
-        yellow(bold('A new version of `create-next-app` is available!')) +
-          '\n' +
-          'You can update by running: ' +
-          cyan(updateMessage) +
-          '\n'
+      log.warn(
+        'A new version of `create-next-app` is available!\n' +
+          `You can update by running: ${updateMessage}\n`
       )
     }
     process.exit(0)
@@ -507,20 +498,15 @@ async function notifyUpdate(): Promise<void> {
 }
 
 async function exit(reason: any) {
-  console.log()
-  console.log('Aborting installation.')
+  log.info('')
+  log.warn('Aborting installation.')
   if (reason.command) {
-    console.log(`  ${cyan(reason.command)} has failed.`)
+    log.error(`  ${reason.command} has failed.`)
   } else {
-    console.log(
-      red('Unexpected error. Please report it as a bug:') + '\n',
-      reason
-    )
+    log.error('Unexpected error. Please report it as a bug:\n', reason)
   }
-  console.log()
-
+  log.info('')
   await notifyUpdate()
-
   process.exit(1)
 }
 
