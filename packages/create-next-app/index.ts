@@ -4,7 +4,6 @@ import Conf from 'conf'
 import prompts from 'prompts'
 import updateCheck from 'update-check'
 import packageJson from './package.json'
-import { existsSync } from 'fs'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command } from 'commander'
@@ -145,20 +144,15 @@ const program = new Command(packageJson.name)
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
-  let projectPath = program.args[0]
-
   if (program.resetPreferences) {
     conf.clear()
     console.log(`Preferences reset successfully`)
     return
   }
 
-  if (typeof projectPath === 'string') {
-    projectPath = projectPath.trim()
-  }
-
+  let projectPath = program.args[0]?.trim()
   if (!projectPath) {
-    const res = await prompts({
+    const response = await prompts({
       onState: onPromptState,
       type: 'text',
       name: 'path',
@@ -173,30 +167,28 @@ async function run(): Promise<void> {
       },
     })
 
-    if (typeof res.path === 'string') {
-      projectPath = res.path.trim()
+    if (!response.path || typeof response.path !== 'string') {
+      console.log(
+        '\nPlease specify the project directory:\n' +
+          `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
+          'For example:\n' +
+          `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
+          `Run ${cyan(`${program.name()} --help`)} to see all options.`
+      )
+      process.exit(1)
     }
+
+    projectPath = response.path.trim()
   }
 
-  if (!projectPath) {
-    console.log(
-      '\nPlease specify the project directory:\n' +
-        `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
-        'For example:\n' +
-        `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${program.name()} --help`)} to see all options.`
-    )
-    process.exit(1)
-  }
+  const appPath = resolve(projectPath)
+  const appName = basename(appPath)
 
-  const resolvedProjectPath = resolve(projectPath)
-  const projectName = basename(resolvedProjectPath)
-
-  const validation = validateNpmName(projectName)
+  const validation = validateNpmName(appName)
   if (!validation.valid) {
     console.error(
       `Could not create a project called ${red(
-        `"${projectName}"`
+        `"${appName}"`
       )} because of npm naming restrictions:`
     )
 
@@ -216,11 +208,7 @@ async function run(): Promise<void> {
   /**
    * Verify the project dir is empty or doesn't exist
    */
-  const root = resolve(resolvedProjectPath)
-  const appName = basename(root)
-  const folderExists = existsSync(root)
-
-  if (folderExists && !isFolderEmpty(root, appName)) {
+  if (!isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 
@@ -412,7 +400,7 @@ async function run(): Promise<void> {
 
   try {
     await createApp({
-      appPath: resolvedProjectPath,
+      appPath,
       packageManager,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
@@ -442,7 +430,7 @@ async function run(): Promise<void> {
     }
 
     await createApp({
-      appPath: resolvedProjectPath,
+      appPath,
       packageManager,
       typescript: program.typescript,
       eslint: program.eslint,

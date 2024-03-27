@@ -3,29 +3,31 @@ import { green, blue } from 'picocolors'
 import fs from 'fs'
 import path from 'path'
 
+const validFiles = [
+  '.DS_Store',
+  '.git',
+  '.gitattributes',
+  '.gitignore',
+  '.gitlab-ci.yml',
+  '.hg',
+  '.hgcheck',
+  '.hgignore',
+  '.idea',
+  '.npmignore',
+  '.travis.yml',
+  'LICENSE',
+  'Thumbs.db',
+  'docs',
+  'mkdocs.yml',
+  'npm-debug.log',
+  'yarn-debug.log',
+  'yarn-error.log',
+  'yarnrc.yml',
+  '.yarn',
+]
+
 export function isFolderEmpty(root: string, name: string): boolean {
-  const validFiles = [
-    '.DS_Store',
-    '.git',
-    '.gitattributes',
-    '.gitignore',
-    '.gitlab-ci.yml',
-    '.hg',
-    '.hgcheck',
-    '.hgignore',
-    '.idea',
-    '.npmignore',
-    '.travis.yml',
-    'LICENSE',
-    'Thumbs.db',
-    'docs',
-    'mkdocs.yml',
-    'npm-debug.log',
-    'yarn-debug.log',
-    'yarn-error.log',
-    'yarnrc.yml',
-    '.yarn',
-  ]
+  if (!fs.existsSync(root)) return true
 
   const conflicts = fs.readdirSync(root).filter(
     (file) =>
