@@ -30,18 +30,18 @@ Turbopack currently only supports `next dev` and does not support `next build`. 
 
 These features are currently not supported:
 
-- `webpack()` configuration in `next.config.js`
+- [`webpack()`](/docs/app/api-reference/next-config-js/webpack) configuration in `next.config.js`
   - Turbopack replaces Webpack, this means that webpack configuration is not supported.
-  - For configuring Turbopack [see the documentation](/docs/app/api-reference/next-config-js/turbo).
-  - A subset of Webpack loaders [are supported](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) in Turbopack.
--  Babel`(.babelrc`)
+  - To configure Turbopack, [see the documentation](/docs/app/api-reference/next-config-js/turbo).
+  - A subset of [Webpack loaders](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) are supported in Turbopack.
+- Babel (`.babelrc`)
   - Turbopack leverages the [SWC](/docs/architecture/nextjs-compiler#why-swc) compiler for all transpilation and optimizations. This means that Babel is not included by default.
-  - If you have a `.babelrc` you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in [the compiler documentation](docs/architecture/nextjs-compiler#supported-features).
+  - If you have a `.babelrc` file, you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in the [compiler documentation](docs/architecture/nextjs-compiler#supported-features).
   - If you still need to use Babel after verifying your particular use case is not covered, you can leverage Turbopack's [support for custom webpack loaders](/docs/app/api-reference/next-config-js/turbo#webpack-loaders) to include `babel-loader`.
 - Creating a root layout automatically in App Router.
-  - Since this behavior changes input files this is currently not supported, instead an error will be shown to add the root layout manually at the desired location.
+  - This behavior is currently not supported since it changes input files, instead, an error will be shown for you manually add a root layout in the desired location.
 - `@next/font` (legacy font support).
-  - `@next/font` is deprecated in favor of `next/font`. `next/font` is fully supported with Turbopack.
+  - `@next/font` is deprecated in favor of `next/font`. [`next/font`](/docs/app/building-your-application/optimizing/fonts) is fully supported with Turbopack.
 - `new Worker('file', import.meta.url)`.
   - We are planning to implement this in the future.
 - [Relay transforms](/docs/architecture/nextjs-compiler#relay)
@@ -52,5 +52,5 @@ These features are currently not supported:
   - We are currently not planning to support AMP in Next.js with Turbopack.
 - Yarn PnP
   - We are currently not planning to support Yarn PnP in Next.js with Turbopack.
-- `experimental.urlImports`
+- [`experimental.urlImports`](/docs/app/api-reference/next-config-js/urlImports)
   - We are currently not planning to support `experimental.urlImports` in Next.js with Turbopack.
