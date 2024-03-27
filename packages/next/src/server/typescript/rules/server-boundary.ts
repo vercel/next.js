@@ -98,7 +98,8 @@ const serverBoundary = {
           (ts.isArrowFunction(initializer) ||
             ts.isFunctionDeclaration(initializer) ||
             ts.isFunctionExpression(initializer) ||
-            ts.isCallExpression(initializer))
+            ts.isCallExpression(initializer) ||
+            ts.isIdentifier(initializer))
         ) {
           diagnostics.push(
             ...serverBoundary.getSemanticDiagnosticsForFunctionExport(
@@ -129,6 +130,7 @@ const serverBoundary = {
       | tsModule.ArrowFunction
       | tsModule.FunctionExpression
       | tsModule.CallExpression
+      | tsModule.Identifier
   ) {
     const ts = getTs()
     const typeChecker = getTypeChecker()
