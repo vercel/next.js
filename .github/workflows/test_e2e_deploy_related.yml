@@ -24,8 +24,6 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        group: [1, 2]
 
     steps:
       - name: Setup Node.js
