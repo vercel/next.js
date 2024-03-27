@@ -21,7 +21,7 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
   stringToUint8Array,
-} from './action-encryption-utils'
+} from './encryption-utils'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()

@@ -70,7 +70,7 @@ describe('jsconfig.json baseurl', () => {
   })
 
   describe('should build', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

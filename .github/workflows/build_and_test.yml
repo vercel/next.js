@@ -163,7 +163,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
       stepName: 'test-turbopack-dev-${{ matrix.group }}'
     secrets: inherit
 
@@ -179,7 +179,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-${{ matrix.group }}'
     secrets: inherit
 
@@ -424,6 +424,7 @@ jobs:
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-firefox-safari',
         'test-ppr-dev',
         'test-ppr-prod',
         'test-ppr-integration',
