@@ -9,8 +9,8 @@ use indexmap::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
@@ -1076,32 +1076,66 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         }
     }
 
-    for (subdir_name, &subdirectory) in subdirectories.iter() {
-        let mut child_app_page = app_page.clone();
-        let mut illegal_path = None;
+    let app_page = &app_page;
+    let directory_name = &directory_name;
+    let subdirectories = subdirectories
+        .iter()
+        .map(|(subdir_name, &subdirectory)| async move {
+            let mut child_app_page = app_page.clone();
+            let mut illegal_path = None;
 
-        // When constructing the app_page fails (e. g. due to limitations of the order),
-        // we only want to emit the error when there are actual pages below that
-        // directory.
-        if let Err(e) = child_app_page.push_str(subdir_name) {
-            illegal_path = Some(e);
-        }
+            // When constructing the app_page fails (e. g. due to limitations of the order),
+            // we only want to emit the error when there are actual pages below that
+            // directory.
+            if let Err(e) = child_app_page.push_str(subdir_name) {
+                illegal_path = Some(e);
+            }
 
-        let map = directory_tree_to_entrypoints_internal(
-            app_dir,
-            global_metadata,
-            subdir_name.to_string(),
-            subdirectory,
-            child_app_page.clone(),
-        )
+            let map = directory_tree_to_entrypoints_internal(
+                app_dir,
+                global_metadata,
+                subdir_name.to_string(),
+                subdirectory,
+                child_app_page.clone(),
+            )
+            .await?;
+
+            if let Some(illegal_path) = illegal_path {
+                if !map.is_empty() {
+                    return Err(illegal_path);
+                }
+            }
+
+            let mut loader_trees = Vec::new();
+
+            for (_, entrypoint) in map.iter() {
+                if let Entrypoint::AppPage {
+                    ref pages,
+                    loader_tree: _,
+                } = *entrypoint
+                {
+                    for page in pages {
+                        let app_path = AppPath::from(page.clone());
+
+                        let loader_tree = directory_tree_to_loader_tree(
+                            app_dir,
+                            global_metadata,
+                            directory_name.clone(),
+                            directory_tree_vc,
+                            app_page.clone(),
+                            app_path,
+                        );
+                        loader_trees.push(loader_tree);
+                    }
+                }
+            }
+            Ok((map, loader_trees))
+        })
+        .try_join()
         .await?;
 
-        if let Some(illegal_path) = illegal_path {
-            if !map.is_empty() {
-                return Err(illegal_path);
-            }
-        }
-
+    for (map, loader_trees) in subdirectories.iter() {
+        let mut i = 0;
         for (_, entrypoint) in map.iter() {
             match *entrypoint {
                 Entrypoint::AppPage {
@@ -1109,17 +1143,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     loader_tree: _,
                 } => {
                     for page in pages {
-                        let app_path = AppPath::from(page.clone());
-
-                        let loader_tree = *directory_tree_to_loader_tree(
-                            app_dir,
-                            global_metadata,
-                            directory_name.clone(),
-                            directory_tree_vc,
-                            app_page.clone(),
-                            app_path,
-                        )
-                        .await?;
+                        let loader_tree = *loader_trees[i].await?;
+                        i += 1;
 
                         add_app_page(
                             app_dir,
