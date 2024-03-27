@@ -32,93 +32,39 @@ const onPromptState = (state: {
 
 const styled = (text: string) => blue(text)
 
-const program = new Command(packageJson.name)
-  .version(packageJson.version)
-  .arguments('<project-directory>')
-  .usage(`'<project-directory>' [options]`)
-  .option(
-    '--ts, --typescript',
-    `
-
-  Initialize as a TypeScript project. (default)
-`
-  )
-  .option(
-    '--js, --javascript',
-    `
-
-  Initialize as a JavaScript project.
-`
-  )
-  .option(
-    '--tailwind',
-    `
-
-  Initialize with Tailwind CSS config. (default)
-`
-  )
-  .option(
-    '--eslint',
-    `
-
-  Initialize with eslint config.
-`
-  )
-  .option(
-    '--app',
-    `
-
-  Initialize as an App Router project.
-`
-  )
-  .option(
-    '--src-dir',
-    `
-
-  Initialize inside a \`src/\` directory.
-`
-  )
+const { name: pkgName, version, description } = packageJson
+const program = new Command()
+  .name(pkgName)
+  .version(`${pkgName} v${version}`, '-v, --version')
+  .description(description)
+  .arguments('[directory]')
+  .usage('[directory] [options]')
+  .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
+  .option('--js, --javascript', 'Initialize as a JavaScript project.')
+  .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
+  .option('--eslint', 'Initialize with ESLint config.')
+  .option('--app', 'Initialize as an App Router project.')
+  .option('--src-dir', 'Initialize inside a `src/` directory.')
   .option(
     '--import-alias <alias-to-configure>',
-    `
-
-  Specify import alias to use (default "@/*").
-`
+    'Specify import alias to use (default "@/*").'
   )
-  .option(
-    '--use-npm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using npm
-`
-  )
+  .option('--use-npm', 'Explicitly tell the CLI to bootstrap the app using npm')
   .option(
     '--use-pnpm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using pnpm
-`
+    'Explicitly tell the CLI to bootstrap the app using pnpm'
   )
   .option(
     '--use-yarn',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Yarn
-`
+    'Explicitly tell the CLI to bootstrap the app using Yarn'
   )
-  .option(
-    '--use-bun',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Bun
-`
-  )
+  .option('--use-bun', 'Explicitly tell the CLI to bootstrap the app using Bun')
   .option(
     '-e, --example [name]|[github-url]',
     `
 
   An example to bootstrap the app with. You can use an example name
-  from the official Next.js repo or a GitHub URL. The URL can use
+  from the official Next.js repo or a public GitHub URL. The URL can use
   any branch and/or subdirectory
 `
   )

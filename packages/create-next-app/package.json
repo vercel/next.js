@@ -1,7 +1,7 @@
 {
   "name": "create-next-app",
   "version": "14.2.0-canary.45",
-  "description": "Create Next.js-powered React apps with one command",
+  "description": "The easiest way to get started with Next.js.",
   "license": "MIT",
   "bin": {
     "create-next-app": "./dist/index.js"

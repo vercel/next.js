@@ -31,54 +31,23 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-Usage: create-next-app <project-directory> [options]
+Usage: create-next-app [directory] [options]
+
+The easiest way to get started with Next.js.
 
 Options:
-  -V, --version                        output the version number
-  --ts, --typescript
-
-    Initialize as a TypeScript project. (default)
-
-  --js, --javascript
-
-    Initialize as a JavaScript project.
-
-  --tailwind
-
-    Initialize with Tailwind CSS config. (default)
-
-  --eslint
-
-    Initialize with ESLint config.
-
-  --app
-
-    Initialize as an App Router project.
-
-  --src-dir
-
-    Initialize inside a `src/` directory.
-
-  --import-alias <alias-to-configure>
-
-    Specify import alias to use (default "@/*").
-
-  --use-npm
-
-    Explicitly tell the CLI to bootstrap the app using npm
-
-  --use-pnpm
-
-    Explicitly tell the CLI to bootstrap the app using pnpm
-
-  --use-yarn
-
-    Explicitly tell the CLI to bootstrap the app using Yarn
-
-  --use-bun
-
-    Explicitly tell the CLI to bootstrap the app using Bun
-
+  -v, --version                        output the version number
+  --ts, --typescript                   Initialize as a TypeScript project. (default)
+  --js, --javascript                   Initialize as a JavaScript project.
+  --tailwind                           Initialize with Tailwind CSS config. (default)
+  --eslint                             Initialize with ESLint config.
+  --app                                Initialize as an App Router project.
+  --src-dir                            Initialize inside a `src/` directory.
+  --import-alias <alias-to-configure>  Specify import alias to use (default "@/*").
+  --use-npm                            Explicitly tell the CLI to bootstrap the app using npm
+  --use-pnpm                           Explicitly tell the CLI to bootstrap the app using pnpm
+  --use-yarn                           Explicitly tell the CLI to bootstrap the app using Yarn
+  --use-bun                            Explicitly tell the CLI to bootstrap the app using Bun
   -e, --example [name]|[github-url]
 
     An example to bootstrap the app with. You can use an example name
