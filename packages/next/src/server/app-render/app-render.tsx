@@ -752,11 +752,9 @@ async function renderToHTMLOrFlightImpl(
       // extract dynamic params.
       isInterceptionRouteAppPath(pagePath))
 
-  let providedFlightRouterState = shouldProvideFlightRouterState
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  const parsedFlightRouterState = parseAndValidateFlightRouterState(
+    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+  )
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -777,7 +775,9 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    providedFlightRouterState
+    // `FlightRouterState` is unconditionally provided here because this method uses it
+    // to extract dynamic params as a fallback if they're not present in the path.
+    parsedFlightRouterState
   )
 
   const ctx: AppRenderContext = {
@@ -787,7 +787,9 @@ async function renderToHTMLOrFlightImpl(
     isPrefetch: isPrefetchRSCRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
-    providedFlightRouterState,
+    providedFlightRouterState: shouldProvideFlightRouterState
+      ? parsedFlightRouterState
+      : undefined,
     requestId,
     defaultRevalidate: false,
     pagePath,
