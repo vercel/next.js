@@ -13560,13 +13560,6 @@
     },
     "test/integration/script-loader/test/index.test.js": {
       "passed": [
-        "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
-        "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
-        "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
-        "Next.js Script - Primary Strategies - Production Mode production mode priority afterInteractive",
-        "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive on navigate",
-        "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script should execute",
-        "Next.js Script - Primary Strategies - Production Mode production mode priority lazyOnload",
         "Next.js Script - Primary Strategies - Strict Mode Does not duplicate inline scripts",
         "Next.js Script - Primary Strategies - Strict Mode onReady fires after load event and then on every subsequent re-mount",
         "Next.js Script - Primary Strategies - Strict Mode onReady should only fires once after loaded (issue #39993)",
@@ -13578,6 +13571,13 @@
         "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
       ],
       "failed": [
+        "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
+        "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
+        "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
+        "Next.js Script - Primary Strategies - Production Mode production mode priority afterInteractive",
+        "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive on navigate",
+        "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script should execute",
+        "Next.js Script - Primary Strategies - Production Mode production mode priority lazyOnload",
         "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
         "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
         "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive",
