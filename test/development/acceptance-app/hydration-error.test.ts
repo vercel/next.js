@@ -3,6 +3,7 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
+import { getRedboxTotalErrorCount } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
@@ -373,10 +374,7 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
     expect(await session.hasRedbox()).toBe(true)
 
-    const totalErrorCount = await browser
-      .elementByCss('[data-nextjs-dialog-header-total-count]')
-      .text()
-    expect(totalErrorCount).toBe('1')
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
@@ -436,10 +434,7 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
     expect(await session.hasRedbox()).toBe(true)
 
-    const totalErrorCount = await browser
-      .elementByCss('[data-nextjs-dialog-header-total-count]')
-      .text()
-    expect(totalErrorCount).toBe('1')
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(

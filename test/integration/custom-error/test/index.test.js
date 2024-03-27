@@ -27,7 +27,7 @@ const customErrNo404Match =
   /You have added a custom \/_error page without a custom \/404 page/
 
 describe('Custom _error', () => {
-  describe('dev mode 1', () => {
+  describe('development mode 1', () => {
     let stderr = ''
 
     beforeAll(async () => {
@@ -50,7 +50,7 @@ describe('Custom _error', () => {
     })
   })
 
-  describe('dev mode 2', () => {
+  describe('development mode 2', () => {
     let stderr = ''
 
     beforeAll(async () => {
@@ -79,25 +79,28 @@ describe('Custom _error', () => {
       expect(html).toContain('An error 404 occurred on server')
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let buildOutput = ''
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let buildOutput = ''
 
-    beforeAll(async () => {
-      const { stdout, stderr } = await nextBuild(appDir, undefined, {
-        stdout: true,
-        stderr: true,
+      beforeAll(async () => {
+        const { stdout, stderr } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          stderr: true,
+        })
+        buildOutput = (stdout || '') + (stderr || '')
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
       })
-      buildOutput = (stdout || '') + (stderr || '')
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    it('should not contain /_error in build output', async () => {
-      expect(buildOutput).toMatch(/λ .*?\/404/)
-      expect(buildOutput).not.toMatch(/λ .*?\/_error/)
-    })
+      it('should not contain /_error in build output', async () => {
+        expect(buildOutput).toMatch(/ƒ .*?\/404/)
+        expect(buildOutput).not.toMatch(/ƒ .*?\/_error/)
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

@@ -14,7 +14,7 @@ use turbopack_binding::{
             free_var_references,
         },
         ecmascript::chunk::EcmascriptChunkingContext,
-        node::{debug::should_debug, execution_context::ExecutionContext},
+        node::execution_context::ExecutionContext,
         turbopack::resolve_options_context::ResolveOptionsContext,
     },
 };
@@ -169,7 +169,6 @@ pub async fn get_edge_chunking_context_with_client_assets(
             next_mode.runtime_type(),
         )
         .asset_base_path(asset_prefix)
-        .reference_chunk_source_maps(should_debug("edge"))
         .minify_type(next_mode.minify_type())
         .build(),
     ))
@@ -199,7 +198,6 @@ pub async fn get_edge_chunking_context(
         // implementation in the edge sandbox. It will respond with the
         // asset from the output directory.
         .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
-        .reference_chunk_source_maps(should_debug("edge"))
         .minify_type(next_mode.minify_type())
         .build(),
     ))

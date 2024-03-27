@@ -20,6 +20,9 @@ export default function HomePage() {
           To Random Number - prefetch: auto, slow
         </Link>
       </div>
+      <div>
+        <Link href="/null-loading">To Null Loading - prefetch: auto</Link>
+      </div>
     </>
   )
 }
