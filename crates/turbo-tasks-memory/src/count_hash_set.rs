@@ -194,6 +194,7 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
     pub fn iter(&self) -> CountHashSetIter<'_, T> {
         CountHashSetIter {
             inner: self.inner.iter().filter_map(filter),
+            count: self.inner.len() - self.negative_entries,
         }
     }
 }
@@ -293,17 +294,19 @@ type InnerIter<'a, T> =
 
 pub struct CountHashSetIter<'a, T> {
     inner: InnerIter<'a, T>,
+    count: usize,
 }
 
 impl<'a, T> Iterator for CountHashSetIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.count -= 1;
         self.inner.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
+        (self.count, Some(self.count))
     }
 }
 
