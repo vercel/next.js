@@ -40,7 +40,7 @@ jobs:
     name: Setup Next.js build
     uses: ./.github/workflows/setup-nextjs-build.yml
     with:
-      version: ${{ inputs.version }}
+      version: ${{ inputs.version || 'canary' }}
 
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
   # which we do allow some of duplications to make it easier to update if upstream changes.
@@ -70,7 +70,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ inputs.version }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}-${{ github.run_number }}
+          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}-${{ github.run_number }}
           fail-on-cache-miss: true
 
       - name: Enable corepack and install yarn
@@ -96,9 +96,8 @@ jobs:
           path: |
             test/turbopack-test-junit-report
 
-  # TODO: Implement specifically running production tests only for Turbopack. Enabling this now enables running `test/integration` with development mode too.
   test-integration-production:
-    name: Next.js production integration test (Integration)
+    name: Next.js integration test (Integration)
     needs: [setup_nextjs]
     runs-on:
       - 'self-hosted'
@@ -117,7 +116,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ inputs.version }}-${{ github.sha }}
+          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Enable corepack and install yarn
@@ -145,8 +144,7 @@ jobs:
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
   collect_nextjs_production_integration_stat:
-    # needs: [test-production, test-integration-production]
-    needs: [test-production]
+    needs: [test-production, test-integration-production]
     name: Next.js integration test production status report
     runs-on:
       - 'self-hosted'
@@ -164,7 +162,7 @@ jobs:
       - name: Collect integration test stat
         uses: ./.github/actions/next-integration-stat
         with:
-          diff_base: ${{ inputs.diff_base }}
+          diff_base: ${{ inputs.diff_base || 'none' }}
 
       - name: Store artifacts
         uses: actions/upload-artifact@v4
@@ -176,8 +174,7 @@ jobs:
             passed-test-path-list.json
 
   upload_test_report:
-    # needs: [test-production, test-integration-production]
-    needs: [test-production]
+    needs: [test-production, test-integration-production]
     name: Upload test report to datadog
     runs-on:
       - 'self-hosted'

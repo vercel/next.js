@@ -266,13 +266,18 @@ export function Errors({
             </h1>
             <p
               id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+              className="nextjs__container_errors_desc"
             >
               {error.name}: <HotlinkedText text={error.message} />
             </p>
             {hydrationWarning && (
               <>
-                <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
+                <p
+                  id="nextjs__container_errors__extra"
+                  className="nextjs__container_errors__extra"
+                >
+                  {hydrationWarning}
+                </p>
                 {activeError.componentStackFrames?.length ? (
                   <PseudoHtmlDiff
                     className="nextjs__container_errors__extra_code"
@@ -307,8 +312,7 @@ export const styles = css`
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
-    margin: 0;
-    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
+    margin: var(--size-gap-double) 0;
   }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
@@ -316,33 +320,35 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: sans-serif;
+    font-family: var(--font-stack-sans);
   }
   .nextjs-container-errors-header p {
-    font-family: sans-serif;
+    font-family: var(--font-stack-sans);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
-    font-weight: bold;
     margin: 0;
-    margin-top: var(--size-gap-half);
+    margin-top: var(--size-gap);
     white-space: pre-wrap;
   }
-  .nextjs__container_errors_desc--error {
+  .nextjs__container_errors_desc {
     padding-left: var(--size-gap);
     border-left: 4px solid var(--color-accents-1);
-    color: var(--color-font);
+    margin-top: var(--size-gap);
+    font-weight: 500;
+    color: var(--color-stack-subline);
   }
   .nextjs__container_errors__extra {
-    margin: 20px 0;
+    margin: var(--size-gap-half) 0;
+    color: var(--color-stack-headline);
+    font-weight: 500;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
   }
   .nextjs-container-errors-header > p > a {
-    color: var(--color-ansi-red);
+    font-weight: bold;
   }
-
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
@@ -351,7 +357,7 @@ export const styles = css`
     font-size: var(--size-font-big);
   }
   .nextjs__container_errors__extra_code {
-    margin: 20px 0;
+    margin-top: var(--size-gap);
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);

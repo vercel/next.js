@@ -39,7 +39,7 @@ import {
 } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
+import { generateEncryptionKeyBase64 } from '../../../server/app-render/encryption-utils'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { isWebpackServerOnlyLayer } from '../../utils'
 
@@ -1002,7 +1002,7 @@ export class FlightClientEntryPlugin {
         edge: edgeServerActions,
 
         // Assign encryption
-        encryptionKey: await generateRandomActionKeyRaw(this.dev),
+        encryptionKey: await generateEncryptionKeyBase64(this.dev),
       },
       null,
       this.dev ? 2 : undefined
