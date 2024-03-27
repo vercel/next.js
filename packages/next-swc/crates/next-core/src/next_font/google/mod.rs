@@ -252,8 +252,6 @@ impl NextFontGoogleCssModuleReplacer {
         .resolve()
         .await?;
 
-        println!("css_asset: {:?}, query: {}", css_asset, query_vc.await?);
-
         Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
     }
 }

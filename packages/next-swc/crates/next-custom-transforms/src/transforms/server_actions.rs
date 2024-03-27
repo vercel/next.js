@@ -34,6 +34,7 @@ pub struct Config {
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<String, String>;
 
+#[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
