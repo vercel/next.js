@@ -5328,12 +5328,11 @@
       "runtimeError": false
     },
     "test/integration/absolute-assetprefix/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
         "absolute assetPrefix with path prefix production mode should work with getServerSideProps",
-        "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered"
-      ],
-      "failed": [
+        "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered",
         "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
         "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback"
       ],
@@ -5407,14 +5406,13 @@
       "runtimeError": false
     },
     "test/integration/amphtml/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "AMP Usage AMP dev no-warn should not warn on valid amp",
         "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
         "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
         "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-        "AMP Usage AMP development mode should not contain missing files warning"
-      ],
-      "failed": [
+        "AMP Usage AMP development mode should not contain missing files warning",
         "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
         "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
         "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -5810,12 +5808,12 @@
       "runtimeError": false
     },
     "test/integration/app-tree/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "AppTree production mode should pass AppTree to NextPageContext",
         "AppTree production mode should provide router context in AppTree on CSR",
         "AppTree production mode should provide router context in AppTree on SSR"
       ],
-      "failed": [],
       "pending": [
         "AppTree development mode should pass AppTree to NextPageContext",
         "AppTree development mode should provide router context in AppTree on CSR",
@@ -10301,13 +10299,13 @@
         "i18n Support production mode should use default locale for / without accept-language",
         "i18n Support production mode should visit API route directly correctly",
         "i18n Support production mode should visit dynamic API route directly correctly",
-        "i18n Support production mode should work with AMP first page with all locales",
-        "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
-        "i18n Support with trailingSlash: true production mode should redirect correctly",
-        "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
-        "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
+        "i18n Support production mode should work with AMP first page with all locales"
       ],
       "failed": [
+        "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
+        "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
+        "i18n Support with trailingSlash: true production mode should redirect correctly",
+        "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix",
         "i18n Support production mode should 404 for GSP pages that returned notFound",
         "i18n Support production mode should 404 for GSP that returned notFound on client-transition",
         "i18n Support production mode should handle fallback correctly after generating",
@@ -13681,10 +13679,10 @@
       "runtimeError": false
     },
     "test/integration/ssg-data-404/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "SSG data 404 production mode should hard navigate when a new deployment occurs"
       ],
-      "failed": [],
       "pending": [
         "SSG data 404 development mode should hard navigate when a new deployment occurs"
       ],
