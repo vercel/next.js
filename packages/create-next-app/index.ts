@@ -279,7 +279,7 @@ async function run(): Promise<void> {
       program.importAlias = defaults.importAlias
     }
 
-    return await tryCreateNextApp({ appPath, conf })
+    return await tryCreateNextApp({ appPath })
   }
 
   async function prompt(
@@ -321,7 +321,7 @@ async function run(): Promise<void> {
          * process and not write to the file system.
          */
         onCancel: () => {
-          log.error('Aborted Installation.')
+          console.error('Exiting.')
           process.exit(1)
         },
       }
@@ -495,7 +495,7 @@ async function notifyUpdate(): Promise<void> {
   } catch {}
 }
 
-async function exit(reason: any) {
+async function exit(reason: { command?: string }) {
   log.info('')
   log.warn('Aborting installation.')
   if (reason.command) {
