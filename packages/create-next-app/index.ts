@@ -1,27 +1,21 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
-
-// Node.js built-in modules
-import { existsSync } from 'fs'
-import { basename, resolve } from 'path'
-// External modules
 import Conf from 'conf'
 import prompts from 'prompts'
 import updateCheck from 'update-check'
+import packageJson from './package.json'
+import { existsSync } from 'fs'
+import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command } from 'commander'
 import { blue, bold, cyan, green, red, yellow } from 'picocolors'
-// Local modules
-import packageJson from './package.json'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, validateNpmName } from './helpers'
-// Types
 import type { InitialReturnValue } from 'prompts'
 
-let projectPath: string = ''
+const packageManager = getPkgManager()
 
 const handleSigTerm = () => process.exit(0)
-
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
 
@@ -43,9 +37,6 @@ const program = new Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
   .usage(`${green('<project-directory>')} [options]`)
-  .action((name) => {
-    projectPath = name
-  })
   .option(
     '--ts, --typescript',
     `
@@ -152,18 +143,9 @@ const program = new Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
-const packageManager = !!program.useNpm
-  ? 'npm'
-  : !!program.usePnpm
-  ? 'pnpm'
-  : !!program.useYarn
-  ? 'yarn'
-  : !!program.useBun
-  ? 'bun'
-  : getPkgManager()
-
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
+  let projectPath = program.args[0]
 
   if (program.resetPreferences) {
     conf.clear()
@@ -500,22 +482,22 @@ async function notifyUpdate(): Promise<void> {
   }
 }
 
-run()
-  .then(notifyUpdate)
-  .catch(async (reason) => {
-    console.log()
-    console.log('Aborting installation.')
-    if (reason.command) {
-      console.log(`  ${cyan(reason.command)} has failed.`)
-    } else {
-      console.log(
-        red('Unexpected error. Please report it as a bug:') + '\n',
-        reason
-      )
-    }
-    console.log()
+async function exit(reason: any) {
+  console.log()
+  console.log('Aborting installation.')
+  if (reason.command) {
+    console.log(`  ${cyan(reason.command)} has failed.`)
+  } else {
+    console.log(
+      red('Unexpected error. Please report it as a bug:') + '\n',
+      reason
+    )
+  }
+  console.log()
 
-    await notifyUpdate()
+  await notifyUpdate()
 
-    process.exit(1)
-  })
+  process.exit(1)
+}
+
+run().then(notifyUpdate).catch(exit)
