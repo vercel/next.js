@@ -45,6 +45,9 @@ jobs:
         with:
           fetch-depth: 25
 
+      - name: Fetch Canary branch
+        run: git fetch origin canary:canary
+
       - name: Setup tests
         run: |
           pnpm install
