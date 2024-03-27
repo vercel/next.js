@@ -423,9 +423,8 @@ export async function setupFsCheck(opts: {
 
       const { basePath, assetPrefix } = opts.config
 
-      const hasBasePath = !!basePath && pathHasPrefix(itemPath, basePath)
-      const hasAssetPrefix =
-        !!assetPrefix && pathHasPrefix(itemPath, assetPrefix)
+      const hasBasePath = pathHasPrefix(itemPath, basePath)
+      const hasAssetPrefix = pathHasPrefix(itemPath, assetPrefix)
 
       // Return null if either path doesn't start with basePath or assetPrefix
       if ((basePath || assetPrefix) && !hasBasePath && !hasAssetPrefix) {
@@ -433,9 +432,9 @@ export async function setupFsCheck(opts: {
       }
 
       // Either remove basePath or assetPrefix, not both (due to routes with same name as basePath)
-      if (hasBasePath) {
+      if (basePath && hasBasePath) {
         itemPath = removePathPrefix(itemPath, basePath) || '/'
-      } else if (hasAssetPrefix) {
+      } else if (assetPrefix && hasAssetPrefix) {
         itemPath = removePathPrefix(itemPath, assetPrefix) || '/'
       }
 
