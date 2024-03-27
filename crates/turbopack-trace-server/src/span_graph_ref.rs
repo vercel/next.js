@@ -136,8 +136,6 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
-    // TODO(sokra) show self time in details
-    #[allow(dead_code)]
     pub fn self_time(&self) -> u64 {
         *self.graph.self_time.get_or_init(|| {
             self.recursive_spans()
@@ -147,8 +145,6 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
-    // TODO(sokra) show total time in details
-    #[allow(dead_code)]
     pub fn total_time(&self) -> u64 {
         *self.graph.total_time.get_or_init(|| {
             self.children()
@@ -250,7 +246,7 @@ impl<'a> SpanGraphRef<'a> {
     }
 
     pub fn corrected_self_time(&self) -> u64 {
-        *self.graph.self_time.get_or_init(|| {
+        *self.graph.corrected_self_time.get_or_init(|| {
             self.recursive_spans()
                 .map(|span| span.corrected_self_time())
                 .reduce(|a, b| a + b)
@@ -259,7 +255,7 @@ impl<'a> SpanGraphRef<'a> {
     }
 
     pub fn corrected_total_time(&self) -> u64 {
-        *self.graph.total_time.get_or_init(|| {
+        *self.graph.corrected_total_time.get_or_init(|| {
             self.children()
                 .map(|graph| graph.corrected_total_time())
                 .reduce(|a, b| a + b)
@@ -329,6 +325,13 @@ impl<'a> SpanGraphEventRef<'a> {
         match self {
             SpanGraphEventRef::SelfTime { duration } => *duration,
             SpanGraphEventRef::Child { graph } => graph.corrected_total_time(),
+        }
+    }
+
+    pub fn total_time(&self) -> u64 {
+        match self {
+            SpanGraphEventRef::SelfTime { duration } => *duration,
+            SpanGraphEventRef::Child { graph } => graph.total_time(),
         }
     }
 

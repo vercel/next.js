@@ -40,7 +40,6 @@ impl TraceFormat for NextJsFormat {
             bytes_read += line.len() + 1;
 
             let spans: Vec<NextJsSpan> = serde_json::from_slice(line)?;
-            println!("Read {} spans", spans.len());
 
             let mut store = self.store.write();
 
