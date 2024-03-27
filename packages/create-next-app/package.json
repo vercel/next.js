@@ -1,31 +1,17 @@
 {
   "name": "create-next-app",
   "version": "14.2.0-canary.44",
-  "keywords": [
-    "react",
-    "next",
-    "next.js"
-  ],
   "description": "Create Next.js-powered React apps with one command",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/vercel/next.js",
-    "directory": "packages/create-next-app"
-  },
-  "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
   "bin": {
     "create-next-app": "./dist/index.js"
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "dev": "ncc build ./index.ts -w -o dist/",
-    "prerelease": "node ../../scripts/rm.mjs dist",
-    "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "prepublishOnly": "cd ../../ && turbo run build",
+    "dev": "ncc build ./index.ts -w",
     "build": "pnpm release",
+    "release": "ncc build ./index.ts --minify --no-cache --no-source-map-register",
+    "prerelease": "node ../../scripts/rm.mjs dist",
+    "prepublishOnly": "cd ../../ && turbo run build",
     "lint-fix": "pnpm prettier -w --plugin prettier-plugin-tailwindcss 'templates/*-tw/{ts,js}/{app,pages}/**/*.{js,ts,tsx}'"
   },
   "devDependencies": {
@@ -52,5 +38,26 @@
   },
   "engines": {
     "node": ">=18.17.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/create-next-app"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "react",
+    "next",
+    "nextjs",
+    "next.js",
+    "node",
+    "jsx",
+    "vercel",
+    "cli",
+    "front-end",
+    "framework"
+  ]
 }
