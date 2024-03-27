@@ -11,7 +11,7 @@ import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { PAGE_TYPES } from '../../lib/page-types'
-import { setReferenceManifestsSingleton } from '../../server/app-render/action-encryption-utils'
+import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
 
 declare const incrementalCacheHandler: any

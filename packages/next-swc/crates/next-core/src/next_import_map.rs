@@ -841,10 +841,7 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
     );
 
     import_map.insert_alias(
@@ -887,10 +884,7 @@ async fn insert_next_shared_aliases(
     );
     import_map.insert_exact_alias(
         "private-next-rsc-action-encryption",
-        request_to_import_mapping(
-            project_path,
-            "next/dist/server/app-render/action-encryption",
-        ),
+        request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
     );
 
     insert_turbopack_dev_alias(import_map);

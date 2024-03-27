@@ -1,6 +1,12 @@
 import { NextInstance } from 'test/lib/next-modes/base'
 import { createNext, FileRef } from 'e2e-utils'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  renderViaHTTP,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
@@ -95,6 +101,22 @@ describe('Prerender prefetch', () => {
         return next.cliOutput.substring(outputIndex)
       }, /revalidating \/blog first/)
 
+      // wait for the revalidation to finish by comparing timestamps
+      await retry(async () => {
+        const timeRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/blog/first.json`,
+          undefined,
+          {
+            headers: {
+              purpose: 'prefetch',
+            },
+          }
+        )
+        const updatedTime = (await timeRes.json()).pageProps.now
+        expect(updatedTime).not.toBe(startTime)
+      })
+
       // now trigger cache update and navigate again
       await browser.eval(
         'next.router.prefetch("/blog/first", undefined, { unstable_skipClientCache: true }).finally(() => { window.prefetchDone = "yes" })'
@@ -141,6 +163,22 @@ describe('Prerender prefetch', () => {
         await renderViaHTTP(next.url, '/blog/first')
         return next.cliOutput.substring(outputIndex)
       }, /revalidating \/blog first/)
+
+      // wait for the revalidation to finish by comparing timestamps
+      await retry(async () => {
+        const timeRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/blog/first.json`,
+          undefined,
+          {
+            headers: {
+              purpose: 'prefetch',
+            },
+          }
+        )
+        const updatedTime = (await timeRes.json()).pageProps.now
+        expect(updatedTime).not.toBe(startTime)
+      })
 
       // now trigger cache update and navigate again
       await browser.eval(

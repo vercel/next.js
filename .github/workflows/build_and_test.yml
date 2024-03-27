@@ -424,6 +424,7 @@ jobs:
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-firefox-safari',
         'test-ppr-dev',
         'test-ppr-prod',
         'test-ppr-integration',

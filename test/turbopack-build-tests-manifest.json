@@ -5346,6 +5346,12 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/bfcache-routing/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
+      ]
+    },
     "test/production/build-spinners/index.test.ts": {
       "passed": [],
       "failed": [

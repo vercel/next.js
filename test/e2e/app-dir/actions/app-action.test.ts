@@ -39,6 +39,23 @@ createNextDescribe(
       await check(() => browser.elementById('count').text(), '3')
     })
 
+    it('should report errors with bad inputs correctly', async () => {
+      const browser = await next.browser('/error-handling', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementByCss('#submit').click()
+
+      const logs = await browser.log()
+      expect(
+        logs.some((log) =>
+          log.message.includes(
+            'Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported.'
+          )
+        )
+      ).toBe(true)
+    })
+
     it('should support headers and cookies', async () => {
       const browser = await next.browser('/header')
 
