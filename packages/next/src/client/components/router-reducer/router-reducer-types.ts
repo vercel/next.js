@@ -284,9 +284,9 @@ export function isThenable(value: any): value is Promise<AppRouterState> {
 }
 
 /**
- * Time (in ms) that a prefetch entry can be reused by the client router cache.
+ * A `live` value will indicate that the client router should always fetch the latest data from the server when
+ * navigating to a new route when auto prefetching is used. A `default` value will use existing
+ * cache heuristics (router cache will persist for 30s before being invalidated). Defaults to `default`.
  */
-export const PREFETCH_STALE_TIME =
-  typeof process.env.__NEXT_CLIENT_ROUTER_CACHE_STALETIME_MS !== 'undefined'
-    ? parseInt(process.env.__NEXT_CLIENT_ROUTER_CACHE_STALETIME_MS, 10)
-    : 30 * 1000 // thirty seconds (in ms)
+export const PREFETCH_CACHE_MODE =
+  process.env.__NEXT_CLIENT_ROUTER_CACHE_MODE === 'live' ? 'live' : 'default'

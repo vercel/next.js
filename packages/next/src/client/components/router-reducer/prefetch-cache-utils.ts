@@ -8,7 +8,7 @@ import {
   type PrefetchCacheEntry,
   PrefetchKind,
   type ReadonlyReducerState,
-  PREFETCH_STALE_TIME,
+  PREFETCH_CACHE_MODE,
 } from './router-reducer-types'
 import { prefetchQueue } from './reducers/prefetch-reducer'
 
@@ -114,8 +114,7 @@ export function getOrCreatePrefetchCacheEntry({
     kind:
       kind ||
       // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      // when staletime is 0, there'll never be a "FULL" prefetch kind, so we default to auto
-      (process.env.NODE_ENV === 'development' || PREFETCH_STALE_TIME === 0
+      (process.env.NODE_ENV === 'development'
         ? PrefetchKind.AUTO
         : PrefetchKind.TEMPORARY),
   })
@@ -246,21 +245,23 @@ export function prunePrefetchCache(
 }
 
 const FIVE_MINUTES = 5 * 60 * 1000
+const THIRTY_SECONDS = 30 * 1000
 
 function getPrefetchEntryCacheStatus({
   kind,
   prefetchTime,
   lastUsedTime,
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
-  if (PREFETCH_STALE_TIME === 0) {
-    // a value of 0 means we never want to use the prefetch data, only the prefetched loading state (if it exists)
-    // we mark it stale here so that the router will not attempt to apply the cache node data and will instead know to lazily
-    // fetch the full data
+  if (kind !== PrefetchKind.FULL && PREFETCH_CACHE_MODE === 'live') {
+    // When the cache mode is set to "live", we only want to re-use the loading state. We mark the entry as stale
+    // regardless of the lastUsedTime so that the router will not attempt to apply the cache node data and will instead only
+    // re-use the loading state while lazy fetching the page data.
+    // We don't do this for a full prefetch, as if there's explicit caching intent it should respect existing heuristics.
     return PrefetchCacheEntryStatus.stale
   }
 
   // if the cache entry was prefetched or read less than the specified staletime window, then we want to re-use it
-  if (Date.now() < (lastUsedTime ?? prefetchTime) + PREFETCH_STALE_TIME) {
+  if (Date.now() < (lastUsedTime ?? prefetchTime) + THIRTY_SECONDS) {
     return lastUsedTime
       ? PrefetchCacheEntryStatus.reusable
       : PrefetchCacheEntryStatus.fresh
