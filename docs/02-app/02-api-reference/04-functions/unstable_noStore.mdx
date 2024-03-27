@@ -16,7 +16,7 @@ export default async function Component() {
 ```
 
 > **Good to know**:
-> - Even though `noStore` is defined at the component level, the entire route becomes dynamic (until [Partial Prerendering](/docs/app/api-reference/next-config-js/partial-prerendering) is stable)
+> - Even though `noStore` is defined at the component level, the entire route becomes dynamic unless `dynamic = 'force-static'` is specified (until [Partial Prerendering](/docs/app/api-reference/next-config-js/partial-prerendering) is stable)
 > - `unstable_noStore` is equivalent to `cache: 'no-store'` on a `fetch`
 > - `unstable_noStore` is preferred over `export const dynamic = 'force-dynamic'` as it is more granular and can be used on a per-component basis
 
