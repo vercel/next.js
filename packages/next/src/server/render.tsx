@@ -111,7 +111,7 @@ let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tr
 let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
-const DOCTYPE = '<!DOCTYPE html>'
+const DOCTYPE = process.env.NEXT_DOCTYPE || '<!DOCTYPE html>'
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   tryGetPreviewData =
