@@ -2354,6 +2354,7 @@
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
       "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should support .bind",
       "app-dir action handling should support chained .bind",
       "app-dir action handling should support formData and redirect",
