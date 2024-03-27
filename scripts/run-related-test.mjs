@@ -19,8 +19,8 @@ async function findFiles(paths, marker) {
   const foundPaths = []
   for (const path of paths) {
     const command = `find "${path}" -type f -exec grep -l "${marker}" {} +`
-    const result = await exec(command).catch((e) => e)
-    foundPaths.push(...result.stdout.split('\n'))
+    const { stdout } = await exec(command).catch((e) => e)
+    foundPaths.push(...stdout.trim().split('\n'))
   }
   return foundPaths.filter(Boolean)
 }
@@ -31,19 +31,31 @@ async function findFiles(paths, marker) {
  * @param {string} marker - Marker to search for
  */
 async function readTestLines(filePath, marker) {
-  const grepCommand = `awk '/${marker.replaceAll(
-    '/',
-    '\\/'
-  )}/{flag=1;next}/^$/{flag=0}flag' ${filePath} | sort | uniq`
-  const result = await exec(grepCommand, {})
+  const escapedMarker = marker.replaceAll('/', '\\/')
+  let command = `awk '/${escapedMarker}/{flag=1;next}/^$/{flag=0}flag' ${filePath}`
+  command += ' | sort | uniq' // Sort and remove duplicates
+  const { stdout } = await exec(command)
 
-  return result.stdout
-    .replace(/^\/\/ /gm, '')
+  return stdout
+    .trim()
+    .replace(/^\/\/ /gm, '') // Remove the '// ' comment prefix
     .split('\n')
-    .filter(Boolean)
 }
 
-const paths = process.argv.slice(2)
+/**
+ * Get all changed files from git under the packages directory
+ * @returns {Promise<string[]>} - List of changed files
+ */
+async function getChangedFilesFromPackages(baseBranch = 'canary') {
+  const { stdout } = await exec(`git diff --name-only ${baseBranch}`)
+  return stdout
+    .trim()
+    .split('\n')
+    .filter((line) => line.startsWith('packages/'))
+}
+
+const args = process.argv.slice(2)
+const paths = args.length ? args : await getChangedFilesFromPackages()
 const marker = '// TEST:'
 const files = await findFiles(paths, marker)
 const lines = []
