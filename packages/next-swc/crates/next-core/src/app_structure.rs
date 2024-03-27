@@ -472,6 +472,7 @@ pub enum Entrypoint {
     AppRoute {
         page: AppPage,
         path: Vc<FileSystemPath>,
+        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
     },
     AppMetadata {
         page: AppPage,
@@ -602,11 +603,16 @@ fn add_app_route(
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: Vc<FileSystemPath>,
+    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
-            e.insert(Entrypoint::AppRoute { page, path });
+            e.insert(Entrypoint::AppRoute {
+                page,
+                path,
+                root_layouts,
+            });
             return;
         }
     };
@@ -682,6 +688,7 @@ pub fn get_entrypoints(
         app_dir,
         get_directory_tree(app_dir, page_extensions),
         get_global_metadata(app_dir, page_extensions),
+        Default::default(),
     )
 }
 
@@ -690,6 +697,7 @@ fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
+    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -697,6 +705,7 @@ fn directory_tree_to_entrypoints(
         "".to_string(),
         directory_tree,
         AppPage::new(),
+        root_layouts,
     )
 }
 
@@ -932,6 +941,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_name: String,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
+    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -940,6 +950,7 @@ async fn directory_tree_to_entrypoints_internal(
         directory_name,
         directory_tree,
         app_page,
+        root_layouts,
     )
     .instrument(span)
     .await
@@ -951,6 +962,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_name: String,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
+    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -959,8 +971,17 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
     let subdirectories = &directory_tree.subdirectories;
     let components = directory_tree.components.await?.clone_value();
+    // Route can have its own segment config, also can inherit from the layout root
+    // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
+    // Pass down layouts from each tree to apply segment config when adding route.
+    let root_layouts = if let Some(layout) = components.layout {
+        let mut layouts = (*root_layouts.await?).clone();
+        layouts.push(layout);
+        Vc::cell(layouts)
+    } else {
+        root_layouts
+    };
 
-    // if let Some(_) = components.page.or(components.default) {
     if components.page.is_some() {
         let app_path = AppPath::from(app_page.clone());
 
@@ -989,6 +1010,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             &mut result,
             app_page.complete(PageType::Route)?,
             route,
+            root_layouts,
         );
     }
 
@@ -1097,6 +1119,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 subdir_name.to_string(),
                 subdirectory,
                 child_app_page.clone(),
+                root_layouts,
             )
             .await?;
 
@@ -1156,8 +1179,12 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         .await?;
                     }
                 }
-                Entrypoint::AppRoute { ref page, path } => {
-                    add_app_route(app_dir, &mut result, page.clone(), path);
+                Entrypoint::AppRoute {
+                    ref page,
+                    path,
+                    root_layouts,
+                } => {
+                    add_app_route(app_dir, &mut result, page.clone(), path, root_layouts);
                 }
                 Entrypoint::AppMetadata { ref page, metadata } => {
                     add_app_metadata_route(app_dir, &mut result, page.clone(), metadata);
