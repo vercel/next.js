@@ -15,7 +15,6 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { RuntimeErrorHandler } from './components/react-dev-overlay/internal/helpers/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './components/react-dev-overlay/shared'
 import { performFullReload } from './components/react-dev-overlay/pages/hot-reloader-client'
-import { DEV_CLIENT_PAGES_MANIFEST } from '../api/constants'
 
 export function pageBootrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
@@ -50,7 +49,7 @@ export function pageBootrap(assetPrefix: string) {
           }
           case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
             fetch(
-              `${assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`
+              `${assetPrefix}/_next/static/development/_devPagesManifest.json`
             )
               .then((res) => res.json())
               .then((manifest) => {
