@@ -174,10 +174,6 @@ async function updatePassingTests() {
           status = 'pending'
         }
 
-        if (status === 'error') {
-          continue
-        }
-
         const statusArray = fileResults[status]
         if (!statusArray) {
           throw new Error(`unexpected status "${status}"`)
