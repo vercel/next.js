@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{
+    self_time_tree::SelfTimeTree,
     span::{Span, SpanEvent, SpanIndex},
     span_ref::SpanRef,
 };
@@ -17,6 +18,7 @@ const CUT_OFF_DEPTH: u32 = 150;
 
 pub struct Store {
     pub(crate) spans: Vec<Span>,
+    pub(crate) self_time_tree: SelfTimeTree<SpanIndex>,
 }
 
 fn new_root_span() -> Span {
@@ -59,12 +61,14 @@ impl Store {
     pub fn new() -> Self {
         Self {
             spans: vec![new_root_span()],
+            self_time_tree: SelfTimeTree::new(),
         }
     }
 
     pub fn reset(&mut self) {
         self.spans.truncate(1);
         self.spans[0] = new_root_span();
+        self.self_time_tree = SelfTimeTree::new();
     }
 
     pub fn add_span(
@@ -137,6 +141,20 @@ impl Store {
         outdated_spans.insert(span_index);
     }
 
+    fn insert_self_time(
+        &mut self,
+        start: u64,
+        end: u64,
+        span_index: SpanIndex,
+        outdated_spans: &mut HashSet<SpanIndex>,
+    ) {
+        self.self_time_tree
+            .for_each_in_range(start, end, |_, _, span| {
+                outdated_spans.insert(*span);
+            });
+        self.self_time_tree.insert(start, end, span_index);
+    }
+
     pub fn add_self_time(
         &mut self,
         span_index: SpanIndex,
@@ -152,6 +170,7 @@ impl Store {
         span.self_time += end - start;
         span.events.push(SpanEvent::SelfTime { start, end });
         span.self_end = max(span.self_end, end);
+        self.insert_self_time(start, end, span_index, outdated_spans);
     }
 
     pub fn set_total_time(
@@ -181,6 +200,7 @@ impl Store {
                         start: current,
                         end: self_end,
                     });
+                    self.insert_self_time(current, self_end, span_index, outdated_spans);
                     self_time += self_end - current;
                     break;
                 }
@@ -188,6 +208,7 @@ impl Store {
                     start: current,
                     end: start,
                 });
+                self.insert_self_time(current, start, span_index, outdated_spans);
                 self_time += start - current;
             }
             events.push(SpanEvent::Child { id: index });
@@ -196,6 +217,16 @@ impl Store {
         current -= start_time;
         if current < total_time {
             self_time += total_time - current;
+            events.push(SpanEvent::SelfTime {
+                start: current + start_time,
+                end: start_time + total_time,
+            });
+            self.insert_self_time(
+                current + start_time,
+                start_time + total_time,
+                span_index,
+                outdated_spans,
+            );
         }
         let span = &mut self.spans[span_index.get()];
         outdated_spans.insert(span_index);

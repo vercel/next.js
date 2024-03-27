@@ -130,6 +130,13 @@ impl<'a> SpanBottomUpRef<'a> {
             .get_or_init(|| self.spans().map(|span| span.corrected_self_time()).sum())
     }
 
+    pub fn self_time(&self) -> u64 {
+        *self
+            .bottom_up
+            .self_time
+            .get_or_init(|| self.spans().map(|span| span.self_time()).sum())
+    }
+
     pub fn self_allocations(&self) -> u64 {
         *self
             .bottom_up

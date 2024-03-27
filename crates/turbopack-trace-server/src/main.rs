@@ -1,5 +1,6 @@
 #![feature(iter_intersperse)]
 #![feature(hash_raw_entry)]
+#![feature(box_patterns)]
 
 use std::{collections::HashSet, sync::Arc};
 
@@ -7,6 +8,7 @@ use self::{reader::TraceReader, server::serve, store_container::StoreContainer};
 
 mod bottom_up;
 mod reader;
+mod self_time_tree;
 mod server;
 mod span;
 mod span_bottom_up_ref;

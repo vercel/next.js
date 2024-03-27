@@ -16,7 +16,7 @@ anyhow = { workspace = true, features = ["backtrace"] }
 clap = { workspace = true, features = ["derive", "env"] }
 either = { workspace = true }
 futures = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 intervaltree = "0.2.7"
 itertools = { workspace = true }
 owo-colors = { workspace = true }

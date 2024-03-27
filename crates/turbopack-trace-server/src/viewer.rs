@@ -27,6 +27,7 @@ pub struct Viewer {
 #[derive(Clone, Copy, Debug)]
 pub enum ValueMode {
     Duration,
+    Cpu,
     Allocations,
     Deallocations,
     PersistentAllocations,
@@ -35,9 +36,22 @@ pub enum ValueMode {
 }
 
 impl ValueMode {
+    fn secondary(&self) -> ValueMode {
+        match self {
+            ValueMode::Duration => ValueMode::Cpu,
+            ValueMode::Cpu => ValueMode::Duration,
+            ValueMode::Allocations => ValueMode::PersistentAllocations,
+            ValueMode::Deallocations => ValueMode::PersistentAllocations,
+            ValueMode::PersistentAllocations => ValueMode::Allocations,
+            ValueMode::AllocationCount => ValueMode::Allocations,
+            ValueMode::Count => ValueMode::Count,
+        }
+    }
+
     fn value_from_span(&self, span: &SpanRef<'_>) -> u64 {
         match self {
             ValueMode::Duration => span.corrected_total_time(),
+            ValueMode::Cpu => span.total_time(),
             ValueMode::Allocations => span.total_allocations(),
             ValueMode::Deallocations => span.total_deallocations(),
             ValueMode::PersistentAllocations => span.total_persistent_allocations(),
@@ -49,6 +63,7 @@ impl ValueMode {
     fn value_from_graph(&self, graph: &SpanGraphRef<'_>) -> u64 {
         match self {
             ValueMode::Duration => graph.corrected_total_time(),
+            ValueMode::Cpu => graph.total_time(),
             ValueMode::Allocations => graph.total_allocations(),
             ValueMode::Deallocations => graph.total_deallocations(),
             ValueMode::PersistentAllocations => graph.total_persistent_allocations(),
@@ -60,6 +75,7 @@ impl ValueMode {
     fn value_from_graph_event(&self, event: &SpanGraphEventRef<'_>) -> u64 {
         match self {
             ValueMode::Duration => event.corrected_total_time(),
+            ValueMode::Cpu => event.total_time(),
             ValueMode::Allocations => event.total_allocations(),
             ValueMode::Deallocations => event.total_deallocations(),
             ValueMode::PersistentAllocations => event.total_persistent_allocations(),
@@ -71,6 +87,7 @@ impl ValueMode {
     fn value_from_bottom_up(&self, bottom_up: &SpanBottomUpRef<'_>) -> u64 {
         match self {
             ValueMode::Duration => bottom_up.corrected_self_time(),
+            ValueMode::Cpu => bottom_up.self_time(),
             ValueMode::Allocations => bottom_up.self_allocations(),
             ValueMode::Deallocations => bottom_up.self_deallocations(),
             ValueMode::PersistentAllocations => bottom_up.self_persistent_allocations(),
@@ -82,6 +99,7 @@ impl ValueMode {
     fn value_from_bottom_up_span(&self, bottom_up_span: &SpanRef<'_>) -> u64 {
         match self {
             ValueMode::Duration => bottom_up_span.corrected_self_time(),
+            ValueMode::Cpu => bottom_up_span.self_time(),
             ValueMode::Allocations => bottom_up_span.self_allocations(),
             ValueMode::Deallocations => bottom_up_span.self_deallocations(),
             ValueMode::PersistentAllocations => bottom_up_span.self_persistent_allocations(),
@@ -184,6 +202,8 @@ pub struct ViewSpan {
     start_in_parent: u32,
     #[serde(rename = "e")]
     end_in_parent: u32,
+    #[serde(rename = "v")]
+    secondary: u64,
 }
 
 #[derive(Debug)]
@@ -296,6 +316,7 @@ impl Viewer {
 
         let value_mode = match view_rect.value_mode.as_str() {
             "duration" => ValueMode::Duration,
+            "cpu" => ValueMode::Cpu,
             "allocations" => ValueMode::Allocations,
             "deallocations" => ValueMode::Deallocations,
             "persistent-deallocations" => ValueMode::PersistentAllocations,
@@ -366,6 +387,7 @@ impl Viewer {
         {
             let line = get_line(&mut lines, line_index);
             let width = span.value(value_mode);
+            let secondary = span.value(value_mode.secondary());
 
             // compute children
             let mut children = Vec::new();
@@ -677,6 +699,7 @@ impl Viewer {
                 line.push(LineEntry {
                     start,
                     width,
+                    secondary: 0,
                     ty: LineEntryType::Placeholder(filtered),
                 });
             } else {
@@ -687,6 +710,7 @@ impl Viewer {
                 line.push(LineEntry {
                     start,
                     width,
+                    secondary,
                     ty: match span {
                         QueueItem::Span(span) => LineEntryType::Span { span, filtered },
                         QueueItem::SpanGraph(span_graph) => {
@@ -721,6 +745,7 @@ impl Viewer {
                             kind: if filtered { 11 } else { 1 },
                             start_in_parent: 0,
                             end_in_parent: 0,
+                            secondary: 0,
                         },
                         LineEntryType::Span { span, filtered } => {
                             let (category, text) = span.nice_name();
@@ -745,6 +770,7 @@ impl Viewer {
                                 kind: if filtered { 10 } else { 0 },
                                 start_in_parent,
                                 end_in_parent,
+                                secondary: entry.secondary,
                             }
                         }
                         LineEntryType::SpanGraph(graph, filtered) => {
@@ -759,6 +785,7 @@ impl Viewer {
                                 kind: if filtered { 10 } else { 0 },
                                 start_in_parent: 0,
                                 end_in_parent: 0,
+                                secondary: entry.secondary,
                             }
                         }
                         LineEntryType::SpanBottomUp(bottom_up, filtered) => {
@@ -773,6 +800,7 @@ impl Viewer {
                                 kind: if filtered { 12 } else { 2 },
                                 start_in_parent: 0,
                                 end_in_parent: 0,
+                                secondary: entry.secondary,
                             }
                         }
                         LineEntryType::SpanBottomUpSpan(bottom_up_span, filtered) => {
@@ -787,6 +815,7 @@ impl Viewer {
                                 kind: if filtered { 12 } else { 2 },
                                 start_in_parent: 0,
                                 end_in_parent: 0,
+                                secondary: entry.secondary,
                             }
                         }
                     })
@@ -893,6 +922,7 @@ fn get_line<T: Default>(lines: &mut Vec<T>, i: usize) -> &mut T {
 struct LineEntry<'a> {
     start: u64,
     width: u64,
+    secondary: u64,
     ty: LineEntryType<'a>,
 }
 

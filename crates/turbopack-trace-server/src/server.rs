@@ -43,6 +43,7 @@ pub enum ServerToClientMessage {
         start: u64,
         end: u64,
         duration: u64,
+        cpu: u64,
         allocations: u64,
         deallocations: u64,
         allocation_count: u64,
@@ -283,6 +284,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                             let span_start = span.start() - root_start;
                                             let span_end = span.end() - root_start;
                                             let duration = span.corrected_total_time();
+                                            let cpu = span.total_time();
                                             let allocations = span.total_allocations();
                                             let deallocations = span.total_deallocations();
                                             let allocation_count = span.total_allocation_count();
@@ -305,6 +307,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                                 start: span_start,
                                                 end: span_end,
                                                 duration,
+                                                cpu,
                                                 allocations,
                                                 deallocations,
                                                 allocation_count,
@@ -319,6 +322,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                                 start: 0,
                                                 end: 0,
                                                 duration: 0,
+                                                cpu: 0,
                                                 allocations: 0,
                                                 deallocations: 0,
                                                 allocation_count: 0,

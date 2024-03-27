@@ -112,7 +112,7 @@ impl TraceReader {
                         }
                         buffer.extend_from_slice(&chunk[..bytes_read]);
                         if format.is_none() && buffer.len() >= 8 {
-                            if buffer.starts_with(b"TRACEV0") {
+                            if buffer.starts_with(b"TRACEv0") {
                                 index = 7;
                                 format = Some(Box::new(TurbopackFormat::new(self.store.clone())));
                             } else if buffer.starts_with(b"[{\"name\"") {

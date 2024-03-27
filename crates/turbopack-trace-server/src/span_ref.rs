@@ -234,17 +234,31 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn corrected_self_time(&self) -> u64 {
-        *self
-            .span
-            .corrected_self_time
-            .get_or_init(|| self.self_time())
+        let store = self.store;
+        *self.span.corrected_self_time.get_or_init(|| {
+            let mut self_time = 0;
+            for event in self.span.events.iter() {
+                if let SpanEvent::SelfTime { start, end } = event {
+                    let duration = end - start;
+                    if duration == 0 {
+                        continue;
+                    }
+                    let concurrent_time = store.self_time_tree.lookup_range_count(*start, *end);
+                    self_time += duration * duration / concurrent_time;
+                }
+            }
+            self_time
+        })
     }
 
     pub fn corrected_total_time(&self) -> u64 {
-        *self
-            .span
-            .corrected_total_time
-            .get_or_init(|| self.total_time())
+        *self.span.corrected_total_time.get_or_init(|| {
+            self.children()
+                .map(|child| child.corrected_total_time())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.corrected_self_time()
+        })
     }
 
     pub fn max_depth(&self) -> u32 {
