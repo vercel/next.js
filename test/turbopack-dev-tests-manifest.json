@@ -2354,6 +2354,7 @@
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
       "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should support .bind",
       "app-dir action handling should support chained .bind",
       "app-dir action handling should support formData and redirect",
@@ -3353,9 +3354,11 @@
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
+      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
+      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
@@ -3368,10 +3371,7 @@
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
     ],
-    "failed": [
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
-      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

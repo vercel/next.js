@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "14.2.0-canary.44",
+  "version": "14.2.0-canary.45",
   "description": "Create Next.js-powered React apps with one command",
   "license": "MIT",
   "bin": {

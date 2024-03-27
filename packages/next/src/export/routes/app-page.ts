@@ -128,12 +128,23 @@ export async function exportAppPage(
       'utf8'
     )
 
+    const isParallelRoute = /\/@\w+/.test(page)
+    const isNonSuccessfulStatusCode = res.statusCode > 300
+    // When PPR is enabled, we don't always send 200 for routes that have been
+    // pregenerated, so we should grab the status code from the mocked
+    // response.
+    let status: number | undefined = renderOpts.experimental.ppr
+      ? res.statusCode
+      : undefined
+
+    // If it's parallel route the status from mock response is 404
+    if (isNonSuccessfulStatusCode && !isParallelRoute) {
+      status = res.statusCode
+    }
+
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
-      // When PPR is enabled, we don't always send 200 for routes that have been
-      // pregenerated, so we should grab the status code from the mocked
-      // response.
-      status: renderOpts.experimental.ppr ? res.statusCode : undefined,
+      status,
       headers,
       postponed,
     }
