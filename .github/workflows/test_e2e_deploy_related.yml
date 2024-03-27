@@ -48,7 +48,7 @@ jobs:
           node scripts/run-e2e-test-project-reset.mjs
 
       - name: Run tests
-        run: xvfb-run node run-tests.js --related >> /proc/1/fd/1"
+        run: xvfb-run node run-tests.js --related >> /proc/1/fd/1
 
       - name: Save test report as artifacts
         if: always()
