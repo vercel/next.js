@@ -46,7 +46,7 @@ async function readTestLines(filePath, marker) {
  * Get all changed files from git under the packages directory
  * @returns {Promise<string[]>} - List of changed files
  */
-async function getChangedFilesFromPackages(baseBranch = 'canary') {
+async function getChangedFilesFromPackages(baseBranch = 'origin/canary') {
   const { stdout } = await exec(`git diff --name-only ${baseBranch}`)
   return stdout
     .trim()
