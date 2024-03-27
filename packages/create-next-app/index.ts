@@ -10,7 +10,7 @@ import { Command } from 'commander'
 import { blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
-import type { InitialReturnValue } from 'prompts'
+import type { InitialReturnValue, Options, PromptType } from 'prompts'
 
 const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
@@ -29,6 +29,8 @@ const onPromptState = (state: {
     process.exit(1)
   }
 }
+
+const styled = (text: string) => blue(text)
 
 const program = new Command(packageJson.name)
   .version(packageJson.version)
@@ -280,16 +282,38 @@ async function run(): Promise<void> {
     return await tryCreateNextApp({ appPath, conf })
   }
 
+  async function prompt(
+    {
+      type,
+      name,
+      message,
+      validate,
+    }: {
+      type: PromptType
+      name: string
+      message: string
+      validate?: (value: string) => boolean | string
+    },
+    options?: Options
+  ) {
+    return prompts({
+      onState: onPromptState,
+      type,
+      name,
+      message,
+      initial: getPrefOrDefault(name),
+      validate,
+      ...(type === 'toggle' && { active: 'Yes', inactive: 'No' }),
+      ...options,
+    })
+  }
+
   if (!program.typescript && !program.javascript) {
-    const styledTypeScript = blue('TypeScript')
-    const { typescript } = await prompts(
+    const { typescript } = await prompt(
       {
         type: 'toggle',
         name: 'typescript',
-        message: `Would you like to use ${styledTypeScript}?`,
-        initial: getPrefOrDefault('typescript'),
-        active: 'Yes',
-        inactive: 'No',
+        message: `Would you like to use ${styled('TypeScript')}?`,
       },
       {
         /**
@@ -314,15 +338,10 @@ async function run(): Promise<void> {
     !process.argv.includes('--eslint') &&
     !process.argv.includes('--no-eslint')
   ) {
-    const styledEslint = blue('ESLint')
-    const { eslint } = await prompts({
-      onState: onPromptState,
+    const { eslint } = await prompt({
       type: 'toggle',
       name: 'eslint',
-      message: `Would you like to use ${styledEslint}?`,
-      initial: getPrefOrDefault('eslint'),
-      active: 'Yes',
-      inactive: 'No',
+      message: `Would you like to use ${styled('ESLint')}?`,
     })
     program.eslint = Boolean(eslint)
     preferences.eslint = Boolean(eslint)
@@ -332,15 +351,10 @@ async function run(): Promise<void> {
     !process.argv.includes('--tailwind') &&
     !process.argv.includes('--no-tailwind')
   ) {
-    const tw = blue('Tailwind CSS')
-    const { tailwind } = await prompts({
-      onState: onPromptState,
+    const { tailwind } = await prompt({
       type: 'toggle',
       name: 'tailwind',
-      message: `Would you like to use ${tw}?`,
-      initial: getPrefOrDefault('tailwind'),
-      active: 'Yes',
-      inactive: 'No',
+      message: `Would you like to use ${styled('Tailwind CSS')}?`,
     })
     program.tailwind = Boolean(tailwind)
     preferences.tailwind = Boolean(tailwind)
@@ -350,60 +364,44 @@ async function run(): Promise<void> {
     !process.argv.includes('--src-dir') &&
     !process.argv.includes('--no-src-dir')
   ) {
-    const styledSrcDir = blue('`src/` directory')
-    const { srcDir } = await prompts({
-      onState: onPromptState,
+    const { srcDir } = await prompt({
       type: 'toggle',
       name: 'srcDir',
-      message: `Would you like to use ${styledSrcDir}?`,
-      initial: getPrefOrDefault('srcDir'),
-      active: 'Yes',
-      inactive: 'No',
+      message: `Would you like to use ${styled('`src/` directory')}?`,
     })
     program.srcDir = Boolean(srcDir)
     preferences.srcDir = Boolean(srcDir)
   }
 
   if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-    const styledAppDir = blue('App Router')
-    const { appRouter } = await prompts({
-      onState: onPromptState,
+    const { app } = await prompt({
       type: 'toggle',
-      name: 'appRouter',
-      message: `Would you like to use ${styledAppDir}? (recommended)`,
-      initial: getPrefOrDefault('app'),
-      active: 'Yes',
-      inactive: 'No',
+      name: 'app',
+      message: `Would you like to use ${styled('App Router')}? (recommended)`,
     })
-    program.app = Boolean(appRouter)
+    program.app = Boolean(app)
   }
 
   if (typeof program.importAlias !== 'string' || !program.importAlias.length) {
     if (process.argv.includes('--no-import-alias')) {
       program.importAlias = defaults.importAlias
     } else {
-      const styledImportAlias = blue('import alias')
+      const styledImportAlias = styled('import alias')
 
-      const { customizeImportAlias } = await prompts({
-        onState: onPromptState,
+      const { customizeImportAlias } = await prompt({
         type: 'toggle',
         name: 'customizeImportAlias',
         message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
-        initial: getPrefOrDefault('customizeImportAlias'),
-        active: 'Yes',
-        inactive: 'No',
       })
 
       if (!customizeImportAlias) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         program.importAlias = defaults.importAlias
       } else {
-        const { importAlias } = await prompts({
-          onState: onPromptState,
+        const { importAlias } = await prompt({
           type: 'text',
           name: 'importAlias',
           message: `What ${styledImportAlias} would you like configured?`,
-          initial: getPrefOrDefault('importAlias'),
           validate: (value) =>
             /.+\/\*/.test(value)
               ? true
