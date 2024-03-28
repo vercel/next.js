@@ -1849,22 +1849,6 @@ export async function ncc_source_map(task, opts) {
     .target('src/compiled/source-map')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['source-map08'] = 'next/dist/compiled/source-map08'
-externals['next/dist/compiled/source-map08'] = 'next/dist/compiled/source-map08'
-export async function ncc_source_map08(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('source-map08')))
-    .ncc({
-      packageName: 'source-map08',
-      packageJsonName: 'source-map08',
-      externals,
-      minify: false,
-    })
-    .target('src/compiled/source-map08')
-}
-// eslint-disable-next-line camelcase
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -2258,7 +2242,6 @@ export async function ncc(task, opts) {
         'ncc_semver',
         'ncc_send',
         'ncc_source_map',
-        'ncc_source_map08',
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',
