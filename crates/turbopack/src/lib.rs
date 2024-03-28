@@ -31,7 +31,7 @@ use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
 use turbo_tasks::{Completion, Value, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -171,11 +171,17 @@ async fn apply_module_type(
                         }
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
+                        let side_effect_free_packages =
+                            module_asset_context.side_effect_free_packages();
+
                         let module = builder.build();
                         if let Some(part) = part {
                             match *part.await? {
                                 ModulePart::Evaluation => {
-                                    if *module.is_marked_as_side_effect_free().await? {
+                                    if *module
+                                        .is_marked_as_side_effect_free(side_effect_free_packages)
+                                        .await?
+                                    {
                                         return Ok(ProcessResult::Ignore.cell());
                                     }
                                     if *module.get_exports().needs_facade().await? {
@@ -195,9 +201,14 @@ async fn apply_module_type(
                                                 ModulePart::exports(),
                                             )),
                                             part,
+                                            side_effect_free_packages,
                                         )
                                     } else {
-                                        apply_reexport_tree_shaking(Vc::upcast(module), part)
+                                        apply_reexport_tree_shaking(
+                                            Vc::upcast(module),
+                                            part,
+                                            side_effect_free_packages,
+                                        )
                                     }
                                 }
                                 _ => bail!(
@@ -266,6 +277,7 @@ async fn apply_module_type(
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: Vc<ModulePart>,
+    side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = *part.await? {
         let export = export.await?;
@@ -273,7 +285,7 @@ async fn apply_reexport_tree_shaking(
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone_value()).await?;
+        } = &*follow_reexports(module, export.clone_value(), side_effect_free_packages).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(*final_module)
@@ -390,6 +402,24 @@ impl ModuleAssetContext {
         reference_type: Value<ReferenceType>,
     ) -> Vc<ProcessResult> {
         process_default(self, source, reference_type, Vec::new())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
+        let pkgs = self
+            .await?
+            .module_options_context
+            .await?
+            .side_effect_free_packages
+            .await?;
+
+        let mut globs = Vec::with_capacity(pkgs.len());
+
+        for pkg in pkgs {
+            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg)));
+        }
+
+        Ok(Glob::alternatives(globs))
     }
 }
 
