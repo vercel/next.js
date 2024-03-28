@@ -1,3 +1,3 @@
 export function encodeURIPath(file: string) {
-  return file
+  return encodeURI(file)
 }
