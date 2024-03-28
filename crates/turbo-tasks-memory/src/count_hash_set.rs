@@ -301,7 +301,7 @@ impl<'a, T> Iterator for CountHashSetIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.count -= 1;
+        self.count = self.count.saturating_sub(1);
         self.inner.next()
     }
 
