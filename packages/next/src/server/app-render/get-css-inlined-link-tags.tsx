@@ -41,5 +41,8 @@ export function getLinkAndScriptTags(
     }
   }
 
-  return { styles: [...cssChunks], scripts: [...jsChunks] }
+  return {
+    styles: [...cssChunks].map(encodeURI),
+    scripts: [...jsChunks].map(encodeURI),
+  }
 }
