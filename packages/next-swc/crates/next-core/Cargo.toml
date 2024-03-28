@@ -23,7 +23,6 @@ qstring = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-urlencoding = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mime_guess = "2.0.4"
 indoc = { workspace = true }

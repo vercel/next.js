@@ -1,7 +1,6 @@
 //! Type definitions for the Next.js manifest formats.
 
 pub(crate) mod client_reference_manifest;
-pub mod utils;
 
 use std::collections::HashMap;
 
@@ -266,7 +265,7 @@ pub struct ManifestNodeEntry {
     pub id: ModuleId,
     /// Export name.
     pub name: String,
-    /// Chunks for the module. JS and CSS. URL should already be URL encoded.
+    /// Chunks for the module. JS and CSS.
     pub chunks: Vec<String>,
     // TODO(WEB-434)
     pub r#async: bool,
