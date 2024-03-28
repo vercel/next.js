@@ -15,21 +15,10 @@ const NextServerCSSLoader: webpack.LoaderDefinitionFunction<NextServerCSSLoaderO
   function (content) {
     this.cacheable && this.cacheable()
     const options = this.getOptions()
-    let isCSSModule = options.cssModules
+    const isCSSModule = options.cssModules
 
     // Only add the checksum during development.
     if (process.env.NODE_ENV !== 'production') {
-      // This check is only for backwards compatibility.
-      // TODO: Remove this in the next major version (next 14)
-      if (isCSSModule === undefined) {
-        this.emitWarning(
-          new Error(
-            "No 'cssModules' option was found for the next-flight-css-loader plugin."
-          )
-        )
-        isCSSModule =
-          this.resourcePath.match(/\.module\.(css|sass|scss)$/) !== null
-      }
       const checksum = crypto
         .createHash('sha1')
         .update(typeof content === 'string' ? Buffer.from(content) : content)
