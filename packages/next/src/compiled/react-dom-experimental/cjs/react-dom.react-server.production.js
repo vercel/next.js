@@ -10,11 +10,22 @@
 
 'use strict';
 
+function noop() {}
+
+const DefaultDispatcher = {
+  prefetchDNS: noop,
+  preconnect: noop,
+  preload: noop,
+  preloadModule: noop,
+  preinitScript: noop,
+  preinitStyle: noop,
+  preinitModuleScript: noop
+};
 const Internals = {
   usingClientEntryPoint: false,
   Events: null,
-  Dispatcher: {
-    current: null
+  ReactDOMCurrentDispatcher: {
+    current: DefaultDispatcher
   }
 };
 
@@ -37,13 +48,11 @@ function getCrossOriginStringAs(as, input) {
   return undefined;
 }
 
-const Dispatcher = Internals.Dispatcher;
+const ReactDOMCurrentDispatcher = Internals.ReactDOMCurrentDispatcher;
 function prefetchDNS(href) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
-    dispatcher.prefetchDNS(href);
+  if (typeof href === 'string') {
+    ReactDOMCurrentDispatcher.current.prefetchDNS(href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -51,11 +60,9 @@ function prefetchDNS(href) {
 }
 function preconnect(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     const crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
-    dispatcher.preconnect(href, crossOrigin);
+    ReactDOMCurrentDispatcher.current.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -63,13 +70,11 @@ function preconnect(href, options) {
 }
 function preload(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  if (typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     const as = options.as;
     const crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    dispatcher.preload(href, as, {
+    ReactDOMCurrentDispatcher.current.preload(href, as, {
       crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
       nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
@@ -86,18 +91,16 @@ function preload(href, options) {
 }
 function preloadModule(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (options) {
       const crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-      dispatcher.preloadModule(href, {
+      ReactDOMCurrentDispatcher.current.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin,
         integrity: typeof options.integrity === 'string' ? options.integrity : undefined
       });
     } else {
-      dispatcher.preloadModule(href);
+      ReactDOMCurrentDispatcher.current.preloadModule(href);
     }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -106,22 +109,20 @@ function preloadModule(href, options) {
 }
 function preinit(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+  if (typeof href === 'string' && options && typeof options.as === 'string') {
     const as = options.as;
     const crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     const integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     const fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
     if (as === 'style') {
-      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+      ReactDOMCurrentDispatcher.current.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
         crossOrigin,
         integrity,
         fetchPriority
       });
     } else if (as === 'script') {
-      dispatcher.preinitScript(href, {
+      ReactDOMCurrentDispatcher.current.preinitScript(href, {
         crossOrigin,
         integrity,
         fetchPriority,
@@ -135,20 +136,18 @@ function preinit(href, options) {
 }
 function preinitModule(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (typeof options === 'object' && options !== null) {
       if (options.as == null || options.as === 'script') {
         const crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-        dispatcher.preinitModuleScript(href, {
+        ReactDOMCurrentDispatcher.current.preinitModuleScript(href, {
           crossOrigin,
           integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
           nonce: typeof options.nonce === 'string' ? options.nonce : undefined
         });
       }
     } else if (options == null) {
-      dispatcher.preinitModuleScript(href);
+      ReactDOMCurrentDispatcher.current.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical

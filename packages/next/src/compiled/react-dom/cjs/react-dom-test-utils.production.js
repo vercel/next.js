@@ -828,98 +828,6 @@ createSyntheticEvent(WheelEventInterface);
  */
 const ELEMENT_NODE = 1;
 
-function invokeGuardedCallbackImpl(name, func, context) {
-  {
-    // $FlowFixMe[method-unbinding]
-    const funcArgs = Array.prototype.slice.call(arguments, 3);
-
-    try {
-      // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
-      func.apply(context, funcArgs);
-    } catch (error) {
-      this.onError(error);
-    }
-  }
-}
-
-let hasError = false;
-let caughtError = null; // Used by event system to capture/rethrow the first error.
-
-let hasRethrowError = false;
-let rethrowError = null;
-const reporter = {
-  onError(error) {
-    hasError = true;
-    caughtError = error;
-  }
-
-};
-/**
- * Call a function while guarding against errors that happens within it.
- * Returns an error if it throws, otherwise null.
- *
- * In production, this is implemented using a try-catch. The reason we don't
- * use a try-catch directly is so that we can swap out a different
- * implementation in DEV mode.
- *
- * @param {String} name of the guard to use for logging or debugging
- * @param {Function} func The function to invoke
- * @param {*} context The context to use when calling the function
- * @param {...*} args Arguments for function
- */
-
-function invokeGuardedCallback(name, func, context, a, b, c, d, e, f) {
-  hasError = false;
-  caughtError = null;
-  invokeGuardedCallbackImpl.apply(reporter, arguments);
-}
-/**
- * Same as invokeGuardedCallback, but instead of returning an error, it stores
- * it in a global so it can be rethrown by `rethrowCaughtError` later.
- * TODO: See if caughtError and rethrowError can be unified.
- *
- * @param {String} name of the guard to use for logging or debugging
- * @param {Function} func The function to invoke
- * @param {*} context The context to use when calling the function
- * @param {...*} args Arguments for function
- */
-
-function invokeGuardedCallbackAndCatchFirstError(name, func, context, a, b, c, d, e, f) {
-  invokeGuardedCallback.apply(this, arguments);
-
-  if (hasError) {
-    const error = clearCaughtError();
-
-    if (!hasRethrowError) {
-      hasRethrowError = true;
-      rethrowError = error;
-    }
-  }
-}
-/**
- * During execution of guarded functions we will capture the first error which
- * we will rethrow to be handled by the top level error handler.
- */
-
-function rethrowCaughtError() {
-  if (hasRethrowError) {
-    const error = rethrowError;
-    hasRethrowError = false;
-    rethrowError = null;
-    throw error;
-  }
-}
-function clearCaughtError() {
-  if (hasError) {
-    const error = caughtError;
-    hasError = false;
-    caughtError = null;
-    return error;
-  } else {
-    throw new Error('clearCaughtError was called but no error was captured. This error ' + 'is likely caused by a bug in React. Please file an issue.');
-  }
-}
-
 const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
 function isArray(a) {
@@ -957,7 +865,7 @@ function findAllInRenderedFiberTreeInternal(fiber, test) {
   const ret = [];
 
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionComponent || (node.tag === HostHoistable ) || node.tag === HostSingleton) {
+    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionComponent || node.tag === HostHoistable || node.tag === HostSingleton) {
       const publicInst = node.stateNode;
 
       if (test(publicInst)) {
@@ -1231,6 +1139,9 @@ function nativeTouchData(x, y) {
 // EventPropagator.js, as they deviated from ReactDOM's newer
 // implementations.
 
+
+let hasError = false;
+let caughtError = null;
 /**
  * Dispatch the event to the listener.
  * @param {SyntheticEvent} event SyntheticEvent to handle
@@ -1238,11 +1149,18 @@ function nativeTouchData(x, y) {
  * @param {*} inst Internal component instance
  */
 
-
 function executeDispatch(event, listener, inst) {
-  const type = event.type || 'unknown-event';
   event.currentTarget = getNodeFromInstance(inst);
-  invokeGuardedCallbackAndCatchFirstError(type, listener, undefined, event);
+
+  try {
+    listener(event);
+  } catch (error) {
+    if (!hasError) {
+      hasError = true;
+      caughtError = error;
+    }
+  }
+
   event.currentTarget = null;
 }
 /**
@@ -1497,7 +1415,13 @@ function makeSimulator(eventType) {
       // do that since we're by-passing it here.
       enqueueStateRestore(domNode);
       executeDispatchesAndRelease(event);
-      rethrowCaughtError();
+
+      if (hasError) {
+        const error = caughtError;
+        hasError = false;
+        caughtError = null;
+        throw error;
+      }
     });
     restoreStateIfNeeded();
   };

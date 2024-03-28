@@ -570,7 +570,7 @@ describe('Error overlay for hydration errors', () => {
 
     const warning = await session.getRedboxDescriptionWarning()
     expect(warning).toContain(
-      'In HTML, <script> cannot be a child of <html>.\nThis will cause a hydration error.'
+      `Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.`
     )
 
     await cleanup()

@@ -144,10 +144,6 @@ const localSetTimeout = typeof setTimeout === 'function' ? setTimeout : null;
 const localClearTimeout = typeof clearTimeout === 'function' ? clearTimeout : null;
 const localSetImmediate = typeof setImmediate !== 'undefined' ? setImmediate : null; // IE and Node.js + jsdom
 
-typeof navigator !== 'undefined' && // $FlowFixMe[prop-missing]
-navigator.scheduling !== undefined && // $FlowFixMe[incompatible-type]
-navigator.scheduling.isInputPending !== undefined ? navigator.scheduling.isInputPending.bind(navigator.scheduling) : null;
-
 function advanceTimers(currentTime) {
   // Check for tasks that are no longer delayed and add them to the queue.
   let timer = peek(timerQueue);
@@ -392,15 +388,13 @@ function shouldYieldToHost() {
     // The main thread has only been blocked for a really short amount of time;
     // smaller than a single frame. Don't yield yet.
     return false;
-  } // The main thread has been blocked for a non-negligible amount of time. We
+  } // Yield now.
 
 
   return true;
 }
 
-function requestPaint() {
-
-}
+function requestPaint() {}
 
 const performWorkUntilDeadline = () => {
   if (isMessageLoopRunning) {
@@ -427,7 +421,7 @@ const performWorkUntilDeadline = () => {
         isMessageLoopRunning = false;
       }
     }
-  } // Yielding to the browser will give it a chance to paint, so we can
+  }
 };
 
 let schedulePerformWorkUntilDeadline;

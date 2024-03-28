@@ -16,11 +16,22 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react");
 
+function noop() {}
+
+var DefaultDispatcher = {
+  prefetchDNS: noop,
+  preconnect: noop,
+  preload: noop,
+  preloadModule: noop,
+  preinitScript: noop,
+  preinitStyle: noop,
+  preinitModuleScript: noop
+};
 var Internals = {
   usingClientEntryPoint: false,
   Events: null,
-  Dispatcher: {
-    current: null
+  ReactDOMCurrentDispatcher: {
+    current: DefaultDispatcher
   }
 };
 
@@ -82,7 +93,7 @@ function getCrossOriginStringAs(as, input) {
   return undefined;
 }
 
-var Dispatcher = Internals.Dispatcher;
+var ReactDOMCurrentDispatcher = Internals.ReactDOMCurrentDispatcher;
 function prefetchDNS(href) {
   {
     if (typeof href !== 'string' || !href) {
@@ -98,10 +109,8 @@ function prefetchDNS(href) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
-    dispatcher.prefetchDNS(href);
+  if (typeof href === 'string') {
+    ReactDOMCurrentDispatcher.current.prefetchDNS(href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -118,11 +127,9 @@ function preconnect(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
-    dispatcher.preconnect(href, crossOrigin);
+    ReactDOMCurrentDispatcher.current.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -147,13 +154,11 @@ function preload(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  if (typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
     var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    dispatcher.preload(href, as, {
+    ReactDOMCurrentDispatcher.current.preload(href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
       nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
@@ -187,18 +192,16 @@ function preloadModule(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (options) {
       var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-      dispatcher.preloadModule(href, {
+      ReactDOMCurrentDispatcher.current.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
         integrity: typeof options.integrity === 'string' ? options.integrity : undefined
       });
     } else {
-      dispatcher.preloadModule(href);
+      ReactDOMCurrentDispatcher.current.preloadModule(href);
     }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -216,22 +219,20 @@ function preinit(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+  if (typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
     var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
     if (as === 'style') {
-      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+      ReactDOMCurrentDispatcher.current.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
         crossOrigin: crossOrigin,
         integrity: integrity,
         fetchPriority: fetchPriority
       });
     } else if (as === 'script') {
-      dispatcher.preinitScript(href, {
+      ReactDOMCurrentDispatcher.current.preinitScript(href, {
         crossOrigin: crossOrigin,
         integrity: integrity,
         fetchPriority: fetchPriority,
@@ -279,20 +280,18 @@ function preinitModule(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (typeof options === 'object' && options !== null) {
       if (options.as == null || options.as === 'script') {
         var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-        dispatcher.preinitModuleScript(href, {
+        ReactDOMCurrentDispatcher.current.preinitModuleScript(href, {
           crossOrigin: crossOrigin,
           integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
           nonce: typeof options.nonce === 'string' ? options.nonce : undefined
         });
       }
     } else if (options == null) {
-      dispatcher.preinitModuleScript(href);
+      ReactDOMCurrentDispatcher.current.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
