@@ -50,17 +50,17 @@ describe('Interception Route helper', () => {
       expect(() =>
         extractInterceptionRouteInformation('/foo/(..')
       ).toThrowErrorMatchingInlineSnapshot(
-        `"Invalid interception route: /foo/(... Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>"`
+        `"Invalid interception route: /foo/(... Must be in the format /<intercepting route>/(...)|(..)(..)|(..)|(.)<intercepted route>"`
       )
       expect(() =>
         extractInterceptionRouteInformation('/foo/..)/bar')
       ).toThrowErrorMatchingInlineSnapshot(
-        `"Invalid interception route: /foo/..)/bar. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>"`
+        `"Invalid interception route: /foo/..)/bar. Must be in the format /<intercepting route>/(...)|(..)(..)|(..)|(.)<intercepted route>"`
       )
       expect(() =>
         extractInterceptionRouteInformation('/foo')
       ).toThrowErrorMatchingInlineSnapshot(
-        `"Invalid interception route: /foo. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>"`
+        `"Invalid interception route: /foo. Must be in the format /<intercepting route>/(...)|(..)(..)|(..)|(.)<intercepted route>"`
       )
     })
     it('should check the segment length', () => {
