@@ -343,7 +343,9 @@ async function run(): Promise<void> {
 
     if (
       !process.argv.includes('--src-dir') &&
-      !process.argv.includes('--no-src-dir')
+      !process.argv.includes('--no-src-dir') &&
+      !process.argv.includes('--app') &&
+      !process.argv.includes('--no-app')
     ) {
       if (ciInfo.isCI) {
         program.srcDir = getPrefOrDefault('srcDir')
@@ -363,7 +365,12 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
+    if (
+      !process.argv.includes('--app') &&
+      !process.argv.includes('--no-app') &&
+      !process.argv.includes('--src-dir') &&
+      !process.argv.includes('--no-src-dir')
+    ) {
       if (ciInfo.isCI) {
         program.app = getPrefOrDefault('app')
       } else {
