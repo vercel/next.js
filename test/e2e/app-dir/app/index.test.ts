@@ -1686,9 +1686,7 @@ createNextDescribe(
       it('should pass `nonce`', async () => {
         const html = await next.render('/script-nonce')
         const $ = cheerio.load(html)
-        const scripts = $(
-          'script, link[rel="preload"][as="script"][href="/test1.js"]'
-        )
+        const scripts = $('script, link[rel="preload"][as="script"]')
 
         scripts.each((_, element) => {
           expect(element.attribs.nonce).toBeTruthy()
