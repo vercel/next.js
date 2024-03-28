@@ -21,8 +21,8 @@ export type RouteHas =
 export type Rewrite = {
   source: string
   destination: string
-  basePath?: false
-  locale?: false
+  basePath?: boolean
+  locale?: boolean
   has?: RouteHas[]
   missing?: RouteHas[]
 
@@ -34,8 +34,8 @@ export type Rewrite = {
 
 export type Header = {
   source: string
-  basePath?: false
-  locale?: false
+  basePath?: boolean
+  locale?: boolean
   headers: Array<{ key: string; value: string }>
   has?: RouteHas[]
   missing?: RouteHas[]
@@ -50,8 +50,8 @@ export type Header = {
 export type Redirect = {
   source: string
   destination: string
-  basePath?: false
-  locale?: false
+  basePath?: boolean
+  locale?: boolean
   has?: RouteHas[]
   missing?: RouteHas[]
 
@@ -72,7 +72,7 @@ export type Redirect = {
 
 export type Middleware = {
   source: string
-  locale?: false
+  locale?: boolean
   has?: RouteHas[]
   missing?: RouteHas[]
 }
