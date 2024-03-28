@@ -251,7 +251,7 @@ async function run(): Promise<void> {
 
     if (!opts.importAlias) {
       // We don't use preferences here because the default value is @/* regardless of existing preferences
-      opts.importAlias = defaults.importAlias as string
+      opts.importAlias = defaults.importAlias
     }
 
     return await tryCreateNextApp({
@@ -341,34 +341,30 @@ async function run(): Promise<void> {
     opts.app = Boolean(app)
   }
 
-  if (typeof opts.importAlias !== 'string' || !opts.importAlias.length) {
-    if (args.includes('--no-import-alias')) {
-      opts.importAlias = defaults.importAlias
-    } else {
-      const { customizeImportAlias } = await _prompt({
-        type: 'toggle',
-        name: 'customizeImportAlias',
-        message: `Would you like to customize the default ${ct.importAlias} (${defaults.importAlias})?`,
-      })
+  if (!opts.importAlias && !args.includes('--no-import-alias')) {
+    const { customizeImportAlias } = await _prompt({
+      type: 'toggle',
+      name: 'customizeImportAlias',
+      message: `Would you like to customize the default ${ct.importAlias} (${defaults.importAlias})?`,
+    })
 
-      if (!customizeImportAlias) {
-        // We don't use preferences here because the default value is @/* regardless of existing preferences
-        opts.importAlias = defaults.importAlias
-      } else {
-        const { importAlias } = await _prompt({
-          type: 'text',
-          name: 'importAlias',
-          message: `What ${ct.importAlias} would you like configured?`,
-          validate: (value) =>
-            /.+\/\*/.test(value)
-              ? true
-              : 'Import alias must follow the pattern <prefix>/*',
-        })
-        opts.importAlias = importAlias
-        preferences.importAlias = importAlias
-      }
+    if (customizeImportAlias) {
+      const { importAlias } = await _prompt({
+        type: 'text',
+        name: 'importAlias',
+        message: `How would you like to configure the ${ct.importAlias}?`,
+        validate: (value) =>
+          /.+\/\*/.test(value)
+            ? true
+            : 'Import alias must follow the pattern <prefix>/*',
+      })
+      opts.importAlias = importAlias
+      preferences.importAlias = importAlias
     }
   }
+
+  // Ensure the importAlias is set.
+  opts.importAlias ??= defaults.importAlias
 
   await tryCreateNextApp({
     appPath,
