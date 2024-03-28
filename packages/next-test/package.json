@@ -1,0 +1,38 @@
+{
+  "name": "@next/test",
+  "version": "14.2.0-canary.33",
+  "keywords": [
+    "react",
+    "next",
+    "next.js",
+    "test"
+  ],
+  "description": "Next.js testing",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-test"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "ncc build ./index.ts -w -o dist/",
+    "prerelease": "node ../../scripts/rm.mjs dist",
+    "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir dist --esModuleInterop",
+    "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "build": "pnpm release && pnpm types",
+    "prepublishOnly": "cd ../../ && turbo run build"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.41.2",
+    "@vercel/ncc": "0.34.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.41.2"
+  }
+}
