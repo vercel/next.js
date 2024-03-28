@@ -559,6 +559,38 @@ describe('CLI Usage', () => {
       }
     })
 
+    test("NODE_OPTIONS='--inspect=<host>:<port>'", async () => {
+      const hosts = [
+        '0.0.0.0',
+        '127.0.0.1',
+        'localhost',
+        '192.168.18.90',
+        'barcos.co',
+        'app.barcos.co',
+        null,
+      ]
+      for (const someHost of hosts) {
+        const port = await findPort()
+        let output = ''
+        const app = await runNextCommandDev(
+          [dirBasic, '--port', port],
+          undefined,
+          {
+            onStdout(msg) {
+              output += stripAnsi(msg)
+            },
+            env: { NODE_OPTIONS: `--inspect=${someHost}:${port}` },
+          }
+        )
+        try {
+          await check(() => output, new RegExp(`on ${someHost}:${port}`))
+          await check(() => output, new RegExp(`http://${someHost}:${port}`))
+        } finally {
+          await killApp(app)
+        }
+      }
+    })
+
     test('-p', async () => {
       const port = await findPort()
       let output = ''
