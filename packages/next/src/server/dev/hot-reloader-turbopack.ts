@@ -78,6 +78,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -160,7 +161,11 @@ export async function createHotReloaderTurbopack(
   const currentTopLevelIssues: TopLevelIssuesMap = new Map()
   const currentEntryIssues: EntryIssuesMap = new Map()
 
-  const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
+  const manifestLoader = new TurbopackManifestLoader({
+    buildId,
+    distDir,
+    encryptionKey: await generateEncryptionKeyBase64(),
+  })
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
