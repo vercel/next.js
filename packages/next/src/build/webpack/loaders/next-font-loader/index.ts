@@ -133,7 +133,6 @@ export default async function nextFontLoader(this: any) {
           postcss(
             postcssNextFontPlugin({
               exports,
-              fontFamilyHash,
               fallbackFonts,
               weight,
               style,
