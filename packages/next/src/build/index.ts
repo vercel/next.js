@@ -2082,16 +2082,19 @@ export default async function build(
                             isInterceptionRouteAppPath(page)
                           if (appConfig.revalidate !== 0) {
                             const isDynamic = isDynamicRoute(page)
-                            const hasGenerateStaticParams =
-                              !!workerResult.prerenderRoutes?.length
+                            const generateStaticParamsIsDefined =
+                              !!workerResult.prerenderRoutes
+                            const generateStaticParamsHasItems =
+                              generateStaticParamsIsDefined &&
+                              workerResult.prerenderRoutes?.length
 
                             if (
                               config.output === 'export' &&
                               isDynamic &&
-                              !hasGenerateStaticParams
+                              !generateStaticParamsIsDefined
                             ) {
                               throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. Return an empty array if no pages should be rendered.`
                               )
                             }
 
@@ -2109,7 +2112,7 @@ export default async function build(
                                 isStatic = true
                               } else if (
                                 isDynamic &&
-                                !hasGenerateStaticParams &&
+                                !generateStaticParamsHasItems &&
                                 (appConfig.dynamic === 'error' ||
                                   appConfig.dynamic === 'force-static')
                               ) {
