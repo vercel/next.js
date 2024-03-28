@@ -1,0 +1,27 @@
+name: Notify fixed issues
+
+on:
+  workflow_run:
+    types: [completed]
+    branches: [canary]
+    workflows: ['Trigger Release']
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  notify-issues:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: corepack enable
+      - name: 'Notify fixed issues'
+        run: node ./.github/actions/comment-on-release/dist/index.mjs
