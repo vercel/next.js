@@ -1,0 +1,18 @@
+fragment Post on Post {
+	id
+	title
+	url
+	author {
+		name
+		profilePicture
+	}
+	coverImage {
+		url
+	}
+	publishedAt
+	slug
+	brief
+	comments(first: 0) {
+		totalDocuments
+	}
+}

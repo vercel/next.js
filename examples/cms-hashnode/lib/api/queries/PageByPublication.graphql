@@ -1,0 +1,17 @@
+query PageByPublication($slug: String!, $host: String!) {
+	publication(host: $host) {
+		...Publication
+		staticPage(slug: $slug) {
+			...StaticPage
+		}
+	}
+}
+
+fragment StaticPage on StaticPage {
+	id
+	title
+	slug
+	content {
+		markdown
+	}
+}

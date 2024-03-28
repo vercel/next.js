@@ -1,0 +1,30 @@
+query RSSFeed($host: String!, $first: Int!, $after: String) {
+	publication(host: $host) {
+		...Publication
+		posts(first: $first, after: $after) {
+			edges {
+				node {
+					id
+					title
+					url
+					slug
+					content {
+						html
+					}
+					tags {
+						id
+						name
+						slug
+					}
+					author {
+						name
+						username
+					}
+				}
+			}
+			pageInfo {
+				...PageInfo
+			}
+		}
+	}
+}
