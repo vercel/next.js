@@ -30,12 +30,8 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   if (message.length === 0) {
     console[consoleMethod]('')
   } else {
-    console[consoleMethod](' ' + prefix, ...message)
+    console[consoleMethod](prefix, ...message)
   }
-}
-
-export function bootstrap(...message: any[]) {
-  console.log(' ', ...message)
 }
 
 export function error(...message: any[]) {
