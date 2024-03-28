@@ -53,7 +53,7 @@ const ct = {
   cna: packageJson.name,
   default: gray('(default)'),
   eslint: magenta('ESLint'),
-  importAlias: italic('import alias'),
+  importAlias: bold(italic('import alias')),
   javascript: yellow('JavaScript'),
   srcDir: bold('"src/"'),
   tailwind: green('Tailwind CSS'),
