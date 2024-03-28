@@ -1382,6 +1382,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
+      "passed": [],
+      "failed": [
+        "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
       "passed": [
         "dynamic-requests should not error for dynamic requests in pages",
@@ -2251,7 +2260,10 @@
       "failed": [
         "parallel-routes-revalidation should handle a redirect action when called in a slot",
         "parallel-routes-revalidation should handle router.refresh() when called in a slot",
-        "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route"
+        "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
+        "parallel-routes-revalidation router.refresh should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active"
       ],
       "pending": [],
       "flakey": [],

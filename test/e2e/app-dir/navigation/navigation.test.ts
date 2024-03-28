@@ -457,6 +457,47 @@ createNextDescribe(
             isNextDev ? ['1', '2'] : ['1']
           )
         })
+
+        it.each([
+          '/redirect/servercomponent',
+          'redirect/redirect-with-loading',
+        ])('should only trigger the redirect once (%s)', async (path) => {
+          const browser = await next.browser(path)
+          const initialTimestamp = await browser
+            .waitForElementByCss('#timestamp')
+            .text()
+
+          let attempts = 0
+          const maxAttempts = 5
+
+          try {
+            // this ensures the timestamp remains "stable" (ie, we didn't trigger another redirect)
+            await retry(async () => {
+              const currentTimestamp = await browser
+                .elementByCss('#timestamp')
+                .text()
+
+              attempts++
+
+              // If the timestamp has changed, throw immediately.
+              if (currentTimestamp !== initialTimestamp) {
+                throw new Error('Timestamp has changed')
+              }
+
+              // If we've reached the last attempt without the timestamp changing, force a retry failure to keep going.
+              if (attempts < maxAttempts) {
+                throw new Error('Forcing continue')
+              }
+            })
+          } catch (err) {
+            // If we catch the "Forcing continue" error, it means our condition held until the end.
+            // If it's a different error (i.e., the timestamp changed), we rethrow it.
+            if (err.message !== 'Forcing continue') {
+              throw err // Rethrow if the error is not our "force continue" error.
+            }
+            // If it's our "forcing continue" error, do nothing. This means we succeeded.
+          }
+        })
       })
 
       describe('next.config.js redirects', () => {
@@ -700,14 +741,14 @@ createNextDescribe(
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
         expect(html).toContain(
-          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+          '<meta id="__next-page-redirect" http-equiv="refresh" content="1;url=/redirect/result"/>'
         )
       })
 
       it('should emit refresh meta tag (permanent) for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense-2')
         expect(html).toContain(
-          '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
+          '<meta id="__next-page-redirect" http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
       })
 

@@ -2225,10 +2225,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir edge runtime config should warn the legacy object config export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2537,11 +2537,10 @@
       "app-dir edge SSR should handle edge rsc hmr",
       "app-dir edge SSR should resolve client component without error",
       "app-dir edge SSR should resolve module without error in edge runtime",
-      "app-dir edge SSR should retrieve cookies in a server component in the edge runtime"
-    ],
-    "failed": [
+      "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
       "app-dir edge SSR should warn about the re-export of a pages runtime/preferredRegion config"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3354,9 +3353,11 @@
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
+      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
+      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
@@ -3369,10 +3370,7 @@
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
     ],
-    "failed": [
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
-      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7491,11 +7489,10 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
-    ],
-    "failed": [
+      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
       "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

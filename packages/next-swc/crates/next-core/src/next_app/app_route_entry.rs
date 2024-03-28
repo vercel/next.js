@@ -39,8 +39,15 @@ pub async fn get_app_route_entry(
     project_root: Vc<FileSystemPath>,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
 ) -> Result<Vc<AppEntry>> {
-    let config =
-        original_segment_config.unwrap_or_else(|| parse_segment_config_from_source(source));
+    let segment_from_source = parse_segment_config_from_source(source);
+    let config = if let Some(original_segment_config) = original_segment_config {
+        let mut segment_config = (*segment_from_source.await?).clone();
+        segment_config.apply_parent_config(&*original_segment_config.await?);
+        segment_config.into()
+    } else {
+        segment_from_source
+    };
+
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
