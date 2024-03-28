@@ -463,13 +463,14 @@ describe('createAfterContext', () => {
 
 const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
   const partialStore: Partial<RequestStore> = {
+    url: { pathname: '/', search: '' },
     afterContext: afterContext,
     assetPrefix: '',
     reactLoadableManifest: {},
     draftMode: undefined,
   }
 
-  return new Proxy(partialStore, {
+  return new Proxy(partialStore as RequestStore, {
     get(target, key) {
       if (key in target) {
         return target[key as keyof typeof target]
@@ -478,5 +479,5 @@ const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
         `RequestStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
       )
     },
-  }) as RequestStore
+  })
 }

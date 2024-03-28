@@ -35,10 +35,8 @@ const routeModule = new AppRouteRouteModule({
 const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } =
   routeModule
 
-const originalPathname = 'VAR_ORIGINAL_PATHNAME'
-
 function patchFetch() {
-  return _patchFetch({ staticGenerationAsyncStorage })
+  return _patchFetch({ staticGenerationAsyncStorage, requestAsyncStorage })
 }
 
 export {
@@ -46,6 +44,5 @@ export {
   requestAsyncStorage,
   staticGenerationAsyncStorage,
   serverHooks,
-  originalPathname,
   patchFetch,
 }
