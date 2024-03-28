@@ -11,7 +11,7 @@ use turbopack_binding::{
         tasks::{Completion, Value},
         tasks_bytes::stream::SingleValue,
         tasks_env::{CommandLineProcessEnv, ProcessEnv},
-        tasks_fetch::{fetch, HttpResponseBody},
+        tasks_fetch::{fetch, HttpResponseBody, OptionProxyConfig},
         tasks_fs::{
             json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
             FileSystemPath,
@@ -171,6 +171,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 pub struct NextFontGoogleCssModuleReplacer {
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
+    proxy_option: Vc<OptionProxyConfig>,
 }
 
 #[turbo_tasks::value_impl]
@@ -179,10 +180,12 @@ impl NextFontGoogleCssModuleReplacer {
     pub fn new(
         project_path: Vc<FileSystemPath>,
         execution_context: Vc<ExecutionContext>,
+        proxy_option: Vc<OptionProxyConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
             execution_context,
+            proxy_option,
         })
     }
 
@@ -213,7 +216,10 @@ impl NextFontGoogleCssModuleReplacer {
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
-                || fetch_real_stylesheet(stylesheet_url, css_virtual_path).boxed(),
+                || {
+                    fetch_real_stylesheet(stylesheet_url, css_virtual_path, self.proxy_option)
+                        .boxed()
+                },
                 |p| get_mock_stylesheet(stylesheet_url, p, self.execution_context).boxed(),
             )
             .await?;
@@ -297,13 +303,17 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: Vc<FileSystemPath>,
+    proxy_option: Vc<OptionProxyConfig>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
-        Self::cell(NextFontGoogleFontFileReplacer { project_path })
+    pub fn new(project_path: Vc<FileSystemPath>, proxy_option: Vc<OptionProxyConfig>) -> Vc<Self> {
+        Self::cell(NextFontGoogleFontFileReplacer {
+            project_path,
+            proxy_option,
+        })
     }
 }
 
@@ -356,7 +366,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) = fetch_from_google_fonts(Vc::cell(url), font_virtual_path).await? else {
+        let Some(font) =
+            fetch_from_google_fonts(Vc::cell(url), font_virtual_path, self.proxy_option).await?
+        else {
             return Ok(ImportMapResult::Result(ResolveResult::unresolveable().into()).into());
         };
 
@@ -588,8 +600,9 @@ async fn font_file_options_from_query_map(
 async fn fetch_real_stylesheet(
     stylesheet_url: Vc<String>,
     css_virtual_path: Vc<FileSystemPath>,
+    proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Option<Vc<String>>> {
-    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
+    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path, proxy_option).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
@@ -597,11 +610,12 @@ async fn fetch_real_stylesheet(
 async fn fetch_from_google_fonts(
     url: Vc<String>,
     virtual_path: Vc<FileSystemPath>,
+    proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch(
         url,
         Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
-        Vc::cell(None),
+        proxy_option,
     )
     .await?;
 
