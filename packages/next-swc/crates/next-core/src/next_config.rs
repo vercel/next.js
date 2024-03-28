@@ -894,6 +894,17 @@ impl NextConfig {
                 .unwrap_or(false),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .optimize_package_imports
+                .clone()
+                .unwrap_or_default(),
+        ))
+    }
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
