@@ -1,3 +1,6 @@
 export function encodeURIPath(file: string) {
-  return encodeURI(file)
+  return file
+    .split('/')
+    .map((p) => encodeURIComponent(p))
+    .join('/')
 }
