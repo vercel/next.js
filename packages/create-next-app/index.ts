@@ -94,7 +94,7 @@ const program = new Command()
     `Reset the preferences saved for ${ct.cna}.`
   )
   .option(
-    '-e, --example <name|github-url>',
+    '-e, --example <example-name|github-url>',
     `
 
   An example to bootstrap the app with. You can use an example name
