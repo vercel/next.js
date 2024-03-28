@@ -18,6 +18,7 @@ use turbopack_binding::{
 use crate::{
     app_segment_config::NextSegmentConfig,
     next_app::{AppEntry, AppPage, AppPath},
+    next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
     util::{load_next_js_template, NextRuntime},
@@ -38,6 +39,7 @@ pub async fn get_app_route_entry(
     page: AppPage,
     project_root: Vc<FileSystemPath>,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source);
     let config = if let Some(original_segment_config) = original_segment_config {
@@ -62,6 +64,16 @@ pub async fn get_app_route_entry(
 
     const INNER: &str = "INNER_APP_ROUTE";
 
+    let output_type = next_config
+        .await?
+        .output
+        .as_ref()
+        .map(|o| match o {
+            OutputType::Standalone => "\"standalone\"".to_string(),
+            OutputType::Export => "\"export\"".to_string(),
+        })
+        .unwrap_or_else(|| "\"\"".to_string());
+
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
@@ -77,7 +89,7 @@ pub async fn get_app_route_entry(
             "VAR_USERLAND" => INNER.to_string(),
         },
         indexmap! {
-            "nextConfigOutput" => "\"\"".to_string(),
+            "nextConfigOutput" => output_type
         },
         indexmap! {},
     )
