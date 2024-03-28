@@ -332,7 +332,7 @@ describe('Error overlay - RSC build errors', () => {
     await cleanup()
   })
 
-  it('should error for invalid undefined module retuning from next dynamic', async () => {
+  it('should error for invalid undefined module returning from next dynamic', async () => {
     const { session, cleanup } = await sandbox(
       next,
       undefined,
