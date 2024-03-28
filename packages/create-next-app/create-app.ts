@@ -3,7 +3,7 @@ import retry from 'async-retry'
 import { red, green, cyan } from 'picocolors'
 import fs from 'fs'
 import path from 'path'
-import type { RepoInfo } from './helpers/examples'
+import type { RepoInfo } from './types'
 import {
   downloadAndExtractExample,
   downloadAndExtractRepo,
@@ -16,7 +16,7 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
-import type { PackageManager } from './helpers/get-pkg-manager'
+import type { PackageManager } from './types'
 
 import type { TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'

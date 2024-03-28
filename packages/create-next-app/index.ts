@@ -20,34 +20,11 @@ import {
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
 import type { InitialReturnValue, Options, PromptType } from 'prompts'
-import type { PackageManager } from './helpers/get-pkg-manager'
-
-type CreateNextAppOptions = {
-  example?: string
-  examplePath?: string
-  importAlias?: string
-  use?: PackageManager
-  typescript?: boolean
-  javascript?: boolean
-  eslint?: boolean
-  tailwind?: boolean
-  app?: boolean
-  srcDir?: boolean
-  resetPreferences?: boolean
-  useNpm?: boolean
-  usePnpm?: boolean
-  useYarn?: boolean
-  useBun?: boolean
-}
-
-type ResolvedCreateNextAppOptions = {
-  typescript: boolean
-  eslint: boolean
-  tailwind: boolean
-  app: boolean
-  srcDir: boolean
-  importAlias: string
-}
+import type {
+  CreateNextAppOptions,
+  PackageManager,
+  ResolvedCreateNextAppOptions,
+} from './types'
 
 const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)

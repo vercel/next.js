@@ -2,13 +2,7 @@
 import tar from 'tar'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
-
-export type RepoInfo = {
-  username: string
-  name: string
-  branch: string
-  filePath: string
-}
+import type { RepoInfo } from '../types'
 
 export async function isUrlOk(url: string): Promise<boolean> {
   try {
