@@ -2976,9 +2976,9 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.68.8"
+version = "0.68.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "242ae3e55455cbc497b5799be7464c9618a98d8a8c1e8aed84c204c8bd34ae8d"
+checksum = "4ef94a126a88f5ba86c3b2e366fef393d27992693df15d44ff56de2f4e7d1344"
 dependencies = [
  "convert_case 0.5.0",
  "handlebars",
@@ -5189,9 +5189,9 @@ checksum = "5ee073c9e4cd00e28217186dbe12796d692868f432bf2e97ee73bed0c56dfa01"
 
 [[package]]
 name = "styled_components"
-version = "0.96.7"
+version = "0.96.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13fc12e154717457a866dfef926ce1d294a8478d59a2873c6d4ddf26a4da5d4d"
+checksum = "27f13af1b2e9b55614b681c785ddcf96e059076be58393c1055b795c8283a956"
 dependencies = [
  "Inflector",
  "once_cell",
@@ -6365,9 +6365,9 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.72.7"
+version = "0.72.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bd2a88efeb2e7568068d36d38a6acf49d42c16fe9663345159279d548881884"
+checksum = "c43a5946f5e0ea03341b23786e43e3fa07eaa014f03fb39cf584b02c38e9c80c"
 dependencies = [
  "base64 0.13.1",
  "byteorder",
@@ -6376,7 +6376,7 @@ dependencies = [
  "radix_fmt",
  "regex",
  "serde",
- "sourcemap 6.4.1",
+ "sourcemap 8.0.0",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
@@ -6523,9 +6523,9 @@ dependencies = [
 
 [[package]]
 name = "swc_relay"
-version = "0.44.6"
+version = "0.44.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cb08028ff1570b2c8011d58323d4c163a0179a6c57476ce4b836a93e5c7e7f8"
+checksum = "3d947ef106024ea6ff3934183fee04aaf0ee6ec2f7bb56c9182e9527d1f14efb"
 dependencies = [
  "once_cell",
  "regex",
