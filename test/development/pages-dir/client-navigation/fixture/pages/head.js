@@ -116,7 +116,9 @@ export default () => (
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
 
       {/* this should not execute twice on the client */}
-      <script src="/test-async.js" async></script>
+      <script src="/test-async-true.js" async></script>
+      {/* this should have async set to false on the client */}
+      <script src="/test-async-false.js" async={false}></script>
       {/* this should not execute twice on the client (intentionally sets defer to `yas` to test boolean coercion) */}
       <script src="/test-defer.js" defer="yas"></script>
 
