@@ -12,6 +12,8 @@ The `cookies` function allows you to read the HTTP incoming request cookies from
 
 > **Good to know**: `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
 
+> **Good to know**: `cookies()` uses the [jshttp/cookie](https://github.com/jshttp/cookie) package to manage cookies. `jshttp/cookie` will `encodeURIComponent` and `decodeURIComponent` your cookie values for you, so you don't need to do this.
+
 ## `cookies().get(name)`
 
 A method that takes a cookie name and returns an object with name and value. If a cookie with `name` isn't found, it returns `undefined`. If multiple cookies match, it will only return the first match.
