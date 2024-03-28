@@ -24,6 +24,8 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
+anyhow = { workspace = true }
+lazy_static = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",
