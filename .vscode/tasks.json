@@ -1,0 +1,25 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compile Next.js Core (watch)",
+      "type": "npm",
+      "script": "dev",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/next"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build All Packages",
+      "type": "npm",
+      "script": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
