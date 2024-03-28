@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
 use turbo_tasks::Vc;
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext},
@@ -95,9 +94,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        self.module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
+    fn is_marked_as_side_effect_free(&self) -> Vc<bool> {
+        self.module.is_marked_as_side_effect_free()
     }
 
     #[turbo_tasks::function]
