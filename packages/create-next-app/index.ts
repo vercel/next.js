@@ -1,24 +1,33 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
-import { cyan, green, red, yellow, bold, blue } from 'picocolors'
-import Commander from 'commander'
 import Conf from 'conf'
-import path from 'path'
 import prompts from 'prompts'
-import type { InitialReturnValue } from 'prompts'
-import checkForUpdate from 'update-check'
-import { createApp, DownloadError } from './create-app'
-import { getPkgManager } from './helpers/get-pkg-manager'
-import { validateNpmName } from './helpers/validate-pkg'
+import updateCheck from 'update-check'
 import packageJson from './package.json'
-import ciInfo from 'ci-info'
-import { isFolderEmpty } from './helpers/is-folder-empty'
-import fs from 'fs'
-
-let projectPath: string = ''
+import { basename, resolve } from 'path'
+import { isCI } from 'ci-info'
+import { Command, Option } from 'commander'
+import {
+  blue,
+  bold,
+  italic,
+  gray,
+  green,
+  magenta,
+  red,
+  reset,
+  yellow,
+} from 'picocolors'
+import { createApp, DownloadError } from './create-app'
+import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
+import type { InitialReturnValue, Options, PromptType } from 'prompts'
+import type {
+  CreateNextAppOptions,
+  PackageManager,
+  ResolvedCreateNextAppOptions,
+} from './types'
 
 const handleSigTerm = () => process.exit(0)
-
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
 
@@ -36,97 +45,61 @@ const onPromptState = (state: {
   }
 }
 
-const program = new Commander.Command(packageJson.name)
-  .version(packageJson.version)
-  .arguments('<project-directory>')
-  .usage(`${green('<project-directory>')} [options]`)
-  .action((name) => {
-    projectPath = name
-  })
+/**
+ * Colored Texts
+ */
+const ct = {
+  app: red('App Router'),
+  cna: packageJson.name,
+  default: gray('(default)'),
+  eslint: magenta('ESLint'),
+  importAlias: bold(italic('import alias')),
+  javascript: yellow('JavaScript'),
+  srcDir: bold('"src/"'),
+  tailwind: green('Tailwind CSS'),
+  typescript: blue('TypeScript'),
+}
+
+const program = new Command()
+  .name(ct.cna)
+  .version(
+    `${ct.cna} v${packageJson.version}`,
+    '-v, --version',
+    `Output the current version of ${ct.cna}.`
+  )
+  .arguments('[directory]')
+  .usage('[directory] [options]')
+  .helpOption('-h, --help', 'Display this help message.')
   .option(
     '--ts, --typescript',
-    `
-
-  Initialize as a TypeScript project. (default)
-`
+    `Initialize as a ${ct.typescript} project. ${ct.default}`
+  )
+  .option('--js, --javascript', `Initialize as a ${ct.javascript} project.`)
+  .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
+  .option('--tailwind', `Enable ${ct.tailwind} config. ${ct.default}`)
+  .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
+  .option('--src-dir', `Initialize inside a ${ct.srcDir} directory.`)
+  .option(
+    '--import-alias <prefix/*>',
+    `Specify ${ct.importAlias} to use. ${gray('(default: "@/*")')}`
+  )
+  .addOption(
+    new Option(
+      '--use <package-manager>',
+      `Specify the package manager to use.`
+    ).choices(['npm', 'pnpm', 'yarn', 'bun'])
   )
   .option(
-    '--js, --javascript',
-    `
-
-  Initialize as a JavaScript project.
-`
+    '--reset, --reset-preferences',
+    `Reset the preferences saved for ${ct.cna}.`
   )
   .option(
-    '--tailwind',
-    `
-
-  Initialize with Tailwind CSS config. (default)
-`
-  )
-  .option(
-    '--eslint',
-    `
-
-  Initialize with eslint config.
-`
-  )
-  .option(
-    '--app',
-    `
-
-  Initialize as an App Router project.
-`
-  )
-  .option(
-    '--src-dir',
-    `
-
-  Initialize inside a \`src/\` directory.
-`
-  )
-  .option(
-    '--import-alias <alias-to-configure>',
-    `
-
-  Specify import alias to use (default "@/*").
-`
-  )
-  .option(
-    '--use-npm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using npm
-`
-  )
-  .option(
-    '--use-pnpm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using pnpm
-`
-  )
-  .option(
-    '--use-yarn',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Yarn
-`
-  )
-  .option(
-    '--use-bun',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Bun
-`
-  )
-  .option(
-    '-e, --example [name]|[github-url]',
+    '-e, --example <example-name|github-url>',
     `
 
   An example to bootstrap the app with. You can use an example name
-  from the official Next.js repo or a GitHub URL. The URL can use
-  any branch and/or subdirectory
+  from the official Next.js repo or a public GitHub URL. The URL can use
+  any branch and/or subdirectory.
 `
   )
   .option(
@@ -139,48 +112,57 @@ const program = new Commander.Command(packageJson.name)
   --example-path foo/bar
 `
   )
-  .option(
-    '--reset-preferences',
-    `
-
-  Explicitly tell the CLI to reset any stored preferences
-`
-  )
   .allowUnknownOption()
+  .configureOutput({
+    outputError: (str, write) => write(`${red(bold('⨯'))} ${str}`),
+  })
   .parse(process.argv)
 
-const packageManager = !!program.useNpm
+const opts: CreateNextAppOptions = program.opts()
+const { args } = program
+
+const packageManager: PackageManager = opts.use
+  ? opts.use
+  : args.includes('--use-npm')
   ? 'npm'
-  : !!program.usePnpm
+  : args.includes('--use-pnpm')
   ? 'pnpm'
-  : !!program.useYarn
+  : args.includes('--use-yarn')
   ? 'yarn'
-  : !!program.useBun
+  : args.includes('--use-bun')
   ? 'bun'
   : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
-  if (program.resetPreferences) {
-    conf.clear()
-    console.log(`Preferences reset successfully`)
-    return
+  if (opts.resetPreferences) {
+    const { resetPreferences } = await prompts({
+      onState: onPromptState,
+      type: 'toggle',
+      name: 'resetPreferences',
+      message: reset('Would you like to reset the saved preferences?'),
+      initial: false,
+      active: 'Yes',
+      inactive: 'No',
+    })
+    if (resetPreferences) {
+      conf.clear()
+      return log.event('The preferences have been reset successfully!')
+    }
+    process.exit(0)
   }
 
-  if (typeof projectPath === 'string') {
-    projectPath = projectPath.trim()
-  }
-
-  if (!projectPath) {
-    const res = await prompts({
+  let projectPath = args[0]?.trim()
+  if (!projectPath || projectPath.startsWith('-')) {
+    const response = await prompts({
       onState: onPromptState,
       type: 'text',
       name: 'path',
-      message: 'What is your project named?',
+      message: reset('What is your project named?'),
       initial: 'my-app',
       validate: (name) => {
-        const validation = validateNpmName(path.basename(path.resolve(name)))
+        const validation = validateNpmName(basename(resolve(name)))
         if (validation.valid) {
           return true
         }
@@ -188,255 +170,235 @@ async function run(): Promise<void> {
       },
     })
 
-    if (typeof res.path === 'string') {
-      projectPath = res.path.trim()
+    if (!response.path || typeof response.path !== 'string') {
+      log.warn(
+        '\nPlease specify the project directory:\n' +
+          `  ${program.name()} '<project-directory>'\n` +
+          'For example:\n' +
+          `  ${program.name()} 'my-next-app'\n\n` +
+          `Run ${program.name()} --help to see all options.`
+      )
+      process.exit(1)
     }
+
+    projectPath = response.path.trim()
   }
 
-  if (!projectPath) {
-    console.log(
-      '\nPlease specify the project directory:\n' +
-        `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
-        'For example:\n' +
-        `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${program.name()} --help`)} to see all options.`
-    )
-    process.exit(1)
-  }
+  const appPath = resolve(projectPath)
+  const appName = basename(appPath)
 
-  const resolvedProjectPath = path.resolve(projectPath)
-  const projectName = path.basename(resolvedProjectPath)
-
-  const validation = validateNpmName(projectName)
+  const validation = validateNpmName(appName)
   if (!validation.valid) {
-    console.error(
-      `Could not create a project called ${red(
-        `"${projectName}"`
-      )} because of npm naming restrictions:`
+    log.error(
+      `Could not create a project called "${appName}" because of npm naming restrictions:`
     )
 
-    validation.problems.forEach((p) =>
-      console.error(`    ${red(bold('*'))} ${p}`)
-    )
+    validation.problems.forEach((p) => log.info(`  - ${p}`))
     process.exit(1)
   }
 
-  if (program.example === true) {
-    console.error(
-      'Please provide an example name or url, otherwise remove the example option.'
-    )
+  // Verify the project dir is empty or doesn't exist
+  if (!isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 
-  /**
-   * Verify the project dir is empty or doesn't exist
-   */
-  const root = path.resolve(resolvedProjectPath)
-  const appName = path.basename(root)
-  const folderExists = fs.existsSync(root)
+  const defaults = {
+    typescript: true,
+    eslint: true,
+    tailwind: true,
+    app: true,
+    srcDir: false,
+    importAlias: '@/*',
+    customizeImportAlias: false,
+  }
+  const preferences = (conf.get('preferences') ?? {}) as typeof defaults
 
-  if (folderExists && !isFolderEmpty(root, appName)) {
-    process.exit(1)
+  if (opts.example) {
+    return await tryCreateNextApp({
+      appPath,
+      resolvedOpts: opts as ResolvedCreateNextAppOptions,
+      example: opts.example.trim(),
+      conf,
+      preferences,
+    })
   }
 
-  const example = typeof program.example === 'string' && program.example.trim()
-  const preferences = (conf.get('preferences') || {}) as Record<
-    string,
-    boolean | string
-  >
-  /**
-   * If the user does not provide the necessary flags, prompt them for whether
-   * to use TS or JS.
-   */
-  if (!example) {
-    const defaults: typeof preferences = {
-      typescript: true,
-      eslint: true,
-      tailwind: true,
-      app: true,
-      srcDir: false,
-      importAlias: '@/*',
-      customizeImportAlias: false,
-    }
-    const getPrefOrDefault = (field: string) =>
-      preferences[field] ?? defaults[field]
+  const getPrefOrDefault = (field: keyof typeof defaults) =>
+    preferences[field] ?? defaults[field]
 
-    if (!program.typescript && !program.javascript) {
-      if (ciInfo.isCI) {
-        // default to TypeScript in CI as we can't prompt to
-        // prevent breaking setup flows
-        program.typescript = getPrefOrDefault('typescript')
-      } else {
-        const styledTypeScript = blue('TypeScript')
-        const { typescript } = await prompts(
-          {
-            type: 'toggle',
-            name: 'typescript',
-            message: `Would you like to use ${styledTypeScript}?`,
-            initial: getPrefOrDefault('typescript'),
-            active: 'Yes',
-            inactive: 'No',
-          },
-          {
-            /**
-             * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
-             * process and not write to the file system.
-             */
-            onCancel: () => {
-              console.error('Exiting.')
-              process.exit(1)
-            },
-          }
-        )
-        /**
-         * Depending on the prompt response, set the appropriate program flags.
-         */
-        program.typescript = Boolean(typescript)
-        program.javascript = !Boolean(typescript)
-        preferences.typescript = Boolean(typescript)
-      }
+  if (isCI) {
+    if (!opts.typescript && !opts.javascript) {
+      // default to TypeScript in CI as we can't prompt to
+      // prevent breaking setup flows
+      opts.typescript = Boolean(getPrefOrDefault('typescript'))
     }
 
-    if (
-      !process.argv.includes('--eslint') &&
-      !process.argv.includes('--no-eslint')
-    ) {
-      if (ciInfo.isCI) {
-        program.eslint = getPrefOrDefault('eslint')
-      } else {
-        const styledEslint = blue('ESLint')
-        const { eslint } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'eslint',
-          message: `Would you like to use ${styledEslint}?`,
-          initial: getPrefOrDefault('eslint'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.eslint = Boolean(eslint)
-        preferences.eslint = Boolean(eslint)
-      }
+    if (!opts.eslint && !args.includes('--no-eslint')) {
+      opts.eslint = Boolean(getPrefOrDefault('eslint'))
     }
 
-    if (
-      !process.argv.includes('--tailwind') &&
-      !process.argv.includes('--no-tailwind')
-    ) {
-      if (ciInfo.isCI) {
-        program.tailwind = getPrefOrDefault('tailwind')
-      } else {
-        const tw = blue('Tailwind CSS')
-        const { tailwind } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'tailwind',
-          message: `Would you like to use ${tw}?`,
-          initial: getPrefOrDefault('tailwind'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.tailwind = Boolean(tailwind)
-        preferences.tailwind = Boolean(tailwind)
-      }
+    if (!opts.tailwind && !args.includes('--no-tailwind')) {
+      opts.tailwind = Boolean(getPrefOrDefault('tailwind'))
     }
 
-    if (
-      !process.argv.includes('--src-dir') &&
-      !process.argv.includes('--no-src-dir')
-    ) {
-      if (ciInfo.isCI) {
-        program.srcDir = getPrefOrDefault('srcDir')
-      } else {
-        const styledSrcDir = blue('`src/` directory')
-        const { srcDir } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'srcDir',
-          message: `Would you like to use ${styledSrcDir}?`,
-          initial: getPrefOrDefault('srcDir'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.srcDir = Boolean(srcDir)
-        preferences.srcDir = Boolean(srcDir)
-      }
+    if (!opts.srcDir && !args.includes('--no-src-dir')) {
+      opts.srcDir = Boolean(getPrefOrDefault('srcDir'))
     }
 
-    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      if (ciInfo.isCI) {
-        program.app = getPrefOrDefault('app')
-      } else {
-        const styledAppDir = blue('App Router')
-        const { appRouter } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'appRouter',
-          message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: getPrefOrDefault('app'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.app = Boolean(appRouter)
-      }
+    if (!opts.app && !args.includes('--no-app')) {
+      opts.app = Boolean(getPrefOrDefault('app'))
     }
 
-    if (
-      typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
-    ) {
-      if (ciInfo.isCI) {
-        // We don't use preferences here because the default value is @/* regardless of existing preferences
-        program.importAlias = defaults.importAlias
-      } else if (process.argv.includes('--no-import-alias')) {
-        program.importAlias = defaults.importAlias
-      } else {
-        const styledImportAlias = blue('import alias')
+    if (!opts.importAlias) {
+      // We don't use preferences here because the default value is @/* regardless of existing preferences
+      opts.importAlias = defaults.importAlias
+    }
 
-        const { customizeImportAlias } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'customizeImportAlias',
-          message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
-          initial: getPrefOrDefault('customizeImportAlias'),
-          active: 'Yes',
-          inactive: 'No',
-        })
+    return await tryCreateNextApp({
+      appPath,
+      resolvedOpts: opts as ResolvedCreateNextAppOptions,
+      conf,
+      preferences,
+    })
+  }
 
-        if (!customizeImportAlias) {
-          // We don't use preferences here because the default value is @/* regardless of existing preferences
-          program.importAlias = defaults.importAlias
-        } else {
-          const { importAlias } = await prompts({
-            onState: onPromptState,
-            type: 'text',
-            name: 'importAlias',
-            message: `What ${styledImportAlias} would you like configured?`,
-            initial: getPrefOrDefault('importAlias'),
-            validate: (value) =>
-              /.+\/\*/.test(value)
-                ? true
-                : 'Import alias must follow the pattern <prefix>/*',
-          })
-          program.importAlias = importAlias
-          preferences.importAlias = importAlias
-        }
-      }
+  function _prompt(
+    {
+      type,
+      name,
+      message,
+      validate,
+    }: {
+      type: PromptType
+      name: keyof typeof defaults
+      message: string
+      validate?: (value: string) => boolean | string
+    },
+    options?: Options
+  ) {
+    return prompts({
+      onState: onPromptState,
+      type,
+      name,
+      message: () => reset(message),
+      initial: getPrefOrDefault(name),
+      validate,
+      ...(type === 'toggle' && { active: 'Yes', inactive: 'No' }),
+      ...options,
+    })
+  }
+
+  if (!opts.typescript && !opts.javascript) {
+    const { typescript } = await _prompt({
+      type: 'toggle',
+      name: 'typescript',
+      message: `Would you like to use ${ct.typescript}?`,
+    })
+    /**
+     * Depending on the prompt response, set the appropriate program flags.
+     */
+    opts.typescript = Boolean(typescript)
+    opts.javascript = !Boolean(typescript)
+    preferences.typescript = Boolean(typescript)
+  }
+
+  if (!opts.eslint && !args.includes('--no-eslint')) {
+    const { eslint } = await _prompt({
+      type: 'toggle',
+      name: 'eslint',
+      message: `Would you like to use ${ct.eslint}?`,
+    })
+    opts.eslint = Boolean(eslint)
+    preferences.eslint = Boolean(eslint)
+  }
+
+  if (!opts.tailwind && !args.includes('--no-tailwind')) {
+    const { tailwind } = await _prompt({
+      type: 'toggle',
+      name: 'tailwind',
+      message: `Would you like to use ${ct.tailwind}?`,
+    })
+    opts.tailwind = Boolean(tailwind)
+    preferences.tailwind = Boolean(tailwind)
+  }
+
+  if (!opts.srcDir && !args.includes('--no-src-dir')) {
+    const { srcDir } = await _prompt({
+      type: 'toggle',
+      name: 'srcDir',
+      message: `Would you like to use ${ct.srcDir} directory?`,
+    })
+    opts.srcDir = Boolean(srcDir)
+    preferences.srcDir = Boolean(srcDir)
+  }
+
+  if (!opts.app && !args.includes('--no-app')) {
+    const { app } = await _prompt({
+      type: 'toggle',
+      name: 'app',
+      message: `Would you like to use ${ct.app}? (recommended)`,
+    })
+    opts.app = Boolean(app)
+  }
+
+  if (!opts.importAlias && !args.includes('--no-import-alias')) {
+    const { customizeImportAlias } = await _prompt({
+      type: 'toggle',
+      name: 'customizeImportAlias',
+      message: `Would you like to customize the default ${ct.importAlias} (${defaults.importAlias})?`,
+    })
+
+    if (customizeImportAlias) {
+      const { importAlias } = await _prompt({
+        type: 'text',
+        name: 'importAlias',
+        message: `How would you like to configure the ${ct.importAlias}?`,
+        validate: (value) =>
+          /.+\/\*/.test(value)
+            ? true
+            : 'Import alias must follow the pattern <prefix>/*',
+      })
+      opts.importAlias = importAlias
+      preferences.importAlias = importAlias
     }
   }
 
+  // Ensure the importAlias is set.
+  opts.importAlias ??= defaults.importAlias
+
+  await tryCreateNextApp({
+    appPath,
+    resolvedOpts: opts as ResolvedCreateNextAppOptions,
+    conf,
+    preferences,
+  })
+}
+
+async function tryCreateNextApp({
+  appPath,
+  resolvedOpts: { typescript, eslint, tailwind, app, srcDir, importAlias },
+  example,
+  conf,
+  preferences,
+}: {
+  appPath: string
+  resolvedOpts: ResolvedCreateNextAppOptions
+  example?: string
+  conf?: Conf
+  preferences?: Record<string, boolean | string>
+}) {
   try {
     await createApp({
-      appPath: resolvedProjectPath,
+      appPath,
       packageManager,
-      example: example && example !== 'default' ? example : undefined,
-      examplePath: program.examplePath,
-      typescript: program.typescript,
-      tailwind: program.tailwind,
-      eslint: program.eslint,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
+      example: example !== 'default' ? example : undefined,
+      examplePath: opts.examplePath,
+      typescript,
+      tailwind,
+      eslint,
+      appRouter: app,
+      srcDir,
+      importAlias,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -457,64 +419,53 @@ async function run(): Promise<void> {
     }
 
     await createApp({
-      appPath: resolvedProjectPath,
+      appPath,
       packageManager,
-      typescript: program.typescript,
-      eslint: program.eslint,
-      tailwind: program.tailwind,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
+      typescript,
+      tailwind,
+      eslint,
+      appRouter: app,
+      srcDir,
+      importAlias,
     })
   }
-  conf.set('preferences', preferences)
-}
 
-const update = checkForUpdate(packageJson).catch(() => null)
+  if (conf && preferences) {
+    conf.set('preferences', preferences)
+  }
+}
 
 async function notifyUpdate(): Promise<void> {
   try {
-    const res = await update
-    if (res?.latest) {
-      const updateMessage =
-        packageManager === 'yarn'
-          ? 'yarn global add create-next-app'
-          : packageManager === 'pnpm'
-          ? 'pnpm add -g create-next-app'
-          : packageManager === 'bun'
-          ? 'bun add -g create-next-app'
-          : 'npm i -g create-next-app'
-
-      console.log(
-        yellow(bold('A new version of `create-next-app` is available!')) +
-          '\n' +
-          'You can update by running: ' +
-          cyan(updateMessage) +
-          '\n'
+    const update = await updateCheck(packageJson)
+    if (update?.latest) {
+      const global = {
+        npm: 'npm i -g',
+        yarn: 'yarn global add',
+        pnpm: 'pnpm add -g',
+        bun: 'bun add -g',
+      }
+      const updateMessage = `${global[packageManager]} create-next-app`
+      log.warn(
+        'A new version of `create-next-app` is available!\n' +
+          `You can update by running: ${updateMessage}\n`
       )
     }
-    process.exit()
-  } catch {
-    // ignore error
-  }
+    process.exit(0)
+  } catch {}
 }
 
-run()
-  .then(notifyUpdate)
-  .catch(async (reason) => {
-    console.log()
-    console.log('Aborting installation.')
-    if (reason.command) {
-      console.log(`  ${cyan(reason.command)} has failed.`)
-    } else {
-      console.log(
-        red('Unexpected error. Please report it as a bug:') + '\n',
-        reason
-      )
-    }
-    console.log()
+async function exit(reason: { command?: string }) {
+  log.info('')
+  log.warn('Aborting installation.')
+  if (reason.command) {
+    log.error(`  ${reason.command} has failed.`)
+  } else {
+    log.error('Unexpected error. Please report it as a bug:\n', reason)
+  }
+  log.info('')
+  await notifyUpdate()
+  process.exit(1)
+}
 
-    await notifyUpdate()
-
-    process.exit(1)
-  })
+run().then(notifyUpdate).catch(exit)

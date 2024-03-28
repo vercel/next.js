@@ -218,7 +218,7 @@ describe('create-next-app templates', () => {
           '--eslint',
           '--src-dir',
           '--no-app',
-          `--no-import-alias`,
+          '--no-import-alias',
         ],
         {
           cwd,
@@ -276,7 +276,7 @@ describe('create-next-app templates', () => {
           process.stdout.write(data)
         })
         childProcess.stdin.write(ansiEscapes.cursorForward() + '\n')
-        await check(() => output, /What import alias would you like configured/)
+        await check(() => output, /Would you like to customize the default/)
         childProcess.stdin.write('@/something/*\n')
       })
 

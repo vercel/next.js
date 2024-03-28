@@ -714,8 +714,8 @@ importers:
         specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
         version: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander:
-        specifier: 2.20.0
-        version: 2.20.0
+        specifier: 12.0.0
+        version: 12.0.0
       conf:
         specifier: 10.2.0
         version: 10.2.0
