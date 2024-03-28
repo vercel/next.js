@@ -41,13 +41,13 @@ type InternalLinkProps = {
   /**
    * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes).
    */
-  as?: Url
+  as?: Url | undefined
   /**
    * Replace the current `history` state instead of adding a new url into the stack.
    *
    * @defaultValue `false`
    */
-  replace?: boolean
+  replace?: boolean | undefined
   /**
    * Whether to override the default scroll behavior
    *
@@ -55,19 +55,19 @@ type InternalLinkProps = {
    *
    * @defaultValue `true`
    */
-  scroll?: boolean
+  scroll?: boolean | undefined
   /**
    * Update the path of the current page without rerunning [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props).
    *
    * @defaultValue `false`
    */
-  shallow?: boolean
+  shallow?: boolean | undefined
   /**
    * Forces `Link` to send the `href` property to its child.
    *
    * @defaultValue `false`
    */
-  passHref?: boolean
+  passHref?: boolean | undefined
   /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded.
@@ -75,30 +75,30 @@ type InternalLinkProps = {
    *
    * @defaultValue `true`
    */
-  prefetch?: boolean
+  prefetch?: boolean | undefined
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
    */
-  locale?: string | false
+  locale?: string | false | undefined
   /**
    * Enable legacy link behavior.
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
-  legacyBehavior?: boolean
+  legacyBehavior?: boolean | undefined
   /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
-  onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
+  onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement> | undefined
   /**
    * Optional event handler for when Link is touched.
    */
-  onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
+  onTouchStart?: React.TouchEventHandler<HTMLAnchorElement> | undefined
   /**
    * Optional event handler for when Link is clicked.
    */
-  onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  onClick?: React.MouseEventHandler<HTMLAnchorElement> | undefined
 }
 
 // TODO-APP: Include the full set of Anchor props
