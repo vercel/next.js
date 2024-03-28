@@ -7,7 +7,16 @@ import packageJson from './package.json'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command } from 'commander'
-import { blue, yellow, green, magenta, red, gray, bold } from 'picocolors'
+import {
+  blue,
+  yellow,
+  green,
+  magenta,
+  red,
+  gray,
+  bold,
+  italic,
+} from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
 import type { InitialReturnValue, Options, PromptType } from 'prompts'
@@ -32,7 +41,10 @@ const onPromptState = (state: {
 
 const styled = (text: string) => blue(text)
 
+const { name: pkgName, version } = packageJson
+
 const coloredTexts = {
+  cna: italic(pkgName),
   typescript: blue('TypeScript'),
   javascript: yellow('JavaScript'),
   app: red('App Router'),
@@ -41,13 +53,12 @@ const coloredTexts = {
   default: gray('(default)'),
 }
 
-const { name: pkgName, version } = packageJson
 const program = new Command()
   .name(pkgName)
   .version(
     `${pkgName} v${version}`,
     '-v, --version',
-    `Output the current version of ${pkgName}.`
+    `Output the current version of ${coloredTexts.cna}.`
   )
   .arguments('[directory]')
   .usage('[directory] [options]')
@@ -90,7 +101,10 @@ const program = new Command()
     '--use-bun',
     `Configure the project to use ${bold('bun')} as the package manager.`
   )
-  .option('--reset-preferences', `Reset the preferences stored for ${pkgName}.`)
+  .option(
+    '--reset, --reset-preferences',
+    `Reset the preferences saved for ${coloredTexts.cna}.`
+  )
   .option(
     '-e, --example [name]|[github-url]',
     `
@@ -127,9 +141,21 @@ const packageManager = Boolean(args.useNpm)
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
-  if (args.resetPreferences) {
-    conf.clear()
-    return log.event(`Successfully reset preferences!`)
+  if (args.reset || args.resetPreferences) {
+    const { reset } = await prompts({
+      onState: onPromptState,
+      type: 'toggle',
+      name: 'reset',
+      message: 'Would you like to reset the saved preferences?',
+      initial: false,
+      active: 'Yes',
+      inactive: 'No',
+    })
+    if (reset) {
+      conf.clear()
+      return log.event('The preferences have been reset successfully!')
+    }
+    process.exit(0)
   }
 
   let projectPath = program.args[0]?.trim()
