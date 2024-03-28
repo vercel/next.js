@@ -176,6 +176,7 @@ import {
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
+  printNonFatalIssue,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -1510,10 +1511,14 @@ export default async function build(
         }[] = []
         for (const [page, entryIssues] of currentEntryIssues) {
           for (const issue of entryIssues.values()) {
-            errors.push({
-              page,
-              message: formatIssue(issue),
-            })
+            if (issue.severity !== 'warning') {
+              errors.push({
+                page,
+                message: formatIssue(issue),
+              })
+            } else {
+              printNonFatalIssue(issue)
+            }
           }
         }
 
