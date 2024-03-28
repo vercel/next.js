@@ -230,6 +230,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasPagesRouterEntrypoints: boolean
   private dir: string
   private buildId: string
+  private encryptionKey: string
   private interceptors: any[]
   private pagesDir?: string
   private distDir: string
@@ -271,6 +272,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       pagesDir,
       distDir,
       buildId,
+      encryptionKey,
       previewProps,
       rewrites,
       appDir,
@@ -280,6 +282,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       pagesDir?: string
       distDir: string
       buildId: string
+      encryptionKey: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
       appDir?: string
@@ -290,6 +293,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.hasAppRouterEntrypoints = false
     this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
+    this.encryptionKey = encryptionKey
     this.dir = dir
     this.interceptors = []
     this.pagesDir = pagesDir
@@ -615,6 +619,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       const commonWebpackOptions = {
         dev: true,
         buildId: this.buildId,
+        encryptionKey: this.encryptionKey,
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
@@ -671,6 +676,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       compilerType: COMPILER_NAMES.client,
       config: this.config,
       buildId: this.buildId,
+      encryptionKey: this.encryptionKey,
       pagesDir: this.pagesDir,
       rewrites: {
         beforeFiles: [],

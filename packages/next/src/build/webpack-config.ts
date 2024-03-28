@@ -300,6 +300,7 @@ export default async function getBaseWebpackConfig(
   dir: string,
   {
     buildId,
+    encryptionKey,
     config,
     compilerType,
     dev = false,
@@ -321,6 +322,7 @@ export default async function getBaseWebpackConfig(
     fetchCacheKeyPrefix,
   }: {
     buildId: string
+    encryptionKey: string
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
@@ -1867,6 +1869,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
+              encryptionKey,
             })),
       hasAppDir &&
         !isClient &&

@@ -39,7 +39,6 @@ import {
 } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { generateEncryptionKeyBase64 } from '../../../server/app-render/encryption-utils'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { isWebpackServerOnlyLayer } from '../../utils'
 
@@ -47,6 +46,7 @@ interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  encryptionKey: string
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -166,6 +166,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
+  encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
 
@@ -174,6 +175,7 @@ export class FlightClientEntryPlugin {
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
+    this.encryptionKey = options.encryptionKey
   }
 
   apply(compiler: webpack.Compiler) {
@@ -1000,9 +1002,7 @@ export class FlightClientEntryPlugin {
       {
         node: serverActions,
         edge: edgeServerActions,
-
-        // Assign encryption
-        encryptionKey: await generateEncryptionKeyBase64(this.dev),
+        encryptionKey: this.encryptionKey,
       },
       null,
       this.dev ? 2 : undefined
