@@ -11,6 +11,7 @@
   "@react-pdf/renderer",
   "@sentry/profiling-node",
   "@swc/core",
+  "@temporalio/client",
   "argon2",
   "autoprefixer",
   "aws-crt",
