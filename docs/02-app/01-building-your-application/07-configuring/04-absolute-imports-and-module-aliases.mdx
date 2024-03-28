@@ -163,3 +163,10 @@ export default function HomePage() {
   )
 }
 ```
+Tell Visual Studio Code to always use non-relative paths for TypeScript auto imports
+```json filename="settings.json (workspace or user)"
+{
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  // ...
+}
+```
