@@ -24,15 +24,11 @@ Output:
 
 Next.js can support both local MDX content inside your application, as well as remote MDX files fetched dynamically on the server. The Next.js plugin handles transforming markdown and React components into HTML, including support for usage in Server Components (the default in App Router).
 
-## `@next/mdx`
+## Install dependencies
 
-The `@next/mdx` package is used to configure Next.js so it can process markdown and MDX. **It sources data from local files**, allowing you to create pages with a `.mdx` extension, directly in your `/pages` or `/app` directory.
+The `@next/mdx` package, and related packages, are used to configure Next.js so it can process markdown and MDX. **It sources data from local files**, allowing you to create pages with a `.mdx` extension, directly in your `/pages` or `/app` directory.
 
-Let's walk through how to configure and use MDX with Next.js.
-
-## Getting Started
-
-Install packages needed to render MDX:
+Install these packages render MDX with Next.js:
 
 ```bash filename="Terminal"
 npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
@@ -40,9 +36,9 @@ npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
 
 <AppOnly>
 
-Create a `mdx-components.tsx` file at the root of your application (`src/` or the parent folder of `app/`):
+## Convention
 
-> **Good to know**: `mdx-components.tsx` is required to use MDX with App Router and will not work without it.
+Use the file `mdx-components.tsx` (or `.js`) in the root of your project to define MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -62,21 +58,32 @@ export function useMDXComponents(components) {
 }
 ```
 
+> **Good to know**:
+>
+> - `mdx-components.tsx` is **required** to use MDX with App Router and will not work without it.
+> - Learn more about the [`mdx-components.tsx` file convention](/docs/app/api-reference/file-conventions/mdx-components).
+> - Learn how to [render and style custom elements](#render-and-style-custom-elements).
+
 </AppOnly>
 
-Update the `next.config.js` file at your project's root to configure it to use MDX:
+Update the `next.config.mjs` file at your project's root to configure it to use MDX:
 
-```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+```js filename="next.config.mjs" switcher
+import createMDX from '@next/mdx'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configure `pageExtensions` to include MDX files
-  pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
+  pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
 }
 
-module.exports = withMDX(nextConfig)
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+})
+
+// Merge MDX config with Next.js config
+export default withMDX(nextConfig)
 ```
 
 <AppOnly>
@@ -276,7 +283,7 @@ import createMDX from '@next/mdx'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configure `pageExtensions`` to include MDX files
-  pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
+  pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
 }
 
@@ -310,7 +317,7 @@ export const metadata = {
 # My MDX page
 ```
 
-## Custom Elements
+## Render and style custom elements
 
 One of the pleasant aspects of using markdown, is that it maps to native `HTML` elements, making writing fast, and intuitive:
 
@@ -334,11 +341,11 @@ The above generates the following `HTML`:
 </ul>
 ```
 
-When you want to style your own elements for a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements.
+When you want to style your own elements for a custom feel to your website or application, you can provide your own components that map to `HTML` elements.
 
 <AppOnly>
 
-To do this, open the `mdx-components.tsx` file at the root of your application and add custom elements:
+To do this, create a `mdx-components.tsx` file at the root of your application (the parent folder of `app/` or `src/`) and add custom elements:
 
 </AppOnly>
 
