@@ -1,0 +1,93 @@
+---
+title: Memory Usage
+description: Optimize memory used by your application in development and production.
+---
+
+## Reduce number of dependencies
+
+Applications with a large amount of dependencies will use more memory. The
+[Bundle Analyzer](/app/building-your-application/optimizing/bundle-analyzer)
+can help you investigate large dependencies in your application that may be able
+to be removed to improve performance and memory usage.
+
+## Record a heap profile
+
+To look for memory issues, you can record a heap profile from Node.js and load it in
+Chrome DevTools to identify potential sources of memory leaks. In a terminal, pass
+the `--heap-prof` flag to Node.js when starting your Next.js build:
+
+```sh
+node --heap-prof next build
+```
+
+At the end of the build, a `.heapprofile` file will have been output by Node.js. In
+Chrome DevTools, you can open the Memory tab and click on the "Load Profile" button
+to visualize this file.
+
+## Analyze a snapshot of the heap
+
+You can use an inspector tool to analyze the memory usage of the application. When
+starting the Next.js build or server, add `NODE_OPTIONS=--inspect` to the
+beginning of the command. This will expose the inspector agent on the default port.
+If you wish to break before any user code starts, you can pass `--inspect-brk`
+instead.
+
+Now, you can use a tool such as Chrome DevTools to connect to the debugging port to
+record and analyze a snapshot of the heap to see what memory is being retained. See
+https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots for more
+information.
+
+## Webpack Build Worker
+
+The Webpack build worker allows you to run Webpack compilations inside a separate
+Node.js worker which will decrease memory usage of your application during builds.
+This option is enabled by default if your application does not have a custom
+Webpack configuration starting in `v14.1.0`.
+
+If you are on an older version or you have a custom Webpack configuration, you can
+enable this option by setting `experimental.webpackBuildWorker: true` inside your
+`next.config.js`.
+
+> **NOTE**: This feature may not be compatible with all custom Webpack plugins.
+
+## Disable Webpack Cache
+
+The [Webpack cache](https://webpack.js.org/configuration/cache/) saves generated
+Webpack modules in memory and/or to disk to improve the speed of builds. This can
+help with performance, but it will also increase the memory usage of your
+application to store the cached data.
+
+You can disable this behavior by adding a [custom Webpack configuration](/docs/app/api-reference/next-config-js/webpack)
+to your application:
+
+```js filename="next.config.js"
+module.exports = {
+  webpack: (
+    config,
+    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }
+  ) => {
+    if (cfg.cache && !dev) {
+      cfg.cache = Object.freeze({
+        type: 'memory',
+      })
+      cfg.cache.maxMemoryGenerations = 0
+    }
+    // Important: return the modified config
+    return config
+  },
+}
+```
+
+## Disable Source Maps
+
+Generating source maps consumes extra memory during the build process.
+You can disable source map generation by adding `productionBrowserSourceMaps: false`
+and `experimental.serverSourceMaps: false` to your Next.js configuration.
+
+Note that some plugins may turn on source maps and may require custom
+configuration to disable.
+
+## Upgrade to `v14.1.3`
+
+There was a memory issue introduced in Next.js when using the Edge runtime
+which was fixed in `v14.1.3`.
