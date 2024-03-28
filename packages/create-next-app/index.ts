@@ -9,13 +9,14 @@ import { isCI } from 'ci-info'
 import { Command, Option } from 'commander'
 import {
   blue,
-  yellow,
+  bold,
+  italic,
+  gray,
   green,
   magenta,
   red,
-  gray,
-  bold,
-  italic,
+  reset,
+  yellow,
 } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
@@ -44,27 +45,25 @@ const onPromptState = (state: {
   }
 }
 
-const styled = (text: string) => blue(text)
-
-const { name: pkgName, version } = packageJson
-
 /**
  * Colored Texts
  */
 const ct = {
-  cna: italic(pkgName),
-  typescript: blue('TypeScript'),
-  javascript: yellow('JavaScript'),
   app: red('App Router'),
-  tailwind: green('Tailwind CSS'),
-  eslint: magenta('ESLint'),
+  cna: packageJson.name,
   default: gray('(default)'),
+  eslint: magenta('ESLint'),
+  importAlias: italic('import alias'),
+  javascript: yellow('JavaScript'),
+  srcDir: bold('"src/"'),
+  tailwind: green('Tailwind CSS'),
+  typescript: blue('TypeScript'),
 }
 
 const program = new Command()
-  .name(pkgName)
+  .name(ct.cna)
   .version(
-    `${pkgName} v${version}`,
+    `${ct.cna} v${packageJson.version}`,
     '-v, --version',
     `Output the current version of ${ct.cna}.`
   )
@@ -79,10 +78,10 @@ const program = new Command()
   .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
   .option('--tailwind', `Enable ${ct.tailwind} config. ${ct.default}`)
   .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
-  .option('--src-dir', `Initialize inside a ${bold('"src/"')} directory.`)
+  .option('--src-dir', `Initialize inside a ${ct.srcDir} directory.`)
   .option(
     '--import-alias <prefix/*>',
-    `Specify import alias to use. ${gray('(default: "@/*")')}`
+    `Specify ${ct.importAlias} to use. ${gray('(default: "@/*")')}`
   )
   .addOption(
     new Option(
@@ -138,16 +137,16 @@ async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
   if (opts.resetPreferences) {
-    const { reset } = await prompts({
+    const { resetPreferences } = await prompts({
       onState: onPromptState,
       type: 'toggle',
-      name: 'reset',
+      name: 'resetPreferences',
       message: 'Would you like to reset the saved preferences?',
       initial: false,
       active: 'Yes',
       inactive: 'No',
     })
-    if (reset) {
+    if (resetPreferences) {
       conf.clear()
       return log.event('The preferences have been reset successfully!')
     }
@@ -160,7 +159,7 @@ async function run(): Promise<void> {
       onState: onPromptState,
       type: 'text',
       name: 'path',
-      message: 'What is your project named?',
+      message: reset('What is your project named?'),
       initial: 'my-app',
       validate: (name) => {
         const validation = validateNpmName(basename(resolve(name)))
@@ -263,7 +262,7 @@ async function run(): Promise<void> {
     })
   }
 
-  async function prompt(
+  function _prompt(
     {
       type,
       name,
@@ -281,7 +280,7 @@ async function run(): Promise<void> {
       onState: onPromptState,
       type,
       name,
-      message,
+      message: () => reset(message),
       initial: getPrefOrDefault(name),
       validate,
       ...(type === 'toggle' && { active: 'Yes', inactive: 'No' }),
@@ -290,10 +289,10 @@ async function run(): Promise<void> {
   }
 
   if (!opts.typescript && !opts.javascript) {
-    const { typescript } = await prompt({
+    const { typescript } = await _prompt({
       type: 'toggle',
       name: 'typescript',
-      message: `Would you like to use ${styled('TypeScript')}?`,
+      message: `Would you like to use ${ct.typescript}?`,
     })
     /**
      * Depending on the prompt response, set the appropriate program flags.
@@ -304,40 +303,40 @@ async function run(): Promise<void> {
   }
 
   if (!opts.eslint && !args.includes('--no-eslint')) {
-    const { eslint } = await prompt({
+    const { eslint } = await _prompt({
       type: 'toggle',
       name: 'eslint',
-      message: `Would you like to use ${styled('ESLint')}?`,
+      message: `Would you like to use ${ct.eslint}?`,
     })
     opts.eslint = Boolean(eslint)
     preferences.eslint = Boolean(eslint)
   }
 
   if (!opts.tailwind && !args.includes('--no-tailwind')) {
-    const { tailwind } = await prompt({
+    const { tailwind } = await _prompt({
       type: 'toggle',
       name: 'tailwind',
-      message: `Would you like to use ${styled('Tailwind CSS')}?`,
+      message: `Would you like to use ${ct.tailwind}?`,
     })
     opts.tailwind = Boolean(tailwind)
     preferences.tailwind = Boolean(tailwind)
   }
 
   if (!opts.srcDir && !args.includes('--no-src-dir')) {
-    const { srcDir } = await prompt({
+    const { srcDir } = await _prompt({
       type: 'toggle',
       name: 'srcDir',
-      message: `Would you like to use ${styled('`src/` directory')}?`,
+      message: `Would you like to use ${ct.srcDir} directory?`,
     })
     opts.srcDir = Boolean(srcDir)
     preferences.srcDir = Boolean(srcDir)
   }
 
   if (!opts.app && !args.includes('--no-app')) {
-    const { app } = await prompt({
+    const { app } = await _prompt({
       type: 'toggle',
       name: 'app',
-      message: `Would you like to use ${styled('App Router')}? (recommended)`,
+      message: `Would you like to use ${ct.app}? (recommended)`,
     })
     opts.app = Boolean(app)
   }
@@ -346,22 +345,20 @@ async function run(): Promise<void> {
     if (args.includes('--no-import-alias')) {
       opts.importAlias = defaults.importAlias
     } else {
-      const styledImportAlias = styled('import alias')
-
-      const { customizeImportAlias } = await prompt({
+      const { customizeImportAlias } = await _prompt({
         type: 'toggle',
         name: 'customizeImportAlias',
-        message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
+        message: `Would you like to customize the default ${ct.importAlias} (${defaults.importAlias})?`,
       })
 
       if (!customizeImportAlias) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         opts.importAlias = defaults.importAlias
       } else {
-        const { importAlias } = await prompt({
+        const { importAlias } = await _prompt({
           type: 'text',
           name: 'importAlias',
-          message: `What ${styledImportAlias} would you like configured?`,
+          message: `What ${ct.importAlias} would you like configured?`,
           validate: (value) =>
             /.+\/\*/.test(value)
               ? true
