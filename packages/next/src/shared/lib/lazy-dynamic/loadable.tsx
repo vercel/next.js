@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
+import { PreloadModule } from './collect-module.shared-runtime'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
@@ -54,7 +55,12 @@ function Loadable(options: LoadableOptions) {
       </BailoutToCSR>
     )
 
-    return <Suspense fallback={fallbackElement}>{children}</Suspense>
+    return (
+      <>
+        <PreloadModule opts={opts} />
+        <Suspense fallback={fallbackElement}>{children}</Suspense>
+      </>
+    )
   }
 
   LoadableComponent.displayName = 'LoadableComponent'

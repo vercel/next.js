@@ -16,6 +16,7 @@ import {
   GlobalLayoutRouterContext,
   MissingSlotContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
+import { LoadableContext } from '../../shared/lib/lazy-dynamic/collect-module.shared-runtime'
 import type {
   CacheNode,
   AppRouterInstance,
@@ -64,6 +65,8 @@ import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { FlightRouterState } from '../../server/app-render/types'
+import Loadable from '../../shared/lib/lazy-dynamic/loadable'
+
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -667,30 +670,36 @@ function Router({
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
-            <GlobalLayoutRouterContext.Provider
-              value={{
-                buildId,
-                changeByServerResponse,
-                tree,
-                focusAndScrollRef,
-                nextUrl,
+            <LoadableContext.Provider
+              value={(moduleName) => {
+                console.log('moduleName', moduleName)
               }}
             >
-              <AppRouterContext.Provider value={appRouter}>
-                <LayoutRouterContext.Provider
-                  value={{
-                    childNodes: cache.parallelRoutes,
-                    tree,
-                    // Root node always has `url`
-                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                    url: canonicalUrl,
-                    loading: cache.loading,
-                  }}
-                >
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
-            </GlobalLayoutRouterContext.Provider>
+              <GlobalLayoutRouterContext.Provider
+                value={{
+                  buildId,
+                  changeByServerResponse,
+                  tree,
+                  focusAndScrollRef,
+                  nextUrl,
+                }}
+              >
+                <AppRouterContext.Provider value={appRouter}>
+                  <LayoutRouterContext.Provider
+                    value={{
+                      childNodes: cache.parallelRoutes,
+                      tree,
+                      // Root node always has `url`
+                      // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+                      url: canonicalUrl,
+                      loading: cache.loading,
+                    }}
+                  >
+                    {content}
+                  </LayoutRouterContext.Provider>
+                </AppRouterContext.Provider>
+              </GlobalLayoutRouterContext.Provider>
+            </LoadableContext.Provider>
           </SearchParamsContext.Provider>
         </PathnameContext.Provider>
       </PathParamsContext.Provider>

@@ -53,14 +53,12 @@ function getChunkGroupFromBlock(
 function buildManifest(
   _compiler: webpack.Compiler,
   compilation: webpack.Compilation,
-  pagesDir: string | undefined,
+  pagesOrAppDir: string | undefined,
   dev: boolean
 ) {
-  // If there's no pagesDir, output an empty manifest
-  if (!pagesDir) {
+  if (!pagesOrAppDir) {
     return {}
   }
-
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
   // This is allowed:
@@ -91,7 +89,7 @@ function buildManifest(
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
-        const key = `${path.relative(pagesDir, originRequest)} -> ${
+        const key = `${path.relative(pagesOrAppDir, originRequest)} -> ${
           dependency.request
         }`
 
@@ -151,17 +149,20 @@ function buildManifest(
 export class ReactLoadablePlugin {
   private filename: string
   private pagesDir?: string
+  private appDir?: string
   private runtimeAsset?: string
   private dev: boolean
 
   constructor(opts: {
     filename: string
     pagesDir?: string
+    appDir?: string
     runtimeAsset?: string
     dev: boolean
   }) {
     this.filename = opts.filename
     this.pagesDir = opts.pagesDir
+    this.appDir = opts.appDir
     this.runtimeAsset = opts.runtimeAsset
     this.dev = opts.dev
   }
@@ -170,10 +171,10 @@ export class ReactLoadablePlugin {
     const manifest = buildManifest(
       compiler,
       compilation,
-      this.pagesDir,
+      this.pagesDir || this.appDir,
       this.dev
     )
-    // @ts-ignore: TODO: remove when webpack 5 is stable
+
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
     )

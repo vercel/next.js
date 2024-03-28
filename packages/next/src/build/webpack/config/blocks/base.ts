@@ -42,6 +42,7 @@ export const base = curry(function base(
     } else {
       config.devtool = false
     }
+    config.devtool = false
   }
 
   if (!config.module) {

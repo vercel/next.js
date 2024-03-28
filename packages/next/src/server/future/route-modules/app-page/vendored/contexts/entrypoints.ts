@@ -8,3 +8,4 @@ export * as AmpContext from '../../../../../../shared/lib/amp-context.shared-run
 export * as LoadableContext from '../../../../../../shared/lib/loadable-context.shared-runtime'
 export * as ImageConfigContext from '../../../../../../shared/lib/image-config-context.shared-runtime'
 export * as Loadable from '../../../../../../shared/lib/loadable.shared-runtime'
+export * as CollectModule from '../../../../../../shared/lib/lazy-dynamic/collect-module.shared-runtime'

@@ -450,6 +450,8 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         buildId={ctx.renderOpts.buildId}
         assetPrefix={ctx.assetPrefix}
         initialCanonicalUrl={urlPathname}
+        // @ts-ignore
+        reactLoadableManifest={ctx.renderOpts.reactLoadableManifest}
         // This is the router state tree.
         initialTree={initialTree}
         // This is the tree of React nodes that are seeded into the cache
@@ -600,6 +602,7 @@ async function renderToHTMLOrFlightImpl(
     subresourceIntegrityManifest,
     serverActionsManifest,
     ComponentMod,
+    reactLoadableManifest,
     dev,
     nextFontManifest,
     supportsDynamicHTML,
