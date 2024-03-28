@@ -5054,6 +5054,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/static-generation-status/index.test.ts": {
+    "passed": [
+      "app-dir static-generation-status should render the non existed route redirect with status 404",
+      "app-dir static-generation-status should render the page using notFound with status 404",
+      "app-dir static-generation-status should render the page using redirect with status 307"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts": {
     "passed": ["syntax-highlighter-crash should render the page"],
     "failed": [],
