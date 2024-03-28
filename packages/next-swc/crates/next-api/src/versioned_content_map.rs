@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use next_core::emit_client_assets;
+use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, State, TryFlatJoinIterExt,
@@ -64,13 +64,18 @@ impl VersionedContentMap {
     pub async fn insert_output_assets(
         self: Vc<Self>,
         assets_operation: Vc<OutputAssetsOperation>,
+        node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
-    ) -> Result<()> {
+    ) -> Result<Vc<Completion>> {
         let assets_operation = *assets_operation.await?;
         // Make sure all written client assets are up-to-date
-        let emit_operation =
-            emit_client_assets(assets_operation, client_relative_path, client_output_path);
+        let emit_operation = emit_assets(
+            assets_operation.resolve().await?,
+            node_root,
+            client_relative_path,
+            client_output_path,
+        );
         let assets = assets_operation.await?;
         let entries: Vec<_> = assets
             .iter()
@@ -89,7 +94,7 @@ impl VersionedContentMap {
             map.extend(entries);
             true
         });
-        Ok(())
+        Ok(emit_operation)
     }
 
     #[turbo_tasks::function]
