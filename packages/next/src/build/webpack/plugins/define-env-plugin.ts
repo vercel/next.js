@@ -171,6 +171,8 @@ export function getDefineEnv({
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
+    'process.env.__NEXT_CLIENT_ROUTER_CACHE_MODE':
+      config.experimental.clientRouterCacheMode ?? 'default',
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':

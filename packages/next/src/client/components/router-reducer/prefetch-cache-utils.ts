@@ -8,6 +8,7 @@ import {
   type PrefetchCacheEntry,
   PrefetchKind,
   type ReadonlyReducerState,
+  PREFETCH_CACHE_MODE,
 } from './router-reducer-types'
 import { prefetchQueue } from './reducers/prefetch-reducer'
 
@@ -251,7 +252,15 @@ function getPrefetchEntryCacheStatus({
   prefetchTime,
   lastUsedTime,
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
-  // if the cache entry was prefetched or read less than 30s ago, then we want to re-use it
+  if (kind !== PrefetchKind.FULL && PREFETCH_CACHE_MODE === 'live') {
+    // When the cache mode is set to "live", we only want to re-use the loading state. We mark the entry as stale
+    // regardless of the lastUsedTime so that the router will not attempt to apply the cache node data and will instead only
+    // re-use the loading state while lazy fetching the page data.
+    // We don't do this for a full prefetch, as if there's explicit caching intent it should respect existing heuristics.
+    return PrefetchCacheEntryStatus.stale
+  }
+
+  // if the cache entry was prefetched or read less than the specified staletime window, then we want to re-use it
   if (Date.now() < (lastUsedTime ?? prefetchTime) + THIRTY_SECONDS) {
     return lastUsedTime
       ? PrefetchCacheEntryStatus.reusable

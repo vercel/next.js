@@ -187,6 +187,13 @@ export interface ExperimentalConfig {
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  /**
+   * This value can be used to override the cache behavior for the client router. A `live` value
+   * will indicate that the client router should always fetch the latest data from the server when
+   * navigating to a new route when auto prefetching is used. A `default` value will use existing
+   * cache heuristics (router cache will persist for 30s before being invalidated). Defaults to `default`.
+   */
+  clientRouterCacheMode?: 'live' | 'default'
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -926,6 +933,7 @@ export const defaultConfig: NextConfig = {
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
+    clientRouterCacheMode: 'default',
   },
 }
 
