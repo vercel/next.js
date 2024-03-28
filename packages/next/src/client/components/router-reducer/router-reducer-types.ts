@@ -282,11 +282,3 @@ export function isThenable(value: any): value is Promise<AppRouterState> {
     typeof value.then === 'function'
   )
 }
-
-/**
- * A `live` value will indicate that the client router should always fetch the latest data from the server when
- * navigating to a new route when auto prefetching is used. A `default` value will use existing
- * cache heuristics (router cache will persist for 30s before being invalidated). Defaults to `default`.
- */
-export const PREFETCH_CACHE_MODE =
-  process.env.__NEXT_CLIENT_ROUTER_CACHE_MODE === 'live' ? 'live' : 'default'

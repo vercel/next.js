@@ -247,10 +247,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             validator: z.string().optional(),
           })
           .optional(),
-        clientRouterCacheMode: z.union([
-          z.literal('default'),
-          z.literal('live'),
-        ]),
+        staleTimes: z
+          .object({
+            dynamic: z.number().optional(),
+            static: z.number().optional(),
+          })
+          .optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
