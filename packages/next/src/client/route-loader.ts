@@ -4,6 +4,7 @@ import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-fro
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
 import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
+import { encodeUriPath } from '../shared/lib/encode-uri-path'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
 // considers as "Good" time-to-interactive. We must assume something went
@@ -246,13 +247,6 @@ export function getClientBuildManifest() {
   )
 }
 
-function encodeFile(file: string) {
-  return file
-    .split('/')
-    .map((p) => encodeURIComponent(p))
-    .join('/')
-}
-
 interface RouteFiles {
   scripts: (TrustedScriptURL | string)[]
   css: string[]
@@ -265,7 +259,7 @@ function getFilesForRoute(
     const scriptUrl =
       assetPrefix +
       '/_next/static/chunks/pages' +
-      encodeFile(getAssetPathFromRoute(route, '.js')) +
+      encodeUriPath(getAssetPathFromRoute(route, '.js')) +
       getAssetQueryString()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
@@ -278,7 +272,7 @@ function getFilesForRoute(
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
     const allFiles = manifest[route].map(
-      (entry) => assetPrefix + '/_next/' + encodeFile(entry)
+      (entry) => assetPrefix + '/_next/' + encodeUriPath(entry)
     )
     return {
       scripts: allFiles
