@@ -45,6 +45,18 @@ export async function OPTIONS(request) {}
 
 > **Good to know**: Route Handlers are only available inside the `app` directory. You **do not** need to use API Routes (`pages`) and Route Handlers (`app`) together, as Route Handlers should be able to handle all use cases.
 
+## Custom exports
+
+In addition to the supported [HTTP methods](/docs/app/api-reference/file-conventions/route#http-methods) and [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config), you can export your own custom keys with the `"_"` prefix.
+
+```ts filename="route.ts" switcher
+export const _customConfig = {}
+```
+
+```js filename="route.js" switcher
+export const _customConfig = {}
+```
+
 ## Parameters
 
 ### `request` (optional)
