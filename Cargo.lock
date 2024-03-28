@@ -3163,11 +3163,13 @@ dependencies = [
 name = "next-custom-transforms"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "easy-error",
  "either",
  "fxhash",
  "hex",
+ "lazy_static",
  "once_cell",
  "pathdiff",
  "preset_env_base",
