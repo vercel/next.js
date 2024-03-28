@@ -248,7 +248,7 @@ async function run(): Promise<void> {
   if (opts.example) {
     return await tryCreateNextApp({
       appPath,
-      // resolvedOpts: opts as ResolvedCreateNextAppOptions,
+      resolvedOpts: opts as ResolvedCreateNextAppOptions,
       example: opts.example.trim(),
       conf,
       preferences,
@@ -288,7 +288,7 @@ async function run(): Promise<void> {
 
     return await tryCreateNextApp({
       appPath,
-      // resolvedOpts: opts as ResolvedCreateNextAppOptions,
+      resolvedOpts: opts as ResolvedCreateNextAppOptions,
       conf,
       preferences,
     })
@@ -406,7 +406,7 @@ async function run(): Promise<void> {
 
   await tryCreateNextApp({
     appPath,
-    // resolvedOpts: opts as ResolvedCreateNextAppOptions,
+    resolvedOpts: opts as ResolvedCreateNextAppOptions,
     conf,
     preferences,
   })
@@ -414,13 +414,13 @@ async function run(): Promise<void> {
 
 async function tryCreateNextApp({
   appPath,
-  // resolvedOpts: { typescript, eslint, tailwind, app, srcDir, importAlias },
+  resolvedOpts: { typescript, eslint, tailwind, app, srcDir, importAlias },
   example,
   conf,
   preferences,
 }: {
   appPath: string
-  // resolvedOpts: ResolvedCreateNextAppOptions
+  resolvedOpts: ResolvedCreateNextAppOptions
   example?: string
   conf?: Conf
   preferences?: Record<string, boolean | string>
@@ -431,12 +431,12 @@ async function tryCreateNextApp({
       packageManager,
       example: example !== 'default' ? example : undefined,
       examplePath: opts.examplePath,
-      typescript: opts.typescript!,
-      tailwind: opts.tailwind!,
-      eslint: opts.eslint!,
-      appRouter: opts.app!,
-      srcDir: opts.srcDir!,
-      importAlias: opts.importAlias!,
+      typescript,
+      tailwind,
+      eslint,
+      appRouter: app,
+      srcDir,
+      importAlias,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -459,12 +459,12 @@ async function tryCreateNextApp({
     await createApp({
       appPath,
       packageManager,
-      typescript: opts.typescript!,
-      tailwind: opts.tailwind!,
-      eslint: opts.eslint!,
-      appRouter: opts.app!,
-      srcDir: opts.srcDir!,
-      importAlias: opts.importAlias!,
+      typescript,
+      tailwind,
+      eslint,
+      appRouter: app,
+      srcDir,
+      importAlias,
     })
   }
 
