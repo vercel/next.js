@@ -25,6 +25,7 @@ import {
   getModuleReferencesInOrder,
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
+import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
 interface Options {
   dev: boolean
@@ -119,7 +120,8 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(chunkId, encodeURI(file + deploymentIdChunkQuery))
+        const url = encodeURIPath(file)
+        return chunks.push(chunkId, url + deploymentIdChunkQuery)
       })
     }
   })
