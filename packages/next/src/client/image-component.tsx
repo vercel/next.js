@@ -10,8 +10,6 @@ import React, {
   forwardRef,
   version,
 } from 'react'
-import ReactDOM from 'react-dom'
-import Head from '../shared/lib/head'
 import { getImgProps } from '../shared/lib/get-img-props'
 import type {
   ImageProps,
@@ -27,7 +25,6 @@ import type {
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../shared/lib/utils/warn-once'
-import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -313,54 +310,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   }
 )
 
-function ImagePreload({
-  isAppRouter,
-  imgAttributes,
-}: {
-  isAppRouter: boolean
-  imgAttributes: ImgProps
-}) {
-  const opts = {
-    as: 'image',
-    imageSrcSet: imgAttributes.srcSet,
-    imageSizes: imgAttributes.sizes,
-    crossOrigin: imgAttributes.crossOrigin,
-    referrerPolicy: imgAttributes.referrerPolicy,
-    ...getDynamicProps(imgAttributes.fetchPriority),
-  }
-
-  if (isAppRouter && ReactDOM.preload) {
-    // See https://github.com/facebook/react/pull/26940
-    ReactDOM.preload(
-      imgAttributes.src,
-      // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
-      opts
-    )
-    return null
-  }
-
-  return (
-    <Head>
-      <link
-        key={
-          '__nimg-' +
-          imgAttributes.src +
-          imgAttributes.srcSet +
-          imgAttributes.sizes
-        }
-        rel="preload"
-        // Note how we omit the `href` attribute, as it would only be relevant
-        // for browsers that do not support `imagesrcset`, and in those cases
-        // it would cause the incorrect image to be preloaded.
-        //
-        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-        href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-        {...opts}
-      />
-    </Head>
-  )
-}
-
 /**
  * The `Image` component is used to optimize images.
  *
@@ -368,10 +317,6 @@ function ImagePreload({
  */
 export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
-    const pagesRouter = useContext(RouterContext)
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
-
     const configContext = useContext(ImageConfigContext)
     const config = useMemo(() => {
       const c = configEnv || configContext || imageConfigDefault
@@ -419,12 +364,6 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             ref={forwardedRef}
           />
         }
-        {imgMeta.priority ? (
-          <ImagePreload
-            isAppRouter={isAppRouter}
-            imgAttributes={imgAttributes}
-          />
-        ) : null}
       </>
     )
   }
