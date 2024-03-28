@@ -5,6 +5,7 @@ import type {
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
+import { isPPREnabled } from '../../../server/lib/experimental/ppr'
 
 function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
@@ -165,7 +166,7 @@ export function getDefineEnv({
       ? 'nodejs'
       : '',
     'process.env.NEXT_MINIMAL': '',
-    'process.env.__NEXT_PPR': config.experimental.ppr === true,
+    'process.env.__NEXT_PPR': isPPREnabled(config.experimental.ppr),
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],

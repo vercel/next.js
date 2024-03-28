@@ -3,21 +3,24 @@ import type RenderResult from '../render-result'
 import type { Revalidate } from '../lib/revalidate'
 import type { RouteKind } from '../../server/future/route-kind'
 
+export type ResponseCacheBaseContext = {
+  isOnDemandRevalidate?: boolean
+  isPrefetch?: boolean
+  incrementalCache: IncrementalCache
+
+  /**
+   * This is a hint to the cache to help it determine what kind of route
+   * this is so it knows where to look up the cache entry from. If not
+   * provided it will test the filesystem to check.
+   */
+  routeKind?: RouteKind
+}
+
 export interface ResponseCacheBase {
   get(
     key: string | null,
     responseGenerator: ResponseGenerator,
-    context: {
-      isOnDemandRevalidate?: boolean
-      isPrefetch?: boolean
-      incrementalCache: IncrementalCache
-      /**
-       * This is a hint to the cache to help it determine what kind of route
-       * this is so it knows where to look up the cache entry from. If not
-       * provided it will test the filesystem to check.
-       */
-      routeKind?: RouteKind
-    }
+    context: ResponseCacheBaseContext
   ): Promise<ResponseCacheEntry | null>
 }
 

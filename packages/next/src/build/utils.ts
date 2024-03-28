@@ -1,4 +1,5 @@
 import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type {
@@ -87,6 +88,7 @@ import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { isPPRSupported } from '../server/lib/experimental/ppr'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -347,7 +349,7 @@ export interface PageInfo {
   totalSize: number
   isStatic: boolean
   isSSG: boolean
-  isPPR: boolean
+  supportsPPR: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
@@ -489,7 +491,7 @@ export async function printTreeView(
         symbol = ' '
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
         symbol = 'ƒ'
-      } else if (pageInfo?.isPPR) {
+      } else if (pageInfo?.supportsPPR) {
         if (
           // If the page has an empty prelude, then it's equivalent to a dynamic page
           pageInfo?.hasEmptyPrelude ||
@@ -1180,6 +1182,13 @@ export type AppConfig = {
   dynamic?: AppConfigDynamic
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
+
+  /**
+   * When true, the page will be served using partial prerendering.
+   * This setting will only take affect if it's enabled via
+   * the `experimental.ppr = "incremental"` option.
+   */
+  experimental_ppr?: boolean
 }
 
 type Params = Record<string, string | string[]>
@@ -1197,10 +1206,12 @@ type GenerateParamsResult = {
 
 export type GenerateParamsResults = GenerateParamsResult[]
 
-export const collectAppConfig = (mod: any): AppConfig | undefined => {
+const collectAppConfig = (
+  mod: Partial<AppConfig> | undefined
+): AppConfig | undefined => {
   let hasConfig = false
-
   const config: AppConfig = {}
+
   if (typeof mod?.revalidate !== 'undefined') {
     config.revalidate = mod.revalidate
     hasConfig = true
@@ -1221,8 +1232,14 @@ export const collectAppConfig = (mod: any): AppConfig | undefined => {
     config.preferredRegion = mod.preferredRegion
     hasConfig = true
   }
+  if (typeof mod?.experimental_ppr !== 'undefined') {
+    config.experimental_ppr = mod.experimental_ppr
+    hasConfig = true
+  }
 
-  return hasConfig ? config : undefined
+  if (!hasConfig) return undefined
+
+  return config
 }
 
 /**
@@ -1313,7 +1330,6 @@ export async function buildAppStaticPaths({
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
-  ppr,
   ComponentMod,
 }: {
   dir: string
@@ -1326,7 +1342,6 @@ export async function buildAppStaticPaths({
   cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  ppr: boolean
   ComponentMod: AppPageModule
 }) {
   ComponentMod.patchFetch()
@@ -1361,7 +1376,7 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
-    experimental: { ppr },
+    pprEnabled: false,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
@@ -1373,8 +1388,6 @@ export async function buildAppStaticPaths({
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
-        // building static paths should never postpone
-        experimental: { ppr: false },
       },
     },
     async () => {
@@ -1488,7 +1501,7 @@ export async function isPageStatic({
   isrFlushToDisk,
   maxMemoryCacheSize,
   cacheHandler,
-  ppr,
+  pprConfig,
 }: {
   dir: string
   page: string
@@ -1507,9 +1520,9 @@ export async function isPageStatic({
   maxMemoryCacheSize?: number
   cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export'
-  ppr: boolean
+  pprConfig: ExperimentalPPRConfig | undefined
 }): Promise<{
-  isPPR?: boolean
+  supportsPPR?: boolean
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
@@ -1584,13 +1597,9 @@ export async function isPageStatic({
       const routeModule: RouteModule =
         componentsResult.ComponentMod?.routeModule
 
-      let supportsPPR = false
+      let supportsPPR: boolean = false
 
       if (pageType === 'app') {
-        if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
-          supportsPPR = true
-        }
-
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
@@ -1620,6 +1629,7 @@ export async function isPageStatic({
               fetchCache,
               preferredRegion,
               revalidate: curRevalidate,
+              experimental_ppr,
             } = curGenParams?.config || {}
 
             // TODO: should conflicting configs here throw an error
@@ -1632,6 +1642,12 @@ export async function isPageStatic({
             }
             if (typeof builtConfig.fetchCache === 'undefined') {
               builtConfig.fetchCache = fetchCache
+            }
+            // If partial prerendering has been set, only override it if the current value is
+            // If it has been set, only override it if the current value is
+            // provided as it's resolved from root layout to leaf page.
+            if (typeof experimental_ppr !== 'undefined') {
+              builtConfig.experimental_ppr = experimental_ppr
             }
 
             // any revalidate number overrides false
@@ -1657,6 +1673,14 @@ export async function isPageStatic({
           )
         }
 
+        // A page supports partial prerendering if it is an app page and either
+        // the whole app has PPR enabled or this page has PPR enabled when we're
+        // in incremental mode.
+        supportsPPR =
+          routeModule.definition.kind === RouteKind.APP_PAGE &&
+          !isInterceptionRouteAppPath(page) &&
+          isPPRSupported(pprConfig, appConfig)
+
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
         // TODO: (PPR) remove this once PPR is enabled by default
@@ -1679,7 +1703,6 @@ export async function isPageStatic({
             isrFlushToDisk,
             maxMemoryCacheSize,
             cacheHandler,
-            ppr,
             ComponentMod,
           }))
         }
@@ -1757,21 +1780,13 @@ export async function isPageStatic({
 
       // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
-      let isPPR = false
       if (supportsPPR) {
-        isPPR = true
         isStatic = true
-      }
-
-      // interception routes depend on `Next-URL` and `Next-Router-State-Tree` request headers and thus cannot be prerendered
-      if (isInterceptionRouteAppPath(page)) {
-        isStatic = false
-        isPPR = false
       }
 
       return {
         isStatic,
-        isPPR,
+        supportsPPR,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,

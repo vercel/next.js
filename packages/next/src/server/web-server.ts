@@ -93,8 +93,7 @@ export default class NextWebServer extends BaseServer<
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
-      // PPR is not supported in the edge runtime.
-      experimental: { ppr: false },
+      pprEnabled: false,
     })
   }
   protected getResponseCache() {

@@ -19,7 +19,12 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
-  experimental: { ppr: boolean }
+
+  /**
+   * pprEnabled is true when PPR has been enabled either globally or just for
+   * some pages via the `incremental` option.
+   */
+  pprEnabled: boolean
 }
 
 type TagsManifest = {
@@ -37,7 +42,7 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
-  private readonly experimental: { ppr: boolean }
+  private readonly pprEnabled: boolean
   private debug: boolean
 
   constructor(ctx: FileSystemCacheContext) {
@@ -47,7 +52,7 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
-    this.experimental = ctx.experimental
+    this.pprEnabled = ctx.pprEnabled
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
@@ -225,9 +230,7 @@ export default class FileSystemCache implements CacheHandler {
           const pageData = isAppPath
             ? await this.fs.readFile(
                 this.getFilePath(
-                  `${key}${
-                    this.experimental.ppr ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
-                  }`,
+                  `${key}${this.pprEnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
                   'app'
                 ),
                 'utf8'
@@ -370,7 +373,7 @@ export default class FileSystemCache implements CacheHandler {
         this.getFilePath(
           `${key}${
             isAppPath
-              ? this.experimental.ppr
+              ? this.pprEnabled
                 ? RSC_PREFETCH_SUFFIX
                 : RSC_SUFFIX
               : NEXT_DATA_SUFFIX

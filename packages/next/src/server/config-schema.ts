@@ -35,8 +35,8 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     query: z.any(), // NextParsedUrlQuery
     // private optional properties
     _isAppDir: z.boolean().optional(),
-    _isAppPrefetch: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
+    _supportsPPR: z.boolean().optional(),
   })
 )
 
@@ -313,7 +313,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         parallelServerCompiles: z.boolean().optional(),
         parallelServerBuildTraces: z.boolean().optional(),
-        ppr: z.boolean().optional(),
+        ppr: z
+          .union([z.boolean(), z.literal('incremental')])
+          .readonly()
+          .optional(),
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),

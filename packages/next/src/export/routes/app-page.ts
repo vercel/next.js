@@ -64,7 +64,11 @@ export async function exportAppPage(
     const { flightData, revalidate = false, postponed, fetchTags } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
-    if (postponed && !renderOpts.experimental.ppr) {
+    if (
+      postponed &&
+      (!renderOpts.experimental.supportsPPR ||
+        !renderOpts.experimental.pprEnabled)
+    ) {
       throw new Error('Invariant: page postponed without PPR being enabled')
     }
 
@@ -93,8 +97,9 @@ export async function exportAppPage(
     }
     // If PPR is enabled, we want to emit a prefetch rsc file for the page
     // instead of the standard rsc. This is because the standard rsc will
-    // contain the dynamic data.
-    else if (renderOpts.experimental.ppr) {
+    // contain the dynamic data. We do this if any routes have PPR enabled so
+    // that the cache read/write is the same.
+    else if (renderOpts.experimental.pprEnabled) {
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
@@ -113,12 +118,6 @@ export async function exportAppPage(
 
     const headers: OutgoingHttpHeaders = { ...metadata.headers }
 
-    // When PPR is enabled, we should grab the headers from the mocked response
-    // and add it to the headers.
-    if (renderOpts.experimental.ppr) {
-      Object.assign(headers, res.getHeaders())
-    }
-
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
@@ -133,10 +132,11 @@ export async function exportAppPage(
 
     const isParallelRoute = /\/@\w+/.test(page)
     const isNonSuccessfulStatusCode = res.statusCode > 300
+
     // When PPR is enabled, we don't always send 200 for routes that have been
     // pregenerated, so we should grab the status code from the mocked
     // response.
-    let status: number | undefined = renderOpts.experimental.ppr
+    let status: number | undefined = renderOpts.experimental.pprEnabled
       ? res.statusCode
       : undefined
 

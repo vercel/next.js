@@ -413,7 +413,7 @@ async function createComponentTreeInternal({
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !experimental.ppr
+          !experimental.supportsPPR
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.

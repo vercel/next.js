@@ -57,6 +57,7 @@ import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { isPPREnabled } from '../server/lib/experimental/ppr'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -422,7 +423,7 @@ export async function exportAppImpl(
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.deploymentId,
     experimental: {
-      ppr: nextConfig.experimental.ppr === true,
+      pprEnabled: isPPREnabled(nextConfig.experimental.ppr),
       missingSuspenseWithCSRBailout:
         nextConfig.experimental.missingSuspenseWithCSRBailout === true,
       swrDelta: nextConfig.experimental.swrDelta,
