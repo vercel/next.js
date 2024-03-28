@@ -2225,10 +2225,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir edge runtime config should warn the legacy object config export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2537,11 +2537,10 @@
       "app-dir edge SSR should handle edge rsc hmr",
       "app-dir edge SSR should resolve client component without error",
       "app-dir edge SSR should resolve module without error in edge runtime",
-      "app-dir edge SSR should retrieve cookies in a server component in the edge runtime"
-    ],
-    "failed": [
+      "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
       "app-dir edge SSR should warn about the re-export of a pages runtime/preferredRegion config"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
