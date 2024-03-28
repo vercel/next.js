@@ -7490,11 +7490,10 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
-    ],
-    "failed": [
+      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
       "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
