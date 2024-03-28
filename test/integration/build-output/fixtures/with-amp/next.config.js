@@ -1,7 +1,7 @@
 module.exports = {
   experimental: {
     amp: {
-      validator: require.resolve('../../lib/amp-validator-wasm.js'),
+      validator: require.resolve('../../../../lib/amp-validator-wasm.js'),
     },
   },
 }

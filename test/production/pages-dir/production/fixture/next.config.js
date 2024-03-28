@@ -4,7 +4,7 @@ setInterval(() => {}, 250)
 module.exports = {
   experimental: {
     amp: {
-      validator: require.resolve('../../lib/amp-validator-wasm.js'),
+      validator: require.resolve('./amp-validator-wasm.js'),
     },
   },
   onDemandEntries: {
