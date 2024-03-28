@@ -1,5 +1,5 @@
-import { install } from "../helpers/install";
-import { copy } from "../helpers/copy";
+import { install } from "../src/helpers/install";
+import { copy } from "../src/helpers/copy";
 
 import { async as glob } from "fast-glob";
 import os from "os";

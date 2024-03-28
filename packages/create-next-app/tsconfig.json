@@ -7,5 +7,6 @@
     "esModuleInterop": true,
     "skipLibCheck": false
   },
+  "include": ["src"],
   "exclude": ["templates", "dist"]
 }

@@ -18,8 +18,8 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import type { PackageManager } from './helpers/get-pkg-manager'
 
-import type { TemplateMode, TemplateType } from './templates'
-import { getTemplateFile, installTemplate } from './templates'
+import type { TemplateMode, TemplateType } from '../templates'
+import { getTemplateFile, installTemplate } from '../templates'
 
 export class DownloadError extends Error {}
 
