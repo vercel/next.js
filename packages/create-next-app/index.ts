@@ -214,51 +214,57 @@ async function run(): Promise<void> {
   const preferences = (conf.get('preferences') ?? {}) as typeof defaults
 
   if (opts.example) {
+    const resolvedOpts: ResolvedCreateNextAppOptions = {
+      typescript: Boolean(opts.typescript),
+      eslint: Boolean(opts.eslint),
+      tailwind: Boolean(opts.tailwind),
+      app: Boolean(opts.app),
+      srcDir: Boolean(opts.srcDir),
+      importAlias: opts.importAlias ?? defaults.importAlias,
+    }
     return await tryCreateNextApp({
       appPath,
-      resolvedOpts: opts as ResolvedCreateNextAppOptions,
+      resolvedOpts,
       example: opts.example.trim(),
-      conf,
-      preferences,
     })
   }
 
-  const getPrefOrDefault = (field: keyof typeof defaults) =>
+  const getPrefOrDefault = <T extends keyof typeof defaults>(field: T) =>
     preferences[field] ?? defaults[field]
 
   if (isCI) {
     if (!opts.typescript && !opts.javascript) {
       // default to TypeScript in CI as we can't prompt to
       // prevent breaking setup flows
-      opts.typescript = Boolean(getPrefOrDefault('typescript'))
+      opts.typescript = getPrefOrDefault('typescript')
     }
-
     if (!opts.eslint && !args.includes('--no-eslint')) {
-      opts.eslint = Boolean(getPrefOrDefault('eslint'))
+      opts.eslint = getPrefOrDefault('eslint')
     }
-
     if (!opts.tailwind && !args.includes('--no-tailwind')) {
-      opts.tailwind = Boolean(getPrefOrDefault('tailwind'))
+      opts.tailwind = getPrefOrDefault('tailwind')
     }
-
     if (!opts.srcDir && !args.includes('--no-src-dir')) {
-      opts.srcDir = Boolean(getPrefOrDefault('srcDir'))
+      opts.srcDir = getPrefOrDefault('srcDir')
     }
-
     if (!opts.app && !args.includes('--no-app')) {
-      opts.app = Boolean(getPrefOrDefault('app'))
+      opts.app = getPrefOrDefault('app')
     }
-
     if (!opts.importAlias) {
-      // We don't use preferences here because the default value is @/* regardless of existing preferences
       opts.importAlias = defaults.importAlias
     }
 
+    const resolvedOpts: ResolvedCreateNextAppOptions = {
+      typescript: Boolean(opts.typescript),
+      eslint: Boolean(opts.eslint),
+      tailwind: Boolean(opts.tailwind),
+      app: Boolean(opts.app),
+      srcDir: Boolean(opts.srcDir),
+      importAlias: opts.importAlias,
+    }
     return await tryCreateNextApp({
       appPath,
-      resolvedOpts: opts as ResolvedCreateNextAppOptions,
-      conf,
-      preferences,
+      resolvedOpts,
     })
   }
 
@@ -275,7 +281,9 @@ async function run(): Promise<void> {
       validate?: (value: string) => boolean | string
     },
     options?: Options
-  ) {
+  ): Promise<{
+    [key in typeof name]: key extends 'importAlias' ? string : boolean
+  }> {
     return prompts({
       onState: onPromptState,
       type,
@@ -297,9 +305,9 @@ async function run(): Promise<void> {
     /**
      * Depending on the prompt response, set the appropriate program flags.
      */
-    opts.typescript = Boolean(typescript)
-    opts.javascript = !Boolean(typescript)
-    preferences.typescript = Boolean(typescript)
+    opts.typescript = typescript
+    opts.javascript = !typescript
+    preferences.typescript = typescript
   }
 
   if (!opts.eslint && !args.includes('--no-eslint')) {
@@ -308,8 +316,8 @@ async function run(): Promise<void> {
       name: 'eslint',
       message: `Would you like to use ${ct.eslint}?`,
     })
-    opts.eslint = Boolean(eslint)
-    preferences.eslint = Boolean(eslint)
+    opts.eslint = eslint
+    preferences.eslint = eslint
   }
 
   if (!opts.tailwind && !args.includes('--no-tailwind')) {
@@ -318,8 +326,8 @@ async function run(): Promise<void> {
       name: 'tailwind',
       message: `Would you like to use ${ct.tailwind}?`,
     })
-    opts.tailwind = Boolean(tailwind)
-    preferences.tailwind = Boolean(tailwind)
+    opts.tailwind = tailwind
+    preferences.tailwind = tailwind
   }
 
   if (!opts.srcDir && !args.includes('--no-src-dir')) {
@@ -328,8 +336,8 @@ async function run(): Promise<void> {
       name: 'srcDir',
       message: `Would you like to use ${ct.srcDir} directory?`,
     })
-    opts.srcDir = Boolean(srcDir)
-    preferences.srcDir = Boolean(srcDir)
+    opts.srcDir = srcDir
+    preferences.srcDir = srcDir
   }
 
   if (!opts.app && !args.includes('--no-app')) {
@@ -338,7 +346,7 @@ async function run(): Promise<void> {
       name: 'app',
       message: `Would you like to use ${ct.app}? (recommended)`,
     })
-    opts.app = Boolean(app)
+    opts.app = app
   }
 
   if (!opts.importAlias && !args.includes('--no-import-alias')) {
@@ -366,9 +374,17 @@ async function run(): Promise<void> {
   // Ensure the importAlias is set.
   opts.importAlias ??= defaults.importAlias
 
+  const resolvedOpts: ResolvedCreateNextAppOptions = {
+    typescript: Boolean(opts.typescript),
+    eslint: Boolean(opts.eslint),
+    tailwind: Boolean(opts.tailwind),
+    app: Boolean(opts.app),
+    srcDir: Boolean(opts.srcDir),
+    importAlias: opts.importAlias,
+  }
   await tryCreateNextApp({
     appPath,
-    resolvedOpts: opts as ResolvedCreateNextAppOptions,
+    resolvedOpts,
     conf,
     preferences,
   })
