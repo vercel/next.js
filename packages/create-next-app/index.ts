@@ -35,20 +35,30 @@ const styled = (text: string) => blue(text)
 const { name: pkgName, version, description } = packageJson
 const program = new Command()
   .name(pkgName)
-  .version(`${pkgName} v${version}`, '-v, --version')
+  .version(
+    `${pkgName} v${version}`,
+    '-v, --version',
+    'Output the current version.'
+  )
   .description(description)
   .arguments('[directory]')
   .usage('[directory] [options]')
+  .helpOption('-h, --help', 'Display this help message.')
   .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
   .option('--eslint', 'Initialize with ESLint config.')
-  .option('--app', 'Initialize as an App Router project.')
+  .option('--app', 'Initialize as an App Router project. (default)')
   .option('--src-dir', 'Initialize inside a `src/` directory.')
   .option(
     '--import-alias <alias-to-configure>',
     'Specify import alias to use (default "@/*").'
   )
+  .option('--no-tailwind', 'Disable Tailwind CSS config. (default)')
+  .option('--no-eslint', 'Disable ESLint config.')
+  .option('--no-app', 'Initialize as a Pages Router project.')
+  .option('--no-src-dir', 'Disable initializing inside a `src/` directory.')
+  .option('--no-import-alias', 'Use the default import alias ("@/*").')
   .option('--use-npm', 'Explicitly tell the CLI to bootstrap the app using npm')
   .option(
     '--use-pnpm',
@@ -59,6 +69,10 @@ const program = new Command()
     'Explicitly tell the CLI to bootstrap the app using Yarn'
   )
   .option('--use-bun', 'Explicitly tell the CLI to bootstrap the app using Bun')
+  .option(
+    '--reset-preferences',
+    `Explicitly tell the CLI to reset any stored preferences.`
+  )
   .option(
     '-e, --example [name]|[github-url]',
     `
@@ -78,30 +92,23 @@ const program = new Command()
   --example-path foo/bar
 `
   )
-  .option(
-    '--reset-preferences',
-    `
-
-  Explicitly tell the CLI to reset any stored preferences
-`
-  )
-  .allowUnknownOption()
   .parse(process.argv)
 
-const packageManager = Boolean(program.useNpm)
+const args = program.opts()
+const packageManager = Boolean(args.useNpm)
   ? 'npm'
-  : Boolean(program.usePnpm)
+  : Boolean(args.usePnpm)
   ? 'pnpm'
-  : Boolean(program.useYarn)
+  : Boolean(args.useYarn)
   ? 'yarn'
-  : Boolean(program.useBun)
+  : Boolean(args.useBun)
   ? 'bun'
   : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
-  if (program.resetPreferences) {
+  if (args.resetPreferences) {
     conf.clear()
     return log.event(`Successfully reset preferences!`)
   }
@@ -160,15 +167,15 @@ async function run(): Promise<void> {
     boolean | string
   >
 
-  if (program.example) {
-    if (typeof program.example !== 'string') {
+  if (args.example) {
+    if (typeof args.example !== 'string') {
       log.error(
         'Please provide an example name or url, otherwise remove the example option.'
       )
       process.exit(1)
     }
 
-    const example = program.example.trim()
+    const example = args.example.trim()
     return await tryCreateNextApp({ appPath, example, conf, preferences })
   }
 
@@ -186,43 +193,40 @@ async function run(): Promise<void> {
     preferences[field] ?? defaults[field]
 
   if (isCI) {
-    if (!program.typescript && !program.javascript) {
+    if (!args.typescript && !args.javascript) {
       // default to TypeScript in CI as we can't prompt to
       // prevent breaking setup flows
-      program.typescript = getPrefOrDefault('typescript')
+      args.typescript = getPrefOrDefault('typescript')
     }
 
     if (
       !process.argv.includes('--eslint') &&
       !process.argv.includes('--no-eslint')
     ) {
-      program.eslint = getPrefOrDefault('eslint')
+      args.eslint = getPrefOrDefault('eslint')
     }
 
     if (
       !process.argv.includes('--tailwind') &&
       !process.argv.includes('--no-tailwind')
     ) {
-      program.tailwind = getPrefOrDefault('tailwind')
+      args.tailwind = getPrefOrDefault('tailwind')
     }
 
     if (
       !process.argv.includes('--src-dir') &&
       !process.argv.includes('--no-src-dir')
     ) {
-      program.srcDir = getPrefOrDefault('srcDir')
+      args.srcDir = getPrefOrDefault('srcDir')
     }
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      program.app = getPrefOrDefault('app')
+      args.app = getPrefOrDefault('app')
     }
 
-    if (
-      typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
-    ) {
+    if (typeof args.importAlias !== 'string' || !args.importAlias.length) {
       // We don't use preferences here because the default value is @/* regardless of existing preferences
-      program.importAlias = defaults.importAlias
+      args.importAlias = defaults.importAlias
     }
 
     return await tryCreateNextApp({ appPath })
@@ -254,29 +258,17 @@ async function run(): Promise<void> {
     })
   }
 
-  if (!program.typescript && !program.javascript) {
-    const { typescript } = await prompt(
-      {
-        type: 'toggle',
-        name: 'typescript',
-        message: `Would you like to use ${styled('TypeScript')}?`,
-      },
-      {
-        /**
-         * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
-         * process and not write to the file system.
-         */
-        onCancel: () => {
-          console.error('Exiting.')
-          process.exit(1)
-        },
-      }
-    )
+  if (!args.typescript && !args.javascript) {
+    const { typescript } = await prompt({
+      type: 'toggle',
+      name: 'typescript',
+      message: `Would you like to use ${styled('TypeScript')}?`,
+    })
     /**
      * Depending on the prompt response, set the appropriate program flags.
      */
-    program.typescript = Boolean(typescript)
-    program.javascript = !Boolean(typescript)
+    args.typescript = Boolean(typescript)
+    args.javascript = !Boolean(typescript)
     preferences.typescript = Boolean(typescript)
   }
 
@@ -289,7 +281,7 @@ async function run(): Promise<void> {
       name: 'eslint',
       message: `Would you like to use ${styled('ESLint')}?`,
     })
-    program.eslint = Boolean(eslint)
+    args.eslint = Boolean(eslint)
     preferences.eslint = Boolean(eslint)
   }
 
@@ -302,7 +294,7 @@ async function run(): Promise<void> {
       name: 'tailwind',
       message: `Would you like to use ${styled('Tailwind CSS')}?`,
     })
-    program.tailwind = Boolean(tailwind)
+    args.tailwind = Boolean(tailwind)
     preferences.tailwind = Boolean(tailwind)
   }
 
@@ -315,7 +307,7 @@ async function run(): Promise<void> {
       name: 'srcDir',
       message: `Would you like to use ${styled('`src/` directory')}?`,
     })
-    program.srcDir = Boolean(srcDir)
+    args.srcDir = Boolean(srcDir)
     preferences.srcDir = Boolean(srcDir)
   }
 
@@ -325,12 +317,12 @@ async function run(): Promise<void> {
       name: 'app',
       message: `Would you like to use ${styled('App Router')}? (recommended)`,
     })
-    program.app = Boolean(app)
+    args.app = Boolean(app)
   }
 
-  if (typeof program.importAlias !== 'string' || !program.importAlias.length) {
+  if (typeof args.importAlias !== 'string' || !args.importAlias.length) {
     if (process.argv.includes('--no-import-alias')) {
-      program.importAlias = defaults.importAlias
+      args.importAlias = defaults.importAlias
     } else {
       const styledImportAlias = styled('import alias')
 
@@ -342,7 +334,7 @@ async function run(): Promise<void> {
 
       if (!customizeImportAlias) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
-        program.importAlias = defaults.importAlias
+        args.importAlias = defaults.importAlias
       } else {
         const { importAlias } = await prompt({
           type: 'text',
@@ -353,7 +345,7 @@ async function run(): Promise<void> {
               ? true
               : 'Import alias must follow the pattern <prefix>/*',
         })
-        program.importAlias = importAlias
+        args.importAlias = importAlias
         preferences.importAlias = importAlias
       }
     }
@@ -378,13 +370,13 @@ async function tryCreateNextApp({
       appPath,
       packageManager,
       example: example !== 'default' ? example : undefined,
-      examplePath: program.examplePath,
-      typescript: program.typescript,
-      tailwind: program.tailwind,
-      eslint: program.eslint,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
+      examplePath: args.examplePath,
+      typescript: args.typescript,
+      tailwind: args.tailwind,
+      eslint: args.eslint,
+      appRouter: args.app,
+      srcDir: args.srcDir,
+      importAlias: args.importAlias,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -407,12 +399,12 @@ async function tryCreateNextApp({
     await createApp({
       appPath,
       packageManager,
-      typescript: program.typescript,
-      eslint: program.eslint,
-      tailwind: program.tailwind,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
+      typescript: args.typescript,
+      eslint: args.eslint,
+      tailwind: args.tailwind,
+      appRouter: args.app,
+      srcDir: args.srcDir,
+      importAlias: args.importAlias,
     })
   }
 
