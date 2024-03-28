@@ -49,6 +49,13 @@ type HeadProps = OriginProps & HeadHTMLProps
 /** Set of pages that have triggered a large data warning on production mode. */
 const largePageDataWarnings = new Set<string>()
 
+function encodeFile(file: string) {
+  return file
+    .split('/')
+    .map((p) => encodeURIComponent(p))
+    .join('/')
+}
+
 function getDocumentFiles(
   buildManifest: BuildManifest,
   pathname: string,
@@ -89,7 +96,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
-        src={`${assetPrefix}/_next/${polyfill}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeFile(polyfill)}${assetQueryString}`}
       />
     ))
 }
@@ -164,7 +171,7 @@ function getDynamicChunks(
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
         key={file}
-        src={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeFile(file)}${assetQueryString}`}
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
       />
@@ -195,7 +202,7 @@ function getScripts(
     return (
       <script
         key={file}
-        src={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeFile(file)}${assetQueryString}`}
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
@@ -399,7 +406,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURI(fontFile)}`}
+              href={`${assetPrefix}/_next/${encodeFile(fontFile)}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -459,7 +466,7 @@ export class Head extends React.Component<HeadProps> {
             key={`${file}-preload`}
             nonce={this.props.nonce}
             rel="preload"
-            href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
+            href={`${assetPrefix}/_next/${encodeFile(file)}${assetQueryString}`}
             as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
           />
@@ -472,7 +479,7 @@ export class Head extends React.Component<HeadProps> {
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
-          href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
+          href={`${assetPrefix}/_next/${encodeFile(file)}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
@@ -504,7 +511,7 @@ export class Head extends React.Component<HeadProps> {
             <link
               rel="preload"
               key={file}
-              href={`${assetPrefix}/_next/${encodeURI(
+              href={`${assetPrefix}/_next/${encodeFile(
                 file
               )}${assetQueryString}`}
               as="script"
@@ -541,7 +548,7 @@ export class Head extends React.Component<HeadProps> {
           key={file}
           nonce={this.props.nonce}
           rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(file)}${assetQueryString}`}
+          href={`${assetPrefix}/_next/${encodeFile(file)}${assetQueryString}`}
           as="script"
           crossOrigin={this.props.crossOrigin || crossOrigin}
         />
@@ -1094,7 +1101,9 @@ export class NextScript extends React.Component<OriginProps> {
           {ampDevFiles.map((file) => (
             <script
               key={file}
-              src={`${assetPrefix}/_next/${file}${assetQueryString}`}
+              src={`${assetPrefix}/_next/${encodeFile(
+                file
+              )}${assetQueryString}`}
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || crossOrigin}
               data-ampdevmode
@@ -1123,7 +1132,7 @@ export class NextScript extends React.Component<OriginProps> {
           ? buildManifest.devFiles.map((file: string) => (
               <script
                 key={file}
-                src={`${assetPrefix}/_next/${encodeURI(
+                src={`${assetPrefix}/_next/${encodeFile(
                   file
                 )}${assetQueryString}`}
                 nonce={this.props.nonce}

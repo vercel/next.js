@@ -246,6 +246,13 @@ export function getClientBuildManifest() {
   )
 }
 
+function encodeFile(file: string) {
+  return file
+    .split('/')
+    .map((p) => encodeURIComponent(p))
+    .join('/')
+}
+
 interface RouteFiles {
   scripts: (TrustedScriptURL | string)[]
   css: string[]
@@ -258,7 +265,7 @@ function getFilesForRoute(
     const scriptUrl =
       assetPrefix +
       '/_next/static/chunks/pages' +
-      encodeURI(getAssetPathFromRoute(route, '.js')) +
+      encodeFile(getAssetPathFromRoute(route, '.js')) +
       getAssetQueryString()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
@@ -271,7 +278,7 @@ function getFilesForRoute(
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
     const allFiles = manifest[route].map(
-      (entry) => assetPrefix + '/_next/' + encodeURI(entry)
+      (entry) => assetPrefix + '/_next/' + encodeFile(entry)
     )
     return {
       scripts: allFiles
