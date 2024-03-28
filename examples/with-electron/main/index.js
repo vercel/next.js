@@ -4,8 +4,7 @@ const { format } = require("url");
 
 // Packages
 const { BrowserWindow, app, ipcMain } = require("electron");
-const isDev = require("electron-is-dev");
-const prepareNext = require("electron-next");
+const prepareNext = require("@guildplanner.pro/electron-next");
 
 // Prepare the renderer once the app is ready
 app.on("ready", async () => {
@@ -20,7 +19,7 @@ app.on("ready", async () => {
     },
   });
 
-  const url = isDev
+  const url = !app.isPackaged
     ? "http://localhost:8000"
     : format({
         pathname: join(__dirname, "../renderer/out/index.html"),
