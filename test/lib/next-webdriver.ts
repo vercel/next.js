@@ -68,7 +68,6 @@ export default async function webdriver(
     headless?: boolean
     ignoreHTTPSErrors?: boolean
     cpuThrottleRate?: number
-    pushErrorAsConsoleLog?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
@@ -89,7 +88,6 @@ export default async function webdriver(
     ignoreHTTPSErrors,
     headless,
     cpuThrottleRate,
-    pushErrorAsConsoleLog,
   } = options
 
   // we import only the needed interface
@@ -130,7 +128,6 @@ export default async function webdriver(
     disableCache,
     cpuThrottleRate,
     beforePageLoad,
-    pushErrorAsConsoleLog,
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 

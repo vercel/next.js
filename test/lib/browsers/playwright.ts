@@ -194,7 +194,6 @@ export class Playwright extends BrowserInterface {
     opts?: {
       disableCache: boolean
       cpuThrottleRate: number
-      pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (...args: any[]) => void
     }
   ) {
@@ -225,10 +224,7 @@ export class Playwright extends BrowserInterface {
     })
     page.on('pageerror', (error) => {
       console.error('page error', error)
-
-      if (opts?.pushErrorAsConsoleLog) {
-        pageLogs.push({ source: 'error', message: error.message })
-      }
+      pageLogs.push({ source: 'error', message: error.message })
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
