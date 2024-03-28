@@ -1,6 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor, getRedboxSource, hasRedbox } from 'next-test-utils'
+import {
+  check,
+  retry,
+  waitFor,
+  getRedboxSource,
+  hasRedbox,
+} from 'next-test-utils'
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -751,6 +757,31 @@ createNextDescribe(
         await check(async () => {
           return browser.eval('window.location.toString()')
         }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
+      })
+
+      it('should handle redirects to routes that provide an invalid RSC response', async () => {
+        let mpaTriggered = false
+        const browser = await next.browser('/client', {
+          beforePageLoad(page) {
+            page.on('framenavigated', () => {
+              mpaTriggered = true
+            })
+          },
+        })
+
+        await browser.elementByCss('#redirect-pages').click()
+
+        await retry(async () => {
+          expect(await browser.url()).toBe(`${next.url}/pages-dir`)
+          expect(mpaTriggered).toBe(true)
+          expect(next.cliOutput).toContain(
+            'Redirected to a page that provided an invalid RSC response'
+          )
+        })
+
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
       })
 
       // TODO: investigate flakey behavior with revalidate
