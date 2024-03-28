@@ -8,6 +8,7 @@ export type AppLinks = {
   ipad?: AppLinksApple | Array<AppLinksApple>
   android?: AppLinksAndroid | Array<AppLinksAndroid>
   windows_phone?: AppLinksWindows | Array<AppLinksWindows>
+  facebook?: AppLinksFacebook | Array<AppLinksFacebook>
   windows?: AppLinksWindows | Array<AppLinksWindows>
   windows_universal?: AppLinksWindows | Array<AppLinksWindows>
   web?: AppLinksWeb | Array<AppLinksWeb>
@@ -17,6 +18,7 @@ export type ResolvedAppLinks = {
   iphone?: Array<AppLinksApple>
   ipad?: Array<AppLinksApple>
   android?: Array<AppLinksAndroid>
+  facebook?: Array<AppLinksFacebook>
   windows_phone?: Array<AppLinksWindows>
   windows?: Array<AppLinksWindows>
   windows_universal?: Array<AppLinksWindows>
@@ -27,6 +29,11 @@ export type AppLinksApple = {
   app_store_id?: string | number
   app_name?: string
 }
+
+export type AppLinksFacebook = {
+  id: string
+}
+
 export type AppLinksAndroid = {
   package: string
   url?: string | URL

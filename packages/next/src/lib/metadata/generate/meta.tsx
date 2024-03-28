@@ -56,7 +56,10 @@ function camelToSnake(camelCaseStr: string) {
 function getMetaKey(prefix: string, key: string) {
   // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
   // to be more compatible as it's a more common format
-  if ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') {
+  if (
+    ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') ||
+    (prefix === 'fb:app_id' && key === 'id')
+  ) {
     return prefix
   }
   if (prefix.startsWith('og:') || prefix.startsWith('twitter:')) {
