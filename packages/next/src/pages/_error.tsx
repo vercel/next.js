@@ -2,7 +2,7 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import type { NextPageContext } from '../shared/lib/utils'
 
-const statusCodes: { [code: number]: string } = {
+const statusCodes: Record<number, string> = {
   400: 'Bad Request',
   404: 'This page could not be found',
   405: 'Method Not Allowed',
