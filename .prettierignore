@@ -37,3 +37,4 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
+test/lib/amp-validator-wasm.js
