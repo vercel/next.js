@@ -9,6 +9,7 @@ pub mod middleware_dynamic;
 pub mod next_ssg;
 pub mod optimize_server_react;
 pub mod page_config;
+pub mod page_static_info;
 pub mod pure;
 pub mod react_server_components;
 pub mod server_actions;
