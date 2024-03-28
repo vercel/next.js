@@ -128,7 +128,7 @@ const cwd = process.cwd()
           } catch (err) {
             console.log(`Fetching release failed`, err)
           }
-          if (!release) {
+          if (!release && i < 5) {
             console.log(`Retrying in 10s...`)
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000))
           }
