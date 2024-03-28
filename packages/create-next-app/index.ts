@@ -3,7 +3,7 @@
 import Conf from 'conf'
 import prompts from 'prompts'
 import updateCheck from 'update-check'
-import packageJson from '../package.json'
+import packageJson from './package.json'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command } from 'commander'
