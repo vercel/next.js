@@ -133,6 +133,16 @@ const packageManager: PackageManager = opts.use
   ? 'bun'
   : getPkgManager()
 
+const defaults = {
+  typescript: true,
+  eslint: true,
+  tailwind: true,
+  app: true,
+  srcDir: false,
+  importAlias: '@/*',
+  customizeImportAlias: false,
+}
+
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
@@ -202,17 +212,6 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const defaults = {
-    typescript: true,
-    eslint: true,
-    tailwind: true,
-    app: true,
-    srcDir: false,
-    importAlias: '@/*',
-    customizeImportAlias: false,
-  }
-  const preferences = (conf.get('preferences') ?? {}) as typeof defaults
-
   if (opts.example) {
     const resolvedOpts: ResolvedCreateNextAppOptions = {
       typescript: Boolean(opts.typescript),
@@ -229,13 +228,13 @@ async function run(): Promise<void> {
     })
   }
 
+  const preferences = (conf.get('preferences') ?? {}) as typeof defaults
   const getPrefOrDefault = <T extends keyof typeof defaults>(field: T) =>
     preferences[field] ?? defaults[field]
 
+  // We set the missing options to their defaults in CI to skip the prompts.
   if (isCI) {
     if (!opts.typescript && !opts.javascript) {
-      // default to TypeScript in CI as we can't prompt to
-      // prevent breaking setup flows
       opts.typescript = getPrefOrDefault('typescript')
     }
     if (!opts.eslint && !args.includes('--no-eslint')) {
@@ -346,6 +345,7 @@ async function run(): Promise<void> {
       name: 'app',
       message: `Would you like to use ${ct.app}? (recommended)`,
     })
+    // don't save the app pref since we recommend it.
     opts.app = app
   }
 
