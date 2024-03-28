@@ -9,6 +9,7 @@ import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/ada
 ;('TURBOPACK { transition: next-shared }')
 import { requestAsyncStorage } from './request-async-storage-instance'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { AfterContext } from '../../server/after/after'
 
 export interface RequestStore {
   readonly headers: ReadonlyHeaders
@@ -19,6 +20,7 @@ export interface RequestStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix: string
+  readonly afterContext?: AfterContext
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

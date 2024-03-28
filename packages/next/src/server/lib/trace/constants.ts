@@ -21,6 +21,7 @@ enum BaseServerSpan {
   renderErrorToResponse = 'BaseServer.renderErrorToResponse',
   renderErrorToHTML = 'BaseServer.renderErrorToHTML',
   render404 = 'BaseServer.render404',
+  after = 'BaseServer.after',
 }
 
 enum LoadComponentsSpan {
@@ -62,6 +63,7 @@ enum NextNodeServerSpan {
   renderErrorToHTML = 'NextNodeServer.renderErrorToHTML',
   render404 = 'NextNodeServer.render404',
   startResponse = 'NextNodeServer.startResponse',
+  waitUntil = 'NextNodeServer.waitUntil',
 
   // nested inner span, does not require parent scope name
   route = 'route',

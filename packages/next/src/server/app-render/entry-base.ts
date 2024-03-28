@@ -31,6 +31,14 @@ import {
 import { Postpone } from '../../server/app-render/rsc/postpone'
 import { taintObjectReference } from '../../server/app-render/rsc/taint'
 
+import * as React from 'react'
+import {
+  patchCacheScopeSupportIntoReact,
+  createCacheScope,
+} from '../after/react-cache'
+
+patchCacheScopeSupportIntoReact(React)
+
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 function patchFetch() {
@@ -55,4 +63,5 @@ export {
   ClientPageRoot,
   NotFoundBoundary,
   patchFetch,
+  createCacheScope,
 }

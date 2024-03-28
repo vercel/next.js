@@ -111,8 +111,8 @@ export class EdgeRouteModuleWrapper {
     const res = await this.routeModule.handle(request, context)
 
     const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
-    if (context.renderOpts.waitUntil) {
-      waitUntilPromises.push(context.renderOpts.waitUntil)
+    if (context.renderOpts.pendingWaitUntil) {
+      waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
     }
     evt.waitUntil(Promise.all(waitUntilPromises))
 

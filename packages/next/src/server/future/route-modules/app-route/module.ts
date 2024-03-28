@@ -395,7 +395,7 @@ export class AppRouteRouteModule extends RouteModule<
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    context.renderOpts.waitUntil = Promise.all([
+                    context.renderOpts.pendingWaitUntil = Promise.all([
                       staticGenerationStore.incrementalCache?.revalidateTag(
                         staticGenerationStore.revalidatedTags || []
                       ),
