@@ -227,6 +227,9 @@ async function createRedirectRenderResult(
         }
 
         return new FlightRenderResult(response.body!)
+      } else {
+        // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+        response.body?.cancel()
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
