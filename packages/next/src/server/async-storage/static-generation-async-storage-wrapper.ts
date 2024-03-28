@@ -15,7 +15,7 @@ export type StaticGenerationContext = {
     isOnDemandRevalidate?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isServerAction?: boolean
-    waitUntil?: Promise<any>
+    pendingWaitUntil?: Promise<any>
     experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
 
     /**
