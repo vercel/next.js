@@ -248,7 +248,7 @@ class NextTracerImpl implements NextTracer {
     let isRootSpan = false
 
     if (!spanContext) {
-      spanContext = ROOT_CONTEXT
+      spanContext = context?.active() ?? ROOT_CONTEXT
       isRootSpan = true
     } else if (trace.getSpanContext(spanContext)?.isRemote) {
       isRootSpan = true

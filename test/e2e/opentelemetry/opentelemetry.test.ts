@@ -200,6 +200,22 @@ createNextDescribe(
             ])
           })
 
+          it('should propagate custom context without span', async () => {
+            await next.fetch('/app/param/rsc-fetch', {
+              ...env.fetchInit,
+              headers: { ...env.fetchInit?.headers, 'x-custom': 'custom1' },
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/rsc-fetch',
+                attributes: {
+                  custom: 'custom1',
+                },
+              },
+            ])
+          })
+
           it('should handle RSC with fetch on edge', async () => {
             await next.fetch('/app/param/rsc-fetch/edge', env.fetchInit)
 
