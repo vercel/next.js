@@ -1,5 +1,6 @@
 import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
+import { isForbiddenError } from '../../client/components/forbidden'
 
 /**
  * Returns true if the error is a navigation signal error. These errors are
@@ -7,4 +8,4 @@ import { isRedirectError } from '../../client/components/redirect'
  * render.
  */
 export const isNavigationSignalError = (err: unknown) =>
-  isNotFoundError(err) || isRedirectError(err)
+  isNotFoundError(err) || isRedirectError(err) || isForbiddenError(err)

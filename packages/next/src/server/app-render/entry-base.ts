@@ -19,6 +19,7 @@ import {
 } from '../../client/components/search-params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
+import { ForbiddenBoundary } from '../../client/components/forbidden-boundary'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 // not being used but needs to be included in the client manifest for /_not-found
 import '../../client/components/error-boundary'
@@ -54,5 +55,6 @@ export {
   taintObjectReference,
   ClientPageRoot,
   NotFoundBoundary,
+  ForbiddenBoundary,
   patchFetch,
 }
