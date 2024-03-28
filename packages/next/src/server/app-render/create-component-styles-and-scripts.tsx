@@ -3,7 +3,7 @@ import { interopDefault } from './interop-default'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
-import { encodeUriPath } from '../../shared/lib/encode-uri-path'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 export async function createComponentStylesAndScripts({
   filePath,
@@ -27,7 +27,7 @@ export async function createComponentStylesAndScripts({
 
   const styles = cssHrefs
     ? cssHrefs.map((href, index) => {
-        const fullHref = `${ctx.assetPrefix}/_next/${encodeUriPath(
+        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
           href
         )}${getAssetQueryString(ctx, true)}`
 
@@ -56,7 +56,7 @@ export async function createComponentStylesAndScripts({
   const scripts = jsHrefs
     ? jsHrefs.map((href) => (
         <script
-          src={`${ctx.assetPrefix}/_next/${encodeUriPath(
+          src={`${ctx.assetPrefix}/_next/${encodeURIPath(
             href
           )}${getAssetQueryString(ctx, true)}`}
           async={true}

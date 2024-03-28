@@ -2,7 +2,7 @@
 // https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
 
 import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
-import { encodeUriPath } from '../shared/lib/encode-uri-path'
+import { encodeURIPath } from '../shared/lib/encode-uri-path'
 
 declare const __webpack_require__: any
 
@@ -16,7 +16,7 @@ if (process.env.NEXT_DEPLOYMENT_ID) {
   __webpack_require__.u = (...args: any[]) =>
     // We enode the chunk filename because our static server matches against and encoded
     // filename path.
-    encodeUriPath(getChunkScriptFilename(...args) + suffix)
+    encodeURIPath(getChunkScriptFilename(...args) + suffix)
 
   // eslint-disable-next-line no-undef
   const getChunkCssFilename = __webpack_require__.k
@@ -36,7 +36,7 @@ if (process.env.NEXT_DEPLOYMENT_ID) {
   __webpack_require__.u = (...args: any[]) =>
     // We enode the chunk filename because our static server matches against and encoded
     // filename path.
-    encodeUriPath(getChunkScriptFilename(...args))
+    encodeURIPath(getChunkScriptFilename(...args))
 
   // We don't need to override __webpack_require__.k because we don't modify
   // the css chunk name when not using deployment id suffixes

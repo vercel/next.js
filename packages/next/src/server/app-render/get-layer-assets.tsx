@@ -3,7 +3,7 @@ import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
-import { encodeUriPath } from '../../shared/lib/encode-uri-path'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 export function getLayerAssets({
   ctx,
@@ -42,7 +42,7 @@ export function getLayerAssets({
         const fontFilename = preloadedFontFiles[i]
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
         const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${encodeUriPath(fontFilename)}`
+        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}`
         ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin)
       }
     } else {
@@ -65,7 +65,7 @@ export function getLayerAssets({
         // Because of this, we add a `?v=` query to bypass the cache during
         // development. We need to also make sure that the number is always
         // increasing.
-        const fullHref = `${ctx.assetPrefix}/_next/${encodeUriPath(
+        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
           href
         )}${getAssetQueryString(ctx, true)}`
 
@@ -95,7 +95,7 @@ export function getLayerAssets({
 
   const scripts = scriptTags
     ? scriptTags.map((href, index) => {
-        const fullSrc = `${ctx.assetPrefix}/_next/${encodeUriPath(
+        const fullSrc = `${ctx.assetPrefix}/_next/${encodeURIPath(
           href
         )}${getAssetQueryString(ctx, true)}`
 
