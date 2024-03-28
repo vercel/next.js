@@ -20,6 +20,8 @@ export function GoogleAnalytics(props: GAParams) {
     currDataLayerName = dataLayerName
   }
 
+  const gaLayer = dataLayerName !== 'dataLayer' ? `&l=${dataLayerName}` : ''
+
   useEffect(() => {
     // performance.mark is being used as a feature use signal. While it is traditionally used for performance
     // benchmarking it is low overhead and thus considered safe to use in production and it is a widely available
@@ -48,7 +50,7 @@ export function GoogleAnalytics(props: GAParams) {
       />
       <Script
         id="_next-ga"
-        src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${gaId}${gaLayer}`}
       />
     </>
   )
