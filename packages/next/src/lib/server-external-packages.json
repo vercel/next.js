@@ -26,6 +26,7 @@
   "jsdom",
   "libsql",
   "mdx-bundler",
+  "mjml",
   "mongodb",
   "mongoose",
   "next-mdx-remote",
