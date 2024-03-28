@@ -150,6 +150,12 @@ function navigateReducer_noPPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
       const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
@@ -316,6 +322,12 @@ function navigateReducer_PPR(
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(state, mutable, flightData, pendingPush)
+      }
+
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
       let currentTree = state.tree
