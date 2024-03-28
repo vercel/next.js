@@ -10,7 +10,7 @@ import {
   getNodeOptionsWithoutInspect,
   printAndExit,
 } from '../server/lib/utils'
-import * as Log from '../build/output/log'
+import { warn } from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
@@ -55,7 +55,10 @@ let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+const handleSessionStop = async (
+  exitCode: number,
+  signal: NodeJS.Signals | number | null
+) => {
   if (child?.pid) child.kill(signal ?? 0)
   if (sessionStopHandled) return
   sessionStopHandled = true
@@ -119,11 +122,11 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(0)
+  process.exit(exitCode)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGKILL'))
-process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+process.on('SIGINT', () => handleSessionStop(143, 'SIGINT'))
+process.on('SIGTERM', () => handleSessionStop(130, 'SIGTERM'))
 
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
@@ -150,7 +153,7 @@ const nextDev = async (
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
     ])
     if (sassVersion && nodeSassVersion) {
-      Log.warn(
+      warn(
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
@@ -169,7 +172,7 @@ const nextDev = async (
           devDependencies['@next/font'] !== 'workspace:*')
       ) {
         const command = getNpxCommand(dir)
-        Log.warn(
+        warn(
           'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
             'The `@next/font` package will be removed in Next.js 14. ' +
             `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
@@ -202,7 +205,7 @@ const nextDev = async (
 
   // TODO: remove in the next major version
   if (config.analyticsId) {
-    Log.warn(
+    warn(
       `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
     )
   }
@@ -294,7 +297,7 @@ const nextDev = async (
           }
           return startServer(startServerOptions)
         }
-        await handleSessionStop(signal)
+        await handleSessionStop(code || 1, signal)
       })
     })
   }
@@ -302,7 +305,7 @@ const nextDev = async (
   const runDevServer = async (reboot: boolean) => {
     try {
       if (!!options.experimentalHttps) {
-        Log.warn(
+        warn(
           'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
