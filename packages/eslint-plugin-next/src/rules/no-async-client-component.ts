@@ -1,12 +1,9 @@
 import { defineRule } from '../utils/define-rule'
+import { isCapitalized } from '../utils/regex'
 
 const url = 'https://nextjs.org/docs/messages/no-async-client-component'
 const description = 'Prevent client components from being async functions.'
 const message = `${description} See: ${url}`
-
-function isCapitalized(str: string): boolean {
-  return /[A-Z]/.test(str?.[0])
-}
 
 export = defineRule({
   meta: {
