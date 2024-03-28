@@ -39,6 +39,7 @@ import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with
 import { createEmptyCacheNode } from '../../app-router'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -53,16 +54,10 @@ type FetchServerActionResult = {
 
 async function fetchServerAction(
   state: ReadonlyReducerState,
+  nextUrl: ReadonlyReducerState['nextUrl'],
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
   const body = await encodeReply(actionArgs)
-
-  // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
-  // If the route has been intercepted, the action should be as well.
-  // Otherwise the server action might be intercepted with the wrong action id
-  // (ie, one that corresponds with the intercepted route)
-  const includeNextUrl =
-    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
 
   const res = await fetch('', {
     method: 'POST',
@@ -75,9 +70,9 @@ async function fetchServerAction(
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
           }
         : {}),
-      ...(includeNextUrl
+      ...(nextUrl
         ? {
-            [NEXT_URL]: state.nextUrl,
+            [NEXT_URL]: nextUrl,
           }
         : {}),
     },
@@ -162,10 +157,24 @@ export function serverActionReducer(
   let currentTree = state.tree
 
   mutable.preserveCustomHistoryState = false
-  mutable.inFlightServerAction = fetchServerAction(state, action)
+
+  // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
+  // If the route has been intercepted, the action should be as well.
+  // Otherwise the server action might be intercepted with the wrong action id
+  // (ie, one that corresponds with the intercepted route)
+  const nextUrl =
+    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
+      ? state.nextUrl
+      : null
+
+  mutable.inFlightServerAction = fetchServerAction(state, nextUrl, action)
 
   return mutable.inFlightServerAction.then(
-    ({ actionResult, actionFlightData: flightData, redirectLocation }) => {
+    async ({
+      actionResult,
+      actionFlightData: flightData,
+      redirectLocation,
+    }) => {
       // Make sure the redirection is a push instead of a replace.
       // Issue: https://github.com/vercel/next.js/issues/53911
       if (redirectLocation) {
@@ -249,6 +258,14 @@ export function serverActionReducer(
             cacheNodeSeedData,
             head
           )
+
+          await refreshInactiveParallelSegments({
+            state,
+            updatedTree: newTree,
+            updatedCache: cache,
+            includeNextUrl: Boolean(nextUrl),
+          })
+
           mutable.cache = cache
           mutable.prefetchCache = new Map()
         }

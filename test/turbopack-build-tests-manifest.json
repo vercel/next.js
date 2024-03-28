@@ -2251,7 +2251,10 @@
       "failed": [
         "parallel-routes-revalidation should handle a redirect action when called in a slot",
         "parallel-routes-revalidation should handle router.refresh() when called in a slot",
-        "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route"
+        "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
+        "parallel-routes-revalidation router.refresh should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active"
       ],
       "pending": [],
       "flakey": [],
