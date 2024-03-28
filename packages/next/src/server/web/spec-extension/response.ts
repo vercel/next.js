@@ -98,6 +98,10 @@ export class NextResponse<Body = unknown> extends Response {
     })
   }
 
+  static permanentRedirect(url: string | NextURL | URL, init?: ResponseInit) {
+    return NextResponse.redirect(url, { ...init, status: 308 })
+  }
+
   static rewrite(
     destination: string | NextURL | URL,
     init?: MiddlewareResponseInit
