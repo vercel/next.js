@@ -6,6 +6,7 @@ import {
   RESTART_EXIT_CODE,
   checkNodeDebugType,
   getDebugPort,
+  getDebugHost,
   getMaxOldSpaceSize,
   getNodeOptionsWithoutInspect,
   printAndExit,
@@ -246,7 +247,7 @@ const nextDev = async (
       }
 
       if (nodeDebugType) {
-        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${getDebugHost()}:${
           getDebugPort() + 1
         }`
       }
