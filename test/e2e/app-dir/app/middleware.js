@@ -68,4 +68,14 @@ export async function middleware(request) {
       )
     )
   }
+
+  if (request.nextUrl.pathname === '/script-nonce') {
+    const nonce = crypto.randomUUID()
+
+    return NextResponse.next({
+      headers: {
+        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+      },
+    })
+  }
 }
