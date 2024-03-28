@@ -27,10 +27,14 @@ function HandleRedirect({
 
   useEffect(() => {
     React.startTransition(() => {
-      if (redirectType === RedirectType.push) {
-        router.push(redirect, {})
-      } else {
-        router.replace(redirect, {})
+      // If we streamed-in a redirect meta tag, we don't want to initiate another redirect
+      // This can happen when the shell has already been sent to the client before the redirect
+      if (!document.getElementById('__next-page-redirect')) {
+        if (redirectType === RedirectType.push) {
+          router.push(redirect, {})
+        } else {
+          router.replace(redirect, {})
+        }
       }
       reset()
     })
