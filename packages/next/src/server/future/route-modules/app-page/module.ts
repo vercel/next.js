@@ -13,8 +13,8 @@ import {
 } from '../route-module'
 import * as vendoredContexts from './vendored/contexts/entrypoints'
 
-let vendoredReactRSC
-let vendoredReactSSR
+let vendoredReactRSC: undefined | typeof import('./vendored/rsc/entrypoints')
+let vendoredReactSSR: undefined | typeof import('./vendored/ssr/entrypoints')
 
 // the vendored Reacts are loaded from their original source in the edge runtime
 if (process.env.NEXT_RUNTIME !== 'edge') {

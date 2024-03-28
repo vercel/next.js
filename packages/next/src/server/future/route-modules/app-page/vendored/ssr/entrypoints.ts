@@ -1,9 +1,7 @@
 import * as React from 'react'
-import * as ReactDOM from 'react-dom/server-rendering-stub'
+import * as ReactDOM from 'react-dom'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
-
-// eslint-disable-next-line import/no-extraneous-dependencies
 import * as ReactDOMServerEdge from 'react-dom/server.edge'
 
 function getAltProxyForBindingsDEV(
