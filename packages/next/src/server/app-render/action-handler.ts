@@ -218,19 +218,16 @@ async function createRedirectRenderResult(
         },
       })
 
-      if (response.headers.get('content-type') !== RSC_CONTENT_TYPE_HEADER) {
-        throw new Error(
-          'Redirected to a page that provided an invalid RSC response. This can happen when navigating to a route handled by the Pages Router. Falling back to a full page navigation.'
-        )
-      }
-      // copy the headers from the redirect response to the response we're sending
-      for (const [key, value] of response.headers) {
-        if (!actionsForbiddenHeaders.includes(key)) {
-          res.setHeader(key, value)
+      if (response.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
+        // copy the headers from the redirect response to the response we're sending
+        for (const [key, value] of response.headers) {
+          if (!actionsForbiddenHeaders.includes(key)) {
+            res.setHeader(key, value)
+          }
         }
-      }
 
-      return new FlightRenderResult(response.body!)
+        return new FlightRenderResult(response.body!)
+      }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
       console.error(`failed to get redirect response`, err)

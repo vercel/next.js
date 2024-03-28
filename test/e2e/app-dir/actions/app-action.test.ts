@@ -774,9 +774,6 @@ createNextDescribe(
         await retry(async () => {
           expect(await browser.url()).toBe(`${next.url}/pages-dir`)
           expect(mpaTriggered).toBe(true)
-          expect(next.cliOutput).toContain(
-            'Redirected to a page that provided an invalid RSC response'
-          )
         })
 
         expect(await browser.elementByCss('body').text()).toContain(
