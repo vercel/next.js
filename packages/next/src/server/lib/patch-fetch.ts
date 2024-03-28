@@ -682,7 +682,24 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
+        // if we are revalidating the whole page time or on-demand and
+        // the fetch cache entry is stale we should still de-dupe the
+        // origin hit if it's a cache-able entry
+        if (cacheKey) {
+          staticGenerationStore.pendingRevalidates ??= {}
+          const pendingRevalidate =
+            staticGenerationStore.pendingRevalidates[cacheKey]
+
+          if (pendingRevalidate) {
+            return pendingRevalidate
+          }
+          return (staticGenerationStore.pendingRevalidates[cacheKey] =
+            doOriginalFetch(false, cacheReasonOverride).catch(console.error))
+        } else {
+          return doOriginalFetch(false, cacheReasonOverride).finally(
+            handleUnlock
+          )
+        }
       }
     )
   }
