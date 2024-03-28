@@ -141,7 +141,7 @@ async function run(): Promise<void> {
       onState: onPromptState,
       type: 'toggle',
       name: 'resetPreferences',
-      message: 'Would you like to reset the saved preferences?',
+      message: reset('Would you like to reset the saved preferences?'),
       initial: false,
       active: 'Yes',
       inactive: 'No',
