@@ -5,13 +5,6 @@ import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
 
 declare const __webpack_require__: any
 
-function encodeFile(file: string) {
-  return file
-    .split('/')
-    .map((p) => encodeURIComponent(p))
-    .join('/')
-}
-
 // If we have a deployment ID, we need to append it to the webpack chunk names
 // I am keeping the process check explicit so this can be statically optimized
 if (process.env.NEXT_DEPLOYMENT_ID) {
@@ -22,7 +15,7 @@ if (process.env.NEXT_DEPLOYMENT_ID) {
   __webpack_require__.u = (...args: any[]) =>
     // We enode the chunk filename because our static server matches against and encoded
     // filename path.
-    encodeFile(getChunkScriptFilename(...args) + suffix)
+    encodeURI(getChunkScriptFilename(...args) + suffix)
 
   // eslint-disable-next-line no-undef
   const getChunkCssFilename = __webpack_require__.k
@@ -42,7 +35,7 @@ if (process.env.NEXT_DEPLOYMENT_ID) {
   __webpack_require__.u = (...args: any[]) =>
     // We enode the chunk filename because our static server matches against and encoded
     // filename path.
-    encodeFile(getChunkScriptFilename(...args))
+    encodeURI(getChunkScriptFilename(...args))
 
   // We don't need to override __webpack_require__.k because we don't modify
   // the css chunk name when not using deployment id suffixes
