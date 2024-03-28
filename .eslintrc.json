@@ -45,12 +45,13 @@
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
       "extends": [
-        "plugin:@typescript-eslint/recommended",
-        "plugin:@typescript-eslint/stylistic"
+        "plugin:@typescript-eslint/stylistic-type-checked",
+        "plugin:@typescript-eslint/strict-type-checked"
       ],
       "files": ["**/*.ts", "**/*.tsx"],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
+        "project": true,
         "sourceType": "module",
         "warnOnUnsupportedTypeScriptVersion": false
       },
