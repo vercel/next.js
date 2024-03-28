@@ -1,4 +1,5 @@
 import curry from 'next/dist/compiled/lodash.curry'
+import type { Postcss, Processor } from 'next/dist/compiled/postcss'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
 import { pipe } from '../../utils'
@@ -53,7 +54,13 @@ function markRemovable(r: webpack.RuleSetRule): webpack.RuleSetRule {
   return r
 }
 
-let postcssInstancePromise: Promise<any>
+export type PostcssInstance = {
+  postcss: Postcss
+  postcssWithPlugins: Processor
+}
+
+let postcssInstancePromise: Promise<PostcssInstance> | undefined
+
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
@@ -61,7 +68,7 @@ export async function lazyPostCSS(
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postcss = require('postcss')
+      const postcss: Postcss = require('postcss')
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
