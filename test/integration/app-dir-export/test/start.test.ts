@@ -45,7 +45,7 @@ describe('app dir - with output export (next start)', () => {
       })
 
       // TODO: Move this test to test/production to run in isolation.
-      ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      ;(process.env.TURBOPACK_BUILD ? it.skip : it)(
         'should warn during next start with output standalone',
         async () => {
           nextConfig.replace(`output: 'export'`, `output: 'standalone'`)
