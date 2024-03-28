@@ -6,7 +6,7 @@ import updateCheck from 'update-check'
 import packageJson from './package.json'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
 import {
   blue,
   yellow,
@@ -77,28 +77,18 @@ const program = new Command()
   )
   .option('--js, --javascript', `Initialize as a ${ct.javascript} project.`)
   .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
-  .option('--tailwind', `Enable ${ct.tailwind}. ${ct.default}`)
-  .option('--eslint', `Enable ${ct.eslint}. ${ct.default}`)
+  .option('--tailwind', `Enable ${ct.tailwind} config. ${ct.default}`)
+  .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
   .option('--src-dir', `Initialize inside a ${bold('"src/"')} directory.`)
   .option(
     '--import-alias <prefix/*>',
     `Specify import alias to use. ${gray('(default: "@/*")')}`
   )
-  .option(
-    '--use-npm',
-    `Configure the project to use ${bold('npm')} as the package manager.`
-  )
-  .option(
-    '--use-pnpm',
-    `Configure the project to use ${bold('pnpm')} as the package manager.`
-  )
-  .option(
-    '--use-yarn',
-    `Configure the project to use ${bold('yarn')} as the package manager.`
-  )
-  .option(
-    '--use-bun',
-    `Configure the project to use ${bold('bun')} as the package manager.`
+  .addOption(
+    new Option(
+      '--use <package-manager>',
+      `Specify the package manager to use.`
+    ).choices(['npm', 'pnpm', 'yarn', 'bun'])
   )
   .option(
     '--reset, --reset-preferences',
@@ -132,13 +122,15 @@ const program = new Command()
 const opts: CreateNextAppOptions = program.opts()
 const { args } = program
 
-const packageManager: PackageManager = Boolean(opts.useNpm)
+const packageManager: PackageManager = opts.use
+  ? opts.use
+  : args.includes('--use-npm')
   ? 'npm'
-  : Boolean(opts.usePnpm)
+  : args.includes('--use-pnpm')
   ? 'pnpm'
-  : Boolean(opts.useYarn)
+  : args.includes('--use-yarn')
   ? 'yarn'
-  : Boolean(opts.useBun)
+  : args.includes('--use-bun')
   ? 'bun'
   : getPkgManager()
 
