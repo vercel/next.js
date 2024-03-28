@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
+var ReactVersion = '18.3.0-canary-a4939017f-20240320';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -250,6 +250,13 @@ const assign = Object.assign;
 
 // -----------------------------------------------------------------------------
 const enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to false for easier skimming.
+// -----------------------------------------------------------------------------
+
+const __NEXT_MAJOR__ = false; // Removes legacy style context
+const enableBigIntSupport = __NEXT_MAJOR__;
 
 // $FlowFixMe[method-unbinding]
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -385,7 +392,7 @@ function escapeHtml(string) {
 
 
 function escapeTextForBrowser(text) {
-  if (typeof text === 'boolean' || typeof text === 'number') {
+  if (typeof text === 'boolean' || typeof text === 'number' || enableBigIntSupport ) {
     // this shortcircuit helps perf for types that we know will never have
     // special characters, especially given that this function is used often
     // for numeric dom ids.
@@ -442,19 +449,17 @@ const NotPending = sharedNotPendingObject;
 
 const ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-const ReactDOMServerDispatcher = {
+const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
+const previousDispatcher = ReactDOMCurrentDispatcher.current;
+ReactDOMCurrentDispatcher.current = {
   prefetchDNS,
   preconnect,
   preload,
   preloadModule,
-  preinitStyle,
   preinitScript,
+  preinitStyle,
   preinitModuleScript
-};
-function prepareHostDispatcher() {
-  ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
-} // We make every property of the descriptor optional because it is not a contract that
+}; // We make every property of the descriptor optional because it is not a contract that
 const ScriptStreamingFormat = 0;
 const DataStreamingFormat = 1;
 const NothingSent
@@ -532,9 +537,10 @@ const importMapScriptEnd = stringToPrecomputedChunk('</script>'); // Since we st
 // It should also be noted that this maximum is a soft maximum. we have not reached the limit we will
 // allow one more header to be captured which means in practice if the limit is approached it will be exceeded
 
-const DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000; // Allows us to keep track of what we've already written so we can refer back to it.
+const DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000;
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
+
 
 function createRenderState(resumableState, nonce, externalRuntimeConfig, importMap, onHeaders, maxHeadersLength) {
   const inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
@@ -1283,6 +1289,9 @@ function pushAttribute(target, name, value) // not null or undefined
       pushStringAttribute(target, 'xml:space', value);
       return;
 
+    case 'inert':
+    // fallthrough for new boolean props without the flag on
+
     default:
       if ( // shouldIgnoreAttribute
       // We have already filtered out null/undefined and reserved words.
@@ -1326,7 +1335,7 @@ function pushInnerHTML(target, innerHTML, children) {
     }
 
     if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
-      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
     }
 
     const html = innerHTML.__html;
@@ -2681,7 +2690,7 @@ function pushStartPreformattedElement(target, props, tag) {
     }
 
     if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
-      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
     }
 
     const html = innerHTML.__html;
@@ -2812,7 +2821,7 @@ function pushStartInstance(target, type, props, resumableState, renderState, hoi
         return pushSelfClosing(target, props, type);
       }
     // These are reserved SVG and MathML elements, that are never custom elements.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts
 
     case 'annotation-xml':
     case 'color-profile':
@@ -4073,6 +4082,7 @@ function prefetchDNS(href) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.prefetchDNS(href);
     return;
   }
 
@@ -4130,6 +4140,7 @@ function preconnect(href, crossOrigin) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preconnect(href, crossOrigin);
     return;
   }
 
@@ -4188,6 +4199,7 @@ function preload(href, as, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preload(href, as, options);
     return;
   }
 
@@ -4389,6 +4401,7 @@ function preloadModule(href, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preloadModule(href, options);
     return;
   }
 
@@ -4456,6 +4469,7 @@ function preinitStyle(href, precedence, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitStyle(href, precedence, options);
     return;
   }
 
@@ -4534,6 +4548,7 @@ function preinitScript(src, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitScript(src, options);
     return;
   }
 
@@ -4595,6 +4610,7 @@ function preinitModuleScript(src, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitModuleScript(src, options);
     return;
   }
 
@@ -5716,7 +5732,7 @@ const RE_RENDER_LIMIT = 25;
 
 function resolveCurrentlyRenderingComponent() {
   if (currentlyRenderingComponent === null) {
-    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.');
   }
 
   return currentlyRenderingComponent;
@@ -6163,7 +6179,7 @@ function useFormState(action, initialState, permalink) {
       };
     }
 
-    return [state, dispatch];
+    return [state, dispatch, false];
   } else {
     // This is not a server action, so the implementation is much simpler.
     // Bind the state to the first argument of the action.
@@ -6173,7 +6189,7 @@ function useFormState(action, initialState, permalink) {
       boundAction(payload);
     };
 
-    return [initialState, dispatch];
+    return [initialState, dispatch, false];
   }
 }
 
@@ -6596,7 +6612,6 @@ function defaultErrorHandler(error) {
 function noop() {}
 
 function createRequest(children, resumableState, renderState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError, onPostpone, formState) {
-  prepareHostDispatcher();
   const pingedTasks = [];
   const abortSet = new Set();
   const request = {
@@ -7689,7 +7704,7 @@ function renderNodeDestructive(request, task, node, childIndex) {
     return;
   }
 
-  if (typeof node === 'number') {
+  if (typeof node === 'number' || enableBigIntSupport ) {
     const segment = task.blockedSegment;
 
     if (segment === null) ; else {

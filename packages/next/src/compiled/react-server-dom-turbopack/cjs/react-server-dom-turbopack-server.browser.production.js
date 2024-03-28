@@ -10,8 +10,8 @@
 
 'use strict';
 
-var React = require('react');
 var ReactDOM = require('react-dom');
+var React = require('react');
 
 // -----------------------------------------------------------------------------
 const enablePostpone = false;
@@ -288,7 +288,7 @@ function getReference(target, name) {
         // we should resolve that with a client reference that unwraps the Promise on
         // the client.
         const clientReference = registerClientReferenceImpl({}, target.$$id, true);
-        const proxy = new Proxy(clientReference, proxyHandlers); // Treat this as a resolved Promise for React's use()
+        const proxy = new Proxy(clientReference, proxyHandlers$1); // Treat this as a resolved Promise for React's use()
 
         target.status = 'fulfilled';
         target.value = proxy;
@@ -328,7 +328,7 @@ function getReference(target, name) {
   return cachedReference;
 }
 
-const proxyHandlers = {
+const proxyHandlers$1 = {
   get: function (target, name, receiver) {
     return getReference(target, name);
   },
@@ -360,7 +360,7 @@ const proxyHandlers = {
 function createClientModuleProxy(moduleId) {
   const clientReference = registerClientReferenceImpl({}, // Represents the whole Module object instead of a particular import.
   moduleId, false);
-  return new Proxy(clientReference, proxyHandlers);
+  return new Proxy(clientReference, proxyHandlers$1);
 }
 
 function getClientReferenceKey(reference) {
@@ -406,7 +406,9 @@ function getServerReferenceBoundArguments(config, serverReference) {
 
 const ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
-const ReactDOMFlightServerDispatcher = {
+const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
+const previousDispatcher = ReactDOMCurrentDispatcher.current;
+ReactDOMCurrentDispatcher.current = {
   prefetchDNS,
   preconnect,
   preload,
@@ -432,6 +434,8 @@ function prefetchDNS(href) {
 
         hints.add(key);
         emitHint(request, 'D', href);
+      } else {
+        previousDispatcher.prefetchDNS(href);
       }
     }
   }
@@ -458,6 +462,8 @@ function preconnect(href, crossOrigin) {
         } else {
           emitHint(request, 'C', href);
         }
+      } else {
+        previousDispatcher.preconnect(href, crossOrigin);
       }
     }
   }
@@ -491,6 +497,8 @@ function preload(href, as, options) {
         } else {
           emitHint(request, 'L', [href, as]);
         }
+      } else {
+        previousDispatcher.preload(href, as, options);
       }
     }
   }
@@ -518,6 +526,8 @@ function preloadModule$1(href, options) {
         } else {
           return emitHint(request, 'm', href);
         }
+      } else {
+        previousDispatcher.preloadModule(href, options);
       }
     }
   }
@@ -547,19 +557,21 @@ function preinitStyle(href, precedence, options) {
         } else {
           return emitHint(request, 'S', href);
         }
+      } else {
+        previousDispatcher.preinitStyle(href, precedence, options);
       }
     }
   }
 }
 
-function preinitScript(href, options) {
+function preinitScript(src, options) {
   {
-    if (typeof href === 'string') {
+    if (typeof src === 'string') {
       const request = resolveRequest();
 
       if (request) {
         const hints = getHints(request);
-        const key = 'X|' + href;
+        const key = 'X|' + src;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -570,23 +582,25 @@ function preinitScript(href, options) {
         const trimmed = trimOptions(options);
 
         if (trimmed) {
-          return emitHint(request, 'X', [href, trimmed]);
+          return emitHint(request, 'X', [src, trimmed]);
         } else {
-          return emitHint(request, 'X', href);
+          return emitHint(request, 'X', src);
         }
+      } else {
+        previousDispatcher.preinitScript(src, options);
       }
     }
   }
 }
 
-function preinitModuleScript(href, options) {
+function preinitModuleScript(src, options) {
   {
-    if (typeof href === 'string') {
+    if (typeof src === 'string') {
       const request = resolveRequest();
 
       if (request) {
         const hints = getHints(request);
-        const key = 'M|' + href;
+        const key = 'M|' + src;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -597,10 +611,12 @@ function preinitModuleScript(href, options) {
         const trimmed = trimOptions(options);
 
         if (trimmed) {
-          return emitHint(request, 'M', [href, trimmed]);
+          return emitHint(request, 'M', [src, trimmed]);
         } else {
-          return emitHint(request, 'M', href);
+          return emitHint(request, 'M', src);
         }
+      } else {
+        previousDispatcher.preinitModuleScript(src, options);
       }
     }
   }
@@ -642,10 +658,7 @@ function getImagePreloadKey(href, imageSrcSet, imageSizes) {
   return "[image]" + uniquePart;
 }
 
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-function prepareHostDispatcher() {
-  ReactDOMCurrentDispatcher.current = ReactDOMFlightServerDispatcher;
-} // Used to distinguish these contexts from ones used in other renderers.
+// This module registers the host dispatcher so it needs to be imported
 // small, smaller than how we encode undefined, and is unambiguous. We could use
 // a different tuple structure to encode this instead but this makes the runtime
 // cost cheaper by eliminating a type checks in more positions.
@@ -657,6 +670,78 @@ function createHints() {
 
 const supportsRequestStorage = false;
 const requestStorage = null;
+
+const TEMPORARY_REFERENCE_TAG = Symbol.for('react.temporary.reference'); // eslint-disable-next-line no-unused-vars
+
+function isTemporaryReference(reference) {
+  return reference.$$typeof === TEMPORARY_REFERENCE_TAG;
+}
+function resolveTemporaryReferenceID(temporaryReference) {
+  return temporaryReference.$$id;
+}
+const proxyHandlers = {
+  get: function (target, name, receiver) {
+    switch (name) {
+      // These names are read by the Flight runtime if you end up using the exports object.
+      case '$$typeof':
+        // These names are a little too common. We should probably have a way to
+        // have the Flight runtime extract the inner target instead.
+        return target.$$typeof;
+
+      case '$$id':
+        return target.$$id;
+
+      case '$$async':
+        return target.$$async;
+
+      case 'name':
+        return undefined;
+
+      case 'displayName':
+        return undefined;
+      // We need to special case this because createElement reads it if we pass this
+      // reference.
+
+      case 'defaultProps':
+        return undefined;
+      // Avoid this attempting to be serialized.
+
+      case 'toJSON':
+        return undefined;
+
+      case Symbol.toPrimitive:
+        // $FlowFixMe[prop-missing]
+        return Object.prototype[Symbol.toPrimitive];
+
+      case Symbol.toStringTag:
+        // $FlowFixMe[prop-missing]
+        return Object.prototype[Symbol.toStringTag];
+
+      case 'Provider':
+        throw new Error("Cannot render a Client Context Provider on the Server. " + "Instead, you can export a Client Component wrapper " + "that itself renders a Client Context Provider.");
+    }
+
+    throw new Error( // eslint-disable-next-line react-internal/safe-string-coercion
+    "Cannot access " + String(name) + " on the server. " + 'You cannot dot into a temporary client reference from a server component. ' + 'You can only pass the value through to the client.');
+  },
+  set: function () {
+    throw new Error('Cannot assign to a temporary client reference from a server module.');
+  }
+};
+function createTemporaryReference(id) {
+  const reference = Object.defineProperties(function () {
+    throw new Error( // eslint-disable-next-line react-internal/safe-string-coercion
+    "Attempted to call a temporary Client Reference from the server but it is on the client. " + "It's not possible to invoke a client function from the server, it can " + "only be rendered as a Component or passed to props of a Client Component.");
+  }, {
+    $$typeof: {
+      value: TEMPORARY_REFERENCE_TAG
+    },
+    $$id: {
+      value: id
+    }
+  });
+  return new Proxy(reference, proxyHandlers);
+}
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1202,7 +1287,6 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
 
-  prepareHostDispatcher();
   ReactCurrentCache.current = DefaultCacheDispatcher;
   const abortSet = new Set();
   const pingedTasks = [];
@@ -1462,7 +1546,7 @@ function renderElement(request, task, type, key, ref, props) {
   }
 
   if (typeof type === 'function') {
-    if (isClientReference(type)) {
+    if (isClientReference(type) || isTemporaryReference(type)) {
       // This is a reference to a Client Component.
       return renderClientElement(task, type, key, props);
     } // This is a Server Component.
@@ -1574,6 +1658,10 @@ function serializePromiseID(id) {
 
 function serializeServerReferenceID(id) {
   return '$F' + id.toString(16);
+}
+
+function serializeTemporaryReferenceID(id) {
+  return '$T' + id;
 }
 
 function serializeSymbolReference(name) {
@@ -1690,6 +1778,11 @@ function serializeServerReference(request, serverReference) {
   const metadataId = outlineModel(request, serverReferenceMetadata);
   writtenServerReferences.set(serverReference, metadataId);
   return serializeServerReferenceID(metadataId);
+}
+
+function serializeTemporaryReference(request, temporaryReference) {
+  const id = resolveTemporaryReferenceID(temporaryReference);
+  return serializeTemporaryReferenceID(id);
 }
 
 function serializeLargeTextString(request, text) {
@@ -2011,6 +2104,10 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (isServerReference(value)) {
       return serializeServerReference(request, value);
+    }
+
+    if (isTemporaryReference(value)) {
+      return serializeTemporaryReference(request, value);
     }
 
     if (/^on[A-Z]/.test(parentPropertyName)) {
@@ -2834,6 +2931,12 @@ function parseModelString(response, parentObject, key, value) {
 
           const metaData = getOutlinedModel(response, id);
           return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+        }
+
+      case 'T':
+        {
+          // Temporary Reference
+          return createTemporaryReference(value.slice(2));
         }
 
       case 'Q':
