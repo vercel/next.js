@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: balazsorban44/nissuer@1.9.2
         with:
-          label-area-prefix: 'area:'
+          label-area-prefix: 'bug'
           label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
           label-comments: |
             {
@@ -34,4 +34,4 @@ jobs:
           reproduction-blocklist: 'github.com/vercel/next.js.*,github.com/\\w*/?$,github.com$'
           reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
           reproduction-invalid-label: 'invalid link'
-          reproduction-issue-labels: 'template: bug,'
+          reproduction-issue-labels: 'bug,'

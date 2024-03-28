@@ -1,11 +1,11 @@
 {
   "labels": {
-    "area: create-next-app": ["packages/create-next-app/**"],
-    "area: documentation": ["docs/**", "errors/**"],
-    "area: examples": ["examples/**"],
-    "area: Font Optimization": ["**/*font*"],
-    "area: tests": ["test/**", "bench/**"],
-    "area: Turbopack": ["packages/next-swc/crates/next-*/**"],
+    "create-next-app": ["packages/create-next-app/**"],
+    "documentation": ["docs/**", "errors/**"],
+    "examples": ["examples/**"],
+    "Font (next/font)": ["**/*font*"],
+    "tests": ["test/**", "bench/**"],
+    "Turbopack": ["packages/next-swc/crates/next-*/**"],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
       { "type": "user", "pattern": "devknoll" },
@@ -46,7 +46,7 @@
       { "type": "user", "pattern": "timeyoutakeit" },
       { "type": "user", "pattern": "manovotny" }
     ],
-    "created-by: turbopack team": [
+    "created-by: Turbopack team": [
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "kwonoj" },
@@ -64,7 +64,6 @@
       "packages/next-mdx/**",
       "packages/next-swc/**",
       "packages/next/**",
-      "packages/react-dev-overlay/**",
       "packages/react-refresh-utils/**"
     ]
   }
