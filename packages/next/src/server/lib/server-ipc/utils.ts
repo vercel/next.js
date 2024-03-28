@@ -13,6 +13,7 @@ export const ipcForbiddenHeaders = [
 export const actionsForbiddenHeaders = [
   ...ipcForbiddenHeaders,
   'content-length',
+  'set-cookie',
 ]
 
 export const filterReqHeaders = (
