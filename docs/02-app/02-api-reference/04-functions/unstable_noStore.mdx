@@ -1,6 +1,9 @@
 ---
 title: unstable_noStore
 description: API Reference for the unstable_noStore function.
+related:
+  links:
+    - app/api-reference/next-config-js/partial-prerendering
 ---
 
 `unstable_noStore` can be used to declaratively opt out of static rendering and indicate a particular component should not be cached.
@@ -22,7 +25,7 @@ export default async function Component() {
 
 - Using `unstable_noStore` inside [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) will not opt out of static generation. Instead, it will defer to the cache configuration to determine whether to cache the result or not.
 
-## Usage
+## Component Usage
 
 If you prefer not to pass additional options to `fetch`, like `cache: 'no-store'` or `next: { revalidate: 0 }`, you can use `noStore()` as a replacement for all of these use cases.
 
@@ -31,6 +34,23 @@ import { unstable_noStore as noStore } from 'next/cache';
 
 export default async function Component() {
   noStore();
+  const result = await db.query(...);
+  ...
+}
+```
+
+## Page Usage
+
+If you have an `async` `page.tsx` with PPR enabled you will need to declare `noStore()` to prevent PPR from attempting
+to make a static shell for a page that contains async calls outside the return statement. Note the `noStore()` must be
+declared outside the function at the file level prior to the export.
+
+```jsx filename="page.tsx"
+import { unstable_noStore as noStore } from 'next/cache';
+
+noStore();
+
+export default async function Page() {
   const result = await db.query(...);
   ...
 }
