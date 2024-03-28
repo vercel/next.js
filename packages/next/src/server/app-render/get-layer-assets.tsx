@@ -49,9 +49,9 @@ export function getLayerAssets({
         let url = new URL(ctx.assetPrefix)
         ctx.componentMod.preconnect(url.origin, 'anonymous')
       } catch (error) {
-        // assetPrefix must not be a fully qualified domain name. We assume
-        // we should preconnect to same origin instead
-        ctx.componentMod.preconnect('/', 'anonymous')
+        // assetPrefix must not be a fully qualified domain name.
+        // If it's not, it means it's in the same origin and
+        // the browser has already connected to it.
       }
     }
   }
