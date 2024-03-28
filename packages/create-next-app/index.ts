@@ -7,7 +7,7 @@ import packageJson from './package.json'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command } from 'commander'
-import { blue } from 'picocolors'
+import { blue, yellow, green, magenta, red, gray, bold } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager, isFolderEmpty, log, validateNpmName } from './helpers'
 import type { InitialReturnValue, Options, PromptType } from 'prompts'
@@ -32,47 +32,65 @@ const onPromptState = (state: {
 
 const styled = (text: string) => blue(text)
 
-const { name: pkgName, version, description } = packageJson
+const coloredTexts = {
+  typescript: blue('TypeScript'),
+  javascript: yellow('JavaScript'),
+  app: red('App Router'),
+  tailwind: green('Tailwind CSS'),
+  eslint: magenta('ESLint'),
+  default: gray('(default)'),
+}
+
+const { name: pkgName, version } = packageJson
 const program = new Command()
   .name(pkgName)
   .version(
     `${pkgName} v${version}`,
     '-v, --version',
-    'Output the current version.'
+    `Output the current version of ${pkgName}.`
   )
-  .description(description)
   .arguments('[directory]')
   .usage('[directory] [options]')
   .helpOption('-h, --help', 'Display this help message.')
-  .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
-  .option('--js, --javascript', 'Initialize as a JavaScript project.')
-  .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
-  .option('--eslint', 'Initialize with ESLint config.')
-  .option('--app', 'Initialize as an App Router project. (default)')
-  .option('--src-dir', 'Initialize inside a `src/` directory.')
   .option(
-    '--import-alias <alias-to-configure>',
-    'Specify import alias to use (default "@/*").'
+    '--ts, --typescript',
+    `Initialize as a ${coloredTexts.typescript} project. ${coloredTexts.default}`
   )
-  .option('--no-tailwind', 'Disable Tailwind CSS config. (default)')
-  .option('--no-eslint', 'Disable ESLint config.')
-  .option('--no-app', 'Initialize as a Pages Router project.')
-  .option('--no-src-dir', 'Disable initializing inside a `src/` directory.')
-  .option('--no-import-alias', 'Use the default import alias ("@/*").')
-  .option('--use-npm', 'Explicitly tell the CLI to bootstrap the app using npm')
+  .option(
+    '--js, --javascript',
+    `Initialize as a ${coloredTexts.javascript} project.`
+  )
+  .option(
+    '--app',
+    `Initialize as an ${coloredTexts.app} project. ${coloredTexts.default}`
+  )
+  .option(
+    '--tailwind',
+    `Enable ${coloredTexts.tailwind}. ${coloredTexts.default}`
+  )
+  .option('--eslint', `Enable ${coloredTexts.eslint}. ${coloredTexts.default}`)
+  .option('--src-dir', `Initialize inside a ${bold('"src/"')} directory.`)
+  .option(
+    '--import-alias <alias>',
+    `Specify import alias to use. (default "@/*")`
+  )
+  .option(
+    '--use-npm',
+    `Configure the project to use ${bold('npm')} as the package manager.`
+  )
   .option(
     '--use-pnpm',
-    'Explicitly tell the CLI to bootstrap the app using pnpm'
+    `Configure the project to use ${bold('pnpm')} as the package manager.`
   )
   .option(
     '--use-yarn',
-    'Explicitly tell the CLI to bootstrap the app using Yarn'
+    `Configure the project to use ${bold('yarn')} as the package manager.`
   )
-  .option('--use-bun', 'Explicitly tell the CLI to bootstrap the app using Bun')
   .option(
-    '--reset-preferences',
-    `Explicitly tell the CLI to reset any stored preferences.`
+    '--use-bun',
+    `Configure the project to use ${bold('bun')} as the package manager.`
   )
+  .option('--reset-preferences', `Reset the preferences stored for ${pkgName}.`)
   .option(
     '-e, --example [name]|[github-url]',
     `
@@ -92,6 +110,7 @@ const program = new Command()
   --example-path foo/bar
 `
   )
+  .allowUnknownOption()
   .parse(process.argv)
 
 const args = program.opts()
