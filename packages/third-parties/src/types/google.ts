@@ -16,6 +16,7 @@ export type GTMParams = {
 export type GAParams = {
   gaId: string
   dataLayerName?: string
+  debugMode?: boolean
 }
 
 export type GoogleMapsEmbed = {
