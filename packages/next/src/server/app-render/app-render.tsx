@@ -133,7 +133,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   isPrefetch: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
-  providedFlightRouterState?: FlightRouterState
+  flightRouterState?: FlightRouterState
   requestId: string
   defaultRevalidate: Revalidate
   pagePath: string
@@ -158,7 +158,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  * so we need to read it from the router state.
  */
 function findDynamicParamFromRouterState(
-  providedFlightRouterState: FlightRouterState | undefined,
+  flightRouterState: FlightRouterState | undefined,
   segment: string
 ): {
   param: string
@@ -166,11 +166,11 @@ function findDynamicParamFromRouterState(
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null {
-  if (!providedFlightRouterState) {
+  if (!flightRouterState) {
     return null
   }
 
-  const treeSegment = providedFlightRouterState[0]
+  const treeSegment = flightRouterState[0]
 
   if (canSegmentBeOverridden(segment, treeSegment)) {
     if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
@@ -185,9 +185,7 @@ function findDynamicParamFromRouterState(
     }
   }
 
-  for (const parallelRouterState of Object.values(
-    providedFlightRouterState[1]
-  )) {
+  for (const parallelRouterState of Object.values(flightRouterState[1])) {
     const maybeDynamicParam = findDynamicParamFromRouterState(
       parallelRouterState,
       segment
@@ -207,7 +205,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  providedFlightRouterState: FlightRouterState | undefined
+  flightRouterState: FlightRouterState | undefined
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -245,7 +243,7 @@ function makeGetDynamicParamFromSegment(
           treeSegment: [key, '', type],
         }
       }
-      return findDynamicParamFromRouterState(providedFlightRouterState, segment)
+      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -285,7 +283,7 @@ async function generateFlight(
     staticGenerationStore: { urlPathname },
     query,
     requestId,
-    providedFlightRouterState,
+    flightRouterState,
   } = ctx
 
   if (!options?.skipFlight) {
@@ -304,7 +302,7 @@ async function generateFlight(
         createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
-        flightRouterState: providedFlightRouterState,
+        flightRouterState,
         isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
@@ -787,7 +785,7 @@ async function renderToHTMLOrFlightImpl(
     isPrefetch: isPrefetchRSCRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
-    providedFlightRouterState: shouldProvideFlightRouterState
+    flightRouterState: shouldProvideFlightRouterState
       ? parsedFlightRouterState
       : undefined,
     requestId,
