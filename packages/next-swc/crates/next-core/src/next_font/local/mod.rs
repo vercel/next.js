@@ -24,7 +24,10 @@ use self::{
     stylesheet::build_stylesheet,
     util::build_font_family_string,
 };
-use super::{font_fallback::FontFallbacks, util::FontCssProperties};
+use super::{
+    font_fallback::FontFallbacks,
+    util::{can_use_next_font, FontCssProperties},
+};
 use crate::{
     next_app::metadata::split_extension,
     next_font::{
@@ -134,7 +137,12 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        Ok(self.import_map_result(context, query_vc.await?.to_string()))
+        let this = &*self.await?;
+        if can_use_next_font(this.project_path, *query_vc).await? {
+            Ok(self.import_map_result(context, query_vc.await?.to_string()))
+        } else {
+            Ok(ImportMapResult::NoEntry.into())
+        }
     }
 }
 
