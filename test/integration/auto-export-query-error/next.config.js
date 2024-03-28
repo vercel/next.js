@@ -7,4 +7,9 @@ module.exports = {
       '/ssr': { page: '/ssr', query: { another: 'one' } },
     }
   },
+  experimental: {
+    amp: {
+      validator: require.resolve('../../lib/amp-validator-wasm.js'),
+    },
+  },
 }

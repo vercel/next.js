@@ -13,3 +13,5 @@ pnpm-lock.yaml
 .github/actions/needs-triage/index.js
 .github/actions/*/index.mjs
 **/convex/_generated/**
+test/lib/amp-validator-wasm.js
+test/production/pages-dir/production/fixture/amp-validator-wasm.js
