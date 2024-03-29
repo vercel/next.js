@@ -689,7 +689,7 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        // if we are revalidating the whole page time or on-demand and
+        // if we are revalidating the whole page via time or on-demand and
         // the fetch cache entry is stale we should still de-dupe the
         // origin hit if it's a cache-able entry
         if (cacheKey) {
