@@ -106,6 +106,7 @@ const runTests = (isDev) => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
+    console.log('html', html)
     function test(id) {
       const script = $(`#${id}`)
 
@@ -114,9 +115,18 @@ const runTests = (isDev) => {
       expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
-      expect(
-        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-      ).toBeGreaterThan(0)
+      if (process.env.TURBOPACK) {
+        // Turbopack generates different script names
+        expect(
+          $(
+            `#${id} ~ script[src^="/_next/static/chunks/%5Broot%20of%20the%20server%5D__"]`
+          ).length
+        ).toBeGreaterThan(0)
+      } else {
+        expect(
+          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+        ).toBeGreaterThan(0)
+      }
     }
 
     test('scriptBeforeInteractive')
@@ -135,9 +145,18 @@ const runTests = (isDev) => {
       expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
-      expect(
-        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-      ).toBeGreaterThan(0)
+      if (process.env.TURBOPACK) {
+        // Turbopack generates different script names
+        expect(
+          $(
+            `#${id} ~ script[src^="/_next/static/chunks/%5Broot%20of%20the%20server%5D__"]`
+          ).length
+        ).toBeGreaterThan(0)
+      } else {
+        expect(
+          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+        ).toBeGreaterThan(0)
+      }
     }
 
     test('scriptBeforePageRenderOld')
