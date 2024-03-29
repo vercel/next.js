@@ -3,6 +3,9 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 // Keep the key in memory as it should never change during the lifetime of the server in
 // both development and production.
+let __next_encryption_key_generation_promise: Promise<
+  [CryptoKey, string]
+> | null = null
 let __next_loaded_action_key: CryptoKey
 let __next_internal_development_raw_action_key: string
 
@@ -57,7 +60,7 @@ export function decrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
   )
 }
 
-export async function generateRandomActionKeyRaw(dev?: boolean) {
+export async function generateEncryptionKeyBase64(dev?: boolean) {
   // For development, we just keep one key in memory for all actions.
   // This makes things faster.
   if (dev) {
@@ -66,16 +69,31 @@ export async function generateRandomActionKeyRaw(dev?: boolean) {
     }
   }
 
-  const key = await crypto.subtle.generateKey(
-    {
-      name: 'AES-GCM',
-      length: 256,
-    },
-    true,
-    ['encrypt', 'decrypt']
-  )
-  const exported = await crypto.subtle.exportKey('raw', key)
-  const b64 = btoa(arrayBufferToString(exported))
+  // This avoids it being generated multiple times in parallel.
+  if (!__next_encryption_key_generation_promise) {
+    __next_encryption_key_generation_promise = new Promise(
+      async (resolve, reject) => {
+        try {
+          const key = await crypto.subtle.generateKey(
+            {
+              name: 'AES-GCM',
+              length: 256,
+            },
+            true,
+            ['encrypt', 'decrypt']
+          )
+          const exported = await crypto.subtle.exportKey('raw', key)
+          const b64 = btoa(arrayBufferToString(exported))
+
+          resolve([key, b64])
+        } catch (error) {
+          reject(error)
+        }
+      }
+    )
+  }
+
+  const [key, b64] = await __next_encryption_key_generation_promise
 
   __next_loaded_action_key = key
   if (dev) {

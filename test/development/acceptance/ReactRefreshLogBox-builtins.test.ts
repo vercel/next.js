@@ -53,8 +53,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             |             ^^^^^^^^^^^^^^
           2 | module.exports = dns
 
-        Import map: No import map entry
-
         https://nextjs.org/docs/messages/module-not-found"
       `)
     } else {
@@ -103,8 +101,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           2 |
           3 | export default function Oops() {
           4 |   return (
-
-        Import map: No import map entry
 
         https://nextjs.org/docs/messages/module-not-found"
       `)
@@ -158,8 +154,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           2 |
           3 | export default function Oops() {
           4 |   return (
-
-        Import map: No import map entry
 
         https://nextjs.org/docs/messages/module-not-found"
       `)
@@ -216,8 +210,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
           2 |
           3 | export default function App({ Component, pageProps }) {
           4 |   return <Component {...pageProps} />
-
-        Import map: No import map entry
 
         https://nextjs.org/docs/messages/module-not-found"
       `)

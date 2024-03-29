@@ -224,6 +224,8 @@ Alternatively, you can also use the [Route Segment Config options](#segment-conf
 export const dynamic = 'force-dynamic'
 ```
 
+> **Note**: Data Cache is currently only available in pages/routes, not middleware. Any fetches done inside of your middleware will be uncached by default.
+
 > **Vercel Data Cache**
 >
 > If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.

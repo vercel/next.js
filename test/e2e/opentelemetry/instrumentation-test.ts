@@ -1,21 +1,33 @@
 import './instrumentation-polyfill'
 
+import type {
+  Context,
+  TextMapGetter,
+  TextMapSetter,
+  TextMapPropagator,
+} from '@opentelemetry/api'
 import { Resource } from '@opentelemetry/resources'
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks'
 import {
+  Sampler,
+  SamplingDecision,
   SimpleSpanProcessor,
   SpanExporter,
   ReadableSpan,
 } from '@opentelemetry/sdk-trace-base'
 import {
+  CompositePropagator,
   ExportResult,
   ExportResultCode,
+  W3CTraceContextPropagator,
   hrTimeToMicroseconds,
 } from '@opentelemetry/core'
 
 import { SavedSpan } from './constants'
+
+const customKey = Symbol.for('opentelemetry.test/custom')
 
 const serializeSpan = (span: ReadableSpan): SavedSpan => ({
   runtime: process.env.NEXT_RUNTIME,
@@ -80,6 +92,7 @@ export const register = () => {
     resource: new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: 'test-next-app',
     }),
+    sampler: new CustomSampler(),
   })
 
   if (!process.env.TEST_OTEL_COLLECTOR_PORT) {
@@ -88,6 +101,40 @@ export const register = () => {
   const port = parseInt(process.env.TEST_OTEL_COLLECTOR_PORT)
   provider.addSpanProcessor(new SimpleSpanProcessor(new TestExporter(port)))
 
-  // Make sure to register you provider
-  provider.register({ contextManager })
+  provider.register({
+    contextManager,
+    propagator: new CompositePropagator({
+      propagators: [new CustomPropagator(), new W3CTraceContextPropagator()],
+    }),
+  })
+}
+
+class CustomPropagator implements TextMapPropagator {
+  fields(): string[] {
+    return ['x-custom']
+  }
+
+  inject(context: Context, carrier: unknown, setter: TextMapSetter): void {}
+
+  extract(context: Context, carrier: unknown, getter: TextMapGetter): Context {
+    const value = getter.get(carrier, 'x-custom')
+    if (!value) {
+      return context
+    }
+    return context.setValue(customKey, value)
+  }
+}
+
+class CustomSampler implements Sampler {
+  shouldSample(context) {
+    const value = context.getValue(customKey)
+    return {
+      decision: SamplingDecision.RECORD_AND_SAMPLED,
+      attributes: value ? { custom: value } : {},
+    }
+  }
+
+  toString() {
+    return 'CustomSampler'
+  }
 }
