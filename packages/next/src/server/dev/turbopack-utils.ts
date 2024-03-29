@@ -47,7 +47,7 @@ class ModuleBuildError extends Error {}
  * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
  * to emit certain type of errors into cli.
  */
-export function isWellKnownError(issue: Issue): boolean {
+function isWellKnownError(issue: Issue): boolean {
   const { title } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title)
   // TODO: add more well known errors
@@ -61,8 +61,33 @@ export function isWellKnownError(issue: Issue): boolean {
   return false
 }
 
-/// Print out an issue to the console which should not block
-/// the build by throwing out or blocking error overlay.
+/**
+ * Convert given issues into formatted strings if it's non-fatal error (warning).
+ *
+ * If error is warning severity will log to console. Or if error is well known,
+ * log as error to console.
+ */
+export function collectFormattedIssues(issues: Array<Issue>) {
+  const ret = []
+
+  for (const issue of issues) {
+    const formattedIssue = formatIssue(issue)
+    if (issue.severity === 'warning') {
+      printNonFatalIssue(issue)
+      continue
+    } else if (isWellKnownError(issue)) {
+      Log.error(formattedIssue)
+    }
+    ret.push(formattedIssue)
+  }
+
+  return ret
+}
+
+/**
+ * Print out an issue to the console which should not block
+ * the build by throwing out or blocking error overlay.
+ */
 export function printNonFatalIssue(issue: Issue) {
   // Currently only warnings will be printed, excluding if the error source
   // is coming from foreign (node_modules) codes.

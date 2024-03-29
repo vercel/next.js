@@ -61,8 +61,7 @@ import {
   type StartBuilding,
   processTopLevelIssues,
   type TopLevelIssuesMap,
-  isWellKnownError,
-  printNonFatalIssue,
+  collectFormattedIssues,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -644,15 +643,11 @@ export async function createHotReloaderTurbopack(
         const errors: CompilationError[] = []
 
         for (const entryIssues of currentEntryIssues.values()) {
-          for (const issue of entryIssues.values()) {
-            if (issue.severity !== 'warning') {
-              errors.push({
-                message: formatIssue(issue),
-              })
-            } else {
-              printNonFatalIssue(issue)
-            }
-          }
+          errors.push(
+            ...collectFormattedIssues([...entryIssues.values()]).map(
+              (message) => ({ message })
+            )
+          )
         }
 
         const sync: SyncAction = {
@@ -696,19 +691,10 @@ export async function createHotReloaderTurbopack(
 
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()]
-          .map((issue) => {
-            const formattedIssue = formatIssue(issue)
-            if (issue.severity === 'warning') {
-              printNonFatalIssue(issue)
-              return null
-            } else if (isWellKnownError(issue)) {
-              Log.error(formattedIssue)
-            }
-
-            return new Error(formattedIssue)
-          })
-          .filter((error) => error !== null)
+        collectFormattedIssues([
+          ...topLevelIssues,
+          ...thisEntryIssues.values(),
+        ]).map((formatted) => new Error(formatted))
       }
 
       // Otherwise, return all errors across pages
@@ -719,14 +705,11 @@ export async function createHotReloaderTurbopack(
         }
       }
       for (const entryIssues of currentEntryIssues.values()) {
-        for (const issue of entryIssues.values()) {
-          if (issue.severity !== 'warning') {
-            const message = formatIssue(issue)
-            errors.push(new Error(message))
-          } else {
-            printNonFatalIssue(issue)
-          }
-        }
+        errors.push(
+          ...collectFormattedIssues([...entryIssues.values()]).map(
+            (message) => ({ message })
+          )
+        )
       }
       return errors
     },
