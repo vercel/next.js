@@ -159,6 +159,8 @@ pub struct ModuleOptionsContext {
     pub ignore_dynamic_requests: bool,
 
     pub use_swc_css: bool,
+
+    pub side_effect_free_packages: Vec<String>,
 }
 
 #[turbo_tasks::value_impl]
