@@ -150,8 +150,7 @@ export function createWebpackAliases({
     [RSC_ACTION_PROXY_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
-    [RSC_ACTION_ENCRYPTION_ALIAS]:
-      'next/dist/server/app-render/action-encryption',
+    [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
 
     ...(isClient || isEdgeServer
       ? {
@@ -296,12 +295,15 @@ export function createRSCAliases(
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
+    } else {
+      // x-ref: https://github.com/facebook/react/pull/25436
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
     }
-    // Use server rendering stub for RSC and SSR
-    // x-ref: https://github.com/facebook/react/pull/25436
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
   if (reactProductionProfiling) {

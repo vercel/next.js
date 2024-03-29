@@ -6,7 +6,7 @@ createNextDescribe(
   'experimental-https-server (generated certificate)',
   {
     files: __dirname,
-    startCommand: `yarn next ${
+    startCommand: `pnpm next ${
       shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
     } --experimental-https`,
     skipStart: !process.env.CI,

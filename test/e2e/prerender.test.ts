@@ -1076,7 +1076,7 @@ describe('Prerender', () => {
         expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
       })
 
-      it('should log error in console and browser in dev mode', async () => {
+      it('should log error in console and browser in development mode', async () => {
         const indexPage = 'pages/index.js'
         const origContent = await next.readFile(indexPage)
 
@@ -1090,17 +1090,20 @@ describe('Prerender', () => {
             .replace('{/* <div', '<div')
             .replace('</div> */}', '</div>')
         )
-        await browser.waitForElementByCss('#after-change')
-        // we need to reload the page to trigger getStaticProps
-        await browser.refresh()
 
-        expect(await hasRedbox(browser)).toBe(true)
-        const errOverlayContent = await getRedboxHeader(browser)
+        try {
+          await browser.waitForElementByCss('#after-change')
+          // we need to reload the page to trigger getStaticProps
+          await browser.refresh()
 
-        await next.patchFile(indexPage, origContent)
-        const errorMsg = /oops from getStaticProps/
-        expect(next.cliOutput).toMatch(errorMsg)
-        expect(errOverlayContent).toMatch(errorMsg)
+          expect(await hasRedbox(browser)).toBe(true)
+          const errOverlayContent = await getRedboxHeader(browser)
+          const errorMsg = /oops from getStaticProps/
+          expect(next.cliOutput).toMatch(errorMsg)
+          expect(errOverlayContent).toMatch(errorMsg)
+        } finally {
+          await next.patchFile(indexPage, origContent)
+        }
       })
 
       it('should always call getStaticProps without caching in dev', async () => {

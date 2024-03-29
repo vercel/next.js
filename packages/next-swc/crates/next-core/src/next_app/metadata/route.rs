@@ -9,7 +9,10 @@ use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent, FileSystemPath},
     turbopack::{
-        core::{asset::AssetContent, source::Source, virtual_source::VirtualSource},
+        core::{
+            asset::AssetContent, file_source::FileSource, source::Source,
+            virtual_source::VirtualSource,
+        },
         ecmascript::utils::StringifyJs,
         turbopack::ModuleAssetContext,
     },
@@ -20,6 +23,8 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment},
+    next_config::NextConfig,
+    parse_segment_config_from_source,
 };
 
 /// Computes the route source for a Next.js metadata file.
@@ -54,13 +59,25 @@ pub fn get_app_metadata_route_entry(
     page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
+    next_config: Vc<NextConfig>,
 ) -> Vc<AppEntry> {
+    // Read original source's segment config before replacing source into
+    // dynamic|static metadata route handler.
+    let original_path = match metadata {
+        MetadataItem::Static { path } | MetadataItem::Dynamic { path } => path,
+    };
+
+    let source = Vc::upcast(FileSource::new(original_path));
+    let segment_config = parse_segment_config_from_source(source);
+
     get_app_route_entry(
         nodejs_context,
         edge_context,
         get_app_metadata_route_source(page.clone(), mode, metadata),
         page,
         project_root,
+        Some(segment_config),
+        next_config,
     )
 }
 

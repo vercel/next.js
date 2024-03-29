@@ -1,6 +1,6 @@
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ReadonlyReducerState,
@@ -14,6 +14,7 @@ import { applyFlightData } from '../apply-flight-data'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function fastRefreshReducerImpl(
@@ -27,12 +28,16 @@ function fastRefreshReducerImpl(
   mutable.preserveCustomHistoryState = false
 
   const cache: CacheNode = createEmptyCacheNode()
+  // If the current tree was intercepted, the nextUrl should be included in the request.
+  // This is to ensure that the refresh request doesn't get intercepted, accidentally triggering the interception route.
+  const includeNextUrl = hasInterceptionRouteInCurrentTree(state.tree)
+
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
   cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-    state.nextUrl,
+    includeNextUrl ? state.nextUrl : null,
     state.buildId
   )
 
@@ -64,11 +69,12 @@ function fastRefreshReducerImpl(
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToTreeSkipDefault(
+        const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
-          treePatch
+          treePatch,
+          location.pathname
         )
 
         if (newTree === null) {

@@ -11,6 +11,7 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
+import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -47,6 +48,8 @@ export function createInitialRouterState({
     lazyDataResolved: false,
     loading: initialSeedData[3],
   }
+
+  addRefreshMarkerToActiveParallelSegments(initialTree, initialCanonicalUrl)
 
   const prefetchCache = new Map<string, PrefetchCacheEntry>()
 

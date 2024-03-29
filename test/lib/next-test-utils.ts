@@ -413,7 +413,7 @@ export function runNextCommandDev(
   })
 }
 
-// Launch the app in dev mode.
+// Launch the app in development mode.
 export function launchApp(
   dir: string,
   port: string | number,
@@ -529,6 +529,9 @@ export async function killApp(
   instance?: ChildProcess,
   signal: NodeJS.Signals | number = 'SIGKILL'
 ) {
+  if (!instance) {
+    return
+  }
   if (
     instance?.pid &&
     instance.exitCode === null &&
@@ -558,7 +561,10 @@ export async function startApp(app: NextServer) {
   return server
 }
 
-export async function stopApp(server: http.Server) {
+export async function stopApp(server: http.Server | undefined) {
+  if (!server) {
+    return
+  }
   if (server['__app']) {
     await server['__app'].close()
   }
@@ -790,6 +796,13 @@ export async function getRedboxHeader(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
+  return parseInt(
+    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
+    10
+  )
+}
+
 export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
@@ -1009,9 +1022,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**
