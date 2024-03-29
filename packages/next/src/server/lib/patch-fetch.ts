@@ -558,6 +558,7 @@ export function patchFetch({
 
         let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
+        let isForegroundRevalidate = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           handleUnlock = await staticGenerationStore.incrementalCache.lock(
@@ -585,7 +586,9 @@ export function patchFetch({
           if (entry?.value && entry.value.kind === 'FETCH') {
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
-            if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
+            if (staticGenerationStore.isRevalidate && entry.isStale) {
+              isForegroundRevalidate = true
+            } else {
               if (entry.isStale) {
                 staticGenerationStore.pendingRevalidates ??= {}
                 if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
@@ -692,7 +695,7 @@ export function patchFetch({
         // if we are revalidating the whole page via time or on-demand and
         // the fetch cache entry is stale we should still de-dupe the
         // origin hit if it's a cache-able entry
-        if (cacheKey) {
+        if (cacheKey && isForegroundRevalidate) {
           staticGenerationStore.pendingRevalidates ??= {}
           const pendingRevalidate =
             staticGenerationStore.pendingRevalidates[cacheKey]
