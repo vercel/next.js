@@ -64,10 +64,16 @@ export function isWellKnownError(issue: Issue): boolean {
 /// Print out an issue to the console which should not block
 /// the build by throwing out or blocking error overlay.
 export function printNonFatalIssue(issue: Issue) {
-  // Currently only warnings will be printed, excluding if the error source
-  // is coming from foreign (node_modules) codes.
+  // Currently only warnings will be printed, excluding some types of message
+  // can be very verbose.
   if (issue.severity === 'warning') {
-    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
+    const isNodeModules = issue.filePath.match(
+      /^(?:.*[\\/])?node_modules(?:[\\/].*)?$/
+    )
+    const isLint = (
+      (issue.title?.value?.[0] as StyledString)?.value as string
+    )?.startsWith('lint ')
+    if (!isNodeModules && !isLint) {
       Log.warn(formatIssue(issue))
     }
   }
