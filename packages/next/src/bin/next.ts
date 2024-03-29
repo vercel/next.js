@@ -105,6 +105,10 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
+  .option(
+    '--debug-memory-usage',
+    'Enables memory profiling features to debug memory consumption.'
+  )
   .option('--profile', 'Enables production profiling for React.')
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
