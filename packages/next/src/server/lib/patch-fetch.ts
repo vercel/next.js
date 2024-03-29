@@ -698,10 +698,11 @@ export function patchFetch({
             staticGenerationStore.pendingRevalidates[cacheKey]
 
           if (pendingRevalidate) {
-            return pendingRevalidate
+            const res: Response = await pendingRevalidate
+            return res.clone()
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(false, cacheReasonOverride).finally(async () => {
+            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
               staticGenerationStore.pendingRevalidates ??= {}
               delete staticGenerationStore.pendingRevalidates[cacheKey || '']
               await handleUnlock()
