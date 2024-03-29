@@ -510,7 +510,7 @@ If you want to use a cloud provider to optimize images instead of using the Next
 module.exports = {
   images: {
     loader: 'custom',
-    loaderFile: './my/image/loader.mjs',
+    loaderFile: './my/image/loader.js',
   },
 }
 ```
@@ -519,7 +519,7 @@ This must point to a file relative to the root of your Next.js application. The 
 
 <AppOnly>
 
-```js filename="loader.mjs"
+```js filename="my/image/loader.js"
 'use client'
 
 export default function myImageLoader({ src, width, quality }) {
@@ -531,7 +531,7 @@ export default function myImageLoader({ src, width, quality }) {
 
 <PagesOnly>
 
-```js
+```js filename="my/image/loader.js"
 export default function myImageLoader({ src, width, quality }) {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
