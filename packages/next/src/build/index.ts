@@ -183,6 +183,7 @@ import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -765,6 +766,11 @@ export default async function build(
         app: typeof appDir === 'string',
         pages: typeof pagesDir === 'string',
       }
+
+      // Generate a random encryption key for this build.
+      // This key is used to encrypt cross boundary values and can be used to generate hashes.
+      const encryptionKey = await generateEncryptionKeyBase64()
+      NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -1397,7 +1403,11 @@ export default async function build(
 
         const currentEntryIssues: EntryIssuesMap = new Map()
 
-        const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
+        const manifestLoader = new TurbopackManifestLoader({
+          buildId,
+          distDir,
+          encryptionKey,
+        })
 
         // TODO: implement this
         const emptyRewritesObjToBeImplemented = {

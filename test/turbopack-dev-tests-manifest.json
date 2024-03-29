@@ -7511,11 +7511,10 @@
     "passed": [
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'error'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-static'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined"
-    ],
-    "failed": [
+      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
