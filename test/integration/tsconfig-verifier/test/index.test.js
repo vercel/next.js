@@ -3,7 +3,7 @@
 import { createFile, exists, readFile, writeFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'tsconfig.json verifier',
   () => {
     const appDir = path.join(__dirname, '../')

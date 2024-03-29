@@ -13,10 +13,12 @@ use next_core::{
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, NextConfig},
     next_server::{
-        get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
+        get_server_chunking_context, get_server_chunking_context_with_client_assets,
+        get_server_compile_time_info, get_server_module_options_context,
+        get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
+    util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -557,25 +559,35 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn server_chunking_context(
+    pub(super) fn server_chunking_context(
         self: Vc<Self>,
-    ) -> Result<Vc<NodeJsChunkingContext>> {
-        Ok(get_server_chunking_context(
-            self.next_mode(),
-            self.project_path(),
-            self.node_root(),
-            self.client_relative_path(),
-            self.next_config().computed_asset_prefix(),
-            self.server_compile_time_info().environment(),
-        ))
+        client_assets: bool,
+    ) -> Vc<NodeJsChunkingContext> {
+        if client_assets {
+            get_server_chunking_context_with_client_assets(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.client_relative_path(),
+                self.next_config().computed_asset_prefix(),
+                self.server_compile_time_info().environment(),
+            )
+        } else {
+            get_server_chunking_context(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.server_compile_time_info().environment(),
+            )
+        }
     }
 
     #[turbo_tasks::function]
     pub(super) fn edge_chunking_context(
         self: Vc<Self>,
         client_assets: bool,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-        Ok(if client_assets {
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        if client_assets {
             get_edge_chunking_context_with_client_assets(
                 self.next_mode(),
                 self.project_path(),
@@ -591,7 +603,7 @@ impl Project {
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
             )
-        })
+        }
     }
 
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
@@ -798,6 +810,7 @@ impl Project {
                 Value::new(ServerContextType::Middleware),
                 self.next_mode(),
                 self.next_config(),
+                NextRuntime::Edge,
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
@@ -831,6 +844,7 @@ impl Project {
                 Value::new(ServerContextType::Instrumentation),
                 self.next_mode(),
                 self.next_config(),
+                NextRuntime::NodeJs,
             ),
             get_server_resolve_options_context(
                 self.project_path(),

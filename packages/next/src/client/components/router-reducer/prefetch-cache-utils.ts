@@ -79,12 +79,7 @@ export function getOrCreatePrefetchCacheEntry({
       existingCacheEntry.kind !== PrefetchKind.FULL &&
       kind === PrefetchKind.FULL
 
-    // If the cache entry isn't reusable, rather than returning it, we want to create a new entry.
-    const hasReusablePrefetch =
-      existingCacheEntry.status === PrefetchCacheEntryStatus.reusable ||
-      existingCacheEntry.status === PrefetchCacheEntryStatus.fresh
-
-    if (switchedToFullPrefetch || !hasReusablePrefetch) {
+    if (switchedToFullPrefetch) {
       return createLazyPrefetchEntry({
         tree,
         url,

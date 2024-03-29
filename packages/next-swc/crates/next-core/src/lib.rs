@@ -6,7 +6,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(iter_intersperse)]
 
-mod app_segment_config;
+pub mod app_segment_config;
 pub mod app_structure;
 mod babel;
 mod bootstrap;
