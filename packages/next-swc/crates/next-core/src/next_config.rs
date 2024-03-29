@@ -896,14 +896,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .optimize_package_imports
-                .clone()
-                .unwrap_or_default(),
-        ))
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vec<String>> {
+        Ok(self
+            .await?
+            .experimental
+            .optimize_package_imports
+            .clone()
+            .unwrap_or_default())
     }
 }
 
