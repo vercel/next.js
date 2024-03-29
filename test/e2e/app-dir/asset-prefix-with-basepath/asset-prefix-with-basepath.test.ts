@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
 
 describe('app-dir assetPrefix with basePath handling', () => {
   const { next } = nextTestSetup({
