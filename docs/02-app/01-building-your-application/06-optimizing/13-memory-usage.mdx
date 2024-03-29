@@ -55,7 +55,7 @@ help with performance, but it will also increase the memory usage of your applic
 
 You can disable this behavior by adding a [custom Webpack configuration](/docs/app/api-reference/next-config-js/webpack) to your application:
 
-```js filename="next.config.mjs" switcher
+```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (
@@ -74,24 +74,6 @@ const nextConfig = {
 }
 
 export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-module.exports = {
-  webpack: (
-    config,
-    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }
-  ) => {
-    if (cfg.cache && !dev) {
-      cfg.cache = Object.freeze({
-        type: 'memory',
-      })
-      cfg.cache.maxMemoryGenerations = 0
-    }
-    // Important: return the modified config
-    return config
-  },
-}
 ```
 
 ## Disable source maps
