@@ -800,7 +800,6 @@ export default async function build(
         envInfo,
         expFeatureInfo,
       })
-      traceMemoryUsage('Build Start', nextBuildSpan)
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint

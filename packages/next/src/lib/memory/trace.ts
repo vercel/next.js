@@ -1,5 +1,5 @@
 import v8 from 'v8'
-import * as Log from '../../build/output/log'
+import { info, warn } from '../../build/output/log'
 import { type Span, trace } from '../../trace'
 import { bold, italic } from '../picocolors'
 import { join } from 'path'
@@ -77,20 +77,20 @@ export function traceMemoryUsage(
   if (process.env.DEBUG_MEMORY_USAGE) {
     const percentageHeapUsed = (100 * heapUsed) / heapMax
 
-    Log.info('')
-    Log.info('***************************************')
-    Log.info(`Memory usage report at "${description}":`)
-    Log.info(` - RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`)
-    Log.info(` - Heap Used: ${(heapUsed / 1024 / 1024).toFixed(2)} MB`)
-    Log.info(
+    info('')
+    info('***************************************')
+    info(`Memory usage report at "${description}":`)
+    info(` - RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)} MB`)
+    info(` - Heap Used: ${(heapUsed / 1024 / 1024).toFixed(2)} MB`)
+    info(
       ` - Heap Total Allocated: ${(memoryUsage.heapTotal / 1024 / 1024).toFixed(
         2
       )} MB`
     )
-    Log.info(` - Heap Max: ${(heapMax / 1024 / 1024).toFixed(2)} MB`)
-    Log.info(` - Percentage Heap Used: ${percentageHeapUsed.toFixed(2)}%`)
-    Log.info('***************************************')
-    Log.info('')
+    info(` - Heap Max: ${(heapMax / 1024 / 1024).toFixed(2)} MB`)
+    info(` - Percentage Heap Used: ${percentageHeapUsed.toFixed(2)}%`)
+    info('***************************************')
+    info('')
 
     if (percentageHeapUsed > HEAP_SNAPSHOT_THRESHOLD_PERCENT) {
       const distDir = traceGlobals.get('distDir')
@@ -98,7 +98,7 @@ export function traceMemoryUsage(
         distDir,
         `${description.replace(' ', '-')}.heapsnapshot`
       )
-      Log.warn(
+      warn(
         bold(
           `Heap usage is close to the limit. ${percentageHeapUsed.toFixed(
             2
@@ -106,7 +106,7 @@ export function traceMemoryUsage(
         )
       )
       if (!alreadyGeneratedHeapSnapshot) {
-        Log.warn(
+        warn(
           bold(
             `Saving heap snapshot to ${heapFilename}.  ${italic(
               'Note: this will take some time.'
@@ -116,7 +116,7 @@ export function traceMemoryUsage(
         v8.writeHeapSnapshot(heapFilename)
         alreadyGeneratedHeapSnapshot = true
       } else {
-        Log.warn(
+        warn(
           'Skipping heap snapshot generation since heap snapshot has already been generated.'
         )
       }

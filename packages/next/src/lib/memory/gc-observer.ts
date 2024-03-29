@@ -1,5 +1,5 @@
 import { PerformanceObserver } from 'perf_hooks'
-import * as Log from '../../build/output/log'
+import { warn } from '../../build/output/log'
 import { bold } from '../picocolors'
 
 const LONG_RUNNING_GC_THRESHOLD_MS = 15
@@ -10,7 +10,7 @@ const obs = new PerformanceObserver((list) => {
   gcEvents.push(entry)
 
   if (entry.duration > LONG_RUNNING_GC_THRESHOLD_MS) {
-    Log.warn(bold(`Long running GC detected: ${entry.duration.toFixed(2)}ms`))
+    warn(bold(`Long running GC detected: ${entry.duration.toFixed(2)}ms`))
   }
 })
 

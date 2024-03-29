@@ -54,6 +54,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
   }
 
   if (debugMemoryUsage) {
+    process.env.DEBUG_MEMORY_USAGE = '1'
     enableMemoryDebuggingMode()
   }
 
@@ -66,10 +67,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   if (experimentalTurbo) {
     process.env.TURBOPACK = '1'
-  }
-
-  if (debugMemoryUsage) {
-    process.env.DEBUG_MEMORY_USAGE = '1'
   }
 
   return build(
