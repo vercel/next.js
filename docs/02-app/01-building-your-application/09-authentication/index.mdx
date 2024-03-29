@@ -281,7 +281,7 @@ function LoginButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button aria-disabled={pending} type="submit">
+    <button disabled={pending} type="submit">
       Login
     </button>
   )
@@ -311,7 +311,7 @@ function LoginButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button aria-disabled={pending} type="submit">
+    <button disabled={pending} type="submit">
       Login
     </button>
   )
