@@ -67,7 +67,7 @@ export function printNonFatalIssue(issue: Issue) {
   // Currently only warnings will be printed, excluding if the error source
   // is coming from foreign (node_modules) codes.
   if (issue.severity === 'warning') {
-    if (!issue.filePath.match(/\[project\].+\/node_modules\//g)) {
+    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
       Log.warn(formatIssue(issue))
     }
   }
