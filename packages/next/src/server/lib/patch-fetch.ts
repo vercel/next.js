@@ -694,7 +694,7 @@ export function patchFetch({
             return pendingRevalidate
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(false, cacheReasonOverride).catch(console.error))
+            doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock))
         } else {
           return doOriginalFetch(false, cacheReasonOverride).finally(
             handleUnlock
