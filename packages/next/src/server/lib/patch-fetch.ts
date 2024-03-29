@@ -590,7 +590,14 @@ export function patchFetch({
                 staticGenerationStore.pendingRevalidates ??= {}
                 if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
                   staticGenerationStore.pendingRevalidates[cacheKey] =
-                    doOriginalFetch(true).catch(console.error)
+                    doOriginalFetch(true)
+                      .catch(console.error)
+                      .finally(() => {
+                        staticGenerationStore.pendingRevalidates ??= {}
+                        delete staticGenerationStore.pendingRevalidates[
+                          cacheKey || ''
+                        ]
+                      })
                 }
               }
               const resData = entry.value.data
@@ -694,7 +701,11 @@ export function patchFetch({
             return pendingRevalidate
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock))
+            doOriginalFetch(false, cacheReasonOverride).finally(async () => {
+              staticGenerationStore.pendingRevalidates ??= {}
+              delete staticGenerationStore.pendingRevalidates[cacheKey || '']
+              await handleUnlock()
+            }))
         } else {
           return doOriginalFetch(false, cacheReasonOverride).finally(
             handleUnlock
