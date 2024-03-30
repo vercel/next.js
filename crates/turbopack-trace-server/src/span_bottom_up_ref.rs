@@ -24,16 +24,20 @@ impl<'a> SpanBottomUpRef<'a> {
     }
 
     fn first_span(&self) -> SpanRef<'a> {
+        let index = self.bottom_up.self_spans[0].get();
         SpanRef {
-            span: &self.store.spans[self.bottom_up.self_spans[0].get()],
+            span: &self.store.spans[index],
             store: self.store,
+            index,
         }
     }
 
     fn example_span(&self) -> SpanRef<'a> {
+        let index = self.bottom_up.example_span.get();
         SpanRef {
-            span: &self.store.spans[self.bottom_up.example_span.get()],
+            span: &self.store.spans[index],
             store: self.store,
+            index,
         }
     }
 
@@ -42,6 +46,7 @@ impl<'a> SpanBottomUpRef<'a> {
         self.bottom_up.self_spans.iter().map(move |span| SpanRef {
             span: &store.spans[span.get()],
             store,
+            index: span.get(),
         })
     }
 
@@ -78,20 +83,20 @@ impl<'a> SpanBottomUpRef<'a> {
             .get_or_init(|| {
                 if self.count() == 1 {
                     let _ = self.first_span().graph();
-                    self.first_span().span.graph.get().unwrap().clone()
+                    self.first_span().extra().graph.get().unwrap().clone()
                 } else {
                     let mut map: IndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> = IndexMap::new();
                     let mut queue = VecDeque::with_capacity(8);
                     for child in self.spans() {
                         let name = child.group_name();
                         let (list, recursive_list) = map.entry(name).or_default();
-                        list.push(child.span.index);
+                        list.push(child.index());
                         queue.push_back(child);
                         while let Some(child) = queue.pop_front() {
                             for nested_child in child.children() {
                                 let nested_name = nested_child.group_name();
                                 if name == nested_name {
-                                    recursive_list.push(nested_child.span.index);
+                                    recursive_list.push(nested_child.index());
                                     queue.push_back(nested_child);
                                 }
                             }

@@ -325,6 +325,27 @@ impl Viewer {
             _ => ValueMode::Duration,
         };
 
+        if !store.has_time_info() && matches!(value_mode, ValueMode::Duration) {
+            return Update {
+                lines: vec![ViewLineUpdate {
+                    spans: vec![ViewSpan {
+                        id: 0,
+                        start: 0,
+                        width: 1,
+                        category: "info".to_string(),
+                        text: "No time info in trace".to_string(),
+                        count: 1,
+                        kind: 0,
+                        start_in_parent: 0,
+                        end_in_parent: 0,
+                        secondary: 0,
+                    }],
+                    y: 0,
+                }],
+                max: 1,
+            };
+        }
+
         let mut queue = Vec::new();
 
         let root_spans = if with_root {
@@ -754,11 +775,17 @@ impl Viewer {
                             if let Some(parent) = span.parent() {
                                 let parent_start = parent.start();
                                 let parent_duration = parent.end() - parent_start;
-                                start_in_parent = ((span.start() - parent_start) * 10000
-                                    / parent_duration)
-                                    as u32;
-                                end_in_parent =
-                                    ((span.end() - parent_start) * 10000 / parent_duration) as u32;
+                                if parent_duration > 0 {
+                                    start_in_parent = ((span.start() - parent_start) * 10000
+                                        / parent_duration)
+                                        as u32;
+                                    end_in_parent = ((span.end() - parent_start) * 10000
+                                        / parent_duration)
+                                        as u32;
+                                } else {
+                                    start_in_parent = 0;
+                                    end_in_parent = 10000;
+                                }
                             }
                             ViewSpan {
                                 id: span.id().get() as u64,

@@ -40,6 +40,10 @@ impl<T> SelfTimeTree<T> {
         Self::default()
     }
 
+    pub fn len(&self) -> usize {
+        self.count
+    }
+
     pub fn insert(&mut self, start: u64, end: u64, item: T) {
         self.count += 1;
         if let Some(children) = &mut self.children {
