@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 
 use either::Either;
 
@@ -38,6 +38,10 @@ impl SpanBottomUpBuilder {
 pub fn build_bottom_up_graph<'a>(
     spans: impl IntoIterator<Item = SpanRef<'a>>,
 ) -> Vec<Arc<SpanBottomUp>> {
+    let max_depth = env::var("BOTTOM_UP_DEPTH")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(usize::MAX);
     let mut roots = HashMap::new();
     let mut current_iterators = vec![Either::Left(
         spans.into_iter().flat_map(|span| span.children()),
@@ -54,7 +58,7 @@ pub fn build_bottom_up_graph<'a>(
                 .or_insert_with(|| (name.to_string(), SpanBottomUpBuilder::new(child.index())));
             bottom_up.self_spans.push(child.index());
             let mut prev = None;
-            for &(name, example_span) in current_path.iter().rev() {
+            for &(name, example_span) in current_path.iter().rev().take(max_depth) {
                 if prev == Some(name) {
                     continue;
                 }

@@ -22,14 +22,16 @@ pub struct SpanGraphRef<'a> {
 
 impl<'a> SpanGraphRef<'a> {
     pub fn first_span(&self) -> SpanRef<'a> {
+        let index = self.graph.root_spans[0].get();
         SpanRef {
-            span: &self.store.spans[self.graph.root_spans[0].get()],
+            span: &self.store.spans[index],
             store: self.store,
+            index,
         }
     }
 
     pub fn id(&self) -> SpanId {
-        unsafe { SpanId::new_unchecked((self.first_span().span.index.get() << 1) | 1) }
+        unsafe { SpanId::new_unchecked((self.first_span().index << 1) | 1) }
     }
 
     pub fn nice_name(&self) -> (&str, &str) {
@@ -48,6 +50,7 @@ impl<'a> SpanGraphRef<'a> {
         self.graph.root_spans.iter().map(move |span| SpanRef {
             span: &self.store.spans[span.get()],
             store: self.store,
+            index: span.get(),
         })
     }
 
@@ -59,6 +62,7 @@ impl<'a> SpanGraphRef<'a> {
             .map(move |span| SpanRef {
                 span: &self.store.spans[span.get()],
                 store: self.store,
+                index: span.get(),
             })
     }
 
@@ -68,7 +72,7 @@ impl<'a> SpanGraphRef<'a> {
             .get_or_init(|| {
                 if self.count() == 1 {
                     let _ = self.first_span().graph();
-                    self.first_span().span.graph.get().unwrap().clone()
+                    self.first_span().extra().graph.get().unwrap().clone()
                 } else {
                     let self_group = self.first_span().group_name();
                     let mut map: IndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> = IndexMap::new();
@@ -78,13 +82,13 @@ impl<'a> SpanGraphRef<'a> {
                             let name = span.group_name();
                             if name != self_group {
                                 let (list, recusive_list) = map.entry(name).or_default();
-                                list.push(span.span.index);
+                                list.push(span.index());
                                 queue.push_back(span);
                                 while let Some(child) = queue.pop_front() {
                                     for nested_child in child.children() {
                                         let nested_name = nested_child.group_name();
                                         if name == nested_name {
-                                            recusive_list.push(nested_child.span.index);
+                                            recusive_list.push(nested_child.index());
                                             queue.push_back(nested_child);
                                         }
                                     }

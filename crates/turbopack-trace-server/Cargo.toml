@@ -21,7 +21,9 @@ intervaltree = "0.2.7"
 itertools = { workspace = true }
 owo-colors = { workspace = true }
 postcard = { workspace = true }
+rustc-demangle = "0.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 websocket = { version = "0.27.0", features = ["sync"] }
+zstd = { version = "0.13.0" }

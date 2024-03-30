@@ -8,11 +8,9 @@ pub type SpanIndex = NonZeroUsize;
 
 pub struct Span {
     // These values won't change after creation:
-    pub index: SpanIndex,
     pub parent: Option<SpanIndex>,
     pub depth: u32,
     pub start: u64,
-    pub ignore_self_time: bool,
     pub category: String,
     pub name: String,
     pub args: Vec<(String, String)>,
@@ -22,35 +20,86 @@ pub struct Span {
     pub is_complete: bool,
 
     // These values are computed automatically:
-    pub self_end: u64,
-    pub self_time: u64,
     pub self_allocations: u64,
     pub self_allocation_count: u64,
     pub self_deallocations: u64,
     pub self_deallocation_count: u64,
 
     // These values are computed when accessed (and maybe deleted during writing):
-    pub end: OnceLock<u64>,
-    pub nice_name: OnceLock<(String, String)>,
-    pub group_name: OnceLock<String>,
     pub max_depth: OnceLock<u32>,
-    pub total_time: OnceLock<u64>,
     pub total_allocations: OnceLock<u64>,
     pub total_deallocations: OnceLock<u64>,
     pub total_persistent_allocations: OnceLock<u64>,
-    pub total_allocation_count: OnceLock<u64>,
     pub total_span_count: OnceLock<u64>,
+    pub total_allocation_count: OnceLock<u64>,
+
+    // More nested fields, but memory lazily allocated
+    pub time_data: OnceLock<Box<SpanTimeData>>,
+    pub extra: OnceLock<Box<SpanExtra>>,
+    pub names: OnceLock<Box<SpanNames>>,
+}
+
+#[derive(Default)]
+pub struct SpanTimeData {
+    // These values won't change after creation:
+    pub ignore_self_time: bool,
+
+    // This might change during writing:
+    pub self_end: u64,
+
+    // These values are computed automatically:
+    pub self_time: u64,
+
+    // These values are computed when accessed (and maybe deleted during writing):
+    pub end: OnceLock<u64>,
+    pub total_time: OnceLock<u64>,
     pub corrected_self_time: OnceLock<u64>,
     pub corrected_total_time: OnceLock<u64>,
+}
+
+#[derive(Default)]
+pub struct SpanExtra {
     pub graph: OnceLock<Vec<SpanGraphEvent>>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
     pub search_index: OnceLock<HashMap<String, Vec<SpanIndex>>>,
 }
 
+#[derive(Default)]
+pub struct SpanNames {
+    // These values are computed when accessed (and maybe deleted during writing):
+    pub nice_name: OnceLock<(String, String)>,
+    pub group_name: OnceLock<String>,
+}
+
+impl Span {
+    pub fn time_data(&self) -> &SpanTimeData {
+        self.time_data.get_or_init(|| {
+            Box::new(SpanTimeData {
+                self_end: self.start,
+                ignore_self_time: &self.name == "thread",
+                ..Default::default()
+            })
+        })
+    }
+
+    pub fn time_data_mut(&mut self) -> &mut SpanTimeData {
+        self.time_data();
+        self.time_data.get_mut().unwrap()
+    }
+
+    pub fn extra(&self) -> &SpanExtra {
+        self.extra.get_or_init(Default::default)
+    }
+
+    pub fn names(&self) -> &SpanNames {
+        self.names.get_or_init(Default::default)
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SpanEvent {
     SelfTime { start: u64, end: u64 },
-    Child { id: SpanIndex },
+    Child { index: SpanIndex },
 }
 
 #[derive(Clone)]
