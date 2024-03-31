@@ -1,10 +1,14 @@
 import {
   command,
+  DEFAULT_FILES,
   EXAMPLE_PATH,
   projectFilesShouldExist,
   run,
   useTempDir,
 } from './utils'
+
+const lockFile = 'yarn.lock'
+const files = [...DEFAULT_FILES, lockFile]
 
 beforeEach(async () => {
   await command('yarn', ['--version'])
@@ -20,10 +24,10 @@ describe('create-next-app with package manager yarn', () => {
       const res = await run(
         [
           projectName,
-          '--js',
+          '--ts',
           '--app',
-          '--eslint',
           '--use-yarn',
+          '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           `--import-alias=@/*`,
@@ -37,14 +41,7 @@ describe('create-next-app with package manager yarn', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: [
-          '.eslintrc.json',
-          '.gitignore',
-          'package.json',
-          'yarn.lock',
-          'app/page.js',
-          'node_modules/next',
-        ],
+        files,
       })
     })
   })
@@ -56,9 +53,9 @@ it('should use yarn when user-agent is yarn', async () => {
     const res = await run(
       [
         projectName,
-        '--js',
+        '--ts',
         '--app',
-        '--eslint',
+        '--no-eslint',
         '--no-src-dir',
         '--no-tailwind',
         `--import-alias=@/*`,
@@ -73,14 +70,7 @@ it('should use yarn when user-agent is yarn', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.eslintrc.json',
-        '.gitignore',
-        'package.json',
-        'yarn.lock',
-        'app/page.js',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -97,14 +87,7 @@ it('should use yarn for --use-yarn flag with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'package.json',
-        'yarn.lock',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -121,14 +104,7 @@ it('should use yarn when user-agent is yarn with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'package.json',
-        'yarn.lock',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })

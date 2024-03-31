@@ -1,4 +1,13 @@
-import { EXAMPLE_PATH, projectFilesShouldExist, run, useTempDir } from './utils'
+import {
+  DEFAULT_FILES,
+  EXAMPLE_PATH,
+  projectFilesShouldExist,
+  run,
+  useTempDir,
+} from './utils'
+
+const lockFile = 'package-lock.json'
+const files = [...DEFAULT_FILES, lockFile]
 
 describe('create-next-app with package manager npm', () => {
   it('should use npm for --use-npm flag', async () => {
@@ -7,10 +16,10 @@ describe('create-next-app with package manager npm', () => {
       const res = await run(
         [
           projectName,
-          '--js',
+          '--ts',
           '--app',
-          '--eslint',
           '--use-npm',
+          '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           `--import-alias=@/*`,
@@ -24,14 +33,7 @@ describe('create-next-app with package manager npm', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: [
-          '.eslintrc.json',
-          '.gitignore',
-          'package.json',
-          'package-lock.json',
-          'app/page.js',
-          'node_modules/next',
-        ],
+        files,
       })
     })
   })
@@ -43,9 +45,9 @@ it('should use npm when user-agent is npm', async () => {
     const res = await run(
       [
         projectName,
-        '--js',
+        '--ts',
         '--app',
-        '--eslint',
+        '--no-eslint',
         '--no-src-dir',
         '--no-tailwind',
         `--import-alias=@/*`,
@@ -60,14 +62,7 @@ it('should use npm when user-agent is npm', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.eslintrc.json',
-        '.gitignore',
-        'package.json',
-        'package-lock.json',
-        'app/page.js',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -84,14 +79,7 @@ it('should use npm for --use-npm flag with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'package.json',
-        'package-lock.json',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -108,14 +96,7 @@ it('should use npm when user-agent is npm with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'package.json',
-        'package-lock.json',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })

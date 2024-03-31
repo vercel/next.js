@@ -1,10 +1,14 @@
 import {
   command,
+  DEFAULT_FILES,
   EXAMPLE_PATH,
   projectFilesShouldExist,
   run,
   useTempDir,
 } from './utils'
+
+const lockFile = 'pnpm-lock.yaml'
+const files = [...DEFAULT_FILES, lockFile]
 
 beforeEach(async () => {
   await command('pnpm', ['--version'])
@@ -20,10 +24,10 @@ describe('create-next-app with package manager pnpm', () => {
       const res = await run(
         [
           projectName,
-          '--js',
+          '--ts',
           '--app',
-          '--eslint',
           '--use-pnpm',
+          '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           `--import-alias=@/*`,
@@ -37,35 +41,21 @@ describe('create-next-app with package manager pnpm', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: [
-          '.eslintrc.json',
-          '.gitignore',
-          'package.json',
-          'pnpm-lock.yaml',
-          'app/page.js',
-          'node_modules/next',
-        ],
+        files,
       })
     })
   })
 })
 
 it('should use pnpm when user-agent is pnpm', async () => {
-  try {
-    await command('pnpm', ['--version'])
-  } catch (_) {
-    // install pnpm if not available
-    await command('npm', ['i', '-g', 'pnpm'])
-  }
-
   await useTempDir(async (cwd) => {
     const projectName = 'user-agent-pnpm'
     const res = await run(
       [
         projectName,
-        '--js',
+        '--ts',
         '--app',
-        '--eslint',
+        '--no-eslint',
         '--no-src-dir',
         '--no-tailwind',
         `--import-alias=@/*`,
@@ -80,14 +70,7 @@ it('should use pnpm when user-agent is pnpm', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.eslintrc.json',
-        '.gitignore',
-        'package.json',
-        'pnpm-lock.yaml',
-        'app/page.js',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -104,26 +87,12 @@ it('should use pnpm for --use-pnpm flag with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'package.json',
-        'pnpm-lock.yaml',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
 
 it('should use pnpm when user-agent is pnpm with example', async () => {
-  try {
-    await command('pnpm', ['--version'])
-  } catch {
-    // install pnpm if not available
-    await command('npm', ['i', '-g', 'pnpm'])
-  }
-
   await useTempDir(async (cwd) => {
     const projectName = 'user-agent-pnpm-with-example'
     const res = await run([projectName, '--example', EXAMPLE_PATH], {
@@ -135,14 +104,7 @@ it('should use pnpm when user-agent is pnpm with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'package.json',
-        'pnpm-lock.yaml',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })

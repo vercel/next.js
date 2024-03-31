@@ -1,10 +1,14 @@
 import {
   command,
+  DEFAULT_FILES,
   EXAMPLE_PATH,
   projectFilesShouldExist,
   run,
   useTempDir,
 } from './utils'
+
+const lockFile = 'bun.lockb'
+const files = [...DEFAULT_FILES, lockFile]
 
 beforeEach(async () => {
   await command('bun', ['--version'])
@@ -19,10 +23,10 @@ describe('create-next-app with package manager bun', () => {
       const res = await run(
         [
           projectName,
-          '--js',
+          '--ts',
           '--app',
-          '--eslint',
           '--use-bun',
+          '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           `--import-alias=@/*`,
@@ -36,14 +40,7 @@ describe('create-next-app with package manager bun', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: [
-          '.eslintrc.json',
-          '.gitignore',
-          'bun.lockb',
-          'package.json',
-          'app/page.js',
-          'node_modules/next',
-        ],
+        files,
       })
     })
   })
@@ -55,9 +52,9 @@ it('should use bun when user-agent is bun', async () => {
     const res = await run(
       [
         projectName,
-        '--js',
+        '--ts',
         '--app',
-        '--eslint',
+        '--no-eslint',
         '--no-src-dir',
         '--no-tailwind',
         `--import-alias=@/*`,
@@ -72,14 +69,7 @@ it('should use bun when user-agent is bun', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.eslintrc.json',
-        '.gitignore',
-        'bun.lockb',
-        'package.json',
-        'app/page.js',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -96,14 +86,7 @@ it('should use bun for --use-bun flag with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'bun.lockb',
-        'package.json',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })
@@ -120,14 +103,7 @@ it('should use bun when user-agent is bun with example', async () => {
     projectFilesShouldExist({
       cwd,
       projectName,
-      files: [
-        '.gitignore',
-        'bun.lockb',
-        'package.json',
-        'app/page.tsx',
-        'app/layout.tsx',
-        'node_modules/next',
-      ],
+      files,
     })
   })
 })

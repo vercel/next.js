@@ -4,6 +4,14 @@ export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 export const EXAMPLE_PATH =
   'https://github.com/vercel/next.js/tree/canary/examples/basic-css'
 
+export const DEFAULT_FILES = [
+  '.gitignore',
+  'package.json',
+  'app/page.tsx',
+  'app/layout.tsx',
+  'node_modules/next',
+]
+
 export const run = (
   args: string[],
   {
