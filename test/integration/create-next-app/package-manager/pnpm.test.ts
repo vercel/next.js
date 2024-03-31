@@ -5,7 +5,7 @@ import {
   projectFilesShouldExist,
   run,
   useTempDir,
-} from './utils'
+} from '../utils'
 
 const lockFile = 'pnpm-lock.yaml'
 const files = [...DEFAULT_FILES, lockFile]

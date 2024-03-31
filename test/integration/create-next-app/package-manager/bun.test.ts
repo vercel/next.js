@@ -5,7 +5,7 @@ import {
   projectFilesShouldExist,
   run,
   useTempDir,
-} from './utils'
+} from '../utils'
 
 const lockFile = 'bun.lockb'
 const files = [...DEFAULT_FILES, lockFile]
