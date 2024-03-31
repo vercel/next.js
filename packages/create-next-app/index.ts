@@ -381,7 +381,7 @@ async function run(): Promise<void> {
       }
     }
 
-    const importAliasPattern = /^[^*\s"]+\/\*$/
+    const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
       !importAliasPattern.test(program.importAlias)
