@@ -4,6 +4,8 @@ import execa from 'execa'
 import path from 'path'
 
 async function main() {
+  let testMode = process.argv.includes('--dev-mode') ? 'dev' : 'start'
+
   let eventData = {}
 
   /** @type import('execa').Options */
@@ -57,6 +59,7 @@ async function main() {
       branchName,
       remoteUrl,
       isCanary,
+      testMode,
     },
     `\ngit diff:\n${changesResult.stderr}\n${changesResult.stdout}`
   )
@@ -99,41 +102,24 @@ async function main() {
     )
   )
 
-  if (prodTests.length === 0 && devTests.length === 0) {
+  const currentTests = testMode === 'dev' ? devTests : prodTests
+
+  if (currentTests.length === 0) {
     console.log(`No added/changed tests detected`)
     return
   }
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
 
-  async function invokeRunTests({ mode, testFiles }) {
-    await execa('node', [...RUN_TESTS_ARGS, ...testFiles], {
+  for (let i = 0; i < 3; i++) {
+    console.log(`\n\nRun ${i + 1} for production tests`)
+    await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
       ...EXECA_OPTS_STDIO,
       env: {
         ...process.env,
-        NEXT_TEST_MODE: mode,
+        NEXT_TEST_MODE: testMode,
       },
     })
-  }
-
-  if (devTests.length > 0) {
-    for (let i = 0; i < 3; i++) {
-      console.log(`\n\nRun ${i + 1} for dev tests`)
-      await invokeRunTests({
-        mode: 'dev',
-        testFiles: devTests,
-      })
-    }
-  }
-
-  if (prodTests.length > 0) {
-    for (let i = 0; i < 3; i++) {
-      console.log(`\n\nRun ${i + 1} for production tests`)
-      await invokeRunTests({
-        mode: 'start',
-        testFiles: prodTests,
-      })
-    }
   }
 }
 
