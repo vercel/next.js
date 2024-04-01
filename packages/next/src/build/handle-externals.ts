@@ -190,6 +190,10 @@ export function makeExternalHandler({
       return `commonjs next/dist/lib/import-next-warning`
     }
 
+    if (request === '@opentelemetry/api') {
+      return `commonjs ${request}`
+    }
+
     const isAppLayer = isWebpackAppLayer(layer)
 
     // Relative requires don't need custom resolution, because they

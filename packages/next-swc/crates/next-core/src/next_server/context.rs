@@ -183,6 +183,15 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
+    let open_telemetry_packages: Vec<String> = vec!["@opentelemetry/api".to_string()];
+    let open_telemetry_external_plugin = ExternalCjsModulesResolvePlugin::new(
+        project_path,
+        project_path.root(),
+        ExternalPredicate::Only(Vc::cell(open_telemetry_packages)).cell(),
+        // TODO(sokra) esmExternals support
+        false,
+    );
+
     let mut plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
@@ -193,6 +202,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(open_telemetry_external_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -204,6 +214,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(open_telemetry_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
@@ -219,6 +230,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(open_telemetry_external_plugin),
             ]
         }
     };
