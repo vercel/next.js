@@ -13,6 +13,7 @@ import {
   hasRedbox,
   normalizeRegEx,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -2138,12 +2139,6 @@ describe('Prerender', () => {
           '/blocking-fallback/test-manual-1'
         )
 
-        if (!isDeploy) {
-          await waitForCacheWrite(
-            '/blocking-fallback/test-manual-1',
-            beforeRevalidate
-          )
-        }
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
@@ -2153,15 +2148,19 @@ describe('Prerender', () => {
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
         if (!isDeploy) {
-          const res2 = await fetchViaHTTP(
-            next.url,
-            '/blocking-fallback/test-manual-1'
-          )
-          const html2 = await res2.text()
-          const $2 = cheerio.load(html2)
+          // we use retry here as the cache might still be
+          // writing to disk even after the above request has finished
+          await retry(async () => {
+            const res2 = await fetchViaHTTP(
+              next.url,
+              '/blocking-fallback/test-manual-1'
+            )
+            const html2 = await res2.text()
+            const $2 = cheerio.load(html2)
 
-          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
-          expect(initialTime).toBe($2('#time').text())
+            expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+            expect(initialTime).toBe($2('#time').text())
+          })
         }
 
         const res3 = await fetchViaHTTP(
@@ -2177,7 +2176,7 @@ describe('Prerender', () => {
         const revalidateData = await res3.json()
         expect(revalidateData.revalidated).toBe(true)
 
-        await check(async () => {
+        await retry(async () => {
           const res4 = await fetchViaHTTP(
             next.url,
             '/blocking-fallback/test-manual-1'
@@ -2186,8 +2185,7 @@ describe('Prerender', () => {
           const $4 = cheerio.load(html4)
           expect($4('#time').text()).not.toBe(initialTime)
           expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
-          return 'success'
-        }, 'success')
+        })
       })
     }
 
