@@ -4,7 +4,7 @@ import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
 
 let testVersion
 beforeAll(async () => {
-  // TODO: investigate moving this post publish or create deployed
+  // TODO: investigate moving this post publish or create deployed GH#57025
   // tarballs to avoid these failing while a publish is in progress
   testVersion = 'canary'
   // const span = new Span({ name: 'parent' })
