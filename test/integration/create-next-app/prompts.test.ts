@@ -14,6 +14,43 @@ beforeAll(async () => {
 })
 
 describe('create-next-app prompts', () => {
+  it('should prompt user for choice if directory name is absent', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'no-dir-name'
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        }
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['package.json'],
+          })
+          resolve()
+        })
+
+        // enter project name
+        childProcess.stdin.write(`${projectName}\n`)
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+    })
+  })
+
   it('should prompt user for choice if --js or --ts flag is absent', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'ts-js'

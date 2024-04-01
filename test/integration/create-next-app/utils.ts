@@ -21,11 +21,8 @@ export const run = (
   }
 ) =>
   execa('node', [CNA_PATH].concat(args), {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-    },
     ...options,
+    env: { ...process.env, ...options.env },
   })
 
 export const command = (cmd: string, args: string[]) =>
