@@ -8,6 +8,8 @@ async function main() {
 
   /** @type import('execa').Options */
   const EXECA_OPTS = { shell: true }
+  /** @type import('execa').Options */
+  const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
 
   try {
     eventData =
@@ -33,6 +35,14 @@ async function main() {
   if (isCanary) {
     console.error(`Skipping flake detection for canary`)
     return
+  }
+
+  try {
+    await execa('git remote set-branches --add origin canary', EXECA_OPTS_STDIO)
+    await execa('git fetch origin canary --depth=20', EXECA_OPTS_STDIO)
+  } catch (err) {
+    console.error(await execa('git remote -v', EXECA_OPTS_STDIO))
+    console.error(`Failed to fetch origin/canary`, err)
   }
 
   const changesResult = await execa(
@@ -87,8 +97,7 @@ async function main() {
 
   async function invokeRunTests({ mode, testFiles }) {
     await execa('node', [...RUN_TESTS_ARGS, ...devTests], {
-      ...EXECA_OPTS,
-      stdio: 'inherit',
+      ...EXECA_OPTS_STDIO,
       env: {
         ...process.env,
         NEXT_TEST_MODE: mode,
