@@ -21,6 +21,8 @@ export const run = (
   }
 ) =>
   execa('node', [CNA_PATH].concat(args), {
+    // tests with options.reject false are expected to exit(1) so don't inherit
+    stdio: options.reject === false ? 'pipe' : 'inherit',
     ...options,
     env: { ...process.env, ...options.env },
   })

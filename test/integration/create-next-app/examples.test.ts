@@ -61,6 +61,7 @@ describe('create-next-app --example', () => {
           projectName,
           '--example',
           // since vercel/examples is not a template repo, we use the following
+          // GH#39665
           'https://github.com/vercel/nextjs-portfolio-starter/',
         ],
         {
@@ -150,18 +151,53 @@ describe('create-next-app --example', () => {
     })
   })
 
-  it('should create on --example as default', async () => {
+  // TODO: investigate why this test stalls on yarn install when
+  // stdin is piped instead of inherited on windows
+  if (process.platform !== 'win32') {
+    it('should fall back to default template if failed to download', async () => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'fallback-to-default'
+        const res = await run(
+          [
+            projectName,
+            '--js',
+            '--no-tailwind',
+            '--eslint',
+            '--app',
+            '--example',
+            '__internal-testing-retry',
+            '--import-alias=@/*',
+          ],
+          {
+            cwd,
+            input: '\n', // 'Yes' to retry
+            stdio: 'pipe',
+          }
+        )
+
+        expect(res.exitCode).toBe(0)
+        shouldBeTemplateProject({
+          cwd,
+          projectName,
+          template: 'app',
+          mode: 'js',
+        })
+      })
+    })
+  }
+
+  it('should create if --example value is default', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'example-named-default'
+      const projectName = 'example-default'
       const res = await run(
         [
           projectName,
           '--js',
-          '--eslint',
           '--no-tailwind',
-          '--no-import-alias',
+          '--eslint',
           '--example',
           'default',
+          '--import-alias=@/*',
         ],
         {
           cwd,
@@ -177,39 +213,6 @@ describe('create-next-app --example', () => {
       })
     })
   })
-
-  // TODO: investigate why this test stalls on yarn install when
-  // stdin is piped instead of inherited on windows GH#11779
-  if (process.platform !== 'win32') {
-    it('should fall back to default template', async () => {
-      await useTempDir(async (cwd) => {
-        const projectName = 'fall-back-default'
-        const res = await run(
-          [
-            projectName,
-            '--js',
-            '--app',
-            '--eslint',
-            '--no-tailwind',
-            '--no-import-alias',
-            '--example',
-            '__internal-testing-retry',
-          ],
-          {
-            cwd,
-            input: '\n', // 'Yes' to retry with default template
-          }
-        )
-        expect(res.exitCode).toBe(0)
-        shouldBeTemplateProject({
-          cwd,
-          projectName,
-          template: 'app',
-          mode: 'js',
-        })
-      })
-    })
-  }
 
   it('should not create if --example flag value is invalid', async () => {
     await useTempDir(async (cwd) => {
