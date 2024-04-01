@@ -84,7 +84,7 @@ import {
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
-import { MergeCssChunksPlugin } from './webpack/plugins/merge-css-chunks-plugin'
+import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -300,6 +300,7 @@ export default async function getBaseWebpackConfig(
   dir: string,
   {
     buildId,
+    encryptionKey,
     config,
     compilerType,
     dev = false,
@@ -321,6 +322,7 @@ export default async function getBaseWebpackConfig(
     fetchCacheKeyPrefix,
   }: {
     buildId: string
+    encryptionKey: string
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
@@ -401,6 +403,16 @@ export default async function getBaseWebpackConfig(
     await loadBindings(config.experimental.useWasmBinary)
   }
 
+  // since `pages` doesn't always bundle by default we need to
+  // auto-include optimizePackageImports in transpilePackages
+  const finalTranspilePackages: string[] = config.transpilePackages || []
+
+  for (const pkg of config.experimental.optimizePackageImports || []) {
+    if (!finalTranspilePackages.includes(pkg)) {
+      finalTranspilePackages.push(pkg)
+    }
+  }
+
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
@@ -451,7 +463,7 @@ export default async function getBaseWebpackConfig(
         hasReactRefresh: dev && isClient,
         nextConfig: config,
         jsConfig,
-        transpilePackages: config.transpilePackages,
+        transpilePackages: finalTranspilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
@@ -780,9 +792,9 @@ export default async function getBaseWebpackConfig(
   // the `transpilePackages`.
   if (
     config.experimental.serverComponentsExternalPackages &&
-    config.transpilePackages
+    finalTranspilePackages
   ) {
-    const externalPackageConflicts = config.transpilePackages.filter((pkg) =>
+    const externalPackageConflicts = finalTranspilePackages.filter((pkg) =>
       config.experimental.serverComponentsExternalPackages?.includes(pkg)
     )
     if (externalPackageConflicts.length > 0) {
@@ -797,7 +809,7 @@ export default async function getBaseWebpackConfig(
   // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
-  ).filter((pkg) => !config.transpilePackages?.includes(pkg))
+  ).filter((pkg) => !finalTranspilePackages?.includes(pkg))
   // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
     `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
@@ -806,7 +818,7 @@ export default async function getBaseWebpackConfig(
   )
 
   const transpilePackagesRegex = new RegExp(
-    `[/\\\\]node_modules[/\\\\](${config.transpilePackages
+    `[/\\\\]node_modules[/\\\\](${finalTranspilePackages
       ?.map((p) => p.replace(/\//g, '[/\\\\]'))
       .join('|')})[/\\\\]`
   )
@@ -834,7 +846,7 @@ export default async function getBaseWebpackConfig(
 
       const shouldBeBundled = isResourceInPackages(
         excludePath,
-        config.transpilePackages
+        finalTranspilePackages
       )
       if (shouldBeBundled) return false
 
@@ -1005,10 +1017,12 @@ export default async function getBaseWebpackConfig(
 
         const libCacheGroup = {
           test(module: {
+            type: string
             size: Function
             nameForCondition: Function
           }): boolean {
             return (
+              !module.type?.startsWith('css') &&
               module.size() > 160000 &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
@@ -1046,14 +1060,6 @@ export default async function getBaseWebpackConfig(
         }
 
         // client chunking
-        const cssCacheGroup = {
-          test: /\.(css|sass|scss)$/i,
-          chunks: 'all' as const,
-          enforce: true,
-          type: /css/,
-          minChunks: 2,
-          priority: 100,
-        }
         return {
           // Keep main and _app chunks unsplitted in webpack 5
           // as we don't need a separate vendor chunk from that
@@ -1061,16 +1067,10 @@ export default async function getBaseWebpackConfig(
           // duplication that need to be pulled out.
           chunks: (chunk: any) =>
             !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
-          cacheGroups: appDir
-            ? {
-                css: cssCacheGroup,
-                framework: frameworkCacheGroup,
-                lib: libCacheGroup,
-              }
-            : {
-                framework: frameworkCacheGroup,
-                lib: libCacheGroup,
-              },
+          cacheGroups: {
+            framework: frameworkCacheGroup,
+            lib: libCacheGroup,
+          },
           maxInitialRequests: 25,
           minSize: 20000,
         }
@@ -1869,6 +1869,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
+              encryptionKey,
             })),
       hasAppDir &&
         !isClient &&
@@ -1891,10 +1892,8 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      !dev &&
-        isClient &&
-        config.experimental.mergeCssChunks &&
-        new MergeCssChunksPlugin(),
+      isClient &&
+        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
@@ -2037,6 +2036,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,

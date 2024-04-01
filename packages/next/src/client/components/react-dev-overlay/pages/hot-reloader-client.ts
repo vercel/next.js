@@ -46,6 +46,7 @@ import type {
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
+import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -65,7 +66,6 @@ declare global {
 
 window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
-let hadRuntimeError = false
 let customHmrEventHandler: any
 let turbopackMessageListeners: ((msg: TurbopackMsgToBrowser) => void)[] = []
 let MODE: 'webpack' | 'turbopack' = 'webpack'
@@ -92,13 +92,16 @@ export default function connect(mode: 'webpack' | 'turbopack') {
       customHmrEventHandler = handler
     },
     onUnrecoverableError() {
-      hadRuntimeError = true
+      RuntimeErrorHandler.hadRuntimeError = true
     },
     addTurbopackMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
       turbopackMessageListeners.push(cb)
     },
     sendTurbopackMessage(msg: string) {
       sendMessage(msg)
+    },
+    handleUpdateError(err: unknown) {
+      performFullReload(err)
     },
   }
 }
@@ -343,7 +346,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
           data: obj.data,
         })
       }
-      if (hadRuntimeError) {
+      if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null)
       }
@@ -409,7 +412,7 @@ function tryApplyUpdates(
   }
 
   function handleApplyUpdates(err: any, updatedModules: string[] | null) {
-    if (err || hadRuntimeError || !updatedModules) {
+    if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
           '[Fast Refresh] performing full reload\n\n' +
@@ -419,7 +422,7 @@ function tryApplyUpdates(
             'It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\n' +
             'Fast Refresh requires at least one parent function component in your React tree.'
         )
-      } else if (hadRuntimeError) {
+      } else if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(
           '[Fast Refresh] performing full reload because your application had an unrecoverable error'
         )
@@ -478,7 +481,7 @@ function tryApplyUpdates(
     )
 }
 
-function performFullReload(err: any) {
+export function performFullReload(err: any) {
   const stackTrace =
     err &&
     ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
@@ -489,7 +492,8 @@ function performFullReload(err: any) {
     JSON.stringify({
       event: 'client-full-reload',
       stackTrace,
-      hadRuntimeError: !!hadRuntimeError,
+      hadRuntimeError: !!RuntimeErrorHandler.hadRuntimeError,
+      dependencyChain: err ? err.dependencyChain : undefined,
     })
   )
 
