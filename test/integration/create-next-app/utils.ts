@@ -16,9 +16,12 @@ export const DEFAULT_FILES = [
 
 export const run = (
   args: string[],
-  options: execa.Options & {
-    npm_config_user_agent?: string
-  }
+  options:
+    | execa.Options
+    | {
+        reject?: boolean
+        env?: Record<string, string>
+      }
 ) =>
   execa('node', [CNA_PATH].concat(args), {
     // tests with options.reject false are expected to exit(1) so don't inherit

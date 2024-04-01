@@ -54,7 +54,7 @@ it('should use npm when user-agent is npm', async () => {
       ],
       {
         cwd,
-        npm_config_user_agent: 'npm',
+        env: { npm_config_user_agent: 'npm' },
       }
     )
 
@@ -89,7 +89,7 @@ it('should use npm when user-agent is npm with example', async () => {
     const projectName = 'user-agent-npm-with-example'
     const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
       cwd,
-      npm_config_user_agent: 'npm',
+      env: { npm_config_user_agent: 'npm' },
     })
 
     expect(res.exitCode).toBe(0)

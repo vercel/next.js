@@ -62,7 +62,7 @@ it('should use yarn when user-agent is yarn', async () => {
       ],
       {
         cwd,
-        npm_config_user_agent: 'yarn',
+        env: { npm_config_user_agent: 'yarn' },
       }
     )
 
@@ -97,7 +97,7 @@ it('should use yarn when user-agent is yarn with example', async () => {
     const projectName = 'user-agent-yarn-with-example'
     const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
       cwd,
-      npm_config_user_agent: 'yarn',
+      env: { npm_config_user_agent: 'yarn' },
     })
 
     expect(res.exitCode).toBe(0)

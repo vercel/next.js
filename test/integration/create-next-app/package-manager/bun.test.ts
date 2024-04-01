@@ -61,7 +61,7 @@ it('should use bun when user-agent is bun', async () => {
       ],
       {
         cwd,
-        npm_config_user_agent: 'bun',
+        env: { npm_config_user_agent: 'bun' },
       }
     )
 
@@ -96,7 +96,7 @@ it('should use bun when user-agent is bun with example', async () => {
     const projectName = 'user-agent-bun-with-example'
     const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
       cwd,
-      npm_config_user_agent: 'bun',
+      env: { npm_config_user_agent: 'bun' },
     })
 
     expect(res.exitCode).toBe(0)
