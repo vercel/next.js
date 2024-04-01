@@ -558,6 +558,7 @@ export function patchFetch({
 
         let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
+        let isForegroundRevalidate = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           handleUnlock = await staticGenerationStore.incrementalCache.lock(
@@ -585,12 +586,21 @@ export function patchFetch({
           if (entry?.value && entry.value.kind === 'FETCH') {
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
-            if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
+            if (staticGenerationStore.isRevalidate && entry.isStale) {
+              isForegroundRevalidate = true
+            } else {
               if (entry.isStale) {
                 staticGenerationStore.pendingRevalidates ??= {}
                 if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
                   staticGenerationStore.pendingRevalidates[cacheKey] =
-                    doOriginalFetch(true).catch(console.error)
+                    doOriginalFetch(true)
+                      .catch(console.error)
+                      .finally(() => {
+                        staticGenerationStore.pendingRevalidates ??= {}
+                        delete staticGenerationStore.pendingRevalidates[
+                          cacheKey || ''
+                        ]
+                      })
                 }
               }
               const resData = entry.value.data
@@ -682,7 +692,29 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
+        // if we are revalidating the whole page via time or on-demand and
+        // the fetch cache entry is stale we should still de-dupe the
+        // origin hit if it's a cache-able entry
+        if (cacheKey && isForegroundRevalidate) {
+          staticGenerationStore.pendingRevalidates ??= {}
+          const pendingRevalidate =
+            staticGenerationStore.pendingRevalidates[cacheKey]
+
+          if (pendingRevalidate) {
+            const res: Response = await pendingRevalidate
+            return res.clone()
+          }
+          return (staticGenerationStore.pendingRevalidates[cacheKey] =
+            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
+              staticGenerationStore.pendingRevalidates ??= {}
+              delete staticGenerationStore.pendingRevalidates[cacheKey || '']
+              await handleUnlock()
+            }))
+        } else {
+          return doOriginalFetch(false, cacheReasonOverride).finally(
+            handleUnlock
+          )
+        }
       }
     )
   }

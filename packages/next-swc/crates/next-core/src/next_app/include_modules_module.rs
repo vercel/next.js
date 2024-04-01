@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
@@ -68,7 +69,7 @@ impl EcmascriptChunkPlaceable for IncludeModulesModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>) -> Vc<bool> {
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
         Vc::cell(true)
     }
 }
