@@ -80,9 +80,9 @@ async function main() {
         devTests.push(file)
         prodTests.push(file)
       } else if (file.startsWith('test/prod')) {
-        devTests.push(file)
-      } else if (file.startsWith('test/development')) {
         prodTests.push(file)
+      } else if (file.startsWith('test/development')) {
+        devTests.push(file)
       }
     }
   }
@@ -107,7 +107,7 @@ async function main() {
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
 
   async function invokeRunTests({ mode, testFiles }) {
-    await execa('node', [...RUN_TESTS_ARGS, ...devTests], {
+    await execa('node', [...RUN_TESTS_ARGS, ...testFiles], {
       ...EXECA_OPTS_STDIO,
       env: {
         ...process.env,
