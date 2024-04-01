@@ -37,7 +37,6 @@ createNextDescribe(
 
     it('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
       await webdriver(next.url, '/api/unknown-domain-no-await')
-      console.log('cliOutput', next.cliOutput)
 
       if (process.env.TURBOPACK) {
         // pages_api_unknown-domain-no-await_d8c7f5.js:14:5
