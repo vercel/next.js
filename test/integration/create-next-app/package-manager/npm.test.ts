@@ -22,7 +22,7 @@ describe('create-next-app with package manager npm', () => {
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
-          `--import-alias=@/*`,
+          '--no-import-alias',
         ],
         {
           cwd,
@@ -50,7 +50,7 @@ it('should use npm when user-agent is npm', async () => {
         '--no-eslint',
         '--no-src-dir',
         '--no-tailwind',
-        `--import-alias=@/*`,
+        '--no-import-alias',
       ],
       {
         cwd,

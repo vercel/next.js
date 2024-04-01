@@ -30,7 +30,7 @@ describe('create-next-app with package manager yarn', () => {
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
-          `--import-alias=@/*`,
+          '--no-import-alias',
         ],
         {
           cwd,
@@ -58,7 +58,7 @@ it('should use yarn when user-agent is yarn', async () => {
         '--no-eslint',
         '--no-src-dir',
         '--no-tailwind',
-        `--import-alias=@/*`,
+        '--no-import-alias',
       ],
       {
         cwd,
