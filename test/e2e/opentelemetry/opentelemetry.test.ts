@@ -5,7 +5,7 @@ import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
 
 const EXTERNAL = {
-  traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
+  traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f1',
   spanId: '0f6a325411bdc432',
 } as const
 
