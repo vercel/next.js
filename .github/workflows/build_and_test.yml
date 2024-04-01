@@ -256,6 +256,21 @@ jobs:
 
     secrets: inherit
 
+  test-new-test:
+    name: Test new tests for flakes
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+
+    uses: ./.github/workflows/build_reusable.yml
+
+    with:
+      afterBuild: node scripts/test-new-tests.mjs
+
+    secrets: inherit
+
   test-dev:
     name: test dev
     needs: ['changes', 'build-native', 'build-next']
