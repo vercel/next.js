@@ -49,7 +49,7 @@ turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack
 # If you changed, must verify with ALL build targets with next-swc to ensure
 # it works. next-swc have various platforms, some doesn't support native (using openssl-sys)
 # and some aren't buildable with rustls.
-reqwest = { version = "=0.11.17", default-features = false }
+reqwest = { version = "0.12.2", default-features = false }
 
 chromiumoxide = { version = "0.5.0", features = [
   "tokio-runtime",
