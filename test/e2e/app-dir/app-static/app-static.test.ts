@@ -2289,6 +2289,7 @@ createNextDescribe(
 
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
+        const pageData2 = $('#page-data-2').text()
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2300,6 +2301,8 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#page-data-2').text()).toBe(pageData2)
+        expect(pageData).toBe(pageData2)
         return 'success'
       }, 'success')
 
