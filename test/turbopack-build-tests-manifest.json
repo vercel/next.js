@@ -2219,6 +2219,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts": {
+      "passed": [],
+      "failed": [
+        "parallel-routes-catchall-specificity should match the catch-all route when navigating from a page with a similar path depth as the previously matched slot"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
