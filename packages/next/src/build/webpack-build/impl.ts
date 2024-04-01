@@ -189,7 +189,7 @@ export async function webpackBuildImpl(
       | UnwrapPromise<ReturnType<typeof runCompiler>>[0]
       | null = null
 
-    let inputFileSystem: any
+    let inputFileSystem: webpack.Compiler['inputFileSystem'] | undefined
 
     if (!compilerName || compilerName === 'server') {
       debug('starting server compiler')
@@ -246,23 +246,19 @@ export async function webpackBuildImpl(
       }
     }
 
-    inputFileSystem.purge()
+    inputFileSystem?.purge?.()
 
     result = {
-      warnings: ([] as any[])
-        .concat(
-          clientResult?.warnings,
-          serverResult?.warnings,
-          edgeServerResult?.warnings
-        )
-        .filter(nonNullable),
-      errors: ([] as any[])
-        .concat(
-          clientResult?.errors,
-          serverResult?.errors,
-          edgeServerResult?.errors
-        )
-        .filter(nonNullable),
+      warnings: [
+        ...(clientResult?.warnings ?? []),
+        ...(serverResult?.warnings ?? []),
+        ...(edgeServerResult?.warnings ?? []),
+      ].filter(nonNullable),
+      errors: [
+        ...(clientResult?.errors ?? []),
+        ...(serverResult?.errors ?? []),
+        ...(edgeServerResult?.errors ?? []),
+      ].filter(nonNullable),
       stats: [
         clientResult?.stats,
         serverResult?.stats,
