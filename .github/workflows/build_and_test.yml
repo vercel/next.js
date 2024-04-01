@@ -264,7 +264,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: node scripts/test-new-tests.mjs --dev-mode
-      stepName: 'test-new-tests'
+      stepName: 'test-new-tests-dev'
 
     secrets: inherit
 
@@ -276,7 +276,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: node scripts/test-new-tests.mjs --prod-mode
-      stepName: 'test-new-tests'
+      stepName: 'test-new-tests-start'
 
     secrets: inherit
 
