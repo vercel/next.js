@@ -106,7 +106,6 @@ const runTests = (isDev) => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
-    console.log('html', html)
     function test(id) {
       const script = $(`#${id}`)
 
