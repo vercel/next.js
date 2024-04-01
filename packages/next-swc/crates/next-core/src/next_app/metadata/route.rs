@@ -23,6 +23,7 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment},
+    next_config::NextConfig,
     parse_segment_config_from_source,
 };
 
@@ -58,6 +59,7 @@ pub fn get_app_metadata_route_entry(
     page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
+    next_config: Vc<NextConfig>,
 ) -> Vc<AppEntry> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
@@ -66,7 +68,7 @@ pub fn get_app_metadata_route_entry(
     };
 
     let source = Vc::upcast(FileSource::new(original_path));
-    let config = parse_segment_config_from_source(source);
+    let segment_config = parse_segment_config_from_source(source);
 
     get_app_route_entry(
         nodejs_context,
@@ -74,7 +76,8 @@ pub fn get_app_metadata_route_entry(
         get_app_metadata_route_source(page.clone(), mode, metadata),
         page,
         project_root,
-        Some(config),
+        Some(segment_config),
+        next_config,
     )
 }
 
