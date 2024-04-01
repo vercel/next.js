@@ -20,6 +20,7 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_client_reference::{ClientReferenceGraph, NextEcmascriptClientReferenceTransition},
+    next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
@@ -601,6 +602,7 @@ impl AppEndpoint {
         &self,
         path: Vc<FileSystemPath>,
         root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         let root_layouts = root_layouts.await?;
         let config = if root_layouts.is_empty() {
@@ -624,11 +626,16 @@ impl AppEndpoint {
             self.page.clone(),
             self.app_project.project().project_path(),
             config,
+            next_config,
         ))
     }
 
     #[turbo_tasks::function]
-    async fn app_metadata_entry(&self, metadata: MetadataItem) -> Result<Vc<AppEntry>> {
+    async fn app_metadata_entry(
+        &self,
+        metadata: MetadataItem,
+        next_config: Vc<NextConfig>,
+    ) -> Result<Vc<AppEntry>> {
         Ok(get_app_metadata_route_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
@@ -636,6 +643,7 @@ impl AppEndpoint {
             self.page.clone(),
             *self.app_project.project().next_mode().await?,
             metadata,
+            next_config,
         ))
     }
 
@@ -648,6 +656,7 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
+        let next_config = self.await?.app_project.project().next_config();
         let (app_entry, process_client, process_ssr) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
@@ -657,11 +666,13 @@ impl AppEndpoint {
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path, root_layouts } => {
-                (self.app_route_entry(path, root_layouts), false, false)
-            }
+            AppEndpointType::Route { path, root_layouts } => (
+                self.app_route_entry(path, root_layouts, next_config),
+                false,
+                false,
+            ),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), false, false)
+                (self.app_metadata_entry(metadata, next_config), false, false)
             }
         };
 

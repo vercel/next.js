@@ -437,6 +437,7 @@ pub async fn get_server_module_options_context(
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         import_externals: *next_config.import_externals().await?,
         ignore_dynamic_requests: true,
+        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
 
