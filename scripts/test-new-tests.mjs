@@ -1,0 +1,123 @@
+// @ts-check
+import fs from 'fs/promises'
+import execa from 'execa'
+import path from 'path'
+
+async function main() {
+  let eventData = {}
+
+  /** @type import('execa').Options */
+  const EXECA_OPTS = { shell: true }
+
+  try {
+    eventData =
+      JSON.parse(
+        await fs.readFile(process.env.GITHUB_EVENT_PATH || '', 'utf8')
+      )['pull_request'] || {}
+  } catch (_) {}
+
+  // detect changed test files
+  const branchName =
+    eventData?.head?.ref ||
+    process.env.GITHUB_REF_NAME ||
+    (await execa('git rev-parse --abbrev-ref HEAD', EXECA_OPTS)).stdout
+
+  const remoteUrl =
+    eventData?.head?.repo?.full_name ||
+    process.env.GITHUB_REPOSITORY ||
+    (await execa('git remote get-url origin', EXECA_OPTS)).stdout
+
+  const isCanary =
+    branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
+
+  if (isCanary) {
+    console.error(`Skipping flake detection for canary`)
+    return
+  }
+
+  const changesResult = await execa(
+    `git diff origin/canary --name-only`,
+    EXECA_OPTS
+  ).catch((err) => {
+    console.error(err)
+    return { stdout: '', stderr: '' }
+  })
+  console.error(
+    {
+      branchName,
+      remoteUrl,
+      isCanary,
+    },
+    `\ngit diff:\n${changesResult.stderr}\n${changesResult.stdout}`
+  )
+  const changedFiles = changesResult.stdout.split('\n')
+  console.log('detected tests:', changedFiles)
+
+  // run each test 3 times in each test mode (if E2E) with no-retrying
+  // and if any fail it's flakey
+  const devTests = []
+  const prodTests = []
+
+  for (let file of changedFiles) {
+    // normalize slashes
+    file = file.replace(/\\/g, '/')
+    const fileExists = await fs
+      .access(path.join(process.cwd(), file), fs.constants.F_OK)
+      .then(() => true)
+      .catch(() => false)
+
+    if (fileExists && file.match(/^test\/.*?\.test\.(js|ts|tsx)$/)) {
+      if (file.startsWith('test/e2e/')) {
+        devTests.push(file)
+        prodTests.push(file)
+      } else if (file.startsWith('test/prod')) {
+        devTests.push(file)
+      } else if (file.startsWith('test/development')) {
+        prodTests.push(file)
+      }
+    }
+  }
+
+  if (prodTests.length === 0 && devTests.length === 0) {
+    console.log(`No added/changed tests detected`)
+    return
+  }
+
+  const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
+
+  async function invokeRunTests({ mode, testFiles }) {
+    await execa('node', [...RUN_TESTS_ARGS, ...devTests], {
+      ...EXECA_OPTS,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NEXT_TEST_MODE: mode,
+      },
+    })
+  }
+
+  if (devTests.length > 0) {
+    for (let i = 0; i < 3; i++) {
+      console.log(`\n\nRun ${i + 1} for dev tests`)
+      await invokeRunTests({
+        mode: 'dev',
+        testFiles: devTests,
+      })
+    }
+  }
+
+  if (prodTests.length > 0) {
+    for (let i = 0; i < 3; i++) {
+      console.log(`\n\nRun ${i + 1} for production tests`)
+      await invokeRunTests({
+        mode: 'start',
+        testFiles: prodTests,
+      })
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
