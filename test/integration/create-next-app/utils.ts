@@ -1,6 +1,6 @@
 import execa from 'execa'
-import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import { join } from 'path'
+import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 export const EXAMPLE_PATH =
@@ -49,7 +49,9 @@ export async function tryNextDev({
 }) {
   const dir = join(cwd, projectName)
   const port = await findPort()
-  const app = await launchApp(dir, port)
+  const app = await launchApp(dir, port, {
+    nextBin: join(dir, 'node_modules/next/dist/bin/next'),
+  })
 
   try {
     const res = await fetchViaHTTP(port, '/')

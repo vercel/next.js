@@ -8,7 +8,6 @@ import {
 
 let testVersion
 beforeAll(async () => {
-  if (testVersion) return
   // TODO: investigate moving this post publish or create deployed
   // tarballs to avoid these failing while a publish is in progress
   testVersion = 'canary'
@@ -18,15 +17,15 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe('create-next-app --app (App Router)', () => {
+describe('create-next-app --no-app (Pages Router)', () => {
   it('should create JavaScript project with --js flag', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'app-js'
+      const projectName = 'pages-js'
       const childProcess = createNextApp(
         [
           projectName,
           '--js',
-          '--app',
+          '--no-app',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -37,25 +36,30 @@ describe('create-next-app --app (App Router)', () => {
         },
         testVersion
       )
-
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
-      shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'default',
+        mode: 'js',
+      })
       await tryNextDev({
         cwd,
         projectName,
+        isApp: false,
       })
     })
   })
 
   it('should create TypeScript project with --ts flag', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'app-ts'
-      const cp = createNextApp(
+      const projectName = 'pages-ts'
+      const childProcess = createNextApp(
         [
           projectName,
           '--ts',
-          '--app',
+          '--no-app',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -66,25 +70,30 @@ describe('create-next-app --app (App Router)', () => {
         },
         testVersion
       )
-
-      const exitCode = await spawnExitPromise(cp)
+      const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
-      shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'default',
+        mode: 'ts',
+      })
       await tryNextDev({
         cwd,
         projectName,
+        isApp: false,
       })
     })
   })
 
   it('should create project inside "src" directory with --src-dir flag', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'app-src-dir'
+      const projectName = 'pages-src-dir'
       const childProcess = createNextApp(
         [
           projectName,
           '--ts',
-          '--app',
+          '--no-app',
           '--eslint',
           '--src-dir',
           '--no-tailwind',
@@ -92,35 +101,34 @@ describe('create-next-app --app (App Router)', () => {
         ],
         {
           cwd,
-          stdio: 'inherit',
         },
         testVersion
       )
-
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
         cwd,
         projectName,
-        template: 'app',
+        template: 'default',
         mode: 'ts',
         srcDir: true,
       })
       await tryNextDev({
         cwd,
         projectName,
+        isApp: false,
       })
     })
   })
 
   it('should create TailwindCSS project with --tailwind flag', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'app-tw'
+      const projectName = 'pages-tw'
       const childProcess = createNextApp(
         [
           projectName,
           '--ts',
-          '--app',
+          '--no-app',
           '--eslint',
           '--src-dir',
           '--tailwind',
@@ -137,13 +145,14 @@ describe('create-next-app --app (App Router)', () => {
       shouldBeTemplateProject({
         cwd,
         projectName,
-        template: 'app-tw',
+        template: 'default-tw',
         mode: 'ts',
         srcDir: true,
       })
       await tryNextDev({
         cwd,
         projectName,
+        isApp: false,
       })
     })
   })
