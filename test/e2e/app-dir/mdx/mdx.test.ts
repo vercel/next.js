@@ -1,7 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
 
-// test change
-
 for (const type of [
   'with-mdx-rs',
   // only mdx-rs should work with turbopack
