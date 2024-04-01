@@ -1,7 +1,7 @@
 import {
   command,
   DEFAULT_FILES,
-  EXAMPLE_PATH,
+  FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
   run,
   useTempDir,
@@ -79,7 +79,7 @@ it('should use pnpm for --use-pnpm flag with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'use-pnpm-with-example'
     const res = await run(
-      [projectName, '--use-pnpm', '--example', EXAMPLE_PATH],
+      [projectName, '--use-pnpm', '--example', FULL_EXAMPLE_PATH],
       { cwd }
     )
 
@@ -95,7 +95,7 @@ it('should use pnpm for --use-pnpm flag with example', async () => {
 it('should use pnpm when user-agent is pnpm with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'user-agent-pnpm-with-example'
-    const res = await run([projectName, '--example', EXAMPLE_PATH], {
+    const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
       cwd,
       npm_config_user_agent: 'pnpm',
     })

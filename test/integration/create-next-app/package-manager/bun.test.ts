@@ -1,7 +1,7 @@
 import {
   command,
   DEFAULT_FILES,
-  EXAMPLE_PATH,
+  FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
   run,
   useTempDir,
@@ -78,7 +78,7 @@ it('should use bun for --use-bun flag with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'use-bun-with-example'
     const res = await run(
-      [projectName, '--use-bun', '--example', EXAMPLE_PATH],
+      [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
       { cwd }
     )
 
@@ -94,7 +94,7 @@ it('should use bun for --use-bun flag with example', async () => {
 it('should use bun when user-agent is bun with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'user-agent-bun-with-example'
-    const res = await run([projectName, '--example', EXAMPLE_PATH], {
+    const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
       cwd,
       npm_config_user_agent: 'bun',
     })

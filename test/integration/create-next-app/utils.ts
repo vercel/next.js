@@ -3,8 +3,9 @@ import { join } from 'path'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
-export const EXAMPLE_PATH =
-  'https://github.com/vercel/next.js/tree/canary/examples/basic-css'
+export const EXAMPLE_REPO = 'https://github.com/vercel/next.js/tree/canary'
+export const EXAMPLE_PATH = 'examples/basic-css'
+export const FULL_EXAMPLE_PATH = `${EXAMPLE_REPO}/${EXAMPLE_PATH}`
 export const DEFAULT_FILES = [
   '.gitignore',
   'package.json',
@@ -15,21 +16,16 @@ export const DEFAULT_FILES = [
 
 export const run = (
   args: string[],
-  {
-    cwd,
-    npm_config_user_agent,
-  }: {
-    cwd: string
+  options: execa.Options & {
     npm_config_user_agent?: string
   }
 ) =>
   execa('node', [CNA_PATH].concat(args), {
     stdio: 'inherit',
-    cwd,
     env: {
       ...process.env,
-      npm_config_user_agent,
     },
+    ...options,
   })
 
 export const command = (cmd: string, args: string[]) =>
@@ -71,6 +67,7 @@ export async function tryNextDev({
 export {
   createNextApp,
   projectFilesShouldExist,
+  projectFilesShouldNotExist,
   shouldBeTemplateProject,
   shouldBeJavascriptProject,
   shouldBeTypescriptProject,
