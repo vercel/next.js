@@ -112,7 +112,7 @@ async function main() {
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
 
   for (let i = 0; i < 3; i++) {
-    console.log(`\n\nRun ${i + 1} for production tests`)
+    console.log(`\n\nRun ${i + 1} for ${testMode} tests`)
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
       ...EXECA_OPTS_STDIO,
       env: {
