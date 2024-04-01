@@ -61,7 +61,6 @@ async function main() {
     `\ngit diff:\n${changesResult.stderr}\n${changesResult.stdout}`
   )
   const changedFiles = changesResult.stdout.split('\n')
-  console.log('detected tests:', changedFiles)
 
   // run each test 3 times in each test mode (if E2E) with no-retrying
   // and if any fail it's flakey
@@ -87,6 +86,18 @@ async function main() {
       }
     }
   }
+
+  console.log(
+    'Detected tests:',
+    JSON.stringify(
+      {
+        devTests,
+        prodTests,
+      },
+      null,
+      2
+    )
+  )
 
   if (prodTests.length === 0 && devTests.length === 0) {
     console.log(`No added/changed tests detected`)
