@@ -2133,7 +2133,6 @@ describe('Prerender', () => {
 
     if (!isDev) {
       it('should handle on-demand revalidate for fallback: blocking', async () => {
-        const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback/test-manual-1'
