@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
@@ -1691,6 +1691,18 @@ createNextDescribe(
         scripts.each((_, element) => {
           expect(element.attribs.nonce).toBeTruthy()
         })
+
+        if (!isDev) {
+          const browser = await next.browser('/script-nonce')
+
+          await retry(async () => {
+            await browser.elementByCss('#get-order').click()
+            const order = JSON.parse(
+              await browser.elementByCss('#order').text()
+            )
+            expect(order?.length).toBe(2)
+          })
+        }
       })
     })
 
