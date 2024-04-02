@@ -451,7 +451,11 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         assetPrefix={ctx.assetPrefix}
         initialCanonicalUrl={urlPathname}
         // @ts-ignore
-        reactLoadableManifest={ctx.renderOpts.reactLoadableManifest}
+        reactLoadableManifest={
+          typeof window === 'undefined'
+            ? ctx.renderOpts.reactLoadableManifest
+            : null
+        }
         // onReceiveDynamicModules={onReceiveDynamicModules}
         // This is the router state tree.
         initialTree={initialTree}
