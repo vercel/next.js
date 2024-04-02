@@ -15,7 +15,7 @@ if (process.env.NODE_ENV !== 'production') {
   LoadableContext.displayName = 'LoadableContext'
 }
 
-export function PreloadModule({ opts }: { opts: any }) {
+export function PreloadModule() {
   // For dev-only
   const context = useContext(LoadableContext)
   const allFiles = []

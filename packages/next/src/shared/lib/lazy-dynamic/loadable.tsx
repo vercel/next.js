@@ -57,9 +57,7 @@ function Loadable(options: LoadableOptions) {
 
     return (
       <>
-        {process.env.NODE_ENV === 'development' ? (
-          <PreloadModule opts={opts} />
-        ) : null}
+        {process.env.NODE_ENV === 'development' ? <PreloadModule /> : null}
         <Suspense fallback={fallbackElement}>{children}</Suspense>
       </>
     )
