@@ -13,8 +13,8 @@
 var util = require('util');
 require('crypto');
 var async_hooks = require('async_hooks');
-var React = require('react');
 var ReactDOM = require('react-dom');
+var React = require('react');
 
 // -----------------------------------------------------------------------------
 const enablePostpone = false;
@@ -89,9 +89,10 @@ function writeViewChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
-    // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
+
+
     if (writtenBytes > 0) {
       writeToDestination(destination, currentView.subarray(0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -473,7 +474,9 @@ function getServerReferenceBoundArguments(config, serverReference) {
 
 const ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
-const ReactDOMFlightServerDispatcher = {
+const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
+const previousDispatcher = ReactDOMCurrentDispatcher.current;
+ReactDOMCurrentDispatcher.current = {
   prefetchDNS,
   preconnect,
   preload,
@@ -499,6 +502,8 @@ function prefetchDNS(href) {
 
         hints.add(key);
         emitHint(request, 'D', href);
+      } else {
+        previousDispatcher.prefetchDNS(href);
       }
     }
   }
@@ -525,6 +530,8 @@ function preconnect(href, crossOrigin) {
         } else {
           emitHint(request, 'C', href);
         }
+      } else {
+        previousDispatcher.preconnect(href, crossOrigin);
       }
     }
   }
@@ -558,6 +565,8 @@ function preload(href, as, options) {
         } else {
           emitHint(request, 'L', [href, as]);
         }
+      } else {
+        previousDispatcher.preload(href, as, options);
       }
     }
   }
@@ -585,6 +594,8 @@ function preloadModule$1(href, options) {
         } else {
           return emitHint(request, 'm', href);
         }
+      } else {
+        previousDispatcher.preloadModule(href, options);
       }
     }
   }
@@ -614,19 +625,21 @@ function preinitStyle(href, precedence, options) {
         } else {
           return emitHint(request, 'S', href);
         }
+      } else {
+        previousDispatcher.preinitStyle(href, precedence, options);
       }
     }
   }
 }
 
-function preinitScript(href, options) {
+function preinitScript(src, options) {
   {
-    if (typeof href === 'string') {
+    if (typeof src === 'string') {
       const request = resolveRequest();
 
       if (request) {
         const hints = getHints(request);
-        const key = 'X|' + href;
+        const key = 'X|' + src;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -637,23 +650,25 @@ function preinitScript(href, options) {
         const trimmed = trimOptions(options);
 
         if (trimmed) {
-          return emitHint(request, 'X', [href, trimmed]);
+          return emitHint(request, 'X', [src, trimmed]);
         } else {
-          return emitHint(request, 'X', href);
+          return emitHint(request, 'X', src);
         }
+      } else {
+        previousDispatcher.preinitScript(src, options);
       }
     }
   }
 }
 
-function preinitModuleScript(href, options) {
+function preinitModuleScript(src, options) {
   {
-    if (typeof href === 'string') {
+    if (typeof src === 'string') {
       const request = resolveRequest();
 
       if (request) {
         const hints = getHints(request);
-        const key = 'M|' + href;
+        const key = 'M|' + src;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -664,10 +679,12 @@ function preinitModuleScript(href, options) {
         const trimmed = trimOptions(options);
 
         if (trimmed) {
-          return emitHint(request, 'M', [href, trimmed]);
+          return emitHint(request, 'M', [src, trimmed]);
         } else {
-          return emitHint(request, 'M', href);
+          return emitHint(request, 'M', src);
         }
+      } else {
+        previousDispatcher.preinitModuleScript(src, options);
       }
     }
   }
@@ -709,10 +726,7 @@ function getImagePreloadKey(href, imageSrcSet, imageSizes) {
   return "[image]" + uniquePart;
 }
 
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-function prepareHostDispatcher() {
-  ReactDOMCurrentDispatcher.current = ReactDOMFlightServerDispatcher;
-} // Used to distinguish these contexts from ones used in other renderers.
+// This module registers the host dispatcher so it needs to be imported
 // small, smaller than how we encode undefined, and is unambiguous. We could use
 // a different tuple structure to encode this instead but this makes the runtime
 // cost cheaper by eliminating a type checks in more positions.
@@ -1269,7 +1283,6 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
 
-  prepareHostDispatcher();
   ReactCurrentCache.current = DefaultCacheDispatcher;
   const abortSet = new Set();
   const pingedTasks = [];

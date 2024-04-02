@@ -25,12 +25,12 @@ const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 // Alias __NEXT_MAJOR__ to true for easier skimming.
 // -----------------------------------------------------------------------------
 
-const __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+const __NEXT_MAJOR__ = true; // Removes legacy style context
 // as a normal prop instead of stripping it from the props object.
 // Passes `ref` as a normal prop instead of stripping it from the props object
 // during element creation.
 
-const enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+const enableRefAsProp = __NEXT_MAJOR__;
 
 const ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 

@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-a870b2d54-20240314';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -229,12 +229,12 @@ function isArray(a) {
 // Alias __NEXT_MAJOR__ to true for easier skimming.
 // -----------------------------------------------------------------------------
 
-const __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+const __NEXT_MAJOR__ = true; // Removes legacy style context
 // as a normal prop instead of stripping it from the props object.
 // Passes `ref` as a normal prop instead of stripping it from the props object
 // during element creation.
 
-const enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+const enableRefAsProp = __NEXT_MAJOR__;
 
 /**
  * Keeps track of the current dispatcher.
@@ -653,6 +653,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
     invokeCallback = true;
   } else {
     switch (type) {
+      case 'bigint':
+
+      // fallthrough for enabled BigInt support
+
       case 'string':
       case 'number':
         invokeCallback = true;

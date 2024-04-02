@@ -209,117 +209,115 @@ function getCrossOriginString(input) {
 }
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
 function dispatchHint(code, model) {
   const dispatcher = ReactDOMCurrentDispatcher.current;
 
-  if (dispatcher) {
-    switch (code) {
-      case 'D':
-        {
-          const refined = refineModel(code, model);
+  switch (code) {
+    case 'D':
+      {
+        const refined = refineModel(code, model);
+        const href = refined;
+        dispatcher.prefetchDNS(href);
+        return;
+      }
+
+    case 'C':
+      {
+        const refined = refineModel(code, model);
+
+        if (typeof refined === 'string') {
           const href = refined;
-          dispatcher.prefetchDNS(href);
-          return;
-        }
-
-      case 'C':
-        {
-          const refined = refineModel(code, model);
-
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preconnect(href);
-          } else {
-            const href = refined[0];
-            const crossOrigin = refined[1];
-            dispatcher.preconnect(href, crossOrigin);
-          }
-
-          return;
-        }
-
-      case 'L':
-        {
-          const refined = refineModel(code, model);
+          dispatcher.preconnect(href);
+        } else {
           const href = refined[0];
-          const as = refined[1];
-
-          if (refined.length === 3) {
-            const options = refined[2];
-            dispatcher.preload(href, as, options);
-          } else {
-            dispatcher.preload(href, as);
-          }
-
-          return;
+          const crossOrigin = refined[1];
+          dispatcher.preconnect(href, crossOrigin);
         }
 
-      case 'm':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preloadModule(href);
-          } else {
-            const href = refined[0];
-            const options = refined[1];
-            dispatcher.preloadModule(href, options);
-          }
+    case 'L':
+      {
+        const refined = refineModel(code, model);
+        const href = refined[0];
+        const as = refined[1];
 
-          return;
+        if (refined.length === 3) {
+          const options = refined[2];
+          dispatcher.preload(href, as, options);
+        } else {
+          dispatcher.preload(href, as);
         }
 
-      case 'S':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preinitStyle(href);
-          } else {
-            const href = refined[0];
-            const precedence = refined[1] === 0 ? undefined : refined[1];
-            const options = refined.length === 3 ? refined[2] : undefined;
-            dispatcher.preinitStyle(href, precedence, options);
-          }
+    case 'm':
+      {
+        const refined = refineModel(code, model);
 
-          return;
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preloadModule(href);
+        } else {
+          const href = refined[0];
+          const options = refined[1];
+          dispatcher.preloadModule(href, options);
         }
 
-      case 'X':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preinitScript(href);
-          } else {
-            const href = refined[0];
-            const options = refined[1];
-            dispatcher.preinitScript(href, options);
-          }
+    case 'S':
+      {
+        const refined = refineModel(code, model);
 
-          return;
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preinitStyle(href);
+        } else {
+          const href = refined[0];
+          const precedence = refined[1] === 0 ? undefined : refined[1];
+          const options = refined.length === 3 ? refined[2] : undefined;
+          dispatcher.preinitStyle(href, precedence, options);
         }
 
-      case 'M':
-        {
-          const refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof refined === 'string') {
-            const href = refined;
-            dispatcher.preinitModuleScript(href);
-          } else {
-            const href = refined[0];
-            const options = refined[1];
-            dispatcher.preinitModuleScript(href, options);
-          }
+    case 'X':
+      {
+        const refined = refineModel(code, model);
 
-          return;
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preinitScript(href);
+        } else {
+          const href = refined[0];
+          const options = refined[1];
+          dispatcher.preinitScript(href, options);
         }
-    }
+
+        return;
+      }
+
+    case 'M':
+      {
+        const refined = refineModel(code, model);
+
+        if (typeof refined === 'string') {
+          const href = refined;
+          dispatcher.preinitModuleScript(href);
+        } else {
+          const href = refined[0];
+          const options = refined[1];
+          dispatcher.preinitModuleScript(href, options);
+        }
+
+        return;
+      }
   }
 } // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.

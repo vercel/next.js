@@ -20,7 +20,7 @@ var crypto = require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
+var ReactVersion = '18.3.0-canary-a870b2d54-20240314';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -465,9 +465,15 @@ function writeViewChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
-    // this chunk may overflow a single view which implies it was not
+    {
+      if (precomputedChunkSet && precomputedChunkSet.has(chunk)) {
+        error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
+      }
+    } // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
+
+
     if (writtenBytes > 0) {
       writeToDestination(destination, currentView.subarray(0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -543,16 +549,20 @@ var textEncoder = new util.TextEncoder();
 function stringToChunk(content) {
   return content;
 }
+var precomputedChunkSet = new Set() ;
 function stringToPrecomputedChunk(content) {
   var precomputedChunk = textEncoder.encode(content);
 
   {
-    if (precomputedChunk.byteLength > VIEW_SIZE) {
-      error('precomputed chunks must be smaller than the view size configured for this host. This is a bug in React.');
+    if (precomputedChunkSet) {
+      precomputedChunkSet.add(precomputedChunk);
     }
   }
 
   return precomputedChunk;
+}
+function clonePrecomputedChunk(precomputedChunk) {
+  return precomputedChunk.length > VIEW_SIZE ? precomputedChunk.slice() : precomputedChunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
@@ -664,6 +674,13 @@ function checkHtmlStringCoercion(value) {
 
 // -----------------------------------------------------------------------------
 var enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to false for easier skimming.
+// -----------------------------------------------------------------------------
+
+var __NEXT_MAJOR__ = false; // Removes legacy style context
+var enableBigIntSupport = __NEXT_MAJOR__;
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -875,9 +892,9 @@ function validateProperties$2(type, props) {
     }).join(', ');
 
     if (invalidProps.length === 1) {
-      error('Invalid aria prop %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+      error('Invalid aria prop %s on <%s> tag. ' + 'For details, see https://react.dev/link/invalid-aria-props', unknownPropString, type);
     } else if (invalidProps.length > 1) {
-      error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+      error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://react.dev/link/invalid-aria-props', unknownPropString, type);
     }
   }
 }
@@ -910,7 +927,7 @@ function isCustomElement(tagName, props) {
     // These are reserved SVG and MathML elements.
     // We don't mind this list too much because we expect it to never grow.
     // The alternative is to track the namespace in a few places which is convoluted.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts
     case 'annotation-xml':
     case 'color-profile':
     case 'font-face':
@@ -926,9 +943,9 @@ function isCustomElement(tagName, props) {
   }
 }
 
-// When adding attributes to the HTML or SVG allowed attribute list, be sure to
 // also add them to this module to ensure casing and incorrect name
 // warnings.
+
 var possibleStandardNames = {
   // HTML
   accept: 'accept',
@@ -1612,6 +1629,10 @@ function validateProperty(tagName, name, value, eventRegistry) {
                 // Boolean properties can accept boolean values
                 return true;
               }
+            // fallthrough
+
+            case 'inert':
+            // fallthrough for new boolean props without the flag on
 
             default:
               {
@@ -1675,6 +1696,9 @@ function validateProperty(tagName, name, value, eventRegistry) {
                   break;
                 }
 
+              case 'inert':
+              // fallthrough for new boolean props without the flag on
+
               default:
                 {
                   return true;
@@ -1710,9 +1734,9 @@ function warnUnknownProperties(type, props, eventRegistry) {
     }).join(', ');
 
     if (unknownProps.length === 1) {
-      error('Invalid value for prop %s on <%s> tag. Either remove it from the element, ' + 'or pass a string or number value to keep it in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+      error('Invalid value for prop %s on <%s> tag. Either remove it from the element, ' + 'or pass a string or number value to keep it in the DOM. ' + 'For details, see https://react.dev/link/attribute-behavior ', unknownPropString, type);
     } else if (unknownProps.length > 1) {
-      error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+      error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://react.dev/link/attribute-behavior ', unknownPropString, type);
     }
   }
 }
@@ -1912,7 +1936,7 @@ function escapeHtml(string) {
 
 
 function escapeTextForBrowser(text) {
-  if (typeof text === 'boolean' || typeof text === 'number') {
+  if (typeof text === 'boolean' || typeof text === 'number' || enableBigIntSupport ) {
     // this shortcircuit helps perf for types that we know will never have
     // special characters, especially given that this function is used often
     // for numeric dom ids.
@@ -1995,19 +2019,17 @@ var NotPending = Object.freeze(sharedNotPendingObject) ;
 
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
-var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-var ReactDOMServerDispatcher = {
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
+var previousDispatcher = ReactDOMCurrentDispatcher.current;
+ReactDOMCurrentDispatcher.current = {
   prefetchDNS: prefetchDNS,
   preconnect: preconnect,
   preload: preload,
   preloadModule: preloadModule,
-  preinitStyle: preinitStyle,
   preinitScript: preinitScript,
+  preinitStyle: preinitStyle,
   preinitModuleScript: preinitModuleScript
-};
-function prepareHostDispatcher() {
-  ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
-} // We make every property of the descriptor optional because it is not a contract that
+}; // We make every property of the descriptor optional because it is not a contract that
 var ScriptStreamingFormat = 0;
 var DataStreamingFormat = 1;
 var NothingSent
@@ -2094,9 +2116,10 @@ var importMapScriptEnd = stringToPrecomputedChunk('</script>'); // Since we stor
 // It should also be noted that this maximum is a soft maximum. we have not reached the limit we will
 // allow one more header to be captured which means in practice if the limit is approached it will be exceeded
 
-var DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000; // Allows us to keep track of what we've already written so we can refer back to it.
+var DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000;
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
+
 
 function createRenderState(resumableState, nonce, externalRuntimeConfig, importMap, onHeaders, maxHeadersLength) {
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
@@ -2898,6 +2921,9 @@ function pushAttribute(target, name, value) // not null or undefined
       pushStringAttribute(target, 'xml:space', value);
       return;
 
+    case 'inert':
+    // fallthrough for new boolean props without the flag on
+
     default:
       if ( // shouldIgnoreAttribute
       // We have already filtered out null/undefined and reserved words.
@@ -2941,7 +2967,7 @@ function pushInnerHTML(target, innerHTML, children) {
     }
 
     if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
-      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
     }
 
     var html = innerHTML.__html;
@@ -2993,7 +3019,7 @@ function pushStartSelect(target, props) {
     checkSelectProp(props, 'defaultValue');
 
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultSelectValue) {
-      error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+      error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components');
 
       didWarnDefaultSelectValue = true;
     }
@@ -3051,7 +3077,7 @@ function flattenOptionChildren(children) {
     content += child;
 
     {
-      if (!didWarnInvalidOptionChildren && typeof child !== 'string' && typeof child !== 'number') {
+      if (!didWarnInvalidOptionChildren && typeof child !== 'string' && typeof child !== 'number' && (!enableBigIntSupport)) {
         didWarnInvalidOptionChildren = true;
 
         error('Cannot infer the option value of complex children. ' + 'Pass a `value` prop or use a plain string as children to <option>.');
@@ -3407,13 +3433,13 @@ function pushInput(target, props, resumableState, renderState) {
 
   {
     if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
-      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components', 'A component', props.type);
 
       didWarnDefaultChecked = true;
     }
 
     if (value !== null && defaultValue !== null && !didWarnDefaultInputValue) {
-      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components', 'A component', props.type);
 
       didWarnDefaultInputValue = true;
     }
@@ -3520,7 +3546,7 @@ function pushStartTextArea(target, props) {
     checkControlledValueProps('textarea', props);
 
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultTextareaValue) {
-      error('Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+      error('Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components');
 
       didWarnDefaultTextareaValue = true;
     }
@@ -4157,16 +4183,16 @@ function pushTitle(target, props, renderState, insertionMode, noscriptTagInScope
       var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
 
       if (Array.isArray(children) && children.length > 1) {
-        error('React expects the `children` prop of <title> tags to be a string, number, or object with a novel `toString` method but found an Array with length %s instead.' + ' Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value' + ' which is why Arrays of length greater than 1 are not supported. When using JSX it can be commong to combine text nodes and value nodes.' + ' For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop' + ' is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.', children.length);
+        error('React expects the `children` prop of <title> tags to be a string, number%s, or object with a novel `toString` method but found an Array with length %s instead.' + ' Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value' + ' which is why Arrays of length greater than 1 are not supported. When using JSX it can be commong to combine text nodes and value nodes.' + ' For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop' + ' is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.', '', children.length);
       } else if (typeof child === 'function' || typeof child === 'symbol') {
         var childType = typeof child === 'function' ? 'a Function' : 'a Sybmol';
 
-        error('React expect children of <title> tags to be a string, number, or object with a novel `toString` method but found %s instead.' + ' Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title>' + ' tags to a single string value.', childType);
+        error('React expect children of <title> tags to be a string, number%s, or object with a novel `toString` method but found %s instead.' + ' Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title>' + ' tags to a single string value.', '', childType);
       } else if (child && child.toString === {}.toString) {
         if (child.$$typeof != null) {
-          error('React expects the `children` prop of <title> tags to be a string, number, or object with a novel `toString` method but found an object that appears to be' + ' a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to' + ' be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is' + ' a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML.');
+          error('React expects the `children` prop of <title> tags to be a string, number%s, or object with a novel `toString` method but found an object that appears to be' + ' a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to' + ' be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is' + ' a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML.', '');
         } else {
-          error('React expects the `children` prop of <title> tags to be a string, number, or object with a novel `toString` method but found an object that does not implement' + ' a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags' + ' to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title>' + ' is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>.');
+          error('React expects the `children` prop of <title> tags to be a string, number%s, or object with a novel `toString` method but found an object that does not implement' + ' a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags' + ' to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title>' + ' is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>.', '');
         }
       }
     }
@@ -4520,7 +4546,7 @@ function pushStartPreformattedElement(target, props, tag) {
     }
 
     if (typeof innerHTML !== 'object' || !('__html' in innerHTML)) {
-      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+      throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
     }
 
     var html = innerHTML.__html;
@@ -4669,7 +4695,7 @@ function pushStartInstance(target, type, props, resumableState, renderState, hoi
         return pushSelfClosing(target, props, type);
       }
     // These are reserved SVG and MathML elements, that are never custom elements.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts
 
     case 'annotation-xml':
     case 'color-profile':
@@ -5087,7 +5113,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     if (requiresStyleInsertion) {
       if ((resumableState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction | SentCompleteBoundaryFunction;
-        writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
+        writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
       } else if ((resumableState.instructions & SentStyleInsertionFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction;
         writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
@@ -5992,6 +6018,7 @@ function prefetchDNS(href) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.prefetchDNS(href);
     return;
   }
 
@@ -6049,6 +6076,7 @@ function preconnect(href, crossOrigin) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preconnect(href, crossOrigin);
     return;
   }
 
@@ -6107,6 +6135,7 @@ function preload(href, as, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preload(href, as, options);
     return;
   }
 
@@ -6310,6 +6339,7 @@ function preloadModule(href, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preloadModule(href, options);
     return;
   }
 
@@ -6377,6 +6407,7 @@ function preinitStyle(href, precedence, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitStyle(href, precedence, options);
     return;
   }
 
@@ -6455,6 +6486,7 @@ function preinitScript(src, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitScript(src, options);
     return;
   }
 
@@ -6516,6 +6548,7 @@ function preinitModuleScript(src, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitModuleScript(src, options);
     return;
   }
 
@@ -7475,7 +7508,7 @@ function constructClassInstance(ctor, props, maskedLegacyContext) {
         if (!didWarnAboutLegacyLifecyclesAndDerivedState.has(_componentName)) {
           didWarnAboutLegacyLifecyclesAndDerivedState.add(_componentName);
 
-          error('Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n' + '%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n' + 'The above lifecycles should be removed. Learn more about this warning here:\n' + 'https://reactjs.org/link/unsafe-component-lifecycles', _componentName, newApiName, foundWillMountName !== null ? "\n  " + foundWillMountName : '', foundWillReceivePropsName !== null ? "\n  " + foundWillReceivePropsName : '', foundWillUpdateName !== null ? "\n  " + foundWillUpdateName : '');
+          error('Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n' + '%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n' + 'The above lifecycles should be removed. Learn more about this warning here:\n' + 'https://react.dev/link/unsafe-component-lifecycles', _componentName, newApiName, foundWillMountName !== null ? "\n  " + foundWillMountName : '', foundWillReceivePropsName !== null ? "\n  " + foundWillReceivePropsName : '', foundWillUpdateName !== null ? "\n  " + foundWillUpdateName : '');
         }
       }
     }
@@ -7599,7 +7632,7 @@ function callComponentWillMount(type, instance) {
 
         if (!didWarnAboutDeprecatedWillMount[componentName]) {
           warn( // keep this warning in sync with ReactStrictModeWarning.js
-          'componentWillMount has been renamed, and is not recommended for use. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move code from componentWillMount to componentDidMount (preferred in most cases) ' + 'or the constructor.\n' + '\nPlease update the following components: %s', componentName);
+          'componentWillMount has been renamed, and is not recommended for use. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move code from componentWillMount to componentDidMount (preferred in most cases) ' + 'or the constructor.\n' + '\nPlease update the following components: %s', componentName);
 
           didWarnAboutDeprecatedWillMount[componentName] = true;
         }
@@ -8012,12 +8045,12 @@ var currentHookNameInDev;
 
 function resolveCurrentlyRenderingComponent() {
   if (currentlyRenderingComponent === null) {
-    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+    throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.');
   }
 
   {
     if (isInHookUserCodeInDev) {
-      error('Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. ' + 'You can only call Hooks at the top level of your React function. ' + 'For more information, see ' + 'https://reactjs.org/link/rules-of-hooks');
+      error('Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. ' + 'You can only call Hooks at the top level of your React function. ' + 'For more information, see ' + 'https://react.dev/link/rules-of-hooks');
     }
   }
 
@@ -8533,7 +8566,7 @@ function useFormState(action, initialState, permalink) {
       };
     }
 
-    return [state, dispatch];
+    return [state, dispatch, false];
   } else {
     // This is not a server action, so the implementation is much simpler.
     // Bind the state to the first argument of the action.
@@ -8544,7 +8577,7 @@ function useFormState(action, initialState, permalink) {
       _boundAction(payload);
     };
 
-    return [initialState, _dispatch2];
+    return [initialState, _dispatch2, false];
   }
 }
 
@@ -9100,7 +9133,6 @@ function defaultErrorHandler(error) {
 function noop() {}
 
 function createRequest(children, resumableState, renderState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError, onPostpone, formState) {
-  prepareHostDispatcher();
   var pingedTasks = [];
   var abortSet = new Set();
   var request = {
@@ -10405,7 +10437,7 @@ function renderNodeDestructive(request, task, node, childIndex) {
     return;
   }
 
-  if (typeof node === 'number') {
+  if (typeof node === 'number' || enableBigIntSupport ) {
     var _segment = task.blockedSegment;
 
     if (_segment === null) ; else {
