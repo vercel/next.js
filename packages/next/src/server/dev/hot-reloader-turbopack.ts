@@ -392,6 +392,8 @@ export async function createHotReloaderTurbopack(
       return
     }
 
+    console.log('subscribeToHmrEvents', id)
+
     const subscription = project!.hmrEvents(id)
     state.subscriptions.set(id, subscription)
 
@@ -414,6 +416,7 @@ export async function createHotReloaderTurbopack(
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
       }
+      console.log(e)
       sendToClient(client, reloadAction)
       client.close()
       return
@@ -421,6 +424,7 @@ export async function createHotReloaderTurbopack(
   }
 
   function unsubscribeFromHmrEvents(client: ws, id: string) {
+    console.log('unsubscribeFromHmrEvents', id)
     const state = clientStates.get(client)
     if (!state) {
       return

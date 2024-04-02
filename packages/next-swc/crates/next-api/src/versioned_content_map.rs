@@ -122,7 +122,9 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        println!("---------------get asset");
         let result = self.raw_get(path).await?;
+
         if let Some(MapEntry {
             assets_operation,
             emit_operation,
@@ -132,12 +134,18 @@ impl VersionedContentMap {
             Vc::connect(assets_operation);
             Vc::connect(emit_operation);
 
+            println!("finding: {:#?}", path.to_string().await?);
             for &asset in assets_operation.await?.iter() {
+                //println!("{:#?}", asset.ident().path().resolve().await?.to_string().await?);
                 if asset.ident().path().resolve().await? == path {
+                    println!("exiting---------------");
                     return Ok(asset);
                 }
             }
+
+            println!("exiting---------------");
         }
+
         let path = path.to_string().await?;
         bail!("could not find asset for path {}", path);
     }

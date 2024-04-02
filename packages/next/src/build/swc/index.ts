@@ -1021,6 +1021,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     hmrEvents(identifier: string) {
+      console.log('hmrEvents', identifier)
       return subscribe<TurbopackResult<Update>>(true, async (callback) =>
         binding.projectHmrEvents(this._nativeProject, identifier, callback)
       )
