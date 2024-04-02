@@ -43,6 +43,36 @@ export async function getTurbopackJsConfig(
 
 class ModuleBuildError extends Error {}
 
+/**
+ * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
+ * to emit certain type of errors into cli.
+ */
+export function isWellKnownError(issue: Issue): boolean {
+  const { title } = issue
+  const formattedTitle = renderStyledStringToErrorAnsi(title)
+  // TODO: add more well known errors
+  if (
+    formattedTitle.includes('Module not found') ||
+    formattedTitle.includes('Unknown module type')
+  ) {
+    return true
+  }
+
+  return false
+}
+
+/// Print out an issue to the console which should not block
+/// the build by throwing out or blocking error overlay.
+export function printNonFatalIssue(issue: Issue) {
+  // Currently only warnings will be printed, excluding if the error source
+  // is coming from foreign (node_modules) codes.
+  if (issue.severity === 'warning') {
+    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
+      Log.warn(formatIssue(issue))
+    }
+  }
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, source } = issue
   let { documentationLink } = issue
@@ -152,12 +182,20 @@ export function processIssues(
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
+      continue
+
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
-    relevantIssues.add(formatted)
+    if (issue.severity !== 'warning') {
+      relevantIssues.add(formatted)
+    }
   }
 
   if (relevantIssues.size && throwIssue) {
@@ -192,10 +230,10 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
+  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
 }
 
 export type ChangeSubscriptions = Map<
@@ -852,6 +890,11 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.app, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
     processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_app')
@@ -875,6 +918,11 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.error, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
     processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_error')

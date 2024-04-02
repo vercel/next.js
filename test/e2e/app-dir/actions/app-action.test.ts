@@ -2,10 +2,10 @@
 import { createNextDescribe } from 'e2e-utils'
 import {
   check,
+  retry,
   waitFor,
   getRedboxSource,
   hasRedbox,
-  retry,
 } from 'next-test-utils'
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
@@ -43,6 +43,23 @@ createNextDescribe(
 
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementById('count').text(), '3')
+    })
+
+    it('should report errors with bad inputs correctly', async () => {
+      const browser = await next.browser('/error-handling', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementByCss('#submit').click()
+
+      const logs = await browser.log()
+      expect(
+        logs.some((log) =>
+          log.message.includes(
+            'Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported.'
+          )
+        )
+      ).toBe(true)
     })
 
     it('should support headers and cookies', async () => {
@@ -539,54 +556,6 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
-
-        it('should error when exporting non async functions during runtime', async () => {
-          const logs: string[] = []
-          next.on('stdout', (log) => {
-            logs.push(log)
-          })
-          next.on('stderr', (log) => {
-            logs.push(log)
-          })
-
-          const filePath = 'app/server/actions.js'
-          const origContent = await next.readFile(filePath)
-
-          try {
-            const browser = await next.browser('/server')
-
-            const cnt = await browser.elementById('count').text()
-            expect(cnt).toBe('0')
-
-            // This requires the runtime to catch
-            await next.patchFile(
-              filePath,
-              origContent + '\n\nconst f = () => {}\nexport { f }'
-            )
-
-            await check(
-              () =>
-                logs.some((log) =>
-                  log.includes(
-                    'Error: A "use server" file can only export async functions. Found "f" that is not an async function.'
-                  )
-                )
-                  ? 'true'
-                  : '',
-              'true'
-            )
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-
-          // verify the error has gone away after the file is reverted
-          const browser = await next.browser('/server')
-          await retry(async () => {
-            expect(await hasRedbox(browser)).toBe(false)
-            const count = await browser.elementById('count').text()
-            expect(count).toBe('0')
-          })
-        })
       })
 
       describe('HMR', () => {
@@ -788,6 +757,28 @@ createNextDescribe(
         await check(async () => {
           return browser.eval('window.location.toString()')
         }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
+      })
+
+      it('should handle redirects to routes that provide an invalid RSC response', async () => {
+        let mpaTriggered = false
+        const browser = await next.browser('/client', {
+          beforePageLoad(page) {
+            page.on('framenavigated', () => {
+              mpaTriggered = true
+            })
+          },
+        })
+
+        await browser.elementByCss('#redirect-pages').click()
+
+        await retry(async () => {
+          expect(await browser.url()).toBe(`${next.url}/pages-dir`)
+          expect(mpaTriggered).toBe(true)
+        })
+
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
       })
 
       // TODO: investigate flakey behavior with revalidate

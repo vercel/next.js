@@ -51,7 +51,7 @@ export const installTemplate = async ({
   if (!tailwind)
     copySource.push(
       mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
-      "!postcss.config.js",
+      "!postcss.config.mjs",
     );
 
   await copy(copySource, root, {
@@ -112,7 +112,7 @@ export const installTemplate = async ({
             ).replace(`@/`, `${importAlias.replace(/\*/g, "")}`),
           );
         }
-        await writeSema.release();
+        writeSema.release();
       }),
     );
   }

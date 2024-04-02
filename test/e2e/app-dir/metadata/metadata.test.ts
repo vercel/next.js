@@ -352,6 +352,23 @@ createNextDescribe(
         })
       })
 
+      it('should not contain query in canonical url after client navigation', async () => {
+        const browser = await next.browser('/')
+        await browser.waitForElementByCss('p#index')
+        await browser.eval(`next.router.push('/alternates')`)
+        // wait for /alternates page is loaded
+        await browser.waitForElementByCss('p#alternates')
+
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
+        })
+      })
+
       it('should support robots tags', async () => {
         const $ = await next.render$('/robots')
         const matchMultiDom = createMultiHtmlMatcher($)
@@ -999,6 +1016,11 @@ createNextDescribe(
       const ogHtml = await next.render('/blog/opengraph-image')
       expect(iconHtml).toContain('pages-icon-page')
       expect(ogHtml).toContain('pages-opengraph-image-page')
+    })
+
+    it('should not crash from error thrown during preloading nested generateMetadata', async () => {
+      const res = await next.fetch('/dynamic-meta')
+      expect(res.status).toBe(404)
     })
   }
 )

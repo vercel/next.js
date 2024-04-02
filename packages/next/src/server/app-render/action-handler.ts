@@ -182,12 +182,13 @@ async function createRedirectRenderResult(
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
 
-    // For standalone or the serverful mode, use the internal hostname directly
-    // other than the headers from the request.
-    const host = process.env.__NEXT_PRIVATE_HOST || originalHost.value
+    // For standalone or the serverful mode, use the internal origin directly
+    // other than the host headers from the request.
+    const origin =
+      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
 
     const fetchUrl = new URL(
-      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
+      `${origin}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {
@@ -208,8 +209,8 @@ async function createRedirectRenderResult(
     // }
 
     try {
-      const headResponse = await fetch(fetchUrl, {
-        method: 'HEAD',
+      const response = await fetch(fetchUrl, {
+        method: 'GET',
         headers: forwardedHeaders,
         next: {
           // @ts-ignore
@@ -217,17 +218,7 @@ async function createRedirectRenderResult(
         },
       })
 
-      if (
-        headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
-      ) {
-        const response = await fetch(fetchUrl, {
-          method: 'GET',
-          headers: forwardedHeaders,
-          next: {
-            // @ts-ignore
-            internal: 1,
-          },
-        })
+      if (response.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
           if (!actionsForbiddenHeaders.includes(key)) {
@@ -236,6 +227,9 @@ async function createRedirectRenderResult(
         }
 
         return new FlightRenderResult(response.body!)
+      } else {
+        // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+        response.body?.cancel()
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
@@ -505,8 +499,15 @@ export async function handleAction({
 
         if (isMultipartAction) {
           if (isFetchAction) {
+            const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+            const limit = require('next/dist/compiled/bytes').parse(
+              readableLimit
+            )
             const busboy = require('busboy')
-            const bb = busboy({ headers: req.headers })
+            const bb = busboy({
+              headers: req.headers,
+              limits: { fieldSize: limit },
+            })
             req.pipe(bb)
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)

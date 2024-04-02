@@ -547,7 +547,7 @@ function runTests(dev = false) {
       expect(getPageFileFromPagesManifest(appDir, '/api/users')).toBeTruthy()
     })
 
-    it('should show warning when the API resolves without ending the request in dev mode', async () => {
+    it('should show warning when the API resolves without ending the request in development mode', async () => {
       const controller = new AbortController()
       setTimeout(() => {
         controller.abort()
@@ -644,15 +644,18 @@ describe('API routes', () => {
 
     runTests(true)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      mode = 'server'
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        mode = 'server'
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

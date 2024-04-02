@@ -61,6 +61,8 @@ import {
   type StartBuilding,
   processTopLevelIssues,
   type TopLevelIssuesMap,
+  isWellKnownError,
+  printNonFatalIssue,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -77,6 +79,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -129,15 +132,15 @@ export async function createHotReloaderTurbopack(
     env: process.env as Record<string, string>,
     defineEnv: createDefineEnv({
       isTurbopack: true,
-      allowedRevalidateHeaderKeys: undefined,
+      // TODO: Implement
       clientRouterFilters: undefined,
       config: nextConfig,
       dev: true,
       distDir,
-      fetchCacheKeyPrefix: undefined,
+      fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
       hasRewrites,
+      // TODO: Implement
       middlewareMatchers: undefined,
-      previewModeId: undefined,
     }),
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
@@ -159,7 +162,11 @@ export async function createHotReloaderTurbopack(
   const currentTopLevelIssues: TopLevelIssuesMap = new Map()
   const currentEntryIssues: EntryIssuesMap = new Map()
 
-  const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
+  const manifestLoader = new TurbopackManifestLoader({
+    buildId,
+    distDir,
+    encryptionKey: await generateEncryptionKeyBase64(),
+  })
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
@@ -249,6 +256,7 @@ export async function createHotReloaderTurbopack(
       readyIds.add(id)
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
+        hmrEventHappened = false
         consoleStore.setState(
           {
             loading: false,
@@ -271,7 +279,10 @@ export async function createHotReloaderTurbopack(
 
   function sendEnqueuedMessages() {
     for (const [, issueMap] of currentEntryIssues) {
-      if (issueMap.size > 0) {
+      if (
+        [...issueMap.values()].filter((i) => i.severity !== 'warning').length >
+        0
+      ) {
         // During compilation errors we want to delay the HMR events until errors are fixed
         return
       }
@@ -284,7 +295,10 @@ export async function createHotReloaderTurbopack(
       }
 
       for (const [, issueMap] of state.clientIssues) {
-        if (issueMap.size > 0) {
+        if (
+          [...issueMap.values()].filter((i) => i.severity !== 'warning')
+            .length > 0
+        ) {
           // During compilation errors we want to delay the HMR events until errors are fixed
           return
         }
@@ -578,9 +592,20 @@ export async function createHotReloaderTurbopack(
             case 'client-reload-page': // { clientId }
             case 'client-removed-page': // { page }
             case 'client-full-reload': // { stackTrace, hadRuntimeError }
-              const { hadRuntimeError } = parsedData
+              const { hadRuntimeError, dependencyChain } = parsedData
               if (hadRuntimeError) {
                 Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
+              }
+              if (
+                Array.isArray(dependencyChain) &&
+                typeof dependencyChain[0] === 'string'
+              ) {
+                const cleanedModulePath = dependencyChain[0]
+                  .replace(/^\[project\]/, '.')
+                  .replace(/ \[.*\] \(.*\)$/, '')
+                Log.warn(
+                  `Fast Refresh had to perform a full reload when ${cleanedModulePath} changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
+                )
               }
               break
             case 'client-added-page':
@@ -620,9 +645,13 @@ export async function createHotReloaderTurbopack(
 
         for (const entryIssues of currentEntryIssues.values()) {
           for (const issue of entryIssues.values()) {
-            errors.push({
-              message: formatIssue(issue),
-            })
+            if (issue.severity !== 'warning') {
+              errors.push({
+                message: formatIssue(issue),
+              })
+            } else {
+              printNonFatalIssue(issue)
+            }
           }
         }
 
@@ -664,21 +693,39 @@ export async function createHotReloaderTurbopack(
       const thisEntryIssues =
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
+
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()].map(
-          (issue) => new Error(formatIssue(issue))
-        )
+        return [...topLevelIssues, ...thisEntryIssues.values()]
+          .map((issue) => {
+            const formattedIssue = formatIssue(issue)
+            if (issue.severity === 'warning') {
+              printNonFatalIssue(issue)
+              return null
+            } else if (isWellKnownError(issue)) {
+              Log.error(formattedIssue)
+            }
+
+            return new Error(formattedIssue)
+          })
+          .filter((error) => error !== null)
       }
 
       // Otherwise, return all errors across pages
       const errors = []
       for (const issue of topLevelIssues) {
-        errors.push(new Error(formatIssue(issue)))
+        if (issue.severity !== 'warning') {
+          errors.push(new Error(formatIssue(issue)))
+        }
       }
       for (const entryIssues of currentEntryIssues.values()) {
         for (const issue of entryIssues.values()) {
-          errors.push(new Error(formatIssue(issue)))
+          if (issue.severity !== 'warning') {
+            const message = formatIssue(issue)
+            errors.push(new Error(message))
+          } else {
+            printNonFatalIssue(issue)
+          }
         }
       }
       return errors
@@ -826,6 +873,7 @@ export async function createHotReloaderTurbopack(
           ) {
             for (const issueMap of issues.values()) {
               for (const [key, issue] of issueMap) {
+                if (issue.severity === 'warning') continue
                 if (errorsMap.has(key)) continue
 
                 const message = formatIssue(issue)

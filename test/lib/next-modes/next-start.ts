@@ -55,8 +55,8 @@ export class NextStartInstance extends NextInstance {
       },
     }
 
-    let buildArgs = ['yarn', 'next', 'build']
-    let startArgs = ['yarn', 'next', 'start']
+    let buildArgs = ['pnpm', 'next', 'build']
+    let startArgs = ['pnpm', 'next', 'start']
 
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')

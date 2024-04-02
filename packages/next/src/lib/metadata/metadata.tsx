@@ -58,7 +58,8 @@ export function createMetadataComponents({
   ) => ParsedUrlQuery
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
-    pathname,
+    // Make sure the pathname without query string
+    pathname: pathname.split('?')[0],
     trailingSlash,
   }
 

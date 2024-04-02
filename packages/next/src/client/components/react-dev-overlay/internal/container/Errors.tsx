@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../app/error-overlay-reducer'
-import type {
-  UnhandledErrorAction,
-  UnhandledRejectionAction,
-} from '../../app/error-overlay-reducer'
+  type UnhandledErrorAction,
+  type UnhandledRejectionAction,
+} from '../../shared'
 import {
   Dialog,
   DialogBody,
@@ -27,8 +25,8 @@ import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
-  isHtmlTagsWarning,
   type HydrationErrorState,
+  getHydrationWarningType,
 } from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
@@ -228,12 +226,13 @@ export function Errors({
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
-  const isHtmlTagsWarningTemplate = isHtmlTagsWarning(warningTemplate)
+  const hydrationErrorType = getHydrationWarningType(warningTemplate)
   const hydrationWarning = warningTemplate
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
-        .replace('%s', '') // remove the last %s for stack
+        .replace('%s', '') // remove the %s for stack
+        .replace(/%s$/, '') // If there's still a %s at the end, remove it
         .replace(/^Warning: /, '')
     : null
 
@@ -256,8 +255,8 @@ export function Errors({
                 <span>{activeIdx + 1}</span> of{' '}
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
-                </span>{' '}
-                unhandled error
+                </span>
+                {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
@@ -267,22 +266,27 @@ export function Errors({
             </h1>
             <p
               id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+              className="nextjs__container_errors_desc"
             >
               {error.name}: <HotlinkedText text={error.message} />
             </p>
-            {hydrationWarning && activeError.componentStackFrames && (
+            {hydrationWarning && (
               <>
-                <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
-                <PseudoHtmlDiff
-                  className="nextjs__container_errors__extra_code"
-                  hydrationMismatchType={
-                    isHtmlTagsWarningTemplate ? 'tag' : 'text'
-                  }
-                  componentStackFrames={activeError.componentStackFrames}
-                  serverContent={serverContent}
-                  clientContent={clientContent}
-                />
+                <p
+                  id="nextjs__container_errors__extra"
+                  className="nextjs__container_errors__extra"
+                >
+                  {hydrationWarning}
+                </p>
+                {activeError.componentStackFrames?.length ? (
+                  <PseudoHtmlDiff
+                    className="nextjs__container_errors__extra_code"
+                    hydrationMismatchType={hydrationErrorType}
+                    componentStackFrames={activeError.componentStackFrames}
+                    firstContent={serverContent}
+                    secondContent={clientContent}
+                  />
+                ) : null}
               </>
             )}
             {isServerError ? (
@@ -308,8 +312,7 @@ export const styles = css`
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
-    margin: 0;
-    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
+    margin: var(--size-gap-double) 0;
   }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
@@ -317,34 +320,35 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-monospace);
+    font-family: var(--font-stack-sans);
   }
   .nextjs-container-errors-header p {
-    font-family: var(--font-stack-monospace);
+    font-family: var(--font-stack-sans);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
-    font-weight: bold;
     margin: 0;
-    margin-top: var(--size-gap-half);
+    margin-top: var(--size-gap);
     white-space: pre-wrap;
   }
-  .nextjs__container_errors_desc--error {
-    color: var(--color-ansi-red);
+  .nextjs__container_errors_desc {
+    padding-left: var(--size-gap);
+    border-left: 4px solid var(--color-accents-1);
+    margin-top: var(--size-gap);
+    font-weight: 500;
+    color: var(--color-stack-subline);
   }
   .nextjs__container_errors__extra {
-    margin: 20px 0;
-  }
-  nextjs__container_errors__extra__code {
-    margin: 10px 0;
+    margin: var(--size-gap-half) 0;
+    color: var(--color-stack-headline);
+    font-weight: 500;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
   }
   .nextjs-container-errors-header > p > a {
-    color: var(--color-ansi-red);
+    font-weight: bold;
   }
-
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
@@ -353,7 +357,7 @@ export const styles = css`
     font-size: var(--size-font-big);
   }
   .nextjs__container_errors__extra_code {
-    margin: 20px 0;
+    margin-top: var(--size-gap);
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);
