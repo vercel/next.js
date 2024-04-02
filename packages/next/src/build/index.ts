@@ -2706,7 +2706,7 @@ export default async function build(
               {
                 type: 'header',
                 key: 'content-type',
-                value: 'multipart/form-data',
+                value: 'multipart/form-data;.*',
               },
             ]
 
