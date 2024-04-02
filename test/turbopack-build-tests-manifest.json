@@ -1008,6 +1008,7 @@
         "app dir - basic known bugs should support React fetch instrumentation server component client-navigation",
         "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
         "app dir - basic next/script should load stylesheets for next/scripts",
+        "app dir - basic next/script should pass `nonce`",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
         "app dir - basic next/script should support next/script and render in correct order",
@@ -2215,6 +2216,15 @@
         "parallel-routes-catchall-slotted-non-catchalls should match default and dynamic segment paths before catch-all"
       ],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts": {
+      "passed": [],
+      "failed": [
+        "parallel-routes-catchall-specificity should match the catch-all route when navigating from a page with a similar path depth as the previously matched slot"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false

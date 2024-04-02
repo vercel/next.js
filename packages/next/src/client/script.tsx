@@ -349,8 +349,8 @@ function Script(props: ScriptProps): JSX.Element | null {
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity }
-            : { as: 'script' }
+            ? { as: 'script', integrity: restProps.integrity, nonce }
+            : { as: 'script', nonce }
         )
         return (
           <script
@@ -370,8 +370,8 @@ function Script(props: ScriptProps): JSX.Element | null {
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity }
-            : { as: 'script' }
+            ? { as: 'script', integrity: restProps.integrity, nonce }
+            : { as: 'script', nonce }
         )
       }
     }
