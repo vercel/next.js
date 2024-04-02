@@ -117,7 +117,7 @@ export async function exportPages(
   const validateAmp = async (
     rawAmpHtml: string,
     ampPageName: string,
-    validatorPath?: string
+    validatorPath: string | undefined
   ) => {
     const validator = await AmpHtmlValidator.getInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
@@ -170,7 +170,7 @@ export async function exportPages(
           ? ampRenderResult.toUnchunkedString()
           : ''
       if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1')
+        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
       await fileWriter(

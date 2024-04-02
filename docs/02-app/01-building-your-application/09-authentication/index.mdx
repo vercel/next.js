@@ -280,8 +280,14 @@ export default function Page() {
 function LoginButton() {
   const { pending } = useFormStatus()
 
+  const handleClick = (event) => {
+    if (pending) {
+      event.preventDefault()
+    }
+  }
+
   return (
-    <button aria-disabled={pending} type="submit">
+    <button aria-disabled={pending} type="submit" onClick={handleClick}>
       Login
     </button>
   )
@@ -310,8 +316,14 @@ export default function Page() {
 function LoginButton() {
   const { pending } = useFormStatus()
 
+  const handleClick = (event) => {
+    if (pending) {
+      event.preventDefault()
+    }
+  }
+
   return (
-    <button aria-disabled={pending} type="submit">
+    <button aria-disabled={pending} type="submit" onClick={handleClick}>
       Login
     </button>
   )

@@ -40,10 +40,18 @@ export function runCompiler(
   {
     runWebpackSpan,
     inputFileSystem,
-  }: { runWebpackSpan: Span; inputFileSystem?: any }
-): Promise<[result: CompilerResult, inputFileSystem?: any]> {
+  }: {
+    runWebpackSpan: Span
+    inputFileSystem?: webpack.Compiler['inputFileSystem']
+  }
+): Promise<
+  [
+    result: CompilerResult,
+    inputFileSystem?: webpack.Compiler['inputFileSystem']
+  ]
+> {
   return new Promise((resolve, reject) => {
-    const compiler = webpack(config) as unknown as webpack.Compiler
+    const compiler = webpack(config)
     // Ensure we use the previous inputFileSystem
     if (inputFileSystem) {
       compiler.inputFileSystem = inputFileSystem
