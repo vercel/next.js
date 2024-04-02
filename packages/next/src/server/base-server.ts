@@ -2263,9 +2263,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             const response = await routeModule.handle(request, context)
 
-            ;(req as any).fetchMetrics = (
-              context.renderOpts as any
-            ).fetchMetrics
+            req.fetchMetrics = context.renderOpts.fetchMetrics
 
             const cacheTags = (context.renderOpts as any).fetchTags
 
@@ -2373,7 +2371,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       // Pull any fetch metrics from the render onto the request.
-      ;(req as any).fetchMetrics = metadata.fetchMetrics
+      req.fetchMetrics = metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
