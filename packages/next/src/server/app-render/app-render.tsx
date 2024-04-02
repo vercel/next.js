@@ -452,6 +452,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         initialCanonicalUrl={urlPathname}
         // @ts-ignore
         reactLoadableManifest={ctx.renderOpts.reactLoadableManifest}
+        // onReceiveDynamicModules={onReceiveDynamicModules}
         // This is the router state tree.
         initialTree={initialTree}
         // This is the tree of React nodes that are seeded into the cache
@@ -602,7 +603,7 @@ async function renderToHTMLOrFlightImpl(
     subresourceIntegrityManifest,
     serverActionsManifest,
     ComponentMod,
-    reactLoadableManifest,
+    // reactLoadableManifest,
     dev,
     nextFontManifest,
     supportsDynamicHTML,
@@ -879,7 +880,14 @@ async function renderToHTMLOrFlightImpl(
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
+        <ReactServerApp
+          tree={tree}
+          ctx={ctx}
+          asNotFound={asNotFound}
+          // onReceiveDynamicModules={(dynamicModules: string[]) => {
+          //   nextDynamicModuleIds.push(...dynamicModules)
+          // }}
+        />,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,

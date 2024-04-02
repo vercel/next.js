@@ -65,7 +65,6 @@ import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { FlightRouterState } from '../../server/app-render/types'
-import Loadable from '../../shared/lib/lazy-dynamic/loadable'
 
 const isServer = typeof window === 'undefined'
 
@@ -299,6 +298,8 @@ function Router({
   couldBeIntercepted,
   assetPrefix,
   missingSlots,
+  // @ts-ignore
+  reactLoadableManifest,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -671,9 +672,7 @@ function Router({
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
             <LoadableContext.Provider
-              value={(moduleName) => {
-                console.log('moduleName', moduleName)
-              }}
+              value={{ manifest: reactLoadableManifest }}
             >
               <GlobalLayoutRouterContext.Provider
                 value={{

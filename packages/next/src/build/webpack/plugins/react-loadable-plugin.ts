@@ -171,7 +171,7 @@ export class ReactLoadablePlugin {
     const manifest = buildManifest(
       compiler,
       compilation,
-      this.pagesDir || this.appDir,
+      this.pagesDir, // || this.appDir,
       this.dev
     )
 
