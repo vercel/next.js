@@ -1106,15 +1106,9 @@ export default class NextNodeServer extends BaseServer {
         const reqStart = Date.now()
 
         const reqCallback = () => {
-          // if we already logged in a render worker
-          // don't log again in the router worker.
-          // we also don't log for middleware alone
-          if (
-            (normalizedReq as any).didInvokePath ||
-            origReq.headers['x-middleware-invoke']
-          ) {
-            return
-          }
+          // we don't log for non-route requests
+          if (!getRequestMeta(req, 'match')?.definition.kind) return
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
