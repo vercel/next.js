@@ -176,12 +176,17 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       it('should send staleTimes feature usage event', async () => {
         const events = findAllTelemetryEvents(
           next.cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
+          'NEXT_CLI_SESSION_STARTED'
         )
-        expect(events).toContainEqual({
-          featureName: 'experimental/staleTimes',
-          invocationCount: 1,
-        })
+
+        expect(events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              staticStaleTime: null,
+              dynamicStaleTime: 0,
+            }),
+          ])
+        )
       })
     })
   })
@@ -286,14 +291,20 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
-    it('should send staleTimes feature usage event', async () => {
-      const events = findAllTelemetryEvents(
-        next.cliOutput,
-        'NEXT_BUILD_FEATURE_USAGE'
-      )
-      expect(events).toContainEqual({
-        featureName: 'experimental/staleTimes',
-        invocationCount: 1,
+    describe('telemetry', () => {
+      it('should send staleTimes feature usage event', async () => {
+        const events = findAllTelemetryEvents(
+          next.cliOutput,
+          'NEXT_CLI_SESSION_STARTED'
+        )
+        expect(events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              staticStaleTime: 180,
+              dynamicStaleTime: null,
+            }),
+          ])
+        )
       })
     })
   })

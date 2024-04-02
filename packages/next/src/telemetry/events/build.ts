@@ -155,7 +155,6 @@ export type EventBuildFeatureUsage = {
     | 'experimental/nextScriptWorkers'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
-    | 'experimental/staleTimes'
     | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'

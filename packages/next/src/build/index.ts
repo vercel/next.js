@@ -2425,14 +2425,6 @@ export default async function build(
           featureName: 'experimental/ppr',
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
-        {
-          featureName: 'experimental/staleTimes',
-          invocationCount:
-            config.experimental.staleTimes !==
-            defaultConfig.experimental?.staleTimes
-              ? 1
-              : 0,
-        },
       ]
       telemetry.record(
         features.map((feature) => {
