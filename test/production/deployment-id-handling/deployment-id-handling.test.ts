@@ -62,6 +62,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         )
 
         try {
+          console.log('!! requests', urlPath, requests)
           expect(
             requests.every((item) => item.includes('dpl=' + deploymentId))
           ).toBe(true)
