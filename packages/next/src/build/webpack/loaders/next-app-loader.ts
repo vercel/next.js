@@ -548,6 +548,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
 
+  //[ '/(group-a)/page', '/(group-b)/page' ]
   const resolveParallelSegments = (
     pathname: string
   ): [string, string | string[]][] => {

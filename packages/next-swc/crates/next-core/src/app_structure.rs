@@ -853,19 +853,18 @@ async fn directory_tree_to_loader_tree(
                     // gracefully handle when two page
                     // segments match the `children`
                     // parallel slot" to fail
-                    // DirectoryTreeIssue {
-                    //     app_dir,
-                    //     message: StyledString::Text(format!(
-                    //         "You cannot have two parallel pages that resolve
-                    // to the same path. \          Route {}
-                    // has multiple matches in {}",
-                    //         for_app_path, app_page
-                    //     ))
-                    //     .cell(),
-                    //     severity: IssueSeverity::Error.cell(),
-                    // }
-                    // .cell()
-                    // .emit();
+                    DirectoryTreeIssue {
+                        app_dir,
+                        message: StyledString::Text(format!(
+                            "You cannot have two parallel pages that resolve to the same path. \
+                             Route {} has multiple matches in {}",
+                            for_app_path, app_page
+                        ))
+                        .cell(),
+                        severity: IssueSeverity::Error.cell(),
+                    }
+                    .cell()
+                    .emit();
                 }
             } else {
                 tree.parallel_routes.insert("children".to_string(), subtree);
@@ -878,6 +877,9 @@ async fn directory_tree_to_loader_tree(
             );
         }
     }
+
+    //
+    //println!("{:#?}", tree.parallel_routes);
 
     if tree.parallel_routes.is_empty() {
         tree.segment = "__DEFAULT__".to_string();

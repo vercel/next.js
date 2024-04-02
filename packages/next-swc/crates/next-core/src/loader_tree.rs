@@ -400,6 +400,9 @@ impl LoaderTreeBuilder {
         // add parallel_routes
         for (key, &parallel_route) in parallel_routes.iter() {
             write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
+
+            //println!("walk_tree: parallel_route {segment} {key}");
+
             self.walk_tree(parallel_route, false).await?;
             writeln!(self.loader_tree_code, ",")?;
         }
