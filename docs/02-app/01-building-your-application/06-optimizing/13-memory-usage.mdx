@@ -20,7 +20,7 @@ To look for memory issues, you can record a heap profile from Node.js and load i
 In your terminal, pass the `--heap-prof` flag to Node.js when starting your Next.js build:
 
 ```sh
-node --heap-prof next build
+node --heap-prof ./node_modules/next/dist/bin/next build
 ```
 
 At the end of the build, a `.heapprofile` file will be created by Node.js.
