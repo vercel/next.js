@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
+import { findAllTelemetryEvents } from 'next-test-utils'
 
 describe('app dir client cache semantics (experimental staleTimes)', () => {
   describe('dynamic: 0', () => {
@@ -7,6 +8,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       files: __dirname,
       nextConfig: {
         experimental: { staleTimes: { dynamic: 0 } },
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: '1',
       },
     })
 
@@ -167,6 +171,19 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
         })
       })
     })
+
+    describe('telemetry', () => {
+      it('should send staleTimes feature usage event', async () => {
+        const events = findAllTelemetryEvents(
+          next.cliOutput,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/staleTimes',
+          invocationCount: 1,
+        })
+      })
+    })
   })
 
   describe('static: 180', () => {
@@ -174,6 +191,9 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       files: __dirname,
       nextConfig: {
         experimental: { staleTimes: { static: 180 } },
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: '1',
       },
     })
 
@@ -263,6 +283,17 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
           .text()
 
         expect(loadingRandomNumber).not.toBe(newLoadingNumber)
+      })
+    })
+
+    it('should send staleTimes feature usage event', async () => {
+      const events = findAllTelemetryEvents(
+        next.cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(events).toContainEqual({
+        featureName: 'experimental/staleTimes',
+        invocationCount: 1,
       })
     })
   })
