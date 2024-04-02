@@ -260,6 +260,7 @@ async function updatePassingTests() {
           suites: ordered,
           rules: {
             include: [
+              'test/integration/**/*.test.{t,j}s{,x}',
               'test/e2e/**/*.test.{t,j}s{,x}',
               'test/production/**/*.test.{t,j}s{,x}',
             ],

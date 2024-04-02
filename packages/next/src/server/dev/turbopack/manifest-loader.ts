@@ -7,7 +7,6 @@ import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
-import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 import type { LoadableManifest } from '../../load-components'
 import {
@@ -86,13 +85,23 @@ export class TurbopackManifestLoader {
   private middlewareManifests: Map<EntryKey, TurbopackMiddlewareManifest> =
     new Map()
   private pagesManifests: Map<string, PagesManifest> = new Map()
+  private encryptionKey: string
 
   private readonly distDir: string
   private readonly buildId: string
 
-  constructor({ distDir, buildId }: { buildId: string; distDir: string }) {
+  constructor({
+    distDir,
+    buildId,
+    encryptionKey,
+  }: {
+    buildId: string
+    distDir: string
+    encryptionKey: string
+  }) {
     this.distDir = distDir
     this.buildId = buildId
+    this.encryptionKey = encryptionKey
   }
 
   delete(key: EntryKey) {
@@ -123,7 +132,7 @@ export class TurbopackManifestLoader {
     const manifest: ActionManifest = {
       node: {},
       edge: {},
-      encryptionKey: await generateRandomActionKeyRaw(true),
+      encryptionKey: this.encryptionKey,
     }
 
     function mergeActionIds(

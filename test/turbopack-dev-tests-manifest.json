@@ -119,11 +119,12 @@
       "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
-      "normalizeCatchallRoutes should not add the catch-all to the interception route",
-      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
+      "normalizeCatchallRoutes should not add the catch-all to the interception route"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -131,7 +132,8 @@
     "passed": [
       "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
       "resolveRouteData resolveRobots should resolve robots.txt",
-      "resolveRouteData resolveSitemap should resolve sitemap.xml"
+      "resolveRouteData resolveSitemap should resolve sitemap.xml",
+      "resolveRouteData resolveSitemap should resolve sitemap.xml with alternates"
     ],
     "failed": [],
     "pending": [],
@@ -280,8 +282,8 @@
   },
   "packages/next/src/client/components/router-reducer/is-navigating-to-new-root-layout.test.ts": {
     "passed": [
-      "shouldHardNavigate should return false if there is no new root layout",
-      "shouldHardNavigate should return true if there is a mismatch between the root layouts"
+      "isNavigatingToNewRootLayout should return false if there is no new root layout",
+      "isNavigatingToNewRootLayout should return true if there is a mismatch between the root layouts"
     ],
     "failed": [],
     "pending": [],
@@ -1523,6 +1525,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/basic/barrel-optimization/barrel-optimization-tremor.test.ts": {
+    "passed": ["optimizePackageImports - mui should work"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/barrel-optimization/barrel-optimization.test.ts": {
     "passed": [],
     "failed": [],
@@ -1587,6 +1596,7 @@
       "basic HMR, basePath: \"\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover after undefined exported as default",
+      "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
@@ -1611,6 +1621,7 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
@@ -1628,10 +1639,7 @@
       "basic HMR, basePath: \"/docs\" should have correct router.isReady for getStaticProps page",
       "basic HMR, basePath: \"/docs\" should show hydration error correctly"
     ],
-    "failed": [
-      "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1979,8 +1987,8 @@
     "runtimeError": false
   },
   "test/development/next-font/font-loader-in-document-error.test.ts": {
-    "passed": [],
-    "failed": ["font-loader-in-document-error next/font inside _document"],
+    "passed": ["font-loader-in-document-error next/font inside _document"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2225,10 +2233,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir edge runtime config should warn the legacy object config export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2328,6 +2336,7 @@
       "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
       "app-dir action handling fetch actions should handle redirect to a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
       "app-dir action handling fetch actions should handle regular redirects",
       "app-dir action handling fetch actions should handle revalidatePath",
       "app-dir action handling fetch actions should handle revalidateTag",
@@ -2354,6 +2363,7 @@
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
       "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should support .bind",
       "app-dir action handling should support chained .bind",
       "app-dir action handling should support formData and redirect",
@@ -2536,11 +2546,10 @@
       "app-dir edge SSR should handle edge rsc hmr",
       "app-dir edge SSR should resolve client component without error",
       "app-dir edge SSR should resolve module without error in edge runtime",
-      "app-dir edge SSR should retrieve cookies in a server component in the edge runtime"
-    ],
-    "failed": [
+      "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
       "app-dir edge SSR should warn about the re-export of a pages runtime/preferredRegion config"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3045,6 +3054,7 @@
       "app dir - basic known bugs should support React fetch instrumentation server component client-navigation",
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
+      "app dir - basic next/script should pass `nonce`",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic next/script should support next/script and render in correct order",
@@ -3164,8 +3174,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
+    "passed": [
+      "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
+      "app-dir assetPrefix with basePath handling should redirect route when clicking link",
+      "app-dir assetPrefix with basePath handling should redirect route when requesting it directly",
+      "app-dir assetPrefix with basePath handling should redirect route when requesting it directly by browser",
+      "app-dir assetPrefix with basePath handling should render link"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/asset-prefix/asset-prefix.test.ts": {
     "passed": [
+      "app-dir assetPrefix handling bundles should return 200 on served assetPrefix",
       "app-dir assetPrefix handling should redirect route when clicking link",
       "app-dir assetPrefix handling should redirect route when requesting it directly",
       "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
@@ -3353,9 +3377,11 @@
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
+      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
+      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
@@ -3368,10 +3394,7 @@
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
     ],
-    "failed": [
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
-      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3394,6 +3417,26 @@
     "passed": [
       "dynamic-href should error when using dynamic href in app dir",
       "dynamic-href should error when using dynamic href.pathname in app dir"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
+    "passed": [
+      "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
+      "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
+      "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
+    "passed": [
+      "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
     ],
     "failed": [],
     "pending": [],
@@ -3782,7 +3825,8 @@
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
+      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
+      "app dir - metadata dynamic routes text routes should support alternate.languages in sitemap"
     ],
     "failed": [],
     "pending": [],
@@ -3819,6 +3863,7 @@
   "test/e2e/app-dir/metadata-warnings/index.test.ts": {
     "passed": [
       "app dir - metadata missing metadataBase should fallback to localhost if metadataBase is missing for absolute urls resolving",
+      "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing if there is only absolute url",
       "app dir - metadata missing metadataBase should warn for unsupported metadata properties"
     ],
@@ -3831,6 +3876,7 @@
     "passed": [
       "app dir - metadata basic should apply metadata when navigating client-side",
       "app dir - metadata basic should handle metadataBase for urls resolved as only URL type",
+      "app dir - metadata basic should not contain query in canonical url after client navigation",
       "app dir - metadata basic should relative canonical url",
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
@@ -3938,6 +3984,8 @@
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation query string useParams identity between renders should be stable in pages",
+      "app dir - navigation redirect components should only trigger the redirect once (/redirect/servercomponent)",
+      "app dir - navigation redirect components should only trigger the redirect once (redirect/redirect-with-loading)",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -4215,6 +4263,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-specificity should match the catch-all route when navigating from a page with a similar path depth as the previously matched slot"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
     "passed": [
       "parallel-routes-catchall should match both the catch-all page & slot",
@@ -4247,6 +4304,9 @@
   },
   "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
     "passed": [
+      "parallel-routes-revalidation router.refresh should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
@@ -4537,6 +4597,7 @@
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position sticky",
       "router autoscrolling on navigation horizontal scroll should't scroll horizontally",
+      "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
       "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
@@ -4547,9 +4608,7 @@
       "router autoscrolling on navigation vertical scroll should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport"
     ],
     "failed": [],
-    "pending": [
-      "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4692,11 +4751,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/dynamic-route-module/dynamic-route-module.test.ts": {
-    "passed": [],
+    "passed": ["Dynamic Route CSS Module Usage should apply styles correctly"],
     "failed": [],
-    "pending": [
-      "Dynamic Route CSS Module Usage production mode should apply styles correctly"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4858,6 +4915,13 @@
     "passed": [
       "Has CSS Module in computed styles in Production should render the page"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/scss-mixins/scss-mixins.test.ts": {
+    "passed": ["Scss Mixins should work using browser"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5032,6 +5096,17 @@
   "test/e2e/app-dir/similar-pages-paths/similar-pages-paths.test.ts": {
     "passed": [
       "app-dir similar pages paths should not have conflicts for similar pattern page paths between app and pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/static-generation-status/index.test.ts": {
+    "passed": [
+      "app-dir static-generation-status should render the non existed route redirect with status 404",
+      "app-dir static-generation-status should render the page using notFound with status 404",
+      "app-dir static-generation-status should render the page using redirect with status 307"
     ],
     "failed": [],
     "pending": [],
@@ -6599,6 +6674,7 @@
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
+      "opentelemetry incoming context propagation app router should propagate custom context without span",
       "opentelemetry incoming context propagation app router should trace middleware",
       "opentelemetry incoming context propagation pages should handle api routes in pages",
       "opentelemetry incoming context propagation pages should handle api routes in pages on edge",
@@ -6610,6 +6686,7 @@
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
+      "opentelemetry root context app router should propagate custom context without span",
       "opentelemetry root context app router should trace middleware",
       "opentelemetry root context pages should handle api routes in pages",
       "opentelemetry root context pages should handle api routes in pages on edge",
@@ -6922,6 +6999,7 @@
   "test/e2e/testmode/testmode.test.ts": {
     "passed": [
       "testmode app router should avoid fetch cache",
+      "testmode app router should fetch real data when Next-Test-* headers are not present",
       "testmode app router should handle API with fetch in edge function",
       "testmode app router should handle API with fetch in serverless function",
       "testmode app router should handle API with http.get in serverless function",
@@ -7150,10 +7228,10 @@
   },
   "test/integration/500-page/test/index.test.js": {
     "passed": [
+      "500 Page Support development mode 2 shows error with getInitialProps in pages/500 dev",
       "500 Page Support development mode should not error when visited directly",
       "500 Page Support development mode should set correct status code with pages/500",
-      "500 Page Support development mode should use pages/500",
-      "500 Page Support development mode 2 shows error with getInitialProps in pages/500 dev"
+      "500 Page Support development mode should use pages/500"
     ],
     "failed": [],
     "pending": [
@@ -7251,11 +7329,11 @@
   },
   "test/integration/amphtml/test/index.test.js": {
     "passed": [
+      "AMP Usage AMP dev no-warn should not warn on valid amp",
       "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning",
-      "AMP Usage AMP dev no-warn should not warn on valid amp"
+      "AMP Usage AMP development mode should not contain missing files warning"
     ],
     "failed": [],
     "pending": [
@@ -7473,11 +7551,10 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
     "passed": [
+      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
       "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
     ],
-    "failed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7495,12 +7572,11 @@
   "test/integration/app-dir-export/test/dynamicapiroute-dev.test.ts": {
     "passed": [
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'error'",
+      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-static'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined"
     ],
-    "failed": [
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8497,20 +8573,20 @@
       "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
-      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav from index)",
-      "CSS Modules Composes Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on nav from other)",
       "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct CSS injection order",
       "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering useLightnincsss(false) production mode should have correct color on index page (on nav from other)",
       "CSS Modules Composes Ordering useLightnincsss(false) production mode should not change color on hover",
-      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on load)",
-      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav from index)",
-      "CSS Modules Composes Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering useLightnincsss(true) development mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering useLightnincsss(true) development mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering useLightnincsss(true) development mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering useLightnincsss(true) development mode should have correct color on index page (on nav from other)",
       "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct CSS injection order",
       "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering useLightnincsss(true) production mode should have correct color on index page (on load)",
@@ -9035,13 +9111,13 @@
   },
   "test/integration/draft-mode/test/index.test.ts": {
     "passed": [
-      "Test Draft Mode Development Mode should disable draft mode",
-      "Test Draft Mode Development Mode should enable draft mode",
-      "Test Draft Mode Development Mode should fetch draft data on CST",
-      "Test Draft Mode Development Mode should fetch draft data on SSR",
-      "Test Draft Mode Development Mode should return cookies to be expired after dev server reboot",
-      "Test Draft Mode Development Mode should start development application",
-      "Test Draft Mode Development Mode should start the client-side browser"
+      "Test Draft Mode development mode should disable draft mode",
+      "Test Draft Mode development mode should enable draft mode",
+      "Test Draft Mode development mode should fetch draft data on CST",
+      "Test Draft Mode development mode should fetch draft data on SSR",
+      "Test Draft Mode development mode should return cookies to be expired after dev server reboot",
+      "Test Draft Mode development mode should start development application",
+      "Test Draft Mode development mode should start the client-side browser"
     ],
     "failed": [],
     "pending": [
@@ -9570,12 +9646,12 @@
   },
   "test/integration/edge-runtime-module-errors/test/module-imports.test.js": {
     "passed": [
+      "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-      "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
+      "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
     ],
     "failed": [
       "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
@@ -11533,13 +11609,13 @@
   },
   "test/integration/getserversideprops-preview/test/index.test.js": {
     "passed": [
-      "ServerSide Props Preview Mode Development Mode should enable preview mode",
-      "ServerSide Props Preview Mode Development Mode should fetch prerendered data",
-      "ServerSide Props Preview Mode Development Mode should fetch preview data on CST",
-      "ServerSide Props Preview Mode Development Mode should fetch preview data on SSR",
-      "ServerSide Props Preview Mode Development Mode should return cookies to be expired after dev server reboot",
-      "ServerSide Props Preview Mode Development Mode should start development application",
-      "ServerSide Props Preview Mode Development Mode should start the client-side browser"
+      "ServerSide Props Preview Mode development mode should enable preview mode",
+      "ServerSide Props Preview Mode development mode should fetch prerendered data",
+      "ServerSide Props Preview Mode development mode should fetch preview data on CST",
+      "ServerSide Props Preview Mode development mode should fetch preview data on SSR",
+      "ServerSide Props Preview Mode development mode should return cookies to be expired after dev server reboot",
+      "ServerSide Props Preview Mode development mode should start development application",
+      "ServerSide Props Preview Mode development mode should start the client-side browser"
     ],
     "failed": [],
     "pending": [
@@ -14695,14 +14771,14 @@
   },
   "test/integration/prerender-preview/test/index.test.js": {
     "passed": [
-      "Prerender Preview Mode Development Mode should enable preview mode",
-      "Prerender Preview Mode Development Mode should fetch live static props with preview active",
-      "Prerender Preview Mode Development Mode should fetch prerendered data",
-      "Prerender Preview Mode Development Mode should fetch preview data on CST",
-      "Prerender Preview Mode Development Mode should fetch preview data on SSR",
-      "Prerender Preview Mode Development Mode should return cookies to be expired after dev server reboot",
-      "Prerender Preview Mode Development Mode should start development application",
-      "Prerender Preview Mode Development Mode should start the client-side browser"
+      "Prerender Preview Mode development mode should enable preview mode",
+      "Prerender Preview Mode development mode should fetch live static props with preview active",
+      "Prerender Preview Mode development mode should fetch prerendered data",
+      "Prerender Preview Mode development mode should fetch preview data on CST",
+      "Prerender Preview Mode development mode should fetch preview data on SSR",
+      "Prerender Preview Mode development mode should return cookies to be expired after dev server reboot",
+      "Prerender Preview Mode development mode should start development application",
+      "Prerender Preview Mode development mode should start the client-side browser"
     ],
     "failed": [],
     "pending": [
@@ -15371,15 +15447,14 @@
       "Next.js Script - Primary Strategies - Strict Mode onReady should only fires once after loaded (issue #39993)",
       "Next.js Script - Primary Strategies - Strict Mode onload fires correctly",
       "Next.js Script - Primary Strategies - Strict Mode priority afterInteractive",
+      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive",
+      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive - older version",
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive on navigate",
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script",
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
       "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
     ],
-    "failed": [
-      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive",
-      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive - older version"
-    ],
+    "failed": [],
     "pending": [
       "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
       "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",

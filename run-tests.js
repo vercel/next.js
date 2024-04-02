@@ -20,6 +20,7 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('test-pattern')
   .boolean('timings')
   .boolean('write-timings')
+  .number('retries')
   .boolean('debug')
   .string('g')
   .alias('g', 'group')
@@ -185,8 +186,6 @@ async function getTestTimings() {
 }
 
 async function main() {
-  let numRetries = DEFAULT_NUM_RETRIES
-
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
@@ -198,8 +197,9 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
+    retries: argv.retries ?? DEFAULT_NUM_RETRIES,
   }
-
+  let numRetries = options.retries
   const hideOutput = !options.debug
 
   let filterTestsBy

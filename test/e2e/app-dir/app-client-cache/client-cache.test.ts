@@ -434,6 +434,26 @@ createNextDescribe(
 
           expect(newNumber).not.toBe(randomNumber)
         })
+
+        it('should respect a loading boundary that returns `null`', async () => {
+          await browser.elementByCss('[href="/null-loading"]').click()
+
+          // the page content should disappear immediately
+          expect(
+            await browser.hasElementByCssSelector('[href="/null-loading"]')
+          ).toBeFalse()
+
+          // the root layout should still be visible
+          expect(
+            await browser.hasElementByCssSelector('#root-layout')
+          ).toBeTrue()
+
+          // the dynamic content should eventually appear
+          await browser.waitForElementByCss('#random-number')
+          expect(
+            await browser.hasElementByCssSelector('#random-number')
+          ).toBeTrue()
+        })
       })
 
       it('should seed the prefetch cache with the fetched page data', async () => {

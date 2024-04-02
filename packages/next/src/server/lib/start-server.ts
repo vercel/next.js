@@ -91,7 +91,7 @@ export async function startServer(
   } = serverOptions
   let { port } = serverOptions
 
-  process.title = 'next-server'
+  process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -258,6 +258,8 @@ export async function startServer(
         expFeatureInfo,
         maxExperimentalFeatures: 3,
       })
+
+      Log.event(`Starting...`)
 
       try {
         const cleanup = () => {
