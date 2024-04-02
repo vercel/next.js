@@ -2421,6 +2421,10 @@ export default async function build(
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
         },
+        {
+          featureName: 'experimental/ppr',
+          invocationCount: config.experimental.ppr ? 1 : 0,
+        },
       ]
       telemetry.record(
         features.map((feature) => {
