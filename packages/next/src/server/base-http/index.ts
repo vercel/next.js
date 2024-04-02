@@ -4,6 +4,7 @@ import type { I18NConfig } from '../config-shared'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import type { NextApiRequestCookies } from '../api-utils'
 import { getCookieParser } from '../api-utils/get-cookie-parser'
+import { NEXT_REQUEST_META, type RequestMeta } from '../request-meta'
 
 export interface BaseNextRequestConfig {
   basePath: string | undefined
@@ -27,7 +28,8 @@ export type FetchMetrics = Array<FetchMetric>
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
-  public abstract fetchMetrics?: FetchMetric[]
+  public abstract fetchMetrics?: FetchMetric[];
+  [NEXT_REQUEST_META]?: RequestMeta
 
   constructor(public method: string, public url: string, public body: Body) {}
 

@@ -1,5 +1,4 @@
 /* eslint-disable no-redeclare */
-import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
@@ -9,10 +8,6 @@ import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-heade
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
-
-export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
-  [NEXT_REQUEST_META]?: RequestMeta
-}
 
 export interface RequestMeta {
   /**
@@ -105,15 +100,15 @@ export interface RequestMeta {
  * @returns the value for the key or the entire metadata object
  */
 export function getRequestMeta(
-  req: NextIncomingMessage,
+  req: BaseNextRequest,
   key?: undefined
 ): RequestMeta
 export function getRequestMeta<K extends keyof RequestMeta>(
-  req: NextIncomingMessage,
+  req: BaseNextRequest,
   key: K
 ): RequestMeta[K]
 export function getRequestMeta<K extends keyof RequestMeta>(
-  req: NextIncomingMessage,
+  req: BaseNextRequest,
   key?: K
 ): RequestMeta | RequestMeta[K] {
   const meta = req[NEXT_REQUEST_META] || {}
@@ -127,7 +122,7 @@ export function getRequestMeta<K extends keyof RequestMeta>(
  * @param meta the metadata to set
  * @returns the mutated request metadata
  */
-export function setRequestMeta(req: NextIncomingMessage, meta: RequestMeta) {
+export function setRequestMeta(req: BaseNextRequest, meta: RequestMeta) {
   req[NEXT_REQUEST_META] = meta
   return meta
 }
@@ -141,7 +136,7 @@ export function setRequestMeta(req: NextIncomingMessage, meta: RequestMeta) {
  * @returns the mutated request metadata
  */
 export function addRequestMeta<K extends keyof RequestMeta>(
-  request: NextIncomingMessage,
+  request: BaseNextRequest,
   key: K,
   value: RequestMeta[K]
 ) {
@@ -158,7 +153,7 @@ export function addRequestMeta<K extends keyof RequestMeta>(
  * @returns the mutated request metadata
  */
 export function removeRequestMeta<K extends keyof RequestMeta>(
-  request: NextIncomingMessage,
+  request: BaseNextRequest,
   key: K
 ) {
   const meta = getRequestMeta(request)
