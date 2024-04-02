@@ -16,7 +16,7 @@ type NextBuildOptions = {
   profile?: boolean
   lint: boolean
   mangling: boolean
-  debugMemoryUsage: boolean
+  experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate'
@@ -28,7 +28,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const {
     debug,
-    debugMemoryUsage,
+    experimentalDebugMemoryUsage,
     profile,
     lint,
     mangling,
@@ -53,8 +53,8 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     )
   }
 
-  if (debugMemoryUsage) {
-    process.env.DEBUG_MEMORY_USAGE = '1'
+  if (experimentalDebugMemoryUsage) {
+    process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE = '1'
     enableMemoryDebuggingMode()
   }
 
@@ -80,7 +80,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode
   )
     .catch((err) => {
-      if (debugMemoryUsage) {
+      if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
       }
       console.error('')
@@ -100,7 +100,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
       }
     })
     .finally(() => {
-      if (debugMemoryUsage) {
+      if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
       }
     })

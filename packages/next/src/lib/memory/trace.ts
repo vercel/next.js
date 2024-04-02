@@ -74,7 +74,7 @@ export function traceMemoryUsage(
   } else {
     trace('memory-usage', undefined, tracedMemoryUsageAsStrings)
   }
-  if (process.env.DEBUG_MEMORY_USAGE) {
+  if (process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE) {
     const percentageHeapUsed = (100 * heapUsed) / heapMax
 
     info('')
