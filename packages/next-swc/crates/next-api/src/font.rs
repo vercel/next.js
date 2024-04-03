@@ -1,6 +1,8 @@
+use std::iter::once;
+
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{vdbg, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileSystemPath},
     turbopack::core::{
@@ -11,6 +13,16 @@ use turbopack_binding::{
 };
 
 use crate::paths::get_font_paths_from_root;
+
+#[turbo_tasks::function]
+async fn has_app_js(client_assets: Vc<OutputAssets>) -> Result<Vc<bool>> {
+    for &asset in client_assets.await? {
+        let i = asset.ident().await?;
+        vdbg!(i);
+    }
+
+    Ok(Vc::cell(false))
+}
 
 pub(crate) async fn create_font_manifest(
     client_root: Vc<FileSystemPath>,
@@ -23,6 +35,8 @@ pub(crate) async fn create_font_manifest(
     app_dir: bool,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let all_client_output_assets = all_assets_from_entries(client_assets).await?;
+
+    let has_pages_app_js = *has_app_js(client_assets).await?;
 
     // `_next` gets added again later, so we "strip" it here via
     // `get_font_paths_from_root`.
@@ -63,11 +77,13 @@ pub(crate) async fn create_font_manifest(
         }
     } else {
         NextFontManifest {
-            pages: [
-                ("/_app".to_string(), vec![]),
-                (pathname.to_string(), font_paths),
-            ]
+            pages: if has_pages_app_js {
+                Some(("/_app".to_string(), vec![]))
+            } else {
+                None
+            }
             .into_iter()
+            .chain(once((pathname.to_string(), font_paths)))
             .collect(),
             pages_using_size_adjust: using_size_adjust,
             ..Default::default()
