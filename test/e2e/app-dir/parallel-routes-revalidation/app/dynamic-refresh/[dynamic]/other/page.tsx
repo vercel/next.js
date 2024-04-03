@@ -1,5 +1,5 @@
-import { RefreshButton } from '../../components/RefreshButton'
-import { RevalidateButton } from '../../components/RevalidateButton'
+import { RefreshButton } from '../../../components/RefreshButton'
+import { RevalidateButton } from '../../../components/RevalidateButton'
 
 export default function Page() {
   return (
