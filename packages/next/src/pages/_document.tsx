@@ -367,6 +367,14 @@ function getNextFontLinkTags(
       preload: null,
     }
   }
+  console.log(
+    'nextFontManifest',
+    nextFontManifest,
+    'dangerousAsPath',
+    dangerousAsPath,
+    'assetPrefix',
+    assetPrefix
+  )
 
   const appFontsEntry = nextFontManifest.pages['/_app']
   const pageFontsEntry = nextFontManifest.pages[dangerousAsPath]
@@ -375,6 +383,14 @@ function getNextFontLinkTags(
     new Set([...(appFontsEntry ?? []), ...(pageFontsEntry ?? [])])
   )
 
+  console.log(
+    'preloadedFontFiles',
+    preloadedFontFiles,
+    'appFontsEntry',
+    appFontsEntry,
+    'pageFontsEntry',
+    pageFontsEntry
+  )
   // If no font files should preload but there's an entry for the path, add a preconnect tag.
   const preconnectToSelf = !!(
     preloadedFontFiles.length === 0 &&
