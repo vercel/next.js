@@ -924,7 +924,7 @@ impl PageEndpoint {
     ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let node_root = this.pages_project.project().node_root();
-        let project_dir = this.pages_project.project().project_path().await?;
+        let project_src_dir = this.pages_project.pages_dir().parent().await?;
 
         let dynamic_import_entries = &*dynamic_import_entries.await?;
 
@@ -942,7 +942,7 @@ impl PageEndpoint {
                 // dir for the origin import.
                 let id = format!(
                     "{} -> {}",
-                    project_dir
+                    project_src_dir
                         .get_path_to(origin_path)
                         .map_or_else(|| origin_path.to_string(), |path| path.to_string()),
                     import
