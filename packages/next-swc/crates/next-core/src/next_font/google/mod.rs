@@ -195,9 +195,9 @@ impl NextFontGoogleCssModuleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
+    async fn import_map_result(&self, query: Arc<String>) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
-        let query_vc = Vc::cell(query);
+        let query_vc = Vc::cell((*query).clone());
         let font_data = load_font_data(self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
