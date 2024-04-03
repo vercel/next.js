@@ -349,6 +349,29 @@ async function run(): Promise<void> {
     opts.app = app
   }
 
+  // Matches <prefix>/* except disallowed characters for paths: " or *
+  // See https://github.com/vercel/next.js/pull/63855#issuecomment-2028572798
+  const importAliasPattern = /^[^*"]+\/\*\s*$/
+  function validateImportAlias(value: string): string | true {
+    if (importAliasPattern.test(value)) {
+      return true
+    }
+
+    // Has disallowed characters for paths: " or *
+    if (/["*].*\/\*/.test(value)) {
+      return `${ct.importAlias} cannot include ${bold(
+        'asterisk (*)'
+      )} or ${bold('double quote (")')}`
+    }
+
+    return `${ct.importAlias} must follow the pattern ${bold('<prefix>/*')}`
+  }
+
+  if (opts.importAlias && validateImportAlias(opts.importAlias)) {
+    log.warn(validateImportAlias(opts.importAlias))
+    opts.importAlias = undefined
+  }
+
   if (!opts.importAlias && !args.includes('--no-import-alias')) {
     const { customizeImportAlias } = await _prompt({
       type: 'toggle',
@@ -361,10 +384,7 @@ async function run(): Promise<void> {
         type: 'text',
         name: 'importAlias',
         message: `How would you like to configure the ${ct.importAlias}?`,
-        validate: (value) =>
-          /.+\/\*/.test(value)
-            ? true
-            : 'Import alias must follow the pattern <prefix>/*',
+        validate: (value) => validateImportAlias(value),
       })
       opts.importAlias = importAlias
       preferences.importAlias = importAlias
