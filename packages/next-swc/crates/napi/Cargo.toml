@@ -116,7 +116,7 @@ turbopack-binding = { workspace = true, features = [
 ] }
 
 # wasi-only dependencies.
-[target.wasm32-wasi-preview1-threads.dependencies]
+[target.wasm32-wasip1-threads.dependencies]
 # this requires tokio_unstable currently.
 tokio = { workspace = true, features = ["full"] }
 
