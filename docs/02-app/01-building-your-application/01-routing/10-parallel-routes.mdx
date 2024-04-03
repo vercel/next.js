@@ -122,7 +122,7 @@ export default function Layout({ auth }: { auth: React.ReactNode }) {
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default function Layout({ auth }) {
-  const loginSegments = useSelectedLayoutSegment('auth')
+  const loginSegment = useSelectedLayoutSegment('auth')
   // ...
 }
 ```
