@@ -455,6 +455,8 @@ jobs:
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
+        'test-new-tests-dev',
+        'test-new-tests-start',
       ]
 
     if: always()
