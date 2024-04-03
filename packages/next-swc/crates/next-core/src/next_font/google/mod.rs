@@ -640,13 +640,14 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<Vc<String>>> {
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-        "mock".to_string(),
+        "mock".to_string().into(),
         response_path
             .parent()
             .context("Must be valid path")?
             .to_str()
             .context("Must exist")?
-            .to_string(),
+            .to_string()
+            .into(),
         vec![],
     ));
 
