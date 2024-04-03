@@ -26,8 +26,8 @@ export function unstable_noStore() {
     return
   } else if (store.forceStatic) {
     return
-  } else {
+  } else if (process.title.startsWith('next-server')) {
     store.isUnstableNoStore = true
-    markCurrentScopeAsDynamic(store, callingExpression)
   }
+  markCurrentScopeAsDynamic(store, callingExpression)
 }
