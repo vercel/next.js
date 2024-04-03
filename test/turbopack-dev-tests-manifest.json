@@ -6567,9 +6567,10 @@
     "passed": [
       "next/font/google no preloads with _app without preload",
       "next/font/google without-preloaded-fonts without _app without fonts",
-      "next/font/google without-preloaded-fonts without _app without preload"
+      "next/font/google without-preloaded-fonts without _app without preload",
+      "next/font/google no preloads with _app without fonts"
     ],
-    "failed": ["next/font/google no preloads with _app without fonts"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
