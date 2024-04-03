@@ -53,9 +53,12 @@ function getChunkGroupFromBlock(
 function buildManifest(
   _compiler: webpack.Compiler,
   compilation: webpack.Compilation,
-  projectDir: string,
+  projectDir: string | undefined,
   dev: boolean
 ) {
+  if (!projectDir) {
+    return {}
+  }
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
   // This is allowed:
@@ -145,8 +148,7 @@ function buildManifest(
 
 export class ReactLoadablePlugin {
   private filename: string
-  private pagesDir?: string
-  private appDir?: string
+  private projectDir: string | undefined
   private runtimeAsset?: string
   private dev: boolean
 
@@ -158,14 +160,15 @@ export class ReactLoadablePlugin {
     dev: boolean
   }) {
     this.filename = opts.filename
-    this.pagesDir = opts.pagesDir
-    this.appDir = opts.appDir
+    this.projectDir = opts.pagesDir || opts.appDir
     this.runtimeAsset = opts.runtimeAsset
     this.dev = opts.dev
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const projectDir = path.dirname((this.pagesDir || this.appDir)!)
+    const projectDir = this.projectDir
+      ? path.dirname(this.projectDir)
+      : undefined
     const manifest = buildManifest(compiler, compilation, projectDir, this.dev)
 
     assets[this.filename] = new sources.RawSource(
