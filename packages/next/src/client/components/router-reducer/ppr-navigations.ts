@@ -779,7 +779,7 @@ export function updateCacheNodeOnPopstateRestoration(
 
 const DEFERRED = Symbol()
 
-export type PendingDeferredRsc = Promise<React.ReactNode> & {
+type PendingDeferredRsc = Promise<React.ReactNode> & {
   status: 'pending'
   resolve: (value: React.ReactNode) => void
   reject: (error: any) => void
