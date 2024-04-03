@@ -18,7 +18,12 @@ use crate::paths::get_font_paths_from_root;
 async fn has_app_js(client_assets: Vc<OutputAssets>) -> Result<Vc<bool>> {
     for &asset in client_assets.await? {
         let i = asset.ident().await?;
-        vdbg!(i);
+
+        vdbg!(&i);
+
+        if i.path.await?.path.ends_with("/pages/_app.js") {
+            return Ok(Vc::cell(true));
+        }
     }
 
     Ok(Vc::cell(false))
@@ -37,6 +42,7 @@ pub(crate) async fn create_font_manifest(
     let all_client_output_assets = all_assets_from_entries(client_assets).await?;
 
     let has_pages_app_js = *has_app_js(client_assets).await?;
+    dbg!(has_pages_app_js);
 
     // `_next` gets added again later, so we "strip" it here via
     // `get_font_paths_from_root`.
