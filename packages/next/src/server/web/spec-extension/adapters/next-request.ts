@@ -96,7 +96,6 @@ export class NextRequestAdapter {
     }
 
     return new NextRequest(url, {
-      body,
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -105,6 +104,14 @@ export class NextRequestAdapter {
       // geo
       // ip
       // nextConfig
+
+      // body can not be passed if request was aborted
+      // or we get a Request body was disturbed error
+      ...(signal.aborted
+        ? {}
+        : {
+            body,
+          }),
     })
   }
 
@@ -116,7 +123,6 @@ export class NextRequestAdapter {
     }
 
     return new NextRequest(request.url, {
-      body,
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -125,6 +131,14 @@ export class NextRequestAdapter {
       // geo
       // ip
       // nextConfig
+
+      // body can not be passed if request was aborted
+      // or we get a Request body was disturbed error
+      ...(request.request.signal.aborted
+        ? {}
+        : {
+            body,
+          }),
     })
   }
 }

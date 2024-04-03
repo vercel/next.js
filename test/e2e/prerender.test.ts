@@ -846,7 +846,9 @@ describe('Prerender', () => {
     })
 
     it('should handle fallback only page correctly HTML', async () => {
-      const browser = await webdriver(next.url, '/fallback-only/first%2Fpost')
+      const browser = await webdriver(next.url, '/fallback-only/first%2Fpost', {
+        waitHydration: false,
+      })
 
       const text = await browser.elementByCss('p').text()
       expect(text).toContain('hi fallback')

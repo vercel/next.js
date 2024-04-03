@@ -62,7 +62,7 @@ import type {
   RouteHandler,
   NextEnabledDirectories,
 } from './base-server'
-import BaseServer, { NoFallbackError } from './base-server'
+import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -1097,24 +1097,18 @@ export default class NextNodeServer extends BaseServer {
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
-        const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
-        const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
         const origRes =
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
 
         const reqCallback = () => {
-          // if we already logged in a render worker
-          // don't log again in the router worker.
-          // we also don't log for middleware alone
-          if (
-            (normalizedReq as any).didInvokePath ||
-            origReq.headers['x-middleware-invoke']
-          ) {
-            return
-          }
+          // we don't log for non-route requests
+          const isRouteRequest = getRequestMeta(req).match
+          const isRSC = isRSCRequestCheck(req)
+          if (!isRouteRequest || isRSC) return
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
