@@ -1071,7 +1071,7 @@ impl PageEndpoint {
                 .read()
                 .await?,
             FileContent::NotFound
-        );
+        ) || true;
 
         let next_font_manifest_output = create_font_manifest(
             this.pages_project.project().client_root(),
