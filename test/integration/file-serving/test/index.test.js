@@ -4465,23 +4465,26 @@ const copyTestFileToDist = () =>
   fs.copy(join(appDir, 'test-file.txt'), join(appDir, '.next', 'test-file.txt'))
 
 describe('File Serving', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        // don't log stdout and stderr as we're going to generate
-        // a lot of output from resolve mismatches
-        stdout: false,
-        stderr: false,
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          // don't log stdout and stderr as we're going to generate
+          // a lot of output from resolve mismatches
+          stdout: false,
+          stderr: false,
+        })
+        await copyTestFileToDist()
       })
-      await copyTestFileToDist()
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests(true)
-  })
+      runTests(true)
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

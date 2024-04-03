@@ -47,30 +47,32 @@ describe('distDir', () => {
       }
     )
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, 'dist'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  describe('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(join(appDir, 'dist'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      it('should render the page', async () => {
+        const html = await renderViaHTTP(appPort, '/')
+        expect(html).toMatch(/Hello World/)
+      })
 
-    it('should render the page', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      expect(html).toMatch(/Hello World/)
-    })
-
-    it('should build the app within the given `dist` directory', async () => {
-      expect(
-        await fs.exists(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
-      ).toBeTruthy()
-    })
-    it('should not build the app within the default `.next` directory', async () => {
-      expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
-    })
-  })
+      it('should build the app within the given `dist` directory', async () => {
+        expect(
+          await fs.exists(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
+        ).toBeTruthy()
+      })
+      it('should not build the app within the default `.next` directory', async () => {
+        expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
+      })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

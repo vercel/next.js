@@ -85,19 +85,22 @@ function runTests() {
 }
 
 describe('i18n Support', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

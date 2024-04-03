@@ -632,7 +632,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return segments.length ? segments[0] : null
         }
 
-        const getResolve = (options: any) => {
+        const getResolve = (
+          options: Parameters<typeof resolver.withOptions>[0]
+        ) => {
           const curResolver = resolver.withOptions(options)
 
           return (

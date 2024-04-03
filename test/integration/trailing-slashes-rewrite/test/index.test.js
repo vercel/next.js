@@ -75,30 +75,32 @@ describe('Trailing Slash Rewrite Proxying', () => {
       runTests()
     }
   )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        proxyPort = await findPort()
+        proxyServer = await initNextServerScript(
+          join(appDir, 'server.js'),
+          /ready on/i,
+          {
+            ...process.env,
+            PORT: proxyPort,
+          }
+        )
 
-  describe('development mode', () => {
-    beforeAll(async () => {
-      proxyPort = await findPort()
-      proxyServer = await initNextServerScript(
-        join(appDir, 'server.js'),
-        /ready on/i,
-        {
-          ...process.env,
-          PORT: proxyPort,
-        }
-      )
+        nextConfig.replace('__EXTERNAL_PORT__', proxyPort)
 
-      nextConfig.replace('__EXTERNAL_PORT__', proxyPort)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(app)
+        await killApp(proxyServer)
+      })
 
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-      await killApp(proxyServer)
-    })
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

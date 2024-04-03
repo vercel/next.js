@@ -17,33 +17,36 @@ let appPort
 let app
 
 describe('Image Component Trailing Slash Tests', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    it('should include trailing slash when trailingSlash is set on config file during next dev', async () => {
-      expect.assertions(1)
-      let browser
+      it('should include trailing slash when trailingSlash is set on config file during next dev', async () => {
+        expect.assertions(1)
+        let browser
 
-      try {
-        browser = await webdriver(appPort, '/')
-        const id = 'test1'
-        const srcImage = await browser.eval(
-          `document.getElementById('${id}').src`
-        )
-        expect(srcImage).toMatch(
-          /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
-        )
-      } finally {
-        if (browser) {
-          await browser.close()
+        try {
+          browser = await webdriver(appPort, '/')
+          const id = 'test1'
+          const srcImage = await browser.eval(
+            `document.getElementById('${id}').src`
+          )
+          expect(srcImage).toMatch(
+            /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
+          )
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
         }
-      }
-    })
-  })
+      })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

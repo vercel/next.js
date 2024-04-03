@@ -128,10 +128,12 @@ describe('GS(S)P Page Errors', () => {
     origIndexPage = await fs.readFile(indexPage, 'utf8')
   })
   afterAll(() => fs.writeFile(indexPage, origIndexPage))
-
-  describe('development mode', () => {
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      runTests(true)
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

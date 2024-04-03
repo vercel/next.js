@@ -509,20 +509,23 @@ module.exports = {
         })
       }
 
-      describe('Development Mode', () => {
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
-        })
-        beforeAll(async () => {
-          appPort = await findPort()
-          app = await launchApp(appDir, appPort)
-        })
-        afterAll(async () => {
-          await killApp(app)
-        })
+      ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+        'development mode',
+        () => {
+          beforeAll(async () => {
+            await remove(join(appDir, '.next'))
+          })
+          beforeAll(async () => {
+            appPort = await findPort()
+            app = await launchApp(appDir, appPort)
+          })
+          afterAll(async () => {
+            await killApp(app)
+          })
 
-        tests(true)
-      })
+          tests(true)
+        }
+      )
       ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
         'production mode',
         () => {

@@ -13,8 +13,9 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
-        next_page_config::get_next_page_config_rule, next_pure::get_next_pure_rule,
-        server_actions::ActionsTransform,
+        next_page_config::get_next_page_config_rule,
+        next_page_static_info::get_next_page_static_info_assert_rule,
+        next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
 };
 
@@ -76,6 +77,11 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_next_dynamic_transform_rule(false, false, pages_dir, mode, mdx_rs).await?);
 
         rules.push(get_next_image_rule());
+        rules.push(get_next_page_static_info_assert_rule(
+            mdx_rs,
+            None,
+            Some(context_ty),
+        ));
     }
 
     Ok(rules)
