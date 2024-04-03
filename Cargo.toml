@@ -105,6 +105,8 @@ owo-colors = "3.5.0"
 parcel_selectors = "0.26.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
+# Temporary: Reference the latest git minor version of pathfinder_simd until it's published.
+pathfinder_simd = "0.5.3"
 pin-project-lite = "0.2.9"
 postcard = "1.0.4"
 predicates = "2.1.5"
@@ -137,3 +139,6 @@ urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 dhat = { version = "0.3.2" }
 
+# Sync with the entries in turbo's Cargo.toml
+[patch.crates-io]
+pathfinder_simd = { git = "https://github.com/servo/pathfinder", rev = "30419d" }

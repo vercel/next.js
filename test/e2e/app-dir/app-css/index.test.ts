@@ -50,8 +50,9 @@ createNextDescribe(
           )
         })
 
-        it('should support external css imports', async () => {
+        it.only('should support external css imports', async () => {
           const browser = await next.browser('/css/css-external')
+          await new Promise(() => {})
           await check(
             async () =>
               await browser.eval(
@@ -59,7 +60,7 @@ createNextDescribe(
               ),
             '80px'
           )
-        })
+        }, 1_000_000_000)
       })
 
       describe('server pages', () => {

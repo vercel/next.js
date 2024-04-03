@@ -26,8 +26,6 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-// TODO(alexkirsz) Remove once the diagnostic is fixed.
-#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 #![feature(box_patterns)]
