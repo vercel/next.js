@@ -75,7 +75,8 @@
       "test/e2e/app-dir/ppr/**/*",
       "test/e2e/app-dir/ppr-*/**/*",
       "test/e2e/app-dir/app-prefetch*/**/*",
-      "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts"
+      "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts"
     ]
   }
 }
