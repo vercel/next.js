@@ -62,7 +62,7 @@ import type {
   RouteHandler,
   NextEnabledDirectories,
 } from './base-server'
-import BaseServer, { NoFallbackError } from './base-server'
+import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -1097,12 +1097,17 @@ export default class NextNodeServer extends BaseServer {
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
+        const _res = res as NodeNextResponse | ServerResponse
+        const origRes =
+          'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
 
         const reqCallback = () => {
           // we don't log for non-route requests
-          if (!getRequestMeta(req, 'match')?.definition.kind) return
+          const isRouteRequest = getRequestMeta(req).match
+          const isRSC = isRSCRequestCheck(req)
+          if (!isRouteRequest || isRSC) return
 
           const reqEnd = Date.now()
           const fetchMetrics = req.fetchMetrics ?? []
