@@ -106,10 +106,7 @@ describe('next/font/google no preloads with _app', () => {
 
   test('without fonts', async () => {
     const html = await renderViaHTTP(next.url, '/without-fonts')
-    console.log('html', html)
     const $ = cheerio.load(html)
-
-    // <link data-next-font="size-adjust" rel="preconnect" href="/" crossorigin="anonymous"/>
 
     // Preconnect
     expect($('link[rel="preconnect"]').length).toBe(1)
