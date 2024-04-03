@@ -211,7 +211,7 @@ describe('Edge runtime code with imports', () => {
 
     beforeEach(() => init(importStatement))
 
-    it.only('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
+    it('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
