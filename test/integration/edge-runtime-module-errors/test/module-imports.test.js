@@ -183,9 +183,7 @@ describe('Edge runtime code with imports', () => {
       init(importStatement) {
         context.api.write(`
           export default async function handler(request) {
-            if (process.env === 'production') {
-              new (${importStatement})()
-            }
+            new (${importStatement})()
             return Response.json({ ok: true })
           }
 
@@ -201,9 +199,7 @@ describe('Edge runtime code with imports', () => {
           import { NextResponse } from 'next/server'
 
           export async function middleware(request) {
-            if (process.env === 'production') {
-              new (${importStatement})()
-            }
+            new (${importStatement})()
             return NextResponse.next()
           }
         `)
@@ -215,7 +211,7 @@ describe('Edge runtime code with imports', () => {
 
     beforeEach(() => init(importStatement))
 
-    it('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
+    it.only('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
