@@ -295,7 +295,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        Ok(self.import_map_result(query_vc.await?.to_string()))
+        Ok(self.import_map_result(query_vc.await?.to_string().into()))
     }
 }
 
