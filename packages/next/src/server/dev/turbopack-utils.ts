@@ -195,6 +195,9 @@ export function processIssues(
 
     if (issue.severity !== 'warning') {
       relevantIssues.add(formatted)
+      if (isWellKnownError(issue)) {
+        Log.error(formatted)
+      }
     }
   }
 
@@ -406,7 +409,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true)
 
       break
     }
