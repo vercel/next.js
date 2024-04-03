@@ -217,7 +217,6 @@ where
             opts.prefer_esm,
             NextDynamicMode::Webpack,
             file.name.clone(),
-            // pass arg for (opts.pages_dir || opts.app_dir).clone(),
             opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
         ),
         Optional::new(
