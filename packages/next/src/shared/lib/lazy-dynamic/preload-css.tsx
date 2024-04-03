@@ -1,7 +1,5 @@
 'use client'
 
-import ReactDOM from 'react-dom'
-
 export function PreloadCss() {
   // Early return in client compilation and only load requestStore on server side
   if (typeof window !== 'undefined') {
@@ -25,10 +23,6 @@ export function PreloadCss() {
 
   if (allFiles.length === 0) {
     return null
-  }
-
-  for (const file of allFiles) {
-    ReactDOM.preload('/_next/' + file, { as: 'style' })
   }
 
   return (
