@@ -1,4 +1,5 @@
-import { Button } from '../../buttonRefresh'
+import { RefreshButton } from '../../../components/RefreshButton'
+import { RevalidateButton } from '../../../components/RevalidateButton'
 
 const getRandom = async () => Math.random()
 
@@ -12,7 +13,8 @@ export default async function Page() {
           <span>Modal Page</span>
           <span id="modal-random">{someProp}</span>
         </div>
-        <Button />
+        <RefreshButton />
+        <RevalidateButton />
       </div>
     </dialog>
   )

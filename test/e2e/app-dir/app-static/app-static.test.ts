@@ -849,7 +849,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -865,7 +865,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -885,7 +885,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 1,
@@ -901,7 +901,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -917,7 +917,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -933,7 +933,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -949,7 +949,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -965,7 +965,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -981,7 +981,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -997,7 +997,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1013,7 +1013,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1029,7 +1029,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1045,7 +1045,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1061,7 +1061,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1077,7 +1077,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1093,7 +1093,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1109,7 +1109,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1125,7 +1125,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1141,7 +1141,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1157,7 +1157,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1173,7 +1173,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1189,7 +1189,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1205,7 +1205,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1221,7 +1221,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1237,7 +1237,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1253,7 +1253,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1269,7 +1269,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1285,7 +1285,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1301,7 +1301,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1317,7 +1317,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1333,7 +1333,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1349,7 +1349,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1365,7 +1365,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1385,7 +1385,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1405,7 +1405,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1425,7 +1425,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1441,7 +1441,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1457,7 +1457,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1473,7 +1473,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1489,7 +1489,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1505,7 +1505,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1521,7 +1521,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1537,7 +1537,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1553,7 +1553,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1569,7 +1569,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1585,7 +1585,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1601,7 +1601,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1622,7 +1622,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1639,7 +1639,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1656,7 +1656,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1673,7 +1673,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1690,7 +1690,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1707,7 +1707,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1724,7 +1724,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1741,7 +1741,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1758,7 +1758,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1775,7 +1775,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1792,7 +1792,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -3145,6 +3145,27 @@ createNextDescribe(
         const data2 = cheerio.load(html2)('#cached-data').text()
 
         expect(data).toEqual(data2)
+      })
+
+      it('should bypass cache in draft mode', async () => {
+        const draftRes = await next.fetch('/api/draft-mode?status=enable')
+        const setCookie = draftRes.headers.get('set-cookie')
+        const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+        expect(cookieHeader.Cookie).toBeTruthy()
+
+        const res = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).not.toEqual(data2)
       })
 
       it('should not error when retrieving the value undefined', async () => {
