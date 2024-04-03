@@ -11,7 +11,8 @@ export interface RequestStore {
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
-  readonly reactLoadableManifest: any
+  readonly reactLoadableManifest: Record<string, { files: string[] }>
+  readonly assetPrefix: string
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

@@ -16,7 +16,7 @@ createNextDescribe(
     }
     it('should preload css of dynamic component during SSR', async () => {
       const $ = await next.render$('/ssr')
-      const cssLinks = $('link[rel="preload stylesheet"]')
+      const cssLinks = $('link[rel="stylesheet"]')
       expect(cssLinks.attr('href')).toContain('.css')
     })
 
