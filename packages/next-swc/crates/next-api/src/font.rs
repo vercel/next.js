@@ -63,7 +63,12 @@ pub(crate) async fn create_font_manifest(
         }
     } else {
         NextFontManifest {
-            pages: [(pathname.to_string(), font_paths)].into_iter().collect(),
+            pages: [
+                ("/_app".to_string(), vec![]),
+                (pathname.to_string(), font_paths),
+            ]
+            .into_iter()
+            .collect(),
             pages_using_size_adjust: using_size_adjust,
             ..Default::default()
         }
