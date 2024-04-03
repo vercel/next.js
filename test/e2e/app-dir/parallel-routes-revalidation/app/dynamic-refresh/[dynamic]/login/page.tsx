@@ -1,4 +1,4 @@
-import { RefreshButton } from '../../components/RefreshButton'
+import { RefreshButton } from '../../../components/RefreshButton'
 
 export default function Page() {
   return (
