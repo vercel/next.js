@@ -49,7 +49,7 @@ function Loadable(options: LoadableOptions) {
 
     const children = opts.ssr ? (
       <>
-        {process.env.NODE_ENV === 'development' ? <PreloadModule /> : null}
+        {typeof window === 'undefined' ? <PreloadModule /> : null}
         <Lazy {...props} />
       </>
     ) : (

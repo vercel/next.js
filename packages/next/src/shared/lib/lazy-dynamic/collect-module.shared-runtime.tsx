@@ -3,6 +3,7 @@
 import ReactDOM from 'react-dom'
 
 export function PreloadModule() {
+  // Early return in client compilation and only load requestStore on server side
   if (typeof window !== 'undefined') {
     return null
   }
