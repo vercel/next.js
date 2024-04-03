@@ -61,6 +61,18 @@ export function isWellKnownError(issue: Issue): boolean {
   return false
 }
 
+/// Print out an issue to the console which should not block
+/// the build by throwing out or blocking error overlay.
+export function printNonFatalIssue(issue: Issue) {
+  // Currently only warnings will be printed, excluding if the error source
+  // is coming from foreign (node_modules) codes.
+  if (issue.severity === 'warning') {
+    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
+      Log.warn(formatIssue(issue))
+    }
+  }
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, source } = issue
   let { documentationLink } = issue
@@ -170,12 +182,20 @@ export function processIssues(
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
+      continue
+
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
-    relevantIssues.add(formatted)
+    if (issue.severity !== 'warning') {
+      relevantIssues.add(formatted)
+    }
   }
 
   if (relevantIssues.size && throwIssue) {

@@ -1,6 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::page_static_info::collect_exports;
+use next_custom_transforms::transforms::page_static_info::{
+    collect_exports, extract_exported_const_values, Const,
+};
+use serde_json::Value;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
@@ -52,11 +55,60 @@ impl CustomTransformer for NextPageStaticInfo {
             let mut properties_to_extract = collected_exports.extra_properties.clone();
             properties_to_extract.insert("config".to_string());
 
-            let is_app_page =
-                matches!(
-                    self.server_context,
-                    Some(ServerContextType::AppRSC { .. }) | Some(ServerContextType::AppSSR { .. })
-                ) || matches!(self.client_context, Some(ClientContextType::App { .. }));
+            let extracted = extract_exported_const_values(program, properties_to_extract);
+
+            let is_server_layer_page = matches!(
+                self.server_context,
+                Some(ServerContextType::AppRSC { .. }) | Some(ServerContextType::AppSSR { .. })
+            );
+
+            let is_app_page = is_server_layer_page
+                || matches!(self.client_context, Some(ClientContextType::App { .. }));
+
+            if is_server_layer_page {
+                for warning in collected_exports.warnings.iter() {
+                    PageStaticInfoIssue {
+                        file_path: ctx.file_path,
+                        messages: vec![
+                            format!(
+                                "Next.js can't recognize the exported `{}` field in \"{}\" as {}.",
+                                warning.key, ctx.file_path_str, warning.message
+                            ),
+                            "The default runtime will be used instead.".to_string(),
+                        ],
+                        severity: IssueSeverity::Warning,
+                    }
+                    .cell()
+                    .emit();
+                }
+            }
+
+            if is_app_page {
+                if let Some(Some(Const::Value(Value::Object(config_obj)))) = extracted.get("config")
+                {
+                    let mut messages = vec![format!(
+                        "Page config in {} is deprecated. Replace `export const config=…` with \
+                         the following:",
+                        ctx.file_path_str
+                    )];
+
+                    if let Some(runtime) = config_obj.get("runtime") {
+                        messages.push(format!("- `export const runtime = {}`", runtime));
+                    }
+
+                    if let Some(regions) = config_obj.get("regions") {
+                        messages.push(format!("- `export const preferredRegion = {}`", regions));
+                    }
+
+                    PageStaticInfoIssue {
+                        file_path: ctx.file_path,
+                        messages,
+                        severity: IssueSeverity::Warning,
+                    }
+                    .cell()
+                    .emit();
+                }
+            }
 
             if collected_exports.directives.contains("client")
                 && collected_exports.generate_static_params
@@ -65,6 +117,7 @@ impl CustomTransformer for NextPageStaticInfo {
                 PageStaticInfoIssue {
                     file_path: ctx.file_path,
                     messages: vec![format!(r#"Page "{}" cannot use both "use client" and export function "generateStaticParams()"."#, ctx.file_path_str)],
+                    severity: IssueSeverity::Error,
                 }
                 .cell()
                 .emit();
@@ -79,13 +132,14 @@ impl CustomTransformer for NextPageStaticInfo {
 pub struct PageStaticInfoIssue {
     pub file_path: Vc<FileSystemPath>,
     pub messages: Vec<String>,
+    pub severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for PageStaticInfoIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+        self.severity.into()
     }
 
     #[turbo_tasks::function]
