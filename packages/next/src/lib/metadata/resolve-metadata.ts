@@ -256,9 +256,10 @@ function mergeMetadata({
 
       default: {
         if (
-          key === 'viewport' ||
-          key === 'themeColor' ||
-          key === 'colorScheme'
+          (key === 'viewport' ||
+            key === 'themeColor' ||
+            key === 'colorScheme') &&
+          source[key] != null
         ) {
           buildState.warnings.add(
             `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`

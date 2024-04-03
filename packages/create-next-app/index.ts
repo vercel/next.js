@@ -381,9 +381,10 @@ async function run(): Promise<void> {
       }
     }
 
+    const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
+      !importAliasPattern.test(program.importAlias)
     ) {
       if (ciInfo.isCI) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
@@ -414,7 +415,7 @@ async function run(): Promise<void> {
             message: `What ${styledImportAlias} would you like configured?`,
             initial: getPrefOrDefault('importAlias'),
             validate: (value) =>
-              /.+\/\*/.test(value)
+              importAliasPattern.test(value)
                 ? true
                 : 'Import alias must follow the pattern <prefix>/*',
           })
