@@ -6,7 +6,7 @@
 
 import { promisify } from 'node:util'
 import { exec as execOrg } from 'node:child_process'
-import { readFile, constants, access } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 const exec = promisify(execOrg)
@@ -29,12 +29,8 @@ export async function getRelatedTests(args = []) {
   const tests = []
   for (const path of paths) {
     const testFile = join(dirname(path), relatedTestFile)
-    const hasRelatedTests = await access(testFile, constants.F_OK)
-      .then(() => true)
-      .catch(() => false)
-
-    if (hasRelatedTests) {
-      const content = await readFile(testFile, 'utf-8')
+    const content = await readFile(testFile, 'utf-8').catch(() => false)
+    if (content) {
       const lines = content.split('\n').filter(Boolean)
       tests.push(...lines)
     }
