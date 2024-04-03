@@ -152,7 +152,10 @@ describe('create-next-app prompts', () => {
         // cursor forward, choose 'Yes' for custom import alias
         childProcess.stdin.write('\u001b[C\n')
         // used check here since it needs to wait for the prompt
-        await check(() => output, /What import alias would you like configured/)
+        await check(
+          () => output,
+          /Would you like to customize the default import alias/
+        )
         childProcess.stdin.write('@/something/*\n')
       })
 
