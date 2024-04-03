@@ -1,7 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
-import { PreloadModule } from './collect-module.shared-runtime'
+import { PreloadCss } from './preload-css'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
@@ -49,7 +49,8 @@ function Loadable(options: LoadableOptions) {
 
     const children = opts.ssr ? (
       <>
-        {typeof window === 'undefined' ? <PreloadModule /> : null}
+        {/* During SSR, we need to preload the CSS from the dynamic component to avoid flash of unstyled content */}
+        {typeof window === 'undefined' ? <PreloadCss /> : null}
         <Lazy {...props} />
       </>
     ) : (

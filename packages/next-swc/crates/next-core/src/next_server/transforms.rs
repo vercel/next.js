@@ -50,7 +50,7 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let (is_server_components, pages_dir) = match context_ty {
+    let (is_server_components, pages_or_app_dir) = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
                 rules.push(get_next_disallow_export_all_in_page_rule(
@@ -77,7 +77,7 @@ pub async fn get_next_server_transforms_rules(
             }
             (false, Some(pages_dir))
         }
-        ServerContextType::AppSSR { .. } => {
+        ServerContextType::AppSSR { app_dir } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
             rules.push(get_server_actions_transform_rule(
@@ -85,10 +85,12 @@ pub async fn get_next_server_transforms_rules(
                 mdx_rs,
             ));
 
-            (false, None)
+            (false, Some(app_dir))
         }
         ServerContextType::AppRSC {
-            client_transition, ..
+            app_dir,
+            client_transition,
+            ..
         } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
@@ -100,7 +102,7 @@ pub async fn get_next_server_transforms_rules(
                     client_transition,
                 ));
             }
-            (true, None)
+            (true, Some(app_dir))
         }
         ServerContextType::AppRoute { .. } => (false, None),
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
@@ -110,8 +112,14 @@ pub async fn get_next_server_transforms_rules(
 
     if !foreign_code {
         rules.push(
-            get_next_dynamic_transform_rule(true, is_server_components, pages_dir, mode, mdx_rs)
-                .await?,
+            get_next_dynamic_transform_rule(
+                true,
+                is_server_components,
+                pages_or_app_dir,
+                mode,
+                mdx_rs,
+            )
+            .await?,
         );
 
         rules.push(get_next_amp_attr_rule(mdx_rs));

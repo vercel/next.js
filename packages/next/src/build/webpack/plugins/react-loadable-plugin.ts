@@ -53,12 +53,9 @@ function getChunkGroupFromBlock(
 function buildManifest(
   _compiler: webpack.Compiler,
   compilation: webpack.Compilation,
-  pagesOrAppDir: string | undefined,
+  projectDir: string,
   dev: boolean
 ) {
-  if (!pagesOrAppDir) {
-    return {}
-  }
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
   // This is allowed:
@@ -89,7 +86,7 @@ function buildManifest(
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
-        const key = `${path.relative(pagesOrAppDir, originRequest)} -> ${
+        const key = `${path.relative(projectDir, originRequest)} -> ${
           dependency.request
         }`
 
@@ -168,12 +165,8 @@ export class ReactLoadablePlugin {
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const manifest = buildManifest(
-      compiler,
-      compilation,
-      this.pagesDir, // || this.appDir,
-      this.dev
-    )
+    const projectDir = path.dirname((this.pagesDir || this.appDir)!)
+    const manifest = buildManifest(compiler, compilation, projectDir, this.dev)
 
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)

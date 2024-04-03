@@ -40,7 +40,7 @@ pub async fn get_next_client_transforms_rules(
     let mdx_rs = *next_config.mdx_rs().await?;
     rules.push(get_next_font_transform_rule(mdx_rs));
 
-    let pages_dir = match context_ty {
+    let pages_or_app_dir = match context_ty {
         ClientContextType::Pages { pages_dir } => {
             if !foreign_code {
                 rules.push(
@@ -59,12 +59,12 @@ pub async fn get_next_client_transforms_rules(
             }
             Some(pages_dir)
         }
-        ClientContextType::App { .. } => {
+        ClientContextType::App { app_dir } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
                 mdx_rs,
             ));
-            None
+            Some(app_dir)
         }
         ClientContextType::Fallback | ClientContextType::Other => None,
     };
@@ -74,7 +74,9 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_next_cjs_optimizer_rule(mdx_rs));
         rules.push(get_next_pure_rule(mdx_rs));
 
-        rules.push(get_next_dynamic_transform_rule(false, false, pages_dir, mode, mdx_rs).await?);
+        rules.push(
+            get_next_dynamic_transform_rule(false, false, pages_or_app_dir, mode, mdx_rs).await?,
+        );
 
         rules.push(get_next_image_rule());
         rules.push(get_next_page_static_info_assert_rule(

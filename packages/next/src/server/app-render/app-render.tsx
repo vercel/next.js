@@ -876,14 +876,7 @@ async function renderToHTMLOrFlightImpl(
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        <ReactServerApp
-          tree={tree}
-          ctx={ctx}
-          asNotFound={asNotFound}
-          // onReceiveDynamicModules={(dynamicModules: string[]) => {
-          //   nextDynamicModuleIds.push(...dynamicModules)
-          // }}
-        />,
+        <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,

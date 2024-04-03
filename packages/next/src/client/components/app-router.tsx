@@ -64,7 +64,6 @@ import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { FlightRouterState } from '../../server/app-render/types'
-
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -297,8 +296,6 @@ function Router({
   couldBeIntercepted,
   assetPrefix,
   missingSlots,
-  // @ts-ignore
-  reactLoadableManifest,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -670,13 +667,6 @@ function Router({
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
-            {/* <LoadableContext.Provider
-              value={{ manifest: 
-                typeof window === 'undefined'
-                ? reactLoadableManifest
-                : null
-              }}
-            > */}
             <GlobalLayoutRouterContext.Provider
               value={{
                 buildId,
@@ -701,7 +691,6 @@ function Router({
                 </LayoutRouterContext.Provider>
               </AppRouterContext.Provider>
             </GlobalLayoutRouterContext.Provider>
-            {/* </LoadableContext.Provider> */}
           </SearchParamsContext.Provider>
         </PathnameContext.Provider>
       </PathParamsContext.Provider>
