@@ -15,10 +15,16 @@ import defaultLoader from 'next/dist/shared/lib/image-loader'
  * Read more: [Next.js docs: `getImageProps`](https://nextjs.org/docs/app/api-reference/components/image#getimageprops)
  */
 export function getImageProps(imgProps: ImageProps) {
+  // This is replaced by webpack define plugin
+  const config = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+  if (config.loaderFile && typeof defaultLoader === 'undefined') {
+    throw new Error(
+      'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  }
   const { props } = getImgProps(imgProps, {
     defaultLoader,
-    // This is replaced by webpack define plugin
-    imgConf: process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete,
+    imgConf: config,
   })
   // Normally we don't care about undefined props because we pass to JSX,
   // but this exported function could be used by the end user for anything

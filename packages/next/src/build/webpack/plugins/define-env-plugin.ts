@@ -110,6 +110,7 @@ function getImageConfig(
       imageSizes: config.images.imageSizes,
       path: config.images.path,
       loader: config.images.loader,
+      loaderFile: config.images.loaderFile,
       dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
       unoptimized: config?.images?.unoptimized,
       ...(dev
