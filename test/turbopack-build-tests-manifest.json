@@ -5232,6 +5232,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/dynamic-css/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - dynamic css should preload css of dynamic component during SSR"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir-edge-runtime-with-wasm/index.test.ts": {
       "passed": ["app-dir edge runtime with wasm should have built"],
       "failed": [],
