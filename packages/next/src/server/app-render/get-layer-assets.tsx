@@ -35,24 +35,22 @@ export function getLayerAssets({
       )
     : null
 
-  if (preloadedFontFiles) {
-    if (preloadedFontFiles.length) {
-      for (let i = 0; i < preloadedFontFiles.length; i++) {
-        const fontFilename = preloadedFontFiles[i]
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
-        const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${fontFilename}`
-        ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin)
-      }
-    } else {
-      try {
-        let url = new URL(ctx.assetPrefix)
-        ctx.componentMod.preconnect(url.origin, 'anonymous')
-      } catch (error) {
-        // assetPrefix must not be a fully qualified domain name. We assume
-        // we should preconnect to same origin instead
-        ctx.componentMod.preconnect('/', 'anonymous')
-      }
+  try {
+    let url = new URL(ctx.assetPrefix)
+    ctx.componentMod.preconnect(url.origin, 'anonymous')
+  } catch (error) {
+    // assetPrefix must not be a fully qualified domain name. We assume
+    // we should preconnect to same origin instead
+    ctx.componentMod.preconnect('/', 'anonymous')
+  }
+
+  if (preloadedFontFiles?.length) {
+    for (let i = 0; i < preloadedFontFiles.length; i++) {
+      const fontFilename = preloadedFontFiles[i]
+      const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
+      const type = `font/${ext}`
+      const href = `${ctx.assetPrefix}/_next/${fontFilename}`
+      ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin)
     }
   }
 
