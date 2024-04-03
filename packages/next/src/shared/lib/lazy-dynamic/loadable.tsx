@@ -48,19 +48,17 @@ function Loadable(options: LoadableOptions) {
     ) : null
 
     const children = opts.ssr ? (
-      <Lazy {...props} />
+      <>
+        {process.env.NODE_ENV === 'development' ? <PreloadModule /> : null}
+        <Lazy {...props} />
+      </>
     ) : (
       <BailoutToCSR reason="next/dynamic">
         <Lazy {...props} />
       </BailoutToCSR>
     )
 
-    return (
-      <>
-        {process.env.NODE_ENV === 'development' ? <PreloadModule /> : null}
-        <Suspense fallback={fallbackElement}>{children}</Suspense>
-      </>
-    )
+    return <Suspense fallback={fallbackElement}>{children}</Suspense>
   }
 
   LoadableComponent.displayName = 'LoadableComponent'

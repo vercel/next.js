@@ -1,32 +1,29 @@
 'use client'
 
-import { useContext, createContext } from 'react'
 import ReactDOM from 'react-dom'
 
-type CaptureFn = (moduleName: string) => void
-type ContextValue = {
-  // capture: CaptureFn
-  manifest: any
-}
-
-export const LoadableContext = createContext<ContextValue | null>(null)
-
-if (process.env.NODE_ENV !== 'production') {
-  LoadableContext.displayName = 'LoadableContext'
-}
-
 export function PreloadModule() {
-  // For dev-only
-  const context = useContext(LoadableContext)
+  if (typeof window !== 'undefined') {
+    return null
+  }
+  const {
+    getExpectedRequestStore,
+  } = require('../../../client/components/request-async-storage.external')
+  const requestStore = getExpectedRequestStore()
+
   const allFiles = []
-  if (context && context.manifest) {
-    const manifest = context.manifest
+  if (requestStore.reactLoadableManifest) {
+    const manifest = requestStore.reactLoadableManifest
     for (const key in manifest) {
       const cssFiles = manifest[key].files.filter((file: string) =>
         file.endsWith('.css')
       )
       allFiles.push(...cssFiles)
     }
+  }
+
+  if (allFiles.length === 0) {
+    return null
   }
 
   for (const file of allFiles) {

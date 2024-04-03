@@ -87,6 +87,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       cookies?: ReadonlyRequestCookies
       mutableCookies?: ResponseCookies
       draftMode?: DraftModeProvider
+      reactLoadableManifest?: any
     } = {}
 
     const store: RequestStore = {
@@ -129,6 +130,12 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
         }
 
         return cache.draftMode
+      },
+      get reactLoadableManifest() {
+        if (!cache.reactLoadableManifest) {
+          cache.reactLoadableManifest = renderOpts?.reactLoadableManifest
+        }
+        return cache.reactLoadableManifest
       },
     }
 
