@@ -35,7 +35,7 @@ import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
-import type { Server as HTTPServer } from 'http'
+import type { Server as HTTPServer, IncomingMessage } from 'http'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
@@ -3489,7 +3489,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 }
 
-function isRSCRequestCheck(req: BaseNextRequest): boolean {
+export function isRSCRequestCheck(
+  req: IncomingMessage | BaseNextRequest
+): boolean {
   return (
     req.headers[RSC_HEADER.toLowerCase()] === '1' ||
     Boolean(getRequestMeta(req, 'isRSCRequest'))
