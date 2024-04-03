@@ -194,4 +194,32 @@ describe('create-next-app --app', () => {
       )
     })
   })
+
+  it('should get no prompt with --app and without --src-dir or --no-src-dir flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'app-dir-test'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--tailwind',
+          '--eslint',
+          '--app',
+          '--import-alias=@/*',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
+    })
+  })
 })
