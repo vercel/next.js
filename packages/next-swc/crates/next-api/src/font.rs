@@ -1,5 +1,3 @@
-use std::iter::once;
-
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
 use turbo_tasks::{ValueToString, Vc};
