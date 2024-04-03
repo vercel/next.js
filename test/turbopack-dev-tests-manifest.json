@@ -2435,6 +2435,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
+    "passed": [
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0 should skip dev",
+      "app dir client cache semantics (experimental staleTimes) static: 180 should skip dev"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
     "passed": ["app dir client cache semantics should skip dev"],
     "failed": [],
@@ -2713,6 +2723,16 @@
     "passed": [
       "app-custom-routes automatic implementations implements HEAD on routes with GET already implemented",
       "app-custom-routes automatic implementations implements OPTIONS on routes",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a GET request responds correctly on /basic/endpoint",
@@ -2780,6 +2800,16 @@
     "passed": [
       "app-custom-routes automatic implementations implements HEAD on routes with GET already implemented",
       "app-custom-routes automatic implementations implements OPTIONS on routes",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a GET request responds correctly on /basic/endpoint",
