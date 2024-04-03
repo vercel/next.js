@@ -1980,7 +1980,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let previewData: PreviewData
     let isPreviewMode = false
 
-    if (hasServerProps || isSSG) {
+    if (hasServerProps || isSSG || isAppPath) {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
