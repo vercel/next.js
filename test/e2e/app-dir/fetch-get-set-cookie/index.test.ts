@@ -1,22 +1,22 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('middleware-fetch-getset-cookie', () => {
+describe('fetch-get-set-cookie', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     forcedPort: '7777',
   })
 
-  it('should have getSetCookie is array', async () => {
-    const res = await next.fetch('/set-cookie')
+  it('should set cookies retrievable by getSetCookie in route handler', async () => {
+    const res = await next.fetch('/set-cookies')
     expect(res.status).toBe(200)
     const html = await res.json()
     expect(Array.isArray(html.setCookies)).toBe(true)
     expect(html.setCookies).toEqual(['foo=foo', 'bar=bar'])
   })
 
-  it('should have middleware getSetCookie', async () => {
+  it('should fetch and getSetCookie properly on middleware', async () => {
     const res = await next.fetch('/')
-    expect(res.status).not.toBe(500)
+    // status 500 if getSetCookie length <= 1
     expect(res.status).toBe(200)
   })
 })
