@@ -158,20 +158,41 @@ createNextDescribe(
       })
     })
 
-    describe('router.refresh', () => {
+    describe.each([
+      { basePath: '/refreshing', label: 'regular' },
+      { basePath: '/dynamic-refresh/foo', label: 'dynamic' },
+    ])('router.refresh ($label)', ({ basePath }) => {
       it('should correctly refresh data for the intercepted route and previously active page slot', async () => {
-        const browser = await next.browser('/refreshing')
-        const initialRandomNumber = await browser.elementById('random-number')
+        const browser = await next.browser(basePath)
+        let initialRandomNumber = await browser.elementById('random-number')
 
-        await browser.elementByCss("[href='/refreshing/login']").click()
+        await browser.elementByCss(`[href='${basePath}/login']`).click()
 
         // interception modal should be visible
-        const initialModalRandomNumber = await browser
+        let initialModalRandomNumber = await browser
           .elementById('modal-random')
           .text()
 
         // trigger a refresh
         await browser.elementById('refresh-button').click()
+
+        await retry(async () => {
+          const newRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+          const newModalRandomNumber = await browser
+            .elementById('modal-random')
+            .text()
+          expect(initialRandomNumber).not.toBe(newRandomNumber)
+          expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
+
+          // reset the initial values to be the new values, so that we can verify the revalidate case below.
+          initialRandomNumber = newRandomNumber
+          initialModalRandomNumber = newModalRandomNumber
+        })
+
+        // trigger a revalidate
+        await browser.elementById('revalidate-button').click()
 
         await retry(async () => {
           const newRandomNumber = await browser
@@ -206,24 +227,44 @@ createNextDescribe(
       })
 
       it('should correctly refresh data for previously intercepted modal and active page slot', async () => {
-        const browser = await next.browser('/refreshing')
+        const browser = await next.browser(basePath)
 
-        await browser.elementByCss("[href='/refreshing/login']").click()
+        await browser.elementByCss(`[href='${basePath}/login']`).click()
 
         // interception modal should be visible
-        const initialModalRandomNumber = await browser
+        let initialModalRandomNumber = await browser
           .elementById('modal-random')
           .text()
 
-        await browser.elementByCss("[href='/refreshing/other']").click()
+        await browser.elementByCss(`[href='${basePath}/other']`).click()
         // data for the /other page should be visible
 
-        const initialOtherPageRandomNumber = await browser
+        let initialOtherPageRandomNumber = await browser
           .elementById('other-page-random')
           .text()
 
         // trigger a refresh
         await browser.elementById('refresh-button').click()
+
+        await retry(async () => {
+          const newModalRandomNumber = await browser
+            .elementById('modal-random')
+            .text()
+
+          const newOtherPageRandomNumber = await browser
+            .elementById('other-page-random')
+            .text()
+          expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
+          expect(initialOtherPageRandomNumber).not.toBe(
+            newOtherPageRandomNumber
+          )
+          // reset the initial values to be the new values, so that we can verify the revalidate case below.
+          initialOtherPageRandomNumber = newOtherPageRandomNumber
+          initialModalRandomNumber = newModalRandomNumber
+        })
+
+        // trigger a revalidate
+        await browser.elementById('revalidate-button').click()
 
         await retry(async () => {
           const newModalRandomNumber = await browser
