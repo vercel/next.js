@@ -6,3 +6,6 @@ contact_links:
   - name: Feature request
     url: https://github.com/vercel/next.js/discussions/new?category=ideas
     about: Feature requests should be opened as discussions
+  - name: Next.js Learn course
+    url: https://github.com/vercel/next-learn/issues/new
+    about: Next.js Lean course-related issues should be reported in their respective repository

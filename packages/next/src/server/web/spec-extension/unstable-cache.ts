@@ -161,7 +161,8 @@ export function unstable_cache<T extends Callback>(
         // we should bypass cache similar to fetches
         store.fetchCache !== 'force-no-store' &&
         !store.isOnDemandRevalidate &&
-        !incrementalCache.isOnDemandRevalidate
+        !incrementalCache.isOnDemandRevalidate &&
+        !store.isDraftMode
       ) {
         // We attempt to get the current cache entry from the incremental cache.
         const cacheEntry = await incrementalCache.get(cacheKey, {
