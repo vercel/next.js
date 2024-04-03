@@ -35,7 +35,9 @@ export function PreloadCss({ moduleIds }: { moduleIds: string[] | undefined }) {
         return (
           <link
             key={file}
-            rel="preload stylesheet"
+            // @ts-ignore
+            precedence={'dynamic'}
+            rel="stylesheet"
             href={'/_next/' + file}
             as="style"
           />
