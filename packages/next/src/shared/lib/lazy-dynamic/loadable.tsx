@@ -35,6 +35,7 @@ interface LoadableOptions {
   loader?: () => Promise<React.ComponentType<any> | ComponentModule<any>>
   loading?: React.ComponentType<any> | null
   ssr?: boolean
+  modules?: string[]
 }
 
 function Loadable(options: LoadableOptions) {
@@ -50,7 +51,9 @@ function Loadable(options: LoadableOptions) {
     const children = opts.ssr ? (
       <>
         {/* During SSR, we need to preload the CSS from the dynamic component to avoid flash of unstyled content */}
-        {typeof window === 'undefined' ? <PreloadCss /> : null}
+        {typeof window === 'undefined' ? (
+          <PreloadCss moduleIds={opts.modules} />
+        ) : null}
         <Lazy {...props} />
       </>
     ) : (
