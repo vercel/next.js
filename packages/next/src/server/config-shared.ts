@@ -187,6 +187,16 @@ export interface ExperimentalConfig {
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  /**
+   * This config can be used to override the cache behavior for the client router.
+   * These values indicate the time, in seconds, that the cache should be considered
+   * reusable. When the `prefetch` Link prop is left unspecified, this will use the `dynamic` value.
+   * When the `prefetch` Link prop is set to `true`, this will use the `static` value.
+   */
+  staleTimes?: {
+    dynamic?: number
+    static?: number
+  }
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -427,6 +437,11 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+
+  /**
+   * Enables `fetch` requests to be proxied to the experimental text proxy server
+   */
+  testProxy?: boolean
 }
 
 export type ExportPathMap = {
@@ -921,6 +936,10 @@ export const defaultConfig: NextConfig = {
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
   },
 }
 

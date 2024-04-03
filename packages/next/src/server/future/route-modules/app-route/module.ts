@@ -304,19 +304,17 @@ export class AppRouteRouteModule extends RouteModule<
                 }
 
                 // We assume we can pass the original request through however we may end up
-                // proxying it in certain circumstances based on execution type and configuraiton
+                // proxying it in certain circumstances based on execution type and configuration
                 let request = rawRequest
 
                 // Update the static generation store based on the dynamic property.
                 if (isStaticGeneration) {
                   switch (this.dynamic) {
-                    case 'force-dynamic':
-                      // We should never be in this case but since it can happen based on the way our build/execution is structured
-                      // We defend against it for the time being
-                      throw new Error(
-                        'Invariant: `force-dynamic` during static generation not expected for app routes. This is a bug in Next.js'
-                      )
+                    case 'force-dynamic': {
+                      // Routes of generated paths should be dynamic
+                      staticGenerationStore.forceDynamic = true
                       break
+                    }
                     case 'force-static':
                       // The dynamic property is set to force-static, so we should
                       // force the page to be static.
@@ -393,7 +391,7 @@ export class AppRouteRouteModule extends RouteModule<
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
-                    ;(context.renderOpts as any).fetchMetrics =
+                    context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
                     context.renderOpts.waitUntil = Promise.all(

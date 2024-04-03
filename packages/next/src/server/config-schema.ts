@@ -247,6 +247,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             validator: z.string().optional(),
           })
           .optional(),
+        staleTimes: z
+          .object({
+            dynamic: z.number().optional(),
+            static: z.number().optional(),
+          })
+          .optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
@@ -382,6 +388,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useLightningcss: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
+        testProxy: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
