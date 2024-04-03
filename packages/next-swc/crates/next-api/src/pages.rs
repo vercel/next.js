@@ -33,7 +33,8 @@ use turbo_tasks::{
 };
 use turbopack_binding::{
     turbo::tasks_fs::{
-        File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
+        File, FileContent, FileSystem, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
+        VirtualFileSystem,
     },
     turbopack::{
         core::{
@@ -1063,14 +1064,14 @@ impl PageEndpoint {
 
         let client_assets = OutputAssets::new(client_assets);
 
-        let has_app_js = !matches!(
+        let has_app_js = matches!(
             *this
                 .pages_project
                 .pages_dir()
                 .join("_app.js".to_string())
-                .read()
+                .get_type()
                 .await?,
-            FileContent::NotFound
+            FileSystemEntryType::File
         );
 
         let next_font_manifest_output = create_font_manifest(
