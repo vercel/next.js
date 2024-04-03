@@ -32,7 +32,7 @@
     "@types/async-retry": "1.4.2",
     "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
-    "@types/node": "^20.2.5",
+    "@types/node": "^20.12.3",
     "@types/prompts": "2.4.2",
     "@types/tar": "6.1.5",
     "@types/validate-npm-package-name": "3.0.0",

@@ -528,8 +528,8 @@ function createPendingCacheNode(
 
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
-    rsc: createDeferredRsc(),
-    head: isLeafSegment ? createDeferredRsc() : null,
+    rsc: createDeferredRsc() as React.ReactNode,
+    head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
     lazyDataResolved: false,
   }
 }
@@ -779,7 +779,7 @@ export function updateCacheNodeOnPopstateRestoration(
 
 const DEFERRED = Symbol()
 
-type PendingDeferredRsc = Promise<React.ReactNode> & {
+export type PendingDeferredRsc = Promise<React.ReactNode> & {
   status: 'pending'
   resolve: (value: React.ReactNode) => void
   reject: (error: any) => void
