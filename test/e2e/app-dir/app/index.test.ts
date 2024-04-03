@@ -163,7 +163,6 @@ createNextDescribe(
       )
 
       await check(async () => {
-        console.log('!!requests', requests)
         return requests.some(
           (req) =>
             req.includes(
