@@ -18,7 +18,7 @@ export function UpdateSearchParamsButton({
       <button
         id={`update-search-params${id ? `-${id}` : ''}`}
         style={{ color: 'blue', padding: '10px' }}
-        onClick={() => router.replace(`?random=${Math.random()}`)}
+        onClick={() => router.replace(`?random=${Math.random()}#hash-test`)}
       >
         Add Search Params
       </button>
