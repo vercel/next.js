@@ -6543,10 +6543,10 @@
     "runtimeError": false
   },
   "test/e2e/next-font/google-fetch-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google fetch error should use a fallback font in dev"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
