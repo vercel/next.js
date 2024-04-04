@@ -258,13 +258,17 @@ export function nextTestSetup(
     beforeAll(async () => {
       next = await createNext(options)
     })
+
+    beforeEach(async () => {
+      await next?.stop()
+      await next?.clean()
+    })
+
     afterAll(async () => {
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
       // by attempting to destroy on undefined.
-      if (next) {
-        await next.destroy()
-      }
+      await next?.destroy()
     })
   }
 
