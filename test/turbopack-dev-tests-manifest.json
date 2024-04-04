@@ -9653,7 +9653,7 @@
       "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
+      "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
     ],
     "failed": [],
     "pending": [
