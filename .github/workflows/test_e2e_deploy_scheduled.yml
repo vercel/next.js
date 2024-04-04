@@ -43,7 +43,7 @@ jobs:
           check-latest: true
 
       - name: Setup pnpm
-        run: corepack enable && pnpm config set store-dir ~/.pnpm-store
+        run: corepack enable && SHELL=$(which bash) pnpm setup
 
       - name: Checkout
         uses: actions/checkout@v4
