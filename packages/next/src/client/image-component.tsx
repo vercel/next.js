@@ -396,11 +396,6 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
 
-    if (config.loaderFile && typeof defaultLoader === 'undefined') {
-      throw new Error(
-        'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
-      )
-    }
     const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
       defaultLoader,
       imgConf: config,

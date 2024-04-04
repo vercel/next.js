@@ -283,6 +283,11 @@ export function getImgProps(
     config = { ...c, allSizes, deviceSizes }
   }
 
+  if (config.loaderFile && typeof defaultLoader === 'undefined') {
+    throw new Error(
+      'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  }
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
   // Remove property so it's not spread on <img> element
