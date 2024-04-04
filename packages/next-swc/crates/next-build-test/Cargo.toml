@@ -6,11 +6,6 @@ license = "MPL-2.0"
 edition = "2021"
 autobenches = false
 
-[[bin]]
-name = "next-build-test"
-path = "src/main.rs"
-bench = false
-
 [lints]
 workspace = true
 
@@ -37,6 +32,17 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_node",
 ] }
 turbo-tasks = { workspace = true }
+rand.workspace = true
+num_cpus = "1.16.0"
+tokio-stream = "0.1.15"
+futures-util = "0.3.30"
 
 [build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
+
+[dev-dependencies]
+criterion = { path = "../../../../../../criterion.rs", features = ["async"] }
+
+[[bench]]
+name = "example"
+harness = false

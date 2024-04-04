@@ -1,82 +1,48 @@
-#![feature(future_join)]
-#![feature(min_specialization)]
-#![feature(arbitrary_self_types)]
+use std::str::FromStr;
 
-use anyhow::Result;
-use next_api::{
-    project::{ProjectContainer, ProjectOptions},
-    route::{Endpoint, Route},
-};
+use next_build_test::{main_inner, Strategy};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_binding::turbo::tasks_memory::MemoryBackend;
 
-#[global_allocator]
-static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
+// #[global_allocator]
+// static ALLOC: turbo_tasks_malloc::TurboMalloc =
+// turbo_tasks_malloc::TurboMalloc;
 
 fn main() {
+    let mut factor = std::env::args()
+        .nth(2)
+        .map(|s| s.parse().unwrap())
+        .unwrap_or(num_cpus::get());
+    let strat = std::env::args()
+        .nth(1)
+        .map(|s| Strategy::from_str(&s))
+        .transpose()
+        .unwrap()
+        .unwrap_or(Strategy::Sequential);
+
+    let limit = std::env::args()
+        .nth(3)
+        .map(|s| s.parse().unwrap())
+        .unwrap_or(1);
+
+    if strat == Strategy::Sequential {
+        factor = 1;
+    }
+
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
+            println!("threads stopped");
         })
         .build()
         .unwrap()
         .block_on(async {
             let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
-            tt.run_once(main_inner()).await
+            let x = tt.run_once(main_inner(strat, factor, limit)).await;
+            println!("done");
+            x
         })
         .unwrap();
-}
-
-async fn main_inner() -> Result<()> {
-    register();
-
-    let mut file = std::fs::File::open("project_options.json")?;
-    let data: ProjectOptions = serde_json::from_reader(&mut file).unwrap();
-
-    let options = ProjectOptions { ..data };
-
-    let project = ProjectContainer::new(options);
-
-    let entrypoints = project.entrypoints().await?;
-
-    // TODO select 100 by pseudo random
-    // TODO run 10 in parallel
-    for (name, route) in entrypoints.routes.iter().take(100) {
-        println!("{name}");
-        match route {
-            Route::Page {
-                html_endpoint,
-                data_endpoint: _,
-            } => {
-                html_endpoint.write_to_disk().await?;
-            }
-            Route::PageApi { endpoint } => {
-                endpoint.write_to_disk().await?;
-            }
-            Route::AppPage(routes) => {
-                for route in routes {
-                    route.html_endpoint.write_to_disk().await?;
-                }
-            }
-            Route::AppRoute {
-                original_name: _,
-                endpoint,
-            } => {
-                endpoint.write_to_disk().await?;
-            }
-            Route::Conflict => {
-                println!("WARN: conflict {}", name);
-            }
-        }
-    }
-
-    // do stuff
-    Ok(())
-}
-
-fn register() {
-    next_api::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
