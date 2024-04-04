@@ -19,13 +19,13 @@ This diagram provides an overview of auth flow in Next.js:
 
 For educational purpose, the examples in this section will walk you through basic username and password authentication.
 
-> While you can implement a custom auth solution, for increased security, simplicity and better DX, you should use a third-party authentication provider. They offer built-in solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Authentication Providers](#authentication-providers) section.
+> While you can implement a custom auth solution, for increased security, simplicity, and better DX, you should use a third-party authentication provider. They offer built-in solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js compatible providers in the [Authentication Providers](#authentication-providers) section.
 
 <AppOnly>
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [useFormStatus()](https://react.dev/reference/react-dom/hooks/useFormStatus), and [useFormState()](https://react.dev/reference/react-dom/hooks/useFormState), to capture user data, validate form fields, and call your Authentication Provider's API or database. Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [useFormStatus()](https://react.dev/reference/react-dom/hooks/useFormStatus), and [useFormState()](https://react.dev/reference/react-dom/hooks/useFormState), to capture user credentials, validate form fields, and call your Authentication Provider's API or database. Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
 Here are the steps to implement signup/login functionality:
 
