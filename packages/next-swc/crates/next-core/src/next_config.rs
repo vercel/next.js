@@ -85,7 +85,6 @@ pub struct NextConfig {
     pub output: Option<OutputType>,
     pub analytics_id: Option<String>,
 
-    ///
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -864,10 +863,8 @@ impl NextConfig {
             "{}/_next/",
             if let Some(asset_prefix) = &this.asset_prefix {
                 asset_prefix
-            } else if let Some(base_path) = &this.base_path {
-                base_path
             } else {
-                ""
+                this.base_path.as_ref().map_or("", |b| b.as_str())
             }
             .trim_end_matches('/')
         ))))
