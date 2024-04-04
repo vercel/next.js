@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { links } from './components/links'
 
 async function measure(stream: NodeJS.ReadableStream) {
   let streamFirstChunk = 0
@@ -54,6 +55,7 @@ const pages: Page[] = [
   { pathname: '/nested/a', dynamic: true, revalidate: 60 },
   { pathname: '/nested/b', dynamic: true, revalidate: 60 },
   { pathname: '/nested/c', dynamic: true, revalidate: 60 },
+  { pathname: '/metadata', dynamic: true, revalidate: 60 },
   { pathname: '/on-demand/a', dynamic: true },
   { pathname: '/on-demand/b', dynamic: true },
   { pathname: '/on-demand/c', dynamic: true },
@@ -82,11 +84,21 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev, isNextDeploy }) => {
+    describe('Test Setup', () => {
+      it('has all the test pathnames listed in the links component', () => {
+        for (const { pathname } of pages) {
+          expect(links).toContainEqual(
+            expect.objectContaining({ href: pathname })
+          )
+        }
+      })
+    })
+
     describe('HTML Response', () => {
       describe.each(pages)(
         'for $pathname',
         ({ pathname, dynamic, revalidate, emptyStaticPart }) => {
-          beforeEach(async () => {
+          beforeAll(async () => {
             // Hit the page once to populate the cache.
             const res = await next.fetch(pathname)
 
@@ -95,6 +107,12 @@ createNextDescribe(
           })
 
           it('should allow navigations to and from a pages/ page', async () => {
+            // Ensure that the links array is updated with the URL of the target
+            // page, otherwise this test won't do anything correct.
+            expect(links).toContainEqual(
+              expect.objectContaining({ href: pathname })
+            )
+
             const browser = await next.browser(pathname)
 
             try {
