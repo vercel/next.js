@@ -1,5 +1,4 @@
 use anyhow::Result;
-use serde::Serialize;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -137,17 +136,6 @@ impl Asset for EcmascriptDevChunkList {
     fn versioned_content(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>> {
         Vc::upcast(self.own_content())
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptDevChunkListParams<'a> {
-    /// Path to the chunk list to register.
-    path: &'a str,
-    /// All chunks that belong to the chunk list.
-    chunks: Vec<String>,
-    /// Where this chunk list is from.
-    source: EcmascriptDevChunkListSource,
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Hash)]

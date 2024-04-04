@@ -1254,6 +1254,7 @@ pub async fn resolve_raw(
 
     let mut results = Vec::new();
 
+    let lookup_dir_str = lookup_dir.to_string().await?;
     let pat = path.await?;
     if let Some(pat) = pat
         .filter_could_match("/ROOT/")
@@ -1262,10 +1263,11 @@ pub async fn resolve_raw(
         let path = Pattern::new(pat);
         let matches = read_matches(lookup_dir.root(), "/ROOT/".to_string(), true, path).await?;
         if matches.len() > 10000 {
+            let path_str = path.to_string().await?;
             println!(
                 "WARN: resolving abs pattern {} in {} leads to {} results",
-                path.to_string().await?,
-                lookup_dir.to_string().await?,
+                path_str,
+                lookup_dir_str,
                 matches.len()
             );
         } else {
@@ -1283,7 +1285,7 @@ pub async fn resolve_raw(
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
                 pat,
-                lookup_dir.to_string().await?,
+                lookup_dir_str,
                 matches.len()
             );
         }
@@ -2331,7 +2333,9 @@ async fn handle_exports_imports_field(
     let mut results = Vec::new();
     let mut conditions_state = HashMap::new();
 
-    let req = format!("{}{}", path, &*query.await?);
+    let query_str = query.await?;
+
+    let req = format!("{}{}", path, query_str);
     let values = exports_imports_field
         .lookup(&req)
         .map(AliasMatch::try_into_self)
@@ -2545,7 +2549,11 @@ impl ValueToString for ModulePart {
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => format!("export {} as {}", original_export.await?, export.await?),
+            } => {
+                let original_export = original_export.await?;
+                let export = export.await?;
+                format!("export {} as {}", original_export, export)
+            }
             ModulePart::RenamedNamespace { export } => {
                 format!("export * as {}", export.await?)
             }

@@ -69,7 +69,9 @@ impl ValueToString for AssetIdent {
                     s.push(',');
                 }
 
-                write!(s, " {} => {:?}", key.await?, asset.to_string().await?)?;
+                let key_str = key.await?;
+                let asset_str = asset.to_string().await?;
+                write!(s, " {} => {:?}", key_str, asset_str)?;
             }
 
             s.push_str(" }");

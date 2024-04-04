@@ -70,11 +70,12 @@ impl ModuleReference for NodePreGypConfigReference {
 impl ValueToString for NodePreGypConfigReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
+        let context_dir = self.context_dir.to_string().await?;
+        let config_file_pattern = self.config_file_pattern.to_string().await?;
+        let compile_target = self.compile_target.await?;
         Ok(Vc::cell(format!(
             "node-gyp in {} with {} for {}",
-            self.context_dir.to_string().await?,
-            self.config_file_pattern.to_string().await?,
-            self.compile_target.await?
+            context_dir, config_file_pattern, compile_target
         )))
     }
 }
@@ -234,10 +235,11 @@ impl ModuleReference for NodeGypBuildReference {
 impl ValueToString for NodeGypBuildReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
+        let context_dir = self.context_dir.to_string().await?;
+        let compile_target = self.compile_target.await?;
         Ok(Vc::cell(format!(
             "node-gyp in {} for {}",
-            self.context_dir.to_string().await?,
-            self.compile_target.await?
+            context_dir, compile_target
         )))
     }
 }

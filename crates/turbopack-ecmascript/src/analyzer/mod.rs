@@ -3301,7 +3301,7 @@ fn regex_from_js(pattern: &str, flags: &str) -> Result<Regex> {
 
 /// Parse the arguments passed to a require.context invocation, validate them
 /// and convert them to the appropriate rust values.
-pub fn parse_require_context(args: &Vec<JsValue>) -> Result<RequireContextOptions> {
+pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> {
     if !(1..=3).contains(&args.len()) {
         // https://linear.app/vercel/issue/WEB-910/add-support-for-requirecontexts-mode-argument
         bail!("require.context() only supports 1-3 arguments (mode is not supported)");

@@ -9,7 +9,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::js_word,
-        visit::{fields::*, VisitAstPath, VisitWithPath, *},
+        visit::{fields::*, *},
     },
 };
 use turbo_tasks::Vc;

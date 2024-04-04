@@ -210,7 +210,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use async_trait::async_trait;
 
     use super::*;

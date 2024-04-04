@@ -48,6 +48,7 @@ impl BlurPlaceholder {
 }
 
 /// Gathered meta information about an image.
+#[allow(clippy::manual_non_exhaustive)]
 #[serde_as]
 #[turbo_tasks::value]
 #[derive(Default)]

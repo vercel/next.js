@@ -29,7 +29,7 @@ impl Command {
     }
 
     pub fn error_message<S: AsRef<str>>(mut self, message: S) -> Self {
-        self.error_message = message.as_ref().to_owned();
+        message.as_ref().clone_into(&mut self.error_message);
         self
     }
 

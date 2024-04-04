@@ -9,7 +9,6 @@ use hyper::{
     Request, Response,
 };
 use mime::Mime;
-use mime_guess::mime;
 use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::{util::SharedError, CollectiblesSource, ReadRef, TransientInstance, Vc};
 use turbo_tasks_bytes::Bytes;

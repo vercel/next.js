@@ -77,21 +77,21 @@ impl TaskMetaState {
     }
 }
 
-// These need to be impl types since there is no way to reference the zero-sized
-// function item type
-pub(super) type TaskMetaStateAsFull = impl Fn(&TaskMetaState) -> Option<&TaskState>;
-pub(super) type TaskMetaStateAsPartial = impl Fn(&TaskMetaState) -> Option<&PartialTaskState>;
-pub(super) type TaskMetaStateAsUnloaded = impl Fn(&TaskMetaState) -> Option<&UnloadedTaskState>;
-pub(super) type TaskMetaStateAsFullMut = impl Fn(&mut TaskMetaState) -> Option<&mut TaskState>;
+pub(super) type TaskMetaStateAsFull = for<'a> fn(&'a TaskMetaState) -> Option<&'a TaskState>;
+pub(super) type TaskMetaStateAsPartial = for<'a> fn(&'a TaskMetaState) -> Option<&PartialTaskState>;
+pub(super) type TaskMetaStateAsUnloaded =
+    for<'a> fn(&'a TaskMetaState) -> Option<&'a UnloadedTaskState>;
+pub(super) type TaskMetaStateAsFullMut =
+    for<'a> fn(&'a mut TaskMetaState) -> Option<&'a mut TaskState>;
 pub(super) type TaskMetaStateAsPartialMut =
-    impl Fn(&mut TaskMetaState) -> Option<&mut PartialTaskState>;
+    for<'a> fn(&'a mut TaskMetaState) -> Option<&'a mut PartialTaskState>;
 pub(super) type TaskMetaStateAsUnloadedMut =
-    impl Fn(&mut TaskMetaState) -> Option<&mut UnloadedTaskState>;
+    for<'a> fn(&'a mut TaskMetaState) -> Option<&'a mut UnloadedTaskState>;
 
 pub(super) enum TaskMetaStateReadGuard<'a> {
     Full(ReadGuard<'a, TaskMetaState, TaskState, TaskMetaStateAsFull>),
     Partial(ReadGuard<'a, TaskMetaState, PartialTaskState, TaskMetaStateAsPartial>),
-    Unloaded(ReadGuard<'a, TaskMetaState, UnloadedTaskState, TaskMetaStateAsUnloaded>),
+    Unloaded,
 }
 
 pub(super) type FullTaskWriteGuard<'a> =
@@ -128,9 +128,7 @@ impl<'a> From<RwLockReadGuard<'a, TaskMetaState>> for TaskMetaStateReadGuard<'a>
             TaskMetaState::Partial(_) => {
                 TaskMetaStateReadGuard::Partial(ReadGuard::new(guard, TaskMetaState::as_partial))
             }
-            TaskMetaState::Unloaded(_) => {
-                TaskMetaStateReadGuard::Unloaded(ReadGuard::new(guard, TaskMetaState::as_unloaded))
-            }
+            TaskMetaState::Unloaded(_) => TaskMetaStateReadGuard::Unloaded,
         }
     }
 }

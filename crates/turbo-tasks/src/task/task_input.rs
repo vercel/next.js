@@ -365,7 +365,6 @@ tuple_impls! { A B C D E F G H I J K L }
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use turbo_tasks_macros::TaskInput;
 
     use super::*;

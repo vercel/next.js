@@ -1,6 +1,6 @@
 use std::{
     ffi::{CStr, CString},
-    ptr::null,
+    ptr::{addr_of, null},
 };
 
 use signposter_sys::*;
@@ -48,7 +48,7 @@ unsafe impl Send for Log {}
 impl Default for Log {
     fn default() -> Self {
         Log {
-            os_log: unsafe { &_os_log_default as *const _ as *mut _ },
+            os_log: unsafe { addr_of!(_os_log_default) as *const _ as *mut _ },
         }
     }
 }
@@ -148,7 +148,7 @@ impl Signpost {
     fn emit(&self, name: &CStr, message: Option<&CStr>, signpost_type: SignpostType) {
         unsafe {
             _os_signpost_emit_with_name_impl(
-                &__dso_handle as *const _ as *mut _,
+                addr_of!(__dso_handle) as *const _ as *mut _,
                 self.log,
                 signpost_type as _,
                 self.id,

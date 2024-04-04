@@ -207,7 +207,8 @@ impl ValueToString for RouteTree {
             result.push_str(", ");
         }
         for (key, tree) in static_segments {
-            write!(result, "{}: {}, ", key, tree.to_string().await?)?;
+            let tree = tree.to_string().await?;
+            write!(result, "{}: {}, ", key, tree)?;
         }
         if !sources.is_empty() {
             write!(result, "{} x source, ", sources.len())?;

@@ -346,9 +346,7 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                     return None;
                 };
                 let mut chars_in_path = self.path[start..end].chars();
-                let Some(c) = chars_in_path.next() else {
-                    return None;
-                };
+                let c = chars_in_path.next()?;
                 if chars_in_path.next().is_some() {
                     return None;
                 }

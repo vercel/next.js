@@ -210,10 +210,11 @@ impl ValueToString for IssueProcessingPathItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
         if let Some(context) = self.file_path {
+            let description_str = self.description.await?;
             Ok(Vc::cell(format!(
                 "{} ({})",
                 context.to_string().await?,
-                self.description.await?
+                description_str
             )))
         } else {
             Ok(self.description)
