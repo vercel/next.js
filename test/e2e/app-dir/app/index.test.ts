@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
+import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
@@ -13,13 +13,24 @@ createNextDescribe(
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-      ? 'pnpm next experimental-compile'
+      ? `pnpm next build --experimental-build-mode=compile`
       : undefined,
     dependencies: {
       nanoid: '4.0.1',
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
+    if (isDev && isPPREnabledByDefault) {
+      it('should allow returning just skeleton in dev with query', async () => {
+        const res = await next.fetch('/skeleton?__nextppronly=1')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain('Skeleton')
+        expect(html).not.toContain('suspended content')
+      })
+    }
+
     if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should provide query for getStaticProps page correctly', async () => {
         const res = await next.fetch('/ssg?hello=world')
@@ -292,7 +303,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
       )
     })
 
@@ -304,8 +315,8 @@ createNextDescribe(
       })
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
       )
     })
 
@@ -1394,136 +1405,6 @@ createNextDescribe(
       )
     })
 
-    describe('error component', () => {
-      it('should trigger error component when an error happens during rendering', async () => {
-        const browser = await next.browser('/error/client-component')
-        await browser.elementByCss('#error-trigger-button').click()
-
-        if (isDev) {
-          // TODO: investigate desired behavior here as it is currently
-          // minimized by default
-          // expect(await hasRedbox(browser)).toBe(true)
-          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
-        } else {
-          await browser
-          expect(
-            await browser
-              .waitForElementByCss('#error-boundary-message')
-              .elementByCss('#error-boundary-message')
-              .text()
-          ).toBe('An error occurred: this is a test')
-        }
-      })
-
-      it('should trigger error component when an error happens during server components rendering', async () => {
-        const browser = await next.browser('/error/server-component')
-
-        if (isDev) {
-          expect(
-            await browser
-              .waitForElementByCss('#error-boundary-message')
-              .elementByCss('#error-boundary-message')
-              .text()
-          ).toBe('this is a test')
-          expect(
-            await browser.waitForElementByCss('#error-boundary-digest').text()
-            // Digest of the error message should be stable.
-          ).not.toBe('')
-          // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-          // expect(await hasRedbox(browser)).toBe(true)
-          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
-        } else {
-          await browser
-          expect(
-            await browser.waitForElementByCss('#error-boundary-message').text()
-          ).toBe(
-            'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
-          )
-          expect(
-            await browser.waitForElementByCss('#error-boundary-digest').text()
-            // Digest of the error message should be stable.
-          ).not.toBe('')
-        }
-      })
-
-      it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
-        const browser = await next.browser(
-          '/error/global-error-boundary/client'
-        )
-        await browser.elementByCss('#error-trigger-button').click()
-
-        if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
-        } else {
-          expect(
-            await browser.waitForElementByCss('body').elementByCss('h2').text()
-          ).toBe(
-            'Application error: a client-side exception has occurred (see the browser console for more information).'
-          )
-        }
-      })
-
-      it('should display error digest for error in server component with default error boundary', async () => {
-        const browser = await next.browser(
-          '/error/global-error-boundary/server'
-        )
-
-        if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
-        } else {
-          expect(
-            await browser.waitForElementByCss('body').elementByCss('h2').text()
-          ).toBe(
-            'Application error: a server-side exception has occurred (see the server logs for more information).'
-          )
-          expect(
-            await browser.waitForElementByCss('body').elementByCss('p').text()
-          ).toMatch(/Digest: \w+/)
-        }
-      })
-
-      if (!isDev) {
-        it('should allow resetting error boundary', async () => {
-          const browser = await next.browser('/error/client-component')
-
-          // Try triggering and resetting a few times in a row
-          for (let i = 0; i < 5; i++) {
-            await browser
-              .elementByCss('#error-trigger-button')
-              .click()
-              .waitForElementByCss('#error-boundary-message')
-
-            expect(
-              await browser.elementByCss('#error-boundary-message').text()
-            ).toBe('An error occurred: this is a test')
-
-            await browser
-              .elementByCss('#reset')
-              .click()
-              .waitForElementByCss('#error-trigger-button')
-
-            expect(
-              await browser.elementByCss('#error-trigger-button').text()
-            ).toBe('Trigger Error!')
-          }
-        })
-
-        it('should hydrate empty shell to handle server-side rendering errors', async () => {
-          const browser = await next.browser(
-            '/error/ssr-error-client-component'
-          )
-          const logs = await browser.log()
-          const errors = logs
-            .filter((x) => x.source === 'error')
-            .map((x) => x.message)
-            .join('\n')
-          expect(errors).toInclude('Error during SSR')
-        })
-      }
-    })
-
     describe('known bugs', () => {
       describe('should support React cache', () => {
         it('server component', async () => {
@@ -1800,6 +1681,28 @@ createNextDescribe(
         expect($('link[href="/style3.css"]').length).toBe(1)
         expect($('link[href="/style1a.css"]').length).toBe(1)
         expect($('link[href="/style1b.css"]').length).toBe(1)
+      })
+
+      it('should pass `nonce`', async () => {
+        const html = await next.render('/script-nonce')
+        const $ = cheerio.load(html)
+        const scripts = $('script, link[rel="preload"][as="script"]')
+
+        scripts.each((_, element) => {
+          expect(element.attribs.nonce).toBeTruthy()
+        })
+
+        if (!isDev) {
+          const browser = await next.browser('/script-nonce')
+
+          await retry(async () => {
+            await browser.elementByCss('#get-order').click()
+            const order = JSON.parse(
+              await browser.elementByCss('#order').text()
+            )
+            expect(order?.length).toBe(2)
+          })
+        }
       })
     })
 

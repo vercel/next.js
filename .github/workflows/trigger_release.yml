@@ -29,7 +29,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.12.2
+  TURBO_VERSION: 1.12.5
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -50,7 +50,8 @@ jobs:
           node-version: 18
           check-latest: true
 
-      - run: git clone https://github.com/vercel/next.js.git --depth=25 .
+      - name: Clone Next.js repository
+        run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
 
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
@@ -75,7 +76,7 @@ jobs:
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         timeout-minutes: 5
         id: cache-pnpm-store
         with:

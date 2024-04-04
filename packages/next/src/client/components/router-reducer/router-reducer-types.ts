@@ -1,7 +1,6 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
-  FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
 import type { FetchServerResponseResult } from './fetch-server-response'
@@ -14,11 +13,13 @@ export const ACTION_PREFETCH = 'prefetch'
 export const ACTION_FAST_REFRESH = 'fast-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
-export type RouterChangeByServerResponse = (
-  previousTree: FlightRouterState,
-  flightData: FlightData,
-  overrideCanonicalUrl: URL | undefined
-) => void
+export type RouterChangeByServerResponse = ({
+  previousTree,
+  serverResponse,
+}: {
+  previousTree: FlightRouterState
+  serverResponse: FetchServerResponseResult
+}) => void
 
 export type RouterNavigate = (
   href: string,
@@ -114,15 +115,17 @@ export interface NavigateAction {
 
 /**
  * Restore applies the provided router state.
- * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
- * - Router state is applied as-is from the history state.
+ * - Used for `popstate` (back/forward navigation) where a known router state has to be applied.
+ * - Also used when syncing the router state with `pushState`/`replaceState` calls.
+ * - Router state is applied as-is from the history state, if available.
+ * - If the history state does not contain the router state, the existing router state is used.
  * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
  * - If existing cache nodes match these are used.
  */
 export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
-  tree: FlightRouterState
+  tree: FlightRouterState | undefined
 }
 
 /**
@@ -132,9 +135,8 @@ export interface RestoreAction {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  flightData: FlightData
+  serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
-  overrideCanonicalUrl: URL | undefined
 }
 
 /**
@@ -198,10 +200,19 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: Promise<FetchServerResponseResult> | null
+  data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
+  key: string
+  status: PrefetchCacheEntryStatus
+}
+
+export enum PrefetchCacheEntryStatus {
+  fresh = 'fresh',
+  reusable = 'reusable',
+  expired = 'expired',
+  stale = 'stale',
 }
 
 /**

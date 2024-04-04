@@ -28,7 +28,7 @@ static BOLD_WEIGHT: f64 = 700.0;
 pub(super) async fn get_font_fallbacks(
     context: Vc<FileSystemPath>,
     options_vc: Vc<NextFontLocalOptions>,
-    request_hash: Vc<u32>,
+    request_hash: u32,
 ) -> Result<Vc<FontFallbacks>> {
     let options = &*options_vc.await?;
     let mut font_fallbacks = vec![];
@@ -137,7 +137,7 @@ fn calc_average_width(font: &mut Font<DynamicFontTableProvider>) -> Option<f32> 
     )
 }
 
-/// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L59
+/// From [implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L59)
 ///
 /// If multiple font files are provided for a font family, we need to pick
 /// one to use for the automatic fallback generation. This function returns
@@ -196,7 +196,7 @@ fn pick_font_for_fallback_generation(
     }
 }
 
-/// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L18
+/// From[implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L18)
 ///
 /// Get the distance from normal (400) weight for the provided weight.
 /// If it's not a variable font we can just return the distance.
@@ -227,10 +227,10 @@ fn get_distance_from_normal_weight(weight: &Option<FontWeight>) -> Result<f64> {
     })
 }
 
-/// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L6
+/// From [implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L6)
 ///
 /// Convert the weight string to a number so it can be used for comparison.
-/// Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight
+/// Weights can be defined as a number, 'normal' or 'bold'. [reference](https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight)
 fn parse_weight_string(weight_str: &str) -> Result<f64> {
     if weight_str == "normal" {
         Ok(NORMAL_WEIGHT)

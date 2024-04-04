@@ -23,8 +23,7 @@ let server
 
 const context = {}
 
-// TODO: investigate this test stalling in CI
-describe.skip.each([
+describe.each([
   { title: 'using HTTP', useHttps: false },
   { title: 'using HTTPS', useHttps: true },
 ])('Custom Server $title', ({ useHttps }) => {
@@ -56,8 +55,7 @@ describe.skip.each([
     )
   }
 
-  // TODO: continue supporting this or remove it?
-  describe.skip('with dynamic assetPrefix', () => {
+  describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
@@ -135,7 +133,7 @@ describe.skip.each([
       expect(html).toMatch(/made it to dashboard/)
     })
 
-    it('should contain customServer in NEXT_DATA', async () => {
+    it.skip('should contain customServer in NEXT_DATA', async () => {
       const html = await renderViaHTTP(nextUrl, '/', undefined, { agent })
       const $ = cheerio.load(html)
       expect(JSON.parse($('#__NEXT_DATA__').text()).customServer).toBe(true)
@@ -143,7 +141,7 @@ describe.skip.each([
   })
 
   describe('with generateEtags enabled', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
@@ -213,7 +211,7 @@ describe.skip.each([
   describe('Error when rendering without starting slash', () => {
     afterEach(() => killApp(server))
 
-    it('should warn in dev mode', async () => {
+    it('should warn in development mode', async () => {
       let stderr = ''
       await startServer(
         {},
@@ -229,7 +227,7 @@ describe.skip.each([
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should warn in production mode', async () => {
@@ -303,7 +301,7 @@ describe.skip.each([
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
       await check(() => stderr, /unhandledRejection/)
       expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
-      expect(stderr).toContain('server.js:37:22')
+      expect(stderr).toContain('server.js:38:22')
     })
   })
 

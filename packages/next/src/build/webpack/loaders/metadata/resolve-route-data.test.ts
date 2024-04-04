@@ -99,5 +99,32 @@ describe('resolveRouteData', () => {
         "
       `)
     })
+    it('should resolve sitemap.xml with alternates', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com',
+            lastModified: '2021-01-01',
+            alternates: {
+              languages: {
+                es: 'https://example.com/es',
+                de: 'https://example.com/de',
+              },
+            },
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        <url>
+        <loc>https://example.com</loc>
+        <xhtml:link rel="alternate" hreflang="es" href="https://example.com/es" />
+        <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de" />
+        <lastmod>2021-01-01</lastmod>
+        </url>
+        </urlset>
+        "
+      `)
+    })
   })
 })

@@ -21,6 +21,7 @@ import {
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   PRERENDER_MANIFEST,
+  INTERCEPTION_ROUTE_REWRITE_MANIFEST,
 } from '../../../shared/lib/constants'
 import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import type { Telemetry } from '../../../telemetry/storage'
@@ -28,6 +29,10 @@ import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import type { CustomRoutes } from '../../../lib/load-custom-routes'
+import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
+import { getModuleReferencesInOrder } from '../utils'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
@@ -118,10 +123,10 @@ function getEntryFiles(
 
     files.push(
       `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
-      `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
+      `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
+      `server/${NEXT_FONT_MANIFEST}.js`,
+      `server/${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
     )
-
-    files.push(`server/${NEXT_FONT_MANIFEST}.js`)
   }
 
   if (hasInstrumentationHook) {
@@ -144,9 +149,7 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: {
-    sriEnabled: boolean
-  }
+  opts: Omit<Options, 'dev'>
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -160,6 +163,17 @@ function getCreateAssets(params: {
     const hasInstrumentationHook = compilation.entrypoints.has(
       INSTRUMENTATION_HOOK_FILENAME
     )
+
+    // we only emit this entry for the edge runtime since it doesn't have access to a routes manifest
+    // and we don't need to provide the entire route manifest, just the interception routes.
+    const interceptionRewrites = JSON.stringify(
+      opts.rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+    )
+    assets[`${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`] = new sources.RawSource(
+      `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
+        interceptionRewrites
+      )}`
+    ) as unknown as webpack.sources.RawSource
 
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
@@ -650,18 +664,20 @@ function getExtractMetadata(params: {
               rootDir
             )
           ) {
+            const message = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
+              typeof buildInfo.usingIndirectEval !== 'boolean'
+                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                    ', '
+                  )}`
+                : ''
+            }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`
             compilation.errors.push(
-              buildWebpackError({
-                message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
-                  typeof buildInfo.usingIndirectEval !== 'boolean'
-                    ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                        ', '
-                      )}`
-                    : ''
-                }\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`,
-                entryModule: module,
+              getDynamicCodeEvaluationError(
+                message,
+                module,
                 compilation,
-              })
+                compiler
+              )
             )
           }
         }
@@ -700,7 +716,7 @@ function getExtractMetadata(params: {
          * Append to the list of modules to process outgoingConnections from
          * the module that is being processed.
          */
-        for (const conn of moduleGraph.getOutgoingConnections(module)) {
+        for (const conn of getModuleReferencesInOrder(module, moduleGraph)) {
           if (conn.module) {
             modules.add(conn.module as webpack.NormalModule)
           }
@@ -718,13 +734,22 @@ function getExtractMetadata(params: {
     }
   }
 }
-export default class MiddlewarePlugin {
-  private readonly dev: boolean
-  private readonly sriEnabled: boolean
 
-  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
+interface Options {
+  dev: boolean
+  sriEnabled: boolean
+  rewrites: CustomRoutes['rewrites']
+}
+
+export default class MiddlewarePlugin {
+  private readonly dev: Options['dev']
+  private readonly sriEnabled: Options['sriEnabled']
+  private readonly rewrites: Options['rewrites']
+
+  constructor({ dev, sriEnabled, rewrites }: Options) {
     this.dev = dev
     this.sriEnabled = sriEnabled
+    this.rewrites = rewrites
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -769,6 +794,7 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
+            rewrites: this.rewrites,
           },
         })
       )

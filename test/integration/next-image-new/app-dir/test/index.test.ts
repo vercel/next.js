@@ -460,14 +460,14 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onError when error occured while loading image', async () => {
+  it('should callback native onError when error occurred while loading image', async () => {
     let browser = await webdriver(appPort, '/on-error')
     await browser.eval(
       `document.getElementById("img1").scrollIntoView({behavior: "smooth"})`
     )
     await check(
       () => browser.eval(`document.getElementById("msg1").textContent`),
-      'no error occured for img1'
+      'no error occurred for img1'
     )
     await check(
       () => browser.eval(`document.getElementById("img1").style.color`),
@@ -478,7 +478,7 @@ function runTests(mode) {
     )
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'no error occured for img2'
+      'no error occurred for img2'
     )
     await check(
       () => browser.eval(`document.getElementById("img2").style.color`),
@@ -487,7 +487,7 @@ function runTests(mode) {
     await browser.eval(`document.getElementById("toggle").click()`)
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'error occured while loading img2'
+      'error occurred while loading img2'
     )
     await check(
       () => browser.eval(`document.getElementById("img2").style.color`),
@@ -990,9 +990,8 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser
+      let browser = await webdriver(appPort, '/priority-missing-warning')
       try {
-        browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
         await check(async () => {
           const result = await browser.eval(
@@ -1009,12 +1008,10 @@ function runTests(mode) {
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
         expect(warnings).toMatch(
-          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
 
@@ -1318,6 +1315,9 @@ function runTests(mode) {
         expect(warnings).toContain(
           'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
         )
+        expect(warnings).toContain(
+          'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
+        )
       })
       it('should not log warnings when image unmounts', async () => {
         browser = await webdriver(appPort, '/should-not-warn-unmount')
@@ -1515,27 +1515,33 @@ function runTests(mode) {
 }
 
 describe('Image Component Default Tests', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('dev')
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

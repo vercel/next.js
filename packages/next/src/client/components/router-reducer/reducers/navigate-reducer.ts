@@ -4,27 +4,20 @@ import type {
   FlightSegmentPath,
 } from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
-import type { FetchServerResponseResult } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
-import { fillCacheWithDataProperty } from '../fill-cache-with-data-property'
-import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import type {
-  Mutable,
-  NavigateAction,
-  ReadonlyReducerState,
-  ReducerState,
-} from '../router-reducer-types'
-import { PrefetchKind } from '../router-reducer-types'
-import { handleMutable } from '../handle-mutable'
-import { applyFlightData } from '../apply-flight-data'
 import {
   PrefetchCacheEntryStatus,
-  getPrefetchEntryCacheStatus,
-} from '../get-prefetch-cache-entry-status'
-import { prunePrefetchCache } from './prune-prefetch-cache'
+  type Mutable,
+  type NavigateAction,
+  type ReadonlyReducerState,
+  type ReducerState,
+} from '../router-reducer-types'
+import { handleMutable } from '../handle-mutable'
+import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
@@ -32,7 +25,11 @@ import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
-import { createPrefetchCacheKey } from './create-prefetch-cache-key'
+import {
+  getOrCreatePrefetchCacheEntry,
+  prunePrefetchCache,
+} from '../prefetch-cache-utils'
+import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -74,17 +71,17 @@ function generateSegmentsFromPatch(
   return segments
 }
 
-function addRefetchToLeafSegments(
+function triggerLazyFetchForLeafSegments(
   newCache: CacheNode,
   currentCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
-  treePatch: FlightRouterState,
-  data: () => Promise<FetchServerResponseResult>
+  treePatch: FlightRouterState
 ) {
   let appliedPatch = false
 
   newCache.rsc = currentCache.rsc
   newCache.prefetchRsc = currentCache.prefetchRsc
+  newCache.loading = currentCache.loading
   newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
 
   const segmentPathsToFill = generateSegmentsFromPatch(treePatch).map(
@@ -92,7 +89,7 @@ function addRefetchToLeafSegments(
   )
 
   for (const segmentPaths of segmentPathsToFill) {
-    fillCacheWithDataProperty(newCache, currentCache, segmentPaths, data)
+    clearCacheNodeDataForSegmentPath(newCache, currentCache, segmentPaths)
 
     appliedPatch = true
   }
@@ -127,50 +124,25 @@ function navigateReducer_noPPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
-
-  // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const data = fetchServerResponse(
-      url,
-      state.tree,
-      state.nextUrl,
-      state.buildId,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      // in order to simulate the behavior of the prefetch cache
-      process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
-    )
-
-    const newPrefetchValue = {
-      data,
-      // this will make sure that the entry will be discarded after 30s
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchTime: Date.now(),
-      treeAtTimeOfPrefetch: state.tree,
-      lastUsedTime: null,
-    }
-
-    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
-    prefetchValues = newPrefetchValue
-  }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-
-  // The one before last item is the router state tree patch
+  const prefetchValues = getOrCreatePrefetchCacheEntry({
+    url,
+    nextUrl: state.nextUrl,
+    tree: state.tree,
+    buildId: state.buildId,
+    prefetchCache: state.prefetchCache,
+  })
   const { treeAtTimeOfPrefetch, data } = prefetchValues
 
-  prefetchQueue.bump(data!)
+  prefetchQueue.bump(data)
 
-  return data!.then(
+  return data.then(
     ([flightData, canonicalUrlOverride]) => {
+      let isFirstRead = false
       // we only want to mark this once
-      if (prefetchValues && !prefetchValues.lastUsedTime) {
+      if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
         prefetchValues.lastUsedTime = Date.now()
+        isFirstRead = true
       }
 
       // Handle case when navigating to page in `pages` from `app`
@@ -178,8 +150,14 @@ function navigateReducer_noPPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
-      let currentCache = state.cache
+      const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
@@ -193,21 +171,23 @@ function navigateReducer_noPPR(
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
         // Create new tree based on the flightSegmentPath and router state patch
-        let newTree = applyRouterStatePatchToTreeSkipDefault(
+        let newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           flightSegmentPathWithLeadingEmpty,
           currentTree,
-          treePatch
+          treePatch,
+          url.pathname
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
         // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
         if (newTree === null) {
-          newTree = applyRouterStatePatchToTreeSkipDefault(
+          newTree = applyRouterStatePatchToTree(
             // TODO-APP: remove ''
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
-            treePatch
+            treePatch,
+            url.pathname
           )
         }
 
@@ -217,31 +197,31 @@ function navigateReducer_noPPR(
           }
 
           const cache: CacheNode = createEmptyCacheNode()
-          let applied = applyFlightData(
-            currentCache,
-            cache,
-            flightDataPath,
-            prefetchValues?.kind === 'auto' &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
-          )
+          let applied = false
 
           if (
-            !applied &&
-            prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
+            prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+            !isFirstRead
           ) {
-            applied = addRefetchToLeafSegments(
+            // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
+            // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
+            // while copying over the `loading` for the segment that contains the page data.
+            // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+            applied = triggerLazyFetchForLeafSegments(
               cache,
               currentCache,
               flightSegmentPath,
-              treePatch,
-              // eslint-disable-next-line no-loop-func
-              () =>
-                fetchServerResponse(
-                  url,
-                  currentTree,
-                  state.nextUrl,
-                  state.buildId
-                )
+              treePatch
+            )
+            // since we re-used the stale cache's loading state & refreshed the data,
+            // update the `lastUsedTime` so that it can continue to be re-used for the next 30s
+            prefetchValues.lastUsedTime = Date.now()
+          } else {
+            applied = applyFlightData(
+              currentCache,
+              cache,
+              flightDataPath,
+              prefetchValues
             )
           }
 
@@ -267,7 +247,6 @@ function navigateReducer_noPPR(
             mutable.cache = cache
           }
 
-          currentCache = cache
           currentTree = newTree
 
           for (const subSegment of generateSegmentsFromPatch(treePatch)) {
@@ -319,50 +298,25 @@ function navigateReducer_PPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
-
-  // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const data = fetchServerResponse(
-      url,
-      state.tree,
-      state.nextUrl,
-      state.buildId,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      // in order to simulate the behavior of the prefetch cache
-      process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
-    )
-
-    const newPrefetchValue = {
-      data,
-      // this will make sure that the entry will be discarded after 30s
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchTime: Date.now(),
-      treeAtTimeOfPrefetch: state.tree,
-      lastUsedTime: null,
-    }
-
-    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
-    prefetchValues = newPrefetchValue
-  }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-
-  // The one before last item is the router state tree patch
+  const prefetchValues = getOrCreatePrefetchCacheEntry({
+    url,
+    nextUrl: state.nextUrl,
+    tree: state.tree,
+    buildId: state.buildId,
+    prefetchCache: state.prefetchCache,
+  })
   const { treeAtTimeOfPrefetch, data } = prefetchValues
 
-  prefetchQueue.bump(data!)
+  prefetchQueue.bump(data)
 
-  return data!.then(
+  return data.then(
     ([flightData, canonicalUrlOverride, _postponed]) => {
+      let isFirstRead = false
       // we only want to mark this once
-      if (prefetchValues && !prefetchValues.lastUsedTime) {
+      if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
         prefetchValues.lastUsedTime = Date.now()
+        isFirstRead = true
       }
 
       // Handle case when navigating to page in `pages` from `app`
@@ -370,8 +324,14 @@ function navigateReducer_PPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
-      let currentCache = state.cache
+      const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       // TODO: In practice, this is always a single item array. We probably
       // aren't going to every send multiple segments, at least not in this
@@ -389,21 +349,23 @@ function navigateReducer_PPR(
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
         // Create new tree based on the flightSegmentPath and router state patch
-        let newTree = applyRouterStatePatchToTreeSkipDefault(
+        let newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           flightSegmentPathWithLeadingEmpty,
           currentTree,
-          treePatch
+          treePatch,
+          url.pathname
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
         // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
         if (newTree === null) {
-          newTree = applyRouterStatePatchToTreeSkipDefault(
+          newTree = applyRouterStatePatchToTree(
             // TODO-APP: remove ''
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
-            treePatch
+            treePatch,
+            url.pathname
           )
         }
 
@@ -426,27 +388,20 @@ function navigateReducer_PPR(
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
 
-            // Check whether the prefetched data is stale. If so, we'll
-            // ignore it and wait for the dynamic data to stream in before
-            // showing new segments.
-            const isPrefetchStale =
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
-
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
               prefetchedTree,
               seedData,
-              head,
-              isPrefetchStale
+              head
             )
             if (task !== null && task.node !== null) {
               // We've created a new Cache Node tree that contains a prefetched
               // version of the next page. This can be rendered instantly.
 
               // Use the tree computed by updateCacheNodeOnNavigation instead
-              // of the one computed by applyRouterStatePatchToTreeSkipDefault.
-              // TODO: We should remove applyRouterStatePatchToTreeSkipDefault
+              // of the one computed by applyRouterStatePatchToTree.
+              // TODO: We should remove applyRouterStatePatchToTree
               // from the PPR path entirely.
               const patchedRouterState: FlightRouterState = task.route
               newTree = patchedRouterState
@@ -493,31 +448,31 @@ function navigateReducer_PPR(
             // tree. Or in the meantime we could factor it out into a
             // separate function.
             const cache: CacheNode = createEmptyCacheNode()
-            let applied = applyFlightData(
-              currentCache,
-              cache,
-              flightDataPath,
-              prefetchValues?.kind === 'auto' &&
-                prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
-            )
+            let applied = false
 
             if (
-              !applied &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
+              prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+              !isFirstRead
             ) {
-              applied = addRefetchToLeafSegments(
+              // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
+              // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
+              // while copying over the `loading` for the segment that contains the page data.
+              // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+              applied = triggerLazyFetchForLeafSegments(
                 cache,
                 currentCache,
                 flightSegmentPath,
-                treePatch,
-                // eslint-disable-next-line no-loop-func
-                () =>
-                  fetchServerResponse(
-                    url,
-                    currentTree,
-                    state.nextUrl,
-                    state.buildId
-                  )
+                treePatch
+              )
+              // since we re-used the stale cache's loading state & refreshed the data,
+              // update the `lastUsedTime` so that it can continue to be re-used for the next 30s
+              prefetchValues.lastUsedTime = Date.now()
+            } else {
+              applied = applyFlightData(
+                currentCache,
+                cache,
+                flightDataPath,
+                prefetchValues
               )
             }
 

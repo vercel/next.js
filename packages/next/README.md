@@ -30,8 +30,6 @@ Used by some of the world's largest companies, Next.js enables you to create ful
 - Visit our [Learn Next.js](https://nextjs.org/learn) course to get started with Next.js.
 - Visit the [Next.js Showcase](https://nextjs.org/showcase) to see more sites built with Next.js.
 
-Visit this [link](https://nextjs.org/learn) to get started with Next.js.
-
 ## Documentation
 
 Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.

@@ -2,6 +2,8 @@
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
+import type { NextServer } from '../next'
+
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
 import '../require-hook'
@@ -11,7 +13,6 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
-import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -25,15 +26,20 @@ import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
+import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
+import { getHostname } from '../../shared/lib/get-hostname'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -64,10 +70,9 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
+}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -99,6 +104,9 @@ export async function initialize(opts: {
   let devBundlerService: DevBundlerService | undefined
 
   if (opts.dev) {
+    const { Telemetry } =
+      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
+
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
@@ -140,6 +148,57 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    if (
+      !opts.minimalMode &&
+      config.i18n &&
+      config.i18n.localeDetection !== false
+    ) {
+      const urlParts = (req.url || '').split('?', 1)
+      let urlNoQuery = urlParts[0] || ''
+
+      if (config.basePath) {
+        urlNoQuery = removePathPrefix(urlNoQuery, config.basePath)
+      }
+
+      const pathnameInfo = getNextPathnameInfo(urlNoQuery, {
+        nextConfig: config,
+      })
+
+      const domainLocale = detectDomainLocale(
+        config.i18n.domains,
+        getHostname({ hostname: urlNoQuery }, req.headers)
+      )
+
+      const defaultLocale =
+        domainLocale?.defaultLocale || config.i18n.defaultLocale
+
+      const { getLocaleRedirect } =
+        require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
+
+      const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
+
+      const redirect = getLocaleRedirect({
+        defaultLocale,
+        domainLocale,
+        headers: req.headers,
+        nextConfig: config,
+        pathLocale: pathnameInfo.locale,
+        urlParsed: {
+          ...parsedUrl,
+          pathname: pathnameInfo.locale
+            ? `/${pathnameInfo.locale}${urlNoQuery}`
+            : urlNoQuery,
+        },
+      })
+
+      if (redirect) {
+        res.setHeader('Location', redirect)
+        res.statusCode = RedirectStatusCode.TemporaryRedirect
+        res.end(redirect)
+        return
+      }
+    }
+
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
@@ -178,7 +237,7 @@ export async function initialize(opts: {
         removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
         res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
-        res.statusCode = 200
+        res.statusCode = 404
         res.setHeader('content-type', 'application/json')
         res.end('{}')
         return null
@@ -475,14 +534,14 @@ export async function initialize(opts: {
 
       const appNotFound = opts.dev
         ? developmentBundler?.serverFields.hasAppNotFound
-        : await fsChecker.getItem('/_not-found')
+        : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
 
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          opts.dev ? '/not-found' : '/_not-found',
+          UNDERSCORE_NOT_FOUND_ROUTE,
           handleIndex,
           {
             'x-invoke-status': '404',
@@ -521,7 +580,7 @@ export async function initialize(opts: {
   }
 
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
-  if (opts.experimentalTestProxy) {
+  if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const {
       wrapRequestHandlerWorker,
@@ -541,7 +600,7 @@ export async function initialize(opts: {
     server: opts.server,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: developmentBundler?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
+    experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
@@ -625,5 +684,5 @@ export async function initialize(opts: {
     }
   }
 
-  return [requestHandler, upgradeHandler]
+  return [requestHandler, upgradeHandler, handlers.app]
 }

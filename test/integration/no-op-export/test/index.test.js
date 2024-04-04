@@ -15,19 +15,21 @@ const addPage = async (page, content) => {
 }
 
 describe('no-op export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    afterEach(async () => {
-      await Promise.all(
-        ['.next', 'pages', 'next.config.js', 'out'].map((file) =>
-          fs.remove(join(appDir, file))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      afterEach(async () => {
+        await Promise.all(
+          ['.next', 'pages', 'next.config.js', 'out'].map((file) =>
+            fs.remove(join(appDir, file))
+          )
         )
-      )
-    })
+      })
 
-    it('should not error for all server-side pages build', async () => {
-      await addPage(
-        '_error.js',
-        `
+      it('should not error for all server-side pages build', async () => {
+        await addPage(
+          '_error.js',
+          `
       import React from 'react'
       export default class Error extends React.Component {
         static async getInitialProps() {
@@ -42,10 +44,10 @@ describe('no-op export', () => {
         }
       }
     `
-      )
-      await addPage(
-        '[slug].js',
-        `
+        )
+        await addPage(
+          '[slug].js',
+          `
       export const getStaticProps = () => {
         return {
           props: {}
@@ -61,26 +63,26 @@ describe('no-op export', () => {
         return 'page'
       }
     `
-      )
-      const result = await nextBuild(appDir, undefined, {
-        stderr: 'log',
-        stdout: 'log',
+        )
+        const result = await nextBuild(appDir, undefined, {
+          stderr: 'log',
+          stdout: 'log',
+        })
+        expect(result.code).toBe(0)
       })
-      expect(result.code).toBe(0)
-    })
 
-    it('should not error for empty exportPathMap', async () => {
-      await addPage(
-        'index.js',
-        `
+      it('should not error for empty exportPathMap', async () => {
+        await addPage(
+          'index.js',
+          `
       export default function Index() {
         return 'hello world'
       }
     `
-      )
-      await fs.writeFile(
-        nextConfig,
-        `
+        )
+        await fs.writeFile(
+          nextConfig,
+          `
       module.exports = {
         output: 'export',
         exportPathMap() {
@@ -88,12 +90,13 @@ describe('no-op export', () => {
         }
       }
     `
-      )
-      const buildResult = await nextBuild(appDir, undefined, {
-        stderr: 'log',
-        stdout: 'log',
+        )
+        const buildResult = await nextBuild(appDir, undefined, {
+          stderr: 'log',
+          stdout: 'log',
+        })
+        expect(buildResult.code).toBe(0)
       })
-      expect(buildResult.code).toBe(0)
-    })
-  })
+    }
+  )
 })

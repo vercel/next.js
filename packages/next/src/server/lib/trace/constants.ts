@@ -39,6 +39,7 @@ enum NextNodeServerSpan {
   compression = 'NextNodeServer.compression',
   getBuildId = 'NextNodeServer.getBuildId',
   createComponentTree = 'NextNodeServer.createComponentTree',
+  clientComponentLoading = 'NextNodeServer.clientComponentLoading',
   getLayoutOrPageModule = 'NextNodeServer.getLayoutOrPageModule',
   generateStaticRoutes = 'NextNodeServer.generateStaticRoutes',
   generateFsStaticRoutes = 'NextNodeServer.generateFsStaticRoutes',
@@ -105,6 +106,10 @@ enum ResolveMetadataSpan {
   generateViewport = 'ResolveMetadata.generateViewport',
 }
 
+enum MiddlewareSpan {
+  execute = 'Middleware.execute',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -117,9 +122,11 @@ type SpanTypes =
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
+  | `${MiddlewareSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
+  MiddlewareSpan.execute,
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
   RenderSpan.getStaticProps,
@@ -134,6 +141,15 @@ export const NextVanillaSpanAllowlist = [
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.getLayoutOrPageModule,
   NextNodeServerSpan.startResponse,
+  NextNodeServerSpan.clientComponentLoading,
+]
+
+// These Spans are allowed to be always logged
+// when the otel log prefix env is set
+export const LogSpanAllowList = [
+  NextNodeServerSpan.findPageComponents,
+  NextNodeServerSpan.createComponentTree,
+  NextNodeServerSpan.clientComponentLoading,
 ]
 
 export {
@@ -148,6 +164,7 @@ export {
   NodeSpan,
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
+  MiddlewareSpan,
 }
 
 export type { SpanTypes }

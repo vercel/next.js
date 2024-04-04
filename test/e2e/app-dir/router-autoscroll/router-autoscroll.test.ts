@@ -133,11 +133,11 @@ createNextDescribe(
         })
       `)
         await waitForScrollToComplete(browser, { x: 0, y: 10000 })
-        browser.quit()
+        browser.close()
       })
 
       // Test hot reloading only in development
-      ;((global as any).isDev ? it : it.skip)(
+      ;(isNextDev ? it : it.skip)(
         'should not scroll the page when we hot reload',
         async () => {
           const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
@@ -148,14 +148,18 @@ createNextDescribe(
             'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
 
           await browser.eval(`window.router.refresh()`)
-          await next.patchFile(
-            pagePath,
-            (await next.readFile(pagePath)) +
+          let originalContent: string
+          await next.patchFile(pagePath, (content) => {
+            originalContent = content
+            return (
+              content +
               `
         \\\\ Add this meaningless comment to force refresh
         `
-          )
+            )
+          })
           await waitForScrollToComplete(browser, { x: 0, y: 12000 })
+          await next.patchFile(pagePath, originalContent)
         }
       )
     })

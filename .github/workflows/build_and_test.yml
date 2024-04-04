@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.12.2
+  TURBO_VERSION: 1.12.5
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -138,6 +138,20 @@ jobs:
       stepName: 'rust-check'
     secrets: inherit
 
+  rust-doc-check:
+    name: rustdoc check
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: ./scripts/deploy-turbopack-docs.sh
+      stepName: 'rust-doc-check'
+    secrets: inherit
+
   test-turbopack-dev:
     name: test turbopack dev
     needs: ['changes', 'build-next']
@@ -149,12 +163,12 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
       stepName: 'test-turbopack-dev-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-integration:
-    name: test turbopack integration
+    name: test turbopack development integration
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
@@ -165,8 +179,40 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-${{ matrix.group }}'
+    secrets: inherit
+
+  test-turbopack-production:
+    name: test turbopack production
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.17.0
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-turbopack-production-${{ matrix.group }}'
+    secrets: inherit
+
+  test-turbopack-production-integration:
+    name: test turbopack production integration
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.17.0
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -176,8 +222,20 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
+    secrets: inherit
+
+  #[NOTE] currently this only checks building wasi target
+  test-next-swc-napi-wasi:
+    name: test next-swc wasi
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: rustup target add wasm32-wasi-preview1-threads && turbo run build-native-wasi
+      stepName: 'test-next-swc-napi-wasi'
     secrets: inherit
 
   test-unit:
@@ -195,6 +253,30 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
       stepName: 'test-unit-${{ matrix.node }}'
+
+    secrets: inherit
+
+  test-new-tests-dev:
+    name: Test new tests for flakes (dev)
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --dev-mode
+      stepName: 'test-new-tests-dev'
+
+    secrets: inherit
+
+  test-new-tests-start:
+    name: Test new tests for flakes (prod)
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --prod-mode
+      stepName: 'test-new-tests-start'
 
     secrets: inherit
 
@@ -274,8 +356,6 @@ jobs:
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
@@ -313,7 +393,7 @@ jobs:
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 
-  report-test-results:
+  report-test-results-to-datadog:
     needs:
       [
         'changes',
@@ -326,6 +406,8 @@ jobs:
         'test-ppr-integration',
         'test-turbopack-dev',
         'test-turbopack-integration',
+        'test-turbopack-production',
+        'test-turbopack-production-integration',
       ]
     if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
@@ -364,6 +446,7 @@ jobs:
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-firefox-safari',
         'test-ppr-dev',
         'test-ppr-prod',
         'test-ppr-integration',
@@ -372,6 +455,8 @@ jobs:
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
+        'test-new-tests-dev',
+        'test-new-tests-start',
       ]
 
     if: always()

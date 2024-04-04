@@ -30,18 +30,18 @@ next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.89.6", features = [
+swc_core = { version = "0.90.24", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.16" }
+testing = { version = "0.35.21" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240202.3" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240329.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240202.3" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240329.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240202.3" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240329.2" }
 
 # General Deps
 
@@ -73,8 +73,6 @@ async-recursion = "1.0.2"
 async-trait = "0.1.64"
 atty = "0.2.14"
 chrono = "0.4.23"
-clap = "4.1.6"
-clap_complete = "4.1.2"
 concurrent-queue = "2.1.0"
 console = "0.15.5"
 console-subscriber = "0.1.8"
@@ -92,11 +90,14 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.50", features = [
+lightningcss = { version = "=1.0.0-alpha.54", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
+lightningcss-napi = { version = "0.1.0", default-features = false, features = [
+  "visitor"
+]}
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
 once_cell = "1.17.1"
@@ -108,7 +109,7 @@ pin-project-lite = "0.2.9"
 postcard = "1.0.4"
 predicates = "2.1.5"
 pretty_assertions = "1.3.0"
-proc-macro2 = "1.0.51"
+proc-macro2 = "1.0.79"
 qstring = "0.7.2"
 quote = "1.0.23"
 rand = "0.8.5"

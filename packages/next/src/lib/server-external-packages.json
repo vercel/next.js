@@ -25,7 +25,6 @@
   "jest",
   "jsdom",
   "libsql",
-  "lodash",
   "mdx-bundler",
   "mongodb",
   "mongoose",
@@ -33,13 +32,13 @@
   "next-seo",
   "node-pty",
   "node-web-audio-api",
-  "payload",
   "pg",
   "playwright",
   "postcss",
   "prettier",
   "prisma",
   "puppeteer",
+  "puppeteer-core",
   "rimraf",
   "sharp",
   "shiki",
@@ -49,5 +48,6 @@
   "typescript",
   "vscode-oniguruma",
   "webpack",
-  "websocket"
+  "websocket",
+  "zeromq"
 ]

@@ -19,7 +19,7 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -41,9 +41,7 @@ import type {
   Redirect,
   Rewrite,
   RouteHas,
-  RouteType,
 } from '../lib/load-custom-routes'
-import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
@@ -53,7 +51,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -74,6 +72,8 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -130,9 +130,11 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
+  loadBindings,
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownHeapProfiler,
+  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -143,7 +145,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  RSC_VARY_HEADER,
+  NEXT_ROUTER_STATE_TREE,
   NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
@@ -167,6 +169,20 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import {
+  getTurbopackJsConfig,
+  handleEntrypoints,
+  type EntryIssuesMap,
+  handleRouteType,
+  handlePagesErrorRoute,
+  formatIssue,
+  printNonFatalIssue,
+} from '../server/dev/turbopack-utils'
+import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
+import type { Entrypoints } from '../server/dev/turbopack/types'
+import { buildCustomRoute } from '../lib/build-custom-route'
+import { createProgress } from './progress'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -263,59 +279,13 @@ export type RoutesManifest = {
   rsc: {
     header: typeof RSC_HEADER
     didPostponeHeader: typeof NEXT_DID_POSTPONE_HEADER
-    varyHeader: typeof RSC_VARY_HEADER
+    varyHeader: string
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
-}
-
-export function buildCustomRoute(
-  type: 'header',
-  route: Header
-): ManifestHeaderRoute
-export function buildCustomRoute(
-  type: 'rewrite',
-  route: Rewrite
-): ManifestRewriteRoute
-export function buildCustomRoute(
-  type: 'redirect',
-  route: Redirect,
-  restrictedRedirectPaths: string[]
-): ManifestRedirectRoute
-export function buildCustomRoute(
-  type: RouteType,
-  route: Redirect | Rewrite | Header,
-  restrictedRedirectPaths?: string[]
-): ManifestHeaderRoute | ManifestRewriteRoute | ManifestRedirectRoute {
-  const compiled = pathToRegexp(route.source, [], {
-    strict: true,
-    sensitive: false,
-    delimiter: '/', // default is `/#?`, but Next does not pass query info
-  })
-
-  let source = compiled.source
-  if (!route.internal) {
-    source = modifyRouteRegex(
-      source,
-      type === 'redirect' ? restrictedRedirectPaths : undefined
-    )
-  }
-
-  const regex = normalizeRouteRegex(source)
-
-  if (type !== 'redirect') {
-    return { ...route, regex }
-  }
-
-  return {
-    ...route,
-    statusCode: getRedirectStatus(route as Redirect),
-    permanent: undefined,
-    regex,
-  }
 }
 
 function pageToRoute(page: string) {
@@ -448,7 +418,7 @@ async function writeImagesManifest(
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
-    pathname: makeRe(p.pathname ?? '**').source,
+    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
@@ -696,6 +666,8 @@ async function getBuildId(
     .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
+const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -704,14 +676,14 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate'
 ): Promise<void> {
-  const isCompileMode = buildMode === 'experimental-compile'
-  const isGenerateMode = buildMode === 'experimental-generate'
+  const isCompileMode = experimentalBuildMode === 'compile'
+  const isGenerateMode = experimentalBuildMode === 'generate'
 
   try {
     const nextBuildSpan = trace('next-build', undefined, {
-      buildMode: buildMode,
+      buildMode: experimentalBuildMode,
       isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
@@ -743,7 +715,7 @@ export default async function build(
           )
         )
 
-      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -768,7 +740,13 @@ export default async function build(
         .traceAsyncFn(() => loadCustomRoutes(config))
 
       const { headers, rewrites, redirects } = customRoutes
-      NextBuildContext.rewrites = rewrites
+      const combinedRewrites: Rewrite[] = [
+        ...rewrites.beforeFiles,
+        ...rewrites.afterFiles,
+        ...rewrites.fallback,
+      ]
+      const hasRewrites = combinedRewrites.length > 0
+
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
@@ -787,6 +765,11 @@ export default async function build(
         app: typeof appDir === 'string',
         pages: typeof pagesDir === 'string',
       }
+
+      // Generate a random encryption key for this build.
+      // This key is used to encrypt cross boundary values and can be used to generate hashes.
+      const encryptionKey = await generateEncryptionKeyBase64()
+      NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -1032,6 +1015,8 @@ export default async function build(
         ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
       )
 
+      NextBuildContext.rewrites = rewrites
+
       const totalAppPagesCount = appPaths.length
 
       const pageKeys = {
@@ -1039,23 +1024,26 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      const numConflictingAppPaths = conflictingAppPagePaths.length
-      if (mappedAppPages && numConflictingAppPaths > 0) {
-        Log.error(
-          `Conflicting app and page file${
-            numConflictingAppPaths === 1 ? ' was' : 's were'
-          } found, please remove the conflicting files to continue:`
-        )
-        for (const [pagePath, appPath] of conflictingAppPagePaths) {
-          Log.error(`  "${pagePath}" - "${appPath}"`)
+      // Turbopack already handles conflicting app and page routes.
+      if (!IS_TURBOPACK_BUILD) {
+        const numConflictingAppPaths = conflictingAppPagePaths.length
+        if (mappedAppPages && numConflictingAppPaths > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflictingAppPaths === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const [pagePath, appPath] of conflictingAppPagePaths) {
+            Log.error(`  "${pagePath}" - "${appPath}"`)
+          }
+          await telemetry.flush()
+          process.exit(1)
         }
-        await telemetry.flush()
-        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
-      const hasApp404 = !!mappedAppPages?.['/_not-found']
+      const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -1148,7 +1136,9 @@ export default async function build(
             i18n: config.i18n || undefined,
             rsc: {
               header: RSC_HEADER,
-              varyHeader: RSC_VARY_HEADER,
+              // This vary header is used as a default. It is technically re-assigned in `base-server`,
+              // and may include an additional Vary option for `Next-URL`.
+              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
               prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
               didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
@@ -1176,12 +1166,6 @@ export default async function build(
           ),
         }
       }
-
-      const combinedRewrites: Rewrite[] = [
-        ...rewrites.beforeFiles,
-        ...rewrites.afterFiles,
-        ...rewrites.fallback,
-      ]
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
@@ -1324,7 +1308,10 @@ export default async function build(
                 : []),
               REACT_LOADABLE_MANIFEST,
               config.optimizeFonts
-                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
                 : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
@@ -1350,9 +1337,217 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
-        throw new Error("next build doesn't support turbopack yet")
+      async function turbopackBuild(): Promise<{
+        duration: number
+        buildTraceContext: undefined
+      }> {
+        if (!IS_TURBOPACK_BUILD) {
+          throw new Error("next build doesn't support turbopack yet")
+        }
+
+        const startTime = process.hrtime()
+        const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const dev = false
+        const project = await bindings.turbo.createProject({
+          projectPath: dir,
+          rootPath: config.experimental.outputFileTracingRoot || dir,
+          nextConfig: config,
+          jsConfig: await getTurbopackJsConfig(dir, config),
+          watch: false,
+          dev,
+          env: process.env as Record<string, string>,
+          defineEnv: createDefineEnv({
+            isTurbopack: true,
+            clientRouterFilters: NextBuildContext.clientRouterFilters,
+            config,
+            dev,
+            distDir,
+            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+            hasRewrites,
+            // TODO: Implement
+            middlewareMatchers: undefined,
+          }),
+        })
+
+        await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+        await fs.mkdir(path.join(distDir, 'static', buildId), {
+          recursive: true,
+        })
+        await fs.writeFile(
+          path.join(distDir, 'package.json'),
+          JSON.stringify(
+            {
+              type: 'commonjs',
+            },
+            null,
+            2
+          )
+        )
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const entrypointsSubscription = project.entrypointsSubscribe()
+        const currentEntrypoints: Entrypoints = {
+          global: {
+            app: undefined,
+            document: undefined,
+            error: undefined,
+
+            middleware: undefined,
+            instrumentation: undefined,
+          },
+
+          app: new Map(),
+          page: new Map(),
+        }
+
+        const currentEntryIssues: EntryIssuesMap = new Map()
+
+        const manifestLoader = new TurbopackManifestLoader({
+          buildId,
+          distDir,
+          encryptionKey,
+        })
+
+        // TODO: implement this
+        const emptyRewritesObjToBeImplemented = {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        }
+
+        const entrypointsResult = await entrypointsSubscription.next()
+        if (entrypointsResult.done) {
+          throw new Error('Turbopack did not return any entrypoints')
+        }
+        entrypointsSubscription.return?.().catch(() => {})
+
+        const entrypoints = entrypointsResult.value
+
+        const topLevelErrors: {
+          message: string
+        }[] = []
+        for (const issue of entrypoints.issues) {
+          topLevelErrors.push({
+            message: formatIssue(issue),
+          })
+        }
+
+        if (topLevelErrors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${
+              topLevelErrors.length
+            } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
+          )
+        }
+
+        await handleEntrypoints({
+          entrypoints,
+          currentEntrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          nextConfig: config,
+          rewrites: emptyRewritesObjToBeImplemented,
+        })
+
+        const progress = createProgress(
+          currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
+          'Building'
+        )
+        const promises: Promise<any>[] = []
+        const sema = new Sema(10)
+        const enqueue = (fn: () => Promise<void>) => {
+          promises.push(
+            (async () => {
+              await sema.acquire()
+              try {
+                await fn()
+              } finally {
+                sema.release()
+                progress()
+              }
+            })()
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.page) {
+          enqueue(() =>
+            handleRouteType({
+              dev,
+              page,
+              pathname: page,
+              route,
+
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+            })
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.app) {
+          enqueue(() =>
+            handleRouteType({
+              page,
+              dev: false,
+              pathname: normalizeAppPath(page),
+              route,
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+            })
+          )
+        }
+
+        enqueue(() =>
+          handlePagesErrorRoute({
+            currentEntryIssues,
+            entrypoints: currentEntrypoints,
+            manifestLoader,
+            rewrites: emptyRewritesObjToBeImplemented,
+          })
+        )
+        await Promise.all(promises)
+
+        await manifestLoader.writeManifests({
+          rewrites: emptyRewritesObjToBeImplemented,
+          pageEntrypoints: currentEntrypoints.page,
+        })
+
+        const errors: {
+          page: string
+          message: string
+        }[] = []
+        for (const [page, entryIssues] of currentEntryIssues) {
+          for (const issue of entryIssues.values()) {
+            if (issue.severity !== 'warning') {
+              errors.push({
+                page,
+                message: formatIssue(issue),
+              })
+            } else {
+              printNonFatalIssue(issue)
+            }
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${errors.length} issues:\n${errors
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
+        }
+
+        return {
+          duration: process.hrtime(startTime)[0],
+          buildTraceContext: undefined,
+        }
       }
+
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
@@ -1450,7 +1645,7 @@ export default async function build(
             })
           )
         } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
 
@@ -1458,7 +1653,7 @@ export default async function build(
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
+              durationInSeconds: compilerDuration,
               totalAppPagesCount,
             })
           )
@@ -2226,6 +2421,10 @@ export default async function build(
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
         },
+        {
+          featureName: 'experimental/ppr',
+          invocationCount: config.experimental.ppr ? 1 : 0,
+        },
       ]
       telemetry.record(
         features.map((feature) => {
@@ -2268,7 +2467,9 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
-      const isApp404Static = appStaticPaths.has('/_not-found')
+      const isApp404Static = appStaticPaths.has(
+        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      )
       const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
@@ -2505,13 +2706,13 @@ export default async function build(
               {
                 type: 'header',
                 key: 'content-type',
-                value: 'multipart/form-data',
+                value: 'multipart/form-data;.*',
               },
             ]
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
-              if (route === '/_not-found') return
+              if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,
@@ -3107,12 +3308,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (debugOutput) {
-        nextBuildSpan
-          .traceChild('print-custom-routes')
-          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
-      }
-
       // TODO: remove in the next major version
       if (config.analyticsId) {
         Log.warn(
@@ -3168,6 +3363,12 @@ export default async function build(
 
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()
       console.log()
+
+      if (debugOutput) {
+        nextBuildSpan
+          .traceChild('print-custom-routes')
+          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+      }
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {

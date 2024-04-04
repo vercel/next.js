@@ -43,7 +43,7 @@ React extends the [`fetch` API](#fetch) to automatically **memoize** requests th
   height="857"
 />
 
-For example, if you need to use the same data across a route (e.g. in a Layout, Page, and multiple components), you do not have to fetch data at the top of the tree then forward props between components. Instead, you can fetch data in the components that need it without worrying about the performance implications of making multiple requests across the network for the same data.
+For example, if you need to use the same data across a route (e.g. in a Layout, Page, and multiple components), you do not have to fetch data at the top of the tree, and forward props between components. Instead, you can fetch data in the components that need it without worrying about the performance implications of making multiple requests across the network for the same data.
 
 ```tsx filename="app/example.tsx" switcher
 async function getItem() {
@@ -109,7 +109,9 @@ Since the memoization is not shared across server requests and only applies duri
 
 ### Opting out
 
-To opt out of memoization in `fetch` requests, you can pass an `AbortController` `signal` to the request.
+Memoization only applies to the `GET` method in `fetch` requests, other methods, such as `POST` and `DELETE`, are not memoized. This default behavior is a React optimization and we do not recommend opting out of it.
+
+To manage individual requests, you can use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController). However, this will not opt requests out of memoization, rather, abort in-flight requests.
 
 ```js filename="app/example.js"
 const { signal } = new AbortController()
@@ -221,6 +223,8 @@ Alternatively, you can also use the [Route Segment Config options](#segment-conf
 // Opt out of caching for all data requests in the route segment
 export const dynamic = 'force-dynamic'
 ```
+
+> **Note**: Data Cache is currently only available in pages/routes, not middleware. Any fetches done inside of your middleware will be uncached by default.
 
 > **Vercel Data Cache**
 >

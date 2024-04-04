@@ -150,7 +150,14 @@ export async function setupFsCheck(opts: {
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
-    buildId = await fs.readFile(buildIdPath, 'utf8')
+    try {
+      buildId = await fs.readFile(buildIdPath, 'utf8')
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') throw err
+      throw new Error(
+        `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
+      )
+    }
 
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
@@ -325,7 +332,6 @@ export async function setupFsCheck(opts: {
     )
   )
   const rewrites = {
-    // TODO: add interception routes generateInterceptionRoutesRewrites()
     beforeFiles: customRoutes.rewrites.beforeFiles.map((item) =>
       buildCustomRoute('before_files_rewrite', item)
     ),
@@ -393,7 +399,7 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
-    interceptionRoutes: undefined as
+    exportPathMapRoutes: undefined as
       | undefined
       | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
@@ -415,12 +421,22 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      const { basePath } = opts.config
+      const { basePath, assetPrefix } = opts.config
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
+      const hasBasePath = pathHasPrefix(itemPath, basePath)
+      const hasAssetPrefix = pathHasPrefix(itemPath, assetPrefix)
+
+      // Return null if either path doesn't start with basePath or assetPrefix
+      if ((basePath || assetPrefix) && !hasBasePath && !hasAssetPrefix) {
         return null
       }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Either remove basePath or assetPrefix, not both (due to routes with same name as basePath)
+      if (basePath && hasBasePath) {
+        itemPath = removePathPrefix(itemPath, basePath) || '/'
+      } else if (assetPrefix && hasAssetPrefix) {
+        itemPath = removePathPrefix(itemPath, assetPrefix) || '/'
+      }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.

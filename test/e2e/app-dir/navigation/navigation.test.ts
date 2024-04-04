@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request } from 'playwright-chromium'
+import type { Response } from 'playwright'
 
 createNextDescribe(
   'app dir - navigation',
@@ -15,7 +15,7 @@ createNextDescribe(
           `""`
         )
 
-        browser.elementById('set-query').click()
+        await browser.elementById('set-query').click()
 
         await retry(() =>
           expect(browser.elementById('query').text()).resolves.toEqual(
@@ -34,19 +34,21 @@ createNextDescribe(
           headers: Record<string, string>
         }> = []
 
-        const browser = await next.browser('/search-params?name=名')
-        browser.on('request', async (req: Request) => {
-          const res = await req.response()
-          if (!res) return
-
-          requests.push({
-            pathname: new URL(req.url()).pathname,
-            ok: res.ok(),
-            headers: res.headers(),
-          })
+        const browser = await next.browser('/search-params?name=名', {
+          beforePageLoad(page) {
+            page.on('response', async (res: Response) => {
+              requests.push({
+                pathname: new URL(res.url()).pathname,
+                ok: res.ok(),
+                headers: res.headers(),
+              })
+            })
+          },
         })
+
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#set-query')
 
         await retry(() =>
           expect(requests).toContainEqual({
@@ -71,69 +73,76 @@ createNextDescribe(
       })
 
       describe('useParams identity between renders', () => {
-        async function runTests(page: string, waitForNEffects: number) {
-          const browser = await next.browser(page)
+        it.each([
+          {
+            router: 'app',
+            pathname: '/search-params/foo',
+            // App Router doesn't re-render on initial load (the params are baked
+            // server side). In development, effects will render twice.
 
-          // Expect to see the params changed message at least twice.
-          let lastLogIndex = await retry(async () => {
-            const logs: Array<{ message: string }> = await browser.log()
+            // experimental react is having issues with this use effect
+            // @acdlite will take a look
+            // TODO: remove this PPR cond after react fixes the issue in experimental build.
+            waitForNEffects:
+              isNextDev && !process.env.__NEXT_EXPERIMENTAL_PPR ? 2 : 1,
+          },
+          {
+            router: 'pages',
+            pathname: '/search-params-pages/foo',
+            // Pages Router re-renders on initial load and after hydration, the
+            // params when initially loaded are null.
+            waitForNEffects: 2,
+          },
+        ])(
+          'should be stable in $router',
+          async ({ pathname, waitForNEffects }) => {
+            const browser = await next.browser(pathname)
 
-            expect(
-              logs.filter(({ message }) => message === 'params changed')
-            ).toHaveLength(waitForNEffects)
+            // Expect to see the params changed message at least twice.
+            let lastLogIndex = await retry(async () => {
+              const logs: Array<{ message: string }> = await browser.log()
 
-            return logs.length
-          })
+              expect(
+                logs.filter(({ message }) => message === 'params changed')
+              ).toHaveLength(waitForNEffects)
 
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-
-          await retry(async () => {
-            const rerender = await browser.elementById('rerender-button').text()
-
-            expect(rerender).toBe('Re-Render 3')
-          })
-
-          let logs: Array<{ message: string }> = await browser.log()
-          expect(logs.slice(lastLogIndex)).not.toContainEqual(
-            expect.objectContaining({
-              message: 'params changed',
+              return logs.length
             })
-          )
 
-          lastLogIndex = logs.length
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
 
-          await browser.elementById('change-params-button').click()
+            await retry(async () => {
+              const rerender = await browser
+                .elementById('rerender-button')
+                .text()
 
-          await retry(async () => {
-            logs = await browser.log()
+              expect(rerender).toBe('Re-Render 3')
+            })
 
-            expect(logs.slice(lastLogIndex)).toContainEqual(
+            let logs: Array<{ message: string }> = await browser.log()
+            expect(logs.slice(lastLogIndex)).not.toContainEqual(
               expect.objectContaining({
                 message: 'params changed',
               })
             )
-          })
-        }
 
-        it('should be stable in app', async () => {
-          await runTests(
-            '/search-params/foo',
-            // App Router doesn't re-render on initial load (the params are baked
-            // server side). In development, effects will render twice.
-            isNextDev ? 2 : 1
-          )
-        })
+            lastLogIndex = logs.length
 
-        it('should be stable in pages', async () => {
-          await runTests(
-            '/search-params-pages/foo',
-            // Pages Router re-renders on initial load and after hydration, the
-            // params when initially loaded are null.
-            2
-          )
-        })
+            await browser.elementById('change-params-button').click()
+
+            await retry(async () => {
+              logs = await browser.log()
+
+              expect(logs.slice(lastLogIndex)).toContainEqual(
+                expect.objectContaining({
+                  message: 'params changed',
+                })
+              )
+            })
+          }
+        )
       })
     })
 
@@ -448,6 +457,47 @@ createNextDescribe(
             isNextDev ? ['1', '2'] : ['1']
           )
         })
+
+        it.each([
+          '/redirect/servercomponent',
+          'redirect/redirect-with-loading',
+        ])('should only trigger the redirect once (%s)', async (path) => {
+          const browser = await next.browser(path)
+          const initialTimestamp = await browser
+            .waitForElementByCss('#timestamp')
+            .text()
+
+          let attempts = 0
+          const maxAttempts = 5
+
+          try {
+            // this ensures the timestamp remains "stable" (ie, we didn't trigger another redirect)
+            await retry(async () => {
+              const currentTimestamp = await browser
+                .elementByCss('#timestamp')
+                .text()
+
+              attempts++
+
+              // If the timestamp has changed, throw immediately.
+              if (currentTimestamp !== initialTimestamp) {
+                throw new Error('Timestamp has changed')
+              }
+
+              // If we've reached the last attempt without the timestamp changing, force a retry failure to keep going.
+              if (attempts < maxAttempts) {
+                throw new Error('Forcing continue')
+              }
+            })
+          } catch (err) {
+            // If we catch the "Forcing continue" error, it means our condition held until the end.
+            // If it's a different error (i.e., the timestamp changed), we rethrow it.
+            if (err.message !== 'Forcing continue') {
+              throw err // Rethrow if the error is not our "force continue" error.
+            }
+            // If it's our "forcing continue" error, do nothing. This means we succeeded.
+          }
+        })
       })
 
       describe('next.config.js redirects', () => {
@@ -599,7 +649,7 @@ createNextDescribe(
         // it doesn't repeatedly initiate the mpa navigation request
         it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
           let requestCount = 0
-          const browser = await next.browser('/mpa-nav-test', {
+          await next.browser('/mpa-nav-test', {
             beforePageLoad(page) {
               page.on('request', (request) => {
                 const url = new URL(request.url())
@@ -610,8 +660,6 @@ createNextDescribe(
               })
             },
           })
-
-          await browser.waitForElementByCss('#link-to-slow-page')
 
           // wait a few seconds since prefetches are triggered in 1s intervals in the page component
           await waitFor(5000)
@@ -693,14 +741,14 @@ createNextDescribe(
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
         expect(html).toContain(
-          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+          '<meta id="__next-page-redirect" http-equiv="refresh" content="1;url=/redirect/result"/>'
         )
       })
 
       it('should emit refresh meta tag (permanent) for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense-2')
         expect(html).toContain(
-          '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
+          '<meta id="__next-page-redirect" http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
       })
 
@@ -786,6 +834,92 @@ createNextDescribe(
 
         // confirm that the scroll position was restored
         expect(newScrollPosition).toEqual(scrollPosition)
+      })
+    })
+
+    describe('navigating to a page with async metadata', () => {
+      it('should render the final state of the page with correct metadata', async () => {
+        const browser = await next.browser('/metadata-await-promise')
+
+        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+        } else {
+          const loadingText = await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
+
+          expect(loadingText).toBe('Loading')
+        }
+
+        await retry(async () => {
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Content'
+          )
+
+          expect(await browser.elementByCss('title').text()).toBe('Async Title')
+        })
+      })
+    })
+
+    describe('navigating to dynamic params & changing the casing', () => {
+      it('should load the page correctly', async () => {
+        const browser = await next.browser('/dynamic-param-casing-change')
+
+        // note the casing here capitalizes `ParamA`
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+          .click()
+
+        // note the `paramA` casing has now changed
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'noParam page'
+          )
+        })
+
+        await browser.back()
+
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            '[paramB] page'
+          )
+        })
+      })
+    })
+
+    describe('browser back to a revalidated page', () => {
+      it('should load the page', async () => {
+        const browser = await next.browser('/popstate-revalidate')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        await browser.elementByCss("[href='/popstate-revalidate/foo']").click()
+        await browser.waitForElementByCss('#submit-button')
+        expect(await browser.elementByCss('h1').text()).toBe('Form')
+        await browser.elementById('submit-button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Form Submitted.'
+          )
+        })
+
+        await browser.back()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
       })
     })
   }

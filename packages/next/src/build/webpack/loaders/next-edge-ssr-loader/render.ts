@@ -13,11 +13,12 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import type { PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
+import type { NextRequestHint } from '../../../../server/web/adapter'
 
 export function getRender({
   dev,
@@ -31,6 +32,7 @@ export function getRender({
   buildManifest,
   prerenderManifest,
   reactLoadableManifest,
+  interceptionRouteRewrites,
   renderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
@@ -54,6 +56,7 @@ export function getRender({
   prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
+  interceptionRouteRewrites?: ManifestRewriteRoute[]
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest?: any
   serverActions?: {
@@ -85,6 +88,7 @@ export function getRender({
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
+      interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
@@ -148,23 +152,23 @@ export function getRender({
 
   const handler = server.getRequestHandler()
 
-  return async function render(request: Request, event: NextFetchEvent) {
+  return async function render(
+    request: NextRequestHint,
+    event?: NextFetchEvent
+  ) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
 
-    if (event && event.waitUntil) {
+    if (event?.waitUntil) {
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)
       }
     }
 
-    // fetchMetrics is attached to the web request that going through the server,
-    // wait for the handler result is ready and attach it back to the original request.
-    ;(request as any).fetchMetrics = extendedReq.fetchMetrics
     return result
   }
 }

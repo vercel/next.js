@@ -23,7 +23,6 @@ use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
     loader_tree::LoaderTreeModule,
-    mode::NextMode,
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -52,13 +51,10 @@ pub async fn get_app_page_entry(
 
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
-    let loader_tree = LoaderTreeModule::build(
-        loader_tree,
-        context,
-        server_component_transition,
-        NextMode::Build,
-    )
-    .await?;
+    let base_path = next_config.await?.base_path.clone();
+    let loader_tree =
+        LoaderTreeModule::build(loader_tree, context, server_component_transition, base_path)
+            .await?;
 
     let LoaderTreeModule {
         inner_assets,
@@ -103,8 +99,13 @@ pub async fn get_app_page_entry(
 
     result.concat(source_content);
 
+    let query = qstring::QString::new(vec![("page", page.to_string())]);
+
     let file = File::from(result.build());
-    let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
+    let source = VirtualSource::new_with_ident(
+        source.ident().with_query(Vc::cell(query.to_string())),
+        AssetContent::file(file.into()),
+    );
 
     let mut rsc_entry = context
         .process(
