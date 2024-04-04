@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import NotFoundTrigger from './not-found-trigger'
 
@@ -13,9 +13,9 @@ export default function Root({ children }) {
   return (
     <html className="root-layout-html">
       <body>
-        <React.Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div>Loading...</div>}>
           <NotFoundTrigger />
-        </React.Suspense>
+        </Suspense>
         <button id="trigger-not-found" onClick={() => setClicked(true)}>
           Click to not found
         </button>

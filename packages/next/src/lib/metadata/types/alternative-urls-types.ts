@@ -426,7 +426,7 @@ type UnmatchedLang = 'x-default'
 
 type HrefLang = LangCode | UnmatchedLang
 
-type Languages<T> = {
+export type Languages<T> = {
   [s in HrefLang]?: T
 }
 

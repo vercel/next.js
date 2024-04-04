@@ -43,7 +43,6 @@ type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
-  experimentalTestProxy?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -194,8 +193,6 @@ const nextDev = async (
 
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
-  const isExperimentalTestProxy = options.experimentalTestProxy
-
   if (
     options.experimentalUploadTrace &&
     !process.env.NEXT_TRACE_UPLOAD_DISABLED
@@ -216,7 +213,6 @@ const nextDev = async (
     allowRetry,
     isDev: true,
     hostname: host,
-    isExperimentalTestProxy,
   }
 
   if (options.turbo) {

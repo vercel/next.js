@@ -224,6 +224,8 @@ Alternatively, you can also use the [Route Segment Config options](#segment-conf
 export const dynamic = 'force-dynamic'
 ```
 
+> **Note**: Data Cache is currently only available in pages/routes, not middleware. Any fetches done inside of your middleware will be uncached by default.
+
 > **Vercel Data Cache**
 >
 > If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
@@ -361,13 +363,11 @@ This results in an improved navigation experience for the user:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) rendered:
-  - **Dynamically Rendered**: 30 seconds
-  - **Statically Rendered**: 5 minutes
+- **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch):
+  - **Default Prefetching** (`prefetch={null}` or unspecified): 30 seconds
+  - **Full Prefetching**: (`prefetch={true}` or `router.prefetch`): 5 minutes
 
-While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was last accessed or created.
-
-By adding `prefetch={true}` or calling `router.prefetch` for a dynamically rendered route, you can opt into caching for 5 minutes.
+While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
 
 ### Invalidation
 

@@ -51,11 +51,26 @@ export function isWellKnownError(issue: Issue): boolean {
   const { title } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title)
   // TODO: add more well known errors
-  if (formattedTitle.includes('Module not found')) {
+  if (
+    formattedTitle.includes('Module not found') ||
+    formattedTitle.includes('Unknown module type')
+  ) {
     return true
   }
 
   return false
+}
+
+/// Print out an issue to the console which should not block
+/// the build by throwing out or blocking error overlay.
+export function printNonFatalIssue(issue: Issue) {
+  // Currently only warnings will be printed, excluding if the error source
+  // is coming from foreign (node_modules) codes.
+  if (issue.severity === 'warning') {
+    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
+      Log.warn(formatIssue(issue))
+    }
+  }
 }
 
 export function formatIssue(issue: Issue) {
@@ -167,12 +182,23 @@ export function processIssues(
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
+      continue
+
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
-    relevantIssues.add(formatted)
+    if (issue.severity !== 'warning') {
+      relevantIssues.add(formatted)
+      if (isWellKnownError(issue)) {
+        Log.error(formatted)
+      }
+    }
   }
 
   if (relevantIssues.size && throwIssue) {
@@ -207,10 +233,10 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
+  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
 }
 
 export type ChangeSubscriptions = Map<
@@ -383,7 +409,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true)
 
       break
     }
@@ -420,6 +446,7 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
+      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,

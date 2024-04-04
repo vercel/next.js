@@ -205,40 +205,43 @@ const navigateTest = (dev = false) => {
 }
 
 describe('SSG Prerender export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    describe('export mode', () => {
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        await fs.remove(exportDir)
-        await nextBuild(appDir, undefined, { cwd: appDir })
-        app = await startStaticServer(exportDir)
-        appPort = app.address().port
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      describe('export mode', () => {
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          await fs.remove(exportDir)
+          await nextBuild(appDir, undefined, { cwd: appDir })
+          app = await startStaticServer(exportDir)
+          appPort = app.address().port
+          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        })
+
+        afterAll(async () => {
+          if (app) {
+            await stopApp(app)
+          }
+        })
+
+        it('should copy prerender files and honor exportTrailingSlash', async () => {
+          const routes = [
+            '/another',
+            '/something',
+            '/blog/post-1',
+            '/blog/post-2/comment-2',
+          ]
+
+          for (const route of routes) {
+            await fs.access(join(exportDir, `${route}/index.html`))
+            await fs.access(
+              join(exportDir, '_next/data', buildId, `${route}.json`)
+            )
+          }
+        })
+
+        navigateTest()
       })
-
-      afterAll(async () => {
-        if (app) {
-          await stopApp(app)
-        }
-      })
-
-      it('should copy prerender files and honor exportTrailingSlash', async () => {
-        const routes = [
-          '/another',
-          '/something',
-          '/blog/post-1',
-          '/blog/post-2/comment-2',
-        ]
-
-        for (const route of routes) {
-          await fs.access(join(exportDir, `${route}/index.html`))
-          await fs.access(
-            join(exportDir, '_next/data', buildId, `${route}.json`)
-          )
-        }
-      })
-
-      navigateTest()
-    })
-  })
+    }
+  )
 })

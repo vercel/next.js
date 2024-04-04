@@ -57,19 +57,22 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
 
-    afterAll(async () => {
-      await killApp(app)
-    })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 
   describe('dev', () => {
     beforeAll(async () => {

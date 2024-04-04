@@ -877,7 +877,17 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+
+          if (process.env.TURBOPACK) {
+            expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+              "./components/parse-error.xyz
+              Unknown module type
+              This module doesn't have an associated type. Use a known file extension, or register a loader for it.
+
+              Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
+            `)
+          } else {
+            expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
                       Module parse failed: Unexpected token (3:0)
                       You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
@@ -891,7 +901,7 @@ describe.each([[''], ['/docs']])(
                       ./components/parse-error.xyz
                       ./pages/hmr/about8.js"
                   `)
-
+          }
           await next.patchFile(aboutPage, aboutContent)
 
           await check(

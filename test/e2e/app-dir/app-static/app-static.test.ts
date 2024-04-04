@@ -3,7 +3,13 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  normalizeRegEx,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
@@ -32,6 +38,15 @@ createNextDescribe(
         )
         buildCliOutputIndex = next.cliOutput.length
       }
+    })
+
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
     })
 
     if (isNextStart) {
@@ -507,6 +522,36 @@ createNextDescribe(
     })
 
     if (isNextStart) {
+      if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+        it('should have deterministic etag across revalidates', async () => {
+          const initialRes = await next.fetch(
+            '/variable-revalidate-stable/revalidate-3'
+          )
+          expect(initialRes.status).toBe(200)
+
+          // check 2 revalidate passes to ensure it's consistent
+          for (let i = 0; i < 2; i++) {
+            let startIdx = next.cliOutput.length
+
+            await retry(
+              async () => {
+                const res = await next.fetch(
+                  '/variable-revalidate-stable/revalidate-3'
+                )
+                expect(next.cliOutput.substring(startIdx)).toContain(
+                  'rendering /variable-revalidate-stable'
+                )
+                expect(initialRes.headers.get('etag')).toBe(
+                  res.headers.get('etag')
+                )
+              },
+              12_000,
+              3_000
+            )
+          }
+        })
+      }
+
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
           await glob('**/*', {
@@ -696,6 +741,8 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "too-many-cache-tags/page.js",
+            "too-many-cache-tags/page_client-reference-manifest.js",
             "unstable-cache/dynamic-undefined/page.js",
             "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
             "unstable-cache/dynamic/page.js",
@@ -716,6 +763,10 @@ createNextDescribe(
             "variable-revalidate-edge/post-method/page_client-reference-manifest.js",
             "variable-revalidate-edge/revalidate-3/page.js",
             "variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate-stable/revalidate-3.html",
+            "variable-revalidate-stable/revalidate-3.rsc",
+            "variable-revalidate-stable/revalidate-3/page.js",
+            "variable-revalidate-stable/revalidate-3/page_client-reference-manifest.js",
             "variable-revalidate/authorization.html",
             "variable-revalidate/authorization.rsc",
             "variable-revalidate/authorization/page.js",
@@ -798,7 +849,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -814,7 +865,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -834,7 +885,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 1,
@@ -850,7 +901,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -866,7 +917,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -882,7 +933,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -898,7 +949,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -914,7 +965,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -930,7 +981,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -946,7 +997,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -962,7 +1013,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -978,7 +1029,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -994,7 +1045,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1010,7 +1061,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1026,7 +1077,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1042,7 +1093,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1058,7 +1109,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1074,7 +1125,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1090,7 +1141,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1106,7 +1157,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1122,7 +1173,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1138,7 +1189,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1154,7 +1205,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1170,7 +1221,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1186,7 +1237,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1202,7 +1253,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1218,7 +1269,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1234,7 +1285,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1250,7 +1301,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1266,7 +1317,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1282,7 +1333,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1298,7 +1349,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1314,7 +1365,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1334,7 +1385,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1354,7 +1405,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1374,7 +1425,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1390,7 +1441,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1406,7 +1457,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1422,11 +1473,27 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
               "srcRoute": "/variable-config-revalidate/revalidate-3",
+            },
+            "/variable-revalidate-stable/revalidate-3": {
+              "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate-stable/revalidate-3",
             },
             "/variable-revalidate/authorization": {
               "dataRoute": "/variable-revalidate/authorization.rsc",
@@ -1438,7 +1505,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1454,7 +1521,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1470,7 +1537,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1486,7 +1553,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1502,7 +1569,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1518,7 +1585,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1534,7 +1601,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1555,7 +1622,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1572,7 +1639,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1589,7 +1656,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1606,7 +1673,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1623,7 +1690,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1640,7 +1707,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1657,7 +1724,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1674,7 +1741,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1691,7 +1758,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1708,7 +1775,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1725,7 +1792,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -2222,6 +2289,7 @@ createNextDescribe(
 
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
+        const pageData2 = $('#page-data-2').text()
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2233,6 +2301,8 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#page-data-2').text()).toBe(pageData2)
+        expect(pageData).toBe(pageData2)
         return 'success'
       }, 'success')
 
@@ -2989,7 +3059,7 @@ createNextDescribe(
           })
         }
       })
-      // Don't run these tests in dev mode since they won't be statically generated
+      // Don't run these tests in development mode since they won't be statically generated
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - with suspense boundary', async () => {
@@ -3077,6 +3147,27 @@ createNextDescribe(
         expect(data).toEqual(data2)
       })
 
+      it('should bypass cache in draft mode', async () => {
+        const draftRes = await next.fetch('/api/draft-mode?status=enable')
+        const setCookie = draftRes.headers.get('set-cookie')
+        const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+        expect(cookieHeader.Cookie).toBeTruthy()
+
+        const res = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).not.toEqual(data2)
+      })
+
       it('should not error when retrieving the value undefined', async () => {
         const res = await next.fetch('/unstable-cache/dynamic-undefined')
         const html = await res.text()
@@ -3148,7 +3239,7 @@ createNextDescribe(
         })
       }
       if (!process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode', async () => {
+        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
@@ -3176,7 +3267,7 @@ createNextDescribe(
         })
       }
       if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should cache request if response data size is greater than 2MB in Dev mode', async () => {
+        it('should cache request if response data size is greater than 2MB in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
