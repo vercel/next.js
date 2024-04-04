@@ -1,6 +1,7 @@
 import Image from 'next/image'
 
-export default function Avatar({ name, picture }) {
+export default function Avatar({ examples/cms-tina/components/avatar.js
+                               }) {
   return (
     <div className="flex items-center">
       <Image
