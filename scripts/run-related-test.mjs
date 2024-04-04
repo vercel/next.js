@@ -16,8 +16,8 @@ const exec = promisify(execOrg)
  * @returns {Promise<string[]>} - List of changed files
  */
 async function getChangedFilesFromPackages(baseBranch = 'canary') {
-  await exec('git remote set-branches --add origin canary')
-  await exec('git fetch origin canary --depth=20')
+  await exec(`git remote set-branches --add origin ${baseBranch}`)
+  await exec(`git fetch origin ${baseBranch} --depth=20`)
   const { stdout } = await exec(`git diff --name-only ${baseBranch}`)
   return stdout
     .trim()
