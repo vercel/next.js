@@ -8,7 +8,7 @@ createNextDescribe(
   ({ next }) => {
     it('should show the index title', async () => {
       const browser = await next.browser('/')
-      expect(browser.elementByCss('title').text()).toBe('Home Layout')
+      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
     })
 
     it('should show target page metadata after navigation', async () => {
@@ -22,7 +22,7 @@ createNextDescribe(
       const browser = await next.browser('/')
       await browser.elementByCss('#product-link').click()
       await browser.waitForElementByCss('#product-title')
-      await browser.elementByCss('#back-link').click()
+      await browser.elementByCss('#home-link').click()
       await browser.waitForElementByCss('#home-title')
       expect(await browser.elementByCss('title').text()).toBe('Home Layout')
     })

@@ -319,7 +319,11 @@ async function generateFlight(
         flightRouterState,
         isFirst: true,
         // For flight, render metadata inside leaf page
-        rscPayloadHead: <MetadataTree key={requestId} />,
+        // NOTE: in 14.2, fragment doesn't work well with React, using array instead
+        rscPayloadHead: [
+          <MetadataTree key={requestId} />,
+          <NonIndex key="noindex" ctx={ctx} />,
+        ],
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
@@ -526,11 +530,11 @@ async function ReactServerError({
   const head = (
     <>
       {/* Adding requestId as react key to make metadata remount for each render */}
-      <NonIndex ctx={ctx} />
       <MetadataTree key={requestId} />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
+      <NonIndex ctx={ctx} />
     </>
   )
 
