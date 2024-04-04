@@ -45,7 +45,7 @@ export function SignupForm() {
       </div>
       <div>
         <label htmlFor="email">Email</label>
-        <input id="email" name="email" placeholder="Email" />
+        <input id="email" name="email" type="email" placeholder="Email" />
       </div>
       <div>
         <label htmlFor="password">Password</label>
@@ -168,7 +168,7 @@ export async function signup(state: FormState, formData: FormData) {
     }
   }
 
-  // TODO: Call provider or db to create user...
+  // Call provider or db to create user...
 }
 ```
 
@@ -190,7 +190,7 @@ export async function signup(formData: FormData) {
     }
   }
 
-  // TODO: Call provider or db to create user...
+  // Call provider or db to create user...
 }
 ```
 
@@ -771,7 +771,7 @@ export async function signup(state, formData) {
 
 #### Updating (or extending) the session
 
-You can also extend the session's expiration time. This is useful for keeping the user logged in after they access the appplication again. Ensure you decrypt the session first to make sure it's valid. For example:
+You can also extend the session's expiration time. This is useful for keeping the user logged in after they access the application again. Ensure you decrypt the session first to make sure it's valid. For example:
 
 ```ts filename="app/actions/session.ts" switcher
 import 'server-only'
