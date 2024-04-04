@@ -9,6 +9,9 @@ jobs:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
 
+    container:
+      image: mcr.microsoft.com/playwright:v1.42.1-jammy
+
     env:
       CARGO_PROFILE_RELEASE_LTO: 'true'
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
@@ -48,7 +51,6 @@ jobs:
       - name: Setup tests
         run: |
           pnpm install
-          pnpx playwright install --with-deps
           pnpm run build
           pnpm i -g vercel@latest
           node scripts/run-e2e-test-project-reset.mjs
