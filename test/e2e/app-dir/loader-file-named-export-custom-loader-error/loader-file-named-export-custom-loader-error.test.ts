@@ -11,8 +11,16 @@ describe('loader-file-named-export-custom-loader-error', () => {
     files: __dirname,
   })
 
-  it('should show an error saying that only default export is allowed.', async () => {
+  it('should show an error saying that only default export is allowed when using `Image` component', async () => {
     const browser = await next.browser('/')
+    await testDev(
+      browser,
+      'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  })
+
+  it('should show an error saying that only default export is allowed when using `getImageProps` method', async () => {
+    const browser = await next.browser('/get-img-props')
     await testDev(
       browser,
       'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
