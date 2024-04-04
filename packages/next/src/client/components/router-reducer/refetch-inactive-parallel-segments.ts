@@ -27,7 +27,11 @@ export async function refreshInactiveParallelSegments(
   options: RefreshInactiveParallelSegments
 ) {
   const fetchedSegments = new Set<string>()
-  await refreshInactiveParallelSegmentsImpl({ ...options, fetchedSegments })
+  await refreshInactiveParallelSegmentsImpl({
+    ...options,
+    rootTree: options.updatedTree,
+    fetchedSegments,
+  })
 }
 
 async function refreshInactiveParallelSegmentsImpl({
@@ -36,7 +40,11 @@ async function refreshInactiveParallelSegmentsImpl({
   updatedCache,
   includeNextUrl,
   fetchedSegments,
-}: RefreshInactiveParallelSegments & { fetchedSegments: Set<string> }) {
+  rootTree = updatedTree,
+}: RefreshInactiveParallelSegments & {
+  fetchedSegments: Set<string>
+  rootTree: FlightRouterState
+}) {
   const [, parallelRoutes, refetchPathname, refetchMarker] = updatedTree
   const fetchPromises = []
 
@@ -56,7 +64,9 @@ async function refreshInactiveParallelSegmentsImpl({
       // we capture the pathname of the refetch without search params, so that it can be refetched with
       // the "latest" search params when it comes time to actually trigger the fetch (below)
       new URL(refetchPathname + location.search, location.origin),
-      [updatedTree[0], updatedTree[1], updatedTree[2], 'refetch'],
+      // refetch from the root of the updated tree, otherwise it will be scoped to the current segment
+      // and might not contain the data we need to patch in interception route data (such as dynamic params from a previous segment)
+      [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
       includeNextUrl ? state.nextUrl : null,
       state.buildId
     ).then((fetchResponse) => {
@@ -85,6 +95,7 @@ async function refreshInactiveParallelSegmentsImpl({
       updatedCache,
       includeNextUrl,
       fetchedSegments,
+      rootTree,
     })
 
     fetchPromises.push(parallelFetchPromise)
@@ -104,7 +115,8 @@ export function addRefreshMarkerToActiveParallelSegments(
   pathname: string
 ) {
   const [segment, parallelRoutes, , refetchMarker] = tree
-  if (segment === PAGE_SEGMENT_KEY && refetchMarker !== 'refresh') {
+  // a page segment might also contain concatenated search params, so we do a partial match on the key
+  if (segment.includes(PAGE_SEGMENT_KEY) && refetchMarker !== 'refresh') {
     tree[2] = pathname
     tree[3] = 'refresh'
   }
