@@ -1747,11 +1747,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
-    const is404Page =
-      // For edge runtime 404 page, /_not-found needs to be treated as 404 page
-      (process.env.NEXT_RUNTIME === 'edge' &&
-        pathname === UNDERSCORE_NOT_FOUND_ROUTE) ||
-      pathname === '/404'
+    if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
+      pathname = '/404'
+    }
+    const is404Page = pathname === '/404'
 
     // Strip the internal headers.
     this.stripInternalHeaders(req)
