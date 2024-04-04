@@ -87,8 +87,6 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       cookies?: ReadonlyRequestCookies
       mutableCookies?: ResponseCookies
       draftMode?: DraftModeProvider
-      assetPrefix?: string
-      reactLoadableManifest?: Record<string, { files: string[] }>
     } = {}
 
     const store: RequestStore = {
@@ -132,18 +130,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
         return cache.draftMode
       },
-      get reactLoadableManifest() {
-        if (!cache.reactLoadableManifest) {
-          cache.reactLoadableManifest = renderOpts?.reactLoadableManifest || {}
-        }
-        return cache.reactLoadableManifest
-      },
-      get assetPrefix() {
-        if (!cache.assetPrefix) {
-          cache.assetPrefix = renderOpts?.assetPrefix || ''
-        }
-        return cache.assetPrefix
-      },
+      reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
+      assetPrefix: renderOpts?.assetPrefix || '',
     }
 
     return storage.run(store, callback, store)
