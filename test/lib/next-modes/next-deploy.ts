@@ -30,7 +30,7 @@ export class NextDeployInstance extends NextInstance {
       require('console').log(`Using Vercel CLI version:`, res.stdout)
     } catch (_) {
       require('console').log(`Installing Vercel CLI`)
-      await execa('npm', ['i', '-g', 'vercel@latest'], {
+      await execa('pnpm', ['i', '-g', 'vercel@latest'], {
         stdio: 'inherit',
       })
     }

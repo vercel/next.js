@@ -41,6 +41,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          cache: 'pnpm'
 
       - name: Enable corepack
         run: corepack enable
@@ -52,6 +53,7 @@ jobs:
 
       - name: Setup tests
         run: |
+          pnpm setup
           pnpm install
           pnpx playwright install --with-deps
           pnpm run build
