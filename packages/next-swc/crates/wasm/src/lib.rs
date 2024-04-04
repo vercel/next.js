@@ -16,7 +16,7 @@ use turbopack_binding::swc::core::{
     },
     ecma::transforms::base::pass::noop,
 };
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
 pub mod mdx;
