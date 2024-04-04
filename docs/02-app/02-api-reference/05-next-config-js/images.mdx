@@ -65,6 +65,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [Sanity](#sanity)
 - [Sirv](#sirv)
 - [Supabase](#supabase)
+- [PixelBin](#pixelbin)
 
 ### Akamai
 
@@ -223,5 +224,18 @@ export default function supabaseLoader({ src, width, quality }) {
   url.searchParams.set('width', width.toString())
   url.searchParams.set('quality', (quality || 75).toString())
   return url.href
+}
+```
+
+### PixelBin
+
+```js
+// Doc (Resize): https://www.pixelbin.io/docs/transformations/basic/resize/#width-w
+// Doc (Optimise): https://www.pixelbin.io/docs/optimizations/quality/#image-quality-when-delivering
+export default function pixelBinLoader({ src, width, quality }) {
+  return src.replace(
+    `/original/`,
+    `/t.resize(w:${width})~t.compress(q:${quality || 75})/`
+  );
 }
 ```
