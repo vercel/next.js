@@ -2052,7 +2052,8 @@
         "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
         "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
         "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
-        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
+        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes",
+        "app dir - not-found - basic should return 404 status code for custom not-found page"
       ],
       "failed": [
         "app dir - not-found - basic should include not found client reference manifest in the file trace"
