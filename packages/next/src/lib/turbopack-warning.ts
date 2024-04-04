@@ -93,8 +93,8 @@ export async function validateTurboNextConfig({
   let babelrc = await getBabelConfigFile(dir)
   if (babelrc) babelrc = path.basename(babelrc)
 
-  let hasWebpack = false
-  let hasTurbo = !!process.env.TURBOPACK
+  let hasWebpackConfig = false
+  let hasTurboConfig = false
 
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
@@ -154,10 +154,10 @@ export async function validateTurboNextConfig({
 
     for (const key of customKeys) {
       if (key.startsWith('webpack')) {
-        hasWebpack = true
+        hasWebpackConfig = true
       }
       if (key.startsWith('experimental.turbo')) {
-        hasTurbo = true
+        hasTurboConfig = true
       }
 
       let isUnsupported =
@@ -187,12 +187,12 @@ export async function validateTurboNextConfig({
     'https://nextjs.link/with-turbopack'
   )}\n`
 
-  if (hasWebpack && !hasTurbo) {
+  if (hasWebpackConfig && !hasTurboConfig) {
     Log.warn(
       `Webpack is configured while Turbopack is not, which may cause problems.`
     )
     Log.warn(
-      `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
+      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbo\n`
     )
   }
 

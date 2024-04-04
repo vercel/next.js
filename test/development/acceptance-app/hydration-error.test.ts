@@ -3,6 +3,7 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
+import { getRedboxTotalErrorCount } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
@@ -349,7 +350,7 @@ describe('Error overlay for hydration errors', () => {
     await cleanup()
   })
 
-  it('should only show one hydration error when bad nesting happened', async () => {
+  it('should only show one hydration error when bad nesting happened - p under p', async () => {
     const { cleanup, session, browser } = await sandbox(
       next,
       new Map([
@@ -373,10 +374,7 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
     expect(await session.hasRedbox()).toBe(true)
 
-    const totalErrorCount = await browser
-      .elementByCss('[data-nextjs-dialog-header-total-count]')
-      .text()
-    expect(totalErrorCount).toBe('1')
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
@@ -406,6 +404,66 @@ describe('Error overlay for hydration errors', () => {
           ^^^
             <p>
             ^^^"
+      `)
+    }
+
+    await cleanup()
+  })
+
+  it('should only show one hydration error when bad nesting happened - div under p', async () => {
+    const { cleanup, session, browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            export default function Page() {
+              return (
+                <p>
+                  <div>Nested div under p tag</div>
+                </p>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
+
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const description = await session.getRedboxDescription()
+    expect(description).toContain(
+      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
+    )
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    )
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Page>
+            <p>
+            ^^^
+              <div>
+              ^^^^^"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <p>
+          ^^^
+            <div>
+            ^^^^^"
       `)
     }
 
@@ -470,6 +528,50 @@ describe('Error overlay for hydration errors', () => {
                   ^^^"
     `)
     }
+
+    await cleanup()
+  })
+
+  it('should show error if script is directly placed under html instead of body', async () => {
+    const { cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/layout.js',
+          outdent`
+            import Script from 'next/script'
+
+            export default function Layout({ children }) {
+              return (
+                <html>
+                  <body>{children}</body>
+                  <Script
+                    src="https://example.com/script.js"
+                    strategy="beforeInteractive"
+                  />
+                </html>
+              )
+            }
+          `,
+        ],
+        [
+          'app/page.js',
+          outdent`
+            export default function Page() {
+              return <div>Hello World</div>
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
+
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <script> cannot be a child of <html>.\nThis will cause a hydration error.'
+    )
 
     await cleanup()
   })

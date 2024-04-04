@@ -1,4 +1,4 @@
-import type { NextMiddleware, RequestData, FetchEventResult } from './types'
+import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
@@ -20,7 +20,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 
-class NextRequestHint extends NextRequest {
+export class NextRequestHint extends NextRequest {
   sourcePage: string
   fetchMetrics?: FetchEventResult['fetchMetrics']
 
@@ -52,7 +52,7 @@ const headersGetter: TextMapGetter<Headers> = {
 }
 
 export type AdapterOptions = {
-  handler: NextMiddleware
+  handler: (req: NextRequestHint, event: NextFetchEvent) => Promise<Response>
   page: string
   request: RequestData
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache

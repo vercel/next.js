@@ -21,15 +21,22 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const { stderr: curStderr, code: curCode } = await nextBuild(appDir, [], {
-        stderr: true,
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { stderr: curStderr, code: curCode } = await nextBuild(
+          appDir,
+          [],
+          {
+            stderr: true,
+          }
+        )
+        stderr = curStderr
+        exitCode = curCode
       })
-      stderr = curStderr
-      exitCode = curCode
-    })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })
