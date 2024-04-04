@@ -253,13 +253,23 @@ export function nextTestSetup(
     }
   }
 
-  let next: NextInstance
+  let next: NextInstance | undefined
   if (!skipped) {
     beforeAll(async () => {
       next = await createNext(options)
     })
 
     beforeEach(async () => {
+      if (options.skipStart) return
+      try {
+        await next?.start()
+      } catch (error) {
+        if (error.message === 'next already started') return
+        throw error
+      }
+    })
+
+    afterEach(async () => {
       await next?.stop()
       await next?.clean()
     })
