@@ -269,28 +269,12 @@ export async function loadProjectInfo({
   }
 }
 
-function getOpenTelemetryVersion(): string | null {
-  try {
-    return require('@opentelemetry/api/package.json')?.version ?? null
-  } catch {
-    return null
-  }
-}
-
 export function hasExternalOtelApiPackage(): boolean {
-  const opentelemetryVersion = getOpenTelemetryVersion()
-  if (!opentelemetryVersion) {
-    return false
-  }
-
-  // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
-  // https://github.com/vercel/next.js/issues/48118
-  if (semver.gte(opentelemetryVersion, '0.19.0')) {
+  try {
+    require('@opentelemetry/api')
     return true
-  } else {
-    throw new Error(
-      `Installed "@opentelemetry/api" with version ${opentelemetryVersion} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
-    )
+  } catch {
+    return false
   }
 }
 
