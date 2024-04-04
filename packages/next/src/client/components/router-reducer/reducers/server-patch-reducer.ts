@@ -48,7 +48,7 @@ export function serverPatchReducer(
       ['', ...flightSegmentPath],
       currentTree,
       treePatch,
-      location.pathname
+      state.canonicalUrl
     )
 
     if (newTree === null) {
