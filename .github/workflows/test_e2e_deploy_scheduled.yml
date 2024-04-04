@@ -15,8 +15,13 @@ jobs:
     env:
       CARGO_PROFILE_RELEASE_LTO: 'true'
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+      DD_ENV: 'ci'
       NAPI_CLI_VERSION: 2.16.2
+      NEXT_JUNIT_TEST_REPORT: 'true'
       NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_CONTINUE_ON_ERROR: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_MODE: 'deploy'
       NODE_LTS_VERSION: 20
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
@@ -48,24 +53,13 @@ jobs:
       - name: Setup tests
         run: |
           pnpm install
+          pnpx playwright install --with-deps
           pnpm run build
-          npm i -g vercel@latest
+          pnpm i -g vercel@latest
           node scripts/run-e2e-test-project-reset.mjs
 
       - name: Run tests
-        run: |
-          docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c " \
-            cd /work && \
-            NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && \
-            DATADOG_API_KEY=${{env.DATADOG_API_KEY}} \
-            DD_ENV=ci VERCEL_TEST_TOKEN=${{ env.VERCEL_TEST_TOKEN }} \
-            NEXT_JUNIT_TEST_REPORT=true \
-            NEXT_TEST_CONTINUE_ON_ERROR=1 \
-            NEXT_TEST_JOB=1 \
-            NEXT_TEST_MODE=deploy \
-            TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} \
-            VERCEL_TEST_TEAM=${{env.VERCEL_TEST_TEAM}} \
-            xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
+        run: xvfb-run node run-tests.js --related
 
       - name: Save test report as artifacts
         if: always()
@@ -74,10 +68,9 @@ jobs:
           name: test-reports
           if-no-files-found: ignore
           retention-days: 2
-          path: |
-            test/test-junit-report
+          path: test/test-junit-report
 
       - name: Upload test report to Datadog
         continue-on-error: true
         run: |
-          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report
+          pnpx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report

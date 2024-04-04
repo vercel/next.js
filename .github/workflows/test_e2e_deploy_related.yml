@@ -4,28 +4,28 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-env:
-  CARGO_PROFILE_RELEASE_LTO: 'true'
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DD_ENV: 'ci'
-  NAPI_CLI_VERSION: 2.16.2
-  NEXT_JUNIT_TEST_REPORT: 'true'
-  NEXT_TELEMETRY_DISABLED: 1
-  NEXT_TEST_CONTINUE_ON_ERROR: 1
-  NEXT_TEST_JOB: 1
-  NEXT_TEST_MODE: 'deploy'
-  NODE_LTS_VERSION: 20
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
-  TURBO_REMOTE_ONLY: 'true'
-  TURBO_TEAM: 'vercel'
-  TURBO_VERSION: 1.12.5
-  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
-  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-
 jobs:
   test:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+
+    env:
+      CARGO_PROFILE_RELEASE_LTO: 'true'
+      DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+      DD_ENV: 'ci'
+      NAPI_CLI_VERSION: 2.16.2
+      NEXT_JUNIT_TEST_REPORT: 'true'
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_CONTINUE_ON_ERROR: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_MODE: 'deploy'
+      NODE_LTS_VERSION: 20
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TURBO_REMOTE_ONLY: 'true'
+      TURBO_TEAM: 'vercel'
+      TURBO_VERSION: 1.12.5
+      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
 
     strategy:
       fail-fast: false
@@ -49,8 +49,9 @@ jobs:
         run: |
           git fetch origin canary:canary
           pnpm install
+          pnpx playwright install --with-deps
           pnpm run build
-          npm i -g vercel@latest
+          pnpm i -g vercel@latest
           node scripts/run-e2e-test-project-reset.mjs
 
       - name: Run tests
@@ -68,4 +69,4 @@ jobs:
       - name: Upload test report to Datadog
         continue-on-error: true
         run: |
-          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report
+          pnpx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report
