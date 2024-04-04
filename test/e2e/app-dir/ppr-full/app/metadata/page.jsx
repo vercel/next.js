@@ -7,10 +7,7 @@ export const revalidate = 60
 export async function generateMetadata() {
   unstable_noStore()
 
-  return {
-    title: 'Metadata',
-    description: 'This is the metadata page.',
-  }
+  return { title: 'Metadata' }
 }
 
 export default function MetadataPage() {

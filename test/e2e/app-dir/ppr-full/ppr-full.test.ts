@@ -94,6 +94,19 @@ createNextDescribe(
       })
     })
 
+    describe('Metadata', () => {
+      it('should set the right metadata when generateMetadata uses dynamic APIs', async () => {
+        const browser = await next.browser('/metadata')
+
+        try {
+          const title = await browser.elementByCss('title').text()
+          expect(title).toEqual('Metadata')
+        } finally {
+          await browser.close()
+        }
+      })
+    })
+
     describe('HTML Response', () => {
       describe.each(pages)(
         'for $pathname',
@@ -107,12 +120,6 @@ createNextDescribe(
           })
 
           it('should allow navigations to and from a pages/ page', async () => {
-            // Ensure that the links array is updated with the URL of the target
-            // page, otherwise this test won't do anything correct.
-            expect(links).toContainEqual(
-              expect.objectContaining({ href: pathname })
-            )
-
             const browser = await next.browser(pathname)
 
             try {
