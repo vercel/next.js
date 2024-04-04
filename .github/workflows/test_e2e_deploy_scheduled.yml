@@ -46,7 +46,7 @@ jobs:
           check-latest: true
 
       - name: Setup pnpm
-        run: corepack enable && SHELL=$(which bash) pnpm setup && source /home/runner/.bashrc
+        run: corepack enable && SHELL=$(which sh) pnpm setup
 
       - name: Checkout
         uses: actions/checkout@v4
