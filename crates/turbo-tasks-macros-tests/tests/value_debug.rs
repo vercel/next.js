@@ -7,9 +7,13 @@ register!();
 async fn ignored_indexes() {
     #[derive(ValueDebugFormat)]
     struct IgnoredIndexes(
-        #[turbo_tasks(debug_ignore)] i32,
+        #[allow(dead_code)]
+        #[turbo_tasks(debug_ignore)]
         i32,
-        #[turbo_tasks(debug_ignore)] i32,
+        i32,
+        #[allow(dead_code)]
+        #[turbo_tasks(debug_ignore)]
+        i32,
     );
 
     run! {

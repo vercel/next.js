@@ -170,11 +170,12 @@ impl GetContentSourceContent for NodeRenderContentSource {
         path: String,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
+        let pathname = self.pathname.await?;
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
             return Err(anyhow!(
                 "Non matching path ({}) provided for {}",
                 path,
-                self.pathname.await?
+                pathname
             ));
         };
         let ContentSourceData {
@@ -207,7 +208,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: self.pathname.await?.clone_value(),
+                path: pathname.clone_value(),
                 data: Some(self.render_data.await?),
             }
             .cell(),
@@ -215,7 +216,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         )
         .issue_file_path(
             entry.module.ident().path(),
-            format!("server-side rendering {}", self.pathname.await?),
+            format!("server-side rendering {}", pathname),
         )
         .await?;
         Ok(match *result.await? {

@@ -200,7 +200,7 @@ impl MemoryBackend {
         result_task
     }
 
-    fn lookup_and_connect_task<K: Hash + Eq, Q, H: BuildHasher + Clone>(
+    fn lookup_and_connect_task<K, Q, H: BuildHasher + Clone>(
         &self,
         parent_task: TaskId,
         task_cache: &DashMap<K, TaskId, H>,
@@ -208,7 +208,7 @@ impl MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<TaskId>
     where
-        K: Borrow<Q>,
+        K: Borrow<Q> + Hash + Eq,
         Q: Hash + Eq + ?Sized,
     {
         task_cache.get(key).map(|task| {

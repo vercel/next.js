@@ -114,7 +114,7 @@ pub fn expand_fields<
 /// Returns both the capture pattern token stream and the name of the bound
 /// identifiers corresponding to the input fields.
 pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
-    fields: impl Iterator<Item = &'a Field> + ExactSizeIterator,
+    fields: impl ExactSizeIterator<Item = &'a Field>,
     filter_field: &I,
 ) -> (TokenStream, Vec<TokenStream>) {
     let fields_len = fields.len();
@@ -153,7 +153,7 @@ pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
 /// Returns both the capture pattern token stream and the name of the bound
 /// identifiers corresponding to the input fields.
 pub fn generate_exhaustive_destructuring<'a>(
-    fields: impl Iterator<Item = &'a Field> + ExactSizeIterator,
+    fields: impl ExactSizeIterator<Item = &'a Field>,
 ) -> (TokenStream, Vec<TokenStream>) {
     generate_destructuring(fields, &|_| true)
 }

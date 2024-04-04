@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use anyhow::Result;
-use futures::{prelude::*, Stream};
+use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;

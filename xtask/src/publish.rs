@@ -242,7 +242,7 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
             if workspace.name.is_empty() || pkg_json.private {
                 None
             } else {
-                pkg_json.path = workspace.path.clone();
+                pkg_json.path.clone_from(&workspace.path);
                 Some(pkg_json)
             }
         })

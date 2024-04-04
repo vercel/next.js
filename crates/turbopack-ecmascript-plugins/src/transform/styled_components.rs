@@ -69,7 +69,7 @@ impl StyledComponentsTransformer {
         };
 
         if let Some(namespace) = &config.namespace {
-            options.namespace = namespace.clone();
+            options.namespace.clone_from(namespace);
         }
 
         let top_level_import_paths = &config.top_level_import_paths;
@@ -81,7 +81,9 @@ impl StyledComponentsTransformer {
         }
         let meaningless_file_names = &config.meaningless_file_names;
         if !meaningless_file_names.is_empty() {
-            options.meaningless_file_names = meaningless_file_names.clone();
+            options
+                .meaningless_file_names
+                .clone_from(meaningless_file_names);
         }
 
         Self { config: options }

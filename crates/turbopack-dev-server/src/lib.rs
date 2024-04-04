@@ -114,7 +114,7 @@ impl DevServerBuilder {
     pub fn serve(
         self,
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        source_provider: impl SourceProvider + Clone + Send + Sync,
+        source_provider: impl SourceProvider + Sync,
         get_issue_reporter: Arc<dyn Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync>,
     ) -> DevServer {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<

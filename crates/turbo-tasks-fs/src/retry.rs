@@ -41,7 +41,7 @@ where
         let mut attempt = 1;
 
         loop {
-            return match { func(&path) } {
+            return match func(&path) {
                 Ok(r) => Ok(r),
                 Err(err) => {
                     if attempt < MAX_RETRY_ATTEMPTS && can_retry(&err) {

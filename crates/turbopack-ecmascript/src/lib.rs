@@ -1,8 +1,9 @@
+// Needed for swc visit_ macros
+#![allow(non_local_definitions)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
-#![feature(slice_group_by)]
 #![feature(arbitrary_self_types)]
 #![recursion_limit = "256"]
 

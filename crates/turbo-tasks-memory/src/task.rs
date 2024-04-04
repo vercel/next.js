@@ -153,7 +153,7 @@ impl Debug for Task {
                 TaskMetaStateReadGuard::Partial(_) => {
                     result.field("state", &"partial");
                 }
-                TaskMetaStateReadGuard::Unloaded(_) => {
+                TaskMetaStateReadGuard::Unloaded => {
                     result.field("state", &"unloaded");
                 }
             }
@@ -1416,7 +1416,7 @@ impl Task {
                 executions: None,
                 unloaded: true,
             },
-            TaskMetaStateReadGuard::Unloaded(_) => TaskStatsInfo {
+            TaskMetaStateReadGuard::Unloaded => TaskStatsInfo {
                 total_duration: None,
                 last_duration: Duration::ZERO,
                 executions: None,
@@ -1547,7 +1547,7 @@ impl Task {
                             TaskMetaStateReadGuard::Partial(state) => state
                                 .aggregation_leaf
                                 .get_root_info(&aggregation_context, &RootInfoType::IsActive),
-                            TaskMetaStateReadGuard::Unloaded(_) => false,
+                            TaskMetaStateReadGuard::Unloaded => false,
                         };
                         if active {
                             child.schedule_when_dirty_from_aggregation(backend, turbo_tasks);

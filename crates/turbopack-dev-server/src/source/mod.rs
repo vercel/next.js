@@ -281,7 +281,7 @@ impl ContentSourceDataFilter {
                 this.extend(other);
             }
         } else {
-            *this = other.clone();
+            this.clone_from(other);
         }
     }
 

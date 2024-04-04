@@ -97,10 +97,12 @@ impl AttachedFileSystem {
         let self_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(self);
 
         if path.fs != self_fs {
+            let self_fs_str = self_fs.to_string().await?;
+            let path_fs_str = path.fs.to_string().await?;
             bail!(
                 "path fs does not match (expected {}, got {})",
-                self_fs.to_string().await?,
-                path.fs.to_string().await?
+                self_fs_str,
+                path_fs_str
             )
         }
 
@@ -184,10 +186,8 @@ impl FileSystem for AttachedFileSystem {
 impl ValueToString for AttachedFileSystem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "{}-with-{}",
-            self.root_fs.to_string().await?,
-            self.child_fs.to_string().await?
-        )))
+        let root_fs_str = self.root_fs.to_string().await?;
+        let child_fs_str = self.child_fs.to_string().await?;
+        Ok(Vc::cell(format!("{}-with-{}", root_fs_str, child_fs_str)))
     }
 }

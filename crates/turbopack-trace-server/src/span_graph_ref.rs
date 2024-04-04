@@ -46,7 +46,7 @@ impl<'a> SpanGraphRef<'a> {
         self.graph.root_spans.len() + self.graph.recursive_spans.len()
     }
 
-    pub fn root_spans(&self) -> impl Iterator<Item = SpanRef<'a>> + DoubleEndedIterator + '_ {
+    pub fn root_spans(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + '_ {
         self.graph.root_spans.iter().map(move |span| SpanRef {
             span: &self.store.spans[span.get()],
             store: self.store,
@@ -54,7 +54,7 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
-    fn recursive_spans(&self) -> impl Iterator<Item = SpanRef<'a>> + DoubleEndedIterator + '_ {
+    fn recursive_spans(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + '_ {
         self.graph
             .root_spans
             .iter()
@@ -66,7 +66,7 @@ impl<'a> SpanGraphRef<'a> {
             })
     }
 
-    pub fn events(&self) -> impl Iterator<Item = SpanGraphEventRef<'a>> + DoubleEndedIterator + '_ {
+    pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanGraphEventRef<'a>> + '_ {
         self.graph
             .events
             .get_or_init(|| {
@@ -113,7 +113,7 @@ impl<'a> SpanGraphRef<'a> {
             })
     }
 
-    pub fn children(&self) -> impl Iterator<Item = SpanGraphRef<'a>> + DoubleEndedIterator + '_ {
+    pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanGraphRef<'a>> + '_ {
         self.events().filter_map(|event| match event {
             SpanGraphEventRef::SelfTime { .. } => None,
             SpanGraphEventRef::Child { graph: span } => Some(span),

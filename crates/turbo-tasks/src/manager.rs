@@ -250,6 +250,7 @@ impl TaskIdProvider for &dyn TaskIdProvider {
     }
 }
 
+#[allow(clippy::manual_non_exhaustive)]
 pub struct UpdateInfo {
     pub duration: Duration,
     pub tasks: usize,
@@ -460,7 +461,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         let this = self.pin();
         let future = async move {
-            #[allow(clippy::blocks_in_if_conditions)]
+            #[allow(clippy::blocks_in_conditions)]
             while CURRENT_TASK_STATE
                 .scope(Default::default(), async {
                     if this.stopped.load(Ordering::Acquire) {

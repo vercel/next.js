@@ -161,7 +161,7 @@ impl Pattern {
     /// Order into Alternatives -> Concatenation -> Constant/Dynamic
     /// Merge when possible
     pub fn normalize(&mut self) {
-        let mut alternatives = vec![Vec::new()];
+        let mut alternatives = [Vec::new()];
         match self {
             Pattern::Constant(c) => {
                 for alt in alternatives.iter_mut() {

@@ -250,8 +250,8 @@ impl DiskFileSystem {
 }
 
 struct PathLockGuard<'a>(
-    RwLockReadGuard<'a, ()>,
-    mutex_map::MutexMapGuard<'a, PathBuf>,
+    #[allow(dead_code)] RwLockReadGuard<'a, ()>,
+    #[allow(dead_code)] mutex_map::MutexMapGuard<'a, PathBuf>,
 );
 
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<String> {
@@ -1939,9 +1939,7 @@ pub fn register() {
 
 #[cfg(test)]
 mod tests {
-    use turbo_tasks::Vc;
-
-    use super::{virtual_fs::VirtualFileSystem, *};
+    use super::*;
 
     #[tokio::test]
     async fn with_extension() {

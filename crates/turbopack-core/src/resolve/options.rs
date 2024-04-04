@@ -307,10 +307,11 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".to_string())),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
+                    let path = path.to_string().await?;
                     format!(
                         "aliased to {} inside of {}",
                         request.to_string().await?,
-                        path.to_string().await?
+                        path
                     )
                 } else {
                     format!("aliased to {}", request.to_string().await?)
