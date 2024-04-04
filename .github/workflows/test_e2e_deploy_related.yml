@@ -41,7 +41,7 @@ jobs:
           check-latest: true
 
       - name: Setup pnpm
-        run: corepack enable && SHELL=$(which sh) pnpm setup
+        run: corepack enable
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
         run: |
           pnpm install
           pnpm run build
-          pnpm i -g vercel@latest
+          npm i -g vercel@latest
           node scripts/run-e2e-test-project-reset.mjs
 
       - name: Run tests
