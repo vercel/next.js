@@ -67,7 +67,7 @@ export function printNonFatalIssue(issue: Issue) {
   // Currently only warnings will be printed, excluding if the error source
   // is coming from foreign (node_modules) codes.
   if (issue.severity === 'warning') {
-    if (!issue.filePath.match(/\[project\].+\/node_modules\//g)) {
+    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
       Log.warn(formatIssue(issue))
     }
   }
@@ -195,6 +195,9 @@ export function processIssues(
 
     if (issue.severity !== 'warning') {
       relevantIssues.add(formatted)
+      if (isWellKnownError(issue)) {
+        Log.error(formatted)
+      }
     }
   }
 
@@ -406,7 +409,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true)
 
       break
     }
@@ -443,6 +446,7 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
+      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,

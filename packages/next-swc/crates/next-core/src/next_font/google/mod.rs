@@ -237,7 +237,13 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?
                 .clone_value(),
             ),
-            None => None,
+            None => {
+                println!(
+                    "Failed to download `{}` from Google Fonts. Using fallback font instead.",
+                    options.await?.font_family
+                );
+                None
+            }
         };
 
         let css_asset = VirtualSource::new(

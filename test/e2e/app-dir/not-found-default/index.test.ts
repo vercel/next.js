@@ -33,6 +33,11 @@ createNextDescribe(
       )
     })
 
+    it('should return 404 status code for default not-found page', async () => {
+      const res = await next.fetch('/_not-found')
+      expect(res.status).toBe(404)
+    })
+
     it('should error on server notFound from root layout on server-side', async () => {
       const browser = await next.browser('/?root-not-found=1')
 

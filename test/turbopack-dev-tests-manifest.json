@@ -119,11 +119,12 @@
       "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
-      "normalizeCatchallRoutes should not add the catch-all to the interception route",
-      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
+      "normalizeCatchallRoutes should not add the catch-all to the interception route"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -281,8 +282,8 @@
   },
   "packages/next/src/client/components/router-reducer/is-navigating-to-new-root-layout.test.ts": {
     "passed": [
-      "shouldHardNavigate should return false if there is no new root layout",
-      "shouldHardNavigate should return true if there is a mismatch between the root layouts"
+      "isNavigatingToNewRootLayout should return false if there is no new root layout",
+      "isNavigatingToNewRootLayout should return true if there is a mismatch between the root layouts"
     ],
     "failed": [],
     "pending": [],
@@ -1524,6 +1525,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/basic/barrel-optimization/barrel-optimization-tremor.test.ts": {
+    "passed": ["optimizePackageImports - mui should work"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/barrel-optimization/barrel-optimization.test.ts": {
     "passed": [],
     "failed": [],
@@ -1979,8 +1987,8 @@
     "runtimeError": false
   },
   "test/development/next-font/font-loader-in-document-error.test.ts": {
-    "passed": [],
-    "failed": ["font-loader-in-document-error next/font inside _document"],
+    "passed": ["font-loader-in-document-error next/font inside _document"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2328,6 +2336,7 @@
       "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
       "app-dir action handling fetch actions should handle redirect to a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
       "app-dir action handling fetch actions should handle regular redirects",
       "app-dir action handling fetch actions should handle revalidatePath",
       "app-dir action handling fetch actions should handle revalidateTag",
@@ -2420,6 +2429,16 @@
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
+    "passed": [
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0 should skip dev",
+      "app dir client cache semantics (experimental staleTimes) static: 180 should skip dev"
     ],
     "failed": [],
     "pending": [],
@@ -2704,6 +2723,16 @@
     "passed": [
       "app-custom-routes automatic implementations implements HEAD on routes with GET already implemented",
       "app-custom-routes automatic implementations implements OPTIONS on routes",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a GET request responds correctly on /basic/endpoint",
@@ -2771,6 +2800,16 @@
     "passed": [
       "app-custom-routes automatic implementations implements HEAD on routes with GET already implemented",
       "app-custom-routes automatic implementations implements OPTIONS on routes",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a DELETE request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a GET request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PATCH request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a POST request aborts without error on /basic/vercel/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/endpoint",
+      "app-custom-routes basic fetch request with a response abort via a PUT request aborts without error on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/endpoint",
       "app-custom-routes basic fetch request with a response made via a DELETE request responds correctly on /basic/vercel/endpoint",
       "app-custom-routes basic fetch request with a response made via a GET request responds correctly on /basic/endpoint",
@@ -2900,6 +2939,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
@@ -2980,6 +3020,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
@@ -3045,6 +3086,7 @@
       "app dir - basic known bugs should support React fetch instrumentation server component client-navigation",
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
+      "app dir - basic next/script should pass `nonce`",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic next/script should support next/script and render in correct order",
@@ -3164,8 +3206,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
+    "passed": [
+      "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
+      "app-dir assetPrefix with basePath handling should redirect route when clicking link",
+      "app-dir assetPrefix with basePath handling should redirect route when requesting it directly",
+      "app-dir assetPrefix with basePath handling should redirect route when requesting it directly by browser",
+      "app-dir assetPrefix with basePath handling should render link"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/asset-prefix/asset-prefix.test.ts": {
     "passed": [
+      "app-dir assetPrefix handling bundles should return 200 on served assetPrefix",
       "app-dir assetPrefix handling should redirect route when clicking link",
       "app-dir assetPrefix handling should redirect route when requesting it directly",
       "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
@@ -3404,6 +3460,15 @@
       "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
       "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
       "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
+    "passed": [
+      "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
     ],
     "failed": [],
     "pending": [],
@@ -3713,6 +3778,7 @@
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all",
+      "app-dir - logging with fetches default logging should exlucde Middleware invoked and _rsc requests",
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
@@ -3722,6 +3788,7 @@
       "app-dir - logging with fetches default logging should only log requests in development mode",
       "app-dir - logging with fetches default logging should respect request.init.cache when use with fetch input is instance",
       "app-dir - logging with fetches default logging should show cache reason of noStore when use with fetch",
+      "app-dir - logging with fetches verbose logging should exlucde Middleware invoked and _rsc requests",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
@@ -3830,6 +3897,7 @@
   "test/e2e/app-dir/metadata-warnings/index.test.ts": {
     "passed": [
       "app dir - metadata missing metadataBase should fallback to localhost if metadataBase is missing for absolute urls resolving",
+      "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing if there is only absolute url",
       "app dir - metadata missing metadataBase should warn for unsupported metadata properties"
     ],
@@ -3842,6 +3910,7 @@
     "passed": [
       "app dir - metadata basic should apply metadata when navigating client-side",
       "app dir - metadata basic should handle metadataBase for urls resolved as only URL type",
+      "app dir - metadata basic should not contain query in canonical url after client navigation",
       "app dir - metadata basic should relative canonical url",
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
@@ -3949,6 +4018,8 @@
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation query string useParams identity between renders should be stable in pages",
+      "app dir - navigation redirect components should only trigger the redirect once (/redirect/servercomponent)",
+      "app dir - navigation redirect components should only trigger the redirect once (redirect/redirect-with-loading)",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -4226,6 +4297,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-specificity should match the catch-all route when navigating from a page with a similar path depth as the previously matched slot"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
     "passed": [
       "parallel-routes-catchall should match both the catch-all page & slot",
@@ -4258,6 +4338,11 @@
   },
   "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
     "passed": [
+      "parallel-routes-revalidation router.refresh (dynamic) should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh (dynamic) should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation router.refresh (regular) should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh (regular) should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
@@ -5053,6 +5138,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/static-generation-status/index.test.ts": {
+    "passed": [
+      "app-dir static-generation-status should render the non existed route redirect with status 404",
+      "app-dir static-generation-status should render the page using notFound with status 404",
+      "app-dir static-generation-status should render the page using redirect with status 307"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts": {
     "passed": ["syntax-highlighter-crash should render the page"],
     "failed": [],
@@ -5567,11 +5663,10 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
-    ],
-    "failed": [
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6447,10 +6542,10 @@
     "runtimeError": false
   },
   "test/e2e/next-font/google-fetch-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google fetch error should use a fallback font in dev"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6614,6 +6709,7 @@
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
+      "opentelemetry incoming context propagation app router should propagate custom context without span",
       "opentelemetry incoming context propagation app router should trace middleware",
       "opentelemetry incoming context propagation pages should handle api routes in pages",
       "opentelemetry incoming context propagation pages should handle api routes in pages on edge",
@@ -6625,6 +6721,7 @@
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
+      "opentelemetry root context app router should propagate custom context without span",
       "opentelemetry root context app router should trace middleware",
       "opentelemetry root context pages should handle api routes in pages",
       "opentelemetry root context pages should handle api routes in pages on edge",
@@ -7489,8 +7586,8 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
-      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
+      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
+      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
     ],
     "failed": [],
     "pending": [],
@@ -7510,9 +7607,9 @@
   "test/integration/app-dir-export/test/dynamicapiroute-dev.test.ts": {
     "passed": [
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'error'",
+      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-static'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'"
+      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined"
     ],
     "failed": [],
     "pending": [],
@@ -8180,75 +8277,111 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/create-next-app/examples.test.ts": {
+    "passed": [
+      "create-next-app --example should create if --example value is default",
+      "create-next-app --example should create on valid Next.js example name",
+      "create-next-app --example should create with GitHub URL",
+      "create-next-app --example should create with GitHub URL and --example-path",
+      "create-next-app --example should create with GitHub URL trailing slash",
+      "create-next-app --example should fall back to default template if failed to download",
+      "create-next-app --example should not create if --example flag value is absent",
+      "create-next-app --example should not create if --example flag value is invalid",
+      "create-next-app --example should use --example-path over the GitHub URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
-      "create next app empty directory",
-      "create next app invalid example name",
-      "create next app non-empty directory",
-      "create next app should allow an example named default",
-      "create next app should allow example with GitHub URL",
-      "create next app should allow example with GitHub URL and example-path",
-      "create next app should allow example with GitHub URL with trailing slash",
-      "create next app should ask the user for a name for the project if none supplied",
-      "create next app should create a project in the current directory",
-      "create next app should exit if example flag is empty",
-      "create next app should exit if the folder is not writable",
-      "create next app should fall back to default template",
-      "create next app should use --example-path over the file path in the GitHub URL",
-      "create next app valid example",
-      "create next app valid example without package.json"
+      "create-next-app should not create if the target directory is not empty",
+      "create-next-app should not create if the target directory is not writable"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/create-next-app/package-manager.test.ts": {
+  "test/integration/create-next-app/package-manager/bun.test.ts": {
     "passed": [
-      "should infer Bun as the package manager",
-      "should infer Bun as the package manager with example",
-      "should infer npm as the package manager",
-      "should infer npm as the package manager with example",
-      "should infer pnpm as the package manager",
-      "should infer pnpm as the package manager with example",
-      "should infer yarn as the package manager",
-      "should infer yarn as the package manager with example",
-      "should use Bun as the package manager on supplying --use-bun",
-      "should use Bun as the package manager on supplying --use-bun with example",
-      "should use Yarn as the package manager on supplying --use-yarn",
-      "should use Yarn as the package manager on supplying --use-yarn with example",
-      "should use npm as the package manager on supplying --use-npm",
-      "should use npm as the package manager on supplying --use-npm with example",
-      "should use pnpm as the package manager on supplying --use-pnpm",
-      "should use pnpm as the package manager on supplying --use-pnpm with example"
+      "create-next-app with package manager bun should use bun for --use-bun flag",
+      "should use bun for --use-bun flag with example",
+      "should use bun when user-agent is bun",
+      "should use bun when user-agent is bun with example"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/create-next-app/templates-app.test.ts": {
+  "test/integration/create-next-app/package-manager/npm.test.ts": {
     "passed": [
-      "create-next-app --app should create JS appDir projects with --js",
-      "create-next-app --app should create JS appDir projects with --js --src-dir",
-      "create-next-app --app should create TS appDir projects with --ts",
-      "create-next-app --app should create Tailwind CSS appDir projects with --tailwind"
+      "create-next-app with package manager npm should use npm for --use-npm flag",
+      "should use npm for --use-npm flag with example",
+      "should use npm when user-agent is npm",
+      "should use npm when user-agent is npm with example"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/create-next-app/templates-pages.test.ts": {
+  "test/integration/create-next-app/package-manager/pnpm.test.ts": {
     "passed": [
-      "create-next-app templates should create JS projects with --js, --javascript",
-      "create-next-app templates should create JS projects with --js, --javascript --src-dir",
-      "create-next-app templates should create TS projects with --ts, --typescript",
-      "create-next-app templates should create TS projects with --ts, --typescript --src-dir",
-      "create-next-app templates should prompt user to choose if --import-alias is not provided",
-      "create-next-app templates should prompt user to choose if --tailwind or --no-tailwind is not provided",
-      "create-next-app templates should prompt user to choose if --ts or --js is not provided",
-      "create-next-app templates should work with --tailwind and --src together"
+      "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
+      "should use pnpm for --use-pnpm flag with example",
+      "should use pnpm when user-agent is pnpm",
+      "should use pnpm when user-agent is pnpm with example"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/package-manager/yarn.test.ts": {
+    "passed": [
+      "create-next-app with package manager yarn should use yarn for --use-yarn flag",
+      "should use yarn for --use-yarn flag with example",
+      "should use yarn when user-agent is yarn",
+      "should use yarn when user-agent is yarn with example"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/prompts.test.ts": {
+    "passed": [
+      "create-next-app prompts should prompt user for choice if --import-alias is absent",
+      "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
+      "create-next-app prompts should prompt user for choice if --tailwind is absent",
+      "create-next-app prompts should prompt user for choice if directory name is absent"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/templates/app.test.ts": {
+    "passed": [
+      "create-next-app --app (App Router) should create JavaScript project with --js flag",
+      "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
+      "create-next-app --app (App Router) should create TypeScript project with --ts flag",
+      "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/templates/pages.test.ts": {
+    "passed": [
+      "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
+      "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
+      "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
+      "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
     "failed": [],
     "pending": [],
@@ -9585,16 +9718,15 @@
   "test/integration/edge-runtime-module-errors/test/module-imports.test.js": {
     "passed": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
     ],
-    "failed": [
-      "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
-    ],
+    "failed": [],
     "pending": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module production mode does not build and reports module not found error",
       "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
@@ -15385,15 +15517,14 @@
       "Next.js Script - Primary Strategies - Strict Mode onReady should only fires once after loaded (issue #39993)",
       "Next.js Script - Primary Strategies - Strict Mode onload fires correctly",
       "Next.js Script - Primary Strategies - Strict Mode priority afterInteractive",
+      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive",
+      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive - older version",
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive on navigate",
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script",
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
       "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
     ],
-    "failed": [
-      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive",
-      "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive - older version"
-    ],
+    "failed": [],
     "pending": [
       "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
       "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
