@@ -28,6 +28,8 @@ export function getLayerAssets({
       )
     : { styles: [], scripts: [] }
 
+  console.log('!!! layer assets styles', styleTags, 'scripts', scriptTags)
+
   const preloadedFontFiles = layoutOrPagePath
     ? getPreloadableFonts(
         ctx.renderOpts.nextFontManifest,
