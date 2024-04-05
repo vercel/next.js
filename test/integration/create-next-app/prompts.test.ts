@@ -154,7 +154,7 @@ describe('create-next-app prompts', () => {
         // used check here since it needs to wait for the prompt
         await check(
           () => output,
-          /Would you like to customize the default import alias/
+          /How would you like to configure the import alias/
         )
         childProcess.stdin.write('@/something/*\n')
       })
@@ -167,6 +167,78 @@ describe('create-next-app prompts', () => {
           ],
         }
       `)
+    })
+  })
+
+  it('should warn if asterisk or double quote is present in import alias', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'invalid-import-alias-asterisk-double-quote'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--import-alias=asterisk*/*',
+          '--dry-run',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      await new Promise<void>(async (resolve) => {
+        let output = ''
+        childProcess.stderr.on('data', (data) => {
+          output += data
+          process.stderr.write(data)
+        })
+        await check(() => output, /import alias cannot include asterisk/)
+        // show current
+        await check(() => output, /Current: asterisk/)
+        // force exit
+        childProcess.kill()
+        resolve()
+      })
+    })
+  })
+
+  it('should warn if invalid pattern in import alias', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'invalid-import-alias'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--import-alias=invalid',
+          '--dry-run',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      await new Promise<void>(async (resolve) => {
+        let output = ''
+        childProcess.stderr.on('data', (data) => {
+          output += data
+          process.stderr.write(data)
+        })
+        await check(() => output, /import alias must follow the pattern/)
+        // show current
+        await check(() => output, /Current: invalid/)
+        // force exit
+        childProcess.kill()
+        resolve()
+      })
     })
   })
 
