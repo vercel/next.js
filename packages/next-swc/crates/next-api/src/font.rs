@@ -47,12 +47,6 @@ pub(crate) async fn create_font_manifest(
     let has_fonts = !font_paths.is_empty();
     let using_size_adjust = font_paths.iter().any(|path| path.contains("-s"));
 
-    let app_font_paths = font_paths
-        .iter()
-        .filter(|path| !path.contains(".p."))
-        .cloned()
-        .collect::<Vec<_>>();
-
     let font_paths = font_paths
         .into_iter()
         .filter(|path| path.contains(".p."))
@@ -74,7 +68,7 @@ pub(crate) async fn create_font_manifest(
             pages: [(pathname.to_string(), font_paths)]
                 .into_iter()
                 .chain(if has_pages_app_js {
-                    Some(("/_app".to_string(), app_font_paths))
+                    Some(("/_app".to_string(), vec![]))
                 } else {
                     None
                 })
