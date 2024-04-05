@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { BrowserInterface } from 'test/lib/browsers/base'
+import { BrowserInterface } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
