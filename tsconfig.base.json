@@ -17,8 +17,7 @@
       "next-webdriver": ["./test/lib/next-webdriver"],
       "e2e-utils": ["./test/lib/e2e-utils"],
       "test-data-service/*": ["./test/lib/test-data-service/*"],
-      "test-log": ["./test/lib/test-log"],
-      "test/*": ["./test/*"]
+      "test-log": ["./test/lib/test-log"]
     }
   }
 }
