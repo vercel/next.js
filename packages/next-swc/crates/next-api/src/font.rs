@@ -34,6 +34,8 @@ pub(crate) async fn create_font_manifest(
             .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
             .collect();
 
+    dbg!(pathname, &font_paths);
+
     let path = if app_dir {
         node_root.join(format!(
             "server/app{manifest_path_prefix}/next-font-manifest.json",
@@ -65,14 +67,7 @@ pub(crate) async fn create_font_manifest(
         }
     } else {
         NextFontManifest {
-            pages: [(pathname.to_string(), font_paths)]
-                .into_iter()
-                .chain(if has_pages_app_js {
-                    Some(("/_app".to_string(), vec![]))
-                } else {
-                    None
-                })
-                .collect(),
+            pages: [(pathname.to_string(), font_paths)].into_iter().collect(),
             pages_using_size_adjust: using_size_adjust,
             ..Default::default()
         }
