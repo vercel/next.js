@@ -30,7 +30,7 @@ export function Base() {
           --color-accents-3: #404040;
 
           --color-text-color-red-1: #ff5555;
-          --color-text-background-red-1: #fff7f7;
+          --color-text-background-red-1: #fff9f9;
 
           --font-stack-monospace: 'SFMono-Regular', Consolas, 'Liberation Mono',
             Menlo, Courier, monospace;
@@ -69,6 +69,8 @@ export function Base() {
             --color-stack-subline: rgb(121, 121, 121);
 
             --color-accents-3: rgb(118, 118, 118);
+
+            --color-text-background-red-1: #2a1e1e;
           }
         }
 
