@@ -170,7 +170,7 @@ describe('create-next-app prompts', () => {
     })
   })
 
-  it('should warn if asterisk or double quote is present in import alias', async () => {
+  it('should warn if asterisk is present in import alias', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-import-alias-asterisk-double-quote'
       const childProcess = createNextApp(
@@ -199,6 +199,42 @@ describe('create-next-app prompts', () => {
         await check(() => output, /import alias cannot include asterisk/)
         // show current
         await check(() => output, /Current: asterisk/)
+        // force exit
+        childProcess.kill()
+        resolve()
+      })
+    })
+  })
+
+  it('should warn if double quote is present in import alias', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'invalid-import-alias-asterisk-double-quote'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--import-alias=double"quote/*',
+          '--dry-run',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      await new Promise<void>(async (resolve) => {
+        let output = ''
+        childProcess.stderr.on('data', (data) => {
+          output += data
+          process.stderr.write(data)
+        })
+        await check(() => output, /or double quote/)
+        // show current
+        await check(() => output, /Current: double"quote/)
         // force exit
         childProcess.kill()
         resolve()
