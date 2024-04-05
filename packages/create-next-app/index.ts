@@ -70,14 +70,14 @@ const program = new Command()
   .arguments('[directory]')
   .usage('[directory] [options]')
   .helpOption('-h, --help', 'Display this help message.')
+  .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
   .option(
     '--ts, --typescript',
     `Initialize as a ${ct.typescript} project. ${ct.default}`
   )
   .option('--js, --javascript', `Initialize as a ${ct.javascript} project.`)
-  .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
-  .option('--tailwind', `Enable ${ct.tailwind} config. ${ct.default}`)
   .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
+  .option('--tailwind', `Enable ${ct.tailwind} config. ${ct.default}`)
   .option('--src-dir', `Initialize inside a ${ct.srcDir} directory.`)
   .option(
     '--import-alias <prefix/*>',
