@@ -5420,12 +5420,11 @@
       "runtimeError": false
     },
     "test/integration/absolute-assetprefix/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
         "absolute assetPrefix with path prefix production mode should work with getServerSideProps",
-        "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered"
-      ],
-      "failed": [
+        "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered",
         "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
         "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback"
       ],
@@ -5908,12 +5907,12 @@
       "runtimeError": false
     },
     "test/integration/app-tree/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "AppTree production mode should pass AppTree to NextPageContext",
         "AppTree production mode should provide router context in AppTree on CSR",
         "AppTree production mode should provide router context in AppTree on SSR"
       ],
-      "failed": [],
       "pending": [
         "AppTree development mode should pass AppTree to NextPageContext",
         "AppTree development mode should provide router context in AppTree on CSR",
@@ -13121,7 +13120,8 @@
       "runtimeError": false
     },
     "test/integration/query-with-encoding/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "Query String with Encoding production mode new line should have correct query on Router#push",
         "Query String with Encoding production mode new line should have correct query on SSR",
         "Query String with Encoding production mode new line should have correct query on complex client-side <Link>",
@@ -13139,7 +13139,6 @@
         "Query String with Encoding production mode trailing space should have correct query on complex client-side <Link>",
         "Query String with Encoding production mode trailing space should have correct query on simple client-side <Link>"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
@@ -13658,7 +13657,8 @@
       "runtimeError": false
     },
     "test/integration/script-loader/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
         "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
         "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
@@ -13678,9 +13678,7 @@
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive on navigate",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
-        "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
-      ],
-      "failed": [
+        "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload",
         "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
         "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
         "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script"
