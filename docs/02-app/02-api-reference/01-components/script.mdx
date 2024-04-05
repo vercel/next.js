@@ -363,11 +363,11 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx
-import { useRef } from 'react';
-import Script from 'next/script';
+import { useRef } from 'react'
+import Script from 'next/script'
 
 export default function Page() {
-  const mapRef = useRef();
+  const mapRef = useRef()
 
   return (
     <>
@@ -379,11 +379,11 @@ export default function Page() {
           new google.maps.Map(mapRef.current, {
             center: { lat: -34.397, lng: 150.644 },
             zoom: 8,
-          });
+          })
         }}
       />
     </>
-  );
+  )
 }
 ```
 
