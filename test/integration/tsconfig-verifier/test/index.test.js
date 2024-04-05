@@ -754,7 +754,7 @@ import path from 'path'
     `)
     })
 
-    // TODO: Enable this test when repo has upgraded to TypeScript 5.4. Currently tested as E2E
+    // TODO: Enable this test when repo has upgraded to TypeScript 5.4. Currently tested as E2E: tsconfig-module-preserve
     it.skip('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
       expect(await exists(tsConfig)).toBe(false)
 
