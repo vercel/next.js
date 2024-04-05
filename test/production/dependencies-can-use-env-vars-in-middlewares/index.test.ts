@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('dependencies can use env vars in middlewares', () => {
