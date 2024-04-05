@@ -47,3 +47,7 @@ criterion = { version = "0.5", features = ["async_tokio"] }
 gitoxide-core = "0.35.0"
 gix = { version = "0.61.0", features = ["blocking-network-client", "blocking-http-transport-reqwest"] }
 tempdir = "0.3.7"
+
+[[bench]]
+name = "bench"
+harness = false
