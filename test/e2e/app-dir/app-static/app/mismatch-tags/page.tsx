@@ -6,16 +6,12 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
-  console.log('[bruh] data =', data)
-
   const data2 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       next: { tags: ['thankyounext', 'justputit'] },
     }
   ).then((res) => res.text())
-
-  console.log('[bruh] data2 =', data2)
 
   return (
     <>
