@@ -1348,7 +1348,7 @@ export async function renderToHTMLImpl(
       (initialStream: ReactReadableStream, suffix?: string) => {
         return continueFizzStream(initialStream, {
           suffix,
-          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
+          inlinedDataStream: (serverComponentsInlinedTransformStream as any)?.readable,
           isStaticGeneration: true,
           // this must be called inside bodyResult so appWrappers is
           // up to date when `wrapApp` is called
