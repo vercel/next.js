@@ -228,31 +228,8 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    if (
-      !options.dev &&
-      this.nextConfig.experimental.allServerChunksPreloading
-    ) {
-      const appPathsManifest = this.getAppPathsManifest()
-      const pagesManifest = this.getPagesManifest()
-
-      for (const page of Object.keys(pagesManifest || {})) {
-        loadComponents({ distDir: this.distDir, page, isAppPath: false }).catch(
-          () => {}
-        )
-      }
-
-      for (const page of Object.keys(appPathsManifest || {})) {
-        loadComponents({ distDir: this.distDir, page, isAppPath: true })
-          .then(({ ComponentMod }) => {
-            const webpackRequire = ComponentMod.__next_app__.require
-            if (webpackRequire?.m) {
-              for (const id of Object.keys(webpackRequire.m)) {
-                webpackRequire(id)
-              }
-            }
-          })
-          .catch(() => {})
-      }
+    if (!options.dev && this.nextConfig.experimental.preloadEntriesOnStart) {
+      this.unstable_preloadEntries()
     }
 
     if (!options.dev) {
@@ -292,6 +269,32 @@ export default class NextNodeServer extends BaseServer {
       this.prepare().catch((err) => {
         console.error('Failed to prepare server', err)
       })
+    }
+  }
+
+  public async unstable_preloadEntries(): Promise<void> {
+    const appPathsManifest = this.getAppPathsManifest()
+    const pagesManifest = this.getPagesManifest()
+
+    for (const page of Object.keys(pagesManifest || {})) {
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: false,
+      }).catch(() => {})
+    }
+
+    for (const page of Object.keys(appPathsManifest || {})) {
+      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+        .then(async ({ ComponentMod }) => {
+          const webpackRequire = ComponentMod.__next_app__.require
+          if (webpackRequire?.m) {
+            for (const id of Object.keys(webpackRequire.m)) {
+              await webpackRequire(id)
+            }
+          }
+        })
+        .catch(() => {})
     }
   }
 
@@ -1151,9 +1154,9 @@ export default class NextNodeServer extends BaseServer {
           const color = statusColor(res.statusCode)
           const method = req.method || 'GET'
           writeStdoutLine(
-            `${color(method)} ${color(req.url ?? '')} ${
-              res.statusCode
-            } in ${reqDuration}ms`
+            `${method} ${req.url ?? ''} ${color(
+              (res.statusCode ?? 200).toString()
+            )} in ${reqDuration}ms`
           )
 
           if (fetchMetrics.length && enabledVerboseLogging) {
