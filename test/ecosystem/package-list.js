@@ -79,7 +79,7 @@ const packageList = [
   'next-themes',
   'jsonwebtoken',
   'cookies-next',
-  //   'slick-carousel', // Issue with `__esModule`
+  'slick-carousel', // Issue with `__esModule`
   'lodash.debounce',
   '@react-google-maps/api',
   'react-datepicker',
@@ -104,7 +104,7 @@ const packageList = [
   '@emotion/server',
   '@emotion/css',
   'antd',
-  // '@tanstack/react-query-devtools', // Crashes the process
+  '@tanstack/react-query-devtools', // Crashes the process
   '@stripe/react-stripe-js',
   'react-hot-toast',
   'react-chartjs-2',
@@ -211,11 +211,11 @@ const packageList = [
   'recoil',
   'chalk',
   'redux-devtools-extension',
-  // 'react-syntax-highlighter', // Crashes the process
+  'react-syntax-highlighter', // Crashes the process
   'usehooks-ts',
   '@contentful/rich-text-react-renderer',
   'react-loading-skeleton',
-  // '@aws-sdk/client-s3', // Crashes the process
+  '@aws-sdk/client-s3', // Crashes the process
   'three',
   'cmdk',
   'embla-carousel-react',
@@ -296,7 +296,7 @@ const packageList = [
   'react-phone-number-input',
   'react-lazyload',
   'react-otp-input',
-  // 'react-map-gl', // Crashes the process
+  'react-map-gl', // Crashes the process
   'deepmerge',
   'react-helmet',
   'numeral',
