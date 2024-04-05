@@ -362,17 +362,24 @@ async function run(): Promise<void> {
       return true
     }
 
+    const currentValue = `${gray(`… Current: ${bold(value)}`)}`
+
     // Has disallowed characters for paths: " or *
     if (/["*].*\/\*/.test(value)) {
       return `${ct.importAlias} cannot include ${bold(
         'asterisk (*)'
-      )} or ${bold('double quote (")')}`
+      )} or ${bold('double quote (")')} ${currentValue}`
     }
 
-    return `${ct.importAlias} must follow the pattern ${bold('<prefix>/*')}`
+    return `${ct.importAlias} must follow the pattern ${bold(
+      '<prefix>/*'
+    )} ${currentValue}`
   }
 
-  if (opts.importAlias && validateImportAlias(opts.importAlias)) {
+  if (
+    opts.importAlias &&
+    typeof validateImportAlias(opts.importAlias) === 'string'
+  ) {
     log.warn(validateImportAlias(opts.importAlias))
     opts.importAlias = undefined
   }
