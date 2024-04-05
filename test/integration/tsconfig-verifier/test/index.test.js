@@ -767,6 +767,8 @@ import path from 'path'
         stdout: true,
       })
       expect(stderr + stdout).not.toContain('moduleResolution')
+      expect(stderr + stdout).not.toContain('esModuleInterop')
+      expect(stderr + stdout).not.toContain('resolveJsonModule')
       expect(code).toBe(0)
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
