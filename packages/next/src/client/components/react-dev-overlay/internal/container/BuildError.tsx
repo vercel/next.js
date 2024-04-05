@@ -22,8 +22,8 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     <Overlay fixed>
       <Dialog
         type="error"
-        aria-labelledby="nextjs__container_build_error_label"
-        aria-describedby="nextjs__container_build_error_desc"
+        aria-labelledby="nextjs__container_error_label"
+        aria-describedby="nextjs__container_error_desc"
         onClose={noop}
       >
         <DialogContent>
