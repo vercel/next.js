@@ -22,22 +22,16 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     <Overlay fixed>
       <Dialog
         type="error"
-        aria-labelledby="nextjs__container_error_label"
-        aria-describedby="nextjs__container_error_desc"
+        aria-labelledby="nextjs__container_build_error_label"
+        aria-describedby="nextjs__container_build_error_desc"
         onClose={noop}
       >
         <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
-            <h1 id="nextjs__container_errors_label">{'Build Error'}</h1>
-            <p
-              id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc"
-            >
-              Failed to compile
-            </p>
+          <DialogHeader className="nextjs-container-build-error-header">
+            <h4 id="nextjs__container_build_error_label">Failed to compile</h4>
             {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
           </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
+          <DialogBody className="nextjs-container-build-error-body">
             <Terminal content={message} />
             <footer>
               <p id="nextjs__container_build_error_desc">
@@ -55,25 +49,24 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
 }
 
 export const styles = css`
-  .nextjs-container-errors-header > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: var(--size-gap-double) 0;
+  .nextjs-container-build-error-header {
+    display: flex;
+    align-items: center;
   }
-  .nextjs-container-errors-header p {
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-big);
-    white-space: pre-wrap;
+  .nextjs-container-build-error-header > h4 {
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
   }
-  .nextjs-container-errors-body footer {
+
+  .nextjs-container-build-error-body footer {
     margin-top: var(--size-gap);
   }
-  .nextjs-container-errors-body footer p {
+  .nextjs-container-build-error-body footer p {
     margin: 0;
   }
 
-  .nextjs-container-errors-body small {
+  .nextjs-container-build-error-body small {
     color: var(--color-font);
   }
 `
