@@ -49,6 +49,18 @@ createNextDescribe(
       })
     })
 
+    it('should refetch from origin if new tags have been specified', async () => {
+      const res = await next.fetch('/mismatch-tags')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#page-data').text()
+      const data2 = $('#page-data-2').text()
+      expect(data1).not.toBe(data2)
+    })
+
     if (isNextStart) {
       it('should propagate unstable_cache tags correctly', async () => {
         const meta = JSON.parse(
