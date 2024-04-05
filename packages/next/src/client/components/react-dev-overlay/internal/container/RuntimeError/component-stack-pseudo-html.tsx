@@ -6,10 +6,6 @@ function getAdjacentProps(isAdj: boolean) {
   return { 'data-nextjs-container-errors-pseudo-html--tag-adjacent': isAdj }
 }
 
-function matchTags(pairs: string[], matchedPairs: string[]) {
-  return pairs[0] === matchedPairs[0] && pairs[1] === matchedPairs[1]
-}
-
 /**
  *
  * Format component stack into pseudo HTML
