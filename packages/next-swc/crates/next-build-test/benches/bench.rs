@@ -1,11 +1,71 @@
-use std::time::Duration;
+use std::{
+    cmp::max,
+    time::{Duration, Instant},
+};
 
 use anyhow::Context;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{
+    black_box, criterion_group, criterion_main, measurement::ValueFormatter, Criterion,
+};
 use next_api::project::{ProjectContainer, ProjectOptions};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_binding::turbo::tasks_memory::MemoryBackend;
+
+struct MemoryMeasurement;
+
+impl criterion::measurement::Measurement for MemoryMeasurement {
+    type Intermediate = (Instant, u64);
+
+    // sum + max
+    type Value = (Duration, u64);
+
+    fn start(&self) -> Self::Intermediate {
+        (Instant::now(), 0)
+    }
+
+    fn end(&self, i: Self::Intermediate) -> Self::Value {
+        (i.0.elapsed(), i.1)
+    }
+
+    fn add(&self, v1: &Self::Value, v2: &Self::Value) -> Self::Value {
+        (v1.0 + v2.0, max(v1.1, v2.1))
+    }
+
+    fn zero(&self) -> Self::Value {
+        (Duration::from_secs(0), 0)
+    }
+
+    fn to_f64(&self, value: &Self::Value) -> f64 {
+        let nanos = value.0.as_nanos();
+        nanos as f64
+    }
+
+    fn formatter(&self) -> &dyn criterion::measurement::ValueFormatter {
+        &DurationMemoryFormatter
+    }
+}
+
+struct DurationMemoryFormatter;
+
+impl ValueFormatter for DurationMemoryFormatter {
+    fn scale_values(&self, typical_value: f64, values: &mut [f64]) -> &'static str {
+        "secs + GB"
+    }
+
+    fn scale_throughputs(
+        &self,
+        typical_value: f64,
+        throughput: &criterion::Throughput,
+        values: &mut [f64],
+    ) -> &'static str {
+        "secs + GB / s"
+    }
+
+    fn scale_for_machines(&self, values: &mut [f64]) -> &'static str {
+        "secs + GB / machine"
+    }
+}
 
 /// Clones a repo down into a tmp folder and produces a ProjectOptions that can
 /// build it.
@@ -60,7 +120,7 @@ fn init_bench(
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
-pub fn criterion_benchmark(c: &mut Criterion) {
+pub fn criterion_benchmark(c: &mut Criterion<MemoryMeasurement>) {
     next_build_test::register();
 
     let (options, _dir) = init_bench(
@@ -144,5 +204,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
+fn gb_measurement() -> Criterion<MemoryMeasurement> {
+    Criterion::default()
+        .with_measurement(MemoryMeasurement)
+        .measurement_time(Duration::from_secs(60 * 2))
+}
+
+criterion_group! {
+    name = benches;
+    config = gb_measurement();
+    targets = criterion_benchmark
+}
 criterion_main!(benches);
