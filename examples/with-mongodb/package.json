@@ -1,16 +1,13 @@
 {
-  "name": "nextjs-with-mongodb-v2",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
     "mongodb": "^6.5.0",
-    "next": "14.0.4",
+    "next": "latest",
     "react": "^18",
     "react-dom": "^18"
   },
