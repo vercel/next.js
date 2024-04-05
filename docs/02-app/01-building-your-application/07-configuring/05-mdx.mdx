@@ -45,12 +45,12 @@ Create a `mdx-components.tsx` file at the root of your application (`src/` or th
 > **Good to know**: `mdx-components.tsx` is required to use MDX with App Router and will not work without it.
 
 ```tsx filename="mdx-components.tsx" switcher
-import type { MDXComponents } from "mdx/types";
+import type { MDXComponents } from 'mdx/types'
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...components,
-  };
+  }
 }
 ```
 
@@ -58,7 +58,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 export function useMDXComponents(components) {
   return {
     ...components,
-  };
+  }
 }
 ```
 
@@ -67,16 +67,16 @@ export function useMDXComponents(components) {
 Update the `next.config.js` file at your project's root to configure it to use MDX:
 
 ```js filename="next.config.js"
-const withMDX = require("@next/mdx")();
+const withMDX = require('@next/mdx')()
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configure `pageExtensions` to include MDX files
-  pageExtensions: ["js", "jsx", "mdx", "ts", "tsx"],
+  pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
-};
+}
 
-module.exports = withMDX(nextConfig);
+module.exports = withMDX(nextConfig)
 ```
 
 <AppOnly>
@@ -109,7 +109,7 @@ Then, create a new MDX page within the `/pages` directory:
 Now you can use markdown and import React components directly inside your MDX page:
 
 ```mdx
-import { MyComponent } from "my-components";
+import { MyComponent } from 'my-components'
 
 # Welcome to my MDX page!
 
@@ -139,24 +139,24 @@ The following example uses `next-mdx-remote`:
 <AppOnly>
 
 ```tsx filename="app/my-mdx-page-remote/page.tsx" switcher
-import { MDXRemote } from "next-mdx-remote/rsc";
+import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
   // MDX text - can be from a local file, database, CMS, fetch, anywhere...
-  const res = await fetch("https://...");
-  const markdown = await res.text();
-  return <MDXRemote source={markdown} />;
+  const res = await fetch('https://...')
+  const markdown = await res.text()
+  return <MDXRemote source={markdown} />
 }
 ```
 
 ```jsx filename="app/my-mdx-page-remote/page.js" switcher
-import { MDXRemote } from "next-mdx-remote/rsc";
+import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
   // MDX text - can be from a local file, database, CMS, fetch, anywhere...
-  const res = await fetch("https://...");
-  const markdown = await res.text();
-  return <MDXRemote source={markdown} />;
+  const res = await fetch('https://...')
+  const markdown = await res.text()
+  return <MDXRemote source={markdown} />
 }
 ```
 
@@ -165,40 +165,40 @@ export default async function RemoteMdxPage() {
 <PagesOnly>
 
 ```tsx filename="pages/my-mdx-page-remote.tsx" switcher
-import { serialize } from "next-mdx-remote/serialize";
-import { MDXRemote, MDXRemoteSerializeResult } from "next-mdx-remote";
+import { serialize } from 'next-mdx-remote/serialize'
+import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote'
 
 interface Props {
-  mdxSource: MDXRemoteSerializeResult;
+  mdxSource: MDXRemoteSerializeResult
 }
 
 export default function RemoteMdxPage({ mdxSource }: Props) {
-  return <MDXRemote {...mdxSource} />;
+  return <MDXRemote {...mdxSource} />
 }
 
 export async function getStaticProps() {
   // MDX text - can be from a local file, database, CMS, fetch, anywhere...
-  const res = await fetch("https:...");
-  const mdxText = await res.text();
-  const mdxSource = await serialize(mdxText);
-  return { props: { mdxSource } };
+  const res = await fetch('https:...')
+  const mdxText = await res.text()
+  const mdxSource = await serialize(mdxText)
+  return { props: { mdxSource } }
 }
 ```
 
 ```jsx filename="pages/my-mdx-page-remote.js" switcher
-import { serialize } from "next-mdx-remote/serialize";
-import { MDXRemote } from "next-mdx-remote";
+import { serialize } from 'next-mdx-remote/serialize'
+import { MDXRemote } from 'next-mdx-remote'
 
 export default function RemoteMdxPage({ mdxSource }) {
-  return <MDXRemote {...mdxSource} />;
+  return <MDXRemote {...mdxSource} />
 }
 
 export async function getStaticProps() {
   // MDX text - can be from a local file, database, CMS, fetch, anywhere...
-  const res = await fetch("https:...");
-  const mdxText = await res.text();
-  const mdxSource = await serialize(mdxText);
-  return { props: { mdxSource } };
+  const res = await fetch('https:...')
+  const mdxText = await res.text()
+  const mdxSource = await serialize(mdxText)
+  return { props: { mdxSource } }
 }
 ```
 
@@ -215,14 +215,14 @@ To share a layout across MDX pages, you can use the [built-in layouts support](/
 ```tsx filename="app/my-mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
   // Create any shared layout or styles here
-  return <div style={{ color: "blue" }}>{children}</div>;
+  return <div style={{ color: 'blue' }}>{children}</div>
 }
 ```
 
 ```jsx filename="app/my-mdx-page/layout.js" switcher
 export default function MdxLayout({ children }) {
   // Create any shared layout or styles here
-  return <div style={{ color: "blue" }}>{children}</div>;
+  return <div style={{ color: 'blue' }}>{children}</div>
 }
 ```
 
@@ -235,27 +235,26 @@ To share a layout around MDX pages, create a layout component:
 ```tsx filename="components/mdx-layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
   // Create any shared layout or styles here
-  return <div style={{ color: "blue" }}>{children}</div>;
+  return <div style={{ color: 'blue' }}>{children}</div>
 }
 ```
 
 ```jsx filename="components/mdx-layout.js" switcher
 export default function MdxLayout({ children }) {
   // Create any shared layout or styles here
-  return <div style={{ color: "blue" }}>{children}</div>;
+  return <div style={{ color: 'blue' }}>{children}</div>
 }
 ```
 
 Then, import the layout component into the MDX page, wrap the MDX content in the layout, and export it:
 
 ```mdx
-import MdxLayout from "../components/mdx-layout";
+import MdxLayout from '../components/mdx-layout'
 
 # Welcome to my MDX page!
 
 export default function MDXPage({ children }) {
   return <MdxLayout>{children}</MdxLayout>
-
 
 }
 ```
@@ -271,15 +270,15 @@ For example, you can use `remark-gfm` to support GitHub Flavored Markdown.
 Since the `remark` and `rehype` ecosystem is ESM only, you'll need to use `next.config.mjs` as the configuration file.
 
 ```js filename="next.config.mjs"
-import remarkGfm from "remark-gfm";
-import createMDX from "@next/mdx";
+import remarkGfm from 'remark-gfm'
+import createMDX from '@next/mdx'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configure `pageExtensions`` to include MDX files
-  pageExtensions: ["js", "jsx", "mdx", "ts", "tsx"],
+  pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
-};
+}
 
 const withMDX = createMDX({
   // Add markdown plugins here, as desired
@@ -287,10 +286,10 @@ const withMDX = createMDX({
     remarkPlugins: [remarkGfm],
     rehypePlugins: [],
   },
-});
+})
 
 // Wrap MDX and Next.js config with each other
-export default withMDX(nextConfig);
+export default withMDX(nextConfig)
 ```
 
 ## Frontmatter
@@ -305,8 +304,8 @@ To access page metadata with `@next/mdx`, you can export a metadata object from 
 
 ```mdx
 export const metadata = {
-  author: "John Doe",
-};
+  author: 'John Doe',
+}
 
 # My MDX page
 ```
@@ -350,8 +349,8 @@ To do this, create a `mdx-components.tsx` file at the root of your application (
 </PagesOnly>
 
 ```tsx filename="mdx-components.tsx" switcher
-import type { MDXComponents } from "mdx/types";
-import Image, { ImageProps } from "next/image";
+import type { MDXComponents } from 'mdx/types'
+import Image, { ImageProps } from 'next/image'
 
 // This file allows you to provide custom React components
 // to be used in MDX files. You can import and use any
@@ -361,21 +360,21 @@ import Image, { ImageProps } from "next/image";
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
+    h1: ({ children }) => <h1 style={{ fontSize: '100px' }}>{children}</h1>,
     img: (props) => (
       <Image
         sizes="100vw"
-        style={{ width: "100%", height: "auto" }}
+        style={{ width: '100%', height: 'auto' }}
         {...(props as ImageProps)}
       />
     ),
     ...components,
-  };
+  }
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-import Image from "next/image";
+import Image from 'next/image'
 
 // This file allows you to provide custom React components
 // to be used in MDX files. You can import and use any
@@ -385,16 +384,16 @@ import Image from "next/image";
 export function useMDXComponents(components) {
   return {
     // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
+    h1: ({ children }) => <h1 style={{ fontSize: '100px' }}>{children}</h1>,
     img: (props) => (
       <Image
         sizes="100vw"
-        style={{ width: "100%", height: "auto" }}
+        style={{ width: '100%', height: 'auto' }}
         {...props}
       />
     ),
     ...components,
-  };
+  }
 }
 ```
 
@@ -405,13 +404,13 @@ React does not natively understand markdown. The markdown plaintext needs to fir
 `remark` is an ecosystem of tools around markdown. `rehype` is the same, but for HTML. For example, the following code snippet transforms markdown into HTML:
 
 ```js
-import { unified } from "unified";
-import remarkParse from "remark-parse";
-import remarkRehype from "remark-rehype";
-import rehypeSanitize from "rehype-sanitize";
-import rehypeStringify from "rehype-stringify";
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkRehype from 'remark-rehype'
+import rehypeSanitize from 'rehype-sanitize'
+import rehypeStringify from 'rehype-stringify'
 
-main();
+main()
 
 async function main() {
   const file = await unified()
@@ -419,9 +418,9 @@ async function main() {
     .use(remarkRehype) // Transform to HTML AST
     .use(rehypeSanitize) // Sanitize HTML input
     .use(rehypeStringify) // Convert AST into serialized HTML
-    .process("Hello, Next.js!");
+    .process('Hello, Next.js!')
 
-  console.log(String(file)); // <p>Hello, Next.js!</p>
+  console.log(String(file)) // <p>Hello, Next.js!</p>
 }
 ```
 
@@ -438,7 +437,7 @@ module.exports = withMDX({
   experimental: {
     mdxRs: true,
   },
-});
+})
 ```
 
 ## Helpful Links
