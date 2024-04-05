@@ -295,15 +295,22 @@ async function run(): Promise<void> {
     })
   }
 
+  if (!opts.app && !args.includes('--no-app')) {
+    const { app } = await _prompt({
+      type: 'toggle',
+      name: 'app',
+      message: `Would you like to use ${ct.app}? (recommended)`,
+    })
+    // don't save the app pref since we recommend it.
+    opts.app = app
+  }
+
   if (!opts.typescript && !opts.javascript) {
     const { typescript } = await _prompt({
       type: 'toggle',
       name: 'typescript',
       message: `Would you like to use ${ct.typescript}?`,
     })
-    /**
-     * Depending on the prompt response, set the appropriate program flags.
-     */
     opts.typescript = typescript
     opts.javascript = !typescript
     preferences.typescript = typescript
@@ -337,16 +344,6 @@ async function run(): Promise<void> {
     })
     opts.srcDir = srcDir
     preferences.srcDir = srcDir
-  }
-
-  if (!opts.app && !args.includes('--no-app')) {
-    const { app } = await _prompt({
-      type: 'toggle',
-      name: 'app',
-      message: `Would you like to use ${ct.app}? (recommended)`,
-    })
-    // don't save the app pref since we recommend it.
-    opts.app = app
   }
 
   // Matches <prefix>/* except disallowed characters for paths: " or *
