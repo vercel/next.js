@@ -104,7 +104,7 @@ const packageList = [
   '@emotion/server',
   '@emotion/css',
   'antd',
-  '@tanstack/react-query-devtools', // Crashes the process
+  '@tanstack/react-query-devtools',
   '@stripe/react-stripe-js',
   'react-hot-toast',
   'react-chartjs-2',
@@ -211,11 +211,11 @@ const packageList = [
   'recoil',
   'chalk',
   'redux-devtools-extension',
-  'react-syntax-highlighter', // Crashes the process
+  'react-syntax-highlighter',
   'usehooks-ts',
   '@contentful/rich-text-react-renderer',
   'react-loading-skeleton',
-  '@aws-sdk/client-s3', // Crashes the process
+  '@aws-sdk/client-s3',
   'three',
   'cmdk',
   'embla-carousel-react',
@@ -269,7 +269,7 @@ const packageList = [
   'react-textarea-autosize',
   'rxjs',
   'mobx',
-  // 'mapbox-gl', // Crashes the process
+  'mapbox-gl',
   '@fortawesome/free-regular-svg-icons',
   'form-data',
   'i18next-http-backend',
@@ -282,7 +282,7 @@ const packageList = [
   'jquery',
   'isomorphic-fetch',
   '@mdx-js/react',
-  // 'leaflet', // Crashes the process
+  'leaflet',
   'validator',
   'cross-fetch',
   'react-phone-input-2',
@@ -296,7 +296,7 @@ const packageList = [
   'react-phone-number-input',
   'react-lazyload',
   'react-otp-input',
-  'react-map-gl', // Crashes the process
+  // 'react-map-gl', // Requires mapbox-gl
   'deepmerge',
   'react-helmet',
   'numeral',
