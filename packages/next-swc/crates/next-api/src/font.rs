@@ -1,6 +1,6 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
-use turbo_tasks::{vdbg, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileSystemPath},
     turbopack::core::{
