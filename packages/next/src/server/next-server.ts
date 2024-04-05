@@ -228,6 +228,33 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    if (
+      !options.dev &&
+      this.nextConfig.experimental.allServerChunksPreloading
+    ) {
+      const appPathsManifest = this.getAppPathsManifest()
+      const pagesManifest = this.getPagesManifest()
+
+      for (const page of Object.keys(pagesManifest || {})) {
+        loadComponents({ distDir: this.distDir, page, isAppPath: false }).catch(
+          () => {}
+        )
+      }
+
+      for (const page of Object.keys(appPathsManifest || {})) {
+        loadComponents({ distDir: this.distDir, page, isAppPath: true })
+          .then(({ ComponentMod }) => {
+            const webpackRequire = ComponentMod.__next_app__.require
+            if (webpackRequire?.m) {
+              for (const id of Object.keys(webpackRequire.m)) {
+                webpackRequire(id)
+              }
+            }
+          })
+          .catch(() => {})
+      }
+    }
+
     if (!options.dev) {
       const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {}
       this.dynamicRoutes = dynamicRoutes.map((r) => {
