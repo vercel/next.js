@@ -33,8 +33,6 @@ pub(crate) async fn create_font_manifest(
             .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
             .collect();
 
-    dbg!(pathname, &font_paths, manifest_path_prefix);
-
     let path = if app_dir {
         node_root.join(format!(
             "server/app{manifest_path_prefix}/next-font-manifest.json",
@@ -45,7 +43,7 @@ pub(crate) async fn create_font_manifest(
         ))
     };
 
-    let has_fonts = pathname == "/_app" || !font_paths.is_empty();
+    let has_fonts = !font_paths.is_empty();
     let using_size_adjust = font_paths.iter().any(|path| path.contains("-s"));
 
     let font_paths = font_paths
@@ -71,7 +69,6 @@ pub(crate) async fn create_font_manifest(
             ..Default::default()
         }
     };
-    dbg!(&next_font_manifest);
 
     Ok(Vc::upcast(VirtualOutputAsset::new(
         path,
