@@ -49,7 +49,7 @@ createNextDescribe(
       })
     })
 
-    it('should refetch from origin if new tags have been specified', async () => {
+    it('should not fetch from memory cache if new tags have been specified', async () => {
       const res = await next.fetch('/mismatch-tags')
       expect(res.status).toBe(200)
 
