@@ -4,7 +4,7 @@ export default async function Page() {
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
-      cache: 'no-store',
+      cache: 'force-cache',
       next: { tags: ['thankyounext'] },
     }
   ).then((res) => res.text())
@@ -12,7 +12,7 @@ export default async function Page() {
   const data2 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
-      cache: 'no-store',
+      cache: 'force-cache',
       next: { tags: ['thankyounext', 'justputit'] },
     }
   ).then((res) => res.text())
