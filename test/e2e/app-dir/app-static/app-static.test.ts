@@ -680,6 +680,8 @@ createNextDescribe(
             "isr-error-handling.rsc",
             "isr-error-handling/page.js",
             "isr-error-handling/page_client-reference-manifest.js",
+            "mismatch-tags/page.js",
+            "mismatch-tags/page_client-reference-manifest.js",
             "no-store/dynamic/page.js",
             "no-store/dynamic/page_client-reference-manifest.js",
             "no-store/static.html",
