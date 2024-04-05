@@ -1,9 +1,10 @@
 import { RefreshButton } from '../../../../components/RefreshButton'
 import { RevalidateButton } from '../../../../components/RevalidateButton'
+import { UpdateSearchParamsButton } from '../../../../components/UpdateSearchParamsButton'
 
 const getRandom = async () => Math.random()
 
-export default async function Page({ params }) {
+export default async function Page({ params, searchParams }) {
   const someProp = await getRandom()
 
   return (
@@ -16,6 +17,7 @@ export default async function Page({ params }) {
         </div>
         <RefreshButton />
         <RevalidateButton />
+        <UpdateSearchParamsButton searchParams={searchParams} id="modal" />
       </div>
     </dialog>
   )
