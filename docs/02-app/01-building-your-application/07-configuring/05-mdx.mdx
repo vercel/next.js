@@ -1,7 +1,7 @@
 ---
 title: Markdown and MDX
 nav_title: MDX
-description: Learn how to configure MDX to write JSX in your markdown files.
+description: Learn how to configure MDX and use it in your Next.js apps.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -210,7 +210,7 @@ Navigating to the `/my-mdx-page-remote` route should display your rendered MDX.
 
 <AppOnly>
 
-To share a layout amongst MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
+To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
 
 ```tsx filename="app/my-mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
@@ -254,7 +254,7 @@ import MdxLayout from '../components/mdx-layout'
 # Welcome to my MDX page!
 
 export default function MDXPage({ children }) {
-  return <MdxLayout>{children}</MdxLayout>;
+  return <MdxLayout>{children}</MdxLayout>
 
 }
 ```
@@ -288,7 +288,7 @@ const withMDX = createMDX({
   },
 })
 
-// Merge MDX config with Next.js config
+// Wrap MDX and Next.js config with each other
 export default withMDX(nextConfig)
 ```
 
