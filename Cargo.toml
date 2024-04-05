@@ -28,6 +28,11 @@ inherits = "release"
 debug = true
 lto = "thin"
 
+[profile.bench-with-debug]
+inherits = "bench"
+debug = true
+strip = false
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "packages/next-swc/crates/next-api" }

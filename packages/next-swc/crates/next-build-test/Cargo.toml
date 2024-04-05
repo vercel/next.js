@@ -45,3 +45,7 @@ turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
 [dev-dependencies]
 iai-callgrind = "0.10.2"
 tempdir = "0.3.7"
+
+[[bench]]
+name = "bench"
+harness = false
