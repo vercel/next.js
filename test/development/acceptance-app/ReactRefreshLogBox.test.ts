@@ -390,7 +390,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('end http://nextjs.org')
+            throw new Error('end https://nextjs.org')
           }, [])
           return (
             <main>
@@ -435,7 +435,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('http://nextjs.org start')
+            throw new Error('https://nextjs.org start')
           }, [])
           return (
             <main>
@@ -480,7 +480,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('middle http://nextjs.org end')
+            throw new Error('middle https://nextjs.org end')
           }, [])
           return (
             <main>
@@ -525,7 +525,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('multiple http://nextjs.org links http://example.com')
+            throw new Error('multiple https://nextjs.org links http://example.com')
           }, [])
           return (
             <main>
@@ -541,8 +541,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toMatchInlineSnapshot(
-      `"Error: multiple http://nextjs.org links http://example.com"`
+      `"Error: multiple https://nextjs.org links http://example.com"`
     )
+    // Do not highlight example.com but do highlight nextjs.org
     expect(
       await session.evaluate(
         () =>
@@ -551,7 +552,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
-    ).toBe(2)
+    ).toBe(1)
     expect(
       await session.evaluate(
         () =>
@@ -575,7 +576,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toBe(null)
 
     await cleanup()
   })
