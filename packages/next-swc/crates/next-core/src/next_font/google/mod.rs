@@ -5,7 +5,7 @@ use futures::FutureExt;
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{vdbg, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{Completion, Value},
@@ -86,10 +86,15 @@ impl NextFontGoogleReplacer {
     async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let qstr = qstring::QString::from(query.as_str());
+
+        vdbg!(&qstr);
+
         let query_vc = Vc::cell(query);
 
         let font_data = load_font_data(self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
+
+        vdbg!(&options);
 
         let fallback = get_font_fallback(self.project_path, options, request_hash);
         let properties = get_font_css_properties(options, fallback, request_hash).await?;
@@ -208,6 +213,9 @@ impl NextFontGoogleCssModuleReplacer {
             "/{}.module.css",
             get_request_id(options.font_family(), request_hash).await?
         ));
+
+        vdbg!(stylesheet_url);
+        vdbg!(scoped_font_family);
 
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
@@ -356,6 +364,8 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         if preload {
             name.push_str(".p")
         }
+
+        dbg!(&name, &ext);
 
         let font_virtual_path = next_js_file_path("internal/font/google".to_string())
             .join(format!("/{}.{}", name, ext));

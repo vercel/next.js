@@ -51,7 +51,7 @@ pub(crate) async fn create_font_manifest(
 
     let font_paths = font_paths
         .into_iter()
-        .filter(|path| pathname == "/_app" || path.contains(".p."))
+        .filter(|path| path.contains(".p."))
         .collect::<Vec<_>>();
 
     let next_font_manifest = if !has_fonts {

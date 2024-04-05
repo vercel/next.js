@@ -79,6 +79,8 @@ impl VisitMut for NextFontLoaders {
 
             // Add font imports and exports
             let mut new_items = Vec::new();
+            dbg!(&self.config);
+            dbg!(&self.state);
             new_items.append(&mut self.state.font_imports);
             new_items.append(items);
             new_items.append(&mut self.state.font_exports);
