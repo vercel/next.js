@@ -55,7 +55,7 @@ export async function createComponentStylesAndScripts({
 
   const scripts = jsHrefs
     ? jsHrefs.map((href) => (
-        <script src={`${ctx.assetPrefix}/_next/${href}`} async={true} />
+        <script src={`${ctx.assetPrefix}/_next/${href}`} defer={true} />
       ))
     : null
 
