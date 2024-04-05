@@ -858,7 +858,7 @@ export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
           )
         const root = portal.shadowRoot
         const text = root.querySelector(
-          '#nextjs__container_errors__extra'
+          '#nextjs__container_errors__notes'
         )?.innerText
         return text
       }),
