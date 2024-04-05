@@ -343,11 +343,11 @@ async function writePrerenderManifest(
 
 async function writeEdgePartialPrerenderManifest(
   distDir: string,
-  manifest: Readonly<PrerenderManifest>
+  manifest: Readonly<Partial<PrerenderManifest>>
 ): Promise<void> {
   // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
   // Use env vars in JS bundle and inject the actual vars to edge manifest.
-  const edgePartialPrerenderManifest: PrerenderManifest = {
+  const edgePartialPrerenderManifest: Partial<PrerenderManifest> = {
     ...manifest,
     preview: {
       previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
@@ -1238,7 +1238,7 @@ export default async function build(
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
-      await writeEdgePartialPrerenderManifest(distDir)
+      await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
