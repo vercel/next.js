@@ -10,15 +10,19 @@ const splitRegexp = new RegExp(`(${MAGIC_IDENTIFIER_REGEX.source}|\\s+)`)
 
 export const HotlinkedText: React.FC<{
   text: string
+  matcher?: (text: string) => boolean
 }> = function HotlinkedText(props) {
-  const { text } = props
+  const { text, matcher } = props
 
   const wordsAndWhitespaces = text.split(splitRegexp)
 
   return (
     <>
       {wordsAndWhitespaces.map((word, index) => {
-        if (linkRegex.test(word)) {
+        if (
+          linkRegex.test(word) &&
+          (typeof matcher === 'function' ? matcher(word) : true)
+        ) {
           const link = linkRegex.exec(word)!
           return (
             <React.Fragment key={`link-${index}`}>

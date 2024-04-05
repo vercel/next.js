@@ -29,9 +29,12 @@ export function Base() {
           --color-accents-2: #222222;
           --color-accents-3: #404040;
 
+          --color-text-color-red-1: #ff5555;
+          --color-text-background-red-1: #fff7f7;
+
           --font-stack-monospace: 'SFMono-Regular', Consolas, 'Liberation Mono',
             Menlo, Courier, monospace;
-          --font-stack-sans: -apple-system, BlinkMacSystemFont, sans-serif;
+          --font-stack-sans: -apple-system, 'Source Sans Pro', sans-serif;
 
           --color-ansi-selection: rgba(95, 126, 151, 0.48);
           --color-ansi-bg: #111111;
