@@ -44,7 +44,7 @@ function getDesiredCompilerOptions(
       parsedValue: ts.ModuleKind.ESNext,
       // All of these values work:
       parsedValues: [
-        ts.ModuleKind.Preserve,
+        semver.gte(ts.version, '5.4.0') && (ts.ModuleKind as any).Preserve,
         ts.ModuleKind.ES2020,
         ts.ModuleKind.ESNext,
         ts.ModuleKind.CommonJS,
@@ -55,7 +55,9 @@ function getDesiredCompilerOptions(
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
-    ...(tsOptions?.module === ts.ModuleKind.Preserve
+    // TODO: Semver check not needed once Next.js repo uses 5.4.
+    ...(semver.gte(ts.version, '5.4.0') &&
+    tsOptions?.module === (ts.ModuleKind as any).Preserve
       ? {
           // TypeScript 5.4 introduced `Preserve`. Using `Preserve` implies
           // - `moduleResolution` is `Bundler`
