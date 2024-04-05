@@ -25,6 +25,7 @@ export function Base() {
           --color-stack-h6: #222;
           --color-stack-headline: #666;
           --color-stack-subline: #999;
+          --color-stack-notes: #777;
 
           --color-accents-1: #808080;
           --color-accents-2: #222222;
@@ -68,6 +69,7 @@ export function Base() {
             --color-title-color: #fafafa;
             --color-stack-h6: rgb(200, 200, 204);
             --color-stack-headline: rgb(99, 99, 102);
+            --color-stack-notes: #a9a9a9;
             --color-stack-subline: rgb(121, 121, 121);
 
             --color-accents-3: rgb(118, 118, 118);

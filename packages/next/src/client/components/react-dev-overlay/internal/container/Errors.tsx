@@ -344,7 +344,7 @@ export const styles = css`
   }
   p.nextjs__container_errors__notes {
     margin: var(--size-gap-double) auto;
-    color: var(--color-stack-headline);
+    color: var(--color-stack-notes);
     font-weight: 600;
     font-size: 15px;
   }
