@@ -40,9 +40,7 @@ exports[`ReactRefreshLogBox default logbox: anchors links in error messages 6`] 
 
 exports[`ReactRefreshLogBox default logbox: anchors links in error messages 8`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
-
-exports[`ReactRefreshLogBox default logbox: anchors links in error messages 11`] = `"https://nextjs.org/"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 10`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox default module init error not shown 1`] = `
 "index.js (3:7) @ eval
