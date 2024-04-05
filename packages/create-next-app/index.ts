@@ -163,6 +163,11 @@ async function run(): Promise<void> {
     process.exit(0)
   }
 
+  const isDryRun = args.includes('--dry-run')
+  if (isDryRun) {
+    log.ready('Running a dry run, skipping installation.')
+  }
+
   let projectPath = args[0]?.trim()
   if (!projectPath || projectPath.startsWith('-')) {
     const response = await prompts({
@@ -221,11 +226,13 @@ async function run(): Promise<void> {
       srcDir: Boolean(opts.srcDir),
       importAlias: opts.importAlias ?? defaults.importAlias,
     }
-    return await tryCreateNextApp({
+    await tryCreateNextApp({
       appPath,
       resolvedOpts,
       example: opts.example.trim(),
+      isDryRun,
     })
+    return
   }
 
   const preferences = (conf.get('preferences') ?? {}) as typeof defaults
@@ -261,10 +268,11 @@ async function run(): Promise<void> {
       srcDir: Boolean(opts.srcDir),
       importAlias: opts.importAlias,
     }
-    return await tryCreateNextApp({
+    await tryCreateNextApp({
       appPath,
       resolvedOpts,
     })
+    return
   }
 
   function _prompt(
@@ -404,22 +412,37 @@ async function run(): Promise<void> {
     resolvedOpts,
     conf,
     preferences,
+    isDryRun,
   })
 }
 
 async function tryCreateNextApp({
   appPath,
-  resolvedOpts: { typescript, eslint, tailwind, app, srcDir, importAlias },
+  resolvedOpts: { app, typescript, eslint, tailwind, srcDir, importAlias },
   example,
   conf,
   preferences,
+  isDryRun,
 }: {
   appPath: string
   resolvedOpts: ResolvedCreateNextAppOptions
   example?: string
   conf?: Conf
   preferences?: Record<string, boolean | string>
+  isDryRun?: boolean
 }) {
+  if (isDryRun) {
+    const dryRunData = {
+      appPath,
+      packageManager,
+      opts,
+      args,
+      preferences,
+    }
+    console.log(JSON.stringify(dryRunData, null, 2))
+    return
+  }
+
   try {
     await createApp({
       appPath,
