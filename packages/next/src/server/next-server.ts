@@ -1124,9 +1124,9 @@ export default class NextNodeServer extends BaseServer {
           const color = statusColor(res.statusCode)
           const method = req.method || 'GET'
           writeStdoutLine(
-            `${color(method)} ${color(req.url ?? '')} ${
-              res.statusCode
-            } in ${reqDuration}ms`
+            `${method} ${req.url ?? ''} ${color(
+              (res.statusCode ?? 200).toString()
+            )} in ${reqDuration}ms`
           )
 
           if (fetchMetrics.length && enabledVerboseLogging) {
