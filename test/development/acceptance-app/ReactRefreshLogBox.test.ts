@@ -576,7 +576,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toBe(null)
 
     await cleanup()
   })

@@ -44,8 +44,6 @@ exports[`ReactRefreshLogBox default logbox: anchors links in error messages 9`] 
 
 exports[`ReactRefreshLogBox default logbox: anchors links in error messages 11`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox default logbox: anchors links in error messages 12`] = `"http://example.com/"`;
-
 exports[`ReactRefreshLogBox default module init error not shown 1`] = `
 "index.js (3:7) @ eval
 
@@ -108,11 +106,7 @@ exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 6`] = 
 
 exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 8`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 9`] = `"http://example.com/"`;
-
 exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 11`] = `"https://nextjs.org/"`;
-
-exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 12`] = `"http://example.com/"`;
 
 exports[`ReactRefreshLogBox turbo module init error not shown 1`] = `
 "index.js (3:7) @ <unknown>

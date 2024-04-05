@@ -572,7 +572,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toBe(null)
 
     await session.patch(
       'index.js',
@@ -600,6 +600,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(header5).toMatchInlineSnapshot(
       `"Error: multiple https://nextjs.org links (http://example.com)"`
     )
+    // Do not highlight the http://example.com link
     expect(
       await session.evaluate(
         () =>
@@ -632,7 +633,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toBe(null)
 
     await cleanup()
   })
