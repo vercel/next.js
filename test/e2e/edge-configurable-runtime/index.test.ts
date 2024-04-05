@@ -16,7 +16,7 @@ const apiPath = 'pages/api/edge.js'
   const api = new File(join(appDir, apiPath))
 
   if ((global as any).isNextDev) {
-    describe('In dev mode', () => {
+    describe('In development mode', () => {
       beforeAll(async () => {
         next = await createNext({
           files: new FileRef(appDir),

@@ -86,3 +86,8 @@ export function generateInterceptionRoutesRewrites(
 
   return rewrites
 }
+
+export function isInterceptionRouteRewrite(route: Rewrite) {
+  // When we generate interception rewrites in the above implementation, we always do so with only a single `has` condition.
+  return route.has?.[0]?.key === NEXT_URL
+}

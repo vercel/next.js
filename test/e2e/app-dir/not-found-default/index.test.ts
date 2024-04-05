@@ -31,12 +31,11 @@ createNextDescribe(
       expect(await browser.elementByCss('html').getAttribute('class')).toBe(
         'root-layout-html'
       )
+    })
 
-      if (isNextDev) {
-        const cliOutput = next.cliOutput
-        expect(cliOutput).toContain('/not-found')
-        expect(cliOutput).not.toContain('/_error')
-      }
+    it('should return 404 status code for default not-found page', async () => {
+      const res = await next.fetch('/_not-found')
+      expect(res.status).toBe(404)
     })
 
     it('should error on server notFound from root layout on server-side', async () => {

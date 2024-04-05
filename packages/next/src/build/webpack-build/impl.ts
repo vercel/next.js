@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -106,6 +106,7 @@ export async function webpackBuildImpl(
   const commonWebpackOptions = {
     isServer: false,
     buildId: NextBuildContext.buildId!,
+    encryptionKey: NextBuildContext.encryptionKey!,
     config: config,
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
@@ -188,7 +189,7 @@ export async function webpackBuildImpl(
       | UnwrapPromise<ReturnType<typeof runCompiler>>[0]
       | null = null
 
-    let inputFileSystem: any
+    let inputFileSystem: webpack.Compiler['inputFileSystem'] | undefined
 
     if (!compilerName || compilerName === 'server') {
       debug('starting server compiler')
@@ -245,23 +246,19 @@ export async function webpackBuildImpl(
       }
     }
 
-    inputFileSystem.purge()
+    inputFileSystem?.purge?.()
 
     result = {
-      warnings: ([] as any[])
-        .concat(
-          clientResult?.warnings,
-          serverResult?.warnings,
-          edgeServerResult?.warnings
-        )
-        .filter(nonNullable),
-      errors: ([] as any[])
-        .concat(
-          clientResult?.errors,
-          serverResult?.errors,
-          edgeServerResult?.errors
-        )
-        .filter(nonNullable),
+      warnings: [
+        ...(clientResult?.warnings ?? []),
+        ...(serverResult?.warnings ?? []),
+        ...(edgeServerResult?.warnings ?? []),
+      ].filter(nonNullable),
+      errors: [
+        ...(clientResult?.errors ?? []),
+        ...(serverResult?.errors ?? []),
+        ...(edgeServerResult?.errors ?? []),
+      ].filter(nonNullable),
       stats: [
         clientResult?.stats,
         serverResult?.stats,

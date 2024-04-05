@@ -12,6 +12,19 @@
 
 const assign = Object.assign;
 
+// -----------------------------------------------------------------------------
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to true for easier skimming.
+// -----------------------------------------------------------------------------
+
+const __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+// as a normal prop instead of stripping it from the props object.
+// Passes `ref` as a normal prop instead of stripping it from the props object
+// during element creation.
+
+const enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+
 /**
  * Keeps track of the current Cache dispatcher.
  */
@@ -151,7 +164,7 @@ const ReactCurrentDispatcher = {
  * The current owner is the component who should own any components that are
  * currently being constructed.
  */
-const ReactCurrentOwner = {
+const ReactCurrentOwner$1 = {
   /**
    * @internal
    * @type {ReactComponent}
@@ -161,7 +174,7 @@ const ReactCurrentOwner = {
 
 const ReactSharedInternals = {
   ReactCurrentDispatcher,
-  ReactCurrentOwner
+  ReactCurrentOwner: ReactCurrentOwner$1
 };
 
 const TaintRegistryObjects$1 = new WeakMap();
@@ -242,12 +255,7 @@ function getIteratorFn(maybeIterable) {
 // $FlowFixMe[method-unbinding]
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-const RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
-};
+const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 
 function hasValidRef(config) {
 
@@ -280,18 +288,38 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: owner
-  };
+function ReactElement(type, key, _ref, self, source, owner, props) {
+  let ref;
+
+  {
+    // When enableRefAsProp is on, ignore whatever was passed as the ref
+    // argument and treat `props.ref` as the source of truth. The only thing we
+    // use this for is `element.ref`, which will log a deprecation warning on
+    // access. In the next release, we can remove `element.ref` as well as the
+    // `ref` argument.
+    const refProp = props.ref; // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+    ref = refProp !== undefined ? refProp : null;
+  }
+
+  let element;
+
+  {
+    // In prod, `ref` is a regular property. It will be removed in a
+    // future release.
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      // Built-in properties that belong on the element
+      type,
+      key,
+      ref,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: owner
+    };
+  }
 
   return element;
 }
@@ -300,30 +328,29 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
-function createElement$1(type, config, children) {
+function createElement(type, config, children) {
+
   let propName; // Reserved names are extracted
 
   const props = {};
   let key = null;
   let ref = null;
-  let self = null;
-  let source = null;
 
   if (config != null) {
-    if (hasValidRef(config)) {
-      ref = config.ref;
-    }
 
     if (hasValidKey(config)) {
 
       key = '' + config.key;
-    }
+    } // Remaining properties are added to a new props object
 
-    self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && (enableRefAsProp ) && // Even though we don't use these anymore in the runtime, we don't want
+      // them to appear as props, so in createElement we filter them out.
+      // We don't have to do this in the jsx() runtime because the jsx()
+      // transform never passed these as props; it used separate arguments.
+      propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
     }
@@ -356,18 +383,21 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+  const element = ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
+
+  return element;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
-  return newElement;
+  return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
+  // exists to avoid the `ref` access warning.
+  null , undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
 
-function cloneElement$1(element, config, children) {
+function cloneElement(element, config, children) {
   if (element === null || element === undefined) {
     throw Error(formatProdErrorMessage(267, element));
   }
@@ -377,20 +407,13 @@ function cloneElement$1(element, config, children) {
   const props = assign({}, element.props); // Reserved names are extracted
 
   let key = element.key;
-  let ref = element.ref; // Self is preserved since the owner is preserved.
-
-  const self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
-  // transpiler, and the original source is probably a better indicator of the
-  // true owner.
-
-  const source = element._source; // Owner will be preserved, unless ref is overridden
+  let ref = null ; // Owner will be preserved, unless ref is overridden
 
   let owner = element._owner;
 
   if (config != null) {
     if (hasValidRef(config)) {
-      // Silently steal the ref from the parent.
-      ref = config.ref;
+
       owner = ReactCurrentOwner.current;
     }
 
@@ -407,7 +430,17 @@ function cloneElement$1(element, config, children) {
     }
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && (enableRefAsProp ) && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source' && // Undefined `ref` is ignored by cloneElement. We treat it the same as
+      // if the property were missing. This is mostly for
+      // backwards compatibility.
+      !(propName === 'ref' && config.ref === undefined)) {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -434,7 +467,9 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, self, source, owner, props);
+  const clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props);
+
+  return clonedElement;
 }
 /**
  * Verifies the object is a ReactElement.
@@ -444,12 +479,10 @@ function cloneElement$1(element, config, children) {
  * @final
  */
 
+
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
-
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
 
 const SEPARATOR = '.';
 const SUBSEPARATOR = ':';
@@ -497,6 +530,72 @@ function getElementKey(element, index) {
   return index.toString(36);
 }
 
+function noop$1() {}
+
+function resolveThenable(thenable) {
+  switch (thenable.status) {
+    case 'fulfilled':
+      {
+        const fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
+    case 'rejected':
+      {
+        const rejectedError = thenable.reason;
+        throw rejectedError;
+      }
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          // Attach a dummy listener, to ensure that any lazy initialization can
+          // happen. Flight lazily parses JSON when the value is actually awaited.
+          thenable.then(noop$1, noop$1);
+        } else {
+          // This is an uncached thenable that we haven't seen before.
+          // TODO: Detect infinite ping loops caused by uncached promises.
+          const pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(fulfilledValue => {
+            if (thenable.status === 'pending') {
+              const fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, error => {
+            if (thenable.status === 'pending') {
+              const rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Check one more time in case the thenable resolved synchronously.
+
+
+        switch (thenable.status) {
+          case 'fulfilled':
+            {
+              const fulfilledThenable = thenable;
+              return fulfilledThenable.value;
+            }
+
+          case 'rejected':
+            {
+              const rejectedThenable = thenable;
+              const rejectedError = rejectedThenable.reason;
+              throw rejectedError;
+            }
+        }
+      }
+  }
+
+  throw thenable;
+}
+
 function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
   const type = typeof children;
 
@@ -521,6 +620,12 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
+            break;
+
+          case REACT_LAZY_TYPE:
+            const payload = children._payload;
+            const init = children._init;
+            return mapIntoArray(init(payload), array, escapedPrefix, nameSoFar, callback);
         }
 
     }
@@ -586,7 +691,11 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
         subtreeCount += mapIntoArray(child, array, escapedPrefix, nextName, callback);
       }
     } else if (type === 'object') {
-      // eslint-disable-next-line react-internal/safe-string-coercion
+      if (typeof children.then === 'function') {
+        return mapIntoArray(resolveThenable(children), array, escapedPrefix, nameSoFar, callback);
+      } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
       const childrenString = String(children);
       throw Error(formatProdErrorMessage(31, childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString));
     }
@@ -1003,7 +1112,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-2bc7d336a-20240205';
+var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
 
 const getPrototypeOf = Object.getPrototypeOf;
 

@@ -40,8 +40,11 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
+  let isDefaultNotFound = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
-  if (page === '/_not-found') {
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
+  if (page === '/_not-found/page') {
+    isDefaultNotFound = true
     pathname = '/404'
   }
 
@@ -127,12 +130,26 @@ export async function exportAppPage(
       'utf8'
     )
 
+    const isParallelRoute = /\/@\w+/.test(page)
+    const isNonSuccessfulStatusCode = res.statusCode > 300
+    // When PPR is enabled, we don't always send 200 for routes that have been
+    // pregenerated, so we should grab the status code from the mocked
+    // response.
+    let status: number | undefined = renderOpts.experimental.ppr
+      ? res.statusCode
+      : undefined
+
+    if (isDefaultNotFound) {
+      // Override the default /_not-found page status code to 404
+      status = 404
+    } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
+      // If it's parallel route the status from mock response is 404
+      status = res.statusCode
+    }
+
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
-      // When PPR is enabled, we don't always send 200 for routes that have been
-      // pregenerated, so we should grab the status code from the mocked
-      // response.
-      status: renderOpts.experimental.ppr ? res.statusCode : undefined,
+      status,
       headers,
       postponed,
     }

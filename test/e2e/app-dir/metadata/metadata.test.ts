@@ -228,6 +228,12 @@ createNextDescribe(
           'dns-prefetch': '/dns-prefetch-url',
         })
 
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
+        })
+
         await matchDom('meta', 'name="theme-color"', {
           media: '(prefers-color-scheme: dark)',
           content: 'cyan',
@@ -237,6 +243,7 @@ createNextDescribe(
       it('should support other basic tags (edge)', async () => {
         const browser = await next.browser('/basic-edge')
         const matchMultiDom = createMultiDomMatcher(browser)
+        const matchDom = createDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
           generator: 'next.js',
@@ -254,6 +261,12 @@ createNextDescribe(
           preconnect: '/preconnect-url',
           preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
+        })
+
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
         })
       })
 
@@ -336,6 +349,23 @@ createNextDescribe(
         await browser.loadPage(next.url + '/alternates/child/123')
         await matchDom('link', 'rel="canonical"', {
           href: 'https://example.com/alternates/child/123',
+        })
+      })
+
+      it('should not contain query in canonical url after client navigation', async () => {
+        const browser = await next.browser('/')
+        await browser.waitForElementByCss('p#index')
+        await browser.eval(`next.router.push('/alternates')`)
+        // wait for /alternates page is loaded
+        await browser.waitForElementByCss('p#alternates')
+
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
         })
       })
 
@@ -434,7 +464,7 @@ createNextDescribe(
         await matchMultiDom('meta', 'property', 'content', {
           'og:title': 'My custom title',
           'og:description': 'My custom description',
-          'og:url': 'https://example.com/',
+          'og:url': 'https://example.com',
           'og:site_name': 'My custom site name',
           'og:locale': 'en-US',
           'og:type': 'website',
@@ -986,6 +1016,11 @@ createNextDescribe(
       const ogHtml = await next.render('/blog/opengraph-image')
       expect(iconHtml).toContain('pages-icon-page')
       expect(ogHtml).toContain('pages-opengraph-image-page')
+    })
+
+    it('should not crash from error thrown during preloading nested generateMetadata', async () => {
+      const res = await next.fetch('/dynamic-meta')
+      expect(res.status).toBe(404)
     })
   }
 )

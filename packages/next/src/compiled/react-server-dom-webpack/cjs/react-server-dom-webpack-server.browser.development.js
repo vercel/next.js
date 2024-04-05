@@ -62,7 +62,7 @@ var enablePostpone = false;
 function scheduleWork(callback) {
   callback();
 }
-var VIEW_SIZE = 512;
+var VIEW_SIZE = 2048;
 var currentView = null;
 var writtenBytes = 0;
 function beginWriting(destination) {
@@ -75,15 +75,9 @@ function writeChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
-    {
-      if (precomputedChunkSet.has(chunk)) {
-        error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
-      }
-    } // this chunk may overflow a single view which implies it was not
+    // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
-
-
     if (writtenBytes > 0) {
       destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -138,7 +132,6 @@ var textEncoder = new TextEncoder();
 function stringToChunk(content) {
   return textEncoder.encode(content);
 }
-var precomputedChunkSet = new Set() ;
 function byteLengthOfChunk(chunk) {
   return chunk.byteLength;
 }
@@ -159,10 +152,10 @@ function closeWithError(destination, error) {
 }
 
 // eslint-disable-next-line no-unused-vars
-var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+var CLIENT_REFERENCE_TAG$1 = Symbol.for('react.client.reference');
 var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
 function isClientReference(reference) {
-  return reference.$$typeof === CLIENT_REFERENCE_TAG;
+  return reference.$$typeof === CLIENT_REFERENCE_TAG$1;
 }
 function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
@@ -174,7 +167,7 @@ function registerClientReference(proxyImplementation, id, exportName) {
 function registerClientReferenceImpl(proxyImplementation, id, async) {
   return Object.defineProperties(proxyImplementation, {
     $$typeof: {
-      value: CLIENT_REFERENCE_TAG
+      value: CLIENT_REFERENCE_TAG$1
     },
     $$id: {
       value: id
@@ -195,6 +188,14 @@ function bind() {
   var newFn = FunctionBind.apply(this, arguments);
 
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
+    {
+      var thisBind = arguments[0];
+
+      if (thisBind != null) {
+        error('Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().');
+      }
+    }
+
     var args = ArraySlice.call(arguments, 1);
     return Object.defineProperties(newFn, {
       $$typeof: {
@@ -221,13 +222,16 @@ function registerServerReference(reference, id, exportName) {
       value: SERVER_REFERENCE_TAG
     },
     $$id: {
-      value: exportName === null ? id : id + '#' + exportName
+      value: exportName === null ? id : id + '#' + exportName,
+      configurable: true
     },
     $$bound: {
-      value: null
+      value: null,
+      configurable: true
     },
     bind: {
-      value: bind
+      value: bind,
+      configurable: true
     }
   });
 }
@@ -265,6 +269,10 @@ var deepProxyHandlers = {
       case Symbol.toPrimitive:
         // $FlowFixMe[prop-missing]
         return Object.prototype[Symbol.toPrimitive];
+
+      case Symbol.toStringTag:
+        // $FlowFixMe[prop-missing]
+        return Object.prototype[Symbol.toStringTag];
 
       case 'Provider':
         throw new Error("Cannot render a Client Context Provider on the Server. " + "Instead, you can export a Client Component wrapper " + "that itself renders a Client Context Provider.");
@@ -307,6 +315,10 @@ function getReference(target, name) {
       // $FlowFixMe[prop-missing]
       return Object.prototype[Symbol.toPrimitive];
 
+    case Symbol.toStringTag:
+      // $FlowFixMe[prop-missing]
+      return Object.prototype[Symbol.toStringTag];
+
     case '__esModule':
       // Something is conditionally checking which export to use. We'll pretend to be
       // an ESM compat module but then we'll check again on the client.
@@ -345,6 +357,10 @@ function getReference(target, name) {
         return undefined;
       }
 
+  }
+
+  if (typeof name === 'symbol') {
+    throw new Error('Cannot read Symbol exports. Only named exports are supported on a client module ' + 'imported on the server.');
   }
 
   var cachedReference = target[name];
@@ -688,6 +704,9 @@ function createHints() {
   return new Set();
 }
 
+var supportsRequestStorage = false;
+var requestStorage = null;
+
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
@@ -846,7 +865,10 @@ function prepareToUseHooksForComponent(prevThenableState) {
   thenableState = prevThenableState;
 }
 function getThenableStateAfterSuspending() {
-  var state = thenableState;
+  // If you use() to Suspend this should always exist but if you throw a Promise instead,
+  // which is not really supported anymore, it will be empty. We use the empty set as a
+  // marker to know if this was a replay of the same component or first attempt.
+  var state = thenableState || createThenableState();
   thenableState = null;
   return state;
 }
@@ -1076,6 +1098,10 @@ function describeValueForErrorMessage(value) {
           return '[...]';
         }
 
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
         var name = objectName(value);
 
         if (name === 'Object') {
@@ -1086,7 +1112,15 @@ function describeValueForErrorMessage(value) {
       }
 
     case 'function':
-      return 'function';
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var _name = value.displayName || value.name;
+
+        return _name ? 'function ' + _name : 'function';
+      }
 
     default:
       // eslint-disable-next-line react-internal/safe-string-coercion
@@ -1130,6 +1164,12 @@ function describeElementType(type) {
   }
 
   return '';
+}
+
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
 }
 
 function describeObjectForErrorMessage(objectOrArray, expandedName) {
@@ -1210,6 +1250,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
     } else if (jsxPropsParents.has(objectOrArray)) {
       // Print JSX
       var _type = jsxPropsParents.get(objectOrArray);
@@ -1260,9 +1302,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _name = _names[_i3];
-        str += describeKeyForErrorMessage(_name) + ': ';
-        var _value3 = _object[_name];
+        var _name2 = _names[_i3];
+        str += describeKeyForErrorMessage(_name2) + ': ';
+        var _value3 = _object[_name2];
 
         var _substr3 = void 0;
 
@@ -1272,7 +1314,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           _substr3 = describeValueForErrorMessage(_value3);
         }
 
-        if (_name === expandedName) {
+        if (_name2 === expandedName) {
           start = str.length;
           length = _substr3.length;
           str += _substr3;
@@ -1327,7 +1369,7 @@ function defaultPostponeHandler(reason) {// Noop
 var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
-function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone) {
+function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone, environmentName) {
   if (ReactCurrentCache.current !== null && ReactCurrentCache.current !== DefaultCacheDispatcher) {
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
@@ -1365,7 +1407,11 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone
   };
-  request.pendingChunks++;
+
+  {
+    request.environmentName = environmentName === undefined ? 'Server' : environmentName;
+  }
+
   var rootTask = createTask(request, model, null, false, abortSet);
   pingedTasks.push(rootTask);
   return request;
@@ -1378,9 +1424,17 @@ function resolveRequest() {
 }
 
 function serializeThenable(request, task, thenable) {
-  request.pendingChunks++;
   var newTask = createTask(request, null, task.keyPath, // the server component sequence continues through Promise-as-a-child.
   task.implicitSlot, request.abortableTasks);
+
+  {
+    // If this came from Flight, forward any debug info into this new row.
+    var debugInfo = thenable._debugInfo;
+
+    if (debugInfo) {
+      forwardDebugInfo(request, newTask.id, debugInfo);
+    }
+  }
 
   switch (thenable.status) {
     case 'fulfilled':
@@ -1516,10 +1570,98 @@ function createLazyWrapperAroundWakeable(wakeable) {
     _payload: thenable,
     _init: readThenable
   };
+
+  {
+    // If this came from React, transfer the debug info.
+    lazyType._debugInfo = thenable._debugInfo || [];
+  }
+
   return lazyType;
 }
 
+function renderFunctionComponent(request, task, key, Component, props) {
+  // Reset the task's thenable state before continuing, so that if a later
+  // component suspends we can reuse the same task object. If the same
+  // component suspends again, the thenable state will be restored.
+  var prevThenableState = task.thenableState;
+  task.thenableState = null;
+
+  {
+    if (debugID === null) {
+      // We don't have a chunk to assign debug info. We need to outline this
+      // component to assign it an ID.
+      return outlineTask(request, task);
+    } else if (prevThenableState !== null) ; else {
+      // This is a new component in the same task so we can emit more debug info.
+      var componentName = Component.displayName || Component.name || '';
+      request.pendingChunks++;
+      emitDebugChunk(request, debugID, {
+        name: componentName,
+        env: request.environmentName
+      });
+    }
+  }
+
+  prepareToUseHooksForComponent(prevThenableState); // The secondArg is always undefined in Server Components since refs error early.
+
+  var secondArg = undefined;
+  var result = Component(props, secondArg);
+
+  if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
+    // When the return value is in children position we can resolve it immediately,
+    // to its value without a wrapper if it's synchronously available.
+    var thenable = result;
+
+    if (thenable.status === 'fulfilled') {
+      return thenable.value;
+    } // TODO: Once we accept Promises as children on the client, we can just return
+    // the thenable here.
+
+
+    result = createLazyWrapperAroundWakeable(result);
+  } // Track this element's key on the Server Component on the keyPath context..
+
+
+  var prevKeyPath = task.keyPath;
+  var prevImplicitSlot = task.implicitSlot;
+
+  if (key !== null) {
+    // Append the key to the path. Technically a null key should really add the child
+    // index. We don't do that to hold the payload small and implementation simple.
+    task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
+  } else if (prevKeyPath === null) {
+    // This sequence of Server Components has no keys. This means that it was rendered
+    // in a slot that needs to assign an implicit key. Even if children below have
+    // explicit keys, they should not be used for the outer most key since it might
+    // collide with other slots in that set.
+    task.implicitSlot = true;
+  }
+
+  var json = renderModelDestructive(request, task, emptyRoot, '', result);
+  task.keyPath = prevKeyPath;
+  task.implicitSlot = prevImplicitSlot;
+  return json;
+}
+
 function renderFragment(request, task, children) {
+  {
+    var debugInfo = children._debugInfo;
+
+    if (debugInfo) {
+      // If this came from Flight, forward any debug info into this new row.
+      if (debugID === null) {
+        // We don't have a chunk to assign debug info. We need to outline this
+        // component to assign it an ID.
+        return outlineTask(request, task);
+      } else {
+        // Forward any debug info we have the first time we see it.
+        // We do this after init so that we have received all the debug info
+        // from the server by the time we emit it.
+        forwardDebugInfo(request, debugID, debugInfo);
+      }
+    }
+  }
+
   {
     return children;
   }
@@ -1529,6 +1671,26 @@ function renderClientElement(task, type, key, props) {
   {
     return [REACT_ELEMENT_TYPE, type, key, props];
   } // We prepend the terminal client element that actually gets serialized with
+} // The chunk ID we're currently rendering that we can assign debug data to.
+
+
+var debugID = null;
+
+function outlineTask(request, task) {
+  var newTask = createTask(request, task.model, // the currently rendering element
+  task.keyPath, // unlike outlineModel this one carries along context
+  task.implicitSlot, request.abortableTasks);
+  retryTask(request, newTask);
+
+  if (newTask.status === COMPLETED) {
+    // We completed synchronously so we can refer to this by reference. This
+    // makes it behaves the same as prod during deserialization.
+    return serializeByValueID(newTask.id);
+  } // This didn't complete synchronously so it wouldn't have even if we didn't
+  // outline it, so this would reduce to a lazy reference even in prod.
+
+
+  return serializeLazyID(newTask.id);
 }
 
 function renderElement(request, task, type, key, ref, props) {
@@ -1536,6 +1698,8 @@ function renderElement(request, task, type, key, ref, props) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
     // cases.
+    // TODO: `ref` is now just a prop when `enableRefAsProp` is on. Should we
+    // do what the above comment says?
     throw new Error('Refs cannot be used in Server Components, nor passed to Client Components.');
   }
 
@@ -1551,51 +1715,10 @@ function renderElement(request, task, type, key, ref, props) {
     if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return renderClientElement(task, type, key, props);
-    } // This is a server-side component.
-    // Reset the task's thenable state before continuing, so that if a later
-    // component suspends we can reuse the same task object. If the same
-    // component suspends again, the thenable state will be restored.
+    } // This is a Server Component.
 
 
-    var prevThenableState = task.thenableState;
-    task.thenableState = null;
-    prepareToUseHooksForComponent(prevThenableState);
-    var result = type(props);
-
-    if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
-      // When the return value is in children position we can resolve it immediately,
-      // to its value without a wrapper if it's synchronously available.
-      var thenable = result;
-
-      if (thenable.status === 'fulfilled') {
-        return thenable.value;
-      } // TODO: Once we accept Promises as children on the client, we can just return
-      // the thenable here.
-
-
-      result = createLazyWrapperAroundWakeable(result);
-    } // Track this element's key on the Server Component on the keyPath context..
-
-
-    var prevKeyPath = task.keyPath;
-    var prevImplicitSlot = task.implicitSlot;
-
-    if (key !== null) {
-      // Append the key to the path. Technically a null key should really add the child
-      // index. We don't do that to hold the payload small and implementation simple.
-      task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
-    } else if (prevKeyPath === null) {
-      // This sequence of Server Components has no keys. This means that it was rendered
-      // in a slot that needs to assign an implicit key. Even if children below have
-      // explicit keys, they should not be used for the outer most key since it might
-      // collide with other slots in that set.
-      task.implicitSlot = true;
-    }
-
-    var json = renderModelDestructive(request, task, emptyRoot, '', result);
-    task.keyPath = prevKeyPath;
-    task.implicitSlot = prevImplicitSlot;
-    return json;
+    return renderFunctionComponent(request, task, key, type, props);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
     return renderClientElement(task, type, key, props);
@@ -1603,16 +1726,15 @@ function renderElement(request, task, type, key, ref, props) {
     if (type === REACT_FRAGMENT_TYPE && key === null) {
       // For key-less fragments, we add a small optimization to avoid serializing
       // it as a wrapper.
-      var _prevImplicitSlot = task.implicitSlot;
+      var prevImplicitSlot = task.implicitSlot;
 
       if (task.keyPath === null) {
         task.implicitSlot = true;
       }
 
-      var _json = renderModelDestructive(request, task, emptyRoot, '', props.children);
-
-      task.implicitSlot = _prevImplicitSlot;
-      return _json;
+      var json = renderModelDestructive(request, task, emptyRoot, '', props.children);
+      task.implicitSlot = prevImplicitSlot;
+      return json;
     } // This might be a built-in React component. We'll let the client decide.
     // Any built-in works as long as its props are serializable.
 
@@ -1635,36 +1757,7 @@ function renderElement(request, task, type, key, ref, props) {
 
       case REACT_FORWARD_REF_TYPE:
         {
-          var render = type.render; // Reset the task's thenable state before continuing, so that if a later
-          // component suspends we can reuse the same task object. If the same
-          // component suspends again, the thenable state will be restored.
-
-          var _prevThenableState = task.thenableState;
-          task.thenableState = null;
-          prepareToUseHooksForComponent(_prevThenableState);
-
-          var _result = render(props, undefined);
-
-          var _prevKeyPath = task.keyPath;
-          var _prevImplicitSlot2 = task.implicitSlot;
-
-          if (key !== null) {
-            // Append the key to the path. Technically a null key should really add the child
-            // index. We don't do that to hold the payload small and implementation simple.
-            task.keyPath = _prevKeyPath === null ? key : _prevKeyPath + ',' + key;
-          } else if (_prevKeyPath === null) {
-            // This sequence of Server Components has no keys. This means that it was rendered
-            // in a slot that needs to assign an implicit key. Even if children below have
-            // explicit keys, they should not be used for the outer most key since it might
-            // collide with other slots in that set.
-            task.implicitSlot = true;
-          }
-
-          var _json2 = renderModelDestructive(request, task, emptyRoot, '', _result);
-
-          task.keyPath = _prevKeyPath;
-          task.implicitSlot = _prevImplicitSlot2;
-          return _json2;
+          return renderFunctionComponent(request, task, key, type.render, props);
         }
 
       case REACT_MEMO_TYPE:
@@ -1690,6 +1783,7 @@ function pingTask(request, task) {
 }
 
 function createTask(request, model, keyPath, implicitSlot, abortSet) {
+  request.pendingChunks++;
   var id = request.nextChunkId++;
 
   if (typeof model === 'object' && model !== null) {
@@ -1846,7 +1940,6 @@ function serializeClientReference(request, parent, parentPropertyName, clientRef
 }
 
 function outlineModel(request, value) {
-  request.pendingChunks++;
   var newTask = createTask(request, value, null, // The way we use outlining is for reusing an object.
   false, // It makes no sense for that use case to be contextual.
   request.abortableTasks);
@@ -1959,7 +2052,6 @@ function renderModel(request, task, parent, key, value) {
       // $FlowFixMe[method-unbinding]
       if (typeof x.then === 'function') {
         // Something suspended, we'll need to create a new task and resolve it later.
-        request.pendingChunks++;
         var newTask = createTask(request, task.model, task.keyPath, task.implicitSlot, request.abortableTasks);
         var ping = newTask.ping;
         x.then(ping, ping);
@@ -2031,12 +2123,16 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
               // but that is able to reuse the same task if we're already in one but then that
               // will be a lazy future value rather than guaranteed to exist but maybe that's good.
               var newId = outlineModel(request, value);
-              return serializeLazyID(newId);
+              return serializeByValueID(newId);
             } else {
               // We've already emitted this as an outlined object, so we can refer to that by its
-              // existing ID. We use a lazy reference since, unlike plain objects, elements might
-              // suspend so it might not have emitted yet even if we have the ID for it.
-              return serializeLazyID(_existingId);
+              // existing ID. TODO: We should use a lazy reference since, unlike plain objects,
+              // elements might suspend so it might not have emitted yet even if we have the ID for
+              // it. However, this creates an extra wrapper when it's not needed. We should really
+              // detect whether this already was emitted and synchronously available. In that
+              // case we can refer to it synchronously and only make it lazy otherwise.
+              // We currently don't have a data structure that lets us see that though.
+              return serializeByValueID(_existingId);
             }
           } else {
             // This is the first time we've seen this object. We may never see it again
@@ -2044,17 +2140,64 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
             _writtenObjects.set(value, -1);
           }
 
-          var element = value; // Attempt to render the Server Component.
+          var element = value;
+
+          {
+            var debugInfo = value._debugInfo;
+
+            if (debugInfo) {
+              // If this came from Flight, forward any debug info into this new row.
+              if (debugID === null) {
+                // We don't have a chunk to assign debug info. We need to outline this
+                // component to assign it an ID.
+                return outlineTask(request, task);
+              } else {
+                // Forward any debug info we have the first time we see it.
+                forwardDebugInfo(request, debugID, debugInfo);
+              }
+            }
+          }
+
+          var props = element.props;
+          var ref;
+
+          {
+            ref = element.ref;
+          } // Attempt to render the Server Component.
+
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, element.ref, element.props);
+          element.key, ref, props);
         }
 
       case REACT_LAZY_TYPE:
         {
-          var payload = value._payload;
-          var init = value._init;
+          // Reset the task's thenable state before continuing. If there was one, it was
+          // from suspending the lazy before.
+          task.thenableState = null;
+          var lazy = value;
+          var payload = lazy._payload;
+          var init = lazy._init;
           var resolvedModel = init(payload);
+
+          {
+            var _debugInfo = lazy._debugInfo;
+
+            if (_debugInfo) {
+              // If this came from Flight, forward any debug info into this new row.
+              if (debugID === null) {
+                // We don't have a chunk to assign debug info. We need to outline this
+                // component to assign it an ID.
+                return outlineTask(request, task);
+              } else {
+                // Forward any debug info we have the first time we see it.
+                // We do this after init so that we have received all the debug info
+                // from the server by the time we emit it.
+                forwardDebugInfo(request, debugID, _debugInfo);
+              }
+            }
+          }
+
           return renderModelDestructive(request, task, emptyRoot, '', resolvedModel);
         }
     }
@@ -2195,8 +2338,11 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (/^on[A-Z]/.test(parentPropertyName)) {
       throw new Error('Event handlers cannot be passed to Client Component props.' + describeObjectForErrorMessage(parent, parentPropertyName) + '\nIf you need interactivity, consider converting part of this to a Client Component.');
+    } else if ((jsxChildrenParents.has(parent) || jsxPropsParents.has(parent) && parentPropertyName === 'children')) {
+      var componentName = value.displayName || value.name || 'Component';
+      throw new Error('Functions are not valid as a child of Client Components. This may happen if ' + 'you return ' + componentName + ' instead of <' + componentName + ' /> from render. ' + 'Or maybe you meant to call this function rather than return it.' + describeObjectForErrorMessage(parent, parentPropertyName));
     } else {
-      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server".' + describeObjectForErrorMessage(parent, parentPropertyName));
+      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server". ' + 'Or maybe you meant to call this function rather than return it.' + describeObjectForErrorMessage(parent, parentPropertyName));
     }
   }
 
@@ -2233,13 +2379,34 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 }
 
 function logPostpone(request, reason) {
-  var onPostpone = request.onPostpone;
-  onPostpone(reason);
+  var prevRequest = currentRequest;
+  currentRequest = null;
+
+  try {
+    var onPostpone = request.onPostpone;
+
+    if (supportsRequestStorage) ; else {
+      onPostpone(reason);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 }
 
 function logRecoverableError(request, error) {
-  var onError = request.onError;
-  var errorDigest = onError(error);
+  var prevRequest = currentRequest;
+  currentRequest = null;
+  var errorDigest;
+
+  try {
+    var onError = request.onError;
+
+    if (supportsRequestStorage) ; else {
+      errorDigest = onError(error);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 
   if (errorDigest != null && typeof errorDigest !== 'string') {
     // eslint-disable-next-line react-internal/prod-error-codes
@@ -2298,8 +2465,11 @@ function emitErrorChunk(request, id, digest, error) {
         message = String(error.message); // eslint-disable-next-line react-internal/safe-string-coercion
 
         stack = String(error.stack);
+      } else if (typeof error === 'object' && error !== null) {
+        message = describeObjectForErrorMessage(error);
       } else {
-        message = 'Error: ' + error;
+        // eslint-disable-next-line react-internal/safe-string-coercion
+        message = String(error);
       }
     } catch (x) {
       message = 'An error occurred but serializing the error message failed.';
@@ -2345,6 +2515,22 @@ function emitModelChunk(request, id, json) {
   request.completedRegularChunks.push(processedChunk);
 }
 
+function emitDebugChunk(request, id, debugInfo) {
+
+
+  var json = stringify(debugInfo);
+  var row = serializeRowHeader('D', id) + json + '\n';
+  var processedChunk = stringToChunk(row);
+  request.completedRegularChunks.push(processedChunk);
+}
+
+function forwardDebugInfo(request, id, debugInfo) {
+  for (var i = 0; i < debugInfo.length; i++) {
+    request.pendingChunks++;
+    emitDebugChunk(request, id, debugInfo[i]);
+  }
+}
+
 var emptyRoot = {};
 
 function retryTask(request, task) {
@@ -2353,14 +2539,29 @@ function retryTask(request, task) {
     return;
   }
 
+  var prevDebugID = debugID;
+
   try {
     // Track the root so we know that we have to emit this object even though it
     // already has an ID. This is needed because we might see this object twice
     // in the same toJSON if it is cyclic.
-    modelRoot = task.model; // We call the destructive form that mutates this task. That way if something
+    modelRoot = task.model;
+
+    if (true) {
+      // Track the ID of the current task so we can assign debug info to this id.
+      debugID = task.id;
+    } // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
 
-    var resolvedModel = renderModelDestructive(request, task, emptyRoot, '', task.model); // Track the root again for the resolved object.
+
+    var resolvedModel = renderModelDestructive(request, task, emptyRoot, '', task.model);
+
+    if (true) {
+      // We're now past rendering this task and future renders will spawn new tasks for their
+      // debug info.
+      debugID = null;
+    } // Track the root again for the resolved object.
+
 
     modelRoot = resolvedModel; // The keyPath resets at any terminal child node.
 
@@ -2406,6 +2607,10 @@ function retryTask(request, task) {
     task.status = ERRORED$1;
     var digest = logRecoverableError(request, x);
     emitErrorChunk(request, task.id, digest, x);
+  } finally {
+    {
+      debugID = prevDebugID;
+    }
   }
 }
 
@@ -3340,7 +3545,7 @@ function decodeFormState(actionResult, body, serverManifest) {
 }
 
 function renderToReadableStream(model, webpackMap, options) {
-  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined);
+  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined, options ? options.environmentName : undefined);
 
   if (options && options.signal) {
     var signal = options.signal;

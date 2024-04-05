@@ -30,6 +30,42 @@ import { getPathname } from '../../lib/url'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
+type DynamicAccess = {
+  /**
+   * If debugging, this will contain the stack trace of where the dynamic access
+   * occurred. This is used to provide more information to the user about why
+   * their page is being rendered dynamically.
+   */
+  stack?: string
+
+  /**
+   * The expression that was accessed dynamically.
+   */
+  expression: string
+}
+
+// Stores dynamic reasons used during a render.
+export type PrerenderState = {
+  /**
+   * When true, stack information will also be tracked during dynamic access.
+   */
+  readonly isDebugSkeleton: boolean | undefined
+
+  /**
+   * The dynamic accesses that occurred during the render.
+   */
+  readonly dynamicAccesses: DynamicAccess[]
+}
+
+export function createPrerenderState(
+  isDebugSkeleton: boolean | undefined
+): PrerenderState {
+  return {
+    isDebugSkeleton,
+    dynamicAccesses: [],
+  }
+}
+
 /**
  * This function communicates that the current scope should be treated as dynamic.
  *
@@ -54,12 +90,10 @@ export function markCurrentScopeAsDynamic(
     // We are in a prerender (PPR enabled, during build)
     store.prerenderState
   ) {
-    assertPostpone()
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression, pathname))
+    postponeWithTracking(store.prerenderState, expression, pathname)
   } else {
     store.revalidate = 0
 
@@ -102,12 +136,10 @@ export function trackDynamicDataAccessed(
     // We are in a prerender (PPR enabled, during build)
     store.prerenderState
   ) {
-    assertPostpone()
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression, pathname))
+    postponeWithTracking(store.prerenderState, expression, pathname)
   } else {
     store.revalidate = 0
 
@@ -129,10 +161,15 @@ export function trackDynamicDataAccessed(
  */
 type PostponeProps = {
   reason: string
+  prerenderState: PrerenderState
+  pathname: string
 }
-export function Postpone({ reason }: PostponeProps): never {
-  assertPostpone()
-  return React.unstable_postpone(reason)
+export function Postpone({
+  reason,
+  prerenderState,
+  pathname,
+}: PostponeProps): never {
+  postponeWithTracking(prerenderState, reason, pathname)
 }
 
 // @TODO refactor patch-fetch and this function to better model dynamic semantics. Currently this implementation
@@ -144,19 +181,71 @@ export function trackDynamicFetch(
   expression: string
 ) {
   if (store.prerenderState) {
-    assertPostpone()
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression, store.urlPathname))
+    postponeWithTracking(store.prerenderState, expression, store.urlPathname)
   }
 }
 
-function createPostponeReason(expression: string, urlPathname: string) {
-  const pathname = getPathname(urlPathname) // remove queries such like `_rsc` for flight
-  return (
+function postponeWithTracking(
+  prerenderState: PrerenderState,
+  expression: string,
+  pathname: string
+): never {
+  assertPostpone()
+  const reason =
     `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-  )
+
+  prerenderState.dynamicAccesses.push({
+    // When we aren't debugging, we don't need to create another error for the
+    // stack trace.
+    stack: prerenderState.isDebugSkeleton ? new Error().stack : undefined,
+    expression,
+  })
+
+  React.unstable_postpone(reason)
+}
+
+export function usedDynamicAPIs(prerenderState: PrerenderState): boolean {
+  return prerenderState.dynamicAccesses.length > 0
+}
+
+export function formatDynamicAPIAccesses(
+  prerenderState: PrerenderState
+): string[] {
+  return prerenderState.dynamicAccesses
+    .filter(
+      (access): access is Required<DynamicAccess> =>
+        typeof access.stack === 'string' && access.stack.length > 0
+    )
+    .map(({ expression, stack }) => {
+      stack = stack
+        .split('\n')
+        // Remove the "Error: " prefix from the first line of the stack trace as
+        // well as the first 4 lines of the stack trace which is the distance
+        // from the user code and the `new Error().stack` call.
+        .slice(4)
+        .filter((line) => {
+          // Exclude Next.js internals from the stack trace.
+          if (line.includes('node_modules/next/')) {
+            return false
+          }
+
+          // Exclude anonymous functions from the stack trace.
+          if (line.includes(' (<anonymous>)')) {
+            return false
+          }
+
+          // Exclude Node.js internals from the stack trace.
+          if (line.includes(' (node:')) {
+            return false
+          }
+
+          return true
+        })
+        .join('\n')
+      return `Dynamic API Usage Debug - ${expression}:\n${stack}`
+    })
 }
 
 function assertPostpone() {
@@ -165,4 +254,20 @@ function assertPostpone() {
       `Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`
     )
   }
+}
+
+/**
+ * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
+ * abort semantics slightly.
+ */
+export function createPostponedAbortSignal(reason: string): AbortSignal {
+  assertPostpone()
+  const controller = new AbortController()
+  // We get our hands on a postpone instance by calling postpone and catching the throw
+  try {
+    React.unstable_postpone(reason)
+  } catch (x: unknown) {
+    controller.abort(x)
+  }
+  return controller.signal
 }

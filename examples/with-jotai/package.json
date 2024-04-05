@@ -6,12 +6,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "jotai": "1.7.3",
+    "jotai": "2.7.1",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@types/node": "20.11.28",
     "@types/react": "17.0.16",
     "eslint": "7.32.0",
     "eslint-config-next": "11.0.1",

@@ -408,7 +408,7 @@ export function getLoaderSWCOptions({
 
   if (optimizeServerReact && isServer && !development) {
     baseOptions.optimizeServerReact = {
-      optimize_use_state: true,
+      optimize_use_state: false,
     }
   }
 
@@ -482,6 +482,11 @@ export function getLoaderSWCOptions({
     options.isPageFile = false
     options.optimizeServerReact = undefined
     options.cjsRequireOptimizer = undefined
+    // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
+    // e.g. typeof window could result differently in js worker or browser.
+    if (options.jsc.transform.optimizer.globals?.typeofs) {
+      delete options.jsc.transform.optimizer.globals.typeofs.window
+    }
   }
 
   return options

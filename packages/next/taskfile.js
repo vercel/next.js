@@ -73,7 +73,7 @@ const externals = {
   'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
-    'next/dist/build/webpack/plugins/terser-webpack-plugin',
+    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -473,83 +473,6 @@ export async function ncc_edge_runtime(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_next__react_dev_overlay(task, opts) {
-  const overlayExternals = {
-    ...externals,
-    react: 'react',
-    'react-dom': 'react-dom',
-  }
-  // dev-overlay needs a newer source-map version
-  delete overlayExternals['source-map']
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/middleware')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/middleware-turbopack')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/client')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  const clientFile = join(
-    __dirname,
-    'dist/compiled/@next/react-dev-overlay/dist/client.js'
-  )
-  const content = await fs.readFile(clientFile, 'utf8')
-  // remove AMD define branch as this forces the module to not
-  // be treated as commonjs
-  await fs.writeFile(
-    clientFile,
-    content.replace(
-      new RegExp(
-        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=b;define((function(){return b}))}else '.replace(
-          /[|\\{}()[\]^$+*?.-]/g,
-          '\\$&'
-        ),
-        'g'
-      ),
-      ''
-    )
-  )
-}
-
-// eslint-disable-next-line camelcase
 export async function ncc_next_font(task, opts) {
   // `@next/font` can be copied as is, its only dependency is already NCCed
   const destDir = join(__dirname, 'dist/compiled/@next/font')
@@ -738,6 +661,15 @@ export async function ncc_image_size(task, opts) {
     .source(relative(__dirname, require.resolve('image-size')))
     .ncc({ packageName: 'image-size', externals })
     .target('src/compiled/image-size')
+}
+
+// eslint-disable-next-line camelcase
+externals['get-orientation'] = 'next/dist/compiled/get-orientation'
+export async function ncc_get_orientation(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('get-orientation')))
+    .ncc({ packageName: 'get-orientation', externals })
+    .target('src/compiled/get-orientation')
 }
 
 // eslint-disable-next-line camelcase
@@ -1076,14 +1008,6 @@ export async function ncc_amp_optimizer(task, opts) {
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
-externals['arg'] = 'next/dist/compiled/arg'
-export async function ncc_arg(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('arg')))
-    .ncc({ packageName: 'arg' })
-    .target('src/compiled/arg')
-}
-// eslint-disable-next-line camelcase
 externals['async-retry'] = 'next/dist/compiled/async-retry'
 export async function ncc_async_retry(task, opts) {
   await task
@@ -1226,6 +1150,13 @@ export async function ncc_cli_select(task, opts) {
     .source(relative(__dirname, require.resolve('cli-select')))
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
+}
+externals['commmander'] = 'next/dist/compiled/commander'
+export async function ncc_commander(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('commander')))
+    .ncc({ packageName: 'commander', externals })
+    .target('src/compiled/commander')
 }
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
@@ -2244,7 +2175,9 @@ export async function ncc(task, opts) {
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_image_size',
+        'ncc_get_orientation',
         'ncc_hapi_accept',
+        'ncc_commander',
         'ncc_node_fetch',
         'ncc_node_anser',
         'ncc_node_stacktrace_parser',
@@ -2254,7 +2187,6 @@ export async function ncc(task, opts) {
         'ncc_node_shell_quote',
         'ncc_acorn',
         'ncc_amphtml_validator',
-        'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
@@ -2416,7 +2348,6 @@ export async function compile(task, opts) {
 
   await task.serial([
     'ncc_react_refresh_utils',
-    'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'capsize_metrics',
   ])
@@ -2455,11 +2386,6 @@ export async function server(task, opts) {
     .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
-
-  await fs.copyFile(
-    join(__dirname, 'src/server/google-font-metrics.json'),
-    join(__dirname, 'dist/server/google-font-metrics.json')
-  )
 }
 
 export async function server_esm(task, opts) {
@@ -2684,11 +2610,6 @@ export default async function (task) {
   await task.watch(
     'src/shared',
     ['shared_re_exported', 'shared_re_exported_esm', 'shared', 'shared_esm'],
-    opts
-  )
-  await task.watch(
-    '../react-dev-overlay/dist',
-    'ncc_next__react_dev_overlay',
     opts
   )
 }

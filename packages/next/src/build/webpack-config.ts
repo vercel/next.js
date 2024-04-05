@@ -11,8 +11,9 @@ import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackAppLayer,
+  isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
-  isWebpackServerLayer,
+  isWebpackServerOnlyLayer,
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -83,6 +84,7 @@ import {
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
+import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -103,15 +105,23 @@ if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
 
-const babelIncludeRegexes: RegExp[] = [
+export const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
   /next[\\/]dist[\\/](esm[\\/])?client/,
   /next[\\/]dist[\\/](esm[\\/])?pages/,
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
-const preCompileReactRegex =
-  /next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/
+const browserNonTranspileModules = [
+  // Transpiling `process/browser` will trigger babel compilation error due to value replacement.
+  // TypeError: Property left of AssignmentExpression expected node to be of a type ["LVal"] but instead got "BooleanLiteral"
+  // e.g. `process.browser = true` will become `true = true`.
+  /[\\/]node_modules[\\/]process[\\/]browser/,
+  // Exclude precompiled react packages from browser compilation due to SWC helper insertion (#61791),
+  // We fixed the issue but it's safer to exclude them from compilation since they don't need to be re-compiled.
+  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/,
+]
+const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
@@ -290,6 +300,7 @@ export default async function getBaseWebpackConfig(
   dir: string,
   {
     buildId,
+    encryptionKey,
     config,
     compilerType,
     dev = false,
@@ -308,11 +319,10 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
-    previewModeId,
     fetchCacheKeyPrefix,
-    allowedRevalidateHeaderKeys,
   }: {
     buildId: string
+    encryptionKey: string
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
@@ -338,9 +348,7 @@ export default async function getBaseWebpackConfig(
         import('../shared/lib/bloom-filter').BloomFilter['export']
       >
     }
-    previewModeId?: string
     fetchCacheKeyPrefix?: string
-    allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -364,7 +372,7 @@ export default async function getBaseWebpackConfig(
 
   const babelConfigFile = getBabelConfigFile(dir)
 
-  if (hasCustomExportOutput(config)) {
+  if (!dev && hasCustomExportOutput(config)) {
     config.distDir = '.next'
   }
   const distDir = path.join(dir, config.distDir)
@@ -393,6 +401,16 @@ export default async function getBaseWebpackConfig(
   // eagerly load swc bindings instead of waiting for transform calls
   if (!babelConfigFile && isClient) {
     await loadBindings(config.experimental.useWasmBinary)
+  }
+
+  // since `pages` doesn't always bundle by default we need to
+  // auto-include optimizePackageImports in transpilePackages
+  const finalTranspilePackages: string[] = config.transpilePackages || []
+
+  for (const pkg of config.experimental.optimizePackageImports || []) {
+    if (!finalTranspilePackages.includes(pkg)) {
+      finalTranspilePackages.push(pkg)
+    }
   }
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
@@ -445,6 +463,7 @@ export default async function getBaseWebpackConfig(
         hasReactRefresh: dev && isClient,
         nextConfig: config,
         jsConfig,
+        transpilePackages: finalTranspilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
@@ -488,6 +507,15 @@ export default async function getBaseWebpackConfig(
         babelLoader,
       ].filter(Boolean)
     : []
+
+  const instrumentLayerLoaders = [
+    // When using Babel, we will have to add the SWC loader
+    // as an additional pass to handle RSC correctly.
+    // This will cause some performance overhead but
+    // acceptable as Babel will not be recommended.
+    swcServerLayerLoader,
+    babelLoader,
+  ].filter(Boolean)
 
   const middlewareLayerLoaders = [
     // When using Babel, we will have to use SWC to do the optimization
@@ -706,11 +734,15 @@ export default async function getBaseWebpackConfig(
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
+  const nextFrameworkPaths: string[] = []
   const topLevelFrameworkPaths: string[] = []
   const visitedFrameworkPackages = new Set<string>()
-
   // Adds package-paths of dependencies recursively
-  const addPackagePath = (packageName: string, relativeToPath: string) => {
+  const addPackagePath = (
+    packageName: string,
+    relativeToPath: string,
+    paths: string[]
+  ) => {
     try {
       if (visitedFrameworkPackages.has(packageName)) {
         return
@@ -729,11 +761,11 @@ export default async function getBaseWebpackConfig(
       const directory = path.join(packageJsonPath, '../')
 
       // Returning from the function in case the directory has already been added and traversed
-      if (topLevelFrameworkPaths.includes(directory)) return
-      topLevelFrameworkPaths.push(directory)
+      if (paths.includes(directory)) return
+      paths.push(directory)
       const dependencies = require(packageJsonPath).dependencies || {}
       for (const name of Object.keys(dependencies)) {
-        addPackagePath(name, directory)
+        addPackagePath(name, directory, paths)
       }
     } catch (_) {
       // don't error on failing to resolve framework packages
@@ -750,8 +782,9 @@ export default async function getBaseWebpackConfig(
         ]
       : []),
   ]) {
-    addPackagePath(packageName, dir)
+    addPackagePath(packageName, dir, topLevelFrameworkPaths)
   }
+  addPackagePath('next', dir, nextFrameworkPaths)
 
   const crossOrigin = config.crossOrigin
 
@@ -759,9 +792,9 @@ export default async function getBaseWebpackConfig(
   // the `transpilePackages`.
   if (
     config.experimental.serverComponentsExternalPackages &&
-    config.transpilePackages
+    finalTranspilePackages
   ) {
-    const externalPackageConflicts = config.transpilePackages.filter((pkg) =>
+    const externalPackageConflicts = finalTranspilePackages.filter((pkg) =>
       config.experimental.serverComponentsExternalPackages?.includes(pkg)
     )
     if (externalPackageConflicts.length > 0) {
@@ -776,7 +809,7 @@ export default async function getBaseWebpackConfig(
   // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
-  ).filter((pkg) => !config.transpilePackages?.includes(pkg))
+  ).filter((pkg) => !finalTranspilePackages?.includes(pkg))
   // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
     `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
@@ -785,7 +818,7 @@ export default async function getBaseWebpackConfig(
   )
 
   const transpilePackagesRegex = new RegExp(
-    `[/\\\\]node_modules[/\\\\](${config.transpilePackages
+    `[/\\\\]node_modules[/\\\\](${finalTranspilePackages
       ?.map((p) => p.replace(/\//g, '[/\\\\]'))
       .join('|')})[/\\\\]`
   )
@@ -813,7 +846,7 @@ export default async function getBaseWebpackConfig(
 
       const shouldBeBundled = isResourceInPackages(
         excludePath,
-        config.transpilePackages
+        finalTranspilePackages
       )
       if (shouldBeBundled) return false
 
@@ -904,6 +937,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
+        // server chunking
         if (dev) {
           if (isNodeServer) {
             /*
@@ -954,17 +988,10 @@ export default async function getBaseWebpackConfig(
           return false
         }
 
-        if (isNodeServer) {
+        if (isNodeServer || isEdgeServer) {
           return {
-            filename: '[name].js',
+            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
             chunks: 'all',
-            minChunks: 2,
-          }
-        }
-
-        if (isEdgeServer) {
-          return {
-            filename: 'edge-chunks/[name].js',
             minChunks: 2,
           }
         }
@@ -987,12 +1014,15 @@ export default async function getBaseWebpackConfig(
           // becoming a part of the commons chunk)
           enforce: true,
         }
+
         const libCacheGroup = {
           test(module: {
+            type: string
             size: Function
             nameForCondition: Function
           }): boolean {
             return (
+              !module.type?.startsWith('css') &&
               module.size() > 160000 &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
@@ -1028,14 +1058,8 @@ export default async function getBaseWebpackConfig(
           minChunks: 1,
           reuseExistingChunk: true,
         }
-        const cssCacheGroup = {
-          test: /\.(css|sass|scss)$/i,
-          chunks: 'all' as const,
-          enforce: true,
-          type: /css/,
-          minChunks: 2,
-          priority: 100,
-        }
+
+        // client chunking
         return {
           // Keep main and _app chunks unsplitted in webpack 5
           // as we don't need a separate vendor chunk from that
@@ -1043,16 +1067,10 @@ export default async function getBaseWebpackConfig(
           // duplication that need to be pulled out.
           chunks: (chunk: any) =>
             !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
-          cacheGroups: appDir
-            ? {
-                css: cssCacheGroup,
-                framework: frameworkCacheGroup,
-                lib: libCacheGroup,
-              }
-            : {
-                framework: frameworkCacheGroup,
-                lib: libCacheGroup,
-              },
+          cacheGroups: {
+            framework: frameworkCacheGroup,
+            lib: libCacheGroup,
+          },
           maxInitialRequests: 25,
           minSize: 20000,
         }
@@ -1199,7 +1217,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             or: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1211,7 +1229,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             not: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1228,7 +1246,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.server,
+            or: WEBPACK_LAYERS.GROUP.serverOnly,
           },
           options: {
             message:
@@ -1243,7 +1261,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             not: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1297,10 +1315,19 @@ export default async function getBaseWebpackConfig(
               {
                 issuerLayer: isWebpackAppLayer,
                 resolve: {
-                  alias: {
-                    ...createNextApiEsmAliases(),
-                    ...createAppRouterApiAliases(),
-                  },
+                  alias: createNextApiEsmAliases(),
+                },
+              },
+              {
+                issuerLayer: isWebpackServerOnlyLayer,
+                resolve: {
+                  alias: createAppRouterApiAliases(true),
+                },
+              },
+              {
+                issuerLayer: isWebpackClientOnlyLayer,
+                resolve: {
+                  alias: createAppRouterApiAliases(false),
                 },
               },
             ]
@@ -1308,7 +1335,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1371,7 +1398,7 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: asyncStoragesRegex,
-                    issuerLayer: isWebpackServerLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1423,7 +1450,12 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                exclude: [codeCondition.exclude, transpilePackagesRegex],
+                exclude: [
+                  // exclude unchanged modules from react-refresh
+                  codeCondition.exclude,
+                  transpilePackagesRegex,
+                  precompileRegex,
+                ],
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 use: reactRefreshLoaders,
                 resolve: {
@@ -1451,13 +1483,13 @@ export default async function getBaseWebpackConfig(
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.instrument,
-              use: appServerLayerLoaders,
+              use: instrumentLayerLoaders,
             },
             ...(hasAppDir
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: isWebpackServerLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     exclude: asyncStoragesRegex,
                     use: appServerLayerLoaders,
                   },
@@ -1471,7 +1503,8 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
-                    exclude: preCompileReactRegex,
+                    // Exclude the transpilation of the app layer due to compilation issues
+                    exclude: browserNonTranspileModules,
                     use: appBrowserLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
@@ -1704,7 +1737,6 @@ export default async function getBaseWebpackConfig(
         }),
       getDefineEnvPlugin({
         isTurbopack: false,
-        allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
         dev,
@@ -1716,7 +1748,6 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
-        previewModeId,
       }),
       isClient &&
         new ReactLoadablePlugin({
@@ -1789,6 +1820,7 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+          rewrites,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -1837,6 +1869,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
+              encryptionKey,
             })),
       hasAppDir &&
         !isClient &&
@@ -1859,6 +1892,8 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      isClient &&
+        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
@@ -2001,6 +2036,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
+    optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,

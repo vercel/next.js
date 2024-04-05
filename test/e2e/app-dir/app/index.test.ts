@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
@@ -13,13 +13,24 @@ createNextDescribe(
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-      ? 'pnpm next experimental-compile'
+      ? `pnpm next build --experimental-build-mode=compile`
       : undefined,
     dependencies: {
       nanoid: '4.0.1',
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
+    if (isDev && isPPREnabledByDefault) {
+      it('should allow returning just skeleton in dev with query', async () => {
+        const res = await next.fetch('/skeleton?__nextppronly=1')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain('Skeleton')
+        expect(html).not.toContain('suspended content')
+      })
+    }
+
     if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should provide query for getStaticProps page correctly', async () => {
         const res = await next.fetch('/ssg?hello=world')
@@ -292,7 +303,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
       )
     })
 
@@ -304,8 +315,8 @@ createNextDescribe(
       })
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
       )
     })
 
@@ -1670,6 +1681,28 @@ createNextDescribe(
         expect($('link[href="/style3.css"]').length).toBe(1)
         expect($('link[href="/style1a.css"]').length).toBe(1)
         expect($('link[href="/style1b.css"]').length).toBe(1)
+      })
+
+      it('should pass `nonce`', async () => {
+        const html = await next.render('/script-nonce')
+        const $ = cheerio.load(html)
+        const scripts = $('script, link[rel="preload"][as="script"]')
+
+        scripts.each((_, element) => {
+          expect(element.attribs.nonce).toBeTruthy()
+        })
+
+        if (!isDev) {
+          const browser = await next.browser('/script-nonce')
+
+          await retry(async () => {
+            await browser.elementByCss('#get-order').click()
+            const order = JSON.parse(
+              await browser.elementByCss('#order').text()
+            )
+            expect(order?.length).toBe(2)
+          })
+        }
       })
     })
 

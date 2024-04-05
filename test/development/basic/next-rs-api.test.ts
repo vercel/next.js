@@ -202,10 +202,9 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
-      serverAddr: `127.0.0.1:3000`,
+      dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
@@ -218,7 +217,6 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
-        previewModeId: undefined,
       }),
     })
     projectUpdateSubscription = filterMapAsyncIterator(
@@ -228,8 +226,8 @@ describe('next.rs api', () => {
   })
 
   it('should detect the correct routes', async () => {
-    const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints = await entrypointsSubscribtion.next()
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
@@ -239,7 +237,6 @@ describe('next.rs api', () => {
       '/app',
       '/app-edge',
       '/app-nodejs',
-      '/not-found',
       '/page-edge',
       '/page-nodejs',
       '/route-edge',
@@ -249,7 +246,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscribtion.return()
+    entrypointsSubscription.return()
   })
 
   const routes = [
@@ -360,7 +357,7 @@ describe('next.rs api', () => {
           break
         }
         case 'app-page': {
-          const result = await route.htmlEndpoint.writeToDisk()
+          const result = await route.pages[0].htmlEndpoint.writeToDisk()
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
@@ -368,7 +365,7 @@ describe('next.rs api', () => {
             'diagnostics'
           )
 
-          const result2 = await route.rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
@@ -477,10 +474,9 @@ describe('next.rs api', () => {
             break
           }
           case 'app-page': {
-            await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.rscEndpoint.serverChanged(
-              false
-            )
+            await route.pages[0].htmlEndpoint.writeToDisk()
+            serverSideSubscription =
+              await route.pages[0].rscEndpoint.serverChanged(false)
             break
           }
           default: {

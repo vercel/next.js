@@ -10,8 +10,8 @@
 
 'use strict';
 
-var ReactDOM = require('react-dom');
 var React = require('react');
+var ReactDOM = require('react-dom');
 
 // -----------------------------------------------------------------------------
 const enablePostpone = true;
@@ -19,7 +19,7 @@ const enablePostpone = true;
 function scheduleWork(callback) {
   callback();
 }
-const VIEW_SIZE = 512;
+const VIEW_SIZE = 2048;
 let currentView = null;
 let writtenBytes = 0;
 function beginWriting(destination) {
@@ -32,10 +32,9 @@ function writeChunk(destination, chunk) {
   }
 
   if (chunk.byteLength > VIEW_SIZE) {
+    // this chunk may overflow a single view which implies it was not
     // one that is cached by the streaming renderer. We will enqueu
     // it directly and expect it is not re-used
-
-
     if (writtenBytes > 0) {
       destination.enqueue(new Uint8Array(currentView.buffer, 0, writtenBytes));
       currentView = new Uint8Array(VIEW_SIZE);
@@ -123,10 +122,10 @@ function closeWithError(destination, error) {
 }
 
 // eslint-disable-next-line no-unused-vars
-const CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+const CLIENT_REFERENCE_TAG$1 = Symbol.for('react.client.reference');
 const SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
 function isClientReference(reference) {
-  return reference.$$typeof === CLIENT_REFERENCE_TAG;
+  return reference.$$typeof === CLIENT_REFERENCE_TAG$1;
 }
 function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
@@ -138,7 +137,7 @@ function registerClientReference(proxyImplementation, id, exportName) {
 function registerClientReferenceImpl(proxyImplementation, id, async) {
   return Object.defineProperties(proxyImplementation, {
     $$typeof: {
-      value: CLIENT_REFERENCE_TAG
+      value: CLIENT_REFERENCE_TAG$1
     },
     $$id: {
       value: id
@@ -185,13 +184,16 @@ function registerServerReference(reference, id, exportName) {
       value: SERVER_REFERENCE_TAG
     },
     $$id: {
-      value: exportName === null ? id : id + '#' + exportName
+      value: exportName === null ? id : id + '#' + exportName,
+      configurable: true
     },
     $$bound: {
-      value: null
+      value: null,
+      configurable: true
     },
     bind: {
-      value: bind
+      value: bind,
+      configurable: true
     }
   });
 }
@@ -230,6 +232,10 @@ const deepProxyHandlers = {
         // $FlowFixMe[prop-missing]
         return Object.prototype[Symbol.toPrimitive];
 
+      case Symbol.toStringTag:
+        // $FlowFixMe[prop-missing]
+        return Object.prototype[Symbol.toStringTag];
+
       case 'Provider':
         throw new Error("Cannot render a Client Context Provider on the Server. " + "Instead, you can export a Client Component wrapper " + "that itself renders a Client Context Provider.");
     } // eslint-disable-next-line react-internal/safe-string-coercion
@@ -242,89 +248,117 @@ const deepProxyHandlers = {
     throw new Error('Cannot assign to a client module from a server module.');
   }
 };
+
+function getReference(target, name) {
+  switch (name) {
+    // These names are read by the Flight runtime if you end up using the exports object.
+    case '$$typeof':
+      return target.$$typeof;
+
+    case '$$id':
+      return target.$$id;
+
+    case '$$async':
+      return target.$$async;
+
+    case 'name':
+      return target.name;
+    // We need to special case this because createElement reads it if we pass this
+    // reference.
+
+    case 'defaultProps':
+      return undefined;
+    // Avoid this attempting to be serialized.
+
+    case 'toJSON':
+      return undefined;
+
+    case Symbol.toPrimitive:
+      // $FlowFixMe[prop-missing]
+      return Object.prototype[Symbol.toPrimitive];
+
+    case Symbol.toStringTag:
+      // $FlowFixMe[prop-missing]
+      return Object.prototype[Symbol.toStringTag];
+
+    case '__esModule':
+      // Something is conditionally checking which export to use. We'll pretend to be
+      // an ESM compat module but then we'll check again on the client.
+      const moduleId = target.$$id;
+      target.default = registerClientReferenceImpl(function () {
+        throw new Error("Attempted to call the default export of " + moduleId + " from the server " + "but it's on the client. It's not possible to invoke a client function from " + "the server, it can only be rendered as a Component or passed to props of a " + "Client Component.");
+      }, target.$$id + '#', target.$$async);
+      return true;
+
+    case 'then':
+      if (target.then) {
+        // Use a cached value
+        return target.then;
+      }
+
+      if (!target.$$async) {
+        // If this module is expected to return a Promise (such as an AsyncModule) then
+        // we should resolve that with a client reference that unwraps the Promise on
+        // the client.
+        const clientReference = registerClientReferenceImpl({}, target.$$id, true);
+        const proxy = new Proxy(clientReference, proxyHandlers); // Treat this as a resolved Promise for React's use()
+
+        target.status = 'fulfilled';
+        target.value = proxy;
+        const then = target.then = registerClientReferenceImpl(function then(resolve, reject) {
+          // Expose to React.
+          return Promise.resolve(resolve(proxy));
+        }, // If this is not used as a Promise but is treated as a reference to a `.then`
+        // export then we should treat it as a reference to that name.
+        target.$$id + '#then', false);
+        return then;
+      } else {
+        // Since typeof .then === 'function' is a feature test we'd continue recursing
+        // indefinitely if we return a function. Instead, we return an object reference
+        // if we check further.
+        return undefined;
+      }
+
+  }
+
+  if (typeof name === 'symbol') {
+    throw new Error('Cannot read Symbol exports. Only named exports are supported on a client module ' + 'imported on the server.');
+  }
+
+  let cachedReference = target[name];
+
+  if (!cachedReference) {
+    const reference = registerClientReferenceImpl(function () {
+      throw new Error( // eslint-disable-next-line react-internal/safe-string-coercion
+      "Attempted to call " + String(name) + "() from the server but " + String(name) + " is on the client. " + "It's not possible to invoke a client function from the server, it can " + "only be rendered as a Component or passed to props of a Client Component.");
+    }, target.$$id + '#' + name, target.$$async);
+    Object.defineProperty(reference, 'name', {
+      value: name
+    });
+    cachedReference = target[name] = new Proxy(reference, deepProxyHandlers);
+  }
+
+  return cachedReference;
+}
+
 const proxyHandlers = {
   get: function (target, name, receiver) {
-    switch (name) {
-      // These names are read by the Flight runtime if you end up using the exports object.
-      case '$$typeof':
-        return target.$$typeof;
+    return getReference(target, name);
+  },
+  getOwnPropertyDescriptor: function (target, name) {
+    let descriptor = Object.getOwnPropertyDescriptor(target, name);
 
-      case '$$id':
-        return target.$$id;
-
-      case '$$async':
-        return target.$$async;
-
-      case 'name':
-        return target.name;
-      // We need to special case this because createElement reads it if we pass this
-      // reference.
-
-      case 'defaultProps':
-        return undefined;
-      // Avoid this attempting to be serialized.
-
-      case 'toJSON':
-        return undefined;
-
-      case Symbol.toPrimitive:
-        // $FlowFixMe[prop-missing]
-        return Object.prototype[Symbol.toPrimitive];
-
-      case '__esModule':
-        // Something is conditionally checking which export to use. We'll pretend to be
-        // an ESM compat module but then we'll check again on the client.
-        const moduleId = target.$$id;
-        target.default = registerClientReferenceImpl(function () {
-          throw new Error("Attempted to call the default export of " + moduleId + " from the server " + "but it's on the client. It's not possible to invoke a client function from " + "the server, it can only be rendered as a Component or passed to props of a " + "Client Component.");
-        }, target.$$id + '#', target.$$async);
-        return true;
-
-      case 'then':
-        if (target.then) {
-          // Use a cached value
-          return target.then;
-        }
-
-        if (!target.$$async) {
-          // If this module is expected to return a Promise (such as an AsyncModule) then
-          // we should resolve that with a client reference that unwraps the Promise on
-          // the client.
-          const clientReference = registerClientReferenceImpl({}, target.$$id, true);
-          const proxy = new Proxy(clientReference, proxyHandlers); // Treat this as a resolved Promise for React's use()
-
-          target.status = 'fulfilled';
-          target.value = proxy;
-          const then = target.then = registerClientReferenceImpl(function then(resolve, reject) {
-            // Expose to React.
-            return Promise.resolve(resolve(proxy));
-          }, // If this is not used as a Promise but is treated as a reference to a `.then`
-          // export then we should treat it as a reference to that name.
-          target.$$id + '#then', false);
-          return then;
-        } else {
-          // Since typeof .then === 'function' is a feature test we'd continue recursing
-          // indefinitely if we return a function. Instead, we return an object reference
-          // if we check further.
-          return undefined;
-        }
-
+    if (!descriptor) {
+      descriptor = {
+        value: getReference(target, name),
+        writable: false,
+        configurable: false,
+        enumerable: false
+      };
+      Object.defineProperty(target, name, descriptor);
     }
 
-    let cachedReference = target[name];
-
-    if (!cachedReference) {
-      const reference = registerClientReferenceImpl(function () {
-        throw new Error( // eslint-disable-next-line react-internal/safe-string-coercion
-        "Attempted to call " + String(name) + "() from the server but " + String(name) + " is on the client. " + "It's not possible to invoke a client function from the server, it can " + "only be rendered as a Component or passed to props of a Client Component.");
-      }, target.$$id + '#' + name, target.$$async);
-      Object.defineProperty(reference, 'name', {
-        value: name
-      });
-      cachedReference = target[name] = new Proxy(reference, deepProxyHandlers);
-    }
-
-    return cachedReference;
+    return descriptor;
   },
 
   getPrototypeOf(target) {
@@ -634,6 +668,9 @@ function createHints() {
   return new Set();
 }
 
+const supportsRequestStorage = false;
+const requestStorage = null;
+
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
@@ -792,7 +829,10 @@ function prepareToUseHooksForComponent(prevThenableState) {
   thenableState = prevThenableState;
 }
 function getThenableStateAfterSuspending() {
-  const state = thenableState;
+  // If you use() to Suspend this should always exist but if you throw a Promise instead,
+  // which is not really supported anymore, it will be empty. We use the empty set as a
+  // marker to know if this was a replay of the same component or first attempt.
+  const state = thenableState || createThenableState();
   thenableState = null;
   return state;
 }
@@ -969,6 +1009,10 @@ function describeValueForErrorMessage(value) {
           return '[...]';
         }
 
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
         const name = objectName(value);
 
         if (name === 'Object') {
@@ -979,7 +1023,14 @@ function describeValueForErrorMessage(value) {
       }
 
     case 'function':
-      return 'function';
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        const name = value.displayName || value.name;
+        return name ? 'function ' + name : 'function';
+      }
 
     default:
       // eslint-disable-next-line react-internal/safe-string-coercion
@@ -1023,6 +1074,12 @@ function describeElementType(type) {
   }
 
   return '';
+}
+
+const CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
 }
 
 function describeObjectForErrorMessage(objectOrArray, expandedName) {
@@ -1072,6 +1129,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
     } else {
       // Print Object
       str = '{';
@@ -1186,7 +1245,7 @@ function defaultPostponeHandler(reason) {// Noop
 const OPEN = 0;
 const CLOSING = 1;
 const CLOSED = 2;
-function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone) {
+function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone, environmentName) {
   if (ReactCurrentCache.current !== null && ReactCurrentCache.current !== DefaultCacheDispatcher) {
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
@@ -1228,7 +1287,7 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone
   };
-  request.pendingChunks++;
+
   const rootTask = createTask(request, model, null, false, abortSet);
   pingedTasks.push(rootTask);
   return request;
@@ -1241,7 +1300,6 @@ function resolveRequest() {
 }
 
 function serializeThenable(request, task, thenable) {
-  request.pendingChunks++;
   const newTask = createTask(request, null, task.keyPath, // the server component sequence continues through Promise-as-a-child.
   task.implicitSlot, request.abortableTasks);
 
@@ -1385,7 +1443,56 @@ function createLazyWrapperAroundWakeable(wakeable) {
     _payload: thenable,
     _init: readThenable
   };
+
   return lazyType;
+}
+
+function renderFunctionComponent(request, task, key, Component, props) {
+  // Reset the task's thenable state before continuing, so that if a later
+  // component suspends we can reuse the same task object. If the same
+  // component suspends again, the thenable state will be restored.
+  const prevThenableState = task.thenableState;
+  task.thenableState = null;
+
+  prepareToUseHooksForComponent(prevThenableState); // The secondArg is always undefined in Server Components since refs error early.
+
+  const secondArg = undefined;
+  let result = Component(props, secondArg);
+
+  if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
+    // When the return value is in children position we can resolve it immediately,
+    // to its value without a wrapper if it's synchronously available.
+    const thenable = result;
+
+    if (thenable.status === 'fulfilled') {
+      return thenable.value;
+    } // TODO: Once we accept Promises as children on the client, we can just return
+    // the thenable here.
+
+
+    result = createLazyWrapperAroundWakeable(result);
+  } // Track this element's key on the Server Component on the keyPath context..
+
+
+  const prevKeyPath = task.keyPath;
+  const prevImplicitSlot = task.implicitSlot;
+
+  if (key !== null) {
+    // Append the key to the path. Technically a null key should really add the child
+    // index. We don't do that to hold the payload small and implementation simple.
+    task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
+  } else if (prevKeyPath === null) {
+    // This sequence of Server Components has no keys. This means that it was rendered
+    // in a slot that needs to assign an implicit key. Even if children below have
+    // explicit keys, they should not be used for the outer most key since it might
+    // collide with other slots in that set.
+    task.implicitSlot = true;
+  }
+
+  const json = renderModelDestructive(request, task, emptyRoot, '', result);
+  task.keyPath = prevKeyPath;
+  task.implicitSlot = prevImplicitSlot;
+  return json;
 }
 
 function renderFragment(request, task, children) {
@@ -1452,13 +1559,18 @@ function renderClientElement(task, type, key, props) {
 
 
   return element;
-}
+} // The chunk ID we're currently rendering that we can assign debug data to.
+
+
+let debugID = null;
 
 function renderElement(request, task, type, key, ref, props) {
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
     // cases.
+    // TODO: `ref` is now just a prop when `enableRefAsProp` is on. Should we
+    // do what the above comment says?
     throw new Error('Refs cannot be used in Server Components, nor passed to Client Components.');
   }
 
@@ -1466,51 +1578,10 @@ function renderElement(request, task, type, key, ref, props) {
     if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return renderClientElement(task, type, key, props);
-    } // This is a server-side component.
-    // Reset the task's thenable state before continuing, so that if a later
-    // component suspends we can reuse the same task object. If the same
-    // component suspends again, the thenable state will be restored.
+    } // This is a Server Component.
 
 
-    const prevThenableState = task.thenableState;
-    task.thenableState = null;
-    prepareToUseHooksForComponent(prevThenableState);
-    let result = type(props);
-
-    if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
-      // When the return value is in children position we can resolve it immediately,
-      // to its value without a wrapper if it's synchronously available.
-      const thenable = result;
-
-      if (thenable.status === 'fulfilled') {
-        return thenable.value;
-      } // TODO: Once we accept Promises as children on the client, we can just return
-      // the thenable here.
-
-
-      result = createLazyWrapperAroundWakeable(result);
-    } // Track this element's key on the Server Component on the keyPath context..
-
-
-    const prevKeyPath = task.keyPath;
-    const prevImplicitSlot = task.implicitSlot;
-
-    if (key !== null) {
-      // Append the key to the path. Technically a null key should really add the child
-      // index. We don't do that to hold the payload small and implementation simple.
-      task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
-    } else if (prevKeyPath === null) {
-      // This sequence of Server Components has no keys. This means that it was rendered
-      // in a slot that needs to assign an implicit key. Even if children below have
-      // explicit keys, they should not be used for the outer most key since it might
-      // collide with other slots in that set.
-      task.implicitSlot = true;
-    }
-
-    const json = renderModelDestructive(request, task, emptyRoot, '', result);
-    task.keyPath = prevKeyPath;
-    task.implicitSlot = prevImplicitSlot;
-    return json;
+    return renderFunctionComponent(request, task, key, type, props);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
     return renderClientElement(task, type, key, props);
@@ -1549,33 +1620,7 @@ function renderElement(request, task, type, key, ref, props) {
 
       case REACT_FORWARD_REF_TYPE:
         {
-          const render = type.render; // Reset the task's thenable state before continuing, so that if a later
-          // component suspends we can reuse the same task object. If the same
-          // component suspends again, the thenable state will be restored.
-
-          const prevThenableState = task.thenableState;
-          task.thenableState = null;
-          prepareToUseHooksForComponent(prevThenableState);
-          const result = render(props, undefined);
-          const prevKeyPath = task.keyPath;
-          const prevImplicitSlot = task.implicitSlot;
-
-          if (key !== null) {
-            // Append the key to the path. Technically a null key should really add the child
-            // index. We don't do that to hold the payload small and implementation simple.
-            task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
-          } else if (prevKeyPath === null) {
-            // This sequence of Server Components has no keys. This means that it was rendered
-            // in a slot that needs to assign an implicit key. Even if children below have
-            // explicit keys, they should not be used for the outer most key since it might
-            // collide with other slots in that set.
-            task.implicitSlot = true;
-          }
-
-          const json = renderModelDestructive(request, task, emptyRoot, '', result);
-          task.keyPath = prevKeyPath;
-          task.implicitSlot = prevImplicitSlot;
-          return json;
+          return renderFunctionComponent(request, task, key, type.render, props);
         }
 
       case REACT_MEMO_TYPE:
@@ -1599,6 +1644,7 @@ function pingTask(request, task) {
 }
 
 function createTask(request, model, keyPath, implicitSlot, abortSet) {
+  request.pendingChunks++;
   const id = request.nextChunkId++;
 
   if (typeof model === 'object' && model !== null) {
@@ -1734,7 +1780,6 @@ function serializeClientReference(request, parent, parentPropertyName, clientRef
 }
 
 function outlineModel(request, value) {
-  request.pendingChunks++;
   const newTask = createTask(request, value, null, // The way we use outlining is for reusing an object.
   false, // It makes no sense for that use case to be contextual.
   request.abortableTasks);
@@ -1871,7 +1916,6 @@ function renderModel(request, task, parent, key, value) {
       // $FlowFixMe[method-unbinding]
       if (typeof x.then === 'function') {
         // Something suspended, we'll need to create a new task and resolve it later.
-        request.pendingChunks++;
         const newTask = createTask(request, task.model, task.keyPath, task.implicitSlot, request.abortableTasks);
         const ping = newTask.ping;
         x.then(ping, ping);
@@ -1960,12 +2004,16 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
               // but that is able to reuse the same task if we're already in one but then that
               // will be a lazy future value rather than guaranteed to exist but maybe that's good.
               const newId = outlineModel(request, value);
-              return serializeLazyID(newId);
+              return serializeByValueID(newId);
             } else {
               // We've already emitted this as an outlined object, so we can refer to that by its
-              // existing ID. We use a lazy reference since, unlike plain objects, elements might
-              // suspend so it might not have emitted yet even if we have the ID for it.
-              return serializeLazyID(existingId);
+              // existing ID. TODO: We should use a lazy reference since, unlike plain objects,
+              // elements might suspend so it might not have emitted yet even if we have the ID for
+              // it. However, this creates an extra wrapper when it's not needed. We should really
+              // detect whether this already was emitted and synchronously available. In that
+              // case we can refer to it synchronously and only make it lazy otherwise.
+              // We currently don't have a data structure that lets us see that though.
+              return serializeByValueID(existingId);
             }
           } else {
             // This is the first time we've seen this object. We may never see it again
@@ -1973,17 +2021,34 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
             writtenObjects.set(value, -1);
           }
 
-          const element = value; // Attempt to render the Server Component.
+          const element = value;
+
+          const props = element.props;
+          let ref;
+
+          {
+            // TODO: This is a temporary, intermediate step. Once the feature
+            // flag is removed, we should get the ref off the props object right
+            // before using it.
+            const refProp = props.ref;
+            ref = refProp !== undefined ? refProp : null;
+          } // Attempt to render the Server Component.
+
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, element.ref, element.props);
+          element.key, ref, props);
         }
 
       case REACT_LAZY_TYPE:
         {
-          const payload = value._payload;
-          const init = value._init;
+          // Reset the task's thenable state before continuing. If there was one, it was
+          // from suspending the lazy before.
+          task.thenableState = null;
+          const lazy = value;
+          const payload = lazy._payload;
+          const init = lazy._init;
           const resolvedModel = init(payload);
+
           return renderModelDestructive(request, task, emptyRoot, '', resolvedModel);
         }
     }
@@ -2107,7 +2172,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
       if (value instanceof Float64Array) {
         // double
-        return serializeTypedArray(request, 'D', value);
+        return serializeTypedArray(request, 'd', value);
       }
 
       if (value instanceof BigInt64Array) {
@@ -2205,7 +2270,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
     if (/^on[A-Z]/.test(parentPropertyName)) {
       throw new Error('Event handlers cannot be passed to Client Component props.' + describeObjectForErrorMessage(parent, parentPropertyName) + '\nIf you need interactivity, consider converting part of this to a Client Component.');
     } else {
-      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server".' + describeObjectForErrorMessage(parent, parentPropertyName));
+      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server". ' + 'Or maybe you meant to call this function rather than return it.' + describeObjectForErrorMessage(parent, parentPropertyName));
     }
   }
 
@@ -2248,13 +2313,34 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 }
 
 function logPostpone(request, reason) {
-  const onPostpone = request.onPostpone;
-  onPostpone(reason);
+  const prevRequest = currentRequest;
+  currentRequest = null;
+
+  try {
+    const onPostpone = request.onPostpone;
+
+    if (supportsRequestStorage) ; else {
+      onPostpone(reason);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 }
 
 function logRecoverableError(request, error) {
-  const onError = request.onError;
-  const errorDigest = onError(error);
+  const prevRequest = currentRequest;
+  currentRequest = null;
+  let errorDigest;
+
+  try {
+    const onError = request.onError;
+
+    if (supportsRequestStorage) ; else {
+      errorDigest = onError(error);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 
   if (errorDigest != null && typeof errorDigest !== 'string') {
     // eslint-disable-next-line react-internal/prod-error-codes
@@ -2345,10 +2431,16 @@ function retryTask(request, task) {
     // Track the root so we know that we have to emit this object even though it
     // already has an ID. This is needed because we might see this object twice
     // in the same toJSON if it is cyclic.
-    modelRoot = task.model; // We call the destructive form that mutates this task. That way if something
+    modelRoot = task.model;
+
+    if (false) ; // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
 
-    const resolvedModel = renderModelDestructive(request, task, emptyRoot, '', task.model); // Track the root again for the resolved object.
+
+    const resolvedModel = renderModelDestructive(request, task, emptyRoot, '', task.model);
+
+    if (false) ; // Track the root again for the resolved object.
+
 
     modelRoot = resolvedModel; // The keyPath resets at any terminal child node.
 
@@ -2401,6 +2493,7 @@ function retryTask(request, task) {
     task.status = ERRORED$1;
     const digest = logRecoverableError(request, x);
     emitErrorChunk(request, task.id, digest);
+  } finally {
   }
 }
 

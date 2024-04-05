@@ -2,23 +2,25 @@ import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
+import type { RenderOptsPartial } from '../app-render/types'
+
+import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
+import type { FetchMetric } from '../base-http'
 
 export type StaticGenerationContext = {
   urlPathname: string
-  postpone?: (reason: string) => never
   renderOpts: {
-    originalPathname?: string
     incrementalCache?: IncrementalCache
-    supportsDynamicHTML: boolean
-    isRevalidate?: boolean
     isOnDemandRevalidate?: boolean
-    isBot?: boolean
-    nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
-    isDraftMode?: boolean
     isServerAction?: boolean
     waitUntil?: Promise<any>
     experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
+
+    /**
+     * Fetch metrics attached in patch-fetch.ts
+     **/
+    fetchMetrics?: FetchMetric[]
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -29,7 +31,17 @@ export type StaticGenerationContext = {
      */
     // TODO: remove this when we resolve accessing the store outside the execution context
     store?: StaticGenerationStore
-  }
+  } & Pick<
+    // Pull some properties from RenderOptsPartial so that the docs are also
+    // mirrored.
+    RenderOptsPartial,
+    | 'originalPathname'
+    | 'supportsDynamicHTML'
+    | 'isRevalidate'
+    | 'nextExport'
+    | 'isDraftMode'
+    | 'isDebugPPRSkeleton'
+  >
 }
 
 export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
@@ -65,9 +77,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 
     const prerenderState: StaticGenerationStore['prerenderState'] =
       isStaticGeneration && renderOpts.experimental.ppr
-        ? {
-            hasDynamic: false,
-          }
+        ? createPrerenderState(renderOpts.isDebugPPRSkeleton)
         : null
 
     const store: StaticGenerationStore = {

@@ -128,6 +128,8 @@ A `loader` is a function returning a URL string for the image, given the followi
 
 Here is an example of using a custom loader:
 
+<AppOnly>
+
 ```js
 'use client'
 
@@ -150,11 +152,33 @@ export default function Page() {
 }
 ```
 
-<AppOnly>
-
 > **Good to know**: Using props like `loader`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
+
+<PagesOnly>
+
+```js
+import Image from 'next/image'
+
+const imageLoader = ({ src, width, quality }) => {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+
+export default function Page() {
+  return (
+    <Image
+      loader={imageLoader}
+      src="me.png"
+      alt="Picture of the author"
+      width={500}
+      height={500}
+    />
+  )
+}
+```
+
+</PagesOnly>
 
 Alternatively, you can use the [loaderFile](#loaderfile) configuration in `next.config.js` to configure every instance of `next/image` in your application, without passing a prop.
 
@@ -280,11 +304,23 @@ Remember that the required width and height props can interact with your styling
 
 ### `onLoadingComplete`
 
+<AppOnly>
+
 ```jsx
 'use client'
 
 <Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx
+<Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
+```
+
+</PagesOnly>
 
 > **Warning**: Deprecated since Next.js 14 in favor of [`onLoad`](#onload).
 
@@ -481,13 +517,27 @@ module.exports = {
 
 This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
-```js
+<AppOnly>
+
+```js filename="my/image/loader.js"
 'use client'
 
 export default function myImageLoader({ src, width, quality }) {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
 ```
+
+</AppOnly>
+
+<PagesOnly>
+
+```js filename="my/image/loader.js"
+export default function myImageLoader({ src, width, quality }) {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+```
+
+</PagesOnly>
 
 Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
@@ -810,16 +860,21 @@ import { getImageProps } from 'next/image'
 
 export default function Page() {
   const common = { alt: 'Theme Example', width: 800, height: 400 }
-  const { props: { srcSet: dark } } = getImageProps({ ...common, src: '/dark.png' })
-  const { props: { srcSet: light, ...rest } } = getImageProps({ ...common, src: '/light.png' })
+  const {
+    props: { srcSet: dark },
+  } = getImageProps({ ...common, src: '/dark.png' })
+  const {
+    props: { srcSet: light, ...rest },
+  } = getImageProps({ ...common, src: '/light.png' })
 
   return (
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcSet={dark} />
-    <source media="(prefers-color-scheme: light)" srcSet={light} />
-    <img {...rest} />
-  </picture>
-)
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet={dark} />
+      <source media="(prefers-color-scheme: light)" srcSet={light} />
+      <img {...rest} />
+    </picture>
+  )
+}
 ```
 
 ### Art Direction

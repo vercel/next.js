@@ -34,6 +34,7 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
@@ -81,10 +82,12 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
+    case 'ci':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
+    case 'di':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')
@@ -376,11 +379,12 @@ interface PagePathData {
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
  * @param rootDir Absolute path to the project root.
+ * @param page The page normalized (it will be denormalized).
+ * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
- * @param pageExtensions Array of page extensions.
+ * @param appDir Absolute path to the app folder with trailing `/app`.
  */
-async function findPagePathData(
+export async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
@@ -426,6 +430,29 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
+    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
+      const notFoundPath = await findPageFile(
+        appDir,
+        'not-found',
+        extensions,
+        true
+      )
+      if (notFoundPath) {
+        return {
+          filename: join(appDir, notFoundPath),
+          bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        }
+      }
+
+      return {
+        filename: require.resolve(
+          'next/dist/client/components/not-found-error'
+        ),
+        bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      }
+    }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
@@ -463,14 +490,6 @@ async function findPagePathData(
       filename: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
-    }
-  }
-
-  if (page === '/not-found' && appDir) {
-    return {
-      filename: require.resolve('next/dist/client/components/not-found-error'),
-      bundlePath: 'app/not-found',
-      page: '/not-found',
     }
   }
 

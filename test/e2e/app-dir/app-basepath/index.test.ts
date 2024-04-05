@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 createNextDescribe(
   'app dir - basepath',
@@ -42,10 +42,9 @@ createNextDescribe(
 
     it('should prefix redirect() with basePath', async () => {
       const browser = await next.browser('/base/redirect')
-      await check(async () => {
+      await retry(async () => {
         expect(await browser.url()).toBe(`${next.url}/base/another`)
-        return 'success'
-      }, 'success')
+      })
     })
 
     it('should render usePathname without the basePath', async () => {
@@ -55,6 +54,15 @@ createNextDescribe(
         expect($('#pathname').data('pathname')).toBe(pathname)
       })
       await Promise.all(validatorPromises)
+    })
+
+    it('should handle redirect in dynamic in suspense boundary routes with basePath', async () => {
+      const browser = await next.browser('/base/dynamic/source')
+      await retry(async () => {
+        // Check content is loaded first to avoid flakiness
+        expect(await browser.elementByCss('p').text()).toBe(`id:dest`)
+        expect(await browser.url()).toBe(`${next.url}/base/dynamic/dest`)
+      })
     })
   }
 )
