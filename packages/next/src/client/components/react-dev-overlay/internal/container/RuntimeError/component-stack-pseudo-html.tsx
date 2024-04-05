@@ -6,6 +6,10 @@ function getAdjacentProps(isAdj: boolean) {
   return { 'data-nextjs-container-errors-pseudo-html--tag-adjacent': isAdj }
 }
 
+function matchTags(pairs: string[], matchedPairs: string[]) {
+  return pairs[0] === matchedPairs[0] && pairs[1] === matchedPairs[1]
+}
+
 /**
  *
  * Format component stack into pseudo HTML
@@ -91,9 +95,10 @@ export function PseudoHtmlDiff({
 
         const isHighlightedTag = tagNames.includes(component)
         const isAdjacentTag =
-          isHighlightedTag ||
-          tagNames.includes(prevComponent) ||
-          tagNames.includes(nextComponent)
+          // Since react warnings give tags in the order "child" of "parent",
+          // we swap the order to match the component stack. [current] is parent, [previous] is child.
+          matchTags(tagNames, [component, prevComponent]) ||
+          matchTags(tagNames, [nextComponent, component])
 
         const isLastFewFrames =
           !isHtmlTagsWarning && index >= componentList.length - 6
@@ -107,7 +112,7 @@ export function PseudoHtmlDiff({
               <span
                 {...adjProps}
                 {...{
-                  ...(isHighlightedTag
+                  ...(isAdjacentTag
                     ? {
                         'data-nextjs-container-errors-pseudo-html--tag-error':
                           true,
