@@ -21,7 +21,6 @@ pub(crate) async fn create_font_manifest(
     pathname: &str,
     client_assets: Vc<OutputAssets>,
     app_dir: bool,
-    has_pages_app_js: bool,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let all_client_output_assets = all_assets_from_entries(client_assets).await?;
 

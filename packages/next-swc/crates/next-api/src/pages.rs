@@ -1064,16 +1064,6 @@ impl PageEndpoint {
 
         let client_assets = OutputAssets::new(client_assets);
 
-        let has_app_js = matches!(
-            *this
-                .pages_project
-                .pages_dir()
-                .join("_app.js".to_string())
-                .get_type()
-                .await?,
-            FileSystemEntryType::File
-        );
-
         let next_font_manifest_output = create_font_manifest(
             this.pages_project.project().client_root(),
             this.pages_project.project().node_root(),
@@ -1083,7 +1073,6 @@ impl PageEndpoint {
             &pathname,
             client_assets,
             false,
-            has_app_js,
         )
         .await?;
         server_assets.push(next_font_manifest_output);

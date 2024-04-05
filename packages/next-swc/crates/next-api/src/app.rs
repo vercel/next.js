@@ -975,7 +975,6 @@ impl AppEndpoint {
             &app_entry.original_name,
             client_assets,
             true,
-            false,
         )
         .await?;
         server_assets.push(next_font_manifest_output);
