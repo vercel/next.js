@@ -4,6 +4,7 @@ import Conf from 'conf'
 import prompts from 'prompts'
 import updateCheck from 'update-check'
 import packageJson from './package.json'
+import { existsSync } from 'fs'
 import { basename, resolve } from 'path'
 import { isCI } from 'ci-info'
 import { Command, Option } from 'commander'
@@ -26,7 +27,6 @@ import type {
   PackageManager,
   ResolvedCreateNextAppOptions,
 } from './types'
-import { existsSync } from 'fs'
 
 const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
