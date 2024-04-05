@@ -20,10 +20,9 @@ function writeIndividualFiles(packageList) {
 
     writeFile(
       join(packageTestDir, `${normalizedPackageName}.test.js`),
-      `
-    import { ecosystemPackageTest } from '../ecosystem-package-test'
-    ecosystemPackageTest('${packageName}')
-    `
+      `import { ecosystemPackageTest } from '../ecosystem-package-test'
+ecosystemPackageTest('${packageName}')
+`
     )
   }
 }
