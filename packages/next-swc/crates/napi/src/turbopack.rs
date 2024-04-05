@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;

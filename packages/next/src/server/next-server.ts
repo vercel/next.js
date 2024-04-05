@@ -12,7 +12,11 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type {
+  BaseNextRequest,
+  BaseNextResponse,
+  FetchMetric,
+} from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
@@ -58,7 +62,7 @@ import type {
   RouteHandler,
   NextEnabledDirectories,
 } from './base-server'
-import BaseServer, { NoFallbackError } from './base-server'
+import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -224,6 +228,10 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    if (!options.dev && this.nextConfig.experimental.preloadEntriesOnStart) {
+      this.unstable_preloadEntries()
+    }
+
     if (!options.dev) {
       const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {}
       this.dynamicRoutes = dynamicRoutes.map((r) => {
@@ -261,6 +269,32 @@ export default class NextNodeServer extends BaseServer {
       this.prepare().catch((err) => {
         console.error('Failed to prepare server', err)
       })
+    }
+  }
+
+  public async unstable_preloadEntries(): Promise<void> {
+    const appPathsManifest = this.getAppPathsManifest()
+    const pagesManifest = this.getPagesManifest()
+
+    for (const page of Object.keys(pagesManifest || {})) {
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: false,
+      }).catch(() => {})
+    }
+
+    for (const page of Object.keys(appPathsManifest || {})) {
+      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+        .then(async ({ ComponentMod }) => {
+          const webpackRequire = ComponentMod.__next_app__.require
+          if (webpackRequire?.m) {
+            for (const id of Object.keys(webpackRequire.m)) {
+              await webpackRequire(id)
+            }
+          }
+        })
+        .catch(() => {})
     }
   }
 
@@ -1091,54 +1125,43 @@ export default class NextNodeServer extends BaseServer {
       const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
 
       if (this.renderOpts.dev) {
-        const { bold, green, yellow, red, gray, white } =
+        const { blue, green, yellow, red, gray, white } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
-        const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
-        const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
         const origRes =
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
 
         const reqCallback = () => {
-          // if we already logged in a render worker
-          // don't log again in the router worker.
-          // we also don't log for middleware alone
-          if (
-            (normalizedReq as any).didInvokePath ||
-            origReq.headers['x-middleware-invoke']
-          ) {
-            return
-          }
+          // we don't log for non-route requests
+          const isRouteRequest = getRequestMeta(req).match
+          const isRSC = isRSCRequestCheck(req)
+          if (!isRouteRequest || isRSC) return
+
           const reqEnd = Date.now()
-          const fetchMetrics = (normalizedReq as any).fetchMetrics || []
+          const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
 
-          const getDurationStr = (duration: number) => {
-            let durationStr = duration.toString()
-
-            if (duration < 500) {
-              durationStr = green(duration + 'ms')
-            } else if (duration < 2000) {
-              durationStr = yellow(duration + 'ms')
-            } else {
-              durationStr = red(duration + 'ms')
-            }
-            return durationStr
+          const statusColor = (status?: number) => {
+            if (!status || status < 200) return white
+            else if (status < 300) return green
+            else if (status < 400) return blue
+            else if (status < 500) return yellow
+            return red
           }
 
-          if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
-            if (enabledVerboseLogging) {
-              writeStdoutLine(
-                `${white(bold(req.method || 'GET'))} ${req.url} ${
-                  res.statusCode
-                } in ${getDurationStr(reqDuration)}`
-              )
-            }
+          const color = statusColor(res.statusCode)
+          const method = req.method || 'GET'
+          writeStdoutLine(
+            `${method} ${req.url ?? ''} ${color(
+              (res.statusCode ?? 200).toString()
+            )} in ${reqDuration}ms`
+          )
 
+          if (fetchMetrics.length && enabledVerboseLogging) {
             const calcNestedLevel = (
-              prevMetrics: any[],
+              prevMetrics: FetchMetric[],
               start: number
             ): string => {
               let nestedLevel = 0
@@ -1154,7 +1177,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-              return nestedLevel === 0 ? ' ' : '  │ '.repeat(nestedLevel)
+              return nestedLevel === 0 ? ' ' : ' │ '.repeat(nestedLevel)
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1162,17 +1185,16 @@ export default class NextNodeServer extends BaseServer {
               let { cacheStatus, cacheReason } = metric
               let cacheReasonStr = ''
 
+              let cacheColor
               const duration = metric.end - metric.start
-
               if (cacheStatus === 'hit') {
-                cacheStatus = green('HIT')
-              } else if (cacheStatus === 'skip') {
-                cacheStatus = yellow('SKIP')
-                cacheReasonStr = gray(
-                  `Cache missed reason: (${white(cacheReason)})`
-                )
+                cacheColor = green
               } else {
-                cacheStatus = yellow('MISS')
+                cacheColor = yellow
+                const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
+                cacheReasonStr = gray(
+                  `Cache ${status} reason: (${white(cacheReason)})`
+                )
               }
               let url = metric.url
 
@@ -1199,44 +1221,28 @@ export default class NextNodeServer extends BaseServer {
                   truncatedSearch
               }
 
-              if (enabledVerboseLogging) {
-                const newLineLeadingChar = '│'
-                const nestedIndent = calcNestedLevel(
+              const status = cacheColor(`(cache ${cacheStatus})`)
+              const newLineLeadingChar = '│'
+              const nestedIndent = calcNestedLevel(
+                fetchMetrics.slice(0, i + 1),
+                metric.start
+              )
+
+              writeStdoutLine(
+                `${newLineLeadingChar}${nestedIndent}${white(
+                  metric.method
+                )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
+              )
+              if (cacheReasonStr) {
+                const nextNestedIndent = calcNestedLevel(
                   fetchMetrics.slice(0, i + 1),
                   metric.start
                 )
 
                 writeStdoutLine(
-                  ` ${`${newLineLeadingChar}${nestedIndent}${white(
-                    bold(metric.method)
-                  )} ${gray(url)} ${metric.status} in ${getDurationStr(
-                    duration
-                  )} (cache: ${cacheStatus})`}`
+                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}`
                 )
-                if (cacheReasonStr) {
-                  const nextNestedIndent = calcNestedLevel(
-                    fetchMetrics.slice(0, i + 1),
-                    metric.start
-                  )
-                  writeStdoutLine(
-                    ' ' +
-                      newLineLeadingChar +
-                      nextNestedIndent +
-                      ' ' +
-                      newLineLeadingChar +
-                      '  ' +
-                      cacheReasonStr
-                  )
-                }
               }
-            }
-          } else {
-            if (enabledVerboseLogging) {
-              writeStdoutLine(
-                `${white(bold(req.method || 'GET'))} ${req.url} ${
-                  res.statusCode
-                } in ${getDurationStr(reqDuration)}`
-              )
             }
           }
           origRes.off('close', reqCallback)
@@ -1910,7 +1916,7 @@ export default class NextNodeServer extends BaseServer {
     })
 
     if (result.fetchMetrics) {
-      ;(params.req as any).fetchMetrics = result.fetchMetrics
+      params.req.fetchMetrics = result.fetchMetrics
     }
 
     if (!params.res.statusCode || params.res.statusCode < 400) {

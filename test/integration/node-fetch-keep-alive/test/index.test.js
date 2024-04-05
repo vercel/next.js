@@ -38,31 +38,34 @@ describe('node-fetch-keep-alive', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      mockServer = createServer((req, res) => {
-        // we can test request headers by sending them
-        // back with the response
-        const { connection } = req.headers
-        res.end(JSON.stringify({ connection }))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        mockServer = createServer((req, res) => {
+          // we can test request headers by sending them
+          // back with the response
+          const { connection } = req.headers
+          res.end(JSON.stringify({ connection }))
+        })
+        mockServer.listen(44001)
+        const { stdout, stderr } = await nextBuild(appDir, [], {
+          stdout: true,
+          stderr: true,
+        })
+        if (stdout) console.log(stdout)
+        if (stderr) console.error(stderr)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
       })
-      mockServer.listen(44001)
-      const { stdout, stderr } = await nextBuild(appDir, [], {
-        stdout: true,
-        stderr: true,
+      afterAll(async () => {
+        await killApp(app)
+        mockServer.close()
       })
-      if (stdout) console.log(stdout)
-      if (stderr) console.error(stderr)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      mockServer.close()
-    })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 
   function runTests() {
     it('should send keep-alive for json API', async () => {

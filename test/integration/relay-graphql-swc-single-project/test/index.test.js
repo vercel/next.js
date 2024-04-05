@@ -31,26 +31,32 @@ const runRelayCompiler = () => {
 }
 
 describe('Relay Compiler Transform - Single Project Config', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      runRelayCompiler()
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, { cwd: appDir })
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        runRelayCompiler()
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, { cwd: appDir })
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      runRelayCompiler()
-      await nextBuild(appDir, [], { cwd: appDir })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        runRelayCompiler()
+        await nextBuild(appDir, [], { cwd: appDir })
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
 
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

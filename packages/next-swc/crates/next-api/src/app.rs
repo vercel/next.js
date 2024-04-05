@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use indexmap::IndexSet;
 use next_core::{
     all_assets_from_entries,
+    app_segment_config::NextSegmentConfig,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
         MetadataItem,
@@ -19,6 +20,7 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_client_reference::{ClientReferenceGraph, NextEcmascriptClientReferenceTransition},
+    next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
@@ -30,6 +32,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    parse_segment_config_from_source,
     util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
@@ -522,11 +525,15 @@ pub fn app_entry_point_to_route(
                 })
                 .collect(),
         ),
-        AppEntrypoint::AppRoute { page, path } => Route::AppRoute {
+        AppEntrypoint::AppRoute {
+            page,
+            path,
+            root_layouts,
+        } => Route::AppRoute {
             original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route { path },
+                    ty: AppEndpointType::Route { path, root_layouts },
                     app_project,
                     page,
                 }
@@ -562,6 +569,7 @@ enum AppEndpointType {
     },
     Route {
         path: Vc<FileSystemPath>,
+        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -590,19 +598,44 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn app_route_entry(&self, path: Vc<FileSystemPath>) -> Vc<AppEntry> {
-        get_app_route_entry(
+    async fn app_route_entry(
+        &self,
+        path: Vc<FileSystemPath>,
+        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        next_config: Vc<NextConfig>,
+    ) -> Result<Vc<AppEntry>> {
+        let root_layouts = root_layouts.await?;
+        let config = if root_layouts.is_empty() {
+            None
+        } else {
+            let mut config = NextSegmentConfig::default();
+
+            for layout in root_layouts.iter().rev() {
+                let source = Vc::upcast(FileSource::new(*layout));
+                let layout_config = parse_segment_config_from_source(source);
+                config.apply_parent_config(&*layout_config.await?);
+            }
+
+            Some(config.cell())
+        };
+
+        Ok(get_app_route_entry(
             self.app_project.route_module_context(),
             self.app_project.edge_route_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.page.clone(),
             self.app_project.project().project_path(),
-            None,
-        )
+            config,
+            next_config,
+        ))
     }
 
     #[turbo_tasks::function]
-    async fn app_metadata_entry(&self, metadata: MetadataItem) -> Result<Vc<AppEntry>> {
+    async fn app_metadata_entry(
+        &self,
+        metadata: MetadataItem,
+        next_config: Vc<NextConfig>,
+    ) -> Result<Vc<AppEntry>> {
         Ok(get_app_metadata_route_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
@@ -610,6 +643,7 @@ impl AppEndpoint {
             self.page.clone(),
             *self.app_project.project().next_mode().await?,
             metadata,
+            next_config,
         ))
     }
 
@@ -622,6 +656,7 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
+        let next_config = self.await?.app_project.project().next_config();
         let (app_entry, process_client, process_ssr) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
@@ -631,9 +666,13 @@ impl AppEndpoint {
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false),
+            AppEndpointType::Route { path, root_layouts } => (
+                self.app_route_entry(path, root_layouts, next_config),
+                false,
+                false,
+            ),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), false, false)
+                (self.app_metadata_entry(metadata, next_config), false, false)
             }
         };
 
