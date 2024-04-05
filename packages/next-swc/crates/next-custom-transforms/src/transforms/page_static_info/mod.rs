@@ -207,7 +207,7 @@ pub fn collect_rsc_module_info(
 ///
 /// Returns a map of the extracted values, or either contains corresponding
 /// error.
-pub fn extract_expored_const_values(
+pub fn extract_exported_const_values(
     source_ast: &Program,
     properties_to_extract: HashSet<String>,
 ) -> HashMap<String, Option<Const>> {

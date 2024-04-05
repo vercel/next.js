@@ -150,6 +150,12 @@ function navigateReducer_noPPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
       const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
@@ -170,7 +176,7 @@ function navigateReducer_noPPR(
           flightSegmentPathWithLeadingEmpty,
           currentTree,
           treePatch,
-          url.pathname
+          href
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
@@ -181,7 +187,7 @@ function navigateReducer_noPPR(
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
             treePatch,
-            url.pathname
+            href
           )
         }
 
@@ -318,6 +324,12 @@ function navigateReducer_PPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
       const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
@@ -342,7 +354,7 @@ function navigateReducer_PPR(
           flightSegmentPathWithLeadingEmpty,
           currentTree,
           treePatch,
-          url.pathname
+          href
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
@@ -353,7 +365,7 @@ function navigateReducer_PPR(
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
             treePatch,
-            url.pathname
+            href
           )
         }
 

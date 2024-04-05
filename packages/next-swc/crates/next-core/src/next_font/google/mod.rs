@@ -45,7 +45,8 @@ use self::{
 use super::{
     font_fallback::FontFallback,
     util::{
-        get_request_hash, get_request_id, get_scoped_font_family, FontCssProperties, FontFamilyType,
+        can_use_next_font, get_request_hash, get_request_id, get_scoped_font_family,
+        FontCssProperties, FontFamilyType,
     },
 };
 use crate::{
@@ -163,7 +164,12 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        Ok(self.import_map_result(query.await?.to_string()))
+        let this = &*self.await?;
+        if can_use_next_font(this.project_path, *query).await? {
+            Ok(self.import_map_result(query.await?.to_string()))
+        } else {
+            Ok(ImportMapResult::NoEntry.into())
+        }
     }
 }
 
@@ -231,7 +237,13 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?
                 .clone_value(),
             ),
-            None => None,
+            None => {
+                println!(
+                    "Failed to download `{}` from Google Fonts. Using fallback font instead.",
+                    options.await?.font_family
+                );
+                None
+            }
         };
 
         let css_asset = VirtualSource::new(
