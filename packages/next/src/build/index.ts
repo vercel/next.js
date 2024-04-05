@@ -338,14 +338,17 @@ async function writePrerenderManifest(
   manifest: Readonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeEdgePartialPrerenderManifest(distDir, manifest)
 }
 
 async function writeEdgePartialPrerenderManifest(
-  distDir: string
+  distDir: string,
+  manifest: Readonly<PrerenderManifest>
 ): Promise<void> {
   // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
   // Use env vars in JS bundle and inject the actual vars to edge manifest.
-  const edgePartialPrerenderManifest: Partial<PrerenderManifest> = {
+  const edgePartialPrerenderManifest: PrerenderManifest = {
+    ...manifest,
     preview: {
       previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
       previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',

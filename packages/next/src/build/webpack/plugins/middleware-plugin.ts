@@ -227,10 +227,8 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
+        environments: opts.edgeEnvironments,
         ...(metadata.regions && { regions: metadata.regions }),
-        ...(isEdgeFunction && {
-          environments: opts.edgeEnvironments,
-        }),
       }
 
       if (isEdgeFunction) {
