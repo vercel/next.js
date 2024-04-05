@@ -1,6 +1,11 @@
 import { join } from 'path'
 import { check } from 'next-test-utils'
-import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
+import {
+  createNextApp,
+  projectFilesShouldExist,
+  projectFilesShouldNotExist,
+  useTempDir,
+} from './utils'
 
 let testVersion
 beforeAll(async () => {
@@ -308,6 +313,47 @@ describe('create-next-app prompts', () => {
           () => output,
           /The preferences have been reset successfully/
         )
+      })
+    })
+  })
+
+  it('should not create app if --dry-run', async () => {
+    const projectName = 'dry-run'
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--dry-run',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+      await new Promise<void>(async (resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldNotExist({
+            cwd,
+            projectName,
+            files: ['package.json'],
+          })
+          resolve()
+        })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        await check(() => output, /Running a dry run, skipping installation/)
+
+        // enter project name
+        childProcess.stdin.write(`${projectName}\n`)
       })
     })
   })
