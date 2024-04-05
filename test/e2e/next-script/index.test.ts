@@ -1,6 +1,6 @@
 import webdriver from 'next-webdriver'
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
 import { check } from 'next-test-utils'
 
