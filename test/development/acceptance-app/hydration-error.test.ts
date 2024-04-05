@@ -455,10 +455,11 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <p>
-          ^^^
-            <div>
-            ^^^^^"
+          <div>
+            <p>
+            ^^^
+              <div>
+              ^^^^^"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
