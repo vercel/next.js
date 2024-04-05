@@ -19,7 +19,7 @@ beforeEach(async () => {
 describe('create-next-app with package manager bun', () => {
   it('should use bun for --use-bun flag', async () => {
     await useTempDir(async (cwd) => {
-      const projectName = 'use-bun'
+      const projectName = 'use-bun-flag'
       const res = await run(
         [
           projectName,
@@ -44,66 +44,111 @@ describe('create-next-app with package manager bun', () => {
       })
     })
   })
-})
 
-it('should use bun when user-agent is bun', async () => {
-  await useTempDir(async (cwd) => {
-    const projectName = 'user-agent-bun'
-    const res = await run(
-      [
+  it('should use bun for --use bun', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--use=bun',
+          '--no-eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
         projectName,
-        '--ts',
-        '--app',
-        '--no-eslint',
-        '--no-src-dir',
-        '--no-tailwind',
-        '--no-import-alias',
-      ],
-      {
+        files,
+      })
+    })
+  })
+
+  it('should use bun when user-agent is bun', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'user-agent-bun'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+          env: { npm_config_user_agent: 'bun' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use bun for --use-bun flag with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun-flag-with-example'
+      const res = await run(
+        [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use bun for --use bun with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun-with-example'
+      const res = await run(
+        [projectName, '--use=bun', '--example', FULL_EXAMPLE_PATH],
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use bun when user-agent is bun with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'user-agent-bun-with-example'
+      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
         cwd,
         env: { npm_config_user_agent: 'bun' },
-      }
-    )
+      })
 
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({
-      cwd,
-      projectName,
-      files,
-    })
-  })
-})
-
-it('should use bun for --use-bun flag with example', async () => {
-  await useTempDir(async (cwd) => {
-    const projectName = 'use-bun-with-example'
-    const res = await run(
-      [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
-      { cwd }
-    )
-
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({
-      cwd,
-      projectName,
-      files,
-    })
-  })
-})
-
-it('should use bun when user-agent is bun with example', async () => {
-  await useTempDir(async (cwd) => {
-    const projectName = 'user-agent-bun-with-example'
-    const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
-      cwd,
-      env: { npm_config_user_agent: 'bun' },
-    })
-
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({
-      cwd,
-      projectName,
-      files,
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
     })
   })
 })
