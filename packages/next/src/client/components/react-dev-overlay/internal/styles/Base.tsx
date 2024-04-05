@@ -21,6 +21,7 @@ export function Base() {
           --color-font: #757575;
           --color-backdrop: rgba(17, 17, 17, 0.2);
 
+          --color-title-color: #1f1f1f;
           --color-stack-h6: #222;
           --color-stack-headline: #666;
           --color-stack-subline: #999;
@@ -64,6 +65,7 @@ export function Base() {
             --color-font: white;
             --color-backdrop: rgb(44, 44, 46);
 
+            --color-title-color: #fafafa;
             --color-stack-h6: rgb(200, 200, 204);
             --color-stack-headline: rgb(99, 99, 102);
             --color-stack-subline: rgb(121, 121, 121);

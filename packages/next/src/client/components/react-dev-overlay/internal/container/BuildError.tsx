@@ -64,8 +64,6 @@ export const styles = css`
   .nextjs-container-errors-header p {
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
-    margin: 0;
-    margin-top: var(--size-gap);
     white-space: pre-wrap;
   }
   .nextjs-container-errors-body footer {

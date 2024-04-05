@@ -317,7 +317,8 @@ export const styles = css`
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
-    margin: var(--size-gap-double) 0;
+    margin: calc(var(--size-gap-double) * 1.5) 0;
+    color: var(--color-title-h1);
   }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
@@ -330,8 +331,6 @@ export const styles = css`
   .nextjs-container-errors-header p {
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
-    margin: 0;
-    margin-top: var(--size-gap);
     white-space: pre-wrap;
   }
   .nextjs__container_errors_desc {
@@ -346,8 +345,7 @@ export const styles = css`
   p.nextjs__container_errors__notes {
     margin: var(--size-gap-double) auto;
     color: var(--color-stack-headline);
-    font-family: var(--font-stack-sans);
-    font-weight: bold;
+    font-weight: 600;
     font-size: 15px;
   }
   .nextjs-container-errors-header > div > small {
@@ -362,6 +360,7 @@ export const styles = css`
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
   .nextjs-container-errors-body > h2 {
+    color: var(--color-title-color);
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
