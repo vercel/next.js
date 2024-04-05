@@ -236,7 +236,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     experimental: z
       .strictObject({
         appDocumentPreloading: z.boolean().optional(),
-        allServerChunksPreloading: z.boolean().optional(),
+        preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
