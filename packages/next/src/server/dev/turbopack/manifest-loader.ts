@@ -61,6 +61,7 @@ async function readPartialManifest<T>(
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
+  console.log('readPartialManifest: ', distDir, name, pageName, type)
   const manifestPath = posix.join(
     distDir,
     `server`,
@@ -376,6 +377,7 @@ export class TurbopackManifestLoader {
     pageName: string,
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
+    console.log('loadFontManifest: ', pageName, type)
     this.fontManifests.set(
       getEntryKey(type, 'server', pageName),
       await readPartialManifest(
@@ -395,6 +397,7 @@ export class TurbopackManifestLoader {
       pagesUsingSizeAdjust: false,
     }
     for (const m of manifests) {
+      console.log('manifest: ', m)
       Object.assign(manifest.app, m.app)
       Object.assign(manifest.pages, m.pages)
 
