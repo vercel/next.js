@@ -152,6 +152,7 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
+          edgePreviewProps: NextBuildContext.previewProps!,
           ...info,
         }),
       ])

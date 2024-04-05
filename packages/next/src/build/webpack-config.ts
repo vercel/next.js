@@ -320,6 +320,7 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
+    edgePreviewProps,
   }: {
     buildId: string
     encryptionKey: string
@@ -340,6 +341,7 @@ export default async function getBaseWebpackConfig(
     jsConfig: any
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
+    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -1821,6 +1823,7 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
+          edgeEnvironments: edgePreviewProps || {},
         }),
       isClient &&
         new BuildManifestPlugin({

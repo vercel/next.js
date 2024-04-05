@@ -45,10 +45,11 @@ export interface EdgeFunctionDefinition {
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
   regions?: string[] | string
+  environments?: Record<string, string>
 }
 
 export interface MiddlewareManifest {
-  version: 2
+  version: 3
   sortedMiddleware: string[]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
@@ -154,10 +155,10 @@ function getCreateAssets(params: {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
     const middlewareManifest: MiddlewareManifest = {
-      sortedMiddleware: [],
+      version: 3,
       middleware: {},
       functions: {},
-      version: 2,
+      sortedMiddleware: [],
     }
 
     const hasInstrumentationHook = compilation.entrypoints.has(
@@ -206,6 +207,7 @@ function getCreateAssets(params: {
         },
       ]
 
+      const isEdgeFunction = !!(metadata.edgeApiFunction || metadata.edgeSSR)
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         files: getEntryFiles(
           entrypoint.getFiles(),
@@ -225,9 +227,12 @@ function getCreateAssets(params: {
           filePath,
         })),
         ...(metadata.regions && { regions: metadata.regions }),
+        ...(isEdgeFunction && {
+          environments: opts.edgeEnvironments,
+        }),
       }
 
-      if (metadata.edgeApiFunction || metadata.edgeSSR) {
+      if (isEdgeFunction) {
         middlewareManifest.functions[page] = edgeFunctionDefinition
       } else {
         middlewareManifest.middleware[page] = edgeFunctionDefinition
@@ -739,17 +744,20 @@ interface Options {
   dev: boolean
   sriEnabled: boolean
   rewrites: CustomRoutes['rewrites']
+  edgeEnvironments: Record<string, string>
 }
 
 export default class MiddlewarePlugin {
   private readonly dev: Options['dev']
   private readonly sriEnabled: Options['sriEnabled']
   private readonly rewrites: Options['rewrites']
+  private readonly edgeEnvironments: Record<string, string>
 
-  constructor({ dev, sriEnabled, rewrites }: Options) {
+  constructor({ dev, sriEnabled, rewrites, edgeEnvironments }: Options) {
     this.dev = dev
     this.sriEnabled = sriEnabled
     this.rewrites = rewrites
+    this.edgeEnvironments = edgeEnvironments
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -795,6 +803,7 @@ export default class MiddlewarePlugin {
           opts: {
             sriEnabled: this.sriEnabled,
             rewrites: this.rewrites,
+            edgeEnvironments: this.edgeEnvironments,
           },
         })
       )
