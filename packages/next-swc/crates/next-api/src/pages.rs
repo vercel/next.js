@@ -33,8 +33,7 @@ use turbo_tasks::{
 };
 use turbopack_binding::{
     turbo::tasks_fs::{
-        File, FileContent, FileSystem, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
-        VirtualFileSystem,
+        File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
     },
     turbopack::{
         core::{
