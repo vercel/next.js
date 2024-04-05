@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import { UpdateSearchParamsButton } from '../components/UpdateSearchParamsButton'
 
-export default function Home() {
+export default function Home({ searchParams }) {
   return (
     <main>
       <Link href="/refreshing/login">
@@ -9,6 +10,7 @@ export default function Home() {
       <div>
         Random # from Root Page: <span id="random-number">{Math.random()}</span>
       </div>
+      <UpdateSearchParamsButton searchParams={searchParams} />
     </main>
   )
 }
