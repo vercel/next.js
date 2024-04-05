@@ -65,6 +65,7 @@ interface EntryMetadata {
 }
 
 const NAME = 'MiddlewarePlugin'
+const MANIFEST_VERSION = 3
 
 /**
  * Checks the value of usingIndirectEval and when it is a set of modules it
@@ -155,7 +156,7 @@ function getCreateAssets(params: {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
     const middlewareManifest: MiddlewareManifest = {
-      version: 3,
+      version: MANIFEST_VERSION,
       middleware: {},
       functions: {},
       sortedMiddleware: [],

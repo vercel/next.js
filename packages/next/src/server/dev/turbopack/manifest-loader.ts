@@ -505,7 +505,7 @@ export class TurbopackManifestLoader {
     manifests: Iterable<TurbopackMiddlewareManifest>
   ): MiddlewareManifest {
     const manifest: MiddlewareManifest = {
-      version: 2,
+      version: 3,
       middleware: {},
       sortedMiddleware: [],
       functions: {},
