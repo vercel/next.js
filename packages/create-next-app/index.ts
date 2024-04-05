@@ -26,6 +26,7 @@ import type {
   PackageManager,
   ResolvedCreateNextAppOptions,
 } from './types'
+import { existsSync } from 'fs'
 
 const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
@@ -213,7 +214,7 @@ async function run(): Promise<void> {
   }
 
   // Verify the project dir is empty or doesn't exist
-  if (!isFolderEmpty(appPath, appName)) {
+  if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 

@@ -4,8 +4,6 @@ import fs from 'fs'
 import path from 'path'
 
 export function isFolderEmpty(root: string, name: string): boolean {
-  if (!fs.existsSync(root)) return true
-
   const validFiles = [
     '.DS_Store',
     '.git',
