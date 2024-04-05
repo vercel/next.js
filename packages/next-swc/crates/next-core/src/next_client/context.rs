@@ -1,5 +1,3 @@
-use core::result::Result::Ok;
-
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
@@ -295,6 +293,7 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         enable_postcss_transform,
+        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
 

@@ -85,7 +85,6 @@ pub struct NextConfig {
     pub output: Option<OutputType>,
     pub analytics_id: Option<String>,
 
-    ///
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -864,10 +863,8 @@ impl NextConfig {
             "{}/_next/",
             if let Some(asset_prefix) = &this.asset_prefix {
                 asset_prefix
-            } else if let Some(base_path) = &this.base_path {
-                base_path
             } else {
-                ""
+                this.base_path.as_ref().map_or("", |b| b.as_str())
             }
             .trim_end_matches('/')
         ))))
@@ -892,6 +889,17 @@ impl NextConfig {
                 .as_ref()
                 .and_then(|turbo| turbo.use_swc_css)
                 .unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .optimize_package_imports
+                .clone()
+                .unwrap_or_default(),
         ))
     }
 }
