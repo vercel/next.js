@@ -19,14 +19,16 @@ export const HotlinkedText: React.FC<{
   return (
     <>
       {wordsAndWhitespaces.map((word, index) => {
-        if (
-          linkRegex.test(word) &&
-          (typeof matcher === 'function' ? matcher(word) : true)
-        ) {
+        if (linkRegex.test(word)) {
           const link = linkRegex.exec(word)!
+          const href = link[0]
+          // If link matcher is present but the link doesn't match, don't turn it into a link
+          if (typeof matcher === 'function' && !matcher(href)) {
+            return word
+          }
           return (
             <React.Fragment key={`link-${index}`}>
-              <a href={link[0]} target="_blank" rel="noreferrer noopener">
+              <a href={href} target="_blank" rel="noreferrer noopener">
                 {word}
               </a>
             </React.Fragment>
