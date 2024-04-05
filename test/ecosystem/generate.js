@@ -15,7 +15,7 @@ function writeIndividualFiles(packageList) {
   for (const packageName of packageList) {
     const normalizedPackageName = normalizePackageName(packageName)
 
-    const packageTestDir = join(__dirname, normalizedPackageName)
+    const packageTestDir = join(__dirname, 'packages', normalizedPackageName)
     fs.rmSync(packageTestDir, { force: true, recursive: true })
 
     writeFile(
