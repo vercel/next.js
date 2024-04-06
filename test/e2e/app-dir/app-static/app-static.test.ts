@@ -61,6 +61,34 @@ createNextDescribe(
         )
       })
 
+      it('should infer a fetchCache of force-no-store when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/no-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/no-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).not.toBe(initData)
+        })
+      })
+
+      it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/with-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/with-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).toBe(initData)
+        })
+      })
+
       if (!process.env.CUSTOM_CACHE_HANDLER) {
         it('should honor force-static with fetch cache: no-store correctly', async () => {
           const res = await next.fetch('/force-static-fetch-no-store')
@@ -624,6 +652,10 @@ createNextDescribe(
             "force-cache/page_client-reference-manifest.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
             "force-dynamic-no-prerender/[id]/page.js",
             "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
             "force-dynamic-prerender/[slug]/page.js",
