@@ -55,5 +55,14 @@ createNextDescribe(
       const newRandom = await browser.elementById('random').text()
       expect(initialRandom).toBe(newRandom)
     })
+
+    it("shouldn't rerender when updating window.history.state", async () => {
+      const browser = await next.browser('/rerenders/foobar')
+      const initialRandom = await browser.elementById('random').text()
+      const button = await browser.elementByCss('#replace-history')
+      await button.click()
+      const newRandom = await browser.elementById('random').text()
+      expect(initialRandom).toBe(newRandom)
+    })
   }
 )
