@@ -2,7 +2,9 @@ name: Sync Popular Issues with Notion
 
 on:
   schedule:
-    - cron: '0 13 * * 1' # Every Monday at 1PM UTC (9AM EST)
+    # once a week on Sunday at 00:00
+    - cron: '0 0 * * SUN'
+
   workflow_dispatch:
 
 jobs:
