@@ -1,7 +1,6 @@
 import { context, getOctokit } from '@actions/github'
 import { info, getInput } from '@actions/core'
 const { default: stripAnsi } = require('strip-ansi')
-const { default: nodeFetch } = require('node-fetch')
 const fs = require('fs')
 const path = require('path')
 const semver = require('semver')
@@ -43,7 +42,7 @@ async function findNextJsVersionFromBuildLogs(
   )
 
   // fetch the actual logs
-  const jobLogsResponse = await nodeFetch(jobLogRedirectResponse.url, {
+  const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
     headers: {
       Accept: 'application/vnd.github.v3+json',
       // [NOTE] we used to attach auth token, but seems this can cause 403
@@ -83,8 +82,7 @@ async function fetchJobLogsFromWorkflow(
   job: Job
 ): Promise<{ logs: string; job: Job }> {
   console.log(
-    'fetchJobLogsFromWorkflow: Checking test results for the job ',
-    job.name
+    `fetchJobLogsFromWorkflow ${job.name}: Checking test results for the job`
   )
 
   // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
@@ -96,17 +94,20 @@ async function fetchJobLogsFromWorkflow(
     })
 
   console.log(
-    'fetchJobLogsFromWorkflow: Trying to get logs from redirect url ',
-    jobLogRedirectResponse.url
+    `fetchJobLogsFromWorkflow ${job.name}: Trying to get logs from redirect url ${jobLogRedirectResponse.url}`
   )
 
   // fetch the actual logs
-  const jobLogsResponse = await nodeFetch(jobLogRedirectResponse.url, {
+  const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
     headers: {
       Accept: 'application/vnd.github.v3+json',
       //Authorization: `token ${token}`,
     },
   })
+
+  console.log(
+    `fetchJobLogsFromWorkflow ${job.name}: Logs response status ${jobLogsResponse.status}`
+  )
 
   if (!jobLogsResponse.ok) {
     throw new Error(
@@ -284,6 +285,8 @@ async function getJobResults(
       fetchJobLogsFromWorkflow(octokit, token, job)
     )
   )
+
+  console.log('Logs downloaded for all jobs')
 
   const testResultManifest: TestResultManifest = {
     nextjsVersion,
