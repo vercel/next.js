@@ -172,6 +172,15 @@ For more Suspense examples and use cases, please see the [React Documentation](h
 
 - Next.js will wait for data fetching inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) to complete before streaming UI to the client. This guarantees the first part of a streamed response includes `<head>` tags.
 - Since streaming is server-rendered, it does not impact SEO. You can use the [Rich Results Test](https://search.google.com/test/rich-results) tool from Google to see how your page appears to Google's web crawlers and view the serialized HTML ([source](https://web.dev/rendering-on-the-web/#seo-considerations)).
+- When using loading.js and Suspense, the page content is split into two phases:
+  - **Preview Phase:** In this phase, the initial content (such as a skeleton or "loading" text) is rendered on the server-side by fallback or loading.js.
+  - **Loading Phase:** In this phase, the main content is fetched from the server using JavaScript and replaces the initial content.
+  
+  **Important Note:**
+  Search engines that do not support JavaScript will only see the content from the preview phase. Therefore, if your SEO-critical content is loaded in the loading phase, you must also include it in fallback or loading.js to be visible to search engines.
+  
+  **Example:**
+  Suppose your main page content consists of a product list. If you want this list to appear in search results, you must also include the code for the list in fallback or loading.js.
 
 ### Status Codes
 
