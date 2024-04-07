@@ -210,7 +210,7 @@ function logDynamicUsageWarning({
   stack?: string
 }): void {
   if (!debugOutput) {
-    warn('Dynamic usage detected. Use `next build --debug` for details.')
+    warn('Dynamic usage error detected. Use `next build --debug` for details.')
     return
   }
 
