@@ -1,0 +1,24 @@
+name: Sync Popular Issues with Notion
+
+on:
+  schedule:
+    - cron: '0 13 * * 1' # Every Monday at 1PM UTC (9AM EST)
+  workflow_dispatch:
+
+jobs:
+  popular-prs:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: corepack enable
+      - run: cd .github/actions/notion-popular-issues-sync && npm install
+      - name: 'run notion-db-sync'
+        run: node ./.github/actions/notion-db-sync/index.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}

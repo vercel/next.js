@@ -1,0 +1,14 @@
+{
+  "name": "notion-db-sync",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@notionhq/client": "^2.2.14"
+  }
+}
