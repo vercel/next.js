@@ -753,7 +753,7 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
         .call(document.querySelectorAll('nextjs-portal'))
         .find((p) =>
           p.shadowRoot.querySelector(
-            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+            '#nextjs__container_errors_label, #nextjs__container_errors_label'
           )
         )
     )
@@ -811,7 +811,7 @@ export async function getRedboxSource(browser: BrowserInterface) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_errors_label'
             )
           )
         const root = portal.shadowRoot
@@ -858,7 +858,7 @@ export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
           )
         const root = portal.shadowRoot
         const text = root.querySelector(
-          '#nextjs__container_errors__extra'
+          '#nextjs__container_errors__notes'
         )?.innerText
         return text
       }),

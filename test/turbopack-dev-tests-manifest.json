@@ -809,6 +809,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/shared/lib/router/utils/parse-relative-url.test.ts": {
+    "passed": [
+      "query parsing should parse query string",
+      "relative urls should return valid pathname",
+      "relative urls should throw for invalid pathname"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/shared/lib/router/utils/route-regex.test.ts": {
     "passed": [
       "getNamedRouteRegex should handle interception markers adjacent to dynamic path segments",
@@ -2413,7 +2424,8 @@
   },
   "test/e2e/app-dir/app-basepath-custom-server/index.test.ts": {
     "passed": [
-      "custom-app-server-action-redirect redirects with basepath properly when server action handler uses `redirect`"
+      "custom-app-server-action-redirect redirects with basepath properly when server action handler uses `redirect`",
+      "custom-app-server-action-redirect redirects with proper cookies set from both redirect response and post respose"
     ],
     "failed": [],
     "pending": [],
@@ -4112,7 +4124,8 @@
       "app dir - not found with default 404 page should error on client notFound from root layout in browser",
       "app dir - not found with default 404 page should error on server notFound from root layout on server-side",
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
-      "app dir - not found with default 404 page should render default not found for group routes if not found is not defined"
+      "app dir - not found with default 404 page should render default not found for group routes if not found is not defined",
+      "app dir - not found with default 404 page should return 404 status code for default not-found page"
     ],
     "failed": [],
     "pending": [],
@@ -4122,6 +4135,7 @@
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
       "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
+      "app dir - not-found - basic should return 404 status code for custom not-found page",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with default runtime should not reload the page",
@@ -4338,10 +4352,14 @@
   },
   "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
     "passed": [
-      "parallel-routes-revalidation router.refresh (dynamic) should correctly refresh data for previously intercepted modal and active page slot",
-      "parallel-routes-revalidation router.refresh (dynamic) should correctly refresh data for the intercepted route and previously active page slot",
-      "parallel-routes-revalidation router.refresh (regular) should correctly refresh data for previously intercepted modal and active page slot",
-      "parallel-routes-revalidation router.refresh (regular) should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+      "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+      "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
       "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
@@ -5246,16 +5264,6 @@
       "useSelectedLayoutSegment(s) should return correct values in layout before catchall segment",
       "useSelectedLayoutSegment(s) should return correct values in layout before param segment",
       "useSelectedLayoutSegment(s) should return correct values in layout before static segment"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
-    "passed": [
-      "webpack-loader-conditions should render correctly on client side",
-      "webpack-loader-conditions should render correctly on server site"
     ],
     "failed": [],
     "pending": [],
