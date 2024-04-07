@@ -168,7 +168,7 @@ export function createPrefetchCacheEntryForInitialLoad({
     data: Promise.resolve(data),
     kind,
     prefetchTime: Date.now(),
-    lastUsedTime: null,
+    lastUsedTime: Date.now(),
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
   }
