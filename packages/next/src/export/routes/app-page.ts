@@ -3,12 +3,14 @@ import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
-
+import type { StaticGenerationContext } from '../../server/async-storage/static-generation-async-storage-wrapper'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
+import { warn } from '../../build/output/log'
 import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
@@ -75,8 +77,9 @@ export async function exportAppPage(
       }
       const { staticBailoutInfo = {} } = metadata
 
-      if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
+      if (revalidate === 0 && staticBailoutInfo?.description) {
         logDynamicUsageWarning({
+          debugOutput,
           path,
           description: staticBailoutInfo.description,
           stack: staticBailoutInfo.stack,
@@ -181,30 +184,36 @@ export async function exportAppPage(
       throw err
     }
 
-    if (debugOutput) {
-      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
-        .store
+    const { store = {} as StaticGenerationStore } =
+      renderOpts as StaticGenerationContext['renderOpts']
 
-      logDynamicUsageWarning({
-        path,
-        description: dynamicUsageDescription,
-        stack: dynamicUsageStack,
-      })
-    }
+    logDynamicUsageWarning({
+      debugOutput,
+      path,
+      description: store.dynamicUsageDescription,
+      stack: store.dynamicUsageStack,
+    })
 
     return { revalidate: 0 }
   }
 }
 
 function logDynamicUsageWarning({
+  debugOutput = false,
   path,
   description,
   stack,
 }: {
+  debugOutput: boolean
   path: string
-  description: string
+  description?: string
   stack?: string
-}) {
+}): void {
+  if (!debugOutput) {
+    warn('Dynamic usage detected. Use `next build --debug` for details.')
+    return
+  }
+
   const errMessage = new Error(
     `Static generation failed due to dynamic usage on ${path}, reason: ${description}`
   )
@@ -213,5 +222,5 @@ function logDynamicUsageWarning({
     errMessage.stack = errMessage.message + stack.substring(stack.indexOf('\n'))
   }
 
-  console.warn(errMessage)
+  warn(errMessage)
 }
