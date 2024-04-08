@@ -188,7 +188,9 @@ impl Environment {
                 Vc::cell(vec!["node".to_string()])
             }
             ExecutionEnvironment::Browser(_) => Vc::<Vec<String>>::default(),
-            ExecutionEnvironment::EdgeWorker(_) => Vc::cell(vec!["edge-worker".to_string()]),
+            ExecutionEnvironment::EdgeWorker(_) => {
+                Vc::cell(vec!["edge-light".to_string(), "worker".to_string()])
+            }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
