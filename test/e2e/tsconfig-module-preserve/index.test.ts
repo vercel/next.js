@@ -8,7 +8,7 @@ describe('tsconfig module: preserve', () => {
       'tsconfig.json': JSON.stringify({
         compilerOptions: { module: 'preserve' },
       }),
-      'pages/index.js': `
+      'pages/index.tsx': `
         export default function Page() { 
           return <p>hello world</p>
         } 
@@ -20,10 +20,7 @@ describe('tsconfig module: preserve', () => {
   })
 
   it('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
-    let output = stripAnsi(next.cliOutput)
-    expect(output).not.toContain('moduleResolution')
-    expect(output).not.toContain('esModuleInterop')
-    expect(output).not.toContain('resolveJsonModule')
+    let output = ''
 
     await retry(() => {
       output = stripAnsi(next.cliOutput)
@@ -31,6 +28,10 @@ describe('tsconfig module: preserve', () => {
         'The following mandatory changes were made to your tsconfig.json'
       )
     })
+
+    expect(output).not.toContain('moduleResolution')
+    expect(output).not.toContain('esModuleInterop')
+    expect(output).not.toContain('resolveJsonModule')
 
     expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
       "{
