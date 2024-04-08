@@ -45,6 +45,7 @@ pub(crate) async fn create_font_manifest(
 
     let has_fonts = !font_paths.is_empty();
     let using_size_adjust = font_paths.iter().any(|path| path.contains("-s"));
+
     let font_paths = font_paths
         .into_iter()
         .filter(|path| path.contains(".p."))
