@@ -32,6 +32,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import type ws from 'next/dist/compiled/ws'
+import isInternal from '../../shared/lib/is-internal'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -108,7 +109,13 @@ export function formatIssue(issue: Issue) {
   }
   message += '\n'
 
-  if (source?.range && source.source.content) {
+  if (
+    source?.range &&
+    source.source.content &&
+    // ignore node_modules or Next.js/React internals, as these can often be huge bundled files.
+    !filePath.includes('node_modules') &&
+    !isInternal(filePath)
+  ) {
     const { start, end } = source.range
     const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
 
