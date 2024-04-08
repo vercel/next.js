@@ -453,5 +453,7 @@ pub async fn parse_segment_config_from_loader_tree(
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 
+    vdbg!(&config);
+
     Ok(config.cell())
 }

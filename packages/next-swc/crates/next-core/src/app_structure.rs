@@ -543,6 +543,7 @@ async fn add_app_page(
     page: AppPage,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
+    vdbg!(&app_dir, &page, &loader_tree);
     let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
@@ -726,6 +727,7 @@ async fn directory_tree_to_loader_tree(
         return Ok(Vc::cell(None));
     }
 
+    vdbg!(directory_tree);
     let directory_tree = &*directory_tree.await?;
     let mut components = directory_tree.components.await?.clone_value();
 
