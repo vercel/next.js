@@ -710,18 +710,47 @@ fn directory_tree_to_entrypoints(
     )
 }
 
+#[turbo_tasks::value]
+struct DuplciateParallelRouteIssue {
+    app_dir: Vc<FileSystemPath>,
+    page: AppPage,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for DuplciateParallelRouteIssue {
+    #[turbo_tasks::function]
+    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(this.app_dir.join(this.page.to_string()))
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::ProcessModule.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn title(self: Vc<Self>) -> Vc<StyledString> {
+        StyledString::Text(
+            "You cannot have two parallel pages that resolve to the same path.".to_string(),
+        )
+        .cell()
+    }
+}
+
 async fn check_duplicate(
     duplicate: &mut FxHashSet<AppPath>,
     loader_tree: &LoaderTree,
-) -> Result<()> {
+    app_dir: Vc<FileSystemPath>,
+) {
     if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
-        bail!(
-            "`{}`: You cannot have two parallel pages that resolve to the same path.",
-            loader_tree.page.to_string()
-        );
+        DuplciateParallelRouteIssue {
+            app_dir,
+            page: loader_tree.page.clone(),
+        }
+        .cell()
+        .emit();
     }
-
-    Ok(())
 }
 
 /// creates the loader tree for a specific route (pathname / [AppPath])
@@ -858,7 +887,7 @@ async fn directory_tree_to_loader_tree(
                 continue;
             }
 
-            check_duplicate(&mut duplicate, &*subtree.await?).await?;
+            check_duplicate(&mut duplicate, &*subtree.await?, app_dir).await;
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
                 if is_current_directory_catchall && *subtree.has_only_catchall().await? {
