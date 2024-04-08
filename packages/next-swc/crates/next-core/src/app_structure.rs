@@ -711,13 +711,13 @@ fn directory_tree_to_entrypoints(
 }
 
 #[turbo_tasks::value]
-struct DuplciateParallelRouteIssue {
+struct DuplicateParallelRouteIssue {
     app_dir: Vc<FileSystemPath>,
     page: AppPage,
 }
 
 #[turbo_tasks::value_impl]
-impl Issue for DuplciateParallelRouteIssue {
+impl Issue for DuplicateParallelRouteIssue {
     #[turbo_tasks::function]
     async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
@@ -744,7 +744,7 @@ async fn check_duplicate(
     app_dir: Vc<FileSystemPath>,
 ) {
     if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
-        DuplciateParallelRouteIssue {
+        DuplicateParallelRouteIssue {
             app_dir,
             page: loader_tree.page.clone(),
         }
