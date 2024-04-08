@@ -1,4 +1,4 @@
-import { BrowserInterface } from 'test/lib/browsers/base'
+import { BrowserInterface } from 'next-webdriver'
 import type { Request } from 'playwright'
 
 export const getPathname = (url: string) => {

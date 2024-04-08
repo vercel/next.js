@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { hasRedbox, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
