@@ -452,14 +452,14 @@ For example, when upgrading an existing website from `<img>` to `<Image>`, you m
 {
   /* input */
 }
-;<Image src="/me.jpg" overrideSrc="/me.jpg" />
+;<Image src="/me.jpg" overrideSrc="/override.jpg" />
 
 {
   /* output */
 }
 ;<img
   srcset="/_next/image?url=%2Fme.jpg&w=640&q=75 1x, /_next/image?url=%2Fme.jpg&w=828&q=75 2x"
-  src="/me.jpg"
+  src="/override.jpg"
 />
 ```
 
