@@ -717,7 +717,7 @@ async fn check_duplicate(
 ) -> Result<()> {
     if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
         bail!(
-            "duplicate page `{}` in loader tree",
+            "`{}`: You cannot have two parallel pages that resolve to the same path.",
             loader_tree.page.to_string()
         );
     }
