@@ -427,11 +427,41 @@ module.exports = {
 
 ### `overrideSrc`
 
-Search engines often use the `src` attribute as the canonical url for an image.
+When providing the `src` prop to the `<Image>` component, both the `srcset` and `src` attributes are generated automatically for the resulting `<img>`.
 
-When upgrading an existing website from `<img>` to `<Image>`, you may wish to maintain the same `src` attribute for SEO purposes such as image ranking or avoiding recrawl.
+```jsx
+{
+  /* input */
+}
+;<Image src="/me.jpg" />
 
-You can use the `overrideSrc` property to set the `src` attribute instead of using the fallback that was automatically generated from the `src` prop input.
+{
+  /* output */
+}
+;<img
+  srcset="/_next/image?url=%2Fme.jpg&w=640&q=75 1x, /_next/image?url=%2Fme.jpg&w=828&q=75 2x"
+  src="/_next/image?url=%2Fme.jpg&w=828&q=75"
+/>
+```
+
+In some cases, it is not desirable to have the `src` attribute generated and you may wish to override it using the `overrideSrc` prop.
+
+For example, when upgrading an existing website from `<img>` to `<Image>`, you may wish to maintain the same `src` attribute for SEO purposes such as image ranking or avoiding recrawl.
+
+```jsx
+{
+  /* input */
+}
+;<Image src="/me.jpg" overrideSrc="/me.jpg" />
+
+{
+  /* output */
+}
+;<img
+  srcset="/_next/image?url=%2Fme.jpg&w=640&q=75 1x, /_next/image?url=%2Fme.jpg&w=828&q=75 2x"
+  src="/me.jpg"
+/>
+```
 
 ### Other Props
 
