@@ -3,7 +3,7 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
