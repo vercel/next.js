@@ -21,6 +21,7 @@ createNextDescribe(
     files: __dirname,
     dependencies: {
       swr: 'latest',
+      undici: 'latest',
     },
     packageJson: {
       scripts: {
