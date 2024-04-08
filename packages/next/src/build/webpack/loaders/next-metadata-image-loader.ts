@@ -98,7 +98,7 @@ async function nextMetadataImageLoader(
       function getImageMetadata(imageMetadata, idParam) {
         const data = {
           alt: imageMetadata.alt,
-          type: imageMetadata.contentType || 'image/png',
+          type: 'image/png',
           url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
             hashQuery
           )},
