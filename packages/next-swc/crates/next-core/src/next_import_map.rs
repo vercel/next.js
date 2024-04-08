@@ -561,7 +561,7 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@opentelemetry/api",
-        // It need to prefer the local version of @opentelemetry/api
+        // It needs to prefer the local version of @opentelemetry/api
         ImportMapping::Alternatives(vec![
             external_if_node(project_path, "@opentelemetry/api"),
             external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
