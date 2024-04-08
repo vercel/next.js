@@ -29,14 +29,14 @@ The `static` and `dynamic` properties correspond with the time period (in second
 
 - The `dynamic` property is used when the `prefetch` prop on `Link` is left unspecified.
   - Default: 30 seconds
-- The `static` property is used when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](https://nextjs.org/docs/app/building-your-application/caching#routerprefetch).
+- The `static` property is used when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/building-your-application/caching#routerprefetch).
   - Default: 5 minutes
 
 > **Good to know:**
 >
 > - [Loading boundaries](/docs/app/api-reference/file-conventions/loading) are considered reusable for the `static` period defined in this configuration.
-> - This doesn't disable partial rendering support, **meaning shared layouts won't automatically be refetched every navigation, only the new segment data.**
-> - This doesn't change back/forward caching behavior to prevent layout shift & to prevent losing scroll position.
+> - This doesn't disable [partial rendering support](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), **meaning shared layouts won't automatically be refetched every navigation, only the new segment data.**
+> - This doesn't change [back/forward caching](/app/building-your-application/caching#router-cache) behavior to prevent layout shift & to prevent losing the browser scroll position.
 > - The different properties of this config refer to variable levels of "liveness" and are unrelated to whether the segment itself is opting into static or dynamic rendering. In other words, the current `static` default of 5 minutes suggests that data feels static by virtue of it being revalidated infrequently.
 
 You can learn more about the Client Router Cache [here](/docs/app/building-your-application/caching#router-cache).
