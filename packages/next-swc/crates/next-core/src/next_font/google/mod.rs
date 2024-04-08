@@ -86,6 +86,7 @@ impl NextFontGoogleReplacer {
     async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let qstr = qstring::QString::from(query.as_str());
+
         let query_vc = Vc::cell(query);
 
         let font_data = load_font_data(self.project_path);
