@@ -58,6 +58,7 @@ Here's a summary of the props available for the Image Component:
 | [`onError`](#onerror)                     | `onError(event => fail()}`               | Function        | -          |
 | [`loading`](#loading)                     | `loading="lazy"`                         | String          | -          |
 | [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`       | String          | -          |
+| [`overrideSrc`](#overridesrc)             | `overrideSrc="/seo.png"`                 | String          | -          |
 </div>
 
 ## Required Props
@@ -423,6 +424,14 @@ module.exports = {
   },
 }
 ```
+
+### `overrideSrc`
+
+Search engines often use the `src` attribute as the canonical url for an image.
+
+When upgrading an existing website from `<img>` to `<Image>`, you may wish to maintain the same `src` attribute for SEO purposes such as image ranking or avoiding recrawl.
+
+You can use the `overrideSrc` property to set the `src` attribute instead of using the fallback that was automatically generated from the `src` prop input.
 
 ### Other Props
 
@@ -963,6 +972,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |

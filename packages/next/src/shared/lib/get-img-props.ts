@@ -38,6 +38,7 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  overrideSrc?: string
   /**
    * @deprecated Use `onLoad` instead.
    * @see https://nextjs.org/docs/app/api-reference/components/image#onload
@@ -245,6 +246,7 @@ export function getImgProps(
     height,
     fill = false,
     style,
+    overrideSrc,
     onLoad,
     onLoadingComplete,
     placeholder = 'empty',
@@ -671,7 +673,7 @@ export function getImgProps(
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
-    src: imgAttributes.src,
+    src: overrideSrc || imgAttributes.src,
   }
   const meta = { unoptimized, priority, placeholder, fill }
   return { props, meta }
