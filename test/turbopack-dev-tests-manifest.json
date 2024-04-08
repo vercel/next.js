@@ -6614,10 +6614,10 @@
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
     "passed": [
+      "next/font/google no preloads with _app without fonts",
       "next/font/google no preloads with _app without preload",
       "next/font/google without-preloaded-fonts without _app without fonts",
-      "next/font/google without-preloaded-fonts without _app without preload",
-      "next/font/google no preloads with _app without fonts"
+      "next/font/google without-preloaded-fonts without _app without preload"
     ],
     "failed": [],
     "pending": [],
