@@ -3357,13 +3357,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      // TODO: remove in the next major version
-      if (config.analyticsId) {
-        Log.warn(
-          `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-        )
-      }
-
       if (Boolean(config.experimental.nextScriptWorkers)) {
         await nextBuildSpan
           .traceChild('verify-partytown-setup')

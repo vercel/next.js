@@ -83,7 +83,6 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
-    pub analytics_id: Option<String>,
 
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
