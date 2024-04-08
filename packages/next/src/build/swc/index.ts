@@ -1164,6 +1164,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+      if (!rule) return
       if ('loaders' in rule) {
         checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
       } else {

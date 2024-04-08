@@ -102,12 +102,13 @@ export type TurboRuleConfigItemOrShortcut =
 
 export type TurboRuleConfigItemOptions = {
   loaders: TurboLoaderItem[]
-  as: string
+  as?: string
 }
 
 export type TurboRuleConfigItem =
   | TurboRuleConfigItemOptions
   | { [condition: string]: TurboRuleConfigItem }
+  | false
 
 export interface ExperimentalTurboOptions {
   /**

@@ -28,7 +28,7 @@ use crate::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
         UnsupportedModulesResolvePlugin,
     },
-    util::foreign_code_context_condition,
+    util::{foreign_code_context_condition, NextRuntime},
 };
 
 fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
@@ -100,11 +100,13 @@ pub async fn get_edge_resolve_options_context(
     let ty = ty.into_value();
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
-    let mut custom_conditions = vec![
-        mode.await?.condition().to_string(),
-        "edge-light".to_string(),
-        "worker".to_string(),
-    ];
+    let mut custom_conditions = vec![mode.await?.condition().to_string()];
+    custom_conditions.extend(
+        NextRuntime::Edge
+            .conditions()
+            .into_iter()
+            .map(ToString::to_string),
+    );
 
     match ty {
         ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),

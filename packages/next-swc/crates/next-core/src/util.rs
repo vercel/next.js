@@ -142,6 +142,15 @@ pub enum NextRuntime {
     Edge,
 }
 
+impl NextRuntime {
+    pub fn conditions(&self) -> &'static [&'static str] {
+        match self {
+            NextRuntime::NodeJs => &["node"],
+            NextRuntime::Edge => &["edge-light", "worker"],
+        }
+    }
+}
+
 #[turbo_tasks::value]
 #[derive(Default, Clone)]
 pub struct NextSourceConfig {
