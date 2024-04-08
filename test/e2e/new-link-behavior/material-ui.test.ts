@@ -26,7 +26,7 @@ describe('New Link Behavior with material-ui', () => {
         'prop-types': 'latest',
         react: 'latest',
         'react-dom': 'latest',
-        eslint: 'latest',
+        eslint: '8',
         'eslint-config-next': 'latest',
       },
     })

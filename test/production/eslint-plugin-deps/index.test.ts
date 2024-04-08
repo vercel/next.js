@@ -95,7 +95,7 @@ describe('eslint plugin deps', () => {
         '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
-        eslint: 'latest',
+        eslint: '8',
         'eslint-config-next': 'latest',
         typescript: 'latest',
       },
