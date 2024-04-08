@@ -1,6 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { readFile } from 'fs-extra'
-import path from 'path'
 
 describe('tsconfig module: Preserve', () => {
   const { next } = nextTestSetup({
@@ -20,13 +18,11 @@ describe('tsconfig module: Preserve', () => {
   })
 
   it('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
-    await next.stop()
     expect(next.cliOutput).not.toContain('moduleResolution')
     expect(next.cliOutput).not.toContain('esModuleInterop')
     expect(next.cliOutput).not.toContain('resolveJsonModule')
 
-    const tsconfig = path.join(next.testDir, 'tsconfig.json')
-    expect(await readFile(tsconfig, 'utf8')).toMatchInlineSnapshot(`
+    expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
       "{
         "compilerOptions": {
           "module": "preserve",
