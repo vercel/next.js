@@ -6,6 +6,7 @@ use indexmap::{
     map::{Entry, OccupiedEntry},
     IndexMap,
 };
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
@@ -710,6 +711,20 @@ fn directory_tree_to_entrypoints(
     )
 }
 
+async fn check_duplicate(
+    duplicate: &mut FxHashSet<AppPath>,
+    loader_tree: &LoaderTree,
+) -> Result<()> {
+    if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
+        bail!(
+            "duplicate page `{}` in loader tree",
+            loader_tree.page.to_string()
+        );
+    }
+
+    Ok(())
+}
+
 /// creates the loader tree for a specific route (pathname / [AppPath])
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
@@ -804,8 +819,15 @@ async fn directory_tree_to_loader_tree(
         }
     }
 
+    let mut duplicate = FxHashSet::default();
+
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
+        dbg!(
+            subdir_name,
+            parallel_route_key,
+            current_level_is_parallel_route
+        );
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
@@ -842,6 +864,8 @@ async fn directory_tree_to_loader_tree(
             if is_group_route(subdir_name) && !*subtree.has_page().await? {
                 continue;
             }
+
+            check_duplicate(&mut duplicate, &*subtree.await?).await?;
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
                 if is_current_directory_catchall && *subtree.has_only_catchall().await? {
