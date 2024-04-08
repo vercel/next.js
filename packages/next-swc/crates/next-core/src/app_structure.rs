@@ -10,7 +10,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, vdbg, Completion, Completions, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -544,7 +544,6 @@ async fn add_app_page(
     page: AppPage,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
-    vdbg!(&app_dir, &page, &loader_tree);
     let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
@@ -742,7 +741,6 @@ async fn directory_tree_to_loader_tree(
         return Ok(Vc::cell(None));
     }
 
-    vdbg!(directory_tree);
     let directory_tree = &*directory_tree.await?;
     let mut components = directory_tree.components.await?.clone_value();
 
@@ -823,11 +821,6 @@ async fn directory_tree_to_loader_tree(
 
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
-        dbg!(
-            subdir_name,
-            parallel_route_key,
-            current_level_is_parallel_route
-        );
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
@@ -856,7 +849,7 @@ async fn directory_tree_to_loader_tree(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
-                vdbg!(tree.parallel_routes.insert(key.to_string(), subtree));
+                tree.parallel_routes.insert(key.to_string(), subtree);
                 continue;
             }
 
