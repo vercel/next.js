@@ -364,6 +364,8 @@ impl LoaderTreeBuilder {
             global_metadata,
         } = &*loader_tree.await?;
 
+        dbg!(&parallel_routes);
+
         writeln!(
             self.loader_tree_code,
             "[{segment}, {{",

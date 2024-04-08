@@ -3,7 +3,7 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, vdbg, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     swc::core::{
@@ -440,6 +440,7 @@ pub async fn parse_segment_config_from_loader_tree(
         .map(parse_segment_config_from_loader_tree)
         .try_join()
         .await?;
+    vdbg!(&loader_tree);
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }

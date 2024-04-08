@@ -9,7 +9,7 @@ use indexmap::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, vdbg, Completion, Completions, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -832,7 +832,7 @@ async fn directory_tree_to_loader_tree(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
-                tree.parallel_routes.insert(key.to_string(), subtree);
+                vdbg!(tree.parallel_routes.insert(key.to_string(), subtree));
                 continue;
             }
 
