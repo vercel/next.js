@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
-describe('tsconfig module: Preserve', () => {
+describe('tsconfig module: preserve', () => {
   const { next } = nextTestSetup({
     files: {
       'tsconfig.json': JSON.stringify({
@@ -18,9 +20,17 @@ describe('tsconfig module: Preserve', () => {
   })
 
   it('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
-    expect(next.cliOutput).not.toContain('moduleResolution')
-    expect(next.cliOutput).not.toContain('esModuleInterop')
-    expect(next.cliOutput).not.toContain('resolveJsonModule')
+    let output = stripAnsi(next.cliOutput)
+    expect(output).not.toContain('moduleResolution')
+    expect(output).not.toContain('esModuleInterop')
+    expect(output).not.toContain('resolveJsonModule')
+
+    await retry(() => {
+      output = stripAnsi(next.cliOutput)
+      expect(output).toContain(
+        'The following mandatory changes were made to your tsconfig.json'
+      )
+    })
 
     expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
       "{
