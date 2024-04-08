@@ -54,6 +54,9 @@ export function unstable_cache<T extends Callback>(
   cb: T,
   keyParts?: string[],
   options: {
+    /**
+     * The revalidation interval in seconds.
+     */
     revalidate?: number | false
     tags?: string[]
   } = {}
