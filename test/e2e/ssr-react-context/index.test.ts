@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { renderViaHTTP, check } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 describe('React Context', () => {
