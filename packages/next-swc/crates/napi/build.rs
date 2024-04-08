@@ -8,6 +8,11 @@ fn main() {
 
     napi_build::setup();
 
+    // Resolve a potential linker issue for unit tests on linux
+    // https://github.com/napi-rs/napi-rs/issues/1782
+    #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
+    println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
+
     #[cfg(not(target_arch = "wasm32"))]
     turbopack_binding::turbo::tasks_build::generate_register();
 }
