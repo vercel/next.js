@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 
-export function Button() {
+export function RefreshButton() {
   const router = useRouter()
 
   return (

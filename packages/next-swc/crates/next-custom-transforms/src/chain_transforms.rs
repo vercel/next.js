@@ -111,7 +111,7 @@ pub struct TransformOptions {
     pub optimize_server_react: Option<crate::transforms::optimize_server_react::Config>,
 }
 
-pub fn custom_before_pass<'a, C: Comments + 'a>(
+pub fn custom_before_pass<'a, C>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
@@ -120,7 +120,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     unresolved_mark: Mark,
 ) -> impl Fold + 'a
 where
-    C: Clone,
+    C: Clone + Comments + 'a,
 {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
