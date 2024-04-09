@@ -105,9 +105,10 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-  .option('--profile', 'Enables production profiling for React.')
+
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
+  .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
@@ -117,6 +118,10 @@ program
     )
       .choices(['compile', 'generate'])
       .default('default')
+  )
+  .option(
+    '--experimental-debug-memory-usage',
+    'Enables memory profiling features to debug memory consumption.'
   )
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections

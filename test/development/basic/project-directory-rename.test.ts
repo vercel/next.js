@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { check, findPort, hasRedbox } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { createNext } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
