@@ -429,7 +429,7 @@ module.exports = {
 
 When providing the `src` prop to the `<Image>` component, both the `srcset` and `src` attributes are generated automatically for the resulting `<img>`.
 
-```js filename="input.jsx"
+```jsx filename="input.js"
 <Image src="/me.jpg" />
 ```
 
@@ -447,7 +447,7 @@ In some cases, it is not desirable to have the `src` attribute generated and you
 
 For example, when upgrading an existing website from `<img>` to `<Image>`, you may wish to maintain the same `src` attribute for SEO purposes such as image ranking or avoiding recrawl.
 
-```js filename="input.jsx"
+```jsx filename="input.js"
 <Image src="/me.jpg" overrideSrc="/override.jpg" />
 ```
 
