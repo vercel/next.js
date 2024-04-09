@@ -995,6 +995,9 @@ async function renderToHTMLOrFlightImpl(
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
         basePath: renderOpts.basePath,
+        traceData: renderOpts.experimental.clientTraceMetadata
+          ? getTracer().getTracePropagationData()
+          : [],
       })
 
       const renderer = createStaticRenderer({
@@ -1319,6 +1322,9 @@ async function renderToHTMLOrFlightImpl(
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
                 basePath: renderOpts.basePath,
+                traceData: renderOpts.experimental.clientTraceMetadata
+                  ? getTracer().getTracePropagationData()
+                  : [],
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,

@@ -421,6 +421,7 @@ export async function exportAppImpl(
     experimental: {
       isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
       swrDelta: nextConfig.experimental.swrDelta,
+      clientTraceMetadata: nextConfig.experimental.clientTraceMetadata === true,
     },
   }
 

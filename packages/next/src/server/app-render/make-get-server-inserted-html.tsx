@@ -9,15 +9,18 @@ import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
+import type { ClientTraceDataEntry } from '../lib/trace/tracer'
 
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,
   serverCapturedErrors,
+  traceData,
   basePath,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
+  traceData: ClientTraceDataEntry[]
   serverCapturedErrors: Error[]
   basePath: string
 }) {
@@ -81,7 +84,11 @@ export function makeGetServerInsertedHTML({
               return <script key={polyfill.src} {...polyfill} />
             })
         }
-        {serverInsertedHTML}
+        {traceData.map(({ key, value }) => {
+          return (
+            <meta key={key} name={`_next-trace-data-${key}`} content={value} />
+          )
+        })}
         {errorMetaTags}
       </>,
       {

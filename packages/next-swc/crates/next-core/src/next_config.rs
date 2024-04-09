@@ -514,6 +514,7 @@ pub struct ExperimentalConfig {
     gzip_size: Option<bool>,
 
     instrumentation_hook: Option<bool>,
+    client_trace_metadata: Option<bool>,
     large_page_data_bytes: Option<f64>,
     logging: Option<serde_json::Value>,
     memory_based_workers_count: Option<bool>,
