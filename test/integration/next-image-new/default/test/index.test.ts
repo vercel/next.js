@@ -545,6 +545,29 @@ function runTests(mode) {
     }
   })
 
+  it('should work when using overrideSrc prop', async () => {
+    const browser = await webdriver(appPort, '/override-src')
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('override-src').width`
+      )
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
+      }
+
+      return 'result-correct'
+    }, /result-correct/)
+
+    await check(
+      () => browser.eval(`document.getElementById('override-src').currentSrc`),
+      /test(.*)jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById('override-src').src`),
+      /myoverride/
+    )
+  })
+
   it('should work with sizes and automatically use responsive srcset', async () => {
     const browser = await webdriver(appPort, '/sizes')
     const id = 'sizes1'
