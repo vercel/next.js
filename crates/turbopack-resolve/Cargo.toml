@@ -14,17 +14,13 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-recursion = { workspace = true }
-futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 lazy_static = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 

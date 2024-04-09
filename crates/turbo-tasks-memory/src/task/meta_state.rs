@@ -88,6 +88,7 @@ pub(super) type TaskMetaStateAsPartialMut =
 pub(super) type TaskMetaStateAsUnloadedMut =
     for<'a> fn(&'a mut TaskMetaState) -> Option<&'a mut UnloadedTaskState>;
 
+#[allow(dead_code, reason = "test")]
 pub(super) enum TaskMetaStateReadGuard<'a> {
     Full(ReadGuard<'a, TaskMetaState, TaskState, TaskMetaStateAsFull>),
     Partial(ReadGuard<'a, TaskMetaState, PartialTaskState, TaskMetaStateAsPartial>),

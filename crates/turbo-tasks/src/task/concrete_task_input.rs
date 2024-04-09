@@ -41,9 +41,9 @@ impl PartialEq for SharedReference {
     // only compares their addresses.
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn eq(&self, other: &Self) -> bool {
-        PartialEq::eq(
-            &(&*self.1 as *const (dyn Any + Send + Sync)),
-            &(&*other.1 as *const (dyn Any + Send + Sync)),
+        std::ptr::addr_eq(
+            &*self.1 as *const (dyn Any + Send + Sync),
+            &*other.1 as *const (dyn Any + Send + Sync),
         )
     }
 }

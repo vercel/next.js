@@ -17,7 +17,6 @@ bytes = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
 serde_bytes = "0.11.9"
-tokio = { workspace = true }
 turbo-tasks = { workspace = true }
 
 [dev-dependencies]

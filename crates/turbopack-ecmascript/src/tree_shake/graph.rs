@@ -545,10 +545,8 @@ impl DepGraph {
                         _ => {}
                     },
                     ModuleDecl::ExportNamed(NamedExport {
-                        src: None,
-                        specifiers,
-                        ..
-                    }) => {
+                        src, specifiers, ..
+                    }) if src.is_none() => {
                         // We are not interested in re-exports.
                         for s in specifiers {
                             match s {

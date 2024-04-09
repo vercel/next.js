@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-convert_case = "0.6.0"
 proc-macro-error = "1.0.4"
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
