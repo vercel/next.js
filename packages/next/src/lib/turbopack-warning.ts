@@ -48,18 +48,10 @@ const unsupportedTurbopackNextConfigOptions = [
 ]
 
 // The following will need to be supported by `next build --turbo`
-const prodSpecificTurboNextConfigOptions = [
-  'eslint',
-  'typescript',
+const unsupportedProductionSpecificTurbopackNextConfigOptions = [
   'outputFileTracing',
-  'generateBuildId',
-  'compress',
   'productionBrowserSourceMaps',
-  'optimizeFonts',
-  'poweredByHeader',
-  'staticPageGenerationTimeout',
   'reactProductionProfiling',
-  'cleanDistDir',
   'experimental.turbotrace',
   'experimental.outputFileTracingRoot',
   'experimental.outputFileTracingExcludes',
@@ -149,7 +141,7 @@ export async function validateTurboNextConfig({
       ? unsupportedTurbopackNextConfigOptions
       : [
           ...unsupportedTurbopackNextConfigOptions,
-          ...prodSpecificTurboNextConfigOptions,
+          ...unsupportedProductionSpecificTurbopackNextConfigOptions,
         ]
 
     for (const key of customKeys) {
