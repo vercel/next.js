@@ -7103,6 +7103,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/tsconfig-module-preserve/index.test.ts": {
+    "passed": [
+      "tsconfig module: preserve allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/type-module-interop/index.test.ts": {
     "passed": [
       "Type module interop should render client-side",
@@ -15999,6 +16008,7 @@
       "tsconfig.json verifier allows you to set target mode",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
+      "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\"",
       "tsconfig.json verifier creates compilerOptions when you extend another config"
     ],
     "flakey": [],
