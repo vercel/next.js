@@ -50,16 +50,45 @@ createNextDescribe(
     })
 
     if (isNextDeploy) {
-      it('should not fetch from memory cache if new tags have been specified', async () => {
-        const res = await next.fetch('/mismatch-tags')
-        expect(res.status).toBe(200)
+      describe('new tags have been specified on subsequent fetch', () => {
+        it('should not fetch from memory cache', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
 
-        const html = await res.text()
-        const $ = cheerio.load(html)
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
 
-        const data1 = $('#page-data').text()
-        const data2 = $('#page-data-2').text()
-        expect(data1).not.toBe(data2)
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+
+        it('should not fetch from memory cache after revalidateTag is used', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const revalidateRes = await next.fetch(
+            '/api/revlidate-tag-node?tag=thankyounext'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
       })
     }
 
@@ -680,8 +709,6 @@ createNextDescribe(
             "isr-error-handling.rsc",
             "isr-error-handling/page.js",
             "isr-error-handling/page_client-reference-manifest.js",
-            "mismatch-tags/page.js",
-            "mismatch-tags/page_client-reference-manifest.js",
             "no-store/dynamic/page.js",
             "no-store/dynamic/page_client-reference-manifest.js",
             "no-store/static.html",
@@ -733,6 +760,10 @@ createNextDescribe(
             "route-handler/revalidate-360-isr/route.js",
             "route-handler/revalidate-360/route.js",
             "route-handler/static-cookies/route.js",
+            "specify-new-tags/one-tag/page.js",
+            "specify-new-tags/one-tag/page_client-reference-manifest.js",
+            "specify-new-tags/two-tags/page.js",
+            "specify-new-tags/two-tags/page_client-reference-manifest.js",
             "ssg-draft-mode.html",
             "ssg-draft-mode.rsc",
             "ssg-draft-mode/[[...route]]/page.js",
