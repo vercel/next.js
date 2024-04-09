@@ -264,7 +264,6 @@ impl CodeGenerateable for ImportAssetReference {
         if let Request::Uri {
             protocol,
             remainder,
-            ..
         } = &*this.request.await?
         {
             imports.push(CssImport::External(Vc::cell(format!(
