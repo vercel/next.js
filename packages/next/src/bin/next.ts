@@ -105,10 +105,7 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-  .option(
-    '--experimental-debug-memory-usage',
-    'Enables memory profiling features to debug memory consumption.'
-  )
+
   .option('--profile', 'Enables production profiling for React.')
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
@@ -121,6 +118,10 @@ program
     )
       .choices(['compile', 'generate'])
       .default('default')
+  )
+  .option(
+    '--experimental-debug-memory-usage',
+    'Enables memory profiling features to debug memory consumption.'
   )
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections
