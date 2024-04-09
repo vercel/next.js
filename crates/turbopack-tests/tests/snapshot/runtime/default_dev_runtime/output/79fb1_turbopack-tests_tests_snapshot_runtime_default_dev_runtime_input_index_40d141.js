@@ -119,6 +119,15 @@ function createGetter(obj, key) {
     esm(ns, getters);
     return ns;
 }
+function createNS(raw) {
+    if (typeof raw === "function") {
+        return function(...args) {
+            return raw.apply(this, args);
+        };
+    } else {
+        return Object.create(null);
+    }
+}
 function esmImport(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
     if (module.error) throw module.error;
@@ -126,7 +135,7 @@ function esmImport(sourceModule, id) {
     if (module.namespaceObject) return module.namespaceObject;
     // only ESM can be an async module, so we don't need to worry about exports being a promise here.
     const raw = module.exports;
-    return module.namespaceObject = interopEsm(raw, {}, raw && raw.__esModule);
+    return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
