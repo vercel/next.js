@@ -106,9 +106,9 @@ program
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
 
-  .option('--profile', 'Enables production profiling for React.')
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
+  .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
