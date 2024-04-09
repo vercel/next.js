@@ -45,6 +45,7 @@ import type {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -177,6 +178,7 @@ import {
   handlePagesErrorRoute,
   formatIssue,
   printNonFatalIssue,
+  formatNonFatalIssue,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -1345,6 +1347,11 @@ export default async function build(
           throw new Error("next build doesn't support turbopack yet")
         }
 
+        await validateTurboNextConfig({
+          dir,
+          isDev: false,
+        })
+
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1447,6 +1454,7 @@ export default async function build(
           manifestLoader,
           nextConfig: config,
           rewrites: emptyRewritesObjToBeImplemented,
+          logWellKnownErrors: false,
         })
 
         const progress = createProgress(
@@ -1481,6 +1489,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logWellKnownErrors: false,
             })
           )
         }
@@ -1496,6 +1505,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logWellKnownErrors: false,
             })
           )
         }
@@ -1506,6 +1516,7 @@ export default async function build(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: emptyRewritesObjToBeImplemented,
+            logWellKnownErrors: false,
           })
         )
         await Promise.all(promises)
@@ -1515,26 +1526,32 @@ export default async function build(
           pageEntrypoints: currentEntrypoints.page,
         })
 
-        const errors: {
+        const issues: {
           page: string
           message: string
         }[] = []
         for (const [page, entryIssues] of currentEntryIssues) {
           for (const issue of entryIssues.values()) {
             if (issue.severity !== 'warning') {
-              errors.push({
+              issues.push({
                 page,
                 message: formatIssue(issue),
               })
             } else {
-              printNonFatalIssue(issue)
+              const warningIssue = formatNonFatalIssue(issue)
+              if (warningIssue) {
+                issues.push({
+                  page,
+                  message: formatIssue(issue),
+                })
+              }
             }
           }
         }
 
-        if (errors.length > 0) {
+        if (issues.length > 0) {
           throw new Error(
-            `Turbopack build failed with ${errors.length} issues:\n${errors
+            `Turbopack build failed with ${issues.length} issues:\n${issues
               .map((e) => {
                 return 'Page: ' + e.page + '\n' + e.message
               })

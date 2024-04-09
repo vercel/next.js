@@ -72,10 +72,7 @@ export async function validateTurboNextConfig({
   dir,
   isDev,
 }: {
-  allowRetry?: boolean
   dir: string
-  port: number
-  hostname?: string
   isDev?: boolean
 }) {
   const { getPkgManager } =
@@ -150,7 +147,10 @@ export async function validateTurboNextConfig({
 
     let unsupportedKeys = isDev
       ? unsupportedTurbopackNextConfigOptions
-      : prodSpecificTurboNextConfigOptions
+      : [
+          ...unsupportedTurbopackNextConfigOptions,
+          ...prodSpecificTurboNextConfigOptions,
+        ]
 
     for (const key of customKeys) {
       if (key.startsWith('webpack') && rawNextConfig.webpack) {
