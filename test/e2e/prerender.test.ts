@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -846,7 +846,9 @@ describe('Prerender', () => {
     })
 
     it('should handle fallback only page correctly HTML', async () => {
-      const browser = await webdriver(next.url, '/fallback-only/first%2Fpost')
+      const browser = await webdriver(next.url, '/fallback-only/first%2Fpost', {
+        waitHydration: false,
+      })
 
       const text = await browser.elementByCss('p').text()
       expect(text).toContain('hi fallback')

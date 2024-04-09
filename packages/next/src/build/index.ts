@@ -182,6 +182,7 @@ import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
+import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 
 interface ExperimentalBypassForInfo {
@@ -1580,6 +1581,7 @@ export default async function build(
       }
 
       Log.info('Creating an optimized production build ...')
+      traceMemoryUsage('Starting build', nextBuildSpan)
 
       if (!isGenerateMode) {
         if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
@@ -1588,6 +1590,7 @@ export default async function build(
           const serverBuildPromise = webpackBuild(useBuildWorker, [
             'server',
           ]).then((res) => {
+            traceMemoryUsage('Finished server compilation', nextBuildSpan)
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
 
@@ -1626,6 +1629,7 @@ export default async function build(
             'edge-server',
           ]).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished edge-server compilation', nextBuildSpan)
           })
           if (runServerAndEdgeInParallel) {
             await serverBuildPromise
@@ -1634,6 +1638,7 @@ export default async function build(
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished client compilation', nextBuildSpan)
           })
 
           Log.event('Compiled successfully')
@@ -1648,6 +1653,7 @@ export default async function build(
           const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
+          traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1663,6 +1669,7 @@ export default async function build(
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
+        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
@@ -2302,6 +2309,7 @@ export default async function build(
       })
 
       if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
         console.warn(
@@ -2420,6 +2428,10 @@ export default async function build(
         {
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
+        },
+        {
+          featureName: 'experimental/ppr',
+          invocationCount: config.experimental.ppr ? 1 : 0,
         },
       ]
       telemetry.record(
@@ -2702,7 +2714,7 @@ export default async function build(
               {
                 type: 'header',
                 key: 'content-type',
-                value: 'multipart/form-data',
+                value: 'multipart/form-data;.*',
               },
             ]
 
@@ -3304,12 +3316,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (debugOutput) {
-        nextBuildSpan
-          .traceChild('print-custom-routes')
-          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
-      }
-
       // TODO: remove in the next major version
       if (config.analyticsId) {
         Log.warn(
@@ -3365,6 +3371,12 @@ export default async function build(
 
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()
       console.log()
+
+      if (debugOutput) {
+        nextBuildSpan
+          .traceChild('print-custom-routes')
+          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+      }
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {

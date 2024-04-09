@@ -773,7 +773,6 @@ export function printCustomRoutes({
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
     print(underline(type))
-    print()
 
     /*
         ┌ source
@@ -815,9 +814,10 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    print(routesStr, '\n')
+    print(`${routesStr}\n`)
   }
 
+  print()
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }

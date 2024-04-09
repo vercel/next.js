@@ -2052,7 +2052,8 @@
         "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
         "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
         "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
-        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
+        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes",
+        "app dir - not-found - basic should return 404 status code for custom not-found page"
       ],
       "failed": [
         "app dir - not-found - basic should include not found client reference manifest in the file trace"
@@ -2271,8 +2272,14 @@
         "parallel-routes-revalidation should handle a redirect action when called in a slot",
         "parallel-routes-revalidation should handle router.refresh() when called in a slot",
         "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
-        "parallel-routes-revalidation router.refresh should correctly refresh data for the intercepted route and previously active page slot",
-        "parallel-routes-revalidation router.refresh should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
         "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active"
       ],
       "pending": [],
