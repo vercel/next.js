@@ -50,7 +50,7 @@ const unsupportedTurbopackNextConfigOptions = [
 // The following will need to be supported by `next build --turbo`
 const unsupportedProductionSpecificTurbopackNextConfigOptions = [
   'outputFileTracing',
-  'productionBrowserSourceMaps',
+  // 'productionBrowserSourceMaps',
   'reactProductionProfiling',
   'experimental.turbotrace',
   'experimental.outputFileTracingRoot',
