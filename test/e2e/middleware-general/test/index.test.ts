@@ -185,11 +185,11 @@ describe('Middleware Runtime', () => {
           assets: [],
           regions: 'auto',
         })
-        expect(envs).toMatchObject({
-          previewModeEncryptionKey: 'string',
-          previewModeId: 'string',
-          previewModeSigningKey: 'string',
-        })
+        expect(envs).toContainAllKeys([
+          'previewModeEncryptionKey',
+          'previewModeId',
+          'previewModeSigningKey',
+        ])
       })
 
       it('should have the custom config in the manifest', async () => {
