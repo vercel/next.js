@@ -6,11 +6,9 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isTurbopack }) => {
-    it('should work using cheerio', async () => {
-      if (!isTurbopack) {
-        const $ = await next.render$('/')
-        expect($('p').text()).toBe('AbortSignal')
-      }
+    ;(isTurbopack ? it.skip : it)('should work using cheerio', async () => {
+      const $ = await next.render$('/')
+      expect($('p').text()).toBe('AbortSignal')
     })
   }
 )
