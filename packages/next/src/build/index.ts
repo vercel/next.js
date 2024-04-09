@@ -177,7 +177,6 @@ import {
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
-  printNonFatalIssue,
   formatNonFatalIssue,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
