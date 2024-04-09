@@ -247,6 +247,8 @@ async function main() {
       const tests = await getRelatedTests()
       if (tests.length)
         testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
+
+      console.log('Running related tests:', testPatternRegex.toString())
     }
 
     tests = (
