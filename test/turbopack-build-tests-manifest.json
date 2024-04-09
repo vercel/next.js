@@ -6163,6 +6163,13 @@
       "pending": [],
       "flakey": [],
       "runtimeError": false
+    },
+    "test/production/app-dir/mangle-reserved/mangle-reserved.test.ts": {
+      "passed": [],
+      "failed": ["mangle-reserved should preserve the name"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
     }
   },
   "rules": {
