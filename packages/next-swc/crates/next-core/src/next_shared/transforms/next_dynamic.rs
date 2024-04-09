@@ -67,7 +67,7 @@ impl CustomTransformer for NextJsDynamic {
             false,
             NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
-            self.pages_or_app_dir.clone(),
+            None,
         ));
 
         Ok(())

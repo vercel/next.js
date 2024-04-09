@@ -19,7 +19,9 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{ClientReferenceGraph, NextEcmascriptClientReferenceTransition},
+    next_client_reference::{
+        ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
+    },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -696,40 +698,16 @@ impl AppEndpoint {
 
         let rsc_entry_asset = Vc::upcast(rsc_entry);
 
-        // TODO(alexkirsz) Handle dynamic entries and dynamic chunks.
-        // let app_ssr_entries: Vec<_> = client_reference_types
-        //     .await?
-        //     .iter()
-        //     .map(|client_reference_ty| async move {
-        //         let ClientReferenceType::EcmascriptClientReference(entry) =
-        // client_reference_ty         else {
-        //             return Ok(None);
-        //         };
+        let client_chunking_context = this.app_project.project().client_chunking_context();
 
-        //         Ok(Some(entry.await?.ssr_module))
-        //     })
-        //     .try_join()
-        //     .await?
-        //     .into_iter()
-        //     .flatten()
-        //     .collect();
-
-        // let app_node_entries: Vec<_> =
-        // app_ssr_entries.iter().copied().chain([rsc_entry]).collect();
-
-        // let _dynamic_entries = NextDynamicEntries::from_entries(Vc::cell(
-        //     app_node_entries.iter().copied().map(Vc::upcast).collect(),
-        // ))
-        // .await?;
-
-        let app_server_reference_modules = if process_client {
+        let (app_server_reference_modules, client_dynamic_imports) = if process_client {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 app_entry
                     .rsc_entry
                     .ident()
                     .with_modifier(Vc::cell("client_shared_chunks".to_string())),
                 this.app_project.client_runtime_entries(),
-                this.app_project.project().client_chunking_context(),
+                client_chunking_context,
             )
             .await?;
 
@@ -764,9 +742,24 @@ impl AppEndpoint {
                 None
             };
 
+            let client_dynamic_imports = collect_next_dynamic_imports(
+                client_references
+                    .await?
+                    .client_references
+                    .iter()
+                    .filter_map(|r| match r.ty() {
+                        ClientReferenceType::EcmascriptClientReference(entry) => Some(entry),
+                        ClientReferenceType::CssClientReference(_) => None,
+                    })
+                    .map(|entry| async move { Ok(Vc::upcast(entry.await?.client_module)) })
+                    .try_join()
+                    .await?,
+            )
+            .await?;
+
             let client_references_chunks = get_app_client_references_chunks(
                 client_references,
-                this.app_project.project().client_chunking_context(),
+                client_chunking_context,
                 Value::new(client_shared_availability_info),
                 ssr_chunking_context,
             );
@@ -849,7 +842,7 @@ impl AppEndpoint {
                 app_entry.original_name.clone(),
                 client_references,
                 client_references_chunks,
-                this.app_project.project().client_chunking_context(),
+                client_chunking_context,
                 ssr_chunking_context,
                 this.app_project.project().next_config(),
                 runtime,
@@ -874,9 +867,12 @@ impl AppEndpoint {
                 }
             }
 
-            Some(get_app_server_reference_modules(client_reference_types))
+            (
+                Some(get_app_server_reference_modules(client_reference_types)),
+                Some(client_dynamic_imports),
+            )
         } else {
-            None
+            (None, None)
         };
 
         fn create_app_paths_manifest(
@@ -907,6 +903,7 @@ impl AppEndpoint {
         async fn create_react_loadable_manifest(
             dynamic_import_entries: Vc<DynamicImportedChunks>,
             node_root: Vc<FileSystemPath>,
+            client_relative_path: Vc<FileSystemPath>,
             original_name: &str,
         ) -> Result<Vc<OutputAssets>> {
             let dynamic_import_entries = &*dynamic_import_entries.await?;
@@ -923,14 +920,13 @@ impl AppEndpoint {
 
                     let id = format!("{} -> {}", origin_path, import);
 
-                    let server_path = node_root.join("server".to_string());
-                    let server_path_value = server_path.await?;
+                    let client_relative_path_value = client_relative_path.await?;
                     let files = chunk_output
                         .iter()
                         .map(move |&file| {
-                            let server_path_value = server_path_value.clone();
+                            let client_relative_path_value = client_relative_path_value.clone();
                             async move {
-                                Ok(server_path_value
+                                Ok(client_relative_path_value
                                     .get_path_to(&*file.ident().path().await?)
                                     .map(|path| path.to_string()))
                             }
@@ -1099,10 +1095,11 @@ impl AppEndpoint {
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
-                let dynamic_import_modules =
-                    collect_next_dynamic_imports(app_entry.rsc_entry).await?;
+                let mut dynamic_import_modules =
+                    collect_next_dynamic_imports([Vc::upcast(app_entry.rsc_entry)]).await?;
+                dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_evaluated_chunk_group(
-                    chunking_context,
+                    Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
                     Vc::cell(evaluatable_assets),
                 )
@@ -1110,6 +1107,7 @@ impl AppEndpoint {
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
                     node_root,
+                    client_relative_path,
                     &app_entry.original_name,
                 )
                 .await?;
@@ -1174,10 +1172,13 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let dynamic_import_modules =
-                    collect_next_dynamic_imports(app_entry.rsc_entry).await?;
+                let mut dynamic_import_modules =
+                    collect_next_dynamic_imports([Vc::upcast(app_entry.rsc_entry)]).await?;
+                println!("client_dynamic_imports: {:?}", client_dynamic_imports);
+                dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
+                println!("dynamic_import_modules: {:?}", dynamic_import_modules);
                 let dynamic_import_entries = collect_chunk_group(
-                    chunking_context,
+                    Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
                     availability_info,
                 )
@@ -1185,6 +1186,7 @@ impl AppEndpoint {
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
                     node_root,
+                    client_relative_path,
                     &app_entry.original_name,
                 )
                 .await?;

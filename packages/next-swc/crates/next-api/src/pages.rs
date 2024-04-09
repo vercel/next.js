@@ -747,7 +747,8 @@ impl PageEndpoint {
                     Value::new(AvailabilityInfo::Root),
                 );
 
-                let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
+                let dynamic_import_modules =
+                    collect_next_dynamic_imports([Vc::upcast(ssr_module)]).await?;
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     edge_chunking_context,
                     dynamic_import_modules,
@@ -805,9 +806,12 @@ impl PageEndpoint {
                     .await?;
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
+                let dynamic_import_modules =
+                    collect_next_dynamic_imports([Vc::upcast(ssr_module)]).await?;
+                let client_chunking_context =
+                    this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
-                    chunking_context,
+                    Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
                     availability_info,
                 )

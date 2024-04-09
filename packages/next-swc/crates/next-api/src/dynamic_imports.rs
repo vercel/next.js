@@ -14,8 +14,8 @@ use turbopack_binding::{
     turbopack::{
         core::{
             chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
-                EvaluatableAssets,
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                ChunkingContextExt, EvaluatableAssets,
             },
             issue::IssueSeverity,
             module::Module,
@@ -25,12 +25,9 @@ use turbopack_binding::{
             resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            parse::ParseResult,
-            resolve::esm_resolve,
+            chunk::EcmascriptChunkingContext, parse::ParseResult, resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
-        nodejs::NodeJsChunkingContext,
     },
 };
 
@@ -79,7 +76,7 @@ where
 }
 
 pub(crate) async fn collect_chunk_group(
-    chunking_context: Vc<NodeJsChunkingContext>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
@@ -128,7 +125,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
 ///      to wait until all the dynamic components are being loaded, this ensures
 ///      hydration mismatch won't occur
 pub(crate) async fn collect_next_dynamic_imports(
-    entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
 ) -> Result<IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>> {
     // Traverse referenced modules graph, collect all of the dynamic imports:
     // - Read the Program AST of the Module, this is the origin (A)
@@ -139,7 +136,7 @@ pub(crate) async fn collect_next_dynamic_imports(
     // and Module<B> is the actual resolved Module)
     let imported_modules_mapping = NonDeterministic::new()
         .skip_duplicates()
-        .visit([Vc::upcast(entry)], get_referenced_modules)
+        .visit(entries.into_iter(), get_referenced_modules)
         .await
         .completed()?
         .into_inner()
