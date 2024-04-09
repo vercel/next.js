@@ -633,6 +633,10 @@ export class FlightClientEntryPlugin {
     const actionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
 
+    const webpackRuntime = this.isEdgeServer
+      ? EDGE_RUNTIME_WEBPACK
+      : DEFAULT_RUNTIME_WEBPACK
+
     const filterClientComponents = (
       mod: webpack.NormalModule,
       importedIdentifiers: string[]
@@ -676,10 +680,6 @@ export class FlightClientEntryPlugin {
       if (actions) {
         actionImports.push([modRequest, actions])
       }
-
-      const webpackRuntime = this.isEdgeServer
-        ? EDGE_RUNTIME_WEBPACK
-        : DEFAULT_RUNTIME_WEBPACK
 
       if (isCSS) {
         const sideEffectFree =

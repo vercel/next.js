@@ -105,7 +105,7 @@ function getAppPathRequiredChunks(
     // It's possible that the chunk is generated via `import()`, in
     // that case the chunk file name will be '[name].[contenthash]'
     // instead of '[name]-[chunkhash]'.
-    if (chunk.id != null) {
+    if (chunk.id !== null) {
       const chunkId = '' + chunk.id
       chunk.files.forEach((file) => {
         // It's possible that a chunk also emits CSS files, that will

@@ -2930,12 +2930,13 @@ export default async function build(
                 if (i18n) {
                   if (additionalSsgFile) return
 
+                  const relativeDestNoPages = relativeDest.slice(
+                    'pages/'.length
+                  )
+                  const localeExt = page === '/' ? path.extname(file) : ''
+
                   for (const locale of i18n.locales) {
                     const curPath = `/${locale}${page === '/' ? '' : page}`
-                    const localeExt = page === '/' ? path.extname(file) : ''
-                    const relativeDestNoPages = relativeDest.slice(
-                      'pages/'.length
-                    )
 
                     if (isSsg && ssgNotFoundPaths.includes(curPath)) {
                       continue
