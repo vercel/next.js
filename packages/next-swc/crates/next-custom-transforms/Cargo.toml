@@ -40,7 +40,7 @@ turbopack-binding = { workspace = true, features = [
 swc_core = { workspace = true, features = ["ecma_quote"]}
 react_remove_properties = "0.24.7"
 remove_console = "0.25.7"
-preset_env_base = "0.4.11"
+preset_env_base = "0.4.12"
 
 [dev-dependencies]
 turbopack-binding = { workspace = true, features = [
