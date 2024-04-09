@@ -1525,21 +1525,25 @@ export default async function build(
           pageEntrypoints: currentEntrypoints.page,
         })
 
-        const issues: {
+        const errors: {
+          page: string
+          message: string
+        }[] = []
+        const warnings: {
           page: string
           message: string
         }[] = []
         for (const [page, entryIssues] of currentEntryIssues) {
           for (const issue of entryIssues.values()) {
             if (issue.severity !== 'warning') {
-              issues.push({
+              errors.push({
                 page,
                 message: formatIssue(issue),
               })
             } else {
               const warningIssue = formatNonFatalIssue(issue)
               if (warningIssue) {
-                issues.push({
+                warnings.push({
                   page,
                   message: formatIssue(issue),
                 })
@@ -1548,9 +1552,19 @@ export default async function build(
           }
         }
 
-        if (issues.length > 0) {
+        if (warnings.length > 0) {
+          Log.warn(
+            `Turbopack build collected ${warnings.length} warnings:\n${warnings
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
+        }
+
+        if (errors.length > 0) {
           throw new Error(
-            `Turbopack build failed with ${issues.length} issues:\n${issues
+            `Turbopack build failed with ${errors.length} errors:\n${errors
               .map((e) => {
                 return 'Page: ' + e.page + '\n' + e.message
               })
