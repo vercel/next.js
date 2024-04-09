@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { join } from 'path'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 describe('postcss-config-cjs', () => {

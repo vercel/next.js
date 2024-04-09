@@ -37,8 +37,8 @@ import path from 'path'
           "strict": false,
           "noEmit": true,
           "incremental": true,
-          "esModuleInterop": true,
           "module": "esnext",
+          "esModuleInterop": true,
           "moduleResolution": "node",
           "resolveJsonModule": true,
           "isolatedModules": true,
@@ -91,8 +91,8 @@ import path from 'path'
           "strict": false,
           "noEmit": true,
           "incremental": true,
-          "esModuleInterop": true,
           "module": "esnext",
+          "esModuleInterop": true,
           "moduleResolution": "node",
           "resolveJsonModule": true,
           "isolatedModules": true,
@@ -430,8 +430,8 @@ import path from 'path'
           "strict": false,
           "noEmit": true,
           "incremental": true,
-          "esModuleInterop": true,
           "module": "esnext",
+          "esModuleInterop": true,
           "moduleResolution": "node",
           "resolveJsonModule": true,
           "isolatedModules": true,
@@ -541,8 +541,8 @@ import path from 'path'
           "strict": false,
           "noEmit": true,
           "incremental": true,
-          "esModuleInterop": true,
           "module": "esnext",
+          "esModuleInterop": true,
           "moduleResolution": "node",
           "resolveJsonModule": true,
           "jsx": "preserve",
@@ -598,8 +598,8 @@ import path from 'path'
             "strict": false,
             "noEmit": true,
             "incremental": true,
-            "esModuleInterop": true,
             "module": "esnext",
+            "esModuleInterop": true,
             "moduleResolution": "node",
             "resolveJsonModule": true,
             "jsx": "preserve",
@@ -749,6 +749,61 @@ import path from 'path'
           "incremental": true,
           "strictNullChecks": true
         }
+      }
+      "
+    `)
+    })
+
+    // TODO: Enable this test when repo has upgraded to TypeScript 5.4. Currently tested as E2E: tsconfig-module-preserve
+    it.skip('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
+      expect(await exists(tsConfig)).toBe(false)
+
+      await writeFile(
+        tsConfig,
+        `{ "compilerOptions": { "module": "preserve" } }`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+      expect(stderr + stdout).not.toContain('moduleResolution')
+      expect(stderr + stdout).not.toContain('esModuleInterop')
+      expect(stderr + stdout).not.toContain('resolveJsonModule')
+      expect(code).toBe(0)
+
+      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        "compilerOptions": {
+          "module": "preserve",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+          ],
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
+            {
+              "name": "next"
+            }
+          ],
+          "strictNullChecks": true
+        },
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "exclude": [
+          "node_modules"
+        ]
       }
       "
     `)

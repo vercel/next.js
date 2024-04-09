@@ -349,6 +349,7 @@ export async function handleRouteType({
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
         }
+        await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
