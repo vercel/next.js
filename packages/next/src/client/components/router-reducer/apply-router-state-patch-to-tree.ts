@@ -93,6 +93,8 @@ export function applyRouterStatePatchToTree(
       flightSegmentPath
     )
 
+    addRefreshMarkerToActiveParallelSegments(tree, pathname)
+
     return tree
   }
 

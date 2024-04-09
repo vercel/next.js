@@ -153,7 +153,7 @@ export async function validateTurboNextConfig({
       : prodSpecificTurboNextConfigOptions
 
     for (const key of customKeys) {
-      if (key.startsWith('webpack')) {
+      if (key.startsWith('webpack') && rawNextConfig.webpack) {
         hasWebpackConfig = true
       }
       if (key.startsWith('experimental.turbo')) {

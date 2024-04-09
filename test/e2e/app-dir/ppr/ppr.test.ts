@@ -1,10 +1,13 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, findAllTelemetryEvents } from 'next-test-utils'
 
 createNextDescribe(
   'ppr',
   {
     files: __dirname,
+    env: {
+      NEXT_TELEMETRY_DEBUG: '1',
+    },
   },
   ({ next, isNextDev, isNextStart }) => {
     it('should indicate the feature is experimental', async () => {
@@ -22,6 +25,19 @@ createNextDescribe(
           expect(next.cliOutput).toContain('◐ /suspense/node')
           expect(next.cliOutput).toContain('◐ /suspense/node/gsp/[slug]')
           expect(next.cliOutput).toContain('◐ /suspense/node/nested/[slug]')
+        })
+      })
+
+      describe('telemetry', () => {
+        it('should send ppr feature usage event', async () => {
+          const events = findAllTelemetryEvents(
+            next.cliOutput,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(events).toContainEqual({
+            featureName: 'experimental/ppr',
+            invocationCount: 1,
+          })
         })
       })
     }

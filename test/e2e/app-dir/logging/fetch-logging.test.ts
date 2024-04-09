@@ -154,6 +154,17 @@ describe('app-dir - logging', () => {
             expect(output).toContain('Cache skipped reason: (cache: no-store)')
           })
         })
+
+        it('should exlucde Middleware invoked and _rsc requests', async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/')
+          const browser = await next.browser('/link')
+          await browser.elementByCss('a').click()
+          await browser.waitForElementByCss('h2')
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+          expect(logs).not.toContain('GET /_next/static')
+          expect(logs).not.toContain('GET /foo?_rsc')
+        })
       }
     } else {
       // No fetches logging enabled

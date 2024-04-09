@@ -236,6 +236,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     experimental: z
       .strictObject({
         appDocumentPreloading: z.boolean().optional(),
+        preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -245,6 +246,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             optimizer: z.any().optional(),
             skipValidation: z.boolean().optional(),
             validator: z.string().optional(),
+          })
+          .optional(),
+        staleTimes: z
+          .object({
+            dynamic: z.number().optional(),
+            static: z.number().optional(),
           })
           .optional(),
         clientRouterFilter: z.boolean().optional(),

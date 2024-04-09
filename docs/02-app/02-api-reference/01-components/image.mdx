@@ -764,11 +764,11 @@ import Image from 'next/image'
 
 export default function Page({ photoUrl }) {
   return (
-    <div style={{ position: 'relative', width: '500px', height: '300px' }}>
+    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
         src={photoUrl}
         alt="Picture of the author"
-        sizes="500px"
+        sizes="300px"
         fill
         style={{
           objectFit: 'contain',

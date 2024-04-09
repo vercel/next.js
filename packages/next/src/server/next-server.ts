@@ -62,7 +62,7 @@ import type {
   RouteHandler,
   NextEnabledDirectories,
 } from './base-server'
-import BaseServer, { NoFallbackError } from './base-server'
+import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -228,6 +228,10 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    if (!options.dev && this.nextConfig.experimental.preloadEntriesOnStart) {
+      this.unstable_preloadEntries()
+    }
+
     if (!options.dev) {
       const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {}
       this.dynamicRoutes = dynamicRoutes.map((r) => {
@@ -265,6 +269,32 @@ export default class NextNodeServer extends BaseServer {
       this.prepare().catch((err) => {
         console.error('Failed to prepare server', err)
       })
+    }
+  }
+
+  public async unstable_preloadEntries(): Promise<void> {
+    const appPathsManifest = this.getAppPathsManifest()
+    const pagesManifest = this.getPagesManifest()
+
+    for (const page of Object.keys(pagesManifest || {})) {
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: false,
+      }).catch(() => {})
+    }
+
+    for (const page of Object.keys(appPathsManifest || {})) {
+      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+        .then(async ({ ComponentMod }) => {
+          const webpackRequire = ComponentMod.__next_app__.require
+          if (webpackRequire?.m) {
+            for (const id of Object.keys(webpackRequire.m)) {
+              await webpackRequire(id)
+            }
+          }
+        })
+        .catch(() => {})
     }
   }
 
@@ -1097,24 +1127,18 @@ export default class NextNodeServer extends BaseServer {
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
-        const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
-        const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
         const origRes =
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
 
         const reqCallback = () => {
-          // if we already logged in a render worker
-          // don't log again in the router worker.
-          // we also don't log for middleware alone
-          if (
-            (normalizedReq as any).didInvokePath ||
-            origReq.headers['x-middleware-invoke']
-          ) {
-            return
-          }
+          // we don't log for non-route requests
+          const isRouteRequest = getRequestMeta(req).match
+          const isRSC = isRSCRequestCheck(req)
+          if (!isRouteRequest || isRSC) return
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
@@ -1130,9 +1154,9 @@ export default class NextNodeServer extends BaseServer {
           const color = statusColor(res.statusCode)
           const method = req.method || 'GET'
           writeStdoutLine(
-            `${color(method)} ${color(req.url ?? '')} ${
-              res.statusCode
-            } in ${reqDuration}ms`
+            `${method} ${req.url ?? ''} ${color(
+              (res.statusCode ?? 200).toString()
+            )} in ${reqDuration}ms`
           )
 
           if (fetchMetrics.length && enabledVerboseLogging) {

@@ -2429,6 +2429,10 @@ export default async function build(
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
         },
+        {
+          featureName: 'experimental/ppr',
+          invocationCount: config.experimental.ppr ? 1 : 0,
+        },
       ]
       telemetry.record(
         features.map((feature) => {
@@ -2710,7 +2714,7 @@ export default async function build(
               {
                 type: 'header',
                 key: 'content-type',
-                value: 'multipart/form-data',
+                value: 'multipart/form-data;.*',
               },
             ]
 
@@ -3312,12 +3316,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (debugOutput) {
-        nextBuildSpan
-          .traceChild('print-custom-routes')
-          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
-      }
-
       // TODO: remove in the next major version
       if (config.analyticsId) {
         Log.warn(
@@ -3373,6 +3371,12 @@ export default async function build(
 
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()
       console.log()
+
+      if (debugOutput) {
+        nextBuildSpan
+          .traceChild('print-custom-routes')
+          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+      }
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {
