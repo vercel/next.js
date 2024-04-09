@@ -26,7 +26,6 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 indexmap = { workspace = true }
 lightningcss = { workspace = true }
-parcel_selectors = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

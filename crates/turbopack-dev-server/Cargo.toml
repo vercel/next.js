@@ -25,7 +25,6 @@ hyper-tungstenite = "0.9.0"
 indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
 mime_guess = "2.0.4"
-once_cell = { workspace = true }
 parking_lot = { workspace = true }
 pin-project-lite = { workspace = true }
 serde = { workspace = true }

@@ -42,6 +42,7 @@ pub struct Log {
 
 // Safety: unclear
 unsafe impl Sync for Log {}
+
 // Safety: unclear
 unsafe impl Send for Log {}
 
@@ -82,6 +83,7 @@ pub struct Signpost {
 
 // Safety: unclear
 unsafe impl Sync for Signpost {}
+
 // Safety: unclear
 unsafe impl Send for Signpost {}
 

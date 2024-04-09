@@ -42,16 +42,12 @@ workspace = true
 anyhow = { workspace = true, features = ["backtrace"] }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
-criterion = { workspace = true, features = ["async_tokio"] }
 dunce = { workspace = true }
 futures = { workspace = true }
 mime = { workspace = true }
-once_cell = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
@@ -76,6 +72,7 @@ turbopack-trace-utils = { workspace = true }
 webbrowser = { workspace = true }
 
 [dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
 regex = { workspace = true }
 turbopack-bench = { workspace = true }
 

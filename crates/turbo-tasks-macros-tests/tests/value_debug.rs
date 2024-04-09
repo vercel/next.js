@@ -5,6 +5,7 @@ register!();
 
 #[tokio::test]
 async fn ignored_indexes() {
+    #[allow(dead_code)]
     #[derive(ValueDebugFormat)]
     struct IgnoredIndexes(
         #[allow(dead_code)]

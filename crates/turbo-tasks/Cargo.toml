@@ -37,7 +37,6 @@ regex = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
-stable_deref_trait = "1.2.0"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }

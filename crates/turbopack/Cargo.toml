@@ -19,7 +19,6 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }
-futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 lazy_static = { workspace = true }
 regex = { workspace = true }
@@ -34,9 +33,7 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true }
 turbopack-env = { workspace = true }
-turbopack-image = { workspace = true }
 turbopack-json = { workspace = true }
 turbopack-mdx = { workspace = true }
 turbopack-node = { workspace = true }

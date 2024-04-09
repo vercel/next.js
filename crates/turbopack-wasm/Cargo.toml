@@ -19,7 +19,6 @@ indoc = { workspace = true }
 serde = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 wasmparser = "0.110.0"

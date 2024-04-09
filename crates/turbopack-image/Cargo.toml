@@ -29,7 +29,6 @@ image = { workspace = true, default-features = false, features = [
   "bmp",
   "tga",
 ] }
-indexmap = { workspace = true }
 mime = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }

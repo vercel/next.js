@@ -5,6 +5,7 @@
 #![feature(io_error_more)]
 #![feature(round_char_boundary)]
 #![feature(arbitrary_self_types)]
+#![feature(lint_reasons)]
 
 pub mod attach;
 pub mod embed;
@@ -249,6 +250,7 @@ impl DiskFileSystem {
     }
 }
 
+#[allow(dead_code, reason = "we need to hold onto the locks")]
 struct PathLockGuard<'a>(
     #[allow(dead_code)] RwLockReadGuard<'a, ()>,
     #[allow(dead_code)] mutex_map::MutexMapGuard<'a, PathBuf>,
