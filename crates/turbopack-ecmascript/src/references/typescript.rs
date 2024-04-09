@@ -131,6 +131,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
                 self.module.clone(),
                 Value::new("".to_string().into()),
                 Vc::<String>::default(),
+                Vc::<String>::default(),
             ),
         )
     }
