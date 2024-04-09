@@ -20,7 +20,7 @@ type EsmNamespaceObject = Record<string, any>;
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 
 interface BaseModule {
-  exports: Exports | Promise<Exports> | AsyncModulePromise;
+  exports: Function | Exports | Promise<Exports> | AsyncModulePromise;
   error: Error | undefined;
   loaded: boolean;
   id: ModuleId;
@@ -198,6 +198,16 @@ function interopEsm(
   return ns;
 }
 
+function createNS(raw: BaseModule["exports"]): EsmNamespaceObject {
+  if (typeof raw === "function") {
+    return function (this: any, ...args: any[]) {
+      return raw.apply(this, args);
+    };
+  } else {
+    return Object.create(null);
+  }
+}
+
 function esmImport(
   sourceModule: Module,
   id: ModuleId
@@ -212,7 +222,7 @@ function esmImport(
   const raw = module.exports;
   return (module.namespaceObject = interopEsm(
     raw,
-    {},
+    createNS(raw),
     raw && (raw as any).__esModule
   ));
 }

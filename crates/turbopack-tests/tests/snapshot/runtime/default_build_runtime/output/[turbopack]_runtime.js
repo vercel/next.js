@@ -109,6 +109,15 @@ function createGetter(obj, key) {
     esm(ns, getters);
     return ns;
 }
+function createNS(raw) {
+    if (typeof raw === "function") {
+        return function(...args) {
+            return raw.apply(this, args);
+        };
+    } else {
+        return Object.create(null);
+    }
+}
 function esmImport(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
     if (module.error) throw module.error;
@@ -116,7 +125,7 @@ function esmImport(sourceModule, id) {
     if (module.namespaceObject) return module.namespaceObject;
     // only ESM can be an async module, so we don't need to worry about exports being a promise here.
     const raw = module.exports;
-    return module.namespaceObject = interopEsm(raw, {}, raw && raw.__esModule);
+    return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
@@ -299,7 +308,7 @@ relativeURL.prototype = URL.prototype;
 /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
-/// If a fn requires node.js specific behavior it should be placed in `node-external-utils` instead.
+/// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
 async function externalImport(id) {
     let raw;
     try {
@@ -312,7 +321,7 @@ async function externalImport(id) {
         throw new Error(`Failed to load external module ${id}: ${err}`);
     }
     if (raw && raw.__esModule && raw.default && "default" in raw.default) {
-        return interopEsm(raw.default, {}, true);
+        return interopEsm(raw.default, createNS(raw), true);
     }
     return raw;
 }
@@ -330,7 +339,7 @@ function externalRequire(id, esm = false) {
     if (!esm || raw.__esModule) {
         return raw;
     }
-    return interopEsm(raw, {}, true);
+    return interopEsm(raw, createNS(raw), true);
 }
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);

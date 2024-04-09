@@ -2,7 +2,7 @@
 
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
-/// If a fn requires node.js specific behavior it should be placed in `node-external-utils` instead.
+/// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
 
 async function externalImport(id: ModuleId) {
   let raw;
@@ -17,7 +17,7 @@ async function externalImport(id: ModuleId) {
   }
 
   if (raw && raw.__esModule && raw.default && "default" in raw.default) {
-    return interopEsm(raw.default, {}, true);
+    return interopEsm(raw.default, createNS(raw), true);
   }
 
   return raw;
@@ -42,7 +42,7 @@ function externalRequire(
     return raw;
   }
 
-  return interopEsm(raw, {}, true);
+  return interopEsm(raw, createNS(raw), true);
 }
 
 externalRequire.resolve = (
