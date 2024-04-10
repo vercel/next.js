@@ -177,7 +177,7 @@ import {
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
-  formatNonFatalIssue,
+  isRelevantWarning,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -1542,8 +1542,7 @@ export default async function build(
                 message: formatIssue(issue),
               })
             } else {
-              const warningIssue = formatNonFatalIssue(issue)
-              if (warningIssue) {
+              if (isRelevantWarning(issue)) {
                 warnings.push({
                   page,
                   message: formatIssue(issue),

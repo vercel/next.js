@@ -64,20 +64,20 @@ export function isWellKnownError(issue: Issue): boolean {
 /// Print out an issue to the console which should not block
 /// the build by throwing out or blocking error overlay.
 export function printNonFatalIssue(issue: Issue) {
-  const nonFatalissue = formatNonFatalIssue(issue)
-  if (nonFatalissue) {
+  if (isRelevantWarning(issue)) {
     Log.warn(formatIssue(issue))
   }
 }
 
-export function formatNonFatalIssue(issue: Issue): string | null {
-  if (issue.severity === 'warning') {
-    if (!issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/)) {
-      return formatIssue(issue)
-    }
-  }
+function isNodeModulesIssue(issue: Issue): boolean {
+  return (
+    issue.severity === 'warning' &&
+    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+  )
+}
 
-  return null
+export function isRelevantWarning(issue: Issue): boolean {
+  return issue.severity === 'warning' && !isNodeModulesIssue(issue)
 }
 
 export function formatIssue(issue: Issue) {
