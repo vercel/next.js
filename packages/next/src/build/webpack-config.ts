@@ -691,6 +691,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
+      reserved: ['AbortSignal'],
       ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
@@ -1736,6 +1737,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
+          appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),

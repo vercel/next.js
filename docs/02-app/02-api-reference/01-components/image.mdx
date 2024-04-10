@@ -58,6 +58,7 @@ Here's a summary of the props available for the Image Component:
 | [`onError`](#onerror)                     | `onError(event => fail()}`               | Function        | -          |
 | [`loading`](#loading)                     | `loading="lazy"`                         | String          | -          |
 | [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`       | String          | -          |
+| [`overrideSrc`](#overridesrc)             | `overrideSrc="/seo.png"`                 | String          | -          |
 </div>
 
 ## Required Props
@@ -424,6 +425,42 @@ module.exports = {
 }
 ```
 
+### `overrideSrc`
+
+When providing the `src` prop to the `<Image>` component, both the `srcset` and `src` attributes are generated automatically for the resulting `<img>`.
+
+```jsx filename="input.js"
+<Image src="/me.jpg" />
+```
+
+```html filename="output.html"
+<img
+  srcset="
+    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+  "
+  src="/_next/image?url=%2Fme.jpg&w=828&q=75"
+/>
+```
+
+In some cases, it is not desirable to have the `src` attribute generated and you may wish to override it using the `overrideSrc` prop.
+
+For example, when upgrading an existing website from `<img>` to `<Image>`, you may wish to maintain the same `src` attribute for SEO purposes such as image ranking or avoiding recrawl.
+
+```jsx filename="input.js"
+<Image src="/me.jpg" overrideSrc="/override.jpg" />
+```
+
+```html filename="output.html"
+<img
+  srcset="
+    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+  "
+  src="/override.jpg"
+/>
+```
+
 ### Other Props
 
 Other properties on the `<Image />` component will be passed to the underlying
@@ -764,11 +801,11 @@ import Image from 'next/image'
 
 export default function Page({ photoUrl }) {
   return (
-    <div style={{ position: 'relative', width: '500px', height: '300px' }}>
+    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
         src={photoUrl}
         alt="Picture of the author"
-        sizes="500px"
+        sizes="300px"
         fill
         style={{
           objectFit: 'contain',
@@ -963,6 +1000,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |

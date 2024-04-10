@@ -809,17 +809,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/shared/lib/router/utils/parse-relative-url.test.ts": {
-    "passed": [
-      "query parsing should parse query string",
-      "relative urls should return valid pathname",
-      "relative urls should throw for invalid pathname"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/shared/lib/router/utils/route-regex.test.ts": {
     "passed": [
       "getNamedRouteRegex should handle interception markers adjacent to dynamic path segments",
@@ -2368,6 +2357,8 @@
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should log a warning when a server action is not found but an id is provided",
@@ -5270,6 +5261,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
+    "passed": [
+      "webpack-loader-conditions should render correctly on client side",
+      "webpack-loader-conditions should render correctly on server site"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/weird-chars-in-scripts/weird-chars-in-scripts.test.ts": {
+    "passed": ["weird chars in scripts should load in the browser"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
     "passed": [],
     "failed": [],
@@ -6608,11 +6616,12 @@
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
     "passed": [
+      "next/font/google no preloads with _app without fonts",
       "next/font/google no preloads with _app without preload",
       "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload"
     ],
-    "failed": ["next/font/google no preloads with _app without fonts"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6904,6 +6913,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/revalidate-reason/revalidate-reason.test.ts": {
+    "passed": [
+      "revalidate-reason development mode should support revalidateReason: \"stale\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
@@ -7090,6 +7108,15 @@
       "transpile packages css should handle scss modules imports inside transpiled modules",
       "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
       "transpile packages optional deps should not throw an error when optional deps are not installed"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/tsconfig-module-preserve/index.test.ts": {
+    "passed": [
+      "tsconfig module: preserve allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
     ],
     "failed": [],
     "pending": [],
@@ -14077,6 +14104,7 @@
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
+      "Image Component Default Tests development mode should work when using overrideSrc prop",
       "Image Component Default Tests development mode should work with image with blob src",
       "Image Component Default Tests development mode should work with sizes and automatically use responsive srcset"
     ],
@@ -14116,6 +14144,7 @@
       "Image Component Default Tests production mode should warn when legacy prop layout=fill",
       "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests production mode should work when using flexbox",
+      "Image Component Default Tests production mode should work when using overrideSrc prop",
       "Image Component Default Tests production mode should work with image with blob src",
       "Image Component Default Tests production mode should work with sizes and automatically use responsive srcset"
     ],
@@ -14292,6 +14321,7 @@
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
+      "Image Component Default Tests development mode should work when using overrideSrc prop",
       "Image Component Default Tests development mode should work with image with blob src",
       "Image Component Default Tests development mode should work with sizes and automatically use responsive srcset"
     ],
@@ -14332,6 +14362,7 @@
       "Image Component Default Tests production mode should warn when legacy prop layout=fill",
       "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests production mode should work when using flexbox",
+      "Image Component Default Tests production mode should work when using overrideSrc prop",
       "Image Component Default Tests production mode should work with image with blob src",
       "Image Component Default Tests production mode should work with sizes and automatically use responsive srcset"
     ],
@@ -15992,6 +16023,7 @@
       "tsconfig.json verifier allows you to set target mode",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
+      "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\"",
       "tsconfig.json verifier creates compilerOptions when you extend another config"
     ],
     "flakey": [],
