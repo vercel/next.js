@@ -5462,14 +5462,13 @@
       "runtimeError": false
     },
     "test/integration/absolute-assetprefix/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
+        "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
+        "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback",
         "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
         "absolute assetPrefix with path prefix production mode should work with getServerSideProps",
         "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered"
-      ],
-      "failed": [
-        "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
-        "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback"
       ],
       "pending": [],
       "flakey": [],
@@ -5950,16 +5949,15 @@
       "runtimeError": false
     },
     "test/integration/app-tree/test/index.test.js": {
-      "passed": [
-        "AppTree production mode should pass AppTree to NextPageContext",
-        "AppTree production mode should provide router context in AppTree on CSR",
-        "AppTree production mode should provide router context in AppTree on SSR"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
         "AppTree development mode should pass AppTree to NextPageContext",
         "AppTree development mode should provide router context in AppTree on CSR",
-        "AppTree development mode should provide router context in AppTree on SSR"
+        "AppTree development mode should provide router context in AppTree on SSR",
+        "AppTree production mode should pass AppTree to NextPageContext",
+        "AppTree production mode should provide router context in AppTree on CSR",
+        "AppTree production mode should provide router context in AppTree on SSR"
       ],
       "flakey": [],
       "runtimeError": true
