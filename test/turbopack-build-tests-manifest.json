@@ -13857,10 +13857,10 @@
       "runtimeError": false
     },
     "test/integration/ssg-data-404/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "SSG data 404 production mode should hard navigate when a new deployment occurs"
       ],
-      "failed": [],
       "pending": [
         "SSG data 404 development mode should hard navigate when a new deployment occurs"
       ],
