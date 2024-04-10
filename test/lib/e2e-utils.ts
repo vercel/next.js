@@ -234,10 +234,8 @@ export function nextTestSetup(
     /**
      * If set to `true`, the Next.js instance won't be cleaned up
      * between multiple tests in the same suite.
-     *
-     * @note Use with caution: Tests should almost never depend on each other's artifacts.
      */
-    skipTestsIsolation?: boolean
+    DO_NOT_USE_skipTestsIsolation?: boolean
     dir?: string
   }
 ): {
@@ -267,7 +265,7 @@ export function nextTestSetup(
     })
 
     beforeEach(async () => {
-      if (options.skipStart || options.skipTestsIsolation) return
+      if (options.skipStart || options.DO_NOT_USE_skipTestsIsolation) return
       try {
         await next?.start()
       } catch (error) {
@@ -277,7 +275,7 @@ export function nextTestSetup(
     })
 
     afterEach(async () => {
-      if (options.skipTestsIsolation) return
+      if (options.DO_NOT_USE_skipTestsIsolation) return
       await next?.stop()
       await next?.clean()
     })
