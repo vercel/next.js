@@ -453,7 +453,7 @@ export async function createHotReloaderTurbopack(
         manifestLoader,
         nextConfig: opts.nextConfig,
         rewrites: opts.fsChecker.rewrites,
-        logWellKnownErrors: true,
+        logErrors: true,
 
         dev: {
           assetMapper,
@@ -779,7 +779,7 @@ export async function createHotReloaderTurbopack(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: opts.fsChecker.rewrites,
-            logWellKnownErrors: true,
+            logErrors: true,
 
             hooks: {
               subscribeToChanges,
@@ -832,7 +832,7 @@ export async function createHotReloaderTurbopack(
           manifestLoader,
           readyIds,
           rewrites: opts.fsChecker.rewrites,
-          logWellKnownErrors: true,
+          logErrors: true,
 
           hooks: {
             subscribeToChanges,

@@ -1454,7 +1454,7 @@ export default async function build(
           manifestLoader,
           nextConfig: config,
           rewrites: emptyRewritesObjToBeImplemented,
-          logWellKnownErrors: false,
+          logErrors: false,
         })
 
         const progress = createProgress(
@@ -1489,7 +1489,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
-              logWellKnownErrors: false,
+              logErrors: false,
             })
           )
         }
@@ -1505,7 +1505,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
-              logWellKnownErrors: false,
+              logErrors: false,
             })
           )
         }
@@ -1516,7 +1516,7 @@ export default async function build(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: emptyRewritesObjToBeImplemented,
-            logWellKnownErrors: false,
+            logErrors: false,
           })
         )
         await Promise.all(promises)
