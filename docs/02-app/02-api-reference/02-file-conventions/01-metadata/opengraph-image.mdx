@@ -431,7 +431,7 @@ import { readFile } from 'node:fs/promises'
 
 export async function GET() {
   const logoData = await readFile('./logo.png')
-  const logoSrc = Uint8Array.from(logoSource).buffer
+  const logoSrc = Uint8Array.from(logoData).buffer
 
   return new ImageResponse(
     (
