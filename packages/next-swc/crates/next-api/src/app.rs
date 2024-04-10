@@ -70,6 +70,7 @@ use crate::{
         DynamicImportedChunks,
     },
     font::create_font_manifest,
+    loadable_manifest::create_react_loadable_manifest,
     paths::{
         all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
         wasm_paths_to_bindings,
@@ -900,66 +901,6 @@ impl AppEndpoint {
             )))
         }
 
-        async fn create_react_loadable_manifest(
-            dynamic_import_entries: Vc<DynamicImportedChunks>,
-            node_root: Vc<FileSystemPath>,
-            client_relative_path: Vc<FileSystemPath>,
-            original_name: &str,
-        ) -> Result<Vc<OutputAssets>> {
-            let dynamic_import_entries = &*dynamic_import_entries.await?;
-
-            let mut output = vec![];
-            let mut loadable_manifest: HashMap<String, LoadableManifest> = Default::default();
-
-            for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
-                let origin_path = &*origin.ident().path().await?;
-
-                for (import, chunk_output) in dynamic_imports {
-                    let chunk_output = chunk_output.await?;
-                    output.extend(chunk_output.iter().copied());
-
-                    let id = format!("{} -> {}", origin_path, import);
-
-                    let client_relative_path_value = client_relative_path.await?;
-                    let files = chunk_output
-                        .iter()
-                        .map(move |&file| {
-                            let client_relative_path_value = client_relative_path_value.clone();
-                            async move {
-                                Ok(client_relative_path_value
-                                    .get_path_to(&*file.ident().path().await?)
-                                    .map(|path| path.to_string()))
-                            }
-                        })
-                        .try_flat_join()
-                        .await?;
-
-                    let manifest_item = LoadableManifest {
-                        id: id.clone(),
-                        files,
-                    };
-
-                    loadable_manifest.insert(id, manifest_item);
-                }
-            }
-
-            let loadable_path_prefix = original_name;
-            let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join(format!(
-                    "server/app{loadable_path_prefix}/react-loadable-manifest.json",
-                )),
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &loadable_manifest,
-                    )?))
-                    .cell(),
-                ),
-            ));
-
-            output.push(loadable_manifest);
-            Ok(Vc::cell(output))
-        }
-
         let client_assets = OutputAssets::new(client_assets);
 
         let next_font_manifest_output = create_font_manifest(
@@ -1108,9 +1049,11 @@ impl AppEndpoint {
                     dynamic_import_entries,
                     node_root,
                     client_relative_path,
-                    &app_entry.original_name,
-                )
-                .await?;
+                    node_root.join(format!(
+                        "server/app{}/react-loadable-manifest.json",
+                        &app_entry.original_name
+                    )),
+                );
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 AppEndpointOutput::Edge {
@@ -1187,9 +1130,11 @@ impl AppEndpoint {
                     dynamic_import_entries,
                     node_root,
                     client_relative_path,
-                    &app_entry.original_name,
-                )
-                .await?;
+                    node_root.join(format!(
+                        "server/app{}/react-loadable-manifest.json",
+                        &app_entry.original_name
+                    )),
+                );
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 AppEndpointOutput::NodeJs {
