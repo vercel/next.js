@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 
 const errorMessage =
-  'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
+  'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
 
 async function testDev(browser, errorRegex) {
   expect(await hasRedbox(browser)).toBe(true)

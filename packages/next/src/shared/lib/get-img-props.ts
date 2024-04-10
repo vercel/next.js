@@ -287,7 +287,7 @@ export function getImgProps(
 
   if (typeof defaultLoader === 'undefined') {
     throw new Error(
-      'The loader file must export a default function that returns a string.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config'
+      'images.loaderFile detected but the file is missing export default.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
     )
   }
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
