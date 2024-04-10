@@ -435,7 +435,13 @@ export async function GET() {
 
   return new ImageResponse(
     (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <img src={logoSrc} height="100" />
       </div>
     )
