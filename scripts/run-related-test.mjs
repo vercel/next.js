@@ -53,4 +53,4 @@ export async function getRelatedTests(args = []) {
   return Array.from(new Set(tests))
 }
 
-console.log(await getRelatedTests(process.argv.slice(2)))
+// console.log(await getRelatedTests(process.argv.slice(2)))
