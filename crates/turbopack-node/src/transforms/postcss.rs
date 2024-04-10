@@ -16,8 +16,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
-        StyledString,
+        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file, options::ImportMapping, FindContextFileResult},
@@ -335,15 +334,6 @@ impl PostCssTransformedAsset {
         let Some(config_path) =
             find_config_in_location(project_path, this.config_location, this.source).await?
         else {
-            PostCssTransformIssue {
-                source: this.source.ident().path(),
-                title: "PostCSS transform skipped".to_string(),
-                description: "Unable to find PostCSS config".to_string(),
-                severity: IssueSeverity::Warning.cell(),
-            }
-            .cell()
-            .emit();
-
             return Ok(ProcessPostCssResult {
                 content: this.source.content(),
                 assets: Vec::new(),
