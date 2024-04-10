@@ -225,7 +225,7 @@ export function serverActionReducer(
           [''],
           currentTree,
           treePatch,
-          location.pathname
+          href
         )
 
         if (newTree === null) {
