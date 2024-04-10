@@ -1,12 +1,10 @@
-type OgModule = typeof import('next/dist/compiled/@vercel/og')
+type OgModule = typeof import('@vercel/og')
 
-function importModule(): Promise<
-  typeof import('next/dist/compiled/@vercel/og')
-> {
+function importModule(): Promise<typeof import('@vercel/og')> {
   return import(
     process.env.NEXT_RUNTIME === 'edge'
-      ? 'next/dist/compiled/@vercel/og/index.edge.js'
-      : 'next/dist/compiled/@vercel/og/index.node.js'
+      ? '@vercel/og/index.edge.js'
+      : '@vercel/og/index.node.js'
   )
 }
 
@@ -21,7 +19,7 @@ export class ImageResponse extends Response {
   constructor(...args: ConstructorParameters<OgModule['ImageResponse']>) {
     const readable = new ReadableStream({
       async start(controller) {
-        const OGImageResponse: typeof import('next/dist/compiled/@vercel/og').ImageResponse =
+        const OGImageResponse: typeof import('@vercel/og').ImageResponse =
           // So far we have to manually determine which build to use,
           // as the auto resolving is not working
           (await importModule()).ImageResponse

@@ -1,5 +1,5 @@
-import type { NodePath, types } from 'next/dist/compiled/babel/core'
-import type { PluginObj } from 'next/dist/compiled/babel/core'
+import type { NodePath, types } from 'babel/core'
+import type { PluginObj } from 'babel/core'
 
 export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
   return {

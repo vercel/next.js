@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'webpack/webpack'
 import type { Span } from '../trace'
 
 export type CompilerResult = {

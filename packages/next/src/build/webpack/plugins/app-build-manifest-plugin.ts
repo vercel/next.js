@@ -1,4 +1,4 @@
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'webpack/webpack'
 import {
   APP_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,

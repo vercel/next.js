@@ -3,7 +3,7 @@ import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-re
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
 import type { LoadComponentsReturnType } from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
-import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import type AmpHtmlValidator from 'amphtml-validator'
 import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'

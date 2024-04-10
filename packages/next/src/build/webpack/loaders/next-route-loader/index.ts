@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { stringify } from 'querystring'

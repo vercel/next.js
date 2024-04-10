@@ -1,4 +1,4 @@
-import dataUriToBuffer from 'next/dist/compiled/data-uri-to-buffer'
+import dataUriToBuffer from 'data-uri-to-buffer'
 import { getSourceMapUrl } from './getSourceMapUrl'
 
 export function getRawSourceMap(fileContents: string): unknown | null {

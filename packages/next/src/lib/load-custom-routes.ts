@@ -1,5 +1,5 @@
 import type { NextConfig } from '../server/config'
-import type { Token } from 'next/dist/compiled/path-to-regexp'
+import type { Token } from 'path-to-regexp'
 
 import { bold, yellow } from './picocolors'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'

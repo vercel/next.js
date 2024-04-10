@@ -106,7 +106,7 @@ export function createWebpackAliases({
 
     // For RSC server bundle
     ...(!hasExternalOtelApiPackage() && {
-      '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
+      '@opentelemetry/api': '@opentelemetry/api',
     }),
 
     ...(config.images.loaderFile
@@ -166,7 +166,7 @@ export function createWebpackAliases({
       '_'
     ),
 
-    setimmediate: 'next/dist/compiled/setimmediate',
+    setimmediate: 'setimmediate',
   }
 }
 
@@ -175,20 +175,16 @@ export function createServerOnlyClientOnlyAliases(
 ): CompilerAliases {
   return isServer
     ? {
-        'server-only$': 'next/dist/compiled/server-only/empty',
-        'client-only$': 'next/dist/compiled/client-only/error',
-        'next/dist/compiled/server-only$':
-          'next/dist/compiled/server-only/empty',
-        'next/dist/compiled/client-only$':
-          'next/dist/compiled/client-only/error',
+        'server-only$': 'server-only/empty',
+        'client-only$': 'client-only/error',
+        'server-only$': 'server-only/empty',
+        'client-only$': 'client-only/error',
       }
     : {
-        'server-only$': 'next/dist/compiled/server-only/index',
-        'client-only$': 'next/dist/compiled/client-only/index',
-        'next/dist/compiled/client-only$':
-          'next/dist/compiled/client-only/index',
-        'next/dist/compiled/server-only':
-          'next/dist/compiled/server-only/index',
+        'server-only$': 'server-only/index',
+        'client-only$': 'client-only/index',
+        'client-only$': 'client-only/index',
+        'server-only': 'server-only/index',
       }
 }
 
@@ -250,23 +246,23 @@ export function createRSCAliases(
   }
 ): CompilerAliases {
   let alias: Record<string, string> = {
-    react$: `next/dist/compiled/react${bundledReactChannel}`,
-    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
-    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-    'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    react$: `react${bundledReactChannel}`,
+    'react-dom$': `react-dom${bundledReactChannel}`,
+    'react/jsx-runtime$': `react${bundledReactChannel}/jsx-runtime`,
+    'react/jsx-dev-runtime$': `react${bundledReactChannel}/jsx-dev-runtime`,
+    'react-dom/client$': `react-dom${bundledReactChannel}/client`,
+    'react-dom/server$': `react-dom${bundledReactChannel}/server`,
+    'react-dom/static$': `react-dom-experimental/static`,
+    'react-dom/static.edge$': `react-dom-experimental/static.edge`,
+    'react-dom/static.browser$': `react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
     'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    'react-server-dom-webpack/client$': `react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `react-server-dom-webpack${bundledReactChannel}/server.node`,
   }
 
   if (!isEdgeServer) {
@@ -292,24 +288,20 @@ export function createRSCAliases(
 
   if (isEdgeServer) {
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
-      alias[
-        'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias['react$'] = `react${bundledReactChannel}/react.react-server`
       alias[
         'react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
+      ] = `react-dom${bundledReactChannel}/react-dom.react-server`
     } else {
       // x-ref: https://github.com/facebook/react/pull/25436
       alias[
         'react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+      ] = `react-dom${bundledReactChannel}/server-rendering-stub`
     }
   }
 
   if (reactProductionProfiling) {
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias['react-dom$'] = `react-dom${bundledReactChannel}/profiling`
   }
 
   alias[
@@ -345,7 +337,7 @@ export function getOptimizedModuleAliases(): CompilerAliases {
     'object.assign/shim': require.resolve(
       'next/dist/build/polyfills/object.assign/shim.js'
     ),
-    url: require.resolve('next/dist/compiled/native-url'),
+    url: require.resolve('native-url'),
   }
 }
 

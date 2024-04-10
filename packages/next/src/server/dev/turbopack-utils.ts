@@ -31,7 +31,7 @@ import {
   getEntryKey,
   splitEntryKey,
 } from './turbopack/entry-key'
-import type ws from 'next/dist/compiled/ws'
+import type ws from 'ws'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -110,7 +110,7 @@ export function formatIssue(issue: Issue) {
 
   if (source?.range && source.source.content) {
     const { start, end } = source.range
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
+    const { codeFrameColumns } = require('babel/code-frame')
 
     message +=
       codeFrameColumns(

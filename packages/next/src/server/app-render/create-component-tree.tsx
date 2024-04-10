@@ -309,7 +309,7 @@ async function createComponentTreeInternal({
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const { isValidElementType } = require('next/dist/compiled/react-is')
+    const { isValidElementType } = require('react-is')
     if (
       (isPage || typeof Component !== 'undefined') &&
       !isValidElementType(Component)

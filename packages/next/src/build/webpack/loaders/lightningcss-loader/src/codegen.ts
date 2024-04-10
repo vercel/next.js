@@ -1,4 +1,4 @@
-import type { LoaderContext } from 'next/dist/compiled/webpack/webpack'
+import type { LoaderContext } from 'webpack/webpack'
 import camelCase from '../../css-loader/src/camelcase'
 import {
   dashesCamelCase,

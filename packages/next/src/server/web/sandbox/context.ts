@@ -9,7 +9,7 @@ import {
   COMPILER_NAMES,
   EDGE_UNSUPPORTED_NODE_APIS,
 } from '../../../shared/lib/constants'
-import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import { EdgeRuntime } from 'edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'

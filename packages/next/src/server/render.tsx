@@ -88,7 +88,7 @@ import {
   continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from 'strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
@@ -571,7 +571,7 @@ export async function renderToHTMLImpl(
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
-    const { isValidElementType } = require('next/dist/compiled/react-is')
+    const { isValidElementType } = require('react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
         `The default export is not a React Component in page: "${pathname}"`

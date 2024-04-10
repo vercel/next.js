@@ -1,10 +1,10 @@
 var l, s
 if (process.env.NODE_ENV === 'production') {
-  l = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.min.js')
-  s = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server.browser.production.min.js')
+  l = require('react-dom-experimental/cjs/react-dom-server-legacy.browser.production.min.js')
+  s = require('react-dom-experimental/cjs/react-dom-server.browser.production.min.js')
 } else {
-  l = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js')
-  s = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server.browser.development.js')
+  l = require('react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js')
+  s = require('react-dom-experimental/cjs/react-dom-server.browser.development.js')
 }
 
 exports.version = l.version

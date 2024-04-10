@@ -763,7 +763,7 @@ async function renderToHTMLOrFlightImpl(
   if (process.env.NEXT_RUNTIME === 'edge') {
     requestId = crypto.randomUUID()
   } else {
-    requestId = require('next/dist/compiled/nanoid').nanoid()
+    requestId = require('nanoid').nanoid()
   }
 
   /**

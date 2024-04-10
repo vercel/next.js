@@ -1,6 +1,6 @@
-import { NormalModule } from 'next/dist/compiled/webpack/webpack'
+import { NormalModule } from 'webpack/webpack'
 import type { Span } from '../../../trace'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 import path from 'path'
 
 const pluginName = 'ProfilingPlugin'

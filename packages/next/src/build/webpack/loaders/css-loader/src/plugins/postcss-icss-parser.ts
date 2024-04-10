@@ -1,8 +1,4 @@
-import {
-  extractICSS,
-  replaceValueSymbols,
-  replaceSymbols,
-} from 'next/dist/compiled/icss-utils'
+import { extractICSS, replaceValueSymbols, replaceSymbols } from 'icss-utils'
 
 import { normalizeUrl, resolveRequests, requestify } from '../utils'
 

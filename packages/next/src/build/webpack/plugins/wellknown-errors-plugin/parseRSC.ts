@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 
 import { getModuleTrace, formatModuleTrace } from './getModuleTrace'
 import { SimpleWebpackError } from './simpleWebpackError'

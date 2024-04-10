@@ -1,5 +1,5 @@
 import type { ChildProcess } from 'child_process'
-import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
+import { Worker as JestWorker } from 'jest-worker'
 import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 

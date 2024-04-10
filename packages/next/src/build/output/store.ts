@@ -1,5 +1,5 @@
-import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import createStore from 'unistore'
+import stripAnsi from 'strip-ansi'
 import { type Span, flushAllTraces, trace } from '../../trace'
 import { teardownHeapProfiler, teardownTraceSubscriber } from '../swc'
 import * as Log from './log'

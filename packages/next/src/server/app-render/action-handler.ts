@@ -500,9 +500,7 @@ export async function handleAction({
         if (isMultipartAction) {
           if (isFetchAction) {
             const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
-            const limit = require('next/dist/compiled/bytes').parse(
-              readableLimit
-            )
+            const limit = require('bytes').parse(readableLimit)
             const busboy = require('busboy')
             const bb = busboy({
               headers: req.headers,
@@ -567,7 +565,7 @@ export async function handleAction({
           const actionData = Buffer.concat(chunks).toString('utf-8')
 
           const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
-          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
+          const limit = require('bytes').parse(readableLimit)
 
           if (actionData.length > limit) {
             const { ApiError } = require('../api-utils')

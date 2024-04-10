@@ -1,5 +1,5 @@
 import type { RenderOpts } from './render'
-import type { HTMLElement } from 'next/dist/compiled/node-html-parser'
+import type { HTMLElement } from 'node-html-parser'
 
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import { nonNullable } from '../lib/non-nullable'
@@ -47,7 +47,7 @@ async function processHTML(
   }
 
   const { parse } =
-    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+    require('node-html-parser') as typeof import('node-html-parser')
   const root: HTMLElement = parse(html)
   let document = html
 

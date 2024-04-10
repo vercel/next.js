@@ -1,5 +1,5 @@
-import curry from 'next/dist/compiled/lodash.curry'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import curry from 'lodash.curry'
+import type { webpack } from 'webpack/webpack'
 import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import type { ConfigurationContext } from '../utils'
 

@@ -4,10 +4,10 @@ import type {
   FlightClientEntryModuleItem,
 } from '../loaders/next-flight-client-entry-loader'
 
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'webpack/webpack'
 import { stringify } from 'querystring'
 import path from 'path'
-import { sources } from 'next/dist/compiled/webpack/webpack'
+import { sources } from 'webpack/webpack'
 import {
   getInvalidator,
   getEntries,

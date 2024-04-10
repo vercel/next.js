@@ -22,10 +22,10 @@ import {
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
-import debugOriginal from 'next/dist/compiled/debug'
-import picomatch from 'next/dist/compiled/picomatch'
+import debugOriginal from 'debug'
+import picomatch from 'picomatch'
 import { defaultOverrides } from '../server/require-hook'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from '@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
@@ -267,7 +267,7 @@ export async function collectBuildTraces({
 
       const minimalServerEntries = [
         ...sharedEntriesSet,
-        require.resolve('next/dist/compiled/next-server/server.runtime.prod'),
+        require.resolve('next-server/server.runtime.prod'),
       ].filter(Boolean)
 
       const additionalIgnores = new Set<string>()
@@ -297,12 +297,12 @@ export async function collectBuildTraces({
       }
 
       const sharedIgnores = [
-        '**/next/dist/compiled/next-server/**/*.dev.js',
-        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
-        '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        '**/next-server/**/*.dev.js',
+        ...(isStandalone ? [] : ['**/jest-worker/**/*']),
+        '**/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
+        'semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
           ? [
@@ -313,9 +313,7 @@ export async function collectBuildTraces({
             ]
           : []),
 
-        ...(!hasSsrAmpPages
-          ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-          : []),
+        ...(!hasSsrAmpPages ? ['**/@ampproject/toolbox-optimizer/**/*'] : []),
 
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
@@ -338,7 +336,7 @@ export async function collectBuildTraces({
 
       const minimalServerIgnores = [
         ...serverIgnores,
-        '**/next/dist/compiled/edge-runtime/**/*',
+        '**/edge-runtime/**/*',
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
@@ -369,12 +367,12 @@ export async function collectBuildTraces({
       if (isStandalone) {
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/processChild'),
+          require.resolve('jest-worker/processChild'),
           serverTracedFiles
         )
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/threadChild'),
+          require.resolve('jest-worker/threadChild'),
           serverTracedFiles
         )
       }
@@ -655,8 +653,7 @@ export async function collectBuildTraces({
   // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
   const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
   await includeExcludeSpan.traceAsyncFn(async () => {
-    const globOrig =
-      require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+    const globOrig = require('glob') as typeof import('glob')
     const glob = (pattern: string): Promise<string[]> => {
       return new Promise((resolve, reject) => {
         globOrig(

@@ -1,15 +1,11 @@
-import {
-  webpack,
-  BasicEvaluatedExpression,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, BasicEvaluatedExpression, sources } from 'webpack/webpack'
 import {
   getFontDefinitionFromNetwork,
   getFontOverrideCss,
 } from '../../../server/font-utils'
 import type { FontManifest } from '../../../server/font-utils'
 import postcss from 'postcss'
-import minifier from 'next/dist/compiled/cssnano-simple'
+import minifier from 'cssnano-simple'
 import {
   AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,

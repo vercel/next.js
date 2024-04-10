@@ -5,7 +5,7 @@ import type {
 import type { BuildManifest } from '../../get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { pathToRegexp } from 'path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 import type { LoadableManifest } from '../../load-components'

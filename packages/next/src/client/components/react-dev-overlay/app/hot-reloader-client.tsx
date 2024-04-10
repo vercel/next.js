@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, startTransition, useMemo } from 'react'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from 'strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {

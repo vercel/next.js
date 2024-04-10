@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs'
-import JSON5 from 'next/dist/compiled/json5'
+import JSON5 from 'json5'
 
-import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
-import loadConfig from 'next/dist/compiled/babel/core-lib-config'
+import { createConfigItem, loadOptions } from 'babel/core'
+import loadConfig from 'babel/core-lib-config'
 
 import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
@@ -77,10 +77,7 @@ function getPlugins(
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
-        [
-          require('next/dist/compiled/react-refresh/babel'),
-          { skipEnvCheck: true },
-        ],
+        [require('react-refresh/babel'), { skipEnvCheck: true }],
         { type: 'plugin' }
       )
     : null
@@ -99,7 +96,7 @@ function getPlugins(
       : null
   const transformDefineItem = createConfigItem(
     [
-      require.resolve('next/dist/compiled/babel/plugin-transform-define'),
+      require.resolve('babel/plugin-transform-define'),
       {
         'process.env.NODE_ENV': development ? 'development' : 'production',
         'typeof window': isServer ? 'undefined' : 'object',
@@ -116,10 +113,9 @@ function getPlugins(
         })
       : null
   const commonJsItem = isNextDist
-    ? createConfigItem(
-        require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
-        { type: 'plugin' }
-      )
+    ? createConfigItem(require('babel/plugin-transform-modules-commonjs'), {
+        type: 'plugin',
+      })
     : null
   const nextFontUnsupported = createConfigItem(
     [require('../plugins/next-font-unsupported')],

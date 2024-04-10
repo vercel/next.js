@@ -4,8 +4,8 @@
  * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
  */
 import path from 'path'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { debug } from 'next/dist/compiled/debug'
+import type { webpack } from 'webpack/webpack'
+import { debug } from 'debug'
 import type { ResolvedBaseUrl } from '../../load-jsconfig'
 
 const log = debug('next:jsconfig-paths-plugin')

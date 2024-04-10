@@ -1,6 +1,6 @@
 // TODO: remove in the next major version
 /* global location */
-import type { Metric, ReportCallback } from 'next/dist/compiled/web-vitals'
+import type { Metric, ReportCallback } from 'web-vitals'
 
 // copied to prevent pulling in un-necessary utils
 const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB']
@@ -87,11 +87,11 @@ export default (onPerfEntry?: ReportCallback): void => {
 
       if (process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION) {
         if (attributions?.includes(webVital)) {
-          mod = require('next/dist/compiled/web-vitals-attribution')
+          mod = require('web-vitals-attribution')
         }
       }
       if (!mod) {
-        mod = require('next/dist/compiled/web-vitals')
+        mod = require('web-vitals')
       }
       mod[`on${webVital}`](onReport)
     } catch (err) {

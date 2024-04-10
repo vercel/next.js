@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from '../../../lib/realpath'
 import path from 'path'
@@ -12,10 +12,10 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js'),
-  require.resolve('next/dist/compiled/next-server/app-route.runtime.dev.js'),
-  require.resolve('next/dist/compiled/next-server/pages.runtime.dev.js'),
-  require.resolve('next/dist/compiled/next-server/pages-api.runtime.dev.js'),
+  require.resolve('next-server/app-page.runtime.dev.js'),
+  require.resolve('next-server/app-route.runtime.dev.js'),
+  require.resolve('next-server/pages.runtime.dev.js'),
+  require.resolve('next-server/pages-api.runtime.dev.js'),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
@@ -47,13 +47,9 @@ function deleteFromRequireCache(filePath: string) {
 }
 
 export function deleteAppClientCache() {
+  deleteFromRequireCache(require.resolve('next-server/app-page.runtime.dev.js'))
   deleteFromRequireCache(
-    require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js')
-  )
-  deleteFromRequireCache(
-    require.resolve(
-      'next/dist/compiled/next-server/app-page-experimental.runtime.dev.js'
-    )
+    require.resolve('next-server/app-page-experimental.runtime.dev.js')
   )
 }
 

@@ -1,4 +1,4 @@
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { pathToRegexp } from 'path-to-regexp'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   INTERCEPTION_ROUTE_MARKERS,

@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
-import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { CookieSerializeOptions } from 'cookie'
 import type { NextApiResponse } from '../../shared/lib/utils'
 
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
@@ -113,8 +113,7 @@ export function clearPreviewData<T>(
     return res
   }
 
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

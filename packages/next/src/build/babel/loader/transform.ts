@@ -2,12 +2,12 @@
  * Partially adapted from @babel/core (MIT license).
  */
 
-import traverse from 'next/dist/compiled/babel/traverse'
-import generate from 'next/dist/compiled/babel/generator'
-import normalizeFile from 'next/dist/compiled/babel/core-lib-normalize-file'
-import normalizeOpts from 'next/dist/compiled/babel/core-lib-normalize-opts'
-import loadBlockHoistPlugin from 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
-import PluginPass from 'next/dist/compiled/babel/core-lib-plugin-pass'
+import traverse from 'babel/traverse'
+import generate from 'babel/generator'
+import normalizeFile from 'babel/core-lib-normalize-file'
+import normalizeOpts from 'babel/core-lib-normalize-opts'
+import loadBlockHoistPlugin from 'babel/core-lib-block-hoist-plugin'
+import PluginPass from 'babel/core-lib-plugin-pass'
 
 import getConfig from './get-config'
 import { consumeIterator } from './util'

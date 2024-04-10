@@ -9,7 +9,7 @@ import type {
 } from './metadata/types'
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
-import loaderUtils from 'next/dist/compiled/loader-utils3'
+import loaderUtils from 'loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'

@@ -17,7 +17,7 @@ import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
-import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
+import type { TextMapGetter } from '@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 
 export class NextRequestHint extends NextRequest {

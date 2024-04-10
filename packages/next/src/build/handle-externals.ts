@@ -234,7 +234,7 @@ export function makeExternalHandler({
     // Make sure @vercel/og is loaded as ESM for Node.js runtime
     if (
       isWebpackServerOnlyLayer(layer) &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
+      request === '@vercel/og/index.node.js'
     ) {
       return `module ${request}`
     }

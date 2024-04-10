@@ -7,8 +7,8 @@ import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import picomatch from 'next/dist/compiled/picomatch'
+import { webpack, sources } from 'webpack/webpack'
+import picomatch from 'picomatch'
 import path from 'path'
 import {
   EDGE_RUNTIME_WEBPACK,

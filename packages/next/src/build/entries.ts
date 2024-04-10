@@ -3,7 +3,7 @@ import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-route-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 import type {
   MiddlewareConfigParsed,
   MiddlewareConfig,

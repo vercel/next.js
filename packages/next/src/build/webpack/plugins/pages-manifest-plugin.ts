@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs/promises'
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'webpack/webpack'
 import {
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,

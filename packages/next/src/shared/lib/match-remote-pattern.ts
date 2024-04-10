@@ -1,5 +1,5 @@
 import type { RemotePattern } from './image-config'
-import { makeRe } from 'next/dist/compiled/picomatch'
+import { makeRe } from 'picomatch'
 
 export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
   if (pattern.protocol !== undefined) {

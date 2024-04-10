@@ -45,67 +45,67 @@ function parser() {
 }
 
 function eslintParser() {
-  return require('next/dist/compiled/babel-packages').eslintParser()
+  return require('babel-packages').eslintParser()
 }
 
 function pluginProposalClassProperties() {
-  return require('next/dist/compiled/babel-packages').pluginProposalClassProperties()
+  return require('babel-packages').pluginProposalClassProperties()
 }
 
 function pluginProposalExportNamespaceFrom() {
-  return require('next/dist/compiled/babel-packages').pluginProposalExportNamespaceFrom()
+  return require('babel-packages').pluginProposalExportNamespaceFrom()
 }
 
 function pluginProposalNumericSeparator() {
-  return require('next/dist/compiled/babel-packages').pluginProposalNumericSeparator()
+  return require('babel-packages').pluginProposalNumericSeparator()
 }
 
 function pluginProposalObjectRestSpread() {
-  return require('next/dist/compiled/babel-packages').pluginProposalObjectRestSpread()
+  return require('babel-packages').pluginProposalObjectRestSpread()
 }
 
 function pluginSyntaxBigint() {
-  return require('next/dist/compiled/babel-packages').pluginSyntaxBigint()
+  return require('babel-packages').pluginSyntaxBigint()
 }
 
 function pluginSyntaxDynamicImport() {
-  return require('next/dist/compiled/babel-packages').pluginSyntaxDynamicImport()
+  return require('babel-packages').pluginSyntaxDynamicImport()
 }
 
 function pluginSyntaxImportAssertions() {
-  return require('next/dist/compiled/babel-packages').pluginSyntaxImportAssertions()
+  return require('babel-packages').pluginSyntaxImportAssertions()
 }
 
 function pluginSyntaxJsx() {
-  return require('next/dist/compiled/babel-packages').pluginSyntaxJsx()
+  return require('babel-packages').pluginSyntaxJsx()
 }
 
 function pluginTransformDefine() {
-  return require('next/dist/compiled/babel-packages').pluginTransformDefine()
+  return require('babel-packages').pluginTransformDefine()
 }
 
 function pluginTransformModulesCommonjs() {
-  return require('next/dist/compiled/babel-packages').pluginTransformModulesCommonjs()
+  return require('babel-packages').pluginTransformModulesCommonjs()
 }
 
 function pluginTransformReactRemovePropTypes() {
-  return require('next/dist/compiled/babel-packages').pluginTransformReactRemovePropTypes()
+  return require('babel-packages').pluginTransformReactRemovePropTypes()
 }
 
 function pluginTransformRuntime() {
-  return require('next/dist/compiled/babel-packages').pluginTransformRuntime()
+  return require('babel-packages').pluginTransformRuntime()
 }
 
 function presetEnv() {
-  return require('next/dist/compiled/babel-packages').presetEnv()
+  return require('babel-packages').presetEnv()
 }
 
 function presetReact() {
-  return require('next/dist/compiled/babel-packages').presetReact()
+  return require('babel-packages').presetReact()
 }
 
 function presetTypescript() {
-  return require('next/dist/compiled/babel-packages').presetTypescript()
+  return require('babel-packages').presetTypescript()
 }
 
 module.exports = {

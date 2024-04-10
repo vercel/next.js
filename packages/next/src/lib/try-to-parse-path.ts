@@ -1,5 +1,5 @@
-import type { Token } from 'next/dist/compiled/path-to-regexp'
-import { parse, tokensToRegexp } from 'next/dist/compiled/path-to-regexp'
+import type { Token } from 'path-to-regexp'
+import { parse, tokensToRegexp } from 'path-to-regexp'
 import { parse as parseURL } from 'url'
 import isError from './is-error'
 

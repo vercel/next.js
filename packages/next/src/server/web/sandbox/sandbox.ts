@@ -1,6 +1,6 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
-import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import type { EdgeRuntime } from 'edge-runtime'
 import { getModuleContext, requestStore } from './context'
 import { requestToBodyStream } from '../../body-streams'
 import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'

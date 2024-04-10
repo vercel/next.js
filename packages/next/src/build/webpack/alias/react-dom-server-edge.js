@@ -7,9 +7,9 @@ function error() {
 
 var b
 if (process.env.NODE_ENV === 'production') {
-  b = require('next/dist/compiled/react-dom/cjs/react-dom-server.edge.production.min.js')
+  b = require('react-dom/cjs/react-dom-server.edge.production.min.js')
 } else {
-  b = require('next/dist/compiled/react-dom/cjs/react-dom-server.edge.development.js')
+  b = require('react-dom/cjs/react-dom-server.edge.development.js')
 }
 
 exports.version = b.version
