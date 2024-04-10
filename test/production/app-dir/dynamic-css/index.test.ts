@@ -8,12 +8,6 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
-    if (process.env.TURBOPACK) {
-      it('skip test for turbo mode', () => {
-        return
-      })
-      return
-    }
     it('should preload css of dynamic component during SSR', async () => {
       const $ = await next.render$('/ssr')
       const cssLinks = $('link[rel="stylesheet"]')
