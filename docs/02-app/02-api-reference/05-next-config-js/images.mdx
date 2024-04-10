@@ -179,10 +179,16 @@ export default function imgixLoader({ src, width, quality }) {
 // Doc (Resize): https://www.pixelbin.io/docs/transformations/basic/resize/#width-w
 // Doc (Optimise): https://www.pixelbin.io/docs/optimizations/quality/#image-quality-when-delivering
 export default function pixelBinLoader({ src, width, quality }) {
-  return src.replace(
+  const url = new URL(src)
+  if (!url.searchParams.has('f_auto')) {
+    url.searchParams.set('f_auto', 'true')
+  }
+  url.pathname = url.pathname.replace(
     `/original/`,
     `/t.resize(w:${width})~t.compress(q:${quality || 75})/`
-  );
+  )
+  return url.href
+}
 }
 ```
 
