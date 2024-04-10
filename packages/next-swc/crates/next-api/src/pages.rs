@@ -924,7 +924,7 @@ impl PageEndpoint {
     ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let node_root = this.pages_project.project().node_root();
-        let pages_dir = this.pages_project.pages_dir().await?;
+        let project_src_dir = this.pages_project.pages_dir().parent().await?;
 
         let dynamic_import_entries = &*dynamic_import_entries.await?;
 
@@ -937,12 +937,12 @@ impl PageEndpoint {
                 let chunk_output = chunk_output.await?;
                 output.extend(chunk_output.iter().copied());
 
-                // https://github.com/vercel/next.js/blob/b7c85b87787283d8fb86f705f67bdfabb6b654bb/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L230
-                // For the pages dir, next_dynamic transform puts relative paths to the pages
+                // https://github.com/vercel/next.js/blob/canary/packages/next/src/build/webpack/plugins/react-loadable-plugin.ts
+                // next_dynamic transform puts relative paths to the project dir
                 // dir for the origin import.
                 let id = format!(
                     "{} -> {}",
-                    pages_dir
+                    project_src_dir
                         .get_path_to(origin_path)
                         .map_or_else(|| origin_path.to_string(), |path| path.to_string()),
                     import

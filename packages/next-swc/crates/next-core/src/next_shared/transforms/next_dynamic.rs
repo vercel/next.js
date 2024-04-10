@@ -26,14 +26,14 @@ use crate::mode::NextMode;
 pub async fn get_next_dynamic_transform_rule(
     is_server_compiler: bool,
     is_react_server_layer: bool,
-    pages_dir: Option<Vc<FileSystemPath>>,
+    pages_or_app_dir: Option<Vc<FileSystemPath>>,
     mode: Vc<NextMode>,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     let dynamic_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsDynamic {
         is_server_compiler,
         is_react_server_layer,
-        pages_dir: match pages_dir {
+        pages_or_app_dir: match pages_or_app_dir {
             None => None,
             Some(path) => Some(path.await?.path.clone().into()),
         },
@@ -52,7 +52,7 @@ pub async fn get_next_dynamic_transform_rule(
 struct NextJsDynamic {
     is_server_compiler: bool,
     is_react_server_layer: bool,
-    pages_dir: Option<PathBuf>,
+    pages_or_app_dir: Option<PathBuf>,
     mode: NextMode,
 }
 
@@ -67,7 +67,7 @@ impl CustomTransformer for NextJsDynamic {
             false,
             NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
-            self.pages_dir.clone(),
+            self.pages_or_app_dir.clone(),
         ));
 
         Ok(())

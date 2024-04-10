@@ -40,7 +40,7 @@ export default (context, env) => {
       const { dynamicIds } = JSON.parse($('#__NEXT_DATA__').html())
 
       if (env === 'dev') {
-        expect(dynamicIds).toContain(`${page}.js -> ../components/foo`)
+        expect(dynamicIds).toContain(`pages/${page}.js -> ../components/foo`)
       } else {
         expect(dynamicIds.length).toBe(1)
       }
