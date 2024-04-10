@@ -13201,7 +13201,8 @@
       "runtimeError": false
     },
     "test/integration/query-with-encoding/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "Query String with Encoding production mode new line should have correct query on Router#push",
         "Query String with Encoding production mode new line should have correct query on SSR",
         "Query String with Encoding production mode new line should have correct query on complex client-side <Link>",
@@ -13219,7 +13220,6 @@
         "Query String with Encoding production mode trailing space should have correct query on complex client-side <Link>",
         "Query String with Encoding production mode trailing space should have correct query on simple client-side <Link>"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
