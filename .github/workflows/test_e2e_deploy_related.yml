@@ -64,7 +64,7 @@ jobs:
           NEXT_TEST_JOB=${{ env.NEXT_TEST_JOB }} \
           NEXT_TEST_MODE=${{ env.NEXT_TEST_MODE }} \
           TEST_TIMINGS_TOKEN=${{ env.TEST_TIMINGS_TOKEN }} \
-          xvfb-run node run-tests.js --related --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
+          xvfb-run node run-tests.js --related --timings -c 1 >> /proc/1/fd/1"
 
       - name: Save test report as artifacts
         if: always()
