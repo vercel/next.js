@@ -19,7 +19,9 @@ async function getChangedFilesFromPackages(baseBranch = 'canary') {
   await exec('git config --global --add safe.directory /work')
   await exec(`git remote set-branches --add origin ${baseBranch}`)
   await exec(`git fetch origin ${baseBranch} --depth=20`)
-  const { stdout } = await exec(`git diff --name-only ${baseBranch}`)
+  const { stdout } = await exec(
+    `git diff 'origin/${baseBranch}...' --name-only`
+  )
   return stdout
     .trim()
     .split('\n')
@@ -51,4 +53,4 @@ export async function getRelatedTests(args = []) {
   return Array.from(new Set(tests))
 }
 
-// console.log(await getRelatedTests(process.argv.slice(2)))
+console.log(await getRelatedTests(process.argv.slice(2)))
