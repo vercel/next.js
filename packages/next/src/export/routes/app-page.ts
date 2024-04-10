@@ -40,9 +40,11 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
+  let isDefaultNotFound = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
-  if (page === '/_not-found') {
+  if (page === '/_not-found/page') {
+    isDefaultNotFound = true
     pathname = '/404'
   }
 
@@ -137,8 +139,11 @@ export async function exportAppPage(
       ? res.statusCode
       : undefined
 
-    // If it's parallel route the status from mock response is 404
-    if (isNonSuccessfulStatusCode && !isParallelRoute) {
+    if (isDefaultNotFound) {
+      // Override the default /_not-found page status code to 404
+      status = 404
+    } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
+      // If it's parallel route the status from mock response is 404
       status = res.statusCode
     }
 

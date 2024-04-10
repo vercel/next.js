@@ -1,5 +1,3 @@
-use core::result::Result::Ok;
-
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};

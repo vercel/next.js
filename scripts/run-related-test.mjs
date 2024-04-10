@@ -1,13 +1,13 @@
 /**
- * This script finds all `.tests` files under the paths and reads lines from these files.
- * The script is useful to find all related test cases for a given code change.
+ * This script reads the 'test/realted-tests-manifest.json' file, which contains a list of test globs that maps source code files to test files.
+ * The script is used to find all related test cases for a given code change.
  * Usage: `node scripts/run-related-test.mjs <path1> <path2> ...`
  */
 
 import { promisify } from 'node:util'
 import { exec as execOrg } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 const exec = promisify(execOrg)
 
@@ -27,14 +27,23 @@ async function getChangedFilesFromPackages(baseBranch = 'canary') {
 }
 
 export async function getRelatedTests(args = []) {
-  const paths = args.length ? args : await getChangedFilesFromPackages()
-  const relatedTestFile = '.tests'
+  const relatedTestsManifest = join(
+    process.cwd(),
+    'test',
+    'related-tests-manifest.json'
+  )
+  /** @type {Record<string, string[]>} */
+  const manifest = JSON.parse(
+    await readFile(relatedTestsManifest, 'utf-8').catch(() => '{}')
+  )
   const tests = []
+  const paths = args.length ? args : await getChangedFilesFromPackages()
   for (const path of paths) {
-    const testFile = join(dirname(path), relatedTestFile)
-    const content = await readFile(testFile, 'utf-8').catch(() => false)
-    if (content) {
-      const lines = content.split('\n').filter(Boolean)
+    const relatedTestsKey = Object.keys(manifest).find((key) =>
+      path.startsWith(key)
+    )
+    if (relatedTestsKey) {
+      const lines = manifest[relatedTestsKey]
       tests.push(...lines)
     }
   }

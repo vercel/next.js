@@ -61,7 +61,19 @@ jobs:
           node scripts/run-e2e-test-project-reset.mjs
 
       - name: Run tests
-        run: xvfb-run node run-tests.js --related
+        run: |
+          docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && \
+          NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && \ 
+          corepack enable > /dev/null && \
+          NEXT_JUNIT_TEST_REPORT=${{ env.NEXT_JUNIT_TEST_REPORT }} \
+          DATADOG_API_KEY=${{ env.DATADOG_API_KEY }} \
+          DD_ENV=${{ env.DD_ENV }} \ 
+          VERCEL_TEST_TOKEN=${{ env.VERCEL_TEST_TOKEN }} \
+          VERCEL_TEST_TEAM=${{ env.VERCEL_TEST_TEAM }} \
+          NEXT_TEST_JOB=${{ env.NEXT_TEST_JOB }} \
+          NEXT_TEST_MODE=${{ env.NEXT_TEST_MODE }} \
+          TEST_TIMINGS_TOKEN=${{ env.TEST_TIMINGS_TOKEN }} \
+          xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
 
       - name: Save test report as artifacts
         if: always()
