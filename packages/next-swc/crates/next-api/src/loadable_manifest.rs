@@ -18,7 +18,6 @@ use crate::dynamic_imports::DynamicImportedChunks;
 #[turbo_tasks::function]
 pub async fn create_react_loadable_manifest(
     dynamic_import_entries: Vc<DynamicImportedChunks>,
-    node_root: Vc<FileSystemPath>,
     client_relative_path: Vc<FileSystemPath>,
     output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<OutputAssets>> {

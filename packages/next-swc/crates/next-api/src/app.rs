@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::{Context, Result};
 use indexmap::IndexSet;
 use next_core::{
@@ -27,8 +25,7 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, LoadableManifest, MiddlewareMatcher, MiddlewaresManifestV2,
-        PagesManifest, Regions,
+        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
     },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -67,7 +64,6 @@ use turbopack_binding::{
 use crate::{
     dynamic_imports::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        DynamicImportedChunks,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -1047,7 +1043,6 @@ impl AppEndpoint {
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
-                    node_root,
                     client_relative_path,
                     node_root.join(format!(
                         "server/app{}/react-loadable-manifest.json",
@@ -1128,7 +1123,6 @@ impl AppEndpoint {
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
-                    node_root,
                     client_relative_path,
                     node_root.join(format!(
                         "server/app{}/react-loadable-manifest.json",

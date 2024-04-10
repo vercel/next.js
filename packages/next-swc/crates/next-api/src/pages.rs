@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
@@ -12,8 +10,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        BuildManifest, EdgeFunctionDefinition, LoadableManifest, MiddlewareMatcher,
-        MiddlewaresManifestV2, PagesManifest,
+        BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
+        PagesManifest,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -28,9 +26,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{
-    trace::TraceRawVcs, Completion, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
-};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{
         File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -934,7 +930,6 @@ impl PageEndpoint {
         let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
-            node_root,
             client_relative_path,
             node_root.join(format!(
                 "server/pages{loadable_path_prefix}/react-loadable-manifest.json"
