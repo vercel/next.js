@@ -46,6 +46,7 @@
   "tailwindcss",
   "ts-node",
   "typescript",
+  "undici",
   "vscode-oniguruma",
   "webpack",
   "websocket",

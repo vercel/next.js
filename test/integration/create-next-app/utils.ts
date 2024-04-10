@@ -27,7 +27,11 @@ export const run = (
     // tests with options.reject false are expected to exit(1) so don't inherit
     stdio: options.reject === false ? 'pipe' : 'inherit',
     ...options,
-    env: { ...process.env, ...options.env },
+    env: {
+      ...process.env,
+      ...options.env,
+      NEXT_PRIVATE_TEST_VERSION: 'canary',
+    },
   })
 
 export const command = (cmd: string, args: string[]) =>

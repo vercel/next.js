@@ -45,6 +45,7 @@ import type {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -176,12 +177,13 @@ import {
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
-  printNonFatalIssue,
+  isRelevantWarning,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
+import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 
 interface ExperimentalBypassForInfo {
@@ -1355,6 +1357,11 @@ export default async function build(
           throw new Error("next build doesn't support turbopack yet")
         }
 
+        await validateTurboNextConfig({
+          dir,
+          isDev: false,
+        })
+
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1457,6 +1464,7 @@ export default async function build(
           manifestLoader,
           nextConfig: config,
           rewrites: emptyRewritesObjToBeImplemented,
+          logErrors: false,
         })
 
         const progress = createProgress(
@@ -1491,6 +1499,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
             })
           )
         }
@@ -1506,6 +1515,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
             })
           )
         }
@@ -1516,6 +1526,7 @@ export default async function build(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: emptyRewritesObjToBeImplemented,
+            logErrors: false,
           })
         )
         await Promise.all(promises)
@@ -1529,6 +1540,10 @@ export default async function build(
           page: string
           message: string
         }[] = []
+        const warnings: {
+          page: string
+          message: string
+        }[] = []
         for (const [page, entryIssues] of currentEntryIssues) {
           for (const issue of entryIssues.values()) {
             if (issue.severity !== 'warning') {
@@ -1537,14 +1552,29 @@ export default async function build(
                 message: formatIssue(issue),
               })
             } else {
-              printNonFatalIssue(issue)
+              if (isRelevantWarning(issue)) {
+                warnings.push({
+                  page,
+                  message: formatIssue(issue),
+                })
+              }
             }
           }
         }
 
+        if (warnings.length > 0) {
+          Log.warn(
+            `Turbopack build collected ${warnings.length} warnings:\n${warnings
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
+        }
+
         if (errors.length > 0) {
           throw new Error(
-            `Turbopack build failed with ${errors.length} issues:\n${errors
+            `Turbopack build failed with ${errors.length} errors:\n${errors
               .map((e) => {
                 return 'Page: ' + e.page + '\n' + e.message
               })
@@ -1590,6 +1620,7 @@ export default async function build(
       }
 
       Log.info('Creating an optimized production build ...')
+      traceMemoryUsage('Starting build', nextBuildSpan)
 
       if (!isGenerateMode) {
         if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
@@ -1598,6 +1629,7 @@ export default async function build(
           const serverBuildPromise = webpackBuild(useBuildWorker, [
             'server',
           ]).then((res) => {
+            traceMemoryUsage('Finished server compilation', nextBuildSpan)
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
 
@@ -1636,6 +1668,7 @@ export default async function build(
             'edge-server',
           ]).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished edge-server compilation', nextBuildSpan)
           })
           if (runServerAndEdgeInParallel) {
             await serverBuildPromise
@@ -1644,6 +1677,7 @@ export default async function build(
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished client compilation', nextBuildSpan)
           })
 
           Log.event('Compiled successfully')
@@ -1658,6 +1692,7 @@ export default async function build(
           const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
+          traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1673,6 +1708,7 @@ export default async function build(
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
+        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
@@ -2312,6 +2348,7 @@ export default async function build(
       })
 
       if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
         console.warn(
