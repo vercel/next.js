@@ -5950,8 +5950,7 @@
     },
     "test/integration/app-tree/test/index.test.js": {
       "passed": [],
-      "failed": [],
-      "pending": [
+      "failed": [
         "AppTree development mode should pass AppTree to NextPageContext",
         "AppTree development mode should provide router context in AppTree on CSR",
         "AppTree development mode should provide router context in AppTree on SSR",
@@ -5959,6 +5958,7 @@
         "AppTree production mode should provide router context in AppTree on CSR",
         "AppTree production mode should provide router context in AppTree on SSR"
       ],
+      "pending": [],
       "flakey": [],
       "runtimeError": true
     },
