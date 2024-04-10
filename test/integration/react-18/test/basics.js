@@ -44,7 +44,7 @@ export default (context, env) => {
           dynamicIds.find((id) =>
             id.includes(`pages/${page}.js -> ../components/foo`)
           )
-        ).toBe(true)
+        ).toBeTruthy()
       } else {
         expect(dynamicIds.length).toBe(1)
       }
