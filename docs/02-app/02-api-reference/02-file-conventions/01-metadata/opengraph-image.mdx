@@ -421,6 +421,28 @@ export default async function Image({ params }) {
 }
 ```
 
+#### Using Node runtime with local assets
+
+This example uses the Node runtime to fetch a local image on the file system and pass it as an `ArrayBuffer` to an `img` element `src`:
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+import { readFile } from 'node:fs/promises'
+
+export async function GET() {
+  const logoData = await readFile('./logo.png')
+  const logoSrc = Uint8Array.from(logoSource).buffer
+
+  return new ImageResponse(
+    (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
 ## Version History
 
 | Version   | Changes                                           |
