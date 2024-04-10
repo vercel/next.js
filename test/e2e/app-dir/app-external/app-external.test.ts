@@ -258,6 +258,11 @@ createNextDescribe(
       expect(await hasRedbox(browser)).toBe(false)
     })
 
+    it('should handle default condition with cjs correctly in client components', async () => {
+      const browser = await next.browser('/client-cjs-default')
+      expect(await browser.elementByCss('div').text()).toBe('foo:default')
+    })
+
     it('should export client module references in esm', async () => {
       const html = await next.render('/esm-client-ref')
       expect(html).toContain('hello')
