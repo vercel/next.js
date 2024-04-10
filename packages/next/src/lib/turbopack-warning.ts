@@ -2,7 +2,10 @@ import type { NextConfig } from '../server/config-shared'
 import path from 'path'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
 
 const unsupportedTurbopackNextConfigOptions = [
   // is this supported?
@@ -88,15 +91,16 @@ export async function validateTurboNextConfig({
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
 
+  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+      await loadConfig(phase, dir, {
         rawConfig: true,
       })
     ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
+      rawNextConfig = (rawNextConfig as any)(phase, {
         defaultConfig,
       })
     }
