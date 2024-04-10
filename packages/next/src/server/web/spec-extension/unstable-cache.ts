@@ -1,13 +1,12 @@
-import type { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import {
   addImplicitTags,
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -59,11 +58,6 @@ export function unstable_cache<T extends Callback>(
     tags?: string[]
   } = {}
 ): T {
-  const staticGenerationAsyncStorage =
-    ((fetch as any).__nextGetStaticStore?.() as
-      | StaticGenerationAsyncStorage
-      | undefined) ?? _staticGenerationAsyncStorage
-
   if (options.revalidate === 0) {
     throw new Error(
       `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${cb.toString()}`

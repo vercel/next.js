@@ -61,9 +61,7 @@ async function refreshInactiveParallelSegmentsImpl({
     // Eagerly kick off the fetch for the refetch path & the parallel routes. This should be fine to do as they each operate
     // independently on their own cache nodes, and `applyFlightData` will copy anything it doesn't care about from the existing cache.
     const fetchPromise = fetchServerResponse(
-      // we capture the pathname of the refetch without search params, so that it can be refetched with
-      // the "latest" search params when it comes time to actually trigger the fetch (below)
-      new URL(refetchPathname + location.search, location.origin),
+      new URL(refetchPathname, location.origin),
       // refetch from the root of the updated tree, otherwise it will be scoped to the current segment
       // and might not contain the data we need to patch in interception route data (such as dynamic params from a previous segment)
       [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
