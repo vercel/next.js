@@ -1112,9 +1112,7 @@ impl AppEndpoint {
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let mut dynamic_import_modules =
                     collect_next_dynamic_imports([Vc::upcast(app_entry.rsc_entry)]).await?;
-                println!("client_dynamic_imports: {:?}", client_dynamic_imports);
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
-                println!("dynamic_import_modules: {:?}", dynamic_import_modules);
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
