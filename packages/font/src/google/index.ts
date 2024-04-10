@@ -16976,6 +16976,18 @@ export declare function Noto_Traditional_Nushu<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'nushu'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Noto_Znamenny_Musical_Notation<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'znamenny'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nova_Cut<
   T extends CssVariable | undefined = undefined
 >(options: {
