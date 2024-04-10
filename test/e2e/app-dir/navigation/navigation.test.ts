@@ -460,7 +460,7 @@ createNextDescribe(
 
         it.each([
           '/redirect/servercomponent',
-          'redirect/redirect-with-loading',
+          '/redirect/redirect-with-loading',
         ])('should only trigger the redirect once (%s)', async (path) => {
           const browser = await next.browser(path)
           const initialTimestamp = await browser
@@ -497,6 +497,17 @@ createNextDescribe(
             }
             // If it's our "forcing continue" error, do nothing. This means we succeeded.
           }
+        })
+
+        it('should handle the streaming redirect when JavaScript is disabled', async () => {
+          const browser = await next.browser(
+            '/redirect/redirect-with-loading',
+            { disableJavaScript: true }
+          )
+
+          await browser.waitForElementByCss('#timestamp')
+
+          expect(await browser.url()).toBe(next.url + '/redirect/result')
         })
       })
 

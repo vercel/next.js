@@ -44,17 +44,62 @@ export function makeGetServerInsertedHTML({
           getURLFromRedirectError(error),
           basePath
         )
+        let encodedRedirectPathname: string | undefined
+
+        try {
+          encodedRedirectPathname = encodeURIComponent(
+            new URL(redirectUrl, 'http://n').pathname
+          )
+        } catch (err) {
+          console.error(`Failed to parse redirect URL: ${redirectUrl}`)
+        }
+
         const statusCode = getRedirectStatusCodeFromError(error)
         const isPermanent =
           statusCode === RedirectStatusCode.PermanentRedirect ? true : false
-        if (redirectUrl) {
+        if (encodedRedirectPathname) {
+          // If a streaming redirect is detected, we need to insert a meta tag to redirect the page, so that
+          // bots can follow the redirect (since a 200 status code has already been sent). We insert a script tag
+          // to only perform the redirect if the client hasn't already handled it, to prevent a double redirect.
+          // The client router also has handling to abort the SPA nav if the meta tag has been inserted into the DOM.
+          // The script then removes itself from the DOM.
+          // We also insert a noscript tag to handle the case where JavaScript is disabled.
           errorMetaTags.push(
-            <meta
-              id="__next-page-redirect"
-              httpEquiv="refresh"
-              content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
-              key={error.digest}
-            />
+            <div key={error.digest} id="__next-page-redirect-wrapper">
+              <script
+                type="text/javascript"
+                dangerouslySetInnerHTML={{
+                  __html: `
+                  (function() {
+                    const encodedRedirectPathname = "${encodedRedirectPathname}";
+                    const redirectPathname = decodeURIComponent(encodedRedirectPathname);
+                    const currentPathname = decodeURIComponent(window.location.pathname);
+                    if (currentPathname !== redirectPathname) {
+                      const element = document.createElement("meta");
+                      element.id = "__next-page-redirect";
+                      element.httpEquiv = "refresh";
+                      element.content = "${
+                        isPermanent ? 0 : 1
+                      };url=" + redirectPathname;
+                      document.head.appendChild(element);
+                    } else {
+                      const wrapper = document.getElementById("__next-page-redirect-wrapper");
+                      if (wrapper && wrapper.parentNode) {
+                        wrapper.parentNode.removeChild(wrapper);
+                      }
+                    }
+                  })();
+                `,
+                }}
+              />
+              <noscript>
+                <meta
+                  id="__next-page-redirect"
+                  httpEquiv="refresh"
+                  content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
+                />
+              </noscript>
+            </div>
           )
         }
       }
