@@ -5232,7 +5232,7 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/app-dir/dynamic-css/index.test.ts": {
+    "test/production/app-dir/dynamic-css/index.test.ts": {
       "passed": [],
       "failed": [
         "app dir - dynamic css should preload css of dynamic component during SSR"
