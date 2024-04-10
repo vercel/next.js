@@ -740,18 +740,20 @@ impl PageEndpoint {
 
                 let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    Vc::cell(evaluatable_assets.clone()),
+                    Vc::cell(evaluatable_assets),
                     Value::new(AvailabilityInfo::Root),
                 );
 
-                let dynamic_import_modules =
-                    collect_next_dynamic_imports([Vc::upcast(ssr_module)]).await?;
+                let dynamic_import_modules = collect_next_dynamic_imports(
+                    [Vc::upcast(ssr_module)],
+                    this.pages_project.client_module_context(),
+                )
+                .await?;
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
-                    Vc::cell(evaluatable_assets.clone()),
                 )
                 .await?;
 
@@ -805,8 +807,11 @@ impl PageEndpoint {
                     .await?;
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let dynamic_import_modules =
-                    collect_next_dynamic_imports([Vc::upcast(ssr_module)]).await?;
+                let dynamic_import_modules = collect_next_dynamic_imports(
+                    [Vc::upcast(ssr_module)],
+                    this.pages_project.client_module_context(),
+                )
+                .await?;
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(

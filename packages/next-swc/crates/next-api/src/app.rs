@@ -748,9 +748,10 @@ impl AppEndpoint {
                         ClientReferenceType::EcmascriptClientReference(entry) => Some(entry),
                         ClientReferenceType::CssClientReference(_) => None,
                     })
-                    .map(|entry| async move { Ok(Vc::upcast(entry.await?.client_module)) })
+                    .map(|entry| async move { Ok(Vc::upcast(entry.await?.ssr_module)) })
                     .try_join()
                     .await?,
+                Vc::upcast(this.app_project.client_module_context()),
             )
             .await?;
 
@@ -1032,13 +1033,15 @@ impl AppEndpoint {
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
-                let mut dynamic_import_modules =
-                    collect_next_dynamic_imports([Vc::upcast(app_entry.rsc_entry)]).await?;
+                let mut dynamic_import_modules = collect_next_dynamic_imports(
+                    [Vc::upcast(app_entry.rsc_entry)],
+                    Vc::upcast(this.app_project.client_module_context()),
+                )
+                .await?;
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
-                    Vc::cell(evaluatable_assets),
                 )
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
@@ -1110,8 +1113,11 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let mut dynamic_import_modules =
-                    collect_next_dynamic_imports([Vc::upcast(app_entry.rsc_entry)]).await?;
+                let mut dynamic_import_modules = collect_next_dynamic_imports(
+                    [Vc::upcast(app_entry.rsc_entry)],
+                    Vc::upcast(this.app_project.client_module_context()),
+                )
+                .await?;
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
