@@ -10,28 +10,44 @@ async function testDev(browser, errorRegex) {
 }
 
 describe('Error test if the loader file export a named function', () => {
-  const { next, isNextDev } = nextTestSetup({
-    skipDeployment: true,
-    skipStart: true,
-    files: __dirname,
+  describe('in Development', () => {
+    const { next, isNextDev } = nextTestSetup({
+      skipDeployment: true,
+      files: __dirname,
+    })
+
+    ;(isNextDev ? describe : describe.skip)('development only', () => {
+      it('should show the error when using `Image` component', async () => {
+        const browser = await next.browser('/')
+        await testDev(browser, errorMessage)
+      })
+
+      it('should show the error when using `getImageProps` method', async () => {
+        const browser = await next.browser('/get-img-props')
+        await testDev(browser, errorMessage)
+      })
+    })
   })
 
-  if (isNextDev) {
-    it('should show the error when using `Image` component', async () => {
-      const browser = await next.browser('/')
-      await testDev(browser, errorMessage)
+  describe('in Build and Start', () => {
+    const { next, isNextStart } = nextTestSetup({
+      skipDeployment: true,
+      skipStart: true,
+      files: __dirname,
     })
 
-    it('should show the error when using `getImageProps` method', async () => {
-      const browser = await next.browser('/get-img-props')
-      await testDev(browser, errorMessage)
-    })
-  } else {
-    it('should show the build error', async () => {
-      await expect(next.start()).rejects.toThrow(
-        'next build failed with code/signal 1'
-      )
-      expect(next.cliOutput).toContain(errorMessage)
-    })
-  }
+    // next build doesn't support turbopack yet
+    // see https://nextjs.org/docs/architecture/turbopack#unsupported-features
+    ;(isNextStart && !process.env.TURBOPACK ? describe : describe.skip)(
+      'build and start only',
+      () => {
+        it('should show the build error', async () => {
+          await expect(next.start()).rejects.toThrow(
+            'next build failed with code/signal 1'
+          )
+          expect(next.cliOutput).toContain(errorMessage)
+        })
+      }
+    )
+  })
 })
