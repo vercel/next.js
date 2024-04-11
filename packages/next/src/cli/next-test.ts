@@ -2,7 +2,7 @@ import { existsSync, writeFileSync } from 'fs'
 import { getProjectDir } from '../lib/get-project-dir'
 import { printAndExit } from '../server/lib/utils'
 import loadConfig from '../server/config'
-import { PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import {
   hasNecessaryDependencies,
   type MissingDependency,
@@ -19,8 +19,12 @@ import {
   getPkgManager,
   type PackageManager,
 } from '../lib/helpers/get-pkg-manager'
+import type { Command } from 'commander'
 
-export interface NextTestOptions {}
+export interface NextTestOptions {
+  testRunner?: string
+  testRunnerArgs?: string[]
+}
 
 export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
 export type SUPPORTED_TEST_RUNNERS =
@@ -42,9 +46,12 @@ function isSupportedTestRunner(
 
 export async function nextTest(
   directory?: string,
-  testRunner?: string,
-  options?: unknown
+  options?: NextTestOptions,
+  command?: Command
 ) {
+  console.log('directory', directory, 'options', options)
+
+  process.exit(0)
   // get execution directory
   const baseDir = getProjectDir(directory)
 
@@ -58,11 +65,13 @@ export async function nextTest(
 
   // set the test runner. priority is CLI option > next config > default 'playwright'
   const configuredTestRunner =
-    testRunner ?? nextConfig.experimental.defaultTestRunner ?? 'playwright'
+    options?.testRunner ??
+    nextConfig.experimental.defaultTestRunner ??
+    'playwright'
 
   switch (configuredTestRunner) {
     case 'playwright':
-      return runPlaywright(baseDir, nextConfig)
+      return runPlaywright(baseDir, nextConfig, options)
     default:
       return printAndExit(
         `Test runner ${configuredTestRunner} is not supported.`
@@ -83,7 +92,11 @@ async function checkRequiredDeps(
   }
 }
 
-async function runPlaywright(baseDir: string, nextConfig: NextConfigComplete) {
+async function runPlaywright(
+  baseDir: string,
+  nextConfig: NextConfigComplete,
+  options: unknown
+) {
   await checkRequiredDeps(baseDir, 'playwright')
 
   const playwrightConfigFile = await findUp(
@@ -109,9 +122,9 @@ async function runPlaywright(baseDir: string, nextConfig: NextConfigComplete) {
 
     const isUsingTypeScript = !!typeScriptVersion
 
-    const playwrightConfigFilename = `playwright.config.${
-      isUsingTypeScript ? 'ts' : 'js'
-    }`
+    const playwrightConfigFilename = isUsingTypeScript
+      ? 'playwright.config.ts'
+      : 'playwright.config.js'
 
     const packageManager = getPkgManager(baseDir)
 
@@ -120,6 +133,8 @@ async function runPlaywright(baseDir: string, nextConfig: NextConfigComplete) {
       defaultPlaywrightConfig(isUsingTypeScript, packageManager)
     )
   }
+
+  return
 }
 
 const defaultPlaywrightConfig = (

@@ -11,6 +11,7 @@ import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { myParseInt } from '../server/lib/utils'
 import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test.js'
+import { getProjectDir } from '../lib/get-project-dir'
 
 if (
   semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
@@ -361,19 +362,40 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .argument(
-    '[testRunner]',
+  .option(
+    '-t, --test-runner',
     `Any supported test runner. Options: ${bold(
       SUPPORTED_TEST_RUNNERS_LIST.join(', ')
     )}. ${italic(
       "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
     )}`
   )
-  .action((directory, testRunner, options) =>
+  .option(
+    '-a, --test-runner-args [args...]',
+    'Arguments to pass through to the test runner'
+  )
+  .action((directory, options, command) =>
     import('../cli/next-test.js').then((mod) => {
-      mod.nextTest(directory, testRunner, options)
+      mod.nextTest(directory, options, command)
     })
   )
-  .usage('[directory] [test runner] [options]')
+// .usage('[directory] [test runner] [options]')
 
 program.parse(process.argv)
+
+/*
+// run default test runner in current directory
+next test
+// run default test runner in `my-project` directory
+next test my-project
+// run `playwright` test runner in current directory
+next test playwright
+// run `playwright` test runner in `my-project` directory
+next test my-project playwright
+// run command `show-report` for default test runner in current directory
+next test show-report
+// run command `show-report` for default test runner in `my-project` directory
+next test my-project show-report
+// run command `show-report` for `playwright` in `my-project` directory
+next test my-project playwright show-report
+*/
