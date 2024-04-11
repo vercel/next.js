@@ -191,16 +191,6 @@ Options:
   -h, --help                        Displays this message.
 ```
 
-### Profiling
-
-You can enable production profiling for React with the `--profile` flag in `next build`.
-
-```bash filename="Terminal"
-next build --profile
-```
-
-After that, you can use the profiler in the same way as you would in development.
-
 ### Debug
 
 You can enable more verbose build output with the `--debug` flag in `next build`.
@@ -228,6 +218,16 @@ next build --no-mangling
 ```
 
 > **Good to know**: This may affect performance and should only be used for debugging purposes.
+
+### Profiling
+
+You can enable production profiling for React with the `--profile` flag in `next build`.
+
+```bash filename="Terminal"
+next build --profile
+```
+
+After that, you can use the profiler in the same way as you would in development.
 
 ## Production
 
@@ -401,7 +401,7 @@ x"])
   -h, --help                             Displays this message.
 ```
 
-If you have other directories that you would like to lint, you can specfy them using the `--dir` flag:
+If you have other directories that you would like to lint, you can specify them using the `--dir` flag:
 
 ```bash filename="Terminal"
 next lint --dir utils

@@ -45,6 +45,7 @@ import type {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -176,7 +177,7 @@ import {
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
-  printNonFatalIssue,
+  isRelevantWarning,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -339,9 +340,29 @@ async function writePrerenderManifest(
   manifest: Readonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeEdgePartialPrerenderManifest(distDir, manifest)
+}
+
+async function writeEdgePartialPrerenderManifest(
+  distDir: string,
+  manifest: Readonly<Partial<PrerenderManifest>>
+): Promise<void> {
+  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
+  // Use env vars in JS bundle and inject the actual vars to edge manifest.
+  const edgePartialPrerenderManifest: Partial<PrerenderManifest> = {
+    ...manifest,
+    preview: {
+      previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
+      previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
+      previewModeEncryptionKey:
+        'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+    },
+  }
   await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(
+      JSON.stringify(edgePartialPrerenderManifest)
+    )}`
   )
 }
 
@@ -1219,17 +1240,7 @@ export default async function build(
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
-      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
-      const partialManifest: Partial<PrerenderManifest> = {
-        preview: previewProps,
-      }
-
-      await writeFileUtf8(
-        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-        `self.__PRERENDER_MANIFEST=${JSON.stringify(
-          JSON.stringify(partialManifest)
-        )}`
-      )
+      await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
@@ -1346,6 +1357,11 @@ export default async function build(
           throw new Error("next build doesn't support turbopack yet")
         }
 
+        await validateTurboNextConfig({
+          dir,
+          isDev: false,
+        })
+
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1448,6 +1464,7 @@ export default async function build(
           manifestLoader,
           nextConfig: config,
           rewrites: emptyRewritesObjToBeImplemented,
+          logErrors: false,
         })
 
         const progress = createProgress(
@@ -1482,6 +1499,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
             })
           )
         }
@@ -1497,6 +1515,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
             })
           )
         }
@@ -1507,6 +1526,7 @@ export default async function build(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: emptyRewritesObjToBeImplemented,
+            logErrors: false,
           })
         )
         await Promise.all(promises)
@@ -1520,6 +1540,10 @@ export default async function build(
           page: string
           message: string
         }[] = []
+        const warnings: {
+          page: string
+          message: string
+        }[] = []
         for (const [page, entryIssues] of currentEntryIssues) {
           for (const issue of entryIssues.values()) {
             if (issue.severity !== 'warning') {
@@ -1528,14 +1552,29 @@ export default async function build(
                 message: formatIssue(issue),
               })
             } else {
-              printNonFatalIssue(issue)
+              if (isRelevantWarning(issue)) {
+                warnings.push({
+                  page,
+                  message: formatIssue(issue),
+                })
+              }
             }
           }
         }
 
+        if (warnings.length > 0) {
+          Log.warn(
+            `Turbopack build collected ${warnings.length} warnings:\n${warnings
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
+        }
+
         if (errors.length > 0) {
           throw new Error(
-            `Turbopack build failed with ${errors.length} issues:\n${errors
+            `Turbopack build failed with ${errors.length} errors:\n${errors
               .map((e) => {
                 return 'Page: ' + e.page + '\n' + e.message
               })

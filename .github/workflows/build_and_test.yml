@@ -154,7 +154,7 @@ jobs:
 
   test-turbopack-dev:
     name: test turbopack dev
-    needs: ['changes', 'build-next']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -169,7 +169,7 @@ jobs:
 
   test-turbopack-integration:
     name: test turbopack development integration
-    needs: ['changes', 'build-next']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -185,7 +185,7 @@ jobs:
 
   test-turbopack-production:
     name: test turbopack production
-    needs: ['changes', 'build-next']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -201,7 +201,7 @@ jobs:
 
   test-turbopack-production-integration:
     name: test turbopack production integration
-    needs: ['changes', 'build-next']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
