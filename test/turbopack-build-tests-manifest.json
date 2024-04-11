@@ -2267,10 +2267,10 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
