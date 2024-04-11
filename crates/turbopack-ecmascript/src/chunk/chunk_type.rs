@@ -11,8 +11,8 @@ use super::{
     EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkingContext,
 };
 
-#[derive(Default)]
 #[turbo_tasks::value]
+#[derive(Default)]
 pub struct EcmascriptChunkType {}
 
 #[turbo_tasks::value_impl]

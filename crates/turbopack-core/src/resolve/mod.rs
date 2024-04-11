@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
     FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -379,9 +379,8 @@ impl ModuleResolveResultOption {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput)]
 pub enum ExternalType {
-    OriginalReference,
     Url,
     CommonJs,
     EcmaScriptModule,
@@ -390,7 +389,6 @@ pub enum ExternalType {
 impl Display for ExternalType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExternalType::OriginalReference => write!(f, "original reference"),
             ExternalType::CommonJs => write!(f, "commonjs"),
             ExternalType::EcmaScriptModule => write!(f, "esm"),
             ExternalType::Url => write!(f, "url"),
