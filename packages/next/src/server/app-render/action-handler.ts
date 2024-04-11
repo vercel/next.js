@@ -399,11 +399,16 @@ export async function handleAction({
   const contentType = req.headers['content-type']
   const { serverActionsManifest, page } = ctx.renderOpts
 
-  const { actionId, isURLEncodedAction, isMultipartAction, isFetchAction } =
-    getServerActionRequestMetadata(req)
+  const {
+    actionId,
+    isURLEncodedAction,
+    isMultipartAction,
+    isFetchAction,
+    isServerAction,
+  } = getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
-  if (!getIsServerAction(req) || actionId === null) {
+  if (!isServerAction) {
     return
   }
 
@@ -578,7 +583,6 @@ export async function handleAction({
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
-            console.error(err)
             return {
               type: 'not-found',
             }
@@ -667,7 +671,6 @@ export async function handleAction({
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
-            console.error(err)
             return {
               type: 'not-found',
             }
@@ -718,7 +721,6 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         actionModId =
           actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
       } catch (err) {
-        console.error(err)
         return {
           type: 'not-found',
         }
