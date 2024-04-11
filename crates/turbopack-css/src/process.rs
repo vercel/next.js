@@ -991,7 +991,6 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
                         m.original.map(|v| v.original_column).unwrap_or_default(),
                         Some(0),
                         None,
-                        false,
                     );
                 }
 
