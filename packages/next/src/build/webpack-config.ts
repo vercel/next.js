@@ -1737,6 +1737,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
+          appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
