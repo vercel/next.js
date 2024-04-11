@@ -340,9 +340,29 @@ async function writePrerenderManifest(
   manifest: Readonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeEdgePartialPrerenderManifest(distDir, manifest)
+}
+
+async function writeEdgePartialPrerenderManifest(
+  distDir: string,
+  manifest: Readonly<Partial<PrerenderManifest>>
+): Promise<void> {
+  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
+  // Use env vars in JS bundle and inject the actual vars to edge manifest.
+  const edgePartialPrerenderManifest: Partial<PrerenderManifest> = {
+    ...manifest,
+    preview: {
+      previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
+      previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
+      previewModeEncryptionKey:
+        'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+    },
+  }
   await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(
+      JSON.stringify(edgePartialPrerenderManifest)
+    )}`
   )
 }
 
@@ -1220,17 +1240,7 @@ export default async function build(
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
-      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
-      const partialManifest: Partial<PrerenderManifest> = {
-        preview: previewProps,
-      }
-
-      await writeFileUtf8(
-        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-        `self.__PRERENDER_MANIFEST=${JSON.stringify(
-          JSON.stringify(partialManifest)
-        )}`
-      )
+      await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
