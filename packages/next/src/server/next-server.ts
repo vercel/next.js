@@ -1133,10 +1133,6 @@ export default class NextNodeServer extends BaseServer {
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
-        // We don't log for non-route requests,
-        // need to be accessed before and outside of `reqCallback`.
-        const isRouteRequest = getRequestMeta(req).match
-        const isRSC = isRSCRequestCheck(req)
 
         const reqCallback = () => {
           // we don't log for non-route requests
