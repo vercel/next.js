@@ -345,4 +345,32 @@ program
   )
   .usage('[options]')
 
+program
+  .command('experimental-test')
+  .description(
+    `Execute \`next/experimental/testmode\` tests using a specified test runner. Any arguments or options after the optional ${italic(
+      '[directory]'
+    )} and ${italic(
+      '[test runner]'
+    )} arguments will be passed through to the ${italic('[test runner]')}.`
+  )
+  .argument(
+    '[directory]',
+    `A Next.js project directory to execute the test runner on. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .argument(
+    '[testRunner]',
+    `Any supported test runner. Options: ${bold('playwright')}. ${italic(
+      "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
+    )}`
+  )
+  .action((directory, testRunner, options) =>
+    import('../cli/next-test.js').then((mod) => {
+      mod.nextTest(directory, testRunner, options)
+    })
+  )
+  .usage('[directory] [test runner] [options]')
+
 program.parse(process.argv)

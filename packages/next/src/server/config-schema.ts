@@ -390,6 +390,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
+        defaultTestRunner: z.enum(['playwright']).optional(),
       })
       .optional(),
     exportPathMap: z

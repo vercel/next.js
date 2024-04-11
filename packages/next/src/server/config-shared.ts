@@ -440,9 +440,14 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
-   * Enables `fetch` requests to be proxied to the experimental text proxy server
+   * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
+
+  /**
+   * Set a default test runner to be used by `next experimental-test`.
+   */
+  defaultTestRunner?: 'playwright'
 }
 
 export type ExportPathMap = {
