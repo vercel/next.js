@@ -1405,6 +1405,17 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/dynamic-css/index.test.ts": {
+      "passed": [
+        "app dir - dynamic css should only apply corresponding css for page loaded that /another",
+        "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
+        "app dir - dynamic css should preload css of dynamic component during SSR"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
       "passed": [
         "dynamic-data inside cache scope error when the build when accessing dynamic data inside a cache scope",
@@ -1760,6 +1771,17 @@
       ],
       "failed": [],
       "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "Error test if the loader file export a named function in Build and Start build and start only should show the build error",
+        "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
+        "Error test if the loader file export a named function in Development development only should show the error when using `getImageProps` method"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -2221,6 +2243,8 @@
         "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
         "parallel-routes-and-interception route intercepting should not have /default paths in the prerender manifest",
         "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
+        "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
+        "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
         "parallel-routes-and-interception route intercepting should render intercepted route",
         "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
         "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
@@ -2231,9 +2255,7 @@
         "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
       ],
       "failed": [
-        "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
-        "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
-        "parallel-routes-and-interception route intercepting should render an intercepted route from a slot"
+        "parallel-routes-and-interception parallel routes should display all parallel route params with useParams"
       ],
       "pending": [],
       "flakey": [],
@@ -2326,6 +2348,13 @@
     },
     "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
       "passed": [
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
+        "parallel-routes-revalidation should handle a redirect action when called in a slot",
+        "parallel-routes-revalidation should handle router.refresh() when called in a slot",
         "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
         "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
         "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/dynamic/foobar)",
@@ -2336,13 +2365,6 @@
         "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
         "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
         "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
-        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
-        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
-        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
-        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
-        "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
-        "parallel-routes-revalidation should handle a redirect action when called in a slot",
-        "parallel-routes-revalidation should handle router.refresh() when called in a slot",
         "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route"
       ],
       "pending": [],
@@ -2643,6 +2665,18 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/resource-url-encoding/resource-url-encoding.test.ts": {
+      "passed": [
+        "scripts encodes characters in app router",
+        "scripts encodes characters in pages router",
+        "styles encodes characters in app router",
+        "styles encodes characters in pages router"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
       "passed": [
         "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
@@ -2691,15 +2725,14 @@
     "test/e2e/app-dir/root-layout/root-layout.test.ts": {
       "passed": [
         "app-dir root layout Should do a mpa navigation when switching root layout should work with basic routes",
-        "app-dir root layout Should do a mpa navigation when switching root layout should work with route groups"
-      ],
-      "failed": [
         "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic catchall routes",
         "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic routes",
         "app-dir root layout Should do a mpa navigation when switching root layout should work with parallel routes",
+        "app-dir root layout Should do a mpa navigation when switching root layout should work with route groups",
         "app-dir root layout Should do a mpa navigation when switching root layout should work with static routes",
         "app-dir root layout should correctly handle navigation between multiple root layouts"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3353,13 +3386,6 @@
       "passed": [
         "webpack-loader-conditions should only run the test in turbopack"
       ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/e2e/app-dir/weird-chars-in-scripts/weird-chars-in-scripts.test.ts": {
-      "passed": ["weird chars in scripts should load in the browser"],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -5462,13 +5488,14 @@
       "runtimeError": false
     },
     "test/integration/absolute-assetprefix/test/index.test.js": {
-      "passed": [],
-      "failed": [
-        "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
-        "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback",
+      "passed": [
         "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
         "absolute assetPrefix with path prefix production mode should work with getServerSideProps",
         "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered"
+      ],
+      "failed": [
+        "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
+        "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback"
       ],
       "pending": [],
       "flakey": [],
@@ -5949,16 +5976,17 @@
       "runtimeError": false
     },
     "test/integration/app-tree/test/index.test.js": {
-      "passed": [],
-      "failed": [
-        "AppTree development mode should pass AppTree to NextPageContext",
-        "AppTree development mode should provide router context in AppTree on CSR",
-        "AppTree development mode should provide router context in AppTree on SSR",
+      "passed": [
         "AppTree production mode should pass AppTree to NextPageContext",
         "AppTree production mode should provide router context in AppTree on CSR",
         "AppTree production mode should provide router context in AppTree on SSR"
       ],
-      "pending": [],
+      "failed": [],
+      "pending": [
+        "AppTree development mode should pass AppTree to NextPageContext",
+        "AppTree development mode should provide router context in AppTree on CSR",
+        "AppTree development mode should provide router context in AppTree on SSR"
+      ],
       "flakey": [],
       "runtimeError": true
     },
@@ -10676,8 +10704,7 @@
         "with contentDispositionType attachment dev support with next.config.js should set 304 status without body when etag matches if-none-match",
         "with contentDispositionType attachment dev support with next.config.js should set cache-control to immutable for static images",
         "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
-        "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-        "with contentDispositionType attachment dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+        "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image"
       ],
       "failed": [
         "with contentDispositionType attachment Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
@@ -10737,7 +10764,8 @@
         "with contentDispositionType attachment Production Mode Server support with next.config.js should set cache-control to immutable for static images",
         "with contentDispositionType attachment Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
         "with contentDispositionType attachment Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-        "with contentDispositionType attachment Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+        "with contentDispositionType attachment Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif",
+        "with contentDispositionType attachment dev support with next.config.js should use cached image file when parameters are the same for animated gif"
       ],
       "pending": [],
       "flakey": [],
@@ -11998,15 +12026,14 @@
     },
     "test/integration/next-image-legacy/custom-resolver/test/index.test.ts": {
       "passed": [
+        "Custom Resolver Tests production mode Client-side Custom Loader Tests Should use a custom resolver for image URL",
+        "Custom Resolver Tests production mode Client-side Custom Loader Tests should add a srcset based on the custom resolver",
+        "Custom Resolver Tests production mode Client-side Custom Loader Tests should support the unoptimized attribute",
         "Custom Resolver Tests production mode SSR Custom Loader Tests Should use a custom resolver for image URL",
         "Custom Resolver Tests production mode SSR Custom Loader Tests should add a srcset based on the custom resolver",
         "Custom Resolver Tests production mode SSR Custom Loader Tests should support the unoptimized attribute"
       ],
-      "failed": [
-        "Custom Resolver Tests production mode Client-side Custom Loader Tests Should use a custom resolver for image URL",
-        "Custom Resolver Tests production mode Client-side Custom Loader Tests should add a srcset based on the custom resolver",
-        "Custom Resolver Tests production mode Client-side Custom Loader Tests should support the unoptimized attribute"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13201,8 +13228,7 @@
       "runtimeError": false
     },
     "test/integration/query-with-encoding/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Query String with Encoding production mode new line should have correct query on Router#push",
         "Query String with Encoding production mode new line should have correct query on SSR",
         "Query String with Encoding production mode new line should have correct query on complex client-side <Link>",
@@ -13220,6 +13246,7 @@
         "Query String with Encoding production mode trailing space should have correct query on complex client-side <Link>",
         "Query String with Encoding production mode trailing space should have correct query on simple client-side <Link>"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
@@ -13738,11 +13765,7 @@
       "runtimeError": false
     },
     "test/integration/script-loader/test/index.test.js": {
-      "passed": [],
-      "failed": [
-        "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
-        "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
-        "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script",
+      "passed": [
         "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
         "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
         "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
@@ -13763,6 +13786,11 @@
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
         "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
+      ],
+      "failed": [
+        "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
+        "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
+        "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script"
       ],
       "pending": [],
       "flakey": [],
@@ -13857,10 +13885,10 @@
       "runtimeError": false
     },
     "test/integration/ssg-data-404/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "SSG data 404 production mode should hard navigate when a new deployment occurs"
       ],
+      "failed": [],
       "pending": [
         "SSG data 404 development mode should hard navigate when a new deployment occurs"
       ],
@@ -14514,12 +14542,6 @@
       ],
       "flakey": [],
       "runtimeError": false
-    },
-    "test/production/app-dir/dynamic-css/index.test.ts": {
-      "passed": [],
-      "failed": [
-        "app dir - dynamic css should preload css of dynamic component during SSR"
-      ]
     },
     "test/production/app-dir-edge-runtime-with-wasm/index.test.ts": {
       "passed": ["app-dir edge runtime with wasm should have built"],
