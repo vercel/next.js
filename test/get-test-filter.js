@@ -71,9 +71,9 @@ function getTestFilter() {
 
           // Exclude failing and flakey tests, newly added tests are
           // automatically included.
-          const { failed = [], flakey = [] } = info
-          if (failed.length > 0 || flakey.length > 0) {
-            test.excludedCases = failed.concat(flakey)
+          const { failed = [], flakey = [], pending = [] } = info
+          if (failed.length > 0 || flakey.length > 0 || pending.length > 0) {
+            test.excludedCases = failed.concat(flakey).concat(pending)
           }
 
           return test
