@@ -107,6 +107,7 @@ import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 
 export * from './base-server'
 
@@ -1138,7 +1139,13 @@ export default class NextNodeServer extends BaseServer {
         const isRSC = isRSCRequestCheck(req)
 
         const reqCallback = () => {
-          if (!isRouteRequest || isRSC) return
+          // we don't log for non-route requests
+          const isRSC = isRSCRequestCheck(req)
+          const isRouteRequest = getRequestMeta(req).match
+          const { query } = parseRelativeUrl(req.url || '')
+          // TODO: rsc headers are stripped from the request rn, so we need to check the query.
+          // Once we figured out how to strip the flight headers properly, we can remove this check.
+          if (!isRouteRequest || isRSC || query['_rsc']) return
 
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
