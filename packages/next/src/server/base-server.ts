@@ -134,6 +134,7 @@ import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/pref
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
+import { toRoute } from './lib/to-route'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1823,8 +1824,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {
-      isSSG ||=
-        !!prerenderManifest.routes[pathname === '/index' ? '/' : pathname]
+      isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
 
     // Toggle whether or not this is a Data request
