@@ -403,7 +403,7 @@ export async function handleAction({
     getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
-  if (!getIsServerAction(req)) {
+  if (!getIsServerAction(req) || actionId === null) {
     return
   }
 
