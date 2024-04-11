@@ -11,6 +11,7 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../../types'
 import type { SwrDelta } from './lib/revalidate'
+import type { SUPPORTED_TEST_RUNNERS } from '../cli/next-test'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -447,7 +448,7 @@ export interface ExperimentalConfig {
   /**
    * Set a default test runner to be used by `next experimental-test`.
    */
-  defaultTestRunner?: 'playwright'
+  defaultTestRunner?: SUPPORTED_TEST_RUNNERS
 }
 
 export type ExportPathMap = {

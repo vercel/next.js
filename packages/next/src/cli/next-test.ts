@@ -11,9 +11,11 @@ import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
 
-interface NextTestOptions {}
+export interface NextTestOptions {}
 
-type SUPPORTED_TEST_RUNNERS = 'playwright'
+export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
+export type SUPPORTED_TEST_RUNNERS =
+  (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
 
 const requiredPackagesByTestRunner: {
   [k in SUPPORTED_TEST_RUNNERS]: MissingDependency[]
