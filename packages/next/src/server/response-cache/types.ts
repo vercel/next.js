@@ -81,9 +81,9 @@ interface IncrementalCachedPageValue {
 }
 
 export type IncrementalCacheEntry = {
-  curRevalidate?: number | false
+  curRevalidate?: Revalidate
   // milliseconds to revalidate after
-  revalidateAfter: number | false
+  revalidateAfter: Revalidate
   // -1 here dictates a blocking revalidate should be used
   isStale?: boolean | -1
   value: IncrementalCacheValue | null
