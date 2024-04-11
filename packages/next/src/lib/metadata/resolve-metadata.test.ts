@@ -340,6 +340,42 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should prefer title and description from openGraph rather than metadata for twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            title: 'doc title',
+            openGraph: {
+              title: 'og-title',
+              description: 'og-description',
+              images: 'https://test.com',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+      })
+    })
+
     it('should fill only the existing props from openGraph to twitter', async () => {
       const metadataItems: MetadataItems = [
         [
