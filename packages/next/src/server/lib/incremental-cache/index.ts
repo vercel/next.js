@@ -1,12 +1,12 @@
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { PrerenderManifest } from '../../../build'
+import type { Revalidate } from '../revalidate'
 import type {
   IncrementalCacheValue,
   IncrementalCacheEntry,
 } from '../../response-cache'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
-import path from '../../../shared/lib/isomorphic/path'
 import { encodeText } from '../../stream-utils/encode-decode'
 import { encode } from '../../../shared/lib/base64-arraybuffer'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -17,10 +17,8 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
-
-function toRoute(pathname: string): string {
-  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
-}
+import { toRoute } from '../to-route'
+import { SharedRevalidateTimings } from './shared-revalidate-timings'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -72,6 +70,11 @@ export class IncrementalCache {
   isOnDemandRevalidate?: boolean
   private locks = new Map<string, Promise<void>>()
   private unlocks = new Map<string, () => Promise<void>>()
+  /**
+   * The revalidate timings for routes. This will source the timings from the
+   * prerender manifest until the in-memory cache is updated with new timings.
+   */
+  private readonly revalidateTimings: SharedRevalidateTimings
 
   constructor({
     fs,
@@ -139,6 +142,7 @@ export class IncrementalCache {
     this.requestProtocol = requestProtocol
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
+    this.revalidateTimings = new SharedRevalidateTimings(this.prerenderManifest)
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
 
@@ -178,18 +182,16 @@ export class IncrementalCache {
     pathname: string,
     fromTime: number,
     dev?: boolean
-  ): number | false {
+  ): Revalidate {
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
     if (dev) return new Date().getTime() - 1000
 
     // if an entry isn't present in routes we fallback to a default
-    // of revalidating after 1 second
-    const { initialRevalidateSeconds } = this.prerenderManifest.routes[
-      toRoute(pathname)
-    ] || {
-      initialRevalidateSeconds: 1,
-    }
+    // of revalidating after 1 second.
+    const initialRevalidateSeconds =
+      this.revalidateTimings.get(toRoute(pathname)) ?? 1
+
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
         ? initialRevalidateSeconds * 1000 + fromTime
@@ -464,11 +466,10 @@ export class IncrementalCache {
       }
     }
 
-    const curRevalidate =
-      this.prerenderManifest.routes[toRoute(cacheKey)]?.initialRevalidateSeconds
+    const curRevalidate = this.revalidateTimings.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
-    let revalidateAfter: false | number
+    let revalidateAfter: Revalidate
 
     if (cacheData?.lastModified === -1) {
       isStale = -1
@@ -554,19 +555,12 @@ export class IncrementalCache {
     pathname = this._getPathname(pathname, ctx.fetchCache)
 
     try {
-      // we use the prerender manifest memory instance
-      // to store revalidate timings for calculating
-      // revalidateAfter values so we update this on set
+      // Set the value for the revalidate seconds so if it changes we can
+      // update the cache with the new value.
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
-        this.prerenderManifest.routes[pathname] = {
-          dataRoute: path.posix.join(
-            '/_next/data',
-            `${normalizePagePath(pathname)}.json`
-          ),
-          srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
-          initialRevalidateSeconds: ctx.revalidate,
-        }
+        this.revalidateTimings.set(pathname, ctx.revalidate)
       }
+
       await this.cacheHandler?.set(pathname, data, ctx)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
