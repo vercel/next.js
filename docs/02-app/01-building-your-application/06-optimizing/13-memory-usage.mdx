@@ -19,6 +19,8 @@ Starting in `14.2.0`, you can run `next build --experimental-debug-memory-usage`
 will print out information about memory usage continuously throughout the build, such as heap usage and garbage collection
 statistics. Heap snapshots will also be taken automatically when memory usage gets close to the configured limit.
 
+> **Good to know**: This feature is not compatible with the Webpack build worker option.
+
 ## Record a heap profile
 
 To look for memory issues, you can record a heap profile from Node.js and load it in Chrome DevTools to identify potential sources of memory leaks.
