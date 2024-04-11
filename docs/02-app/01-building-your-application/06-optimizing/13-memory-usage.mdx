@@ -17,7 +17,7 @@ The [Bundle Analyzer](/docs/app/building-your-application/optimizing/bundle-anal
 
 Starting in `14.2.0`, you can run `next build --experimental-debug-memory-usage` to run the build in a mode where Next.js will print out information about memory usage continuously throughout the build, such as heap usage and garbage collection statistics. Heap snapshots will also be taken automatically when memory usage gets close to the configured limit.
 
-> **Good to know**: This feature is not compatible with the Webpack build worker option.
+> **Good to know**: This feature is not compatible with the Webpack build worker option which is auto-enabled unless you have custom webpack config.
 
 ## Record a heap profile
 
