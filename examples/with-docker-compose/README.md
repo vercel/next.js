@@ -88,6 +88,8 @@ docker compose -f docker-compose.prod-without-multistage.yml build
 docker compose -f docker-compose.prod-without-multistage.yml up -d
 ```
 
+[For self-hosted using this image with next/image needs sharp.](https://nextjs.org/docs/messages/sharp-missing-in-production)
+
 Open [http://localhost:3000](http://localhost:3000).
 
 ## Useful commands
