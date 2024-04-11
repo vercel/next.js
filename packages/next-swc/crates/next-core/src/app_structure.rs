@@ -743,10 +743,14 @@ async fn check_duplicate(
     loader_tree: &LoaderTree,
     app_dir: Vc<FileSystemPath>,
 ) {
-    if loader_tree
-        .page
-        .iter()
-        .any(|v| matches!(v, PageSegment::CatchAll(..) | PageSegment::Parallel(..)))
+    if loader_tree.page.iter().any(|v| {
+        matches!(
+            v,
+            PageSegment::CatchAll(..)
+                | PageSegment::OptionalCatchAll(..)
+                | PageSegment::Parallel(..)
+        )
+    }) || !matches!(loader_tree.page.last(), Some(PageSegment::PageType(..)))
     {
         return;
     }
