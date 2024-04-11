@@ -20,7 +20,7 @@ import {
 } from '../../../lib/constants'
 
 function toRoute(pathname: string): string {
-  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+  return pathname.replace(/\/$/, '') || '/'
 }
 
 export interface CacheHandlerContext {
