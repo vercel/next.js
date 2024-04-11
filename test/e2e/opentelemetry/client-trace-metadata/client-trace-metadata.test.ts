@@ -20,6 +20,22 @@ describe('clientTraceMetadata', () => {
     )
   })
 
+  it('hard loading a dynamic page twice should yield different dynamic trace data', async () => {
+    const browser1 = await next.browser('/dynamic-page')
+    const firstLoadSpanIdContent = await browser1
+      .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+      .getAttribute('content')
+
+    const browser2 = await next.browser('/dynamic-page')
+    const secondLoadSpanIdContent = await browser2
+      .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+      .getAttribute('content')
+
+    expect(firstLoadSpanIdContent).toMatch(/[a-f0-9]{16}/)
+    expect(secondLoadSpanIdContent).toMatch(/[a-f0-9]{16}/)
+    expect(firstLoadSpanIdContent).not.toBe(secondLoadSpanIdContent)
+  })
+
   if (isNextDev) {
     describe('next dev only', () => {
       it('should inject propagation data for a statically server-side-rendered page', async () => {
