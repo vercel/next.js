@@ -139,6 +139,32 @@ createNextDescribe(
       ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
+    it('should not log errors for non-action form POSTs', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/non-action-form')
+      await browser.elementByCss('button').click()
+
+      await check(() => browser.url(), next.url + '/', true, 2)
+
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('Failed to find Server Action "null"')
+          )
+            ? 'error'
+            : ''
+        }, '')
+      }
+    })
+
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie')
