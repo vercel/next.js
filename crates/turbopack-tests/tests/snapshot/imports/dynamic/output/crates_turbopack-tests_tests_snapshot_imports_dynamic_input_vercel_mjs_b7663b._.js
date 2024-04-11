@@ -5,7 +5,7 @@
 __turbopack_export_value__((__turbopack_import__) => {
     return Promise.all([
   "output/crates_turbopack-tests_tests_snapshot_imports_dynamic_input_vercel_mjs_18521c._.js",
-  "output/crates_turbopack-tests_tests_snapshot_imports_dynamic_input_vercel_mjs_f0aa29._.js"
+  "output/crates_turbopack-tests_tests_snapshot_imports_dynamic_input_vercel_mjs_307f6b._.js"
 ].map((chunk) => __turbopack_load__(chunk))).then(() => {
         return __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.mjs [test] (ecmascript)");
     });
