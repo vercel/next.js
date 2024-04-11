@@ -147,7 +147,7 @@ pub async fn get_server_resolve_options_context(
     custom_conditions.extend(
         NextRuntime::NodeJs
             .conditions()
-            .into_iter()
+            .iter()
             .map(ToString::to_string),
     );
 
@@ -349,7 +349,7 @@ pub async fn get_server_module_options_context(
     conditions.extend(
         next_runtime
             .conditions()
-            .into_iter()
+            .iter()
             .map(ToString::to_string),
     );
 

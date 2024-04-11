@@ -104,7 +104,7 @@ pub async fn get_edge_resolve_options_context(
     custom_conditions.extend(
         NextRuntime::Edge
             .conditions()
-            .into_iter()
+            .iter()
             .map(ToString::to_string),
     );
 
