@@ -183,10 +183,7 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::External(
-                        request,
-                        ExternalType::OriginalReference | ExternalType::Url,
-                    ) => {
+                    ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -275,10 +272,7 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::External(
-                        request,
-                        ExternalType::OriginalReference | ExternalType::Url,
-                    ) => {
+                    ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
