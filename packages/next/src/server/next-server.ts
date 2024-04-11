@@ -1137,7 +1137,8 @@ export default class NextNodeServer extends BaseServer {
           // we don't log for non-route requests
           const isRouteRequest = getRequestMeta(req).match
           const isRSC = isRSCRequestCheck(req)
-          if (!isRouteRequest || isRSC) return
+          const hasRSCParam = req.url?.includes('_rsc=')
+          if (!isRouteRequest || isRSC || hasRSCParam) return
 
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
