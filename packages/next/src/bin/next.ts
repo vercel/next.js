@@ -345,7 +345,6 @@ program
       mod.nextTelemetry(options, arg)
     )
   )
-  .usage('[options]')
 
 program
   .command('experimental-test')
@@ -379,7 +378,7 @@ program
       mod.nextTest(directory, options, command)
     })
   )
-// .usage('[directory] [test runner] [options]')
+  .usage('[directory] [options]')
 
 program.parse(process.argv)
 
