@@ -1,4 +1,5 @@
 import type { PrerenderManifest } from '../../../build'
+import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { Revalidate } from '../revalidate'
 
 /**
@@ -18,7 +19,9 @@ export class SharedRevalidateTimings {
      * The prerender manifest that contains the initial revalidate timings for
      * routes.
      */
-    private readonly prerenderManifest: Pick<PrerenderManifest, 'routes'>
+    private readonly prerenderManifest: DeepReadonly<
+      Pick<PrerenderManifest, 'routes'>
+    >
   ) {}
 
   /**
