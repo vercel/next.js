@@ -583,6 +583,9 @@ export async function handleAction({
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
+            if (actionId !== null) {
+              console.error(err)
+            }
             return {
               type: 'not-found',
             }
@@ -671,6 +674,9 @@ export async function handleAction({
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
+            if (actionId !== null) {
+              console.error(err)
+            }
             return {
               type: 'not-found',
             }
@@ -721,6 +727,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         actionModId =
           actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
       } catch (err) {
+        if (actionId !== null) {
+          console.error(err)
+        }
         return {
           type: 'not-found',
         }
