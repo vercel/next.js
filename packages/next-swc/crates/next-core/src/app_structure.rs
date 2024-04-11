@@ -26,7 +26,7 @@ use crate::{
             match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
             GlobalMetadataFileMatch, MetadataFileMatch,
         },
-        AppPage, AppPath, PageType,
+        AppPage, AppPath, PageSegment, PageType,
     },
     next_config::NextConfig,
     next_import_map::get_next_package,
@@ -743,6 +743,14 @@ async fn check_duplicate(
     loader_tree: &LoaderTree,
     app_dir: Vc<FileSystemPath>,
 ) {
+    if loader_tree
+        .page
+        .iter()
+        .any(|v| matches!(v, PageSegment::CatchAll(..) | PageSegment::Parallel(..)))
+    {
+        return;
+    }
+
     if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
         DuplicateParallelRouteIssue {
             app_dir,
@@ -887,7 +895,9 @@ async fn directory_tree_to_loader_tree(
                 continue;
             }
 
-            check_duplicate(&mut duplicate, &*subtree.await?, app_dir).await;
+            if *subtree.has_page().await? {
+                check_duplicate(&mut duplicate, &*subtree.await?, app_dir).await;
+            }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
                 if is_current_directory_catchall && *subtree.has_only_catchall().await? {
