@@ -36,10 +36,7 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
-import {
-  getIsServerAction,
-  getServerActionRequestMetadata,
-} from '../lib/server-action-request-meta'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
