@@ -95,10 +95,6 @@ impl OutputAsset for EcmascriptDevChunkList {
         for &evaluatable_asset in self.evaluatable_assets.await?.iter() {
             ident.add_asset(Vc::<String>::default(), evaluatable_asset.ident());
         }
-        let chunk_key = chunk_key();
-        for &chunk in self.chunks.await?.iter() {
-            ident.add_asset(chunk_key, chunk.ident());
-        }
 
         ident.add_modifier(modifier());
 
