@@ -29,15 +29,23 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
     },
     {
       "name": "Next.js: debug full stack",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "npm run dev",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "runtimeArgs": [
+          "--inspect"
+      ],
+      "skipFiles": [
+          "<node_internals>/**"
+      ],
       "serverReadyAction": {
-        "pattern": "- Local:.+(https?://.+)",
-        "uriFormat": "%s",
-        "action": "debugWithChrome"
+          "action": "debugWithEdge",
+          "killOnServerStop": true,
+          "webRoot": "${workspaceFolder}",
+          "pattern": "- Local:.+(https?://.+)",
+          "uriFormat": "%s"
       }
-    }
+  }
   ]
 }
 ```
