@@ -102,12 +102,13 @@ export type TurboRuleConfigItemOrShortcut =
 
 export type TurboRuleConfigItemOptions = {
   loaders: TurboLoaderItem[]
-  as: string
+  as?: string
 }
 
 export type TurboRuleConfigItem =
   | TurboRuleConfigItemOptions
   | { [condition: string]: TurboRuleConfigItem }
+  | false
 
 export interface ExperimentalTurboOptions {
   /**
@@ -184,6 +185,7 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   appDocumentPreloading?: boolean
+  preloadEntriesOnStart?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -881,6 +883,7 @@ export const defaultConfig: NextConfig = {
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     appDocumentPreloading: undefined,
+    preloadEntriesOnStart: undefined,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',

@@ -159,128 +159,167 @@ createNextDescribe(
     })
 
     describe.each([
-      { basePath: '/refreshing', label: 'regular' },
-      { basePath: '/dynamic-refresh/foo', label: 'dynamic' },
-    ])('router.refresh ($label)', ({ basePath }) => {
-      it('should correctly refresh data for the intercepted route and previously active page slot', async () => {
-        const browser = await next.browser(basePath)
-        let initialRandomNumber = await browser.elementById('random-number')
+      { basePath: '/refreshing', label: 'regular', withSearchParams: false },
+      { basePath: '/refreshing', label: 'regular', withSearchParams: true },
+      {
+        basePath: '/dynamic-refresh/foo',
+        label: 'dynamic',
+        withSearchParams: false,
+      },
+      {
+        basePath: '/dynamic-refresh/foo',
+        label: 'dynamic',
+        withSearchParams: true,
+      },
+    ])(
+      'router.refresh ($label) - searchParams: $withSearchParams',
+      ({ basePath, withSearchParams }) => {
+        it('should correctly refresh data for the intercepted route and previously active page slot', async () => {
+          const browser = await next.browser(basePath)
+          let initialSearchParams: string | undefined
 
-        await browser.elementByCss(`[href='${basePath}/login']`).click()
+          if (withSearchParams) {
+            // add some search params prior to proceeding
+            await browser.elementById('update-search-params').click()
 
-        // interception modal should be visible
-        let initialModalRandomNumber = await browser
-          .elementById('modal-random')
-          .text()
+            await retry(async () => {
+              initialSearchParams = await browser
+                .elementById('search-params')
+                .text()
+              expect(initialSearchParams).toMatch(/^Params: "0\.\d+"$/)
+            })
+          }
 
-        // trigger a refresh
-        await browser.elementById('refresh-button').click()
+          let initialRandomNumber = await browser.elementById('random-number')
+          await browser.elementByCss(`[href='${basePath}/login']`).click()
 
-        await retry(async () => {
-          const newRandomNumber = await browser
-            .elementById('random-number')
-            .text()
-          const newModalRandomNumber = await browser
+          // interception modal should be visible
+          let initialModalRandomNumber = await browser
             .elementById('modal-random')
             .text()
-          expect(initialRandomNumber).not.toBe(newRandomNumber)
-          expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
 
-          // reset the initial values to be the new values, so that we can verify the revalidate case below.
-          initialRandomNumber = newRandomNumber
-          initialModalRandomNumber = newModalRandomNumber
-        })
+          // trigger a refresh
+          await browser.elementById('refresh-button').click()
 
-        // trigger a revalidate
-        await browser.elementById('revalidate-button').click()
+          await retry(async () => {
+            const newRandomNumber = await browser
+              .elementById('random-number')
+              .text()
+            const newModalRandomNumber = await browser
+              .elementById('modal-random')
+              .text()
+            expect(initialRandomNumber).not.toBe(newRandomNumber)
+            expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
 
-        await retry(async () => {
-          const newRandomNumber = await browser
-            .elementById('random-number')
-            .text()
-          const newModalRandomNumber = await browser
-            .elementById('modal-random')
-            .text()
-          expect(initialRandomNumber).not.toBe(newRandomNumber)
-          expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
-        })
+            // reset the initial values to be the new values, so that we can verify the revalidate case below.
+            initialRandomNumber = newRandomNumber
+            initialModalRandomNumber = newModalRandomNumber
+          })
 
-        // reload the page, triggering which will remove the interception route and show the full page
-        await browser.refresh()
+          // trigger a revalidate
+          await browser.elementById('revalidate-button').click()
 
-        const initialLoginPageRandomNumber = await browser
-          .elementById('login-page-random')
-          .text()
+          await retry(async () => {
+            const newRandomNumber = await browser
+              .elementById('random-number')
+              .text()
+            const newModalRandomNumber = await browser
+              .elementById('modal-random')
+              .text()
+            expect(initialRandomNumber).not.toBe(newRandomNumber)
+            expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
 
-        // trigger a refresh
-        await browser.elementById('refresh-button').click()
+            if (withSearchParams) {
+              // add additional search params in the new modal
+              await browser.elementById('update-search-params-modal').click()
+              expect(
+                await browser.elementById('search-params-modal').text()
+              ).toMatch(/^Params: "0\.\d+"$/)
 
-        await retry(async () => {
-          const newLoginPageRandomNumber = await browser
+              // make sure the old params are still there too
+              expect(await browser.elementById('search-params').text()).toBe(
+                initialSearchParams
+              )
+            }
+          })
+
+          // reload the page, triggering which will remove the interception route and show the full page
+          await browser.refresh()
+
+          const initialLoginPageRandomNumber = await browser
             .elementById('login-page-random')
             .text()
 
-          expect(newLoginPageRandomNumber).not.toBe(
-            initialLoginPageRandomNumber
-          )
+          // trigger a refresh
+          await browser.elementById('refresh-button').click()
+
+          await retry(async () => {
+            const newLoginPageRandomNumber = await browser
+              .elementById('login-page-random')
+              .text()
+
+            expect(newLoginPageRandomNumber).not.toBe(
+              initialLoginPageRandomNumber
+            )
+          })
         })
-      })
 
-      it('should correctly refresh data for previously intercepted modal and active page slot', async () => {
-        const browser = await next.browser(basePath)
+        it('should correctly refresh data for previously intercepted modal and active page slot', async () => {
+          const browser = await next.browser(basePath)
 
-        await browser.elementByCss(`[href='${basePath}/login']`).click()
+          await browser.elementByCss(`[href='${basePath}/login']`).click()
 
-        // interception modal should be visible
-        let initialModalRandomNumber = await browser
-          .elementById('modal-random')
-          .text()
-
-        await browser.elementByCss(`[href='${basePath}/other']`).click()
-        // data for the /other page should be visible
-
-        let initialOtherPageRandomNumber = await browser
-          .elementById('other-page-random')
-          .text()
-
-        // trigger a refresh
-        await browser.elementById('refresh-button').click()
-
-        await retry(async () => {
-          const newModalRandomNumber = await browser
+          // interception modal should be visible
+          let initialModalRandomNumber = await browser
             .elementById('modal-random')
             .text()
 
-          const newOtherPageRandomNumber = await browser
+          await browser.elementByCss(`[href='${basePath}/other']`).click()
+          // data for the /other page should be visible
+
+          let initialOtherPageRandomNumber = await browser
             .elementById('other-page-random')
             .text()
-          expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
-          expect(initialOtherPageRandomNumber).not.toBe(
-            newOtherPageRandomNumber
-          )
-          // reset the initial values to be the new values, so that we can verify the revalidate case below.
-          initialOtherPageRandomNumber = newOtherPageRandomNumber
-          initialModalRandomNumber = newModalRandomNumber
+
+          // trigger a refresh
+          await browser.elementById('refresh-button').click()
+
+          await retry(async () => {
+            const newModalRandomNumber = await browser
+              .elementById('modal-random')
+              .text()
+
+            const newOtherPageRandomNumber = await browser
+              .elementById('other-page-random')
+              .text()
+            expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
+            expect(initialOtherPageRandomNumber).not.toBe(
+              newOtherPageRandomNumber
+            )
+            // reset the initial values to be the new values, so that we can verify the revalidate case below.
+            initialOtherPageRandomNumber = newOtherPageRandomNumber
+            initialModalRandomNumber = newModalRandomNumber
+          })
+
+          // trigger a revalidate
+          await browser.elementById('revalidate-button').click()
+
+          await retry(async () => {
+            const newModalRandomNumber = await browser
+              .elementById('modal-random')
+              .text()
+
+            const newOtherPageRandomNumber = await browser
+              .elementById('other-page-random')
+              .text()
+            expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
+            expect(initialOtherPageRandomNumber).not.toBe(
+              newOtherPageRandomNumber
+            )
+          })
         })
-
-        // trigger a revalidate
-        await browser.elementById('revalidate-button').click()
-
-        await retry(async () => {
-          const newModalRandomNumber = await browser
-            .elementById('modal-random')
-            .text()
-
-          const newOtherPageRandomNumber = await browser
-            .elementById('other-page-random')
-            .text()
-          expect(initialModalRandomNumber).not.toBe(newModalRandomNumber)
-          expect(initialOtherPageRandomNumber).not.toBe(
-            newOtherPageRandomNumber
-          )
-        })
-      })
-    })
+      }
+    )
 
     describe('server action revalidation', () => {
       it('handles refreshing when multiple parallel slots are active', async () => {
