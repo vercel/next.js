@@ -10,6 +10,7 @@ import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { myParseInt } from '../server/lib/utils'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test.js'
 
 if (
   semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
@@ -362,7 +363,9 @@ program
   )
   .argument(
     '[testRunner]',
-    `Any supported test runner. Options: ${bold('playwright')}. ${italic(
+    `Any supported test runner. Options: ${bold(
+      SUPPORTED_TEST_RUNNERS_LIST.join(', ')
+    )}. ${italic(
       "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
     )}`
   )
