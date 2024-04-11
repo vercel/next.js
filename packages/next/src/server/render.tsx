@@ -845,7 +845,7 @@ export async function renderToHTMLImpl(
           },
         },
         () =>
-          getStaticProps!({
+          getStaticProps({
             ...(pageIsDynamic
               ? { params: query as ParsedUrlQuery }
               : undefined),
@@ -855,6 +855,11 @@ export async function renderToHTMLImpl(
             locales: renderOpts.locales,
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
+            revalidateReason: renderOpts.isOnDemandRevalidate
+              ? 'on-demand'
+              : isBuildTimeSSG
+              ? 'build'
+              : 'stale',
           })
       )
     } catch (staticPropsError: any) {
