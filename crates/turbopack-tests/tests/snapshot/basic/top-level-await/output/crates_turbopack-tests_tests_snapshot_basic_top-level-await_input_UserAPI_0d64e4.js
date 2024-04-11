@@ -5,7 +5,7 @@
 __turbopack_export_value__((__turbopack_import__) => {
     return Promise.all([
   "output/crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_e71653._.js",
-  "output/crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_UserAPI_307f6b.js"
+  "output/crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_UserAPI_ce1a83.js"
 ].map((chunk) => __turbopack_load__(chunk))).then(() => {
         return __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript)");
     });
