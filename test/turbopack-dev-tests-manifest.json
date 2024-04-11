@@ -977,13 +977,12 @@
       "ReactRefreshRequire app provides fresh value for exports.* in parents",
       "ReactRefreshRequire app provides fresh value for module.exports in parents",
       "ReactRefreshRequire app runs dependencies before dependents",
-      "ReactRefreshRequire app stops update propagation after module-level errors"
-    ],
-    "failed": [
+      "ReactRefreshRequire app stops update propagation after module-level errors",
       "ReactRefreshRequire app propagates a hot update to closest accepted module",
       "ReactRefreshRequire app propagates hot update to all inverse dependencies",
       "ReactRefreshRequire app re-runs accepted modules"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshRequire app propagates a module that stops accepting in next version"
     ],
@@ -1326,13 +1325,12 @@
       "ReactRefreshRequire provides fresh value for exports.* in parents",
       "ReactRefreshRequire provides fresh value for module.exports in parents",
       "ReactRefreshRequire runs dependencies before dependents",
-      "ReactRefreshRequire stops update propagation after module-level errors"
-    ],
-    "failed": [
+      "ReactRefreshRequire stops update propagation after module-level errors",
       "ReactRefreshRequire propagates a hot update to closest accepted module",
       "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire re-runs accepted modules"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
