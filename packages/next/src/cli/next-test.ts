@@ -10,8 +10,6 @@ import {
 import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
-import { warn } from '../build/output/log'
-import { bold, cyan } from '../lib/picocolors'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 import path from 'path'
@@ -19,7 +17,8 @@ import {
   getPkgManager,
   type PackageManager,
 } from '../lib/helpers/get-pkg-manager'
-import type { Command } from 'commander'
+import spawn from 'next/dist/compiled/cross-spawn'
+import { spawnSync } from 'child_process'
 
 export interface NextTestOptions {
   testRunner?: string
@@ -46,12 +45,8 @@ function isSupportedTestRunner(
 
 export async function nextTest(
   directory?: string,
-  options?: NextTestOptions,
-  command?: Command
+  options: NextTestOptions = {}
 ) {
-  console.log('directory', directory, 'options', options)
-
-  process.exit(0)
   // get execution directory
   const baseDir = getProjectDir(directory)
 
@@ -68,6 +63,12 @@ export async function nextTest(
     options?.testRunner ??
     nextConfig.experimental.defaultTestRunner ??
     'playwright'
+
+  if (!nextConfig.experimental.testProxy) {
+    return printAndExit(
+      `\`next experimental-test\` requires the \`experimental.testProxy: true\` configuration option.`
+    )
+  }
 
   switch (configuredTestRunner) {
     case 'playwright':
@@ -95,7 +96,7 @@ async function checkRequiredDeps(
 async function runPlaywright(
   baseDir: string,
   nextConfig: NextConfigComplete,
-  options: unknown
+  options: NextTestOptions
 ) {
   await checkRequiredDeps(baseDir, 'playwright')
 
@@ -105,6 +106,8 @@ async function runPlaywright(
       cwd: baseDir,
     }
   )
+
+  const packageManager = getPkgManager(baseDir)
 
   if (!playwrightConfigFile) {
     const { pagesDir, appDir } = findPagesDir(baseDir)
@@ -126,15 +129,26 @@ async function runPlaywright(
       ? 'playwright.config.ts'
       : 'playwright.config.js'
 
-    const packageManager = getPkgManager(baseDir)
-
     writeFileSync(
       path.join(baseDir, playwrightConfigFilename),
       defaultPlaywrightConfig(isUsingTypeScript, packageManager)
     )
   }
 
-  return
+  const testRunnerArgs = options?.testRunnerArgs ?? ['test']
+
+  const playwright = spawn(
+    path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
+    testRunnerArgs,
+    {
+      cwd: baseDir,
+      shell: false,
+      stdio: 'inherit',
+    }
+  )
+  return new Promise((resolve) => {
+    playwright.on('close', (c) => resolve(c))
+  })
 }
 
 const defaultPlaywrightConfig = (

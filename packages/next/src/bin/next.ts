@@ -349,11 +349,7 @@ program
 program
   .command('experimental-test')
   .description(
-    `Execute \`next/experimental/testmode\` tests using a specified test runner. Any arguments or options after the optional ${italic(
-      '[directory]'
-    )} and ${italic(
-      '[test runner]'
-    )} arguments will be passed through to the ${italic('[test runner]')}.`
+    `Execute \`next/experimental/testmode\` tests using a specified test runner. The test runner defaults to 'playwright' if the \`experimental.defaultTestRunner\` configuration option or the \`--test-runner\` option are not set.`
   )
   .argument(
     '[directory]',
@@ -362,7 +358,7 @@ program
     )}`
   )
   .option(
-    '-t, --test-runner',
+    '-t, --test-runner [test-runner]',
     `Any supported test runner. Options: ${bold(
       SUPPORTED_TEST_RUNNERS_LIST.join(', ')
     )}. ${italic(
@@ -371,30 +367,13 @@ program
   )
   .option(
     '-a, --test-runner-args [args...]',
-    'Arguments to pass through to the test runner'
+    'Commands, arguments, and options to pass through to the test runner. Defaults to executing tests (`playwright test`)'
   )
-  .action((directory, options, command) =>
+  .action((directory, options) =>
     import('../cli/next-test.js').then((mod) => {
-      mod.nextTest(directory, options, command)
+      mod.nextTest(directory, options)
     })
   )
   .usage('[directory] [options]')
 
 program.parse(process.argv)
-
-/*
-// run default test runner in current directory
-next test
-// run default test runner in `my-project` directory
-next test my-project
-// run `playwright` test runner in current directory
-next test playwright
-// run `playwright` test runner in `my-project` directory
-next test my-project playwright
-// run command `show-report` for default test runner in current directory
-next test show-report
-// run command `show-report` for default test runner in `my-project` directory
-next test my-project show-report
-// run command `show-report` for `playwright` in `my-project` directory
-next test my-project playwright show-report
-*/
