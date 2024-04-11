@@ -1,9 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('clientTraceMetadata', () => {
+describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
+    nextConfig: {
+      experimental: {
+        instrumentationHook: true,
+        clientTraceMetadata: true,
+        ppr: pprEnabled,
+      },
+    },
   })
 
   it('should inject propagation data for a dynamically server-side-rendered page', async () => {
