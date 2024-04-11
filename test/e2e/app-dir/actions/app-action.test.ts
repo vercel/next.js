@@ -151,7 +151,7 @@ createNextDescribe(
       const browser = await next.browser('/non-action-form')
       await browser.elementByCss('button').click()
 
-      await check(() => browser.url(), next.url, true, 2)
+      await check(() => browser.url(), next.url + '/', true, 2)
 
       // we don't have access to runtime logs on deploy
       if (!isNextDeploy) {
