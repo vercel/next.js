@@ -1,0 +1,14 @@
+---
+title: Builds
+description: Learn how to debug your Next.js builds.
+---
+
+## Memory Usage
+
+To debug memory usage during a build, you can add the `--experimental-debug-memory-usage` flag in your `next build` script. This flag, currently in experimental mode, enables:
+
+- Periodically printing the current memory usage of the process.
+- Records garbage collection events and warns about long running Garbage Collection events.
+  - Kills the process if it detects Garbage Collection thrashing near heap limit.
+- Automatically takes a heap snapshot if heap usage rises above 70% of the total heap or is close to running out of memory.
+- Prints a report at the end of the build with information about peak memory usage and time spent in garbage collection.
