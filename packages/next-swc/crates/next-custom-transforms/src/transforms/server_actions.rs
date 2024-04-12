@@ -572,6 +572,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
+    fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
+        let old_in_export_decl = self.in_export_decl;
+        let old_in_default_export_decl = self.in_default_export_decl;
+        self.in_export_decl = false;
+        self.in_default_export_decl = false;
+        m.visit_mut_children_with(self);
+        self.in_export_decl = old_in_export_decl;
+        self.in_default_export_decl = old_in_default_export_decl;
+    }
+
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
@@ -730,6 +740,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents.extend(
                                     ids.into_iter().map(|id| (id.clone(), id.0.to_string())),
                                 );
+
+                                println!("ASTTTTT {:?}", var);
 
                                 for decl in &mut var.decls {
                                     if let Some(init) = &decl.init {
