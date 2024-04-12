@@ -7,11 +7,11 @@ use indexmap::{
     map::{Entry, OccupiedEntry},
     IndexMap,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, vdbg, Completion, Completions, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -740,19 +740,22 @@ impl Issue for DuplicateParallelRouteIssue {
 }
 
 #[async_recursion]
-async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option<AppPath>> {
+async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option<AppPage>> {
     let loader_tree = loader_tree.await?;
 
-    if loader_tree
-        .page
-        .iter()
-        .any(|v| matches!(v, PageSegment::Parallel(..)))
-    {
+    if loader_tree.page.iter().any(|v| {
+        matches!(
+            v,
+            PageSegment::CatchAll(..)
+                | PageSegment::OptionalCatchAll(..)
+                | PageSegment::Parallel(..)
+        )
+    }) {
         return Ok(None);
     }
 
     if loader_tree.components.await?.page.is_some() {
-        return Ok(Some(AppPath::from(loader_tree.page.clone())));
+        return Ok(Some(loader_tree.page.clone()));
     }
 
     if let Some(children) = loader_tree.parallel_routes.get("children") {
@@ -763,7 +766,7 @@ async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option
 }
 
 async fn check_duplicate(
-    duplicate: &mut FxHashSet<AppPath>,
+    duplicate: &mut FxHashMap<AppPath, AppPage>,
     loader_tree_vc: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
 ) -> Result<()> {
@@ -771,15 +774,16 @@ async fn check_duplicate(
 
     let page_path = page_path_except_parallel(loader_tree_vc).await?;
 
-    dbg!(&page_path);
     if let Some(page_path) = page_path {
-        if !duplicate.insert(page_path) {
-            DuplicateParallelRouteIssue {
-                app_dir,
-                page: loader_tree.page.clone(),
+        if let Some(prev) = duplicate.insert(AppPath::from(page_path.clone()), page_path.clone()) {
+            if prev != page_path {
+                DuplicateParallelRouteIssue {
+                    app_dir,
+                    page: loader_tree.page.clone(),
+                }
+                .cell()
+                .emit();
             }
-            .cell()
-            .emit();
         }
     }
 
@@ -879,7 +883,7 @@ async fn directory_tree_to_loader_tree(
         }
     }
 
-    let mut duplicate = FxHashSet::default();
+    let mut duplicate = FxHashMap::default();
 
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
