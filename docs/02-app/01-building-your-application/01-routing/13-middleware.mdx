@@ -36,8 +36,7 @@ Use the file `middleware.ts` (or `.js`) in the root of your project to define Mi
 ## Example
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
