@@ -1,6 +1,7 @@
 import findUp from 'next/dist/compiled/find-up'
 import { readFile } from 'fs/promises'
 import JSON5 from 'next/dist/compiled/json5'
+import { pathToFileURL } from 'url'
 
 type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>
@@ -66,9 +67,15 @@ export async function findConfig<T>(
 
   if (filePath) {
     if (filePath.endsWith('.js')) {
-      return isESM ? (await import(filePath)).default : require(filePath)
+      if (isESM) {
+        const fileUrl = pathToFileURL(filePath).toString()
+        return (await import(fileUrl)).default
+      } else {
+        return require(filePath)
+      }
     } else if (filePath.endsWith('.mjs')) {
-      return (await import(filePath)).default
+      const fileUrl = pathToFileURL(filePath).toString()
+      return (await import(fileUrl)).default
     } else if (filePath.endsWith('.cjs')) {
       return require(filePath)
     }
