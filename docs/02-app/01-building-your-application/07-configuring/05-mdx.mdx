@@ -24,6 +24,8 @@ Output:
 
 Next.js can support both local MDX content inside your application, as well as remote MDX files fetched dynamically on the server. The Next.js plugin handles transforming markdown and React components into HTML, including support for usage in Server Components (the default in App Router).
 
+> **Good to know**: View the [Portfolio Starter Kit](https://vercel.com/templates/next.js/portfolio-starter-kit) template for a complete working example.
+
 ## Install dependencies
 
 The `@next/mdx` package, and related packages, are used to configure Next.js so it can process markdown and MDX. **It sources data from local files**, allowing you to create pages with a `.md` or `.mdx` extension, directly in your `/pages` or `/app` directory.
@@ -92,7 +94,11 @@ You can render MDX using Next.js's file based routing or by importing MDX files 
 
 ### Using file based routing
 
+When using file based routing, you can use MDX pages like any other page.
+
 <AppOnly>
+
+In App Router apps, that includes being able to use [metadata](/docs/app/building-your-application/optimizing/metadata).
 
 Create a new MDX page within the `/app` directory:
 
@@ -537,17 +543,71 @@ Frontmatter is a YAML like key/value pairing that can be used to store data abou
 
 - [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter)
 - [remark-mdx-frontmatter](https://github.com/remcohaszing/remark-mdx-frontmatter)
-- [gray-matter](https://github.com/jonschlinkert/gray-matter).
+- [gray-matter](https://github.com/jonschlinkert/gray-matter)
 
-To access page metadata with `@next/mdx`, you can export a metadata object from within the MDX file:
+`@next/mdx` **does** allow you to use exports like any other JavaScript component:
 
-```mdx
+```mdx filename="content/blog-post.mdx" switcher
 export const metadata = {
   author: 'John Doe',
 }
 
-# My MDX page
+# Blog post
 ```
+
+Metadata can now be referenced outside of the MDX file:
+
+<AppOnly>
+
+```tsx filename="app/blog/page.tsx" switcher
+import BlogPost, { metadata } from '@/content/blog-post.mdx'
+
+export default function Page() {
+  console.log('metadata': metadata)
+  //=> { author: 'John Doe' }
+  return <BlogPost />
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import BlogPost, { metadata } from '@/content/blog-post.mdx'
+
+export default function Page() {
+  console.log('metadata': metadata)
+  //=> { author: 'John Doe' }
+  return <Welcome />
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```tsx filename="pages/blog.tsx" switcher
+import BlogPost, { metadata } from '@/content/blog-post.mdx'
+
+export default function Page() {
+  console.log('metadata': metadata)
+  //=> { author: 'John Doe' }
+  return <BlogPost />
+}
+```
+
+```jsx filename="pages/blog.js" switcher
+import BlogPost, { metadata } from '@/content/blog-post.mdx'
+
+export default function Page() {
+  console.log('metadata': metadata)
+  //=> { author: 'John Doe' }
+  return <Welcome />
+}
+```
+
+</PagesOnly>
+
+A common use case for this is when you want to iterate over a collection of MDX and extract data. For example, creating a blog index page from all blog posts. You can use packages like [Node's `fs` module](https://nodejs.org/api/fs.html) or [globby](https://www.npmjs.com/package/globby) to read a directory of posts and extract the metadata.
+
+> **Good to know**: View the [Portfolio Starter Kit](https://vercel.com/templates/next.js/portfolio-starter-kit) template for a complete working example.
 
 ## Remark and Rehype Plugins
 
@@ -579,26 +639,6 @@ const withMDX = createMDX({
 // Wrap MDX and Next.js config with each other
 export default withMDX(nextConfig)
 ```
-
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
 
 ## Remote MDX
 
