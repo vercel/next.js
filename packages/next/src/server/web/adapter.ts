@@ -244,7 +244,13 @@ export async function adapter(
           )
       )
     }
-    return params.handler(request, event)
+    return RequestAsyncStorageWrapper.wrap(
+      requestAsyncStorage,
+      {
+        req: request,
+      },
+      () => params.handler(request, event)
+    )
   })
 
   // check if response is a Response object
