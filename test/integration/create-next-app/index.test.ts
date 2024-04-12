@@ -62,7 +62,7 @@ describe('create-next-app', () => {
       )
 
       expect(res.stderr).toMatch(
-        /you do not have write permissions for this folder/
+        /you do not have write permissions for this folder|operation not permitted/
       )
       expect(res.exitCode).toBe(1)
     }, 0o500)
