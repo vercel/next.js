@@ -268,7 +268,11 @@ Generates the following HTML:
 </ul>
 ```
 
-To style your markdown, you can provide your own components that map to the generated HTML elements.
+To style your markdown, you can provide your own components that map to the generated HTML elements. Styles and components can be done locally and globally.
+
+### Global styles and components
+
+Adding styles and components in `mdx-components.tsx` will effect _all_ markdown files in your application.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -282,7 +286,9 @@ import Image, { ImageProps } from 'next/image'
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => <h1 style={{ fontSize: '100px' }}>{children}</h1>,
+    h1: ({ children }) => (
+      <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
+    ),
     img: (props) => (
       <Image
         sizes="100vw"
@@ -306,7 +312,9 @@ import Image from 'next/image'
 export function useMDXComponents(components) {
   return {
     // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => <h1 style={{ fontSize: '100px' }}>{children}</h1>,
+    h1: ({ children }) => (
+      <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
+    ),
     img: (props) => (
       <Image
         sizes="100vw"
@@ -318,6 +326,82 @@ export function useMDXComponents(components) {
   }
 }
 ```
+
+### Local styles and components
+
+You can apply local styles and components to specific pages by passing them into imported markdown components. These will merge with and override [global styles and components](#global-styles-and-components).
+
+<AppOnly>
+
+```tsx filename="app/mdx-page/page.tsx" switcher
+import Welcome from '@/markdown/welcome.mdx'
+
+function CustomH1({ children }) {
+  return <h1 style={{ color: 'blue', fontSize: '100px' }}>{children}</h1>
+}
+
+const overrideComponents = {
+  h1: CustomH1,
+}
+
+export default function Page() {
+  return <Welcome components={overrideComponents} />
+}
+```
+
+```jsx filename="app/mdx-page/page.js" switcher
+import Welcome from '@/markdown/welcome.mdx'
+
+function CustomH1({ children }) {
+  return <h1 style={{ color: 'blue', fontSize: '100px' }}>{children}</h1>
+}
+
+const overrideComponents = {
+  h1: CustomH1,
+}
+
+export default function Page() {
+  return <Welcome components={overrideComponents} />
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```tsx filename="pages/mdx-page.tsx" switcher
+import Welcome from '@/markdown/welcome.mdx'
+
+function CustomH1({ children }) {
+  return <h1 style={{ color: 'blue', fontSize: '100px' }}>{children}</h1>
+}
+
+const overrideComponents = {
+  h1: CustomH1,
+}
+
+export default function Page() {
+  return <Welcome components={overrideComponents} />
+}
+```
+
+```jsx filename="pages/mdx-page.js" switcher
+import Welcome from '@/markdown/welcome.mdx'
+
+function CustomH1({ children }) {
+  return <h1 style={{ color: 'blue', fontSize: '100px' }}>{children}</h1>
+}
+
+const overrideComponents = {
+  h1: CustomH1,
+}
+
+export default function Page() {
+  return <Welcome components={overrideComponents} />
+}
+```
+
+</PagesOnly>
 
 ## Frontmatter
 
