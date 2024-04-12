@@ -185,6 +185,7 @@ import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -337,7 +338,7 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
 
 async function writePrerenderManifest(
   distDir: string,
-  manifest: Readonly<PrerenderManifest>
+  manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
   await writeEdgePartialPrerenderManifest(distDir, manifest)
@@ -345,19 +346,20 @@ async function writePrerenderManifest(
 
 async function writeEdgePartialPrerenderManifest(
   distDir: string,
-  manifest: Readonly<Partial<PrerenderManifest>>
+  manifest: DeepReadonly<Partial<PrerenderManifest>>
 ): Promise<void> {
   // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
   // Use env vars in JS bundle and inject the actual vars to edge manifest.
-  const edgePartialPrerenderManifest: Partial<PrerenderManifest> = {
-    ...manifest,
-    preview: {
-      previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
-      previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
-      previewModeEncryptionKey:
-        'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
-    },
-  }
+  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
+    {
+      ...manifest,
+      preview: {
+        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
+        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
+        previewModeEncryptionKey:
+          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+      },
+    }
   await writeFileUtf8(
     path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
     `self.__PRERENDER_MANIFEST=${JSON.stringify(
@@ -367,7 +369,7 @@ async function writeEdgePartialPrerenderManifest(
 }
 
 async function writeClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
+  prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
     buildId,
     distDir,
@@ -3318,7 +3320,7 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        const prerenderManifest: Readonly<PrerenderManifest> = {
+        const prerenderManifest: DeepReadonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
