@@ -243,7 +243,7 @@ export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button type="submit" aria-disabled={pending}>
+    <button type="submit" disabled={pending}>
       Add
     </button>
   )
@@ -259,7 +259,7 @@ export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button type="submit" aria-disabled={pending}>
+    <button type="submit" disabled={pending}>
       Add
     </button>
   )

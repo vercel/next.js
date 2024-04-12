@@ -25,6 +25,11 @@ createNextDescribe(
       )
     })
 
+    it('should return 404 status code for custom not-found page', async () => {
+      const res = await next.fetch('/_not-found')
+      expect(res.status).toBe(404)
+    })
+
     if (isNextStart) {
       it('should include not found client reference manifest in the file trace', async () => {
         const fileTrace = JSON.parse(

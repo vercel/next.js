@@ -1,0 +1,7 @@
+@mixin body {
+  z-index: (100/2);
+}
+
+.data {
+  @include body;
+}

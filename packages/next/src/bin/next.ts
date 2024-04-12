@@ -105,9 +105,10 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-  .option('--profile', 'Enables production profiling for React.')
+
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
+  .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
@@ -117,6 +118,10 @@ program
     )
       .choices(['compile', 'generate'])
       .default('default')
+  )
+  .option(
+    '--experimental-debug-memory-usage',
+    'Enables memory profiling features to debug memory consumption.'
   )
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections
@@ -169,7 +174,6 @@ program
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
-  .addOption(new Option('--experimental-test-proxy').hideHelp())
   .action((directory, options, { _optionValueSources }) => {
     const portSource = _optionValueSources.port
     import('../cli/next-dev.js').then((mod) =>
@@ -313,7 +317,6 @@ program
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(myParseInt)
   )
-  .addOption(new Option('--experimental-test-proxy').hideHelp())
   .action((directory, options) =>
     import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)

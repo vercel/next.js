@@ -50,6 +50,7 @@ export function makeGetServerInsertedHTML({
         if (redirectUrl) {
           errorMetaTags.push(
             <meta
+              id="__next-page-redirect"
               httpEquiv="refresh"
               content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
               key={error.digest}

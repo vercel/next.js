@@ -238,6 +238,12 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
               }/react.react-server`,
+              'react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
+              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
             },
           },
           layer: 'react-server',
@@ -253,6 +259,12 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
               }/react.react-server`,
+              'react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
+              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
             },
           },
         },

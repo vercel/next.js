@@ -10,7 +10,7 @@ import { shouldRunTurboDevTest } from './next-test-utils'
 
 export type { NextInstance }
 
-// increase timeout to account for yarn install time
+// increase timeout to account for pnpm install time
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
@@ -91,7 +91,7 @@ if (testMode === 'dev') {
 }
 
 /**
- * Whether the test is running in dev mode.
+ * Whether the test is running in development mode.
  * Based on `process.env.NEXT_TEST_MODE` and the test directory.
  */
 export const isNextDev = testMode === 'dev'
@@ -213,16 +213,12 @@ export async function createNext(
   } catch (err) {
     require('console').error('Failed to create next instance', err)
     try {
-      nextInstance.destroy()
+      await nextInstance?.destroy()
     } catch (_) {}
 
-    if (process.env.NEXT_TEST_CONTINUE_ON_ERROR) {
-      // Other test should continue to create new instance if NEXT_TEST_CONTINUE_ON_ERROR explicitly specified.
-      nextInstance = undefined
-      throw err
-    } else {
-      process.exit(1)
-    }
+    nextInstance = undefined
+    // Throw instead of process exit to ensure that Jest reports the tests as failed.
+    throw err
   } finally {
     flushAllTraces()
   }
@@ -245,7 +241,7 @@ export function nextTestSetup(
 
   if (options.skipDeployment) {
     // When the environment is running for deployment tests.
-    if ((global as any).isNextDeploy) {
+    if (isNextDeploy) {
       // eslint-disable-next-line jest/no-focused-tests
       it.only('should skip next deploy', () => {})
       // No tests are run.
@@ -281,22 +277,22 @@ export function nextTestSetup(
   })
 
   return {
-    get isNextDev(): boolean {
-      return Boolean((global as any).isNextDev)
+    get isNextDev() {
+      return isNextDev
     },
     get isTurbopack(): boolean {
       return Boolean(
-        (global as any).isNextDev &&
+        isNextDev &&
           !process.env.TEST_WASM &&
           (options.turbo ?? shouldRunTurboDevTest())
       )
     },
 
-    get isNextDeploy(): boolean {
-      return Boolean((global as any).isNextDeploy)
+    get isNextDeploy() {
+      return isNextDeploy
     },
-    get isNextStart(): boolean {
-      return Boolean((global as any).isNextStart)
+    get isNextStart() {
+      return isNextStart
     },
     get next() {
       return nextProxy

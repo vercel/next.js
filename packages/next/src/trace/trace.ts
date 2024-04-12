@@ -2,6 +2,7 @@ import { reporter } from './report'
 import type { SpanId, TraceEvent, TraceState } from './types'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
+const NUM_OF_MILLISEC_IN_NANOSEC = BigInt('1000000')
 let count = 0
 const getId = () => {
   count++
@@ -102,13 +103,21 @@ export class Span {
   manualTraceChild(
     name: string,
     // Start time in nanoseconds since epoch.
-    startTime: bigint,
+    startTime?: bigint,
     // Stop time in nanoseconds since epoch.
-    stopTime: bigint,
+    stopTime?: bigint,
     attrs?: Attributes
   ) {
-    const span = new Span({ name, parentId: this.id, attrs, startTime })
-    span.stop(stopTime)
+    // We need to convert the time info to the same base as hrtime since that is used usually.
+    const correction =
+      process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
+    const span = new Span({
+      name,
+      parentId: this.id,
+      attrs,
+      startTime: startTime ? startTime + correction : process.hrtime.bigint(),
+    })
+    span.stop(stopTime ? stopTime + correction : process.hrtime.bigint())
   }
 
   getId() {

@@ -1,0 +1,42 @@
+---
+title: StaleTimes (experimental)
+description: Learn how to override the invalidation time of the Client Router Cache.
+---
+
+> **Warning**: The `staleTimes` configuration is an experimental feature. This configuration strategy will likely change in the future.
+
+`staleTimes` is an experimental feature that allows configuring the [invalidation period](/docs/app/building-your-application/caching#duration-3) of the client router cache.
+
+This configuration option is available as of v14.2.0-canary.53.
+
+You can enable this experimental feature & provide custom revalidation times by setting the experimental `staleTimes` flag:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+The `static` and `dynamic` properties correspond with the time period (in seconds) based on different types of [link prefetching](/docs/app/api-reference/components/link#prefetch).
+
+- The `dynamic` property is used when the `prefetch` prop on `Link` is left unspecified.
+  - Default: 30 seconds
+- The `static` property is used when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/building-your-application/caching#routerprefetch).
+  - Default: 5 minutes
+
+> **Good to know:**
+>
+> - [Loading boundaries](/docs/app/api-reference/file-conventions/loading) are considered reusable for the `static` period defined in this configuration.
+> - This doesn't disable [partial rendering support](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), **meaning shared layouts won't automatically be refetched every navigation, only the new segment data.**
+> - This doesn't change [back/forward caching](/docs/app/building-your-application/caching#router-cache) behavior to prevent layout shift & to prevent losing the browser scroll position.
+> - The different properties of this config refer to variable levels of "liveness" and are unrelated to whether the segment itself is opting into static or dynamic rendering. In other words, the current `static` default of 5 minutes suggests that data feels static by virtue of it being revalidated infrequently.
+
+You can learn more about the Client Router Cache [here](/docs/app/building-your-application/caching#router-cache).
