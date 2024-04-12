@@ -250,11 +250,11 @@ Navigating to the `/mdx-page` route should display your rendered MDX page.
 
 ## Using custom styles and components
 
-One of the benefits of using markdown is that it maps to native HTML elements, making writing fast without having to write code.
-
-For example, writing the following markdown:
+Markdown, when rendered, maps to native HTML elements. For example, writing the following markdown:
 
 ```md
+## This is a heading
+
 This is a list in markdown:
 
 - One
@@ -265,6 +265,8 @@ This is a list in markdown:
 Generates the following HTML:
 
 ```html
+<h2>This is a heading</h2>
+
 <p>This is a list in markdown:</p>
 
 <ul>
