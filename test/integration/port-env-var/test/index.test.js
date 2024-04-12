@@ -22,19 +22,22 @@ const runTests = () => {
 }
 
 describe('PORT environment variable', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await runNextCommandDev([appDir], undefined, {
-        env: {
-          PORT: appPort,
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await runNextCommandDev([appDir], undefined, {
+          env: {
+            PORT: appPort,
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

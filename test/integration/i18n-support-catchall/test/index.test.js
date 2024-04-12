@@ -221,16 +221,19 @@ function runTests(isDev) {
 }
 
 describe('i18n Support Root Catch-all', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests(true)
-  })
+      runTests(true)
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

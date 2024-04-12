@@ -15,6 +15,7 @@ use crate::{
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
+        next_page_static_info::get_next_page_static_info_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
     util::NextRuntime,
@@ -41,7 +42,15 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
 
-    let (is_server_components, pages_dir) = match context_ty {
+    if !foreign_code {
+        rules.push(get_next_page_static_info_assert_rule(
+            mdx_rs,
+            Some(context_ty),
+            None,
+        ));
+    }
+
+    let is_server_components = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
                 rules.push(get_next_disallow_export_all_in_page_rule(
@@ -49,7 +58,7 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.await?,
                 ));
             }
-            (false, Some(pages_dir))
+            false
         }
         ServerContextType::PagesData { pages_dir } => {
             if !foreign_code {
@@ -66,7 +75,7 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.await?,
                 ));
             }
-            (false, Some(pages_dir))
+            false
         }
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
@@ -75,7 +84,8 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 mdx_rs,
             ));
-            (false, None)
+
+            false
         }
         ServerContextType::AppRSC {
             client_transition, ..
@@ -90,19 +100,15 @@ pub async fn get_next_server_transforms_rules(
                     client_transition,
                 ));
             }
-            (true, None)
+            true
         }
-        ServerContextType::AppRoute { .. } => (false, None),
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
-            (false, None)
-        }
+        ServerContextType::AppRoute { .. } => false,
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
 
     if !foreign_code {
-        rules.push(
-            get_next_dynamic_transform_rule(true, is_server_components, pages_dir, mode, mdx_rs)
-                .await?,
-        );
+        rules
+            .push(get_next_dynamic_transform_rule(true, is_server_components, mode, mdx_rs).await?);
 
         rules.push(get_next_amp_attr_rule(mdx_rs));
         rules.push(get_next_cjs_optimizer_rule(mdx_rs));

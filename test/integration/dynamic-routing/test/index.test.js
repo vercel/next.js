@@ -1579,18 +1579,21 @@ describe('Dynamic Routing', () => {
     afterAll(() => fs.remove(middlewarePath))
   }
 
-  describe('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
 
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(() => killApp(app))
 
-    runTests({ dev: true })
-  })
+      runTests({ dev: true })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

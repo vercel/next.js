@@ -44,15 +44,18 @@ const runTests = () => {
 }
 
 describe('Custom routes', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(() => killApp(app))
+      runTests(true)
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

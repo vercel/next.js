@@ -40,25 +40,27 @@ describe('i18n Support basePath', () => {
       })
     )
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      const curCtx = {
+        ...ctx,
+        isDev: true,
+      }
+      beforeAll(async () => {
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
+        await fs.remove(join(appDir, '.next'))
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
 
-  describe('development mode', () => {
-    const curCtx = {
-      ...ctx,
-      isDev: true,
+      runTests(curCtx)
     }
-    beforeAll(async () => {
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      await fs.remove(join(appDir, '.next'))
-      curCtx.appPort = await findPort()
-      curCtx.app = await launchApp(appDir, curCtx.appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(curCtx.app)
-    })
-
-    runTests(curCtx)
-  })
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

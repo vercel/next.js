@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
+use futures::Future;
 use indexmap::IndexMap;
+use tracing::Level;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     Value, Vc,
@@ -14,9 +16,10 @@ use turbopack_binding::{
     turbopack::{
         core::{
             chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
-                EvaluatableAssets,
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                ChunkingContextExt, EvaluatableAsset,
             },
+            context::AssetContext,
             issue::IssueSeverity,
             module::Module,
             output::OutputAssets,
@@ -25,21 +28,19 @@ use turbopack_binding::{
             resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            parse::ParseResult,
-            resolve::esm_resolve,
+            chunk::EcmascriptChunkingContext, parse::ParseResult, resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
-        nodejs::NodeJsChunkingContext,
     },
 };
 
-async fn collect_chunk_group_inner<F>(
+async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
-    build_chunk: F,
+    mut build_chunk: F,
 ) -> Result<Vc<DynamicImportedChunks>>
 where
-    F: Fn(Vc<Box<dyn ChunkableModule>>) -> Vc<OutputAssets>,
+    F: FnMut(Vc<Box<dyn ChunkableModule>>) -> Fu,
+    Fu: Future<Output = Result<Vc<OutputAssets>>> + Send,
 {
     let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
     let mut dynamic_import_chunks = IndexMap::new();
@@ -51,7 +52,7 @@ where
             let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
                 *chunk
             } else {
-                let Some(chunk_item) =
+                let Some(module) =
                     Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(imported_module).await?
                 else {
                     bail!("module must be evaluatable");
@@ -63,7 +64,7 @@ where
                 // naive hash to have additonal
                 // chunks in case if there are same modules being imported in differnt
                 // origins.
-                let chunk_group = build_chunk(chunk_item);
+                let chunk_group = build_chunk(module).await?;
                 chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
                 chunk_group
             };
@@ -79,12 +80,12 @@ where
 }
 
 pub(crate) async fn collect_chunk_group(
-    chunking_context: Vc<NodeJsChunkingContext>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
-    collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
-        chunking_context.chunk_group_assets(chunk_item, availability_info)
+    collect_chunk_group_inner(dynamic_import_entries, |module| async move {
+        Ok(chunking_context.chunk_group_assets(module, availability_info))
     })
     .await
 }
@@ -92,14 +93,17 @@ pub(crate) async fn collect_chunk_group(
 pub(crate) async fn collect_evaluated_chunk_group(
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
-    evaluatable_assets: Vc<EvaluatableAssets>,
 ) -> Result<Vc<DynamicImportedChunks>> {
-    collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
-        chunking_context.evaluated_chunk_group_assets(
-            chunk_item.ident(),
-            evaluatable_assets,
-            Value::new(AvailabilityInfo::Root),
-        )
+    collect_chunk_group_inner(dynamic_import_entries, |module| async move {
+        if let Some(module) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? {
+            Ok(chunking_context.evaluated_chunk_group_assets(
+                module.ident(),
+                Vc::cell(vec![Vc::upcast(module)]),
+                Value::new(AvailabilityInfo::Root),
+            ))
+        } else {
+            Ok(chunking_context.chunk_group_assets(module, Value::new(AvailabilityInfo::Root)))
+        }
     })
     .await
 }
@@ -127,8 +131,10 @@ pub(crate) async fn collect_evaluated_chunk_group(
 ///    - Loadable runtime [injects preload fn](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
 ///      to wait until all the dynamic components are being loaded, this ensures
 ///      hydration mismatch won't occur
+#[tracing::instrument(level = Level::TRACE, skip_all)]
 pub(crate) async fn collect_next_dynamic_imports(
-    entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    server_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    client_asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>> {
     // Traverse referenced modules graph, collect all of the dynamic imports:
     // - Read the Program AST of the Module, this is the origin (A)
@@ -139,12 +145,14 @@ pub(crate) async fn collect_next_dynamic_imports(
     // and Module<B> is the actual resolved Module)
     let imported_modules_mapping = NonDeterministic::new()
         .skip_duplicates()
-        .visit([Vc::upcast(entry)], get_referenced_modules)
+        .visit(server_entries.into_iter(), get_referenced_modules)
         .await
         .completed()?
         .into_inner()
         .into_iter()
-        .map(build_dynamic_imports_map_for_module);
+        .map(|server_module| {
+            build_dynamic_imports_map_for_module(client_asset_context, server_module)
+        });
 
     // Consolidate import mappings into a single indexmap
     let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
@@ -173,18 +181,19 @@ async fn get_referenced_modules(
 
 #[turbo_tasks::function]
 async fn build_dynamic_imports_map_for_module(
-    module: Vc<Box<dyn Module>>,
+    client_asset_context: Vc<Box<dyn AssetContext>>,
+    server_module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<OptionDynamicImportsMap>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(server_module).await?
     else {
-        return Ok(OptionDynamicImportsMap::none());
+        return Ok(Vc::cell(None));
     };
 
     // https://github.com/vercel/next.js/pull/56389#discussion_r1349336374
     // don't emit specific error as we expect there's a parse error already reported
     let ParseResult::Ok { program, .. } = &*ecmascript_asset.parse().await? else {
-        return Ok(OptionDynamicImportsMap::none());
+        return Ok(Vc::cell(None));
     };
 
     // Reading the Program AST, collect raw imported module str if it's wrapped in
@@ -193,7 +202,7 @@ async fn build_dynamic_imports_map_for_module(
     program.visit_with(&mut visitor);
 
     if visitor.import_sources.is_empty() {
-        return Ok(OptionDynamicImportsMap::none());
+        return Ok(Vc::cell(None));
     }
 
     let mut import_sources = vec![];
@@ -202,11 +211,11 @@ async fn build_dynamic_imports_map_for_module(
         // resolve the module that is being imported.
         let dynamic_imported_resolved_module = *esm_resolve(
             Vc::upcast(PlainResolveOrigin::new(
-                ecmascript_asset.await?.asset_context,
-                module.ident().path(),
+                client_asset_context,
+                server_module.ident().path(),
             )),
             Request::parse(Value::new(Pattern::Constant(import.to_string()))),
-            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             IssueSeverity::Error.cell(),
             None,
         )
@@ -218,7 +227,7 @@ async fn build_dynamic_imports_map_for_module(
         }
     }
 
-    Ok(Vc::cell(Some(Vc::cell((module, import_sources)))))
+    Ok(Vc::cell(Some(Vc::cell((server_module, import_sources)))))
 }
 
 /// A visitor to check if there's import to `next/dynamic`, then collecting the
@@ -311,14 +320,6 @@ pub struct DynamicImportsMap(pub (Vc<Box<dyn Module>>, DynamicImportedModules));
 /// An Option wrapper around [DynamicImportsMap].
 #[turbo_tasks::value(transparent)]
 pub struct OptionDynamicImportsMap(Option<Vc<DynamicImportsMap>>);
-
-#[turbo_tasks::value_impl]
-impl OptionDynamicImportsMap {
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportedChunks(pub IndexMap<Vc<Box<dyn Module>>, DynamicImportedOutputAssets>);

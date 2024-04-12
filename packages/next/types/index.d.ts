@@ -185,6 +185,7 @@ export type GetStaticPropsContext<
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  revalidateReason?: 'on-demand' | 'build' | 'stale'
 }
 
 /**

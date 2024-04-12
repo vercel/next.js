@@ -2635,37 +2635,39 @@ describe('Custom routes', () => {
     externalServer.close()
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let nextConfigContent
 
-  describe('development mode', () => {
-    let nextConfigContent
+      beforeAll(async () => {
+        // ensure cache with rewrites disabled doesn't persist
+        // after enabling rewrites
+        await fs.remove(join(appDir, '.next'))
+        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+        await fs.writeFile(
+          nextConfigPath,
+          nextConfigContent.replace('// no-rewrites comment', 'return []')
+        )
 
-    beforeAll(async () => {
-      // ensure cache with rewrites disabled doesn't persist
-      // after enabling rewrites
-      await fs.remove(join(appDir, '.next'))
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace('// no-rewrites comment', 'return []')
-      )
+        const tempPort = await findPort()
+        const tempApp = await launchApp(appDir, tempPort)
+        await renderViaHTTP(tempPort, '/')
 
-      const tempPort = await findPort()
-      const tempApp = await launchApp(appDir, tempPort)
-      await renderViaHTTP(tempPort, '/')
+        await killApp(tempApp)
+        await fs.writeFile(nextConfigPath, nextConfigContent)
 
-      await killApp(tempApp)
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-      await killApp(app)
-    })
-    runTests(true)
-  })
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(async () => {
+        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await killApp(app)
+      })
+      runTests(true)
+    }
+  )
 
   describe('no-op rewrite', () => {
     beforeAll(async () => {
@@ -2810,9 +2812,12 @@ describe('Custom routes', () => {
       })
     }
 
-    describe('development mode', () => {
-      runSoloTests(true)
-    })
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        runSoloTests(true)
+      }
+    )
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {

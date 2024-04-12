@@ -113,23 +113,25 @@ describe('404 Page Support SSG', () => {
       runTests()
     }
   )
-
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      stderr = ''
-      stdout = ''
-      app = await launchApp(appDir, appPort, {
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        stderr = ''
+        stdout = ''
+        app = await launchApp(appDir, appPort, {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests(true)
-  })
+      runTests(true)
+    }
+  )
 })

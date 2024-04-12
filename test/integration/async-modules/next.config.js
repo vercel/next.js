@@ -4,4 +4,9 @@ module.exports = {
     config.experiments.topLevelAwait = true
     return config
   },
+  experimental: {
+    amp: {
+      validator: require.resolve('../../lib/amp-validator-wasm.js'),
+    },
+  },
 }

@@ -60,16 +60,19 @@ const runTests = (mode = 'server') => {
 }
 
 describe('500 Page Support', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('dev')
-  })
+      runTests('dev')
+    }
+  )
   describe('development mode 2', () => {
     it('shows error with getInitialProps in pages/500 dev', async () => {
       await fs.move(pages500, `${pages500}.bak`)

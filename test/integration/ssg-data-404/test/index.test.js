@@ -52,35 +52,38 @@ describe('SSG data 404', () => {
     return
   }
 
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
 
-      const proxy = httpProxy.createProxyServer({
-        target: `http://localhost:${appPort}`,
+        const proxy = httpProxy.createProxyServer({
+          target: `http://localhost:${appPort}`,
+        })
+        proxyPort = await findPort()
+
+        proxyServer = http.createServer((req, res) => {
+          if (should404Data && req.url.match(/\/_next\/data/)) {
+            res.statusCode = 404
+            return res.end('not found')
+          }
+          proxy.web(req, res)
+        })
+
+        await new Promise((resolve) => {
+          proxyServer.listen(proxyPort, () => resolve())
+        })
       })
-      proxyPort = await findPort()
-
-      proxyServer = http.createServer((req, res) => {
-        if (should404Data && req.url.match(/\/_next\/data/)) {
-          res.statusCode = 404
-          return res.end('not found')
-        }
-        proxy.web(req, res)
+      afterAll(async () => {
+        await killApp(app)
+        proxyServer.close()
       })
 
-      await new Promise((resolve) => {
-        proxyServer.listen(proxyPort, () => resolve())
-      })
-    })
-    afterAll(async () => {
-      await killApp(app)
-      proxyServer.close()
-    })
-
-    runTests()
-  })
+      runTests()
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

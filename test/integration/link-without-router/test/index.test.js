@@ -21,25 +21,28 @@ describe('Link without a router', () => {
     container.remove()
     container = null
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      it('should not throw when rendered', () => {
+        jest.useFakeTimers()
 
-  describe('development mode', () => {
-    it('should not throw when rendered', () => {
-      jest.useFakeTimers()
+        act(() => {
+          render(<Hello />, container)
+        })
 
-      act(() => {
-        render(<Hello />, container)
+        act(() => {
+          jest.runAllTimers()
+        })
+
+        expect(container.textContent).toBe('Click me')
       })
-
-      act(() => {
-        jest.runAllTimers()
-      })
-
-      expect(container.textContent).toBe('Click me')
-    })
-  })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
+      // eslint-disable-next-line jest/no-identical-title
       it('should not throw when rendered', () => {
         jest.useFakeTimers()
 

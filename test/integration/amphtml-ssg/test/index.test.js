@@ -113,14 +113,17 @@ describe('AMP SSG Support', () => {
       runTests()
     }
   )
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests(true)
+    }
+  )
   describe('export mode', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',

@@ -38,26 +38,28 @@ describe('i18n Support', () => {
     })
   })
   afterAll(() => ctx.externalApp.close())
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      const curCtx = {
+        ...ctx,
+        isDev: true,
+      }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+        curCtx.buildId = 'development'
+      })
+      afterAll(async () => {
+        await killApp(curCtx.app)
+        nextConfig.restore()
+      })
 
-  describe('development mode', () => {
-    const curCtx = {
-      ...ctx,
-      isDev: true,
+      runTests(curCtx)
     }
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      curCtx.appPort = await findPort()
-      curCtx.app = await launchApp(appDir, curCtx.appPort)
-      curCtx.buildId = 'development'
-    })
-    afterAll(async () => {
-      await killApp(curCtx.app)
-      nextConfig.restore()
-    })
-
-    runTests(curCtx)
-  })
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
@@ -421,25 +423,28 @@ describe('i18n Support', () => {
       })
     }
 
-    describe('development mode', () => {
-      const curCtx = {
-        ...ctx,
-        isDev: true,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        const curCtx = {
+          ...ctx,
+          isDev: true,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+          curCtx.appPort = await findPort()
+          curCtx.app = await launchApp(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
+
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash', 'trailingSlash')
-
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
-
-      runSlashTests(curCtx)
-    })
+    )
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
@@ -488,25 +493,28 @@ describe('i18n Support', () => {
       })
     }
 
-    describe('development mode', () => {
-      const curCtx = {
-        ...ctx,
-        isDev: true,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        const curCtx = {
+          ...ctx,
+          isDev: true,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+
+          curCtx.appPort = await findPort()
+          curCtx.app = await launchApp(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
+
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
-
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
-
-      runSlashTests(curCtx)
-    })
+    )
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {

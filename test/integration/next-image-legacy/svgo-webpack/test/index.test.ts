@@ -31,26 +31,28 @@ let devOutput
         })
       }
     )
-
-    describe('development mode', () => {
-      beforeAll(async () => {
-        devOutput = { stdout: '', stderr: '' }
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStdout: (msg) => {
-            devOutput.stdout += msg
-          },
-          onStderr: (msg) => {
-            devOutput.stderr += msg
-          },
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          devOutput = { stdout: '', stderr: '' }
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort, {
+            onStdout: (msg) => {
+              devOutput.stdout += msg
+            },
+            onStderr: (msg) => {
+              devOutput.stderr += msg
+            },
+          })
         })
-      })
-      afterAll(() => killApp(app))
+        afterAll(() => killApp(app))
 
-      it('should print error when invalid Image usage', async () => {
-        await renderViaHTTP(appPort, '/', {})
-        expect(devOutput.stderr).toBeFalsy()
-      })
-    })
+        it('should print error when invalid Image usage', async () => {
+          await renderViaHTTP(appPort, '/', {})
+          expect(devOutput.stderr).toBeFalsy()
+        })
+      }
+    )
   }
 )

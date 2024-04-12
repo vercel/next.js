@@ -12,21 +12,24 @@ import {
 const appDir = path.join(__dirname, '..')
 
 describe('Errors on conflict between public file and page file', () => {
-  describe('development mode', () => {
-    it('Throws error during development', async () => {
-      const appPort = await findPort()
-      const app = await launchApp(appDir, appPort)
-      const conflicts = ['/another/conflict', '/hello']
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      it('Throws error during development', async () => {
+        const appPort = await findPort()
+        const app = await launchApp(appDir, appPort)
+        const conflicts = ['/another/conflict', '/hello']
 
-      for (const conflict of conflicts) {
-        const html = await renderViaHTTP(appPort, conflict)
-        expect(html).toMatch(
-          /A conflicting public file and page file was found for path/
-        )
-      }
-      await killApp(app)
-    })
-  })
+        for (const conflict of conflicts) {
+          const html = await renderViaHTTP(appPort, conflict)
+          expect(html).toMatch(
+            /A conflicting public file and page file was found for path/
+          )
+        }
+        await killApp(app)
+      })
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

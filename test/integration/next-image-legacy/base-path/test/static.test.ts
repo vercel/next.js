@@ -139,17 +139,19 @@ describe('Static Image Component Tests for basePath', () => {
       runTests()
     }
   )
-
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      html = await renderViaHTTP(appPort, '/docs/static-img')
-      browser = await webdriver(appPort, '/docs/static-img')
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        html = await renderViaHTTP(appPort, '/docs/static-img')
+        browser = await webdriver(appPort, '/docs/static-img')
+      })
+      afterAll(() => {
+        killApp(app)
+      })
+      runTests(true)
+    }
+  )
 })

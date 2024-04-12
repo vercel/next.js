@@ -61,31 +61,33 @@ describe('404 Page Support with _app', () => {
       })
     }
   )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let stderr = ''
+      let stdout = ''
 
-  describe('development mode', () => {
-    let stderr = ''
-    let stdout = ''
-
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStderr(msg) {
-          stderr += msg
-        },
-        onStdout(msg) {
-          stdout += msg
-        },
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            stderr += msg
+          },
+          onStdout(msg) {
+            stdout += msg
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    it('should not show pages/404 GIP error if _app has GIP', async () => {
-      const res = await fetchViaHTTP(appPort, '/abc')
-      expect(res.status).toBe(404)
-      const $ = cheerio.load(await res.text())
-      expect($('#404-title').text()).toBe('Hi There')
-      expect(stderr).not.toMatch(gip404Err)
-      expect(stdout).not.toMatch(gip404Err)
-    })
-  })
+      it('should not show pages/404 GIP error if _app has GIP', async () => {
+        const res = await fetchViaHTTP(appPort, '/abc')
+        expect(res.status).toBe(404)
+        const $ = cheerio.load(await res.text())
+        expect($('#404-title').text()).toBe('Hi There')
+        expect(stderr).not.toMatch(gip404Err)
+        expect(stdout).not.toMatch(gip404Err)
+      })
+    }
+  )
 })

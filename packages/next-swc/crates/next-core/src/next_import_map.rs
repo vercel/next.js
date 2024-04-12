@@ -9,7 +9,8 @@ use turbopack_binding::{
         core::{
             reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
-                options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
+                node::node_cjs_resolve_options,
+                options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
                 parse::Request,
                 pattern::Pattern,
                 resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
@@ -17,7 +18,6 @@ use turbopack_binding::{
             source::Source,
         },
         node::execution_context::ExecutionContext,
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
 
@@ -561,9 +561,12 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@opentelemetry/api",
-        // TODO(WEB-625) this actually need to prefer the local version of
-        // @opentelemetry/api
-        external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+        // It needs to prefer the local version of @opentelemetry/api
+        ImportMapping::Alternatives(vec![
+            external_if_node(project_path, "@opentelemetry/api"),
+            external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+        ])
+        .cell(),
     );
 
     match ty {
@@ -841,10 +844,7 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
     );
 
     import_map.insert_alias(
@@ -887,10 +887,7 @@ async fn insert_next_shared_aliases(
     );
     import_map.insert_exact_alias(
         "private-next-rsc-action-encryption",
-        request_to_import_mapping(
-            project_path,
-            "next/dist/server/app-render/action-encryption",
-        ),
+        request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
     );
 
     insert_turbopack_dev_alias(import_map);
@@ -919,22 +916,6 @@ async fn insert_next_shared_aliases(
 }
 
 #[turbo_tasks::function]
-async fn package_lookup_resolve_options(
-    project_path: Vc<FileSystemPath>,
-) -> Result<Vc<ResolveOptions>> {
-    Ok(resolve_options(
-        project_path,
-        ResolveOptionsContext {
-            enable_node_modules: Some(project_path.root().resolve().await?),
-            enable_node_native_modules: true,
-            custom_conditions: vec!["development".to_string()],
-            ..Default::default()
-        }
-        .cell(),
-    ))
-}
-
-#[turbo_tasks::function]
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
@@ -942,7 +923,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(context_directory),
+        node_cjs_resolve_options(context_directory.root()),
     );
     let source = result
         .first_source()

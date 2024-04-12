@@ -28,7 +28,7 @@ import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
-import { setReferenceManifestsSingleton } from './app-render/action-encryption-utils'
+import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 
 export type ManifestItem = {

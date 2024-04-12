@@ -1,6 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor, getRedboxSource, hasRedbox } from 'next-test-utils'
+import {
+  check,
+  retry,
+  waitFor,
+  getRedboxSource,
+  hasRedbox,
+} from 'next-test-utils'
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -37,6 +43,23 @@ createNextDescribe(
 
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementById('count').text(), '3')
+    })
+
+    it('should report errors with bad inputs correctly', async () => {
+      const browser = await next.browser('/error-handling', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementByCss('#submit').click()
+
+      const logs = await browser.log()
+      expect(
+        logs.some((log) =>
+          log.message.includes(
+            'Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported.'
+          )
+        )
+      ).toBe(true)
     })
 
     it('should support headers and cookies', async () => {
@@ -114,6 +137,32 @@ createNextDescribe(
       expect(
         await browser.eval('+document.cookie.match(/test-cookie=(\\d+)/)[1]')
       ).toBeGreaterThanOrEqual(currentTimestamp)
+    })
+
+    it('should not log errors for non-action form POSTs', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/non-action-form')
+      await browser.elementByCss('button').click()
+
+      await check(() => browser.url(), next.url + '/', true, 2)
+
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('Failed to find Server Action "null"')
+          )
+            ? 'error'
+            : ''
+        }, '')
+      }
     })
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
@@ -489,6 +538,45 @@ createNextDescribe(
       ).toBe(true)
     })
 
+    it.each(['node', 'edge'])(
+      'should forward action request to a worker that contains the action handler (%s)',
+      async (runtime) => {
+        const cliOutputIndex = next.cliOutput.length
+        const browser = await next.browser(`/delayed-action/${runtime}`)
+
+        // confirm there's no data yet
+        expect(await browser.elementById('delayed-action-result').text()).toBe(
+          ''
+        )
+
+        // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
+        await browser.elementById('run-action').click()
+
+        // navigate away from the page
+        await browser
+          .elementByCss(`[href='/delayed-action/${runtime}/other']`)
+          .click()
+          .waitForElementByCss('#other-page')
+
+        await retry(async () => {
+          expect(
+            await browser.elementById('delayed-action-result').text()
+          ).toMatch(
+            // matches a Math.random() string
+            /0\.\d+/
+          )
+        })
+
+        // make sure that we still are rendering other-page content
+        expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
+
+        // make sure we didn't get any errors in the console
+        expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
+          'Failed to find Server Action'
+        )
+      }
+    )
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -734,6 +822,28 @@ createNextDescribe(
         await check(async () => {
           return browser.eval('window.location.toString()')
         }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
+      })
+
+      it('should handle redirects to routes that provide an invalid RSC response', async () => {
+        let mpaTriggered = false
+        const browser = await next.browser('/client', {
+          beforePageLoad(page) {
+            page.on('framenavigated', () => {
+              mpaTriggered = true
+            })
+          },
+        })
+
+        await browser.elementByCss('#redirect-pages').click()
+
+        await retry(async () => {
+          expect(await browser.url()).toBe(`${next.url}/pages-dir`)
+          expect(mpaTriggered).toBe(true)
+        })
+
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
       })
 
       // TODO: investigate flakey behavior with revalidate

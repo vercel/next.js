@@ -1,6 +1,5 @@
 {
   "active-class-name": true,
-  "amp": false,
   "analyze-bundles": true,
   "api-routes": true,
   "api-routes-apollo-server": true,
@@ -129,7 +128,7 @@
   "with-jest-babel": true,
   "with-joi": true,
   "with-jotai": true,
-  "with-knex": false,
+  "with-knex": true,
   "with-magic": true,
   "with-mantine": true,
   "with-mdbreact": true,

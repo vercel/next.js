@@ -51,17 +51,20 @@ function runTests() {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Optional Routing Root Fallback', () => {
-  describe('development mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
 
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

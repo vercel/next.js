@@ -578,26 +578,28 @@ const runTests = () => {
 
 describe('Errors on invalid custom routes', () => {
   afterAll(() => fs.remove(nextConfigPath))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let stderr = ''
+      beforeAll(() => {
+        getStderr = async () => {
+          const port = await findPort()
+          await launchApp(appDir, port, {
+            onStderr: (msg) => {
+              stderr += msg
+            },
+          })
+          return stderr
+        }
+      })
+      afterEach(() => {
+        stderr = ''
+      })
 
-  describe('development mode', () => {
-    let stderr = ''
-    beforeAll(() => {
-      getStderr = async () => {
-        const port = await findPort()
-        await launchApp(appDir, port, {
-          onStderr: (msg) => {
-            stderr += msg
-          },
-        })
-        return stderr
-      }
-    })
-    afterEach(() => {
-      stderr = ''
-    })
-
-    runTests()
-  })
+      runTests()
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
