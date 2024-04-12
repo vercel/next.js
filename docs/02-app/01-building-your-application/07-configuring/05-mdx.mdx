@@ -26,7 +26,7 @@ Next.js can support both local MDX content inside your application, as well as r
 
 ## Install dependencies
 
-The `@next/mdx` package, and related packages, are used to configure Next.js so it can process markdown and MDX. **It sources data from local files**, allowing you to create pages with a `.mdx` extension, directly in your `/pages` or `/app` directory.
+The `@next/mdx` package, and related packages, are used to configure Next.js so it can process markdown and MDX. **It sources data from local files**, allowing you to create pages with a `.md` or `.mdx` extension, directly in your `/pages` or `/app` directory.
 
 Install these packages render MDX with Next.js:
 
@@ -56,7 +56,7 @@ const withMDX = createMDX({
 export default withMDX(nextConfig)
 ```
 
-This allows `.md` and `.mdx` files to act as pages or routes in your application.
+This allows `.md` and `.mdx` files to act as pages, routes, or imports in your application.
 
 ## Add a `mdx-components.tsx` file
 
@@ -100,7 +100,7 @@ Create a new MDX page within the `/app` directory:
   my-project
   ├── app
   │   └── mdx-page
-  │       └── page.mdx
+  │       └── page.(mdx/md)
   |── mdx-components.(tsx/js)
   └── package.json
 ```
@@ -115,7 +115,7 @@ Create a new MDX page within the `/pages` directory:
   my-project
   |── mdx-components.(tsx/js)
   ├── pages
-  │   └── mdx-page.mdx
+  │   └── mdx-page.(mdx/md)
   └── package.json
 ```
 
@@ -411,7 +411,7 @@ Frontmatter is a YAML like key/value pairing that can be used to store data abou
 - [remark-mdx-frontmatter](https://github.com/remcohaszing/remark-mdx-frontmatter)
 - [gray-matter](https://github.com/jonschlinkert/gray-matter).
 
-To access page metadata with `@next/mdx`, you can export a metadata object from within the `.mdx` file:
+To access page metadata with `@next/mdx`, you can export a metadata object from within the MDX file:
 
 ```mdx
 export const metadata = {
