@@ -934,7 +934,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/page.js" switcher
-export default function Page() {
+export default async function Page() {
   const publishVersion = await getLatestVersion();
 
   async function publish() {
