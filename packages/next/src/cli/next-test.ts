@@ -133,22 +133,27 @@ async function runPlaywright(
       path.join(baseDir, playwrightConfigFilename),
       defaultPlaywrightConfig(isUsingTypeScript, packageManager)
     )
+
+    return printAndExit(
+      `Successfully generated ${playwrightConfigFilename}. Create your first test and then run \`next experimental-test\`.`,
+      0
+    )
+  } else {
+    const testRunnerArgs = options?.testRunnerArgs ?? ['test']
+
+    const playwright = spawn(
+      path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
+      testRunnerArgs,
+      {
+        cwd: baseDir,
+        shell: false,
+        stdio: 'inherit',
+      }
+    )
+    return new Promise((resolve) => {
+      playwright.on('close', (c) => resolve(c))
+    })
   }
-
-  const testRunnerArgs = options?.testRunnerArgs ?? ['test']
-
-  const playwright = spawn(
-    path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
-    testRunnerArgs,
-    {
-      cwd: baseDir,
-      shell: false,
-      stdio: 'inherit',
-    }
-  )
-  return new Promise((resolve) => {
-    playwright.on('close', (c) => resolve(c))
-  })
 }
 
 const defaultPlaywrightConfig = (
@@ -172,7 +177,7 @@ ${
  */
 ${
   typescript
-    ? 'export default definedConfig({'
+    ? 'export default defineConfig({'
     : 'module.exports = defineConfig({'
 }
   /* Match all co-located test files within app and pages directories*/
