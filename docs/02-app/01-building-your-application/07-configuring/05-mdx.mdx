@@ -97,9 +97,9 @@ You can render markdown using Next.js's file based routing or by importing markd
 Create a new MDX page within the `/app` directory:
 
 ```txt
-  your-project
+  my-project
   ├── app
-  │   └── my-mdx-page
+  │   └── mdx-page
   │       └── page.mdx
   |── mdx-components.(tsx/js)
   └── package.json
@@ -112,10 +112,10 @@ Create a new MDX page within the `/app` directory:
 Create a new MDX page within the `/pages` directory:
 
 ```txt
-  your-project
+  my-project
   |── mdx-components.(tsx/js)
   ├── pages
-  │   └── my-mdx-page.mdx
+  │   └── mdx-page.mdx
   └── package.json
 ```
 
@@ -141,7 +141,7 @@ Checkout my React component:
 <MyComponent />
 ```
 
-Navigating to the `/my-mdx-page` route should display your rendered MDX page.
+Navigating to the `/mdx-page` route should display your rendered MDX page.
 
 ### Using imports
 
@@ -427,14 +427,14 @@ export const metadata = {
 
 To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
 
-```tsx filename="app/my-mdx-page/layout.tsx" switcher
+```tsx filename="app/mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
   // Create any shared layout or styles here
   return <div style={{ color: 'blue' }}>{children}</div>
 }
 ```
 
-```jsx filename="app/my-mdx-page/layout.js" switcher
+```jsx filename="app/mdx-page/layout.js" switcher
 export default function MdxLayout({ children }) {
   // Create any shared layout or styles here
   return <div style={{ color: 'blue' }}>{children}</div>
@@ -537,7 +537,7 @@ The following example uses `next-mdx-remote`:
 
 <AppOnly>
 
-```tsx filename="app/my-mdx-page-remote/page.tsx" switcher
+```tsx filename="app/mdx-page-remote/page.tsx" switcher
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
@@ -548,7 +548,7 @@ export default async function RemoteMdxPage() {
 }
 ```
 
-```jsx filename="app/my-mdx-page-remote/page.js" switcher
+```jsx filename="app/mdx-page-remote/page.js" switcher
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
@@ -563,7 +563,7 @@ export default async function RemoteMdxPage() {
 
 <PagesOnly>
 
-```tsx filename="pages/my-mdx-page-remote.tsx" switcher
+```tsx filename="pages/mdx-page-remote.tsx" switcher
 import { serialize } from 'next-mdx-remote/serialize'
 import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote'
 
@@ -584,7 +584,7 @@ export async function getStaticProps() {
 }
 ```
 
-```jsx filename="pages/my-mdx-page-remote.js" switcher
+```jsx filename="pages/mdx-page-remote.js" switcher
 import { serialize } from 'next-mdx-remote/serialize'
 import { MDXRemote } from 'next-mdx-remote'
 
@@ -603,7 +603,7 @@ export async function getStaticProps() {
 
 </PagesOnly>
 
-Navigating to the `/my-mdx-page-remote` route should display your rendered MDX.
+Navigating to the `/mdx-page-remote` route should display your rendered MDX.
 
 ## Deep Dive: How do you transform markdown into HTML?
 
