@@ -1220,7 +1220,7 @@ async function loadWasm(importPath = '') {
         // the import path must be exact when not in node_modules
         pkgPath = path.join(importPath, pkg, 'wasm.js')
       }
-      let bindings = await import(pkgPath)
+      let bindings = await import(pathToFileURL(pkgPath).toString())
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
