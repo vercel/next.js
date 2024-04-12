@@ -10,7 +10,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, vdbg, Completion, Completions, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
