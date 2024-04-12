@@ -2223,7 +2223,6 @@
         "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
         "parallel-routes-and-interception route intercepting should render intercepted route",
         "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
-        "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
         "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
         "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
         "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
@@ -2231,6 +2230,7 @@
         "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
       ],
       "failed": [
+        "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
         "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
         "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
         "parallel-routes-and-interception route intercepting should render an intercepted route from a slot"

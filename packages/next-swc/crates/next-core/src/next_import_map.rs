@@ -858,6 +858,13 @@ async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
 
+    import_map.insert_alias(
+        // Make sure you can't import custom server as it'll cause all Next.js internals to be
+        // bundled which doesn't work.
+        AliasPattern::exact("next"),
+        ImportMapping::Empty.into(),
+    );
+
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
         "setimmediate",
