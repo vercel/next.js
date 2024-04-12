@@ -203,7 +203,7 @@ describe('Next Lint', () => {
     )
   })
 
-  test.only('verify options name and type with auto-generated help output', async () => {
+  test('verify options name and type with auto-generated help output', async () => {
     const options = [
       '-d, --dir, <dirs...>',
       '--file, <files...>',
