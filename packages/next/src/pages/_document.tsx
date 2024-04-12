@@ -25,6 +25,7 @@ import {
 } from '../shared/lib/html-context.shared-runtime'
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -360,7 +361,7 @@ function getAmpPath(ampPath: string, asPath: string): string {
 }
 
 function getNextFontLinkTags(
-  nextFontManifest: NextFontManifest | undefined,
+  nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
   assetPrefix: string = ''
 ) {

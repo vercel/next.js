@@ -6,14 +6,10 @@ use turbopack_binding::{
         core::{
             issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{parse::Request, pattern::Pattern, resolve},
+            resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
         },
         node::transforms::webpack::WebpackLoaderItem,
-        turbopack::{
-            module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
-            resolve_options,
-            resolve_options_context::ResolveOptionsContext,
-        },
+        turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
     },
 };
 
@@ -128,16 +124,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
         Request::parse(Value::new(Pattern::Constant(
             "babel-loader/package.json".to_string(),
         ))),
-        resolve_options(
-            project_path,
-            ResolveOptionsContext {
-                enable_node_modules: Some(project_path.root().resolve().await?),
-                enable_node_native_modules: true,
-                custom_conditions: vec!["development".to_string()],
-                ..Default::default()
-            }
-            .cell(),
-        ),
+        node_cjs_resolve_options(project_path),
     );
     let assets = result.primary_sources().await?;
     Ok(Vc::cell(!assets.is_empty()))
