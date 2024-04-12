@@ -871,11 +871,9 @@ async function startWatcher(opts: SetupOpts) {
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
-    // console.log('LOGGING ERROR')
     let usedOriginalStack = false
 
     if (isError(err) && err.stack) {
-      // console.log('LOGGING ERROR 1', err.message)
       try {
         const frames = parseStack(err.stack!)
         // Filter out internal edge related runtime stack
