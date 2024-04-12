@@ -609,7 +609,10 @@ export default function Page() {
 
 A common use case for this is when you want to iterate over a collection of MDX and extract data. For example, creating a blog index page from all blog posts. You can use packages like [Node's `fs` module](https://nodejs.org/api/fs.html) or [globby](https://www.npmjs.com/package/globby) to read a directory of posts and extract the metadata.
 
-> **Good to know**: View the [Portfolio Starter Kit](https://vercel.com/templates/next.js/portfolio-starter-kit) template for a complete working example.
+> **Good to know**:
+>
+> - Using `fs`, `globby`, etc. can only be used server-side.
+> - View the [Portfolio Starter Kit](https://vercel.com/templates/next.js/portfolio-starter-kit) template for a complete working example.
 
 ## Remark and Rehype Plugins
 
