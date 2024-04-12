@@ -70,7 +70,7 @@ export interface ManifestNode {
 }
 
 export type ClientReferenceManifest = {
-  moduleLoading: {
+  readonly moduleLoading: {
     prefix: string
     crossOrigin: string | null
   }
