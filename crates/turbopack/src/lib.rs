@@ -20,7 +20,7 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use css::{CssModuleAsset, GlobalCssAsset, ModuleCssAsset};
+use css::{CssModuleAsset, ModuleCssAsset};
 use ecmascript::{
     chunk::EcmascriptChunkPlaceable,
     references::{follow_reexports, FollowExportsResult},
@@ -231,10 +231,12 @@ async fn apply_module_type(
         }
         ModuleType::Json => Vc::upcast(JsonModuleAsset::new(source)),
         ModuleType::Raw => Vc::upcast(RawModule::new(source)),
-        ModuleType::CssGlobal => Vc::upcast(GlobalCssAsset::new(
-            source,
-            Vc::upcast(module_asset_context),
-        )),
+        ModuleType::CssGlobal => {
+            return Ok(module_asset_context.process(
+                source,
+                Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
+            ))
+        }
         ModuleType::CssModule => Vc::upcast(ModuleCssAsset::new(
             source,
             Vc::upcast(module_asset_context),

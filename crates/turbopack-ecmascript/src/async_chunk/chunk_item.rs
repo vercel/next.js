@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_core::{
@@ -61,13 +61,19 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         let this = self.await?;
         let module = this.module.await?;
 
-        let placeable = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module.inner)
-            .await?
-            .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
-        let id = &*placeable
-            .as_chunk_item(Vc::upcast(this.chunking_context))
-            .id()
-            .await?;
+        let id = if let Some(placeable) =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module.inner).await?
+        {
+            Some(
+                placeable
+                    .as_chunk_item(Vc::upcast(this.chunking_context))
+                    .id()
+                    .await?,
+            )
+        } else {
+            None
+        };
+        let id = id.as_deref();
 
         let chunks_data = self.chunks_data().await?;
         let chunks_data = chunks_data.iter().try_join().await?;
@@ -76,16 +82,27 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
-        let code = formatdoc! {
-            r#"
-                __turbopack_export_value__((__turbopack_import__) => {{
-                    return Promise.all({chunks:#}.map((chunk) => __turbopack_load__(chunk))).then(() => {{
-                        return __turbopack_import__({id});
+        let code = if let Some(id) = id {
+            formatdoc! {
+                r#"
+                    __turbopack_export_value__((__turbopack_import__) => {{
+                        return Promise.all({chunks:#}.map((chunk) => __turbopack_load__(chunk))).then(() => {{
+                            return __turbopack_import__({id});
+                        }});
                     }});
-                }});
-            "#,
-            chunks = StringifyJs(&chunks_data),
-            id = StringifyJs(id),
+                "#,
+                chunks = StringifyJs(&chunks_data),
+                id = StringifyJs(id),
+            }
+        } else {
+            formatdoc! {
+                r#"
+                    __turbopack_export_value__((__turbopack_import__) => {{
+                        return Promise.all({chunks:#}.map((chunk) => __turbopack_load__(chunk))).then(() => {{}});
+                    }});
+                "#,
+                chunks = StringifyJs(&chunks_data),
+            }
         };
 
         Ok(EcmascriptChunkItemContent {

@@ -8,7 +8,6 @@ mod asset;
 pub mod chunk;
 mod code_gen;
 pub mod embed;
-mod global_asset;
 mod lifetime_util;
 mod module_asset;
 pub(crate) mod parse;
@@ -17,7 +16,6 @@ pub(crate) mod references;
 pub(crate) mod util;
 
 pub use asset::CssModuleAsset;
-pub use global_asset::GlobalCssAsset;
 pub use module_asset::ModuleCssAsset;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};

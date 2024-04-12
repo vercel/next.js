@@ -7,7 +7,6 @@ pub(crate) mod containment_tree;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 pub mod optimize;
-pub(crate) mod passthrough_asset;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -35,7 +34,6 @@ pub use self::{
     chunking_context::{ChunkGroupResult, ChunkingContext, ChunkingContextExt, MinifyType},
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
-    passthrough_asset::PassthroughModule,
 };
 use crate::{
     asset::Asset,
@@ -220,11 +218,6 @@ enum InheritAsyncEdge {
 
 #[derive(Eq, PartialEq, Clone, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
 enum ChunkContentGraphNode {
-    // A module not placed in the current chunk, but whose references we will
-    // follow to find more graph nodes.
-    PassthroughModule {
-        module: Vc<Box<dyn Module>>,
-    },
     // A chunk item not placed in the current chunk, but whose references we will
     // follow to find more graph nodes.
     PassthroughChunkItem {
@@ -252,7 +245,6 @@ enum ChunkContentGraphNode {
 
 #[derive(Debug, Clone, Copy, TaskInput)]
 enum ChunkGraphNodeToReferences {
-    PassthroughModule(Vc<Box<dyn Module>>),
     PassthroughChunkItem(Vc<Box<dyn ChunkItem>>),
     ChunkItem(Vc<Box<dyn ChunkItem>>),
 }
@@ -341,7 +333,6 @@ async fn graph_node_to_referenced_nodes(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGraphEdges>> {
     let (parent, references) = match &node {
-        ChunkGraphNodeToReferences::PassthroughModule(module) => (None, module.references()),
         ChunkGraphNodeToReferences::PassthroughChunkItem(item) => (None, item.references()),
         ChunkGraphNodeToReferences::ChunkItem(item) => (Some(*item), item.references()),
     };
@@ -373,19 +364,6 @@ async fn graph_node_to_referenced_nodes(
                 .await?
                 .into_iter()
                 .map(|&module| async move {
-                    if Vc::try_resolve_sidecast::<Box<dyn PassthroughModule>>(module)
-                        .await?
-                        .is_some()
-                    {
-                        return Ok((
-                            Some(ChunkGraphEdge {
-                                key: Some(module),
-                                node: ChunkContentGraphNode::PassthroughModule { module },
-                            }),
-                            None,
-                        ));
-                    }
-
                     let Some(chunkable_module) =
                         Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
                     else {
@@ -555,9 +533,6 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 
         async move {
             let node = match node {
-                ChunkContentGraphNode::PassthroughModule { module } => {
-                    ChunkGraphNodeToReferences::PassthroughModule(module)
-                }
                 ChunkContentGraphNode::PassthroughChunkItem { item } => {
                     ChunkGraphNodeToReferences::PassthroughChunkItem(item)
                 }
@@ -643,7 +618,6 @@ async fn chunk_content_internal_parallel(
 
     for graph_node in graph_nodes {
         match graph_node {
-            ChunkContentGraphNode::PassthroughModule { .. } => {}
             ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
             ChunkContentGraphNode::ChunkItem { item, .. } => {
                 chunk_items.insert(item);
