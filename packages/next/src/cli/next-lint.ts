@@ -34,7 +34,7 @@ type NextLintOptions = {
   maxWarnings: number
   outputFile?: string
   quiet?: boolean
-  reportUnusedDisableDirectives: string
+  reportUnusedDisableDirectives: 'error' | 'off' | 'warn'
   resolvePluginsRelativeTo?: string
   rulesdir?: string
   strict?: boolean

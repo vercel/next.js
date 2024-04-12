@@ -221,7 +221,7 @@ describe('Next Lint', () => {
       '-o, --output-file, <outputFile>',
       '-f, --format, <format>',
       '--no-inline-config',
-      '--report-unused-disable-directives',
+      '--report-unused-disable-directives-severity <level>',
       '--no-cache',
       '--cache-location, <cacheLocation>',
       '--cache-strategy, [cacheStrategy]',
