@@ -10,7 +10,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, vdbg, Completion, Completions, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -742,7 +742,7 @@ async fn check_duplicate(
     duplicate: &mut FxHashSet<AppPath>,
     loader_tree: &LoaderTree,
     app_dir: Vc<FileSystemPath>,
-) {
+) -> Result<()> {
     if loader_tree.page.iter().any(|v| {
         matches!(
             v,
@@ -750,9 +750,9 @@ async fn check_duplicate(
                 | PageSegment::OptionalCatchAll(..)
                 | PageSegment::Parallel(..)
         )
-    }) || !matches!(loader_tree.page.last(), Some(PageSegment::PageType(..)))
+    }) || loader_tree.components.await?.page.is_none()
     {
-        return;
+        return Ok(());
     }
 
     if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
@@ -763,6 +763,8 @@ async fn check_duplicate(
         .cell()
         .emit();
     }
+
+    Ok(())
 }
 
 /// creates the loader tree for a specific route (pathname / [AppPath])
@@ -900,7 +902,7 @@ async fn directory_tree_to_loader_tree(
             }
 
             if *subtree.has_page().await? {
-                check_duplicate(&mut duplicate, &*subtree.await?, app_dir).await;
+                check_duplicate(&mut duplicate, &*subtree.await?, app_dir).await?;
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
