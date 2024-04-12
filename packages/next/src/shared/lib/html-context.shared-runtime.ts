@@ -3,6 +3,7 @@ import type { ServerRuntime } from 'next/types'
 import type { NEXT_DATA } from './utils'
 import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { DeepReadonly } from './deep-readonly'
 
 import { createContext, useContext } from 'react'
 
@@ -45,7 +46,7 @@ export type HtmlProps = {
   runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean
   largePageDataBytes?: number
-  nextFontManifest?: NextFontManifest
+  nextFontManifest?: DeepReadonly<NextFontManifest>
 }
 
 export const HtmlContext = createContext<HtmlProps | undefined>(undefined)
