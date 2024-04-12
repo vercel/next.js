@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
+use async_recursion::async_recursion;
 use indexmap::{
     indexmap,
     map::{Entry, OccupiedEntry},
@@ -10,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, vdbg, Completion, Completions, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -738,30 +739,48 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
-async fn check_duplicate(
-    duplicate: &mut FxHashSet<AppPath>,
-    loader_tree: &LoaderTree,
-    app_dir: Vc<FileSystemPath>,
-) -> Result<()> {
-    if loader_tree.page.iter().any(|v| {
-        matches!(
-            v,
-            PageSegment::CatchAll(..)
-                | PageSegment::OptionalCatchAll(..)
-                | PageSegment::Parallel(..)
-        )
-    }) || loader_tree.components.await?.page.is_none()
+#[async_recursion]
+async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option<AppPath>> {
+    let loader_tree = loader_tree.await?;
+
+    if loader_tree
+        .page
+        .iter()
+        .any(|v| matches!(v, PageSegment::Parallel(..)))
     {
-        return Ok(());
+        return Ok(None);
     }
 
-    if !duplicate.insert(AppPath::from(loader_tree.page.clone())) {
-        DuplicateParallelRouteIssue {
-            app_dir,
-            page: loader_tree.page.clone(),
+    if loader_tree.components.await?.page.is_some() {
+        return Ok(Some(AppPath::from(loader_tree.page.clone())));
+    }
+
+    if let Some(children) = loader_tree.parallel_routes.get("children") {
+        return page_path_except_parallel(*children).await;
+    }
+
+    Ok(None)
+}
+
+async fn check_duplicate(
+    duplicate: &mut FxHashSet<AppPath>,
+    loader_tree_vc: Vc<LoaderTree>,
+    app_dir: Vc<FileSystemPath>,
+) -> Result<()> {
+    let loader_tree = loader_tree_vc.await?;
+
+    let page_path = page_path_except_parallel(loader_tree_vc).await?;
+
+    dbg!(&page_path);
+    if let Some(page_path) = page_path {
+        if !duplicate.insert(page_path) {
+            DuplicateParallelRouteIssue {
+                app_dir,
+                page: loader_tree.page.clone(),
+            }
+            .cell()
+            .emit();
         }
-        .cell()
-        .emit();
     }
 
     Ok(())
@@ -902,7 +921,7 @@ async fn directory_tree_to_loader_tree(
             }
 
             if *subtree.has_page().await? {
-                check_duplicate(&mut duplicate, &*subtree.await?, app_dir).await?;
+                check_duplicate(&mut duplicate, subtree, app_dir).await?;
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
