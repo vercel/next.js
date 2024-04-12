@@ -32,20 +32,16 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/.bin/next",
-      "runtimeArgs": [
-          "--inspect"
-      ],
-      "skipFiles": [
-          "<node_internals>/**"
-      ],
+      "runtimeArgs": ["--inspect"],
+      "skipFiles": ["<node_internals>/**"],
       "serverReadyAction": {
-          "action": "debugWithEdge",
-          "killOnServerStop": true,
-          "webRoot": "${workspaceFolder}",
-          "pattern": "- Local:.+(https?://.+)",
-          "uriFormat": "%s"
+        "action": "debugWithEdge",
+        "killOnServerStop": true,
+        "pattern": "- Local:.+(https?://.+)",
+        "uriFormat": "%s",
+        "webRoot": "${workspaceFolder}"
       }
-  }
+    }
   ]
 }
 ```
