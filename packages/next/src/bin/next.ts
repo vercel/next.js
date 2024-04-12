@@ -265,7 +265,7 @@ program
     'Prevents comments from changing config or rules.'
   )
   .option(
-    '--report-unused-disable-directives',
+    '--report-unused-disable-directives <type>',
     'Adds reported errors for unused eslint-disable directives.'
   )
   .option('--no-cache', 'Disables caching.')
