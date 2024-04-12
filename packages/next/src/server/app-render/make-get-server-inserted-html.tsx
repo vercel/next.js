@@ -44,20 +44,12 @@ export function makeGetServerInsertedHTML({
           getURLFromRedirectError(error),
           basePath
         )
-        let encodedRedirectPathname: string | undefined
-
-        try {
-          encodedRedirectPathname = encodeURIComponent(
-            new URL(redirectUrl, 'http://n').pathname
-          )
-        } catch (err) {
-          console.error(`Failed to parse redirect URL: ${redirectUrl}`)
-        }
-
+        const escapedRedirectUrl =
+          escapeStringForDangerousInsertion(redirectUrl)
         const statusCode = getRedirectStatusCodeFromError(error)
         const isPermanent =
           statusCode === RedirectStatusCode.PermanentRedirect ? true : false
-        if (encodedRedirectPathname) {
+        if (escapedRedirectUrl) {
           // If a streaming redirect is detected, we need to insert a meta tag to redirect the page, so that
           // bots can follow the redirect (since a 200 status code has already been sent). We insert a script tag
           // to only perform the redirect if the client hasn't already handled it, to prevent a double redirect.
@@ -70,17 +62,14 @@ export function makeGetServerInsertedHTML({
                 type="text/javascript"
                 dangerouslySetInnerHTML={{
                   __html: `
-                  (function() {
-                    const encodedRedirectPathname = "${encodedRedirectPathname}";
-                    const redirectPathname = decodeURIComponent(encodedRedirectPathname);
-                    const currentPathname = decodeURIComponent(window.location.pathname);
-                    if (currentPathname !== redirectPathname) {
+                    const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+                    if (currentUrl !== ${escapedRedirectUrl}) {
                       const element = document.createElement("meta");
                       element.id = "__next-page-redirect";
                       element.httpEquiv = "refresh";
                       element.content = "${
                         isPermanent ? 0 : 1
-                      };url=" + redirectPathname;
+                      };url=" + ${escapedRedirectUrl};
                       document.head.appendChild(element);
                     } else {
                       const wrapper = document.getElementById("__next-page-redirect-wrapper");
@@ -88,7 +77,6 @@ export function makeGetServerInsertedHTML({
                         wrapper.parentNode.removeChild(wrapper);
                       }
                     }
-                  })();
                 `,
                 }}
               />
@@ -126,4 +114,31 @@ export function makeGetServerInsertedHTML({
 
     return streamToString(stream)
   }
+}
+
+/**
+ * Allows us to escape the redirect string that are used in the `dangerouslySetInnerHTML` above.
+ * The implementation below is lifted from React Fizz's implementation.
+ * https://github.com/facebook/react/blob/374b5d26c2a379fe87ee6817217c8956c4e39aac/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L4359
+ *
+ */
+function escapeStringForDangerousInsertion(input: string): string {
+  const escapeRegex = /[<\u2028\u2029]/g
+  const escaped = JSON.stringify(input)
+  return escaped.replace(escapeRegex, (match) => {
+    switch (match) {
+      // santizing breaking out of strings and script tags
+      case '<':
+        return '\\u003c'
+      case '\u2028':
+        return '\\u2028'
+      case '\u2029':
+        return '\\u2029'
+      default: {
+        throw new Error(
+          'escapeStringForDangerousInsertion encountered a match it does not know how to replace.'
+        )
+      }
+    }
+  })
 }
