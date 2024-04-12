@@ -2,7 +2,6 @@ import findUp from 'next/dist/compiled/find-up'
 import { readFile } from 'fs/promises'
 import JSON5 from 'next/dist/compiled/json5'
 import { pathToFileURL } from 'url'
-import { isAbsolute } from 'path'
 
 type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>

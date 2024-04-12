@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { findConfig } from './find-config'
 
 // Jest does not support `import('file://something')` (file: imports) yet.
-describe.skip('findConfig()', () => {
+describe('findConfig()', () => {
   const exampleConfig = {
     basePath: '/docs',
   }
