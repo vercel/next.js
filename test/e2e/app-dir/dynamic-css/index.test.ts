@@ -31,7 +31,7 @@ createNextDescribe(
       })
     })
 
-    it('should only apply corresponding css for page loaded that /ssr', async () => {
+    it('should only apply corresponding css for page loaded in edge runtime', async () => {
       const browser = await next.browser('/ssr/edge')
       await retry(async () => {
         expect(
