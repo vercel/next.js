@@ -52,42 +52,37 @@ export function makeGetServerInsertedHTML({
         if (escapedRedirectUrl) {
           // If a streaming redirect is detected, we need to insert a meta tag to redirect the page, so that
           // bots can follow the redirect (since a 200 status code has already been sent). We insert a script tag
-          // to only perform the redirect if the client hasn't already handled it, to prevent a double redirect.
+          // to only perform the redirect if client-side hydration hasn't happened yet, to prevent a double redirect.
           // The client router also has handling to abort the SPA nav if the meta tag has been inserted into the DOM.
-          // The script then removes itself from the DOM.
           // We also insert a noscript tag to handle the case where JavaScript is disabled.
+          //
+          // The original source code for the compiled code below is as follows:
+          /*
+            if (!window.next) {
+              const element = document.createElement("meta");
+              element.httpEquiv = "refresh";
+              element.id = "__next-page-redirect";
+              element.content = `${isPermanent ? 0 : 1};url=" + ${escapedRedirectUrl}`;
+              document.head.appendChild(element);
+            }
+          */
           errorMetaTags.push(
-            <div key={error.digest} id="__next-page-redirect-wrapper">
+            <React.Fragment key={error.digest}>
               <script
                 type="text/javascript"
                 dangerouslySetInnerHTML={{
-                  __html: `
-                    const currentUrl = window.location.pathname + window.location.search + window.location.hash;
-                    if (currentUrl !== ${escapedRedirectUrl}) {
-                      const element = document.createElement("meta");
-                      element.id = "__next-page-redirect";
-                      element.httpEquiv = "refresh";
-                      element.content = "${
-                        isPermanent ? 0 : 1
-                      };url=" + ${escapedRedirectUrl};
-                      document.head.appendChild(element);
-                    } else {
-                      const wrapper = document.getElementById("__next-page-redirect-wrapper");
-                      if (wrapper && wrapper.parentNode) {
-                        wrapper.parentNode.removeChild(wrapper);
-                      }
-                    }
-                `,
+                  __html: `if(!window.next){const a=document.createElement("meta");a.id="__next-page-redirect";a.httpEquiv="refresh";a.content="${
+                    isPermanent ? 0 : 1
+                  };url=" + ${escapedRedirectUrl};document.head.appendChild(a)};`,
                 }}
               />
               <noscript>
                 <meta
-                  id="__next-page-redirect"
                   httpEquiv="refresh"
                   content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
                 />
               </noscript>
-            </div>
+            </React.Fragment>
           )
         }
       }
