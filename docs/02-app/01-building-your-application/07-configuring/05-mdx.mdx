@@ -43,7 +43,7 @@ import createMDX from '@next/mdx'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure `pageExtensions` to include MDX files
+  // Configure `pageExtensions` to include markdown and MDX files
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
 }
@@ -86,9 +86,9 @@ export function useMDXComponents(components) {
 > - Learn more about the [`mdx-components.tsx` file convention](/docs/app/api-reference/file-conventions/mdx-components).
 > - Learn how to [render and style custom elements](#render-and-style-custom-elements).
 
-## Rendering markdown
+## Rendering MDX
 
-You can render markdown using Next.js's file based routing or by importing markdown files into other pages.
+You can render MDX using Next.js's file based routing or by importing MDX files into other pages.
 
 ### Using file based routing
 
@@ -121,7 +121,7 @@ Create a new MDX page within the `/pages` directory:
 
 </PagesOnly>
 
-You can use markdown in these files and even import React components directly inside your MDX page:
+You can use MDX in these files and even import React components directly inside your MDX page:
 
 ```mdx
 import { MyComponent } from 'my-component'
@@ -147,7 +147,7 @@ Navigating to the `/mdx-page` route should display your rendered MDX page.
 
 <AppOnly>
 
-Create a new page within the `/app` directory and a markdown file wherever you'd like:
+Create a new page within the `/app` directory and an MDX file wherever you'd like:
 
 ```txt
   my-project
@@ -164,7 +164,7 @@ Create a new page within the `/app` directory and a markdown file wherever you'd
 
 <PagesOnly>
 
-Create a new page within the `/pages` directory and a markdown file wherever you'd like:
+Create a new page within the `/pages` directory and an MDX file wherever you'd like:
 
 ```txt
   my-project
@@ -178,7 +178,7 @@ Create a new page within the `/pages` directory and a markdown file wherever you
 
 </PagesOnly>
 
-You can use markdown in these files and even import React components directly inside your MDX page:
+You can use MDX in these files and even import React components directly inside your MDX page:
 
 ```mdx filename="markdown/welcome.mdx" switcher
 import { MyComponent } from 'my-component'
@@ -198,7 +198,7 @@ Checkout my React component:
 <MyComponent />
 ```
 
-Import the markdown file inside the page to display the content:
+Import the MDX file inside the page to display the content:
 
 <AppOnly>
 
@@ -272,7 +272,7 @@ To style your markdown, you can provide your own components that map to the gene
 
 ### Global styles and components
 
-Adding styles and components in `mdx-components.tsx` will effect _all_ markdown files in your application.
+Adding styles and components in `mdx-components.tsx` will effect _all_ MDX files in your application.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -329,7 +329,7 @@ export function useMDXComponents(components) {
 
 ### Local styles and components
 
-You can apply local styles and components to specific pages by passing them into imported markdown components. These will merge with and override [global styles and components](#global-styles-and-components).
+You can apply local styles and components to specific pages by passing them into imported MDX components. These will merge with and override [global styles and components](#global-styles-and-components).
 
 <AppOnly>
 
@@ -529,7 +529,7 @@ export default withMDX(nextConfig)
 
 ## Remote MDX
 
-If your markdown or MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
+If your MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
 
 > **Good to know**: Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
 
