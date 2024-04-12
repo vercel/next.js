@@ -2,7 +2,7 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary']
+    branches: ['canary', '14-2-1']
   workflow_dispatch:
 
 env:

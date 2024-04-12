@@ -49,7 +49,9 @@ const cwd = process.cwd()
               `${path.join(nativePackagesDir, platform)}`,
               `--access`,
               `public`,
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              ...(version.includes('canary')
+                ? ['--tag', 'canary']
+                : ['--tag', '14-2-1']),
             ],
             { stdio: 'inherit' }
           )
