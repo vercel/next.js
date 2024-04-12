@@ -30,7 +30,7 @@ Next.js can support both local MDX content inside your application, as well as r
 
 The `@next/mdx` package, and related packages, are used to configure Next.js so it can process markdown and MDX. **It sources data from local files**, allowing you to create pages with a `.md` or `.mdx` extension, directly in your `/pages` or `/app` directory.
 
-Install these packages render MDX with Next.js:
+Install these packages to render MDX with Next.js:
 
 ```bash filename="Terminal"
 npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
@@ -278,7 +278,7 @@ To style your markdown, you can provide custom components that map to the genera
 
 ### Global styles and components
 
-Adding styles and components in `mdx-components.tsx` will effect _all_ MDX files in your application.
+Adding styles and components in `mdx-components.tsx` will affect _all_ MDX files in your application.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
