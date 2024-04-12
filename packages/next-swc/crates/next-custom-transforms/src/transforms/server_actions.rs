@@ -741,8 +741,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     ids.into_iter().map(|id| (id.clone(), id.0.to_string())),
                                 );
 
-                                println!("ASTTTTT {:?}", var);
-
                                 for decl in &mut var.decls {
                                     if let Some(init) = &decl.init {
                                         if let Expr::Lit(_) = &**init {
