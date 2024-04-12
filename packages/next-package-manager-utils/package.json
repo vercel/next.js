@@ -1,0 +1,20 @@
+{
+  "name": "@next/package-manager-utils",
+  "version": "14.2.1-canary.2",
+  "description": "A set of utils for handling package managers. Used by Next.js CLI and create-next-app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-package-manager-utils"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "scripts": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}
