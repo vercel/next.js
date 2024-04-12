@@ -66,7 +66,9 @@ export async function findConfig<T>(
   const filePath = await findConfigPath(directory, key)
 
   const esmImport = (path: string) => {
-    if (process.platform === 'win32') {
+    // Skip mapping to absolute url with pathToFileURL on windows if it's jest
+    // https://github.com/nodejs/node/issues/31710#issuecomment-587345749
+    if (process.platform === 'win32' && !process.env.JEST_WORKER_ID) {
       // on windows import("C:\\path\\to\\file") is not valid, so we need to
       // use file:// URLs
       return import(pathToFileURL(path).toString())
