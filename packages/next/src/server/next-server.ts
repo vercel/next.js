@@ -1768,11 +1768,11 @@ export default class NextNodeServer extends BaseServer {
       return this._cachedPreviewManifest
     }
 
-    const manifest = loadManifest(
+    this._cachedPreviewManifest = loadManifest(
       join(this.distDir, PRERENDER_MANIFEST)
     ) as PrerenderManifest
 
-    return (this._cachedPreviewManifest = manifest)
+    return this._cachedPreviewManifest
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
