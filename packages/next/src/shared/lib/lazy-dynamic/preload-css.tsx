@@ -5,10 +5,10 @@ export function PreloadCss({ moduleIds }: { moduleIds: string[] | undefined }) {
   if (typeof window !== 'undefined') {
     return null
   }
-  const getExpectedRequestStore: typeof import('../../../client/components/request-async-storage.external').getExpectedRequestStore =
-    require('../../../client/components/request-async-storage.external').getExpectedRequestStore
-
-  const requestStore = getExpectedRequestStore('next/dynamic css')
+  const {
+    getExpectedRequestStore,
+  } = require('../../../client/components/request-async-storage.external')
+  const requestStore = getExpectedRequestStore()
 
   const allFiles = []
 
