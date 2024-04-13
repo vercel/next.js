@@ -337,6 +337,19 @@ createNextDescribe(
       await check(() => browser.url(), `${next.url}/client`, true, 2)
     })
 
+    it('should not block router.back() while a server action is in flight', async () => {
+      let browser = await next.browser('/')
+
+      // click /client link to add a history entry
+      await browser.elementByCss("[href='/client']").click()
+      await browser.elementByCss('#slow-inc').click()
+
+      await browser.back()
+
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/`, true, 2)
+    })
+
     it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
       let browser = await next.browser('/client')
       const initialRandomNumber = await browser
