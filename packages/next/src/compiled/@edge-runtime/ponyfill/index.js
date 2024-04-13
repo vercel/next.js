@@ -20,6 +20,7 @@ function edge() {
     File,
     FormData,
     Headers,
+    performance,
     PromiseRejectionEvent,
     ReadableStream,
     ReadableStreamBYOBReader,

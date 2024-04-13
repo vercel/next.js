@@ -205,7 +205,6 @@ describe('next.rs api', () => {
       dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
@@ -218,7 +217,6 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
-        previewModeId: undefined,
       }),
     })
     projectUpdateSubscription = filterMapAsyncIterator(

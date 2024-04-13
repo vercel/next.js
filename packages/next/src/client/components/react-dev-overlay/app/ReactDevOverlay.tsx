@@ -1,24 +1,20 @@
 import * as React from 'react'
-import { ACTION_UNHANDLED_ERROR } from './error-overlay-reducer'
-import type {
-  OverlayState,
-  UnhandledErrorAction,
-} from './error-overlay-reducer'
+import { ACTION_UNHANDLED_ERROR, type OverlayState } from '../shared'
 
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
 import { Errors } from '../internal/container/Errors'
 import type { SupportedErrorEvent } from '../internal/container/Errors'
-import { RootLayoutError } from '../internal/container/RootLayoutError'
 import { parseStack } from '../internal/helpers/parseStack'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
+import { RootLayoutMissingTagsError } from '../internal/container/root-layout-missing-tags-error'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
 }
-class ReactDevOverlay extends React.PureComponent<
+export default class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
     children: React.ReactNode
@@ -29,17 +25,17 @@ class ReactDevOverlay extends React.PureComponent<
   state = { reactError: null }
 
   static getDerivedStateFromError(error: Error): ReactDevOverlayState {
-    const e = error
-    const event: UnhandledErrorAction = {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-      frames: parseStack(e.stack!),
+    if (!error.stack) return { reactError: null }
+    return {
+      reactError: {
+        id: 0,
+        event: {
+          type: ACTION_UNHANDLED_ERROR,
+          reason: error,
+          frames: parseStack(error.stack),
+        },
+      },
     }
-    const errorEvent: SupportedErrorEvent = {
-      id: 0,
-      event,
-    }
-    return { reactError: errorEvent }
   }
 
   componentDidCatch(componentErr: Error) {
@@ -52,12 +48,9 @@ class ReactDevOverlay extends React.PureComponent<
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-    const rootLayoutMissingTagsError = state.rootLayoutMissingTagsError
+    const hasMissingTags = Boolean(state.rootLayoutMissingTags?.length)
     const isMounted =
-      hasBuildError ||
-      hasRuntimeErrors ||
-      reactError ||
-      rootLayoutMissingTagsError
+      hasBuildError || hasRuntimeErrors || reactError || hasMissingTags
 
     return (
       <>
@@ -74,10 +67,9 @@ class ReactDevOverlay extends React.PureComponent<
             <CssReset />
             <Base />
             <ComponentStyles />
-
-            {rootLayoutMissingTagsError ? (
-              <RootLayoutError
-                missingTags={rootLayoutMissingTagsError.missingTags}
+            {state.rootLayoutMissingTags?.length ? (
+              <RootLayoutMissingTagsError
+                missingTags={state.rootLayoutMissingTags}
               />
             ) : hasBuildError ? (
               <BuildError
@@ -105,5 +97,3 @@ class ReactDevOverlay extends React.PureComponent<
     )
   }
 }
-
-export default ReactDevOverlay

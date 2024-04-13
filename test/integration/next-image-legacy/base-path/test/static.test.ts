@@ -101,49 +101,57 @@ const runTests = (isDev = false) => {
 }
 
 describe('Build Error Tests for basePath', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should throw build error when import statement is used with missing file', async () => {
-      await indexPage.replace(
-        '../public/foo/test-rect.jpg',
-        '../public/foo/test-rect-broken.jpg'
-      )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should throw build error when import statement is used with missing file', async () => {
+        await indexPage.replace(
+          '../public/foo/test-rect.jpg',
+          '../public/foo/test-rect-broken.jpg'
+        )
 
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      await indexPage.restore()
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        await indexPage.restore()
 
-      expect(stderr).toContain(
-        "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
-      )
-      // should contain the importing module
-      expect(stderr).toContain('./pages/static-img.js')
-    })
-  })
+        expect(stderr).toContain(
+          "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
+        )
+        // should contain the importing module
+        expect(stderr).toContain('./pages/static-img.js')
+      })
+    }
+  )
 })
 describe('Static Image Component Tests for basePath', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      html = await renderViaHTTP(appPort, '/docs/static-img')
-      browser = await webdriver(appPort, '/docs/static-img')
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests()
-  })
-
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      html = await renderViaHTTP(appPort, '/docs/static-img')
-      browser = await webdriver(appPort, '/docs/static-img')
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        html = await renderViaHTTP(appPort, '/docs/static-img')
+        browser = await webdriver(appPort, '/docs/static-img')
+      })
+      afterAll(() => {
+        killApp(app)
+      })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        html = await renderViaHTTP(appPort, '/docs/static-img')
+        browser = await webdriver(appPort, '/docs/static-img')
+      })
+      afterAll(() => {
+        killApp(app)
+      })
+      runTests(true)
+    }
+  )
 })

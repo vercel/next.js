@@ -5,7 +5,13 @@ import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
 import type { SizeLimit } from '../../types'
-import type { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
+import type {
+  ExportPathMap,
+  TurboLoaderItem,
+  TurboRuleConfigItem,
+  TurboRuleConfigItemOptions,
+  TurboRuleConfigItemOrShortcut,
+} from './config-shared'
 import type {
   Header,
   Rewrite,
@@ -99,13 +105,23 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRule: zod.ZodType<TurboRule> = z.union([
-  z.array(zTurboLoaderItem),
+const zTurboRuleConfigItemOptions: zod.ZodType<TurboRuleConfigItemOptions> =
   z.object({
     loaders: z.array(zTurboLoaderItem),
-    as: z.string(),
-  }),
+    as: z.string().optional(),
+  })
+
+const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
+  z.literal(false),
+  z.record(
+    z.string(),
+    z.lazy(() => zTurboRuleConfigItem)
+  ),
+  zTurboRuleConfigItemOptions,
 ])
+
+const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut> =
+  z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -206,6 +222,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
+    deploymentId: z.string().optional(),
     devIndicators: z
       .object({
         buildActivity: z.boolean().optional(),
@@ -231,6 +248,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     experimental: z
       .strictObject({
         appDocumentPreloading: z.boolean().optional(),
+        preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -242,6 +260,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             validator: z.string().optional(),
           })
           .optional(),
+        staleTimes: z
+          .object({
+            dynamic: z.number().optional(),
+            static: z.number().optional(),
+          })
+          .optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
@@ -249,9 +273,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
-        useDeploymentId: z.boolean().optional(),
-        useDeploymentIdServerActions: z.boolean().optional(),
-        deploymentId: z.string().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         optimizeCssModuleMappings: z.boolean().optional(),
@@ -277,7 +298,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
-        navigationRAF: z.boolean().optional(),
+        cssChunking: z.enum(['strict', 'loose']).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -331,7 +352,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
-            rules: z.record(z.string(), zTurboRule).optional(),
+            rules: z
+              .record(z.string(), zTurboRuleConfigItemOrShortcut)
+              .optional(),
             resolveAlias: z
               .record(
                 z.string(),
@@ -346,6 +369,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               )
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
+            useSwcCss: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -380,6 +404,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useLightningcss: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
+        testProxy: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

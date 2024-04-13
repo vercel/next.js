@@ -47,6 +47,12 @@ declare module 'next/dist/compiled/node-fetch' {
   export default fetch
 }
 
+declare module 'next/dist/compiled/commander' {
+  import commander from 'commander'
+  export * from 'commander'
+  export default commander
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
@@ -110,32 +116,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-declare module 'next/dist/compiled/arg/index.js' {
-  function arg<T extends arg.Spec>(
-    spec: T,
-    options?: { argv?: string[]; permissive?: boolean }
-  ): arg.Result<T>
-
-  namespace arg {
-    export type Handler = (value: string) => any
-
-    export interface Spec {
-      [key: string]: string | Handler | [Handler]
-    }
-
-    export type Result<T extends Spec> = { _: string[] } & {
-      [K in keyof T]: T[K] extends string
-        ? never
-        : T[K] extends Handler
-        ? ReturnType<T[K]>
-        : T[K] extends [Handler]
-        ? Array<ReturnType<T[K][0]>>
-        : never
-    }
-  }
-
-  export = arg
 }
 
 declare module 'next/dist/compiled/babel/code-frame' {

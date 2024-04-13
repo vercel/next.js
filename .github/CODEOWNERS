@@ -16,6 +16,11 @@
 /packages/create-next-app/                    @vercel/next-js
 /pnpm-lock.yaml                               @vercel/next-js @vercel/turbopack
 
+# Next.js CLI
+
+/packages/next/src/bin                        @timneutkens @ijjk @shuding @samcx
+/packages/next/src/cli                        @timneutkens @ijjk @shuding @samcx
+
 # Image Component (@styfle)
 
 /**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi @ztanner @vercel/devex
@@ -36,5 +41,5 @@ Cargo.toml                                                       @timneutkens @i
 Cargo.lock                                                       @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
 /.cargo/config.toml                                              @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
 /.config/nextest.toml                                            @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
-/test/build-turbopack-tests-manifest.js                          @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
-/test/turbopack-tests-manifest.json                              @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
+/test/build-turbopack-dev-tests-manifest.js                          @timneutkens @ijjk @shuding @huozhi @vercel/turbopack
+/test/turbopack-dev-tests-manifest.json                              @timneutkens @ijjk @shuding @huozhi @vercel/turbopack

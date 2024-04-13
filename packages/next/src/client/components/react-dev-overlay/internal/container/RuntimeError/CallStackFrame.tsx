@@ -1,4 +1,3 @@
-import React from 'react'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   getFrameSource,

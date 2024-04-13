@@ -18,7 +18,7 @@ use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 pub use crate::next_app::{
     app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
-    app_client_shared_chunks::get_app_client_shared_chunks,
+    app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
     app_route_entry::get_app_route_entry,

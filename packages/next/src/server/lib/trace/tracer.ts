@@ -141,6 +141,7 @@ interface NextTracer {
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.rsc'
   | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
@@ -247,7 +248,7 @@ class NextTracerImpl implements NextTracer {
     let isRootSpan = false
 
     if (!spanContext) {
-      spanContext = ROOT_CONTEXT
+      spanContext = context?.active() ?? ROOT_CONTEXT
       isRootSpan = true
     } else if (trace.getSpanContext(spanContext)?.isRemote) {
       isRootSpan = true

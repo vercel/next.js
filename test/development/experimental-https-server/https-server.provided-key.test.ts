@@ -6,7 +6,7 @@ createNextDescribe(
   'experimental-https-server (provided certificate)',
   {
     files: __dirname,
-    startCommand: `yarn next ${
+    startCommand: `pnpm next ${
       shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
     } --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem`,
   },

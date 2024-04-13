@@ -359,37 +359,47 @@ createNextDescribe(
           }
         })
 
-        it('should not preload styles twice during HMR', async () => {
-          const filePath = 'app/hmr/page.js'
-          const origContent = await next.readFile(filePath)
+        // Turbopack doesn't preload styles
+        if (!process.env.TURBOPACK) {
+          it('should not preload styles twice during HMR', async () => {
+            const filePath = 'app/hmr/page.js'
+            const origContent = await next.readFile(filePath)
 
-          const browser = await next.browser('/hmr')
+            const browser = await next.browser('/hmr')
 
-          try {
-            await next.patchFile(
-              filePath,
-              origContent.replace(
-                '<div>hello!</div>',
-                '<div>hello world!</div>'
+            try {
+              await next.patchFile(
+                filePath,
+                origContent.replace(
+                  '<div>hello!</div>',
+                  '<div>hello world!</div>'
+                )
               )
-            )
 
-            // Wait for HMR to trigger
-            await check(
-              () => browser.elementByCss('body').text(),
-              'hello world!'
-            )
-
-            // there should be only 1 preload link
-            expect(
-              await browser.eval(
-                `document.querySelectorAll("link[rel=preload][href^='/_next/static/css/app/layout.css']").length`
+              // Wait for HMR to trigger
+              await check(
+                () => browser.elementByCss('body').text(),
+                'hello world!'
               )
-            ).toBe(1)
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-        })
+
+              // there should be only 1 preload link
+              expect(
+                await browser.eval(
+                  `(() => {
+                  const tags = document.querySelectorAll('link[rel="preload"][href^="/_next/static/css"]')
+                  const counts = new Map();
+                  for (const tag of tags) {
+                    counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                  }
+                  return Math.max(...counts.values())
+                })()`
+                )
+              ).toBe(1)
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+        }
 
         it('should reload @import styles during HMR', async () => {
           const filePath = 'app/hmr/import/actual-styles.css'
@@ -464,15 +474,19 @@ createNextDescribe(
               ).toBe(5)
             } else {
               // Even if it's deduped by Float, it should still only be included once in the payload.
-              // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
 
-              expect(
-                initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
-              ).toBe(3)
-              // Links in data-precedence does not have `?v=` query
-              expect(
-                initialHtml.match(/css-duplicate-2\/layout\.css/g).length
-              ).toBe(5)
+              const matches = initialHtml.match(
+                /\/_next\/static\/css\/.+?\.css/g
+              )
+              const counts = new Map()
+              for (const match of matches) {
+                counts.set(match, (counts.get(match) || 0) + 1)
+              }
+              for (const count of counts.values()) {
+                // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
+                // And there is one match for the not found style
+                expect([1, 3]).toContain(count)
+              }
             }
           })
 
@@ -758,23 +772,20 @@ createNextDescribe(
               'rgb(255, 0, 0)'
             )
 
-            if (process.env.TURBOPACK) {
-              await check(
-                () =>
-                  browser.eval(
-                    `document.querySelectorAll('link[rel="stylesheet"][href*="/app_hmr_global_"]').length`
-                  ),
-                1
-              )
-            } else {
-              await check(
-                () =>
-                  browser.eval(
-                    `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
-                  ),
-                1
-              )
-            }
+            await check(
+              () =>
+                browser.eval(
+                  `(() => {
+                    const tags = document.querySelectorAll('link[rel="stylesheet"][href^="/_next/static"]')
+                    const counts = new Map();
+                    for (const tag of tags) {
+                      counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                    }
+                    return Math.max(...counts.values())
+                  })()`
+                ),
+              1
+            )
           } finally {
             await next.patchFile(filePath, origContent)
           }

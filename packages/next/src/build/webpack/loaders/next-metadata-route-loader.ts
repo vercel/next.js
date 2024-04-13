@@ -2,7 +2,7 @@ import type webpack from 'webpack'
 import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
-import { getNamedExports } from './next-metadata-image-loader'
+import { getLoaderModuleNamedExports } from './utils'
 
 function errorOnBadHandler(resourcePath: string) {
   return `
@@ -154,7 +154,15 @@ async function getDynamicSiteMapRouteCode(
 ) {
   let staticGenerationCode = ''
 
-  const exportNames = await getNamedExports(resourcePath, loaderContext)
+  const exportNames = await getLoaderModuleNamedExports(
+    resourcePath,
+    loaderContext
+  )
+  // Re-export configs but avoid conflicted exports
+  const reExportNames = exportNames.filter(
+    (name) => name !== 'default' && name !== 'generateSitemaps'
+  )
+
   const hasGenerateSiteMaps = exportNames.includes('generateSitemaps')
   if (
     process.env.NODE_ENV === 'production' &&
@@ -189,8 +197,13 @@ const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 ${errorOnBadHandler(resourcePath)}
 
 ${'' /* re-export the userland route configs */}
-export * from ${JSON.stringify(resourcePath)}
-
+${
+  reExportNames.length > 0
+    ? `export { ${reExportNames.join(', ')} } from ${JSON.stringify(
+        resourcePath
+      )}\n`
+    : ''
+}
 
 export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}

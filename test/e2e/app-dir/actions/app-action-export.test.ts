@@ -14,7 +14,7 @@ createNextDescribe(
   },
   ({ next, isNextStart }) => {
     if (!isNextStart) {
-      it('skip test for dev mode', () => {})
+      it('skip test for development mode', () => {})
       return
     }
 

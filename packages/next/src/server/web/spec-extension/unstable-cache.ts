@@ -1,13 +1,12 @@
-import type { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import {
   addImplicitTags,
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -59,11 +58,6 @@ export function unstable_cache<T extends Callback>(
     tags?: string[]
   } = {}
 ): T {
-  const staticGenerationAsyncStorage =
-    ((fetch as any).__nextGetStaticStore?.() as
-      | StaticGenerationAsyncStorage
-      | undefined) ?? _staticGenerationAsyncStorage
-
   if (options.revalidate === 0) {
     throw new Error(
       `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${cb.toString()}`
@@ -161,7 +155,8 @@ export function unstable_cache<T extends Callback>(
         // we should bypass cache similar to fetches
         store.fetchCache !== 'force-no-store' &&
         !store.isOnDemandRevalidate &&
-        !incrementalCache.isOnDemandRevalidate
+        !incrementalCache.isOnDemandRevalidate &&
+        !store.isDraftMode
       ) {
         // We attempt to get the current cache entry from the incremental cache.
         const cacheEntry = await incrementalCache.get(cacheKey, {
@@ -186,7 +181,10 @@ export function unstable_cache<T extends Callback>(
           } else {
             // We have a valid cache entry so we will be returning it. We also check to see if we need
             // to background revalidate it by checking if it is stale.
-            const cachedResponse = JSON.parse(cacheEntry.value.data.body)
+            const cachedResponse =
+              cacheEntry.value.data.body !== undefined
+                ? JSON.parse(cacheEntry.value.data.body)
+                : undefined
             if (cacheEntry.isStale) {
               // In App Router we return the stale result and revalidate in the background
               if (!store.pendingRevalidates) {
@@ -281,7 +279,9 @@ export function unstable_cache<T extends Callback>(
             // will fall through to generating a new cache entry below
           } else if (!cacheEntry.isStale) {
             // We have a valid cache entry and it is fresh so we return it
-            return JSON.parse(cacheEntry.value.data.body)
+            return cacheEntry.value.data.body !== undefined
+              ? JSON.parse(cacheEntry.value.data.body)
+              : undefined
           }
         }
       }

@@ -20,7 +20,10 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
-import { formatBarrelOptimizedResource } from '../utils'
+import {
+  formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
+} from '../utils'
 import type { ChunkGroup } from 'webpack'
 
 interface Options {
@@ -40,7 +43,8 @@ export type ManifestChunks = Array<string>
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  ASYNC_CLIENT_MODULES: [] as string[],
+  // Use an object to simulate Set lookup
+  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 })
 
 export interface ManifestNode {
@@ -66,7 +70,7 @@ export interface ManifestNode {
 }
 
 export type ClientReferenceManifest = {
-  moduleLoading: {
+  readonly moduleLoading: {
     prefix: string
     crossOrigin: string | null
   }
@@ -175,13 +179,11 @@ export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   appDirBase: string
-  ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
-    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -276,7 +278,7 @@ export class ClientReferenceManifestPlugin {
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
 
       const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
-      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
+      const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
@@ -302,7 +304,7 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
+        const isAsyncModule = !!pluginState.ASYNC_CLIENT_MODULES[mod.resource]
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
@@ -328,7 +330,7 @@ export class ClientReferenceManifestPlugin {
         function addClientReference() {
           const exportName = resource
           manifest.clientModules[exportName] = {
-            id,
+            id: modId,
             name: '*',
             chunks: requiredChunks,
             async: isAsyncModule,
@@ -345,8 +347,8 @@ export class ClientReferenceManifestPlugin {
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id]['*'] = {
+            moduleIdMapping[modId] = moduleIdMapping[modId] || {}
+            moduleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -360,8 +362,8 @@ export class ClientReferenceManifestPlugin {
             typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
             'undefined'
           ) {
-            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id]['*'] = {
+            edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
+            edgeModuleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -410,8 +412,10 @@ export class ClientReferenceManifestPlugin {
               continue
             }
 
-            const connections =
-              compilation.moduleGraph.getOutgoingConnections(mod)
+            const connections = getModuleReferencesInOrder(
+              mod,
+              compilation.moduleGraph
+            )
 
             for (const connection of connections) {
               const dependency = connection.dependency
@@ -498,6 +502,6 @@ export class ClientReferenceManifestPlugin {
       ) as unknown as webpack.sources.RawSource
     }
 
-    pluginState.ASYNC_CLIENT_MODULES = []
+    pluginState.ASYNC_CLIENT_MODULES = {}
   }
 }

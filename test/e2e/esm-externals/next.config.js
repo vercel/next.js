@@ -8,7 +8,7 @@ module.exports = {
     serverComponentsExternalPackages: [
       'app-esm-package1',
       'app-esm-package2',
-      'app-invalid-esm-package',
+      'app-cjs-esm-package',
     ],
   },
   webpack(config, { isServer }) {

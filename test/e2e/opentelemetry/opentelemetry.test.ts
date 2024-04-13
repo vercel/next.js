@@ -75,6 +75,7 @@ createNextDescribe(
                   'http.status_code': 200,
                   'http.target': '/app/param/rsc-fetch',
                   'next.route': '/app/[param]/rsc-fetch',
+                  'next.rsc': false,
                   'next.span_name': 'GET /app/[param]/rsc-fetch',
                   'next.span_type': 'BaseServer.handleRequest',
                 },
@@ -195,6 +196,22 @@ createNextDescribe(
                     status: { code: 0 },
                   },
                 ],
+              },
+            ])
+          })
+
+          it('should propagate custom context without span', async () => {
+            await next.fetch('/app/param/rsc-fetch', {
+              ...env.fetchInit,
+              headers: { ...env.fetchInit?.headers, 'x-custom': 'custom1' },
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/rsc-fetch',
+                attributes: {
+                  custom: 'custom1',
+                },
               },
             ])
           })
@@ -356,6 +373,7 @@ createNextDescribe(
                   'http.status_code': 200,
                   'http.target': '/app/param/rsc-fetch',
                   'next.route': '/app/[param]/rsc-fetch',
+                  'next.rsc': true,
                   'next.span_name': 'RSC GET /app/[param]/rsc-fetch',
                   'next.span_type': 'BaseServer.handleRequest',
                 },

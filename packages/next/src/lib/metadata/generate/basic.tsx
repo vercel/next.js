@@ -61,7 +61,11 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
         ])
       : []),
     metadata.manifest ? (
-      <link rel="manifest" href={metadata.manifest.toString()} />
+      <link
+        rel="manifest"
+        href={metadata.manifest.toString()}
+        crossOrigin="use-credentials"
+      />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),

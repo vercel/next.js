@@ -22,8 +22,9 @@ createNextDescribe(
                 <main>
                   <Component>
                     <div>
-                      "server"
-                      "client""
+                      <p>
+                        "server"
+                        "client""
         `)
       } else {
         expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`

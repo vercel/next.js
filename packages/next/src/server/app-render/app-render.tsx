@@ -79,7 +79,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { setReferenceManifestsSingleton } from './action-encryption-utils'
+import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   createStaticRenderer,
   getDynamicDataPostponedState,
@@ -100,12 +100,14 @@ import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
   createPostponedAbortSignal,
+  formatDynamicAPIAccesses,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -132,11 +134,11 @@ export type AppRenderContext = AppRenderBaseContext & {
   isPrefetch: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
-  providedFlightRouterState?: FlightRouterState
+  flightRouterState?: FlightRouterState
   requestId: string
   defaultRevalidate: Revalidate
   pagePath: string
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
   flightDataRendererErrorHandler: ErrorHandler
   serverComponentsErrorHandler: ErrorHandler
@@ -157,7 +159,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  * so we need to read it from the router state.
  */
 function findDynamicParamFromRouterState(
-  providedFlightRouterState: FlightRouterState | undefined,
+  flightRouterState: FlightRouterState | undefined,
   segment: string
 ): {
   param: string
@@ -165,11 +167,11 @@ function findDynamicParamFromRouterState(
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null {
-  if (!providedFlightRouterState) {
+  if (!flightRouterState) {
     return null
   }
 
-  const treeSegment = providedFlightRouterState[0]
+  const treeSegment = flightRouterState[0]
 
   if (canSegmentBeOverridden(segment, treeSegment)) {
     if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
@@ -184,9 +186,7 @@ function findDynamicParamFromRouterState(
     }
   }
 
-  for (const parallelRouterState of Object.values(
-    providedFlightRouterState[1]
-  )) {
+  for (const parallelRouterState of Object.values(flightRouterState[1])) {
     const maybeDynamicParam = findDynamicParamFromRouterState(
       parallelRouterState,
       segment
@@ -206,7 +206,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  providedFlightRouterState: FlightRouterState | undefined
+  flightRouterState: FlightRouterState | undefined
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -244,7 +244,7 @@ function makeGetDynamicParamFromSegment(
           treeSegment: [key, '', type],
         }
       }
-      return findDynamicParamFromRouterState(providedFlightRouterState, segment)
+      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -284,7 +284,7 @@ async function generateFlight(
     staticGenerationStore: { urlPathname },
     query,
     requestId,
-    providedFlightRouterState,
+    flightRouterState,
   } = ctx
 
   if (!options?.skipFlight) {
@@ -303,7 +303,7 @@ async function generateFlight(
         createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
-        flightRouterState: providedFlightRouterState,
+        flightRouterState,
         isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
@@ -536,6 +536,7 @@ async function ReactServerError({
       <head></head>
       <body></body>
     </html>,
+    null,
   ]
   return (
     <AppRouter
@@ -750,11 +751,9 @@ async function renderToHTMLOrFlightImpl(
       // extract dynamic params.
       isInterceptionRouteAppPath(pagePath))
 
-  let providedFlightRouterState = shouldProvideFlightRouterState
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  const parsedFlightRouterState = parseAndValidateFlightRouterState(
+    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+  )
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -775,7 +774,9 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    providedFlightRouterState
+    // `FlightRouterState` is unconditionally provided here because this method uses it
+    // to extract dynamic params as a fallback if they're not present in the path.
+    parsedFlightRouterState
   )
 
   const ctx: AppRenderContext = {
@@ -785,7 +786,9 @@ async function renderToHTMLOrFlightImpl(
     isPrefetch: isPrefetchRSCRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
-    providedFlightRouterState,
+    flightRouterState: shouldProvideFlightRouterState
+      ? parsedFlightRouterState
+      : undefined,
     requestId,
     defaultRevalidate: false,
     pagePath,
@@ -820,16 +823,6 @@ async function renderToHTMLOrFlightImpl(
   }
 
   const validateRootLayout = dev
-    ? {
-        assetPrefix: renderOpts.assetPrefix,
-        getTree: () =>
-          createFlightRouterStateFromLoaderTree(
-            loaderTree,
-            getDynamicParamFromSegment,
-            query
-          ),
-      }
-    : undefined
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -1364,6 +1357,21 @@ async function renderToHTMLOrFlightImpl(
   const buildFailingError =
     digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
 
+  // If we're debugging partial prerendering, print all the dynamic API accesses
+  // that occurred during the render.
+  if (
+    staticGenerationStore.prerenderState &&
+    usedDynamicAPIs(staticGenerationStore.prerenderState) &&
+    staticGenerationStore.prerenderState?.isDebugSkeleton
+  ) {
+    warn('The following dynamic usage was detected:')
+    for (const access of formatDynamicAPIAccesses(
+      staticGenerationStore.prerenderState
+    )) {
+      warn(access)
+    }
+  }
+
   if (!flightDataResolver) {
     throw new Error(
       'Invariant: Flight data resolver is missing when generating static HTML'
@@ -1431,7 +1439,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
         {
           urlPathname: pathname,
           renderOpts,
-          postpone: React.unstable_postpone,
         },
         (staticGenerationStore) =>
           renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {

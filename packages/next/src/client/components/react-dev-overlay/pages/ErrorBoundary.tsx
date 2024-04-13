@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 
 type ErrorBoundaryProps = {
   children?: React.ReactNode
@@ -8,7 +8,7 @@ type ErrorBoundaryProps = {
 }
 type ErrorBoundaryState = { error: Error | null }
 
-class ErrorBoundary extends React.PureComponent<
+export class ErrorBoundary extends React.PureComponent<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
@@ -30,7 +30,8 @@ class ErrorBoundary extends React.PureComponent<
     }
   }
 
-  render() {
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  render(): React.ReactNode {
     // The component has to be unmounted or else it would continue to error
     return this.state.error ||
       (this.props.globalOverlay && this.props.isMounted) ? (
@@ -47,5 +48,3 @@ class ErrorBoundary extends React.PureComponent<
     )
   }
 }
-
-export { ErrorBoundary }

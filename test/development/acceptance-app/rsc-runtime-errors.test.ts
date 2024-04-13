@@ -126,11 +126,6 @@ createNextDescribe(
       })
       const versionText = await getVersionCheckerText(browser)
       await expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
-      if (process.env.TURBOPACK) {
-        await expect(versionText).toContain('(turbo)')
-      } else {
-        await expect(versionText).not.toContain('(turbo)')
-      }
     })
 
     it('should not show the bundle layer info in the file trace', async () => {

@@ -3,7 +3,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb } from 'next-test-utils'
 
-describe('Multi Global Support (reversed)', () => {
+describe('(SCSS) Multi Global Support (reversed)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {

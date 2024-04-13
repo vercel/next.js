@@ -845,7 +845,13 @@ pub async fn project_trace_source(
                     "file" => {
                         let path = urlencoding::decode(url.path())?.to_string();
                         let module = url.query_pairs().find(|(k, _)| k == "id");
-                        (path, module.map(|(_, m)| m.into_owned()))
+                        (
+                            path,
+                            match module {
+                                Some(module) => Some(urlencoding::decode(&module.1)?.into_owned()),
+                                None => None,
+                            },
+                        )
                     }
                     _ => bail!("Unknown url scheme"),
                 },

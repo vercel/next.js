@@ -256,9 +256,10 @@ function mergeMetadata({
 
       default: {
         if (
-          key === 'viewport' ||
-          key === 'themeColor' ||
-          key === 'colorScheme'
+          (key === 'viewport' ||
+            key === 'themeColor' ||
+            key === 'colorScheme') &&
+          source[key] != null
         ) {
           buildState.warnings.add(
             `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
@@ -544,11 +545,13 @@ export async function resolveMetadataItems({
 type WithTitle = { title?: AbsoluteTemplateString | null }
 type WithDescription = { description?: string | null }
 
-const hasTitle = (metadata: WithTitle | null) => !!metadata?.title?.absolute
+const isTitleTruthy = (title: AbsoluteTemplateString | null | undefined) =>
+  !!title?.absolute
+const hasTitle = (metadata: WithTitle | null) => isTitleTruthy(metadata?.title)
 
 function inheritFromMetadata(
-  metadata: ResolvedMetadata,
-  target: (WithTitle & WithDescription) | null
+  target: (WithTitle & WithDescription) | null,
+  metadata: ResolvedMetadata
 ) {
   if (target) {
     if (!hasTitle(target) && hasTitle(metadata)) {
@@ -567,11 +570,6 @@ function postProcessMetadata(
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
 
-  // If there's no title and description configured in openGraph or twitter,
-  // use the title and description from metadata.
-  inheritFromMetadata(metadata, openGraph)
-  inheritFromMetadata(metadata, twitter)
-
   if (openGraph) {
     // If there's openGraph information but not configured in twitter,
     // inherit them from openGraph metadata.
@@ -585,8 +583,16 @@ function postProcessMetadata(
     const hasTwImages = Boolean(
       twitter?.hasOwnProperty('images') && twitter.images
     )
-    if (!hasTwTitle) autoFillProps.title = openGraph.title
-    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwTitle) {
+      if (isTitleTruthy(openGraph.title)) {
+        autoFillProps.title = openGraph.title
+      } else if (metadata.title && isTitleTruthy(metadata.title)) {
+        autoFillProps.title = metadata.title
+      }
+    }
+    if (!hasTwDescription)
+      autoFillProps.description =
+        openGraph.description || metadata.description || undefined
     if (!hasTwImages) autoFillProps.images = openGraph.images
 
     if (Object.keys(autoFillProps).length > 0) {
@@ -608,6 +614,12 @@ function postProcessMetadata(
       }
     }
   }
+
+  // If there's no title and description configured in openGraph or twitter,
+  // use the title and description from metadata.
+  inheritFromMetadata(openGraph, metadata)
+  inheritFromMetadata(twitter, metadata)
+
   return metadata
 }
 
@@ -620,13 +632,24 @@ function collectMetadataExportPreloading<Data, ResolvedData>(
   dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
   resolvers: ((value: ResolvedData) => void)[]
 ) {
-  results.push(
-    dynamicMetadataExportFn(
-      new Promise<any>((resolve) => {
-        resolvers.push(resolve)
-      })
-    )
+  const result = dynamicMetadataExportFn(
+    new Promise<any>((resolve) => {
+      resolvers.push(resolve)
+    })
   )
+
+  if (result instanceof Promise) {
+    // since we eager execute generateMetadata and
+    // they can reject at anytime we need to ensure
+    // we attach the catch handler right away to
+    // prevent unhandled rejections crashing the process
+    result.catch((err) => {
+      return {
+        __nextError: err,
+      }
+    })
+  }
+  results.push(result)
 }
 
 async function getMetadataFromExport<Data, ResolvedData>(
@@ -681,6 +704,11 @@ async function getMetadataFromExport<Data, ResolvedData>(
     resolveParent(currentResolvedMetadata)
     metadata =
       metadataResult instanceof Promise ? await metadataResult : metadataResult
+
+    if (metadata && typeof metadata === 'object' && '__nextError' in metadata) {
+      // re-throw caught metadata error from preloading
+      throw metadata['__nextError']
+    }
   } else if (metadataExport !== null && typeof metadataExport === 'object') {
     // This metadataExport is the object form
     metadata = metadataExport

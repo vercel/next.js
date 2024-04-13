@@ -1,6 +1,6 @@
 import World1 from 'app-esm-package1/entry'
 import World2 from 'app-esm-package2/entry'
-import World3 from 'invalid-esm-package/entry'
+import World3 from 'app-cjs-esm-package/entry'
 
 export default function Page() {
   return (

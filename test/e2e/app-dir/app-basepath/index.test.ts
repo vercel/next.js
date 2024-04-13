@@ -59,8 +59,9 @@ createNextDescribe(
     it('should handle redirect in dynamic in suspense boundary routes with basePath', async () => {
       const browser = await next.browser('/base/dynamic/source')
       await retry(async () => {
-        expect(await browser.url()).toBe(`${next.url}/base/dynamic/dest`)
+        // Check content is loaded first to avoid flakiness
         expect(await browser.elementByCss('p').text()).toBe(`id:dest`)
+        expect(await browser.url()).toBe(`${next.url}/base/dynamic/dest`)
       })
     })
   }

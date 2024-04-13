@@ -130,7 +130,7 @@ export function Links() {
 
 #### Scrolling to an `id`
 
-The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
+The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.**
 
 If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
 
@@ -141,9 +141,13 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 <a href="/dashboard#settings">Settings</a>
 ```
 
+> **Good to know**:
+>
+> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages-and-layouts#pages) if it is not visible in the viewport upon navigation.
+
 #### Disabling scroll restoration
 
-The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
+The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
 
 ```jsx
 // next/link
@@ -362,12 +366,9 @@ There are two ways routes are prefetched in Next.js:
 - **`<Link>` component**: Routes are automatically prefetched as they become visible in the user's viewport. Prefetching happens when the page first loads or when it comes into view through scrolling.
 - **`router.prefetch()`**: The `useRouter` hook can be used to prefetch routes programmatically.
 
-The`<Link>`'s prefetching behavior is different for static and dynamic routes:
+The `<Link>`'s default prefetching behavior (i.e. when the `prefetch` prop is left unspecified or set to `null`) is different depending on your usage of [`loading.js`](/docs/app/api-reference/file-conventions/loading). Only the shared layout, down the rendered "tree" of components until the first `loading.js` file, is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
 
-- [**Static Routes**](/docs/app/building-your-application/rendering/server-components#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/server-components#dynamic-rendering): `prefetch` default to automatic. Only the shared layout, down the rendered "tree" of components until the first `loading.js` file, is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
-
-You can disable prefetching by setting the `prefetch` prop to `false`.
+You can disable prefetching by setting the `prefetch` prop to `false`. Alternatively, you can prefetch the full page data beyond the loading boundaries by setting the `prefetch` prop to `true`.
 
 See the [`<Link>` API reference](/docs/app/api-reference/components/link) for more information.
 
@@ -377,11 +378,11 @@ See the [`<Link>` API reference](/docs/app/api-reference/components/link) for mo
 
 ### 3. Caching
 
-Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/caching#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
 
 This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the number of requests and data transferred.
 
-Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
+Learn more about how the [Router Cache](/docs/app/building-your-application/caching#router-cache) works and how to configure it.
 
 ### 4. Partial Rendering
 
@@ -405,7 +406,7 @@ Browsers perform a "hard navigation" when navigating between pages. The Next.js 
 
 ### 6. Back and Forward Navigation
 
-By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).
+By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/caching#router-cache).
 
 ### 7. Routing between `pages/` and `app/`
 

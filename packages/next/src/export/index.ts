@@ -56,6 +56,7 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -188,7 +189,7 @@ export async function exportAppImpl(
     !options.pages &&
     (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
 
-  let prerenderManifest: PrerenderManifest | undefined
+  let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch {}
@@ -399,7 +400,7 @@ export async function exportAppImpl(
     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     // Exported pages do not currently support dynamic HTML.
     supportsDynamicHTML: false,
-    crossOrigin: nextConfig.crossOrigin || '',
+    crossOrigin: nextConfig.crossOrigin,
     optimizeCss: nextConfig.experimental.optimizeCss,
     nextConfigOutput: nextConfig.output,
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
@@ -419,7 +420,7 @@ export async function exportAppImpl(
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
-    deploymentId: nextConfig.experimental.deploymentId,
+    deploymentId: nextConfig.deploymentId,
     experimental: {
       ppr: nextConfig.experimental.ppr === true,
       missingSuspenseWithCSRBailout:

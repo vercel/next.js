@@ -35,7 +35,7 @@ import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
-import type { Server as HTTPServer } from 'http'
+import type { Server as HTTPServer, IncomingMessage } from 'http'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
@@ -134,6 +134,8 @@ import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/pref
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
+import { toRoute } from './lib/to-route'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -284,9 +286,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
-  protected readonly clientReferenceManifest?: ClientReferenceManifest
+  protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
-  protected nextFontManifest?: NextFontManifest
+  protected nextFontManifest?: DeepReadonly<NextFontManifest>
   private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
@@ -298,6 +300,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected readonly enabledDirectories: NextEnabledDirectories
   protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
+
+  protected readonly experimentalTestProxy?: boolean
 
   protected abstract findPageComponents(params: {
     page: string
@@ -311,9 +315,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     shouldEnsure?: boolean
     url?: string
   }): Promise<FindComponentsResult | null>
-  protected abstract getFontManifest(): FontManifest | undefined
-  protected abstract getPrerenderManifest(): PrerenderManifest
-  protected abstract getNextFontManifest(): NextFontManifest | undefined
+  protected abstract getFontManifest(): DeepReadonly<FontManifest> | undefined
+  protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getNextFontManifest():
+    | DeepReadonly<NextFontManifest>
+    | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
@@ -387,8 +393,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       customServer = true,
       hostname,
       port,
+      experimentalTestProxy,
     } = options
 
+    this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
     this.dir =
@@ -468,14 +476,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      process.env.NEXT_DEPLOYMENT_ID =
-        this.nextConfig.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
     }
 
     this.renderOpts = {
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.experimental.deploymentId,
+      deploymentId: this.nextConfig.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -768,6 +775,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           attributes: {
             'http.method': method,
             'http.target': req.url,
+            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
@@ -884,13 +892,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port?.toString()
       const { originalRequest } = req as NodeNextRequest
-      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
-        ?.encrypted
-        ? 'https'
-        : 'http'
+      const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
+      const isHttps = xForwardedProto
+        ? xForwardedProto === 'https'
+        : !!(originalRequest?.socket as TLSSocket)?.encrypted
+
+      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
+      req.headers['x-forwarded-port'] ??= this.port
+        ? this.port.toString()
+        : isHttps
+        ? '443'
+        : '80'
+      req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
       // This should be done before any normalization of the pathname happens as
@@ -945,7 +959,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -969,6 +983,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+
+            // If the request does not have the `x-now-route-matches` header,
+            // it means that the request has it's exact path specified in the
+            // `x-matched-path` header. In this case, we should update the
+            // pathname to the matched path.
+            if (!req.headers['x-now-route-matches']) {
+              urlPathname = this.normalizers.postponed.normalize(
+                matchedPath,
+                true
+              )
+            }
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -1726,11 +1751,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
-    const is404Page =
-      // For edge runtime 404 page, /_not-found needs to be treated as 404 page
-      (process.env.NEXT_RUNTIME === 'edge' &&
-        pathname === UNDERSCORE_NOT_FOUND_ROUTE) ||
-      pathname === '/404'
+    if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
+      pathname = '/404'
+    }
+    const is404Page = pathname === '/404'
 
     // Strip the internal headers.
     this.stripInternalHeaders(req)
@@ -1803,8 +1827,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {
-      isSSG ||=
-        !!prerenderManifest.routes[pathname === '/index' ? '/' : pathname]
+      isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
 
     // Toggle whether or not this is a Data request
@@ -1833,6 +1856,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-middleware-prefetch'] &&
       !(is404Page || pathname === '/_error')
     ) {
+      res.setHeader('x-matched-path', pathname)
       res.setHeader('x-middleware-skip', '1')
       res.setHeader(
         'cache-control',
@@ -1958,7 +1982,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let previewData: PreviewData
     let isPreviewMode = false
 
-    if (hasServerProps || isSSG) {
+    if (hasServerProps || isSSG || isAppPath) {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
@@ -2125,9 +2149,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // allow debugging the skeleton in dev with PPR
     // instead of continuing to resume stream right away
-    const debugPPRSkeleton = Boolean(
+    const isDebugPPRSkeleton = Boolean(
       this.nextConfig.experimental.ppr &&
-        this.renderOpts.dev &&
+        (this.renderOpts.dev || this.experimentalTestProxy) &&
         query.__nextppronly
     )
 
@@ -2205,12 +2229,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         postponed,
       }
 
-      if (debugPPRSkeleton) {
+      if (isDebugPPRSkeleton) {
         supportsDynamicHTML = false
         renderOpts.nextExport = true
         renderOpts.supportsDynamicHTML = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
+        renderOpts.isDebugPPRSkeleton = true
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2871,12 +2896,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (debugPPRSkeleton) {
-        return {
-          type: 'html',
-          body,
-          revalidate: 0,
-        }
+      // If we're debugging the skeleton, we should just serve the HTML without
+      // resuming the render. The returned HTML will be the static shell.
+      if (isDebugPPRSkeleton) {
+        return { type: 'html', body, revalidate: 0 }
       }
 
       // This request has postponed, so let's create a new transformer that the
@@ -3468,7 +3491,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 }
 
-function isRSCRequestCheck(req: BaseNextRequest): boolean {
+export function isRSCRequestCheck(
+  req: IncomingMessage | BaseNextRequest
+): boolean {
   return (
     req.headers[RSC_HEADER.toLowerCase()] === '1' ||
     Boolean(getRequestMeta(req, 'isRSCRequest'))

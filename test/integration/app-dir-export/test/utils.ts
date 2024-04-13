@@ -11,6 +11,7 @@ import {
   File,
   findPort,
   getRedboxHeader,
+  getRedboxSource,
   hasRedbox,
   killApp,
   launchApp,
@@ -154,7 +155,9 @@ export async function runTests({
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toContain(expectedErrMsg)
+        const header = await getRedboxHeader(browser)
+        const source = await getRedboxSource(browser)
+        expect(`${header}\n${source}`).toContain(expectedErrMsg)
       } else {
         await check(() => result.stderr, /error/i)
       }

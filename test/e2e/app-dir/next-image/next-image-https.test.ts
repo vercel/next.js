@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
-    startCommand: `yarn next dev --experimental-https`,
+    startCommand: `pnpm next dev --experimental-https`,
   },
   ({ next }) => {
     if (!process.env.CI) {

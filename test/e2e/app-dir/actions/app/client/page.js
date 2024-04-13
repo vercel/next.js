@@ -16,7 +16,7 @@ export default function Counter() {
   const [count, setCount] = useState(0)
   return (
     <div>
-      <h1>{count}</h1>
+      <h1 id="count">{count}</h1>
       <button
         id="inc"
         onClick={async () => {
@@ -84,6 +84,14 @@ export default function Counter() {
           }
         >
           redirect internal with domain
+        </button>
+      </form>
+      <form>
+        <button
+          id="redirect-pages"
+          formAction={() => redirectAction('/pages-dir')}
+        >
+          redirect to a pages route
         </button>
       </form>
       <form action={getHeaders}>
