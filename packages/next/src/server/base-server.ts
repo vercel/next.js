@@ -31,11 +31,13 @@ import type {
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { AppPageRouteModule } from './future/route-modules/app-page/module'
-import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
-import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
-import type { Server as HTTPServer, IncomingMessage } from 'http'
+import type {
+  Server as HTTPServer,
+  IncomingMessage,
+  ServerResponse as HTTPServerResponse,
+} from 'http'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
@@ -136,6 +138,8 @@ import { getIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
+import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -148,9 +152,12 @@ export interface MiddlewareRoutingItem {
   matchers?: MiddlewareMatcher[]
 }
 
-export type RouteHandler = (
-  req: BaseNextRequest,
-  res: BaseNextResponse,
+export type RouteHandler<
+  ServerRequest extends BaseNextRequest,
+  ServerResponse extends BaseNextResponse
+> = (
+  req: ServerRequest,
+  res: ServerResponse,
   parsedUrl: NextUrlWithParsedQuery
 ) => PromiseLike<boolean> | boolean
 
@@ -227,17 +234,29 @@ type BaseRenderOpts = RenderOpts & {
   previewProps: __ApiPreviewProps
 }
 
-export interface BaseRequestHandler {
+/**
+ * The public interface for rendering with the server programmatically. This
+ * would typically only allow the base request or response to extend it, but
+ * because this can be programmatically accessed, we assume that it could also
+ * be the base Node.js request and response types.
+ */
+export interface BaseRequestHandler<
+  ServerRequest extends BaseNextRequest | IncomingMessage,
+  ServerResponse extends BaseNextResponse | HTTPServerResponse
+> {
   (
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void> | void
 }
 
-export type RequestContext = {
-  req: BaseNextRequest
-  res: BaseNextResponse
+export type RequestContext<
+  ServerRequest extends BaseNextRequest,
+  ServerResponse extends BaseNextResponse
+> = {
+  req: ServerRequest
+  res: ServerResponse
   pathname: string
   query: NextParsedUrlQuery
   renderOpts: RenderOpts
@@ -269,7 +288,11 @@ export type NextEnabledDirectories = {
   readonly app: boolean
 }
 
-export default abstract class Server<ServerOptions extends Options = Options> {
+export default abstract class Server<
+  ServerOptions extends Options = Options,
+  ServerRequest extends BaseNextRequest = BaseNextRequest,
+  ServerResponse extends BaseNextResponse = BaseNextResponse
+> {
   public readonly hostname?: string
   public readonly fetchHostname?: string
   public readonly port?: number
@@ -321,15 +344,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     | DeepReadonly<NextFontManifest>
     | undefined
   protected abstract attachRequestMeta(
-    req: BaseNextRequest,
+    req: ServerRequest,
     parsedUrl: NextUrlWithParsedQuery
   ): void
   protected abstract getFallback(page: string): Promise<string>
   protected abstract hasPage(pathname: string): Promise<boolean>
 
   protected abstract sendRenderResult(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     options: {
       result: RenderResult
       type: 'html' | 'json' | 'rsc'
@@ -341,15 +364,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void>
 
   protected abstract runApi(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean>
 
   protected abstract renderHTML(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts
@@ -557,7 +580,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.matchers.reload()
   }
 
-  private handleRSCRequest: RouteHandler = (req, _res, parsedUrl) => {
+  private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
+    req,
+    _res,
+    parsedUrl
+  ) => {
     if (!parsedUrl.pathname) return false
 
     if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
@@ -606,102 +633,114 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return false
   }
 
-  private handleNextDataRequest: RouteHandler = async (req, res, parsedUrl) => {
-    const middleware = this.getMiddleware()
-    const params = matchNextDataPathname(parsedUrl.pathname)
+  private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
+    async (req, res, parsedUrl) => {
+      const middleware = this.getMiddleware()
+      const params = matchNextDataPathname(parsedUrl.pathname)
 
-    // ignore for non-next data URLs
-    if (!params || !params.path) {
-      return false
-    }
-
-    if (params.path[0] !== this.buildId) {
-      // Ignore if its a middleware request when we aren't on edge.
-      if (
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        req.headers['x-middleware-invoke']
-      ) {
+      // ignore for non-next data URLs
+      if (!params || !params.path) {
         return false
       }
 
-      // Make sure to 404 if the buildId isn't correct
-      await this.render404(req, res, parsedUrl)
-      return true
-    }
+      if (params.path[0] !== this.buildId) {
+        // Ignore if its a middleware request when we aren't on edge.
+        if (
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          req.headers['x-middleware-invoke']
+        ) {
+          return false
+        }
 
-    // remove buildId from URL
-    params.path.shift()
-
-    const lastParam = params.path[params.path.length - 1]
-
-    // show 404 if it doesn't end with .json
-    if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-      await this.render404(req, res, parsedUrl)
-      return true
-    }
-
-    // re-create page's pathname
-    let pathname = `/${params.path.join('/')}`
-    pathname = getRouteFromAssetPath(pathname, '.json')
-
-    // ensure trailing slash is normalized per config
-    if (middleware) {
-      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-        pathname += '/'
-      }
-      if (
-        !this.nextConfig.trailingSlash &&
-        pathname.length > 1 &&
-        pathname.endsWith('/')
-      ) {
-        pathname = pathname.substring(0, pathname.length - 1)
-      }
-    }
-
-    if (this.i18nProvider) {
-      // Remove the port from the hostname if present.
-      const hostname = req?.headers.host?.split(':', 1)[0].toLowerCase()
-
-      const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
-      const defaultLocale =
-        domainLocale?.defaultLocale ?? this.i18nProvider.config.defaultLocale
-
-      const localePathResult = this.i18nProvider.analyze(pathname)
-
-      // If the locale is detected from the path, we need to remove it
-      // from the pathname.
-      if (localePathResult.detectedLocale) {
-        pathname = localePathResult.pathname
-      }
-
-      // Update the query with the detected locale and default locale.
-      parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
-
-      // If the locale is not detected from the path, we need to mark that
-      // it was not inferred from default.
-      if (!localePathResult.detectedLocale) {
-        delete parsedUrl.query.__nextInferredLocaleFromDefault
-      }
-
-      // If no locale was detected and we don't have middleware, we need
-      // to render a 404 page.
-      if (!localePathResult.detectedLocale && !middleware) {
-        parsedUrl.query.__nextLocale = defaultLocale
+        // Make sure to 404 if the buildId isn't correct
         await this.render404(req, res, parsedUrl)
         return true
       }
+
+      // remove buildId from URL
+      params.path.shift()
+
+      const lastParam = params.path[params.path.length - 1]
+
+      // show 404 if it doesn't end with .json
+      if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
+        await this.render404(req, res, parsedUrl)
+        return true
+      }
+
+      // re-create page's pathname
+      let pathname = `/${params.path.join('/')}`
+      pathname = getRouteFromAssetPath(pathname, '.json')
+
+      // ensure trailing slash is normalized per config
+      if (middleware) {
+        if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+          pathname += '/'
+        }
+        if (
+          !this.nextConfig.trailingSlash &&
+          pathname.length > 1 &&
+          pathname.endsWith('/')
+        ) {
+          pathname = pathname.substring(0, pathname.length - 1)
+        }
+      }
+
+      if (this.i18nProvider) {
+        // Remove the port from the hostname if present.
+        const hostname = req?.headers.host?.split(':', 1)[0].toLowerCase()
+
+        const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
+        const defaultLocale =
+          domainLocale?.defaultLocale ?? this.i18nProvider.config.defaultLocale
+
+        const localePathResult = this.i18nProvider.analyze(pathname)
+
+        // If the locale is detected from the path, we need to remove it
+        // from the pathname.
+        if (localePathResult.detectedLocale) {
+          pathname = localePathResult.pathname
+        }
+
+        // Update the query with the detected locale and default locale.
+        parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+        parsedUrl.query.__nextDefaultLocale = defaultLocale
+
+        // If the locale is not detected from the path, we need to mark that
+        // it was not inferred from default.
+        if (!localePathResult.detectedLocale) {
+          delete parsedUrl.query.__nextInferredLocaleFromDefault
+        }
+
+        // If no locale was detected and we don't have middleware, we need
+        // to render a 404 page.
+        if (!localePathResult.detectedLocale && !middleware) {
+          parsedUrl.query.__nextLocale = defaultLocale
+          await this.render404(req, res, parsedUrl)
+          return true
+        }
+      }
+
+      parsedUrl.pathname = pathname
+      parsedUrl.query.__nextDataReq = '1'
+
+      return false
     }
 
-    parsedUrl.pathname = pathname
-    parsedUrl.query.__nextDataReq = '1'
+  protected handleNextImageRequest: RouteHandler<
+    ServerRequest,
+    ServerResponse
+  > = () => false
 
-    return false
-  }
+  protected handleCatchallRenderRequest: RouteHandler<
+    ServerRequest,
+    ServerResponse
+  > = () => false
 
-  protected handleNextImageRequest: RouteHandler = () => false
-  protected handleCatchallRenderRequest: RouteHandler = () => false
-  protected handleCatchallMiddlewareRequest: RouteHandler = () => false
+  protected handleCatchallMiddlewareRequest: RouteHandler<
+    ServerRequest,
+    ServerResponse
+  > = () => false
 
   protected getRouteMatchers(): RouteMatcherManager {
     // Create a new manifest loader that get's the manifests from the server.
@@ -757,8 +796,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async handleRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.prepare()
@@ -816,8 +855,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async handleRequestImpl(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
@@ -826,38 +865,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
-      const _res = (res as any).originalResponse || res
-      const origSetHeader = _res.setHeader.bind(_res)
-
-      _res.setHeader = (name: string, val: string | string[]) => {
-        // When renders /_error after page is failed,
-        // it could attempt to set headers after headers
-        if (_res.headersSent) {
-          return
-        }
-        if (name.toLowerCase() === 'set-cookie') {
-          const middlewareValue = getRequestMeta(req, 'middlewareCookie')
-
-          if (
-            !middlewareValue ||
-            !Array.isArray(val) ||
-            !val.every((item, idx) => item === middlewareValue[idx])
-          ) {
-            val = [
-              // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
-              ...new Set([
-                ...(middlewareValue || []),
-                ...(typeof val === 'string'
-                  ? [val]
-                  : Array.isArray(val)
-                  ? val
-                  : []),
-              ]),
-            ]
-          }
-        }
-        return origSetHeader(name, val)
-      }
+      patchSetHeaderWithCookieSupport(
+        req,
+        isNodeNextResponse(res) ? res.originalResponse : res
+      )
 
       const urlParts = (req.url || '').split('?', 1)
       const urlNoQuery = urlParts[0]
@@ -892,7 +903,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      const { originalRequest } = req as NodeNextRequest
+      const { originalRequest = null } = isNodeNextRequest(req) ? req : {}
       const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
       const isHttps = xForwardedProto
         ? xForwardedProto === 'https'
@@ -905,7 +916,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? '443'
         : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
-      req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
+      req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
 
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
@@ -1423,7 +1434,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return pathname
   }
 
-  private normalizeAndAttachMetadata: RouteHandler = async (req, res, url) => {
+  private normalizeAndAttachMetadata: RouteHandler<
+    ServerRequest,
+    ServerResponse
+  > = async (req, res, url) => {
     let finished = await this.handleNextImageRequest(req, res, url)
     if (finished) return true
 
@@ -1438,7 +1452,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   /**
    * @internal - this method is internal to Next.js and should not be used directly by end-users
    */
-  public getRequestHandlerWithMetadata(meta: RequestMeta): BaseRequestHandler {
+  public getRequestHandlerWithMetadata(
+    meta: RequestMeta
+  ): BaseRequestHandler<ServerRequest, ServerResponse> {
     const handler = this.getRequestHandler()
     return (req, res, parsedUrl) => {
       setRequestMeta(req, meta)
@@ -1446,12 +1462,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
-  public getRequestHandler(): BaseRequestHandler {
+  public getRequestHandler(): BaseRequestHandler<
+    ServerRequest,
+    ServerResponse
+  > {
     return this.handleRequest.bind(this)
   }
 
   protected abstract handleUpgrade(
-    req: BaseNextRequest,
+    req: ServerRequest,
     socket: any,
     head?: any
   ): Promise<void>
@@ -1496,8 +1515,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected async run(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
@@ -1506,16 +1525,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async runImpl(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
 
   private async pipe(
-    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: Omit<RequestContext, 'renderOpts'>
+    fn: (
+      ctx: RequestContext<ServerRequest, ServerResponse>
+    ) => Promise<ResponsePayload | null>,
+    partialContext: Omit<
+      RequestContext<ServerRequest, ServerResponse>,
+      'renderOpts'
+    >
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.pipe, async () =>
       this.pipeImpl(fn, partialContext)
@@ -1523,11 +1547,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async pipeImpl(
-    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: Omit<RequestContext, 'renderOpts'>
+    fn: (
+      ctx: RequestContext<ServerRequest, ServerResponse>
+    ) => Promise<ResponsePayload | null>,
+    partialContext: Omit<
+      RequestContext<ServerRequest, ServerResponse>,
+      'renderOpts'
+    >
   ): Promise<void> {
     const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
-    const ctx: RequestContext = {
+    const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
@@ -1565,10 +1594,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async getStaticHTML(
-    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: Omit<RequestContext, 'renderOpts'>
+    fn: (
+      ctx: RequestContext<ServerRequest, ServerResponse>
+    ) => Promise<ResponsePayload | null>,
+    partialContext: Omit<
+      RequestContext<ServerRequest, ServerResponse>,
+      'renderOpts'
+    >
   ): Promise<string | null> {
-    const ctx: RequestContext = {
+    const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
@@ -1583,8 +1617,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async render(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
     parsedUrl?: NextUrlWithParsedQuery,
@@ -1596,8 +1630,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderImpl(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
     parsedUrl?: NextUrlWithParsedQuery,
@@ -1674,7 +1708,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToResponseWithComponents(
-    requestContext: RequestContext,
+    requestContext: RequestContext<ServerRequest, ServerResponse>,
     findComponentsResult: FindComponentsResult
   ): Promise<ResponsePayload | null> {
     return getTracer().trace(
@@ -1687,7 +1721,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     )
   }
 
-  protected stripInternalHeaders(req: BaseNextRequest): void {
+  protected stripInternalHeaders(req: ServerRequest): void {
     // Skip stripping internal headers in test mode while the header stripping
     // has been explicitly disabled. This allows tests to verify internal
     // routing behavior.
@@ -1701,11 +1735,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // Strip the internal headers from both the request and the original
     // request.
     stripInternalHeaders(req.headers)
+
     if (
-      'originalRequest' in req &&
-      'headers' in (req as NodeNextRequest).originalRequest
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
     ) {
-      stripInternalHeaders((req as NodeNextRequest).originalRequest.headers)
+      stripInternalHeaders(req.originalRequest.headers)
     }
   }
 
@@ -1719,8 +1756,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected setVaryHeader(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
@@ -1748,7 +1785,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToResponseWithComponentsImpl(
-    { req, res, pathname, renderOpts: opts }: RequestContext,
+    {
+      req,
+      res,
+      pathname,
+      renderOpts: opts,
+    }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
@@ -2244,6 +2286,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (routeModule) {
         if (isAppRouteRouteModule(routeModule)) {
+          if (
+            // The type check here ensures that `req` is correctly typed, and the
+            // environment variable check provides dead code elimination.
+            process.env.NEXT_RUNTIME === 'edge' ||
+            !isNodeNextRequest(req) ||
+            !isNodeNextResponse(res)
+          ) {
+            throw new Error(
+              'Invariant: App Route Route Modules cannot be used in the edge runtime'
+            )
+          }
+
           const context: AppRouteRouteHandlerContext = {
             params: opts.params,
             prerenderManifest,
@@ -2258,9 +2312,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           try {
-            const request = NextRequestAdapter.fromBaseNextRequest(
+            const request = NextRequestAdapter.fromNodeNextRequest(
               req,
-              signalFromNodeResponse((res as NodeNextResponse).originalResponse)
+              signalFromNodeResponse(res.originalResponse)
             )
 
             const response = await routeModule.handle(request, context)
@@ -2273,7 +2327,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
-            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+            if (isSSG) {
               const blob = await response.blob()
 
               // Copy the headers from the response.
@@ -2326,12 +2380,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           renderOpts.clientReferenceManifest =
             components.clientReferenceManifest
 
+          const request = isNodeNextRequest(req) ? req.originalRequest : req
+          const response = isNodeNextResponse(res) ? res.originalResponse : res
+
           // Call the built-in render method on the module.
           result = await routeModule.render(
-            (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-            (res as NodeNextResponse).originalResponse ??
-              (res as WebNextResponse),
-            { page: pathname, params: opts.params, query, renderOpts }
+            // TODO: fix this type
+            // @ts-expect-error - preexisting accepted this
+            request,
+            response,
+            {
+              page: pathname,
+              params: opts.params,
+              query,
+              renderOpts,
+            }
           )
         } else if (isAppPageRouteModule(routeModule)) {
           const module = components.routeModule as AppPageRouteModule
@@ -2342,17 +2405,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           renderOpts.nextFontManifest = this.nextFontManifest
 
           // Call the built-in render method on the module.
-          result = await module.render(
-            (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-            (res as NodeNextResponse).originalResponse ??
-              (res as WebNextResponse),
-            {
-              page: is404Page ? '/404' : pathname,
-              params: opts.params,
-              query,
-              renderOpts,
-            }
-          )
+          result = await module.render(req, res, {
+            page: is404Page ? '/404' : pathname,
+            params: opts.params,
+            query,
+            renderOpts,
+          })
         } else {
           throw new Error('Invariant: Unknown route module type')
         }
@@ -2987,7 +3045,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected async renderPageComponent(
-    ctx: RequestContext,
+    ctx: RequestContext<ServerRequest, ServerResponse>,
     bubbleNoFallback: boolean
   ) {
     const { query, pathname } = ctx
@@ -3027,7 +3085,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToResponse(
-    ctx: RequestContext
+    ctx: RequestContext<ServerRequest, ServerResponse>
   ): Promise<ResponsePayload | null> {
     return getTracer().trace(
       BaseServerSpan.renderToResponse,
@@ -3050,7 +3108,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
-    ctx: RequestContext
+    ctx: RequestContext<ServerRequest, ServerResponse>
   ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
     let page = pathname
@@ -3181,8 +3239,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async renderToHTML(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
@@ -3192,8 +3250,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToHTMLImpl(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
@@ -3207,8 +3265,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   public async renderError(
     err: Error | null,
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
     setHeaders = true
@@ -3220,8 +3278,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async renderErrorImpl(
     err: Error | null,
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
     setHeaders = true
@@ -3252,7 +3310,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   })
 
   private async renderErrorToResponse(
-    ctx: RequestContext,
+    ctx: RequestContext<ServerRequest, ServerResponse>,
     err: Error | null
   ): Promise<ResponsePayload | null> {
     return getTracer().trace(BaseServerSpan.renderErrorToResponse, async () => {
@@ -3261,7 +3319,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected async renderErrorToResponseImpl(
-    ctx: RequestContext,
+    ctx: RequestContext<ServerRequest, ServerResponse>,
     err: Error | null
   ): Promise<ResponsePayload | null> {
     // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
@@ -3460,8 +3518,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   public async renderErrorToHTML(
     err: Error | null,
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
@@ -3474,8 +3532,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async render404(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: ServerRequest,
+    res: ServerResponse,
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
@@ -3491,9 +3549,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 }
 
-export function isRSCRequestCheck(
-  req: IncomingMessage | BaseNextRequest
-): boolean {
+export function isRSCRequestCheck(req: BaseNextRequest): boolean {
   return (
     req.headers[RSC_HEADER.toLowerCase()] === '1' ||
     Boolean(getRequestMeta(req, 'isRSCRequest'))

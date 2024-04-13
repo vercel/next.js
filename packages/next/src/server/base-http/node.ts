@@ -18,9 +18,13 @@ type Req = IncomingMessage & {
 
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers
-  public fetchMetrics?: FetchMetric[] = this._req?.fetchMetrics;
+  public fetchMetrics: FetchMetric[] | undefined = this._req?.fetchMetrics;
 
   [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
+
+  constructor(private _req: Req) {
+    super(_req.method!.toUpperCase(), _req.url!, _req)
+  }
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:
@@ -33,10 +37,6 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
 
   set originalRequest(value: Req) {
     this._req = value
-  }
-
-  constructor(private _req: Req) {
-    super(_req.method!.toUpperCase(), _req.url!, _req)
   }
 }
 
