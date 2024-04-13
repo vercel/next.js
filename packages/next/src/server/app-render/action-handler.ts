@@ -195,7 +195,7 @@ async function createForwardedActionResponse(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      body = req.body
+      body = req.stream()
     } else {
       throw new Error('Invariant: Unknown request type.')
     }
@@ -203,7 +203,6 @@ async function createForwardedActionResponse(
     // Forward the request to the new worker
     const response = await fetch(fetchUrl, {
       method: 'POST',
-      // @ts-expect-error - undici supports AsyncIterable in Node.js (not part of the Fetch API spec yet)
       body,
       duplex: 'half',
       headers: forwardedHeaders,
@@ -641,8 +640,7 @@ export async function handleAction({
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              // @ts-expect-error - undici supports AsyncIterable in Node.js (not part of the Fetch API spec yet)
-              body: req.body,
+              body: req.stream(),
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()

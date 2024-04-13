@@ -38,6 +38,38 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
   set originalRequest(value: Req) {
     this._req = value
   }
+
+  private streaming = false
+
+  /**
+   * Returns the request body as a Web Readable Stream. The body here can only
+   * be read once as the body will start flowing as soon as the data handler
+   * is attached.
+   *
+   * @internal
+   */
+  public stream() {
+    if (this.streaming) {
+      throw new Error(
+        'Invariant: NodeNextRequest.stream() can only be called once'
+      )
+    }
+    this.streaming = true
+
+    return new ReadableStream({
+      start: (controller) => {
+        this._req.on('data', (chunk) => {
+          controller.enqueue(new Uint8Array(chunk))
+        })
+        this._req.on('end', () => {
+          controller.close()
+        })
+        this._req.on('error', (err) => {
+          controller.error(err)
+        })
+      },
+    })
+  }
 }
 
 export class NodeNextResponse extends BaseNextResponse<Writable> {
