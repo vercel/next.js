@@ -28,6 +28,21 @@ export default class FetchCache implements CacheHandler {
   private cacheEndpoint?: string
   private debug: boolean
 
+  private hasMatchingTags(arr1: string[], arr2: string[]) {
+    if (arr1.length !== arr2.length) return false
+
+    const set1 = new Set(arr1)
+    const set2 = new Set(arr2)
+
+    if (set1.size !== set2.size) return false
+
+    for (let tag of set1) {
+      if (!set2.has(tag)) return false
+    }
+
+    return true
+  }
+
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
   }) {
@@ -168,8 +183,13 @@ export default class FetchCache implements CacheHandler {
     // on successive requests
     let data = memoryCache?.get(key)
 
-    // get data from fetch cache
-    if (!data && this.cacheEndpoint) {
+    const hasFetchKindAndMatchingTags =
+      data?.value?.kind === 'FETCH' &&
+      this.hasMatchingTags(tags ?? [], data.value.tags ?? [])
+
+    // Get data from fetch cache. Also check if new tags have been
+    // specified with the same cache key (fetch URL)
+    if (this.cacheEndpoint && (!data || !hasFetchKindAndMatchingTags)) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
@@ -218,6 +238,16 @@ export default class FetchCache implements CacheHandler {
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
           throw new Error(`invalid cache value`)
+        }
+
+        // if new tags were specified, merge those tags to the existing tags
+        if (cached.kind === 'FETCH') {
+          cached.tags ??= []
+          for (const tag of tags ?? []) {
+            if (!cached.tags.include(tag)) {
+              cached.tag.push(tag)
+            }
+          }
         }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)

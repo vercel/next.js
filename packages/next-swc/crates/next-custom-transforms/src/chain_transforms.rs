@@ -217,7 +217,7 @@ where
             opts.prefer_esm,
             NextDynamicMode::Webpack,
             file.name.clone(),
-            opts.pages_dir.clone()
+            opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
         ),
         Optional::new(
             crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),

@@ -80,85 +80,107 @@ export function PseudoHtmlDiff({
     const nestedHtmlStack: React.ReactNode[] = []
     let lastText = ''
 
-    componentStackFrames
+    const componentStack = componentStackFrames
       .map((frame) => frame.component)
       .reverse()
-      .forEach((component, index, componentList) => {
-        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
-        const prevComponent = componentList[index - 1]
-        const nextComponent = componentList[index + 1]
-        // When component is the server or client tag name, highlight it
 
-        const isHighlightedTag = tagNames.includes(component)
-        const isAdjacentTag =
-          isHighlightedTag ||
-          tagNames.includes(prevComponent) ||
-          tagNames.includes(nextComponent)
+    // [child index, parent index]
+    const matchedIndex = [-1, -1]
+    if (isHtmlTagsWarning) {
+      // Reverse search for the child tag
+      for (let i = componentStack.length - 1; i >= 0; i--) {
+        if (componentStack[i] === tagNames[0]) {
+          matchedIndex[0] = i
+          break
+        }
+      }
+      // Start searching parent tag from child tag above
+      for (let i = matchedIndex[0] - 1; i >= 0; i--) {
+        if (componentStack[i] === tagNames[1]) {
+          matchedIndex[1] = i
+          break
+        }
+      }
+    }
 
-        const isLastFewFrames =
-          !isHtmlTagsWarning && index >= componentList.length - 6
+    componentStack.forEach((component, index, componentList) => {
+      const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+      // const prevComponent = componentList[index - 1]
+      // const nextComponent = componentList[index + 1]
+      // When component is the server or client tag name, highlight it
 
-        const adjProps = getAdjacentProps(isAdjacentTag)
+      const isHighlightedTag = isHtmlTagsWarning
+        ? index === matchedIndex[0] || index === matchedIndex[1]
+        : tagNames.includes(component)
+      const isAdjacentTag =
+        isHighlightedTag ||
+        Math.abs(index - matchedIndex[0]) <= 1 ||
+        Math.abs(index - matchedIndex[1]) <= 1
 
-        if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
-          const codeLine = (
-            <span>
-              {spaces}
-              <span
-                {...adjProps}
-                {...{
-                  ...(isHighlightedTag
-                    ? {
-                        'data-nextjs-container-errors-pseudo-html--tag-error':
-                          true,
-                      }
-                    : undefined),
-                }}
-              >
-                {`<${component}>\n`}
+      const isLastFewFrames =
+        !isHtmlTagsWarning && index >= componentList.length - 6
+
+      const adjProps = getAdjacentProps(isAdjacentTag)
+
+      if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
+        const codeLine = (
+          <span>
+            {spaces}
+            <span
+              {...adjProps}
+              {...{
+                ...(isHighlightedTag
+                  ? {
+                      'data-nextjs-container-errors-pseudo-html--tag-error':
+                        true,
+                    }
+                  : undefined),
+              }}
+            >
+              {`<${component}>\n`}
+            </span>
+          </span>
+        )
+        lastText = component
+
+        const wrappedCodeLine = (
+          <Fragment key={nestedHtmlStack.length}>
+            {codeLine}
+            {/* Add ^^^^ to the target tags used for snapshots but not displayed for users */}
+            {isHighlightedTag && (
+              <span data-nextjs-container-errors-pseudo-html--hint>
+                {spaces + '^'.repeat(component.length + 2) + '\n'}
               </span>
+            )}
+          </Fragment>
+        )
+        nestedHtmlStack.push(wrappedCodeLine)
+      } else {
+        if (
+          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
+          isHtmlCollapsed
+        ) {
+          return
+        }
+
+        if (!isHtmlCollapsed || isLastFewFrames) {
+          nestedHtmlStack.push(
+            <span {...adjProps} key={nestedHtmlStack.length}>
+              {spaces}
+              {'<' + component + '>\n'}
             </span>
           )
-          lastText = component
-
-          const wrappedCodeLine = (
-            <Fragment key={nestedHtmlStack.length}>
-              {codeLine}
-              {/* Add ^^^^ to the target tags used for snapshots but not displayed for users */}
-              {isHighlightedTag && (
-                <span data-nextjs-container-errors-pseudo-html--hint>
-                  {spaces + '^'.repeat(component.length + 2) + '\n'}
-                </span>
-              )}
-            </Fragment>
+        } else if (isHtmlCollapsed && lastText !== '...') {
+          lastText = '...'
+          nestedHtmlStack.push(
+            <span {...adjProps} key={nestedHtmlStack.length}>
+              {spaces}
+              {'...\n'}
+            </span>
           )
-          nestedHtmlStack.push(wrappedCodeLine)
-        } else {
-          if (
-            nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
-            isHtmlCollapsed
-          ) {
-            return
-          }
-
-          if (!isHtmlCollapsed || isLastFewFrames) {
-            nestedHtmlStack.push(
-              <span {...adjProps} key={nestedHtmlStack.length}>
-                {spaces}
-                {'<' + component + '>\n'}
-              </span>
-            )
-          } else if (isHtmlCollapsed && lastText !== '...') {
-            lastText = '...'
-            nestedHtmlStack.push(
-              <span {...adjProps} key={nestedHtmlStack.length}>
-                {spaces}
-                {'...\n'}
-              </span>
-            )
-          }
         }
-      })
+      }
+    })
 
     // Hydration mismatch: text or text-tag
     if (!isHtmlTagsWarning) {

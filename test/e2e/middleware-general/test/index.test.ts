@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -166,20 +166,30 @@ describe('Middleware Runtime', () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
         )
-        expect(manifest.middleware).toEqual({
-          '/': {
-            files: expect.arrayContaining([
-              'server/edge-runtime-webpack.js',
-              'server/middleware.js',
-            ]),
-            name: 'middleware',
-            page: '/',
-            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
-            wasm: [],
-            assets: [],
-            regions: 'auto',
-          },
+        const middlewareWithoutEnvs = {
+          ...manifest.middleware['/'],
+        }
+        const envs = {
+          ...middlewareWithoutEnvs.environments,
+        }
+        delete middlewareWithoutEnvs.environments
+        expect(middlewareWithoutEnvs).toEqual({
+          files: expect.arrayContaining([
+            'server/edge-runtime-webpack.js',
+            'server/middleware.js',
+          ]),
+          name: 'middleware',
+          page: '/',
+          matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
+          wasm: [],
+          assets: [],
+          regions: 'auto',
         })
+        expect(envs).toContainAllKeys([
+          'previewModeEncryptionKey',
+          'previewModeId',
+          'previewModeSigningKey',
+        ])
       })
 
       it('should have the custom config in the manifest', async () => {
