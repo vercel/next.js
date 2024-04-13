@@ -44,6 +44,10 @@ type ReadyErrorEvent = ReadyRuntimeError
 
 type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
+function isNextjsLink(text: string): boolean {
+  return text.startsWith('https://nextjs.org')
+}
+
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
   switch (event.type) {
@@ -231,7 +235,8 @@ export function Errors({
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
-        .replace('%s', '') // remove the last %s for stack
+        .replace('%s', '') // remove the %s for stack
+        .replace(/%s$/, '') // If there's still a %s at the end, remove it
         .replace(/^Warning: /, '')
     : null
 
@@ -254,8 +259,8 @@ export function Errors({
                 <span>{activeIdx + 1}</span> of{' '}
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
-                </span>{' '}
-                unhandled error
+                </span>
+                {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
@@ -265,20 +270,28 @@ export function Errors({
             </h1>
             <p
               id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+              className="nextjs__container_errors_desc"
             >
-              {error.name}: <HotlinkedText text={error.message} />
+              {error.name}:{' '}
+              <HotlinkedText text={error.message} matcher={isNextjsLink} />
             </p>
-            {hydrationWarning && activeError.componentStackFrames && (
+            {hydrationWarning && (
               <>
-                <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
-                <PseudoHtmlDiff
-                  className="nextjs__container_errors__extra_code"
-                  hydrationMismatchType={hydrationErrorType}
-                  componentStackFrames={activeError.componentStackFrames}
-                  firstContent={serverContent}
-                  secondContent={clientContent}
-                />
+                <p
+                  id="nextjs__container_errors__notes"
+                  className="nextjs__container_errors__notes"
+                >
+                  {hydrationWarning}
+                </p>
+                {activeError.componentStackFrames?.length ? (
+                  <PseudoHtmlDiff
+                    className="nextjs__container_errors__component-stack"
+                    hydrationMismatchType={hydrationErrorType}
+                    componentStackFrames={activeError.componentStackFrames}
+                    firstContent={serverContent}
+                    secondContent={clientContent}
+                  />
+                ) : null}
               </>
             )}
             {isServerError ? (
@@ -304,8 +317,8 @@ export const styles = css`
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
-    margin: 0;
-    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
+    margin: calc(var(--size-gap-double) * 1.5) 0;
+    color: var(--color-title-h1);
   }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
@@ -316,40 +329,42 @@ export const styles = css`
     font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header p {
-    font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
-    font-weight: bold;
-    margin: 0;
-    margin-top: var(--size-gap-half);
     white-space: pre-wrap;
   }
-  .nextjs__container_errors_desc--error {
-    color: var(--color-ansi-red);
+  .nextjs__container_errors_desc {
+    font-family: var(--font-stack-monospace);
+    padding: var(--size-gap) var(--size-gap-double);
+    border-left: 2px solid var(--color-text-color-red-1);
+    margin-top: var(--size-gap);
+    font-weight: bold;
+    color: var(--color-text-color-red-1);
+    background-color: var(--color-text-background-red-1);
   }
-  .nextjs__container_errors__extra {
-    margin: 20px 0;
-  }
-  nextjs__container_errors__extra__code {
-    margin: 10px 0;
+  p.nextjs__container_errors__notes {
+    margin: var(--size-gap-double) auto;
+    color: var(--color-stack-notes);
+    font-weight: 600;
+    font-size: 15px;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
   }
   .nextjs-container-errors-header > p > a {
-    color: var(--color-ansi-red);
+    color: inherit;
+    font-weight: bold;
   }
-
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
   .nextjs-container-errors-body > h2 {
+    color: var(--color-title-color);
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-  .nextjs__container_errors__extra_code {
-    margin: 20px 0;
+  .nextjs__container_errors__component-stack {
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);

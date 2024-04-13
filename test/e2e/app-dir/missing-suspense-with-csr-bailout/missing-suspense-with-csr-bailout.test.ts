@@ -8,7 +8,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      it.skip('skip test for dev mode', () => {})
+      it.skip('skip test for development mode', () => {})
       return
     }
 

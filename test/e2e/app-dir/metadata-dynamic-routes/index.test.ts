@@ -73,6 +73,18 @@ createNextDescribe(
         )
         expect(status).toBe(200)
       })
+
+      it('should support alternate.languages in sitemap', async () => {
+        const xml = await (await next.fetch('/lang/sitemap.xml')).text()
+
+        expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml')
+        expect(xml).toContain(
+          `<xhtml:link rel="alternate" hreflang="es" href="https://example.com/es/about" />`
+        )
+        expect(xml).toContain(
+          `<xhtml:link rel="alternate" hreflang="de" href="https://example.com/de/about" />`
+        )
+      })
     })
 
     describe('social image routes', () => {

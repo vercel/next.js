@@ -1112,7 +1112,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-6c3b8dbfe-20240226';
+var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
 
 const getPrototypeOf = Object.getPrototypeOf;
 

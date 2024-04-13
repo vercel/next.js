@@ -5,8 +5,10 @@ pub(crate) mod next_cjs_optimizer;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;
+pub(crate) mod next_middleware_dynamic_assert;
 pub(crate) mod next_optimize_server_react;
 pub(crate) mod next_page_config;
+pub(crate) mod next_page_static_info;
 pub(crate) mod next_pure;
 pub(crate) mod next_react_server_components;
 pub(crate) mod next_shake_exports;
@@ -71,7 +73,7 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
         ModuleRuleCondition::All(vec![
             ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
             ModuleRuleCondition::Not(Box::new(ModuleRuleCondition::ResourcePathEndsWith(
-                "d.ts".to_string(),
+                ".d.ts".to_string(),
             ))),
         ]),
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),

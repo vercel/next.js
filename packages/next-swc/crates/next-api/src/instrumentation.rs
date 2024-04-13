@@ -108,7 +108,7 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn node_chunk(&self) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let chunking_context = self.project.server_chunking_context();
+        let chunking_context = self.project.server_chunking_context(false);
 
         let userland_module = self
             .context

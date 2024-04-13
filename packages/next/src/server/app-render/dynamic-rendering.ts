@@ -30,12 +30,39 @@ import { getPathname } from '../../lib/url'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
-// Stores dynamic reasons used during a render
-export type PrerenderState = { hasDynamic: boolean }
+type DynamicAccess = {
+  /**
+   * If debugging, this will contain the stack trace of where the dynamic access
+   * occurred. This is used to provide more information to the user about why
+   * their page is being rendered dynamically.
+   */
+  stack?: string
 
-export function createPrerenderState(): PrerenderState {
+  /**
+   * The expression that was accessed dynamically.
+   */
+  expression: string
+}
+
+// Stores dynamic reasons used during a render.
+export type PrerenderState = {
+  /**
+   * When true, stack information will also be tracked during dynamic access.
+   */
+  readonly isDebugSkeleton: boolean | undefined
+
+  /**
+   * The dynamic accesses that occurred during the render.
+   */
+  readonly dynamicAccesses: DynamicAccess[]
+}
+
+export function createPrerenderState(
+  isDebugSkeleton: boolean | undefined
+): PrerenderState {
   return {
-    hasDynamic: false,
+    isDebugSkeleton,
+    dynamicAccesses: [],
   }
 }
 
@@ -168,12 +195,57 @@ function postponeWithTracking(
     `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-  prerenderState.hasDynamic = true
+
+  prerenderState.dynamicAccesses.push({
+    // When we aren't debugging, we don't need to create another error for the
+    // stack trace.
+    stack: prerenderState.isDebugSkeleton ? new Error().stack : undefined,
+    expression,
+  })
+
   React.unstable_postpone(reason)
 }
 
 export function usedDynamicAPIs(prerenderState: PrerenderState): boolean {
-  return prerenderState.hasDynamic === true
+  return prerenderState.dynamicAccesses.length > 0
+}
+
+export function formatDynamicAPIAccesses(
+  prerenderState: PrerenderState
+): string[] {
+  return prerenderState.dynamicAccesses
+    .filter(
+      (access): access is Required<DynamicAccess> =>
+        typeof access.stack === 'string' && access.stack.length > 0
+    )
+    .map(({ expression, stack }) => {
+      stack = stack
+        .split('\n')
+        // Remove the "Error: " prefix from the first line of the stack trace as
+        // well as the first 4 lines of the stack trace which is the distance
+        // from the user code and the `new Error().stack` call.
+        .slice(4)
+        .filter((line) => {
+          // Exclude Next.js internals from the stack trace.
+          if (line.includes('node_modules/next/')) {
+            return false
+          }
+
+          // Exclude anonymous functions from the stack trace.
+          if (line.includes(' (<anonymous>)')) {
+            return false
+          }
+
+          // Exclude Node.js internals from the stack trace.
+          if (line.includes(' (node:')) {
+            return false
+          }
+
+          return true
+        })
+        .join('\n')
+      return `Dynamic API Usage Debug - ${expression}:\n${stack}`
+    })
 }
 
 function assertPostpone() {

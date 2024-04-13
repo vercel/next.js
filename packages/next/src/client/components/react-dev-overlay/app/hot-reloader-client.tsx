@@ -142,6 +142,7 @@ function performFullReload(err: any, sendMessage: any) {
       event: 'client-full-reload',
       stackTrace,
       hadRuntimeError: !!RuntimeErrorHandler.hadRuntimeError,
+      dependencyChain: err ? err.dependencyChain : undefined,
     })
   )
 
@@ -514,7 +515,9 @@ export default function HotReload({
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
-  const processTurbopackMessage = useTurbopack(sendMessage)
+  const processTurbopackMessage = useTurbopack(sendMessage, (err) =>
+    performFullReload(err, sendMessage)
+  )
 
   const router = useRouter()
 
