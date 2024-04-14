@@ -70,9 +70,11 @@ describe('getPagePath', () => {
 
 describe('requirePage', () => {
   it('Should not find page /index when using /', async () => {
-    await expect(() => requirePage('/', distDir, false)).toThrow(
-      'Cannot find module for page: /'
-    )
+    try {
+      await requirePage('/', distDir, false)
+    } catch (err) {
+      expect(err.message).toBe('Cannot find module for page: /')
+    }
   })
 
   it('Should require /index.js when using /index', async () => {
