@@ -192,7 +192,7 @@ describe('Font Optimization', () => {
       }
 
       describe('Font optimization for SSR apps', () => {
-        ;(process.env.TURBOPACK ? describe.skip : describe)(
+        ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
           'production mode',
           () => {
             beforeAll(async () => {
@@ -212,7 +212,7 @@ describe('Font Optimization', () => {
       })
 
       describe('Font optimization for unreachable font definitions.', () => {
-        ;(process.env.TURBOPACK ? describe.skip : describe)(
+        ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
           'production mode',
           () => {
             beforeAll(async () => {
@@ -269,7 +269,7 @@ describe('Font Optimization', () => {
   )
 
   describe('font override', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let app, appPort
@@ -307,7 +307,7 @@ describe('Font Optimization', () => {
   })
 
   describe('font override with size adjust', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let app, appPort
@@ -344,7 +344,7 @@ describe('Font Optimization', () => {
     )
   })
   describe('invalid configuration', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should show a proper error if assetPrefix starts with .', async () => {

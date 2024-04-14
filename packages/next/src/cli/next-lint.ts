@@ -34,7 +34,7 @@ type NextLintOptions = {
   maxWarnings: number
   outputFile?: string
   quiet?: boolean
-  reportUnusedDisableDirectives: string
+  reportUnusedDisableDirectivesSeverity: 'error' | 'off' | 'warn'
   resolvePluginsRelativeTo?: string
   rulesdir?: string
   strict?: boolean
@@ -53,7 +53,8 @@ const eslintOptions = (
   ignorePath: options.ignorePath || null,
   ignore: options.ignore,
   allowInlineConfig: options.inlineConfig,
-  reportUnusedDisableDirectives: options.reportUnusedDisableDirectives || null,
+  reportUnusedDisableDirectives:
+    options.reportUnusedDisableDirectivesSeverity || null,
   cache: options.cache,
   cacheLocation: options.cacheLocation || defaultCacheLocation,
   cacheStrategy: options.cacheStrategy,

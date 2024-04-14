@@ -35,7 +35,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      it.skip('should skip test in dev mode', () => {})
+      it.skip('should skip test in development mode', () => {})
     } else {
       it('should avoid double-fetching when optimistic navigation fails', async () => {
         const browser = await next.browser('/foo')

@@ -42,7 +42,8 @@ function stringifyCookie(c) {
     "partitioned" in c && c.partitioned && "Partitioned",
     "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
-  return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
+  const stringified = `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}`;
+  return attrs.length === 0 ? stringified : `${stringified}; ${attrs.join("; ")}`;
 }
 function parseCookie(cookie) {
   const map = /* @__PURE__ */ new Map();

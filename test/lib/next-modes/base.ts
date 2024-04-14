@@ -3,7 +3,7 @@ import path from 'path'
 import { existsSync, promises as fs } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
-import { FileRef } from '../e2e-utils'
+import { FileRef, isNextDeploy, isNextDev } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
@@ -75,7 +75,7 @@ export class NextInstance {
 
     require('console').log('packageJson??', this.packageJson)
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       this.env = {
         ...this.env,
         // remove node_modules/.bin repo path from env
@@ -205,7 +205,7 @@ export class NextInstance {
             !this.dependencies &&
             !this.installCommand &&
             !this.packageJson &&
-            !(global as any).isNextDeploy
+            !isNextDeploy
           ) {
             await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
               recursive: true,
@@ -244,10 +244,7 @@ export class NextInstance {
           )
         }
 
-        if (
-          this.nextConfig ||
-          ((global as any).isNextDeploy && !nextConfigFile)
-        ) {
+        if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
           const functions = []
           const exportDeclare =
             this.packageJson?.type === 'module'
@@ -281,7 +278,7 @@ export class NextInstance {
           )
         }
 
-        if ((global as any).isNextDeploy) {
+        if (isNextDeploy) {
           const fileName = path.join(
             this.testDir,
             nextConfigFile || 'next.config.js'
@@ -450,7 +447,7 @@ export class NextInstance {
     // TODO: replace this with an event directly from WatchPack inside
     // router-server for better accuracy
     if (
-      (global as any).isNextDev &&
+      isNextDev &&
       (filename.startsWith('app/') || filename.startsWith('pages/'))
     ) {
       require('console').log('fs dev delay', filename)

@@ -171,6 +171,16 @@ export function getDefineEnv({
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
+    'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
+      isNaN(Number(config.experimental.staleTimes?.dynamic))
+        ? 30 // 30 seconds
+        : config.experimental.staleTimes?.dynamic
+    ),
+    'process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME': JSON.stringify(
+      isNaN(Number(config.experimental.staleTimes?.static))
+        ? 5 * 60 // 5 minutes
+        : config.experimental.staleTimes?.static
+    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':

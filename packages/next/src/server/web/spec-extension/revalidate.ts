@@ -1,7 +1,3 @@
-import type {
-  StaticGenerationAsyncStorage,
-  StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage.external'
 import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
@@ -9,6 +5,7 @@ import {
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
 import { getPathname } from '../../../lib/url'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
@@ -45,13 +42,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
 }
 
 function revalidate(tag: string, expression: string) {
-  const staticGenerationAsyncStorage = (
-    fetch as any
-  ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage
-
-  const store: undefined | StaticGenerationStore =
-    staticGenerationAsyncStorage?.getStore()
-
+  const store = staticGenerationAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
     throw new Error(
       `Invariant: static generation store missing in ${expression}`
