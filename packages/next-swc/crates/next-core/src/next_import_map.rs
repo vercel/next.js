@@ -9,7 +9,8 @@ use turbopack_binding::{
         core::{
             reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
-                options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
+                node::node_cjs_resolve_options,
+                options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
                 parse::Request,
                 pattern::Pattern,
                 resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
@@ -17,7 +18,6 @@ use turbopack_binding::{
             source::Source,
         },
         node::execution_context::ExecutionContext,
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
 
@@ -26,6 +26,7 @@ use crate::{
     mode::NextMode,
     next_client::context::ClientContextType,
     next_config::NextConfig,
+    next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::{
         google::{
             NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
@@ -37,6 +38,58 @@ use crate::{
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
+
+/// List of node.js internals that are not supported by edge runtime.
+/// If these imports are used & user does not provide alias for the polyfill,
+/// runtime error will be thrown.
+/// This is not identical to the list of entire node.js internals, refer
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+/// for the allowed imports.
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "stream",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+    "pnpapi",
+];
 
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
@@ -416,7 +469,44 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
+    // Look for where 'server/web/globals.ts` are imported to find out corresponding
+    // context
+    match ty {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
+            insert_unsupported_node_internal_aliases(
+                &mut import_map,
+                project_path,
+                execution_context,
+            );
+        }
+        _ => {}
+    }
+
     Ok(import_map.cell())
+}
+
+/// Insert default aliases for the node.js's internal to raise unsupported
+/// runtime errors. User may provide polyfills for their own by setting user
+/// config's alias.
+fn insert_unsupported_node_internal_aliases(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+) {
+    let unsupported_replacer = ImportMapping::Dynamic(Vc::upcast(
+        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context),
+    ))
+    .into();
+
+    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
+        import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
+    });
 }
 
 pub fn get_next_client_resolved_map(
@@ -471,9 +561,12 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@opentelemetry/api",
-        // TODO(WEB-625) this actually need to prefer the local version of
-        // @opentelemetry/api
-        external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+        // It needs to prefer the local version of @opentelemetry/api
+        ImportMapping::Alternatives(vec![
+            external_if_node(project_path, "@opentelemetry/api"),
+            external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+        ])
+        .cell(),
     );
 
     match ty {
@@ -637,11 +730,13 @@ async fn rsc_aliases(
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+        } else {
+            // x-ref: https://github.com/facebook/react/pull/25436
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
         }
-        // Use server rendering stub for RSC and SSR
-        // x-ref: https://github.com/facebook/react/pull/25436
-        alias["react-dom"] =
-            format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
@@ -749,10 +844,7 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
     );
 
     import_map.insert_alias(
@@ -765,6 +857,13 @@ async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
+
+    import_map.insert_alias(
+        // Make sure you can't import custom server as it'll cause all Next.js internals to be
+        // bundled which doesn't work.
+        AliasPattern::exact("next"),
+        ImportMapping::Empty.into(),
+    );
 
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
@@ -795,10 +894,7 @@ async fn insert_next_shared_aliases(
     );
     import_map.insert_exact_alias(
         "private-next-rsc-action-encryption",
-        request_to_import_mapping(
-            project_path,
-            "next/dist/server/app-render/action-encryption",
-        ),
+        request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
     );
 
     insert_turbopack_dev_alias(import_map);
@@ -827,22 +923,6 @@ async fn insert_next_shared_aliases(
 }
 
 #[turbo_tasks::function]
-async fn package_lookup_resolve_options(
-    project_path: Vc<FileSystemPath>,
-) -> Result<Vc<ResolveOptions>> {
-    Ok(resolve_options(
-        project_path,
-        ResolveOptionsContext {
-            enable_node_modules: Some(project_path.root().resolve().await?),
-            enable_node_native_modules: true,
-            custom_conditions: vec!["development".to_string()],
-            ..Default::default()
-        }
-        .cell(),
-    ))
-}
-
-#[turbo_tasks::function]
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
@@ -850,7 +930,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(context_directory),
+        node_cjs_resolve_options(context_directory.root()),
     );
     let source = result
         .first_source()

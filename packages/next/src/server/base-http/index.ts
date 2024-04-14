@@ -11,7 +11,7 @@ export interface BaseNextRequestConfig {
   trailingSlash?: boolean | undefined
 }
 
-export type FetchMetrics = Array<{
+export type FetchMetric = {
   url: string
   idx: number
   end: number
@@ -20,11 +20,14 @@ export type FetchMetrics = Array<{
   status: number
   cacheReason: string
   cacheStatus: 'hit' | 'miss' | 'skip'
-}>
+}
+
+export type FetchMetrics = Array<FetchMetric>
 
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
+  public abstract fetchMetrics?: FetchMetric[]
 
   constructor(public method: string, public url: string, public body: Body) {}
 

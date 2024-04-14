@@ -104,7 +104,7 @@ As a developer, you do not need to choose between static and dynamic rendering a
 Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic functions are:
 
 - **[`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers)**: Using these in a Server Component will opt the whole route into dynamic rendering at request time.
-- **[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)**: Using the [Pages](/docs/app/api-reference/file-conventions/page) prop will opt the page into dynamic rendering at request time.
+- **[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)**: Using the `searchParams` prop on a [Page](/docs/app/api-reference/file-conventions/page) will opt the page into dynamic rendering at request time.
 
 Using any of these functions will opt the whole route into dynamic rendering at request time.
 

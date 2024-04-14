@@ -7,16 +7,18 @@ import type { NextApiRequestCookies } from '../api-utils'
 import { NEXT_REQUEST_META } from '../request-meta'
 import type { RequestMeta } from '../request-meta'
 
-import { BaseNextRequest, BaseNextResponse } from './index'
+import { BaseNextRequest, BaseNextResponse, type FetchMetric } from './index'
 import type { OutgoingHttpHeaders } from 'node:http'
 
 type Req = IncomingMessage & {
   [NEXT_REQUEST_META]?: RequestMeta
   cookies?: NextApiRequestCookies
+  fetchMetrics?: FetchMetric[]
 }
 
 export class NodeNextRequest extends BaseNextRequest<Readable> {
-  public headers = this._req.headers;
+  public headers = this._req.headers
+  public fetchMetrics?: FetchMetric[] = this._req?.fetchMetrics;
 
   [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
 

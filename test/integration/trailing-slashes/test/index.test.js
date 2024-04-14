@@ -207,7 +207,7 @@ function testWithTrailingSlash() {
 }
 
 describe('Trailing slashes', () => {
-  describe('dev mode, trailingSlash: false', () => {
+  describe('development mode, trailingSlash: false', () => {
     beforeAll(async () => {
       nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
       appPort = await findPort()
@@ -221,7 +221,7 @@ describe('Trailing slashes', () => {
     testWithoutTrailingSlash()
   })
 
-  describe('dev mode, trailingSlash: true', () => {
+  describe('development mode, trailingSlash: true', () => {
     beforeAll(async () => {
       nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       appPort = await findPort()
@@ -234,7 +234,7 @@ describe('Trailing slashes', () => {
 
     testWithTrailingSlash()
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode, trailingSlash: false',
     () => {
       beforeAll(async () => {
@@ -268,7 +268,7 @@ describe('Trailing slashes', () => {
       })
     }
   )
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode, trailingSlash: true',
     () => {
       beforeAll(async () => {
@@ -310,7 +310,7 @@ describe('Trailing slashes', () => {
     }
   )
 
-  describe('dev mode, with basepath, trailingSlash: true', () => {
+  describe('development mode, with basepath, trailingSlash: true', () => {
     beforeAll(async () => {
       nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       nextConfig.replace('// basePath:', 'basePath:')
@@ -334,7 +334,7 @@ describe('Trailing slashes', () => {
       ['/docs/linker?href=/', '/docs/'],
     ])
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode, with basepath, trailingSlash: true',
     () => {
       beforeAll(async () => {

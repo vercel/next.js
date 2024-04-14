@@ -26,9 +26,11 @@ class NextFixtureImpl implements NextFixture {
     }
     const handleFetch = this.handleFetch.bind(this)
     worker.onFetch(this.testId, handleFetch)
-    this.page.route('**', (route) =>
-      handleRoute(route, page, testHeaders, handleFetch)
-    )
+    this.page
+      .context()
+      .route('**', (route) =>
+        handleRoute(route, page, testHeaders, handleFetch)
+      )
   }
 
   teardown(): void {

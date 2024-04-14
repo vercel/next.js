@@ -61,6 +61,25 @@ export function isWellKnownError(issue: Issue): boolean {
   return false
 }
 
+/// Print out an issue to the console which should not block
+/// the build by throwing out or blocking error overlay.
+export function printNonFatalIssue(issue: Issue) {
+  if (isRelevantWarning(issue)) {
+    Log.warn(formatIssue(issue))
+  }
+}
+
+function isNodeModulesIssue(issue: Issue): boolean {
+  return (
+    issue.severity === 'warning' &&
+    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+  )
+}
+
+export function isRelevantWarning(issue: Issue): boolean {
+  return issue.severity === 'warning' && !isNodeModulesIssue(issue)
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, source } = issue
   let { documentationLink } = issue
@@ -82,7 +101,7 @@ export function formatIssue(issue: Issue) {
     .replaceAll('/./', '/')
     .replace('\\\\?\\', '')
 
-  let message
+  let message = ''
 
   if (source && source.range) {
     const { start } = source.range
@@ -162,7 +181,8 @@ export function processIssues(
   currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
   result: TurbopackResult,
-  throwIssue = false
+  throwIssue: boolean,
+  logErrors: boolean
 ) {
   const newIssues = new Map<IssueKey, Issue>()
   currentEntryIssues.set(key, newIssues)
@@ -170,12 +190,23 @@ export function processIssues(
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
+      continue
+
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
-    relevantIssues.add(formatted)
+    if (issue.severity !== 'warning') {
+      relevantIssues.add(formatted)
+      if (logErrors && isWellKnownError(issue)) {
+        Log.error(formatted)
+      }
+    }
   }
 
   if (relevantIssues.size && throwIssue) {
@@ -210,10 +241,10 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
+  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
 }
 
 export type ChangeSubscriptions = Map<
@@ -273,6 +304,7 @@ export async function handleRouteType({
   readyIds,
   rewrites,
   hooks,
+  logErrors,
 }: {
   dev: boolean
   page: string
@@ -283,6 +315,7 @@ export async function handleRouteType({
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
+  logErrors: boolean
 
   readyIds?: ReadyIds // dev
 
@@ -299,7 +332,13 @@ export async function handleRouteType({
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
           hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-          processIssues(currentEntryIssues, key, writtenEndpoint)
+          processIssues(
+            currentEntryIssues,
+            key,
+            writtenEndpoint,
+            false,
+            logErrors
+          )
         }
         await manifestLoader.loadBuildManifest('_app')
         await manifestLoader.loadPagesManifest('_app')
@@ -310,7 +349,13 @@ export async function handleRouteType({
           const writtenEndpoint =
             await entrypoints.global.document.writeToDisk()
           hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-          processIssues(currentEntryIssues, key, writtenEndpoint)
+          processIssues(
+            currentEntryIssues,
+            key,
+            writtenEndpoint,
+            false,
+            logErrors
+          )
         }
         await manifestLoader.loadPagesManifest('_document')
 
@@ -326,6 +371,7 @@ export async function handleRouteType({
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
         }
+        await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
@@ -334,7 +380,13 @@ export async function handleRouteType({
           pageEntrypoints: entrypoints.page,
         })
 
-        processIssues(currentEntryIssues, serverKey, writtenEndpoint)
+        processIssues(
+          currentEntryIssues,
+          serverKey,
+          writtenEndpoint,
+          false,
+          logErrors
+        )
       } finally {
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
@@ -386,7 +438,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
@@ -423,13 +475,14 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
+      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
@@ -452,7 +505,7 @@ export async function handleRouteType({
         rewrites,
         pageEntrypoints: entrypoints.page,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
@@ -606,7 +659,7 @@ export async function handleEntrypoints({
   manifestLoader,
   nextConfig,
   rewrites,
-
+  logErrors,
   dev,
 }: {
   entrypoints: TurbopackResult<RawEntrypoints>
@@ -617,6 +670,7 @@ export async function handleEntrypoints({
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
+  logErrors: boolean
 
   dev?: HandleEntrypointsDevOpts
 }) {
@@ -694,7 +748,7 @@ export async function handleEntrypoints({
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
       dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentEntryIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
     await processInstrumentation('instrumentation.edge', 'edge')
@@ -732,7 +786,7 @@ export async function handleEntrypoints({
     async function processMiddleware() {
       const writtenEndpoint = await endpoint.writeToDisk()
       dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentEntryIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       if (dev) {
         dev.serverFields.middleware = {
@@ -855,6 +909,7 @@ export async function handlePagesErrorRoute({
   entrypoints,
   manifestLoader,
   rewrites,
+  logErrors,
 
   hooks,
 }: {
@@ -862,6 +917,7 @@ export async function handlePagesErrorRoute({
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
+  logErrors: boolean
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
@@ -875,7 +931,7 @@ export async function handlePagesErrorRoute({
       // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
       return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
     })
-    processIssues(currentEntryIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -889,7 +945,7 @@ export async function handlePagesErrorRoute({
     hooks?.subscribeToChanges(key, false, entrypoints.global.document, () => {
       return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
     })
-    processIssues(currentEntryIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -903,7 +959,7 @@ export async function handlePagesErrorRoute({
       // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
       return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
     })
-    processIssues(currentEntryIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')

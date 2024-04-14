@@ -6,7 +6,7 @@ import type {
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
-import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import {
@@ -150,6 +150,12 @@ function navigateReducer_noPPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
       const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
@@ -165,21 +171,23 @@ function navigateReducer_noPPR(
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
         // Create new tree based on the flightSegmentPath and router state patch
-        let newTree = applyRouterStatePatchToTreeSkipDefault(
+        let newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           flightSegmentPathWithLeadingEmpty,
           currentTree,
-          treePatch
+          treePatch,
+          href
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
         // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
         if (newTree === null) {
-          newTree = applyRouterStatePatchToTreeSkipDefault(
+          newTree = applyRouterStatePatchToTree(
             // TODO-APP: remove ''
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
-            treePatch
+            treePatch,
+            href
           )
         }
 
@@ -316,6 +324,12 @@ function navigateReducer_PPR(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      // Handles case where `<meta http-equiv="refresh">` tag is present,
+      // which will trigger an MPA navigation.
+      if (document.getElementById('__next-page-redirect')) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       let currentTree = state.tree
       const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
@@ -335,21 +349,23 @@ function navigateReducer_PPR(
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
         // Create new tree based on the flightSegmentPath and router state patch
-        let newTree = applyRouterStatePatchToTreeSkipDefault(
+        let newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           flightSegmentPathWithLeadingEmpty,
           currentTree,
-          treePatch
+          treePatch,
+          href
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
         // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
         if (newTree === null) {
-          newTree = applyRouterStatePatchToTreeSkipDefault(
+          newTree = applyRouterStatePatchToTree(
             // TODO-APP: remove ''
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
-            treePatch
+            treePatch,
+            href
           )
         }
 
@@ -384,8 +400,8 @@ function navigateReducer_PPR(
               // version of the next page. This can be rendered instantly.
 
               // Use the tree computed by updateCacheNodeOnNavigation instead
-              // of the one computed by applyRouterStatePatchToTreeSkipDefault.
-              // TODO: We should remove applyRouterStatePatchToTreeSkipDefault
+              // of the one computed by applyRouterStatePatchToTree.
+              // TODO: We should remove applyRouterStatePatchToTree
               // from the PPR path entirely.
               const patchedRouterState: FlightRouterState = task.route
               newTree = patchedRouterState

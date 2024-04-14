@@ -82,26 +82,28 @@ describe('Edge runtime code with imports', () => {
     const importStatement = `await import("${moduleName}")`
 
     beforeEach(() => init(importStatement))
-
-    describe('development mode', () => {
-      it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
-        context.app = await launchApp(
-          context.appDir,
-          context.appPort,
-          appOption
-        )
-        await retry(async () => {
-          const res = await fetchViaHTTP(context.appPort, url)
-          expect(res.status).toBe(500)
-          expectUnsupportedModuleDevError(
-            moduleName,
-            importStatement,
-            await res.text()
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+          context.app = await launchApp(
+            context.appDir,
+            context.appPort,
+            appOption
           )
+          await retry(async () => {
+            const res = await fetchViaHTTP(context.appPort, url)
+            expect(res.status).toBe(500)
+            expectUnsupportedModuleDevError(
+              moduleName,
+              importStatement,
+              await res.text()
+            )
+          })
         })
-      })
-    })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -167,27 +169,29 @@ describe('Edge runtime code with imports', () => {
         }
       `)
       })
-
-      describe('development mode', () => {
-        it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
-          context.app = await launchApp(
-            context.appDir,
-            context.appPort,
-            appOption
-          )
-          const res = await fetchViaHTTP(context.appPort, url)
-          expect(res.status).toBe(500)
-          await check(async () => {
-            expectUnsupportedModuleDevError(
-              moduleName,
-              importStatement,
-              await res.text()
+      ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+        'development mode',
+        () => {
+          it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+            context.app = await launchApp(
+              context.appDir,
+              context.appPort,
+              appOption
             )
-            return 'success'
-          }, 'success')
-        })
-      })
-      ;(process.env.TURBOPACK ? describe.skip : describe)(
+            const res = await fetchViaHTTP(context.appPort, url)
+            expect(res.status).toBe(500)
+            await check(async () => {
+              expectUnsupportedModuleDevError(
+                moduleName,
+                importStatement,
+                await res.text()
+              )
+              return 'success'
+            }, 'success')
+          })
+        }
+      )
+      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
         'production mode',
         () => {
           it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -258,7 +262,7 @@ describe('Edge runtime code with imports', () => {
         return 'success'
       }, 'success')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not build and reports', async () => {
@@ -320,7 +324,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBeDefined()
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {
@@ -389,7 +393,7 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBe('false')
       expectNoError(moduleName)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('does not throw in production at runtime', async () => {
