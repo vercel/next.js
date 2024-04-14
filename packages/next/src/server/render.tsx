@@ -1351,6 +1351,10 @@ export async function renderToHTMLImpl(
       })(),
     ])
 
+    if (content === null) {
+      return null
+    }
+
     const contentHTML = rawStyledJsxInsertedHTML + content
 
     // @ts-ignore: documentInitialPropsRes is set
