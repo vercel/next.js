@@ -18,7 +18,7 @@ import { createNextDescribe } from 'e2e-utils'
       ({ next }) => {
         it('should build successfully', async () => {
           // Ensure that MUI is working
-          const $ = await next.render$('/mui')
+          const $ = await next.render$('/')
           expect(await $('#typography').text()).toContain('typography')
         })
       }

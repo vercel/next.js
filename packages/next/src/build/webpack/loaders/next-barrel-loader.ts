@@ -186,7 +186,7 @@ async function getBarrelMapping(
       ? JSON.parse(matchedDirectives[3])
       : []
     // "use client" in barrel files has to be transferred to the target file.
-    const hasClientDirective = directiveList.includes('use client')
+    isClientEntry = directiveList.includes('use client')
 
     let exportList = JSON.parse(matches[3].slice(1, -1)) as [
       string,
@@ -219,7 +219,7 @@ async function getBarrelMapping(
           const targetMatches = await getMatches(
             targetPath,
             true,
-            hasClientDirective
+            isClientEntry
           )
 
           if (targetMatches) {
