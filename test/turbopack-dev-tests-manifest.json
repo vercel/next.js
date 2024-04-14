@@ -355,6 +355,7 @@
       "accumulateMetadata openGraph and twitter should fill twitter with partial existing openGraph metadata",
       "accumulateMetadata openGraph and twitter should inherit metadata title description into openGraph or twitter if they are configured",
       "accumulateMetadata openGraph and twitter should override openGraph or twitter images when current layer specifies social images properties",
+      "accumulateMetadata openGraph and twitter should prefer title and description from openGraph rather than metadata for twitter",
       "accumulateMetadata openGraph and twitter should resolve relative url starting with ./ with pathname for openGraph.url",
       "accumulateMetadata title should merge title with page title",
       "accumulateMetadata title should merge title with parent layout ",
@@ -695,12 +696,52 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/incremental-cache/shared-revalidate-timings.test.ts": {
+    "passed": [
+      "SharedRevalidateTimings should clear the in-memory cache",
+      "SharedRevalidateTimings should get revalidate timing from in-memory cache",
+      "SharedRevalidateTimings should get revalidate timing from prerender manifest if not in cache",
+      "SharedRevalidateTimings should return undefined if revalidate timing not found",
+      "SharedRevalidateTimings should set revalidate timing in cache"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/mock-request.test.ts": {
     "passed": [
       "MockedRequest should have the correct properties",
       "MockedResponse should handle set-cookie headers correctly",
       "MockedResponse should merge headers correctly when calling writeHead",
       "MockedResponse should update the statusMessage after calling writeHead"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/to-route.test.ts": {
+    "passed": [
+      "toRoute Function should remove trailing `/index`",
+      "toRoute Function should remove trailing slash",
+      "toRoute Function should return `/` when input is `/index/`",
+      "toRoute Function should return `/` when input is `/index`",
+      "toRoute Function should return `/` when input is empty",
+      "toRoute Function should return `/` when input is only a slash"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/load-manifest.test.ts": {
+    "passed": [
+      "loadManifest should cache the manifest when not already cached",
+      "loadManifest should freeze the manifest when caching",
+      "loadManifest should load the manifest from the file system when not cached",
+      "loadManifest should return the cached manifest when available",
+      "loadManifest should throw an error when the manifest file cannot be read"
     ],
     "failed": [],
     "pending": [],
@@ -753,6 +794,19 @@
       "toNodeHeaders should handle a single set-cookie header with multiple cookies correctly",
       "toNodeHeaders should handle mixed case set-cookie headers correctly",
       "toNodeHeaders should handle multiple set-cookie headers correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/shared/lib/deep-freeze.test.ts": {
+    "passed": [
+      "freeze should freeze an array",
+      "freeze should freeze an object",
+      "freeze should freeze nested arrays",
+      "freeze should freeze nested objects",
+      "freeze should freeze nested objects and arrays"
     ],
     "failed": [],
     "pending": [],
@@ -2383,7 +2437,9 @@
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir action handling should not log errors for non-action form POSTs"
+    ],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
@@ -3434,6 +3490,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dynamic-css/index.test.ts": {
+    "passed": [],
+    "failed": [
+      "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
+      "app dir - dynamic css should only apply corresponding css for page loaded that /another",
+      "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
+      "app dir - dynamic css should preload css of dynamic component during SSR"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
     "passed": [
       "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
@@ -3773,6 +3841,18 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
+    "passed": [],
+    "failed": [
+      "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
+      "Error test if the loader file export a named function in Development development only should show the error when using `getImageProps` method"
+    ],
+    "pending": [
+      "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4479,9 +4559,16 @@
       "ppr-full Navigation Signals notFound() for /navigation/not-found/dynamic should have correct headers",
       "ppr-full Navigation Signals redirect() for /navigation/redirect should have correct headers",
       "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should cache the static part",
-      "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should have correct headers"
+      "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should have correct headers",
+      "ppr-full Test Setup has all the test pathnames listed in the links component"
     ],
-    "failed": [],
+    "failed": [
+      "ppr-full HTML Response for /metadata should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /metadata should cache the static part",
+      "ppr-full HTML Response for /metadata should have correct headers",
+      "ppr-full HTML Response for /metadata should resume with dynamic content",
+      "ppr-full Metadata should set the right metadata when generateMetadata uses dynamic APIs"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4559,6 +4646,18 @@
       "turbo-resolve-extensions should work using browser"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/resource-url-encoding/resource-url-encoding.test.ts": {
+    "passed": [],
+    "failed": [
+      "scripts encodes characters in app router",
+      "scripts encodes characters in pages router",
+      "styles encodes characters in app router",
+      "styles encodes characters in pages router"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5266,13 +5365,6 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/weird-chars-in-scripts/weird-chars-in-scripts.test.ts": {
-    "passed": ["weird chars in scripts should load in the browser"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10052,7 +10144,8 @@
       "Next Lint shows warnings and errors when extending plugin core-web-vitals config",
       "Next Lint shows warnings and errors when extending plugin recommended config",
       "Next Lint shows warnings and errors with next/core-web-vitals config",
-      "Next Lint success message when no warnings or errors"
+      "Next Lint success message when no warnings or errors",
+      "Next Lint verify options name and type with auto-generated help output"
     ],
     "failed": [],
     "pending": [],
@@ -13835,102 +13928,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-legacy/default/test/index.test.ts": {
-    "passed": [
-      "Image Component Tests development mode should apply filter style after image loads",
-      "Image Component Tests development mode should apply style inheritance for img elements but not wrapper elements",
-      "Image Component Tests development mode should be valid HTML",
-      "Image Component Tests development mode should callback native onError when error occurred while loading image",
-      "Image Component Tests development mode should callback native onLoad in most cases",
-      "Image Component Tests development mode should callback onLoadingComplete when image is fully loaded",
-      "Image Component Tests development mode should correctly ignore prose styles",
-      "Image Component Tests development mode should emit image for next/dynamic with non ssr case",
-      "Image Component Tests development mode should handle the styles prop appropriately",
-      "Image Component Tests development mode should have blurry placeholder when enabled",
-      "Image Component Tests development mode should initially load only two of four images using lazyroot",
-      "Image Component Tests development mode should load the images",
-      "Image Component Tests development mode should not pass through user-provided srcset (causing a flash)",
-      "Image Component Tests development mode should not use blurry placeholder for <noscript> image",
-      "Image Component Tests development mode should not warn when Image is child of p",
-      "Image Component Tests development mode should not warn when svg, even if with loader prop or without",
-      "Image Component Tests development mode should preload priority images",
-      "Image Component Tests development mode should re-lazyload images after src changes",
-      "Image Component Tests development mode should remove blurry placeholder after image loads",
-      "Image Component Tests development mode should show error when not numeric string width or height",
-      "Image Component Tests development mode should show error when static import and placeholder=blur and blurDataUrl is missing",
-      "Image Component Tests development mode should show error when string src and placeholder=blur and blurDataURL is missing",
-      "Image Component Tests development mode should show invalid src error",
-      "Image Component Tests development mode should show invalid src error when protocol-relative",
-      "Image Component Tests development mode should show missing src error",
-      "Image Component Tests development mode should update the image on src change",
-      "Image Component Tests development mode should warn at most once even after state change",
-      "Image Component Tests development mode should warn when img with layout=fill is inside a container without position relative",
-      "Image Component Tests development mode should warn when img with layout=responsive is inside flex container",
-      "Image Component Tests development mode should warn when loader is missing width",
-      "Image Component Tests development mode should warn when priority prop is missing on LCP image",
-      "Image Component Tests development mode should warn when using a very small image with placeholder=blur",
-      "Image Component Tests development mode should warn when using sizes with incorrect layout",
-      "Image Component Tests development mode should work when using flexbox",
-      "Image Component Tests development mode should work with image with blob src",
-      "Image Component Tests development mode should work with layout-fill to fill the parent and stretch with viewport",
-      "Image Component Tests development mode should work with layout-fill to fill the parent but NOT stretch with viewport",
-      "Image Component Tests development mode should work with layout-fixed so resizing window does not resize image",
-      "Image Component Tests development mode should work with layout-intrinsic so resizing window maintains image aspect ratio",
-      "Image Component Tests development mode should work with layout-responsive so resizing window maintains image aspect ratio",
-      "Image Component Tests development mode should work with sizes and automatically use layout-responsive"
-    ],
-    "failed": [],
-    "pending": [
-      "Image Component Tests production mode should apply filter style after image loads",
-      "Image Component Tests production mode should apply style inheritance for img elements but not wrapper elements",
-      "Image Component Tests production mode should be valid HTML",
-      "Image Component Tests production mode should callback native onError when error occurred while loading image",
-      "Image Component Tests production mode should callback native onLoad in most cases",
-      "Image Component Tests production mode should callback onLoadingComplete when image is fully loaded",
-      "Image Component Tests production mode should correctly ignore prose styles",
-      "Image Component Tests production mode should correctly rotate image",
-      "Image Component Tests production mode should emit image for next/dynamic with non ssr case",
-      "Image Component Tests production mode should handle the styles prop appropriately",
-      "Image Component Tests production mode should have blurry placeholder when enabled",
-      "Image Component Tests production mode should initially load only two of four images using lazyroot",
-      "Image Component Tests production mode should load the images",
-      "Image Component Tests production mode should not create an image folder in server/chunks",
-      "Image Component Tests production mode should not pass through user-provided srcset (causing a flash)",
-      "Image Component Tests production mode should not use blurry placeholder for <noscript> image",
-      "Image Component Tests production mode should preload priority images",
-      "Image Component Tests production mode should re-lazyload images after src changes",
-      "Image Component Tests production mode should remove blurry placeholder after image loads",
-      "Image Component Tests production mode should update the image on src change",
-      "Image Component Tests production mode should work when using flexbox",
-      "Image Component Tests production mode should work with image with blob src",
-      "Image Component Tests production mode should work with layout-fill to fill the parent and stretch with viewport",
-      "Image Component Tests production mode should work with layout-fill to fill the parent but NOT stretch with viewport",
-      "Image Component Tests production mode should work with layout-fixed so resizing window does not resize image",
-      "Image Component Tests production mode should work with layout-intrinsic so resizing window maintains image aspect ratio",
-      "Image Component Tests production mode should work with layout-responsive so resizing window maintains image aspect ratio",
-      "Image Component Tests production mode should work with sizes and automatically use layout-responsive"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-legacy/default/test/static.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Build Error Tests production mode should throw build error when import statement is used with missing file",
-      "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
-      "Static Image Component Tests production mode Should add a blur placeholder to statically imported png",
-      "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
-      "Static Image Component Tests production mode Should allow provided width and height to override intrinsic",
-      "Static Image Component Tests production mode Should automatically provide an image height and width",
-      "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
-      "Static Image Component Tests production mode Should use immutable cache-control header for static import",
-      "Static Image Component Tests production mode should load direct imported image",
-      "Static Image Component Tests production mode should load staticprops imported image"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/next-image-legacy/image-from-node-modules/test/index.test.ts": {
     "passed": [
       "Image Component Tests In development mode should apply image config for node_modules"
@@ -14044,147 +14041,6 @@
     "failed": [],
     "pending": [
       "Image Component from node_modules prod mode production mode should apply image config for node_modules"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-new/app-dir/test/index.test.ts": {
-    "passed": [
-      "Image Component Default Tests development mode Fill-mode tests should add 100% width and height to fill images",
-      "Image Component Default Tests development mode Fill-mode tests should add position styles to fill images",
-      "Image Component Default Tests development mode Fill-mode tests should add position:absolute to fill images",
-      "Image Component Default Tests development mode Fill-mode tests should include a data-attribute on fill images",
-      "Image Component Default Tests development mode Fill-mode tests should log warnings when using fill mode incorrectly",
-      "Image Component Default Tests development mode Fill-mode tests should not log incorrect warnings",
-      "Image Component Default Tests development mode Fill-mode tests should not log warnings when image unmounts",
-      "Image Component Default Tests development mode should apply filter style after image loads",
-      "Image Component Default Tests development mode should apply style inheritance for img elements but not wrapper elements",
-      "Image Component Default Tests development mode should be valid HTML",
-      "Image Component Default Tests development mode should callback native onError even when error before hydration",
-      "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests development mode should callback native onLoad with sythetic event",
-      "Image Component Default Tests development mode should callback onLoadingComplete when image is fully loaded",
-      "Image Component Default Tests development mode should correctly ignore prose styles",
-      "Image Component Default Tests development mode should emit image for next/dynamic with non ssr case",
-      "Image Component Default Tests development mode should handle the styles prop appropriately",
-      "Image Component Default Tests development mode should have blurry placeholder when enabled",
-      "Image Component Default Tests development mode should have data url placeholder when enabled",
-      "Image Component Default Tests development mode should lazy load with placeholder=blur",
-      "Image Component Default Tests development mode should load the images",
-      "Image Component Default Tests development mode should not pass through user-provided srcset (causing a flash)",
-      "Image Component Default Tests development mode should not warn when Image is child of p",
-      "Image Component Default Tests development mode should not warn when data url image with fill and sizes props",
-      "Image Component Default Tests development mode should not warn when svg, even if with loader prop or without",
-      "Image Component Default Tests development mode should preload priority images",
-      "Image Component Default Tests development mode should remove blurry placeholder after image loads",
-      "Image Component Default Tests development mode should remove data url placeholder after image loads",
-      "Image Component Default Tests development mode should render correct objectFit when blurDataURL and fill",
-      "Image Component Default Tests development mode should render correct objectFit when data url placeholder and fill",
-      "Image Component Default Tests development mode should render no wrappers or sizers",
-      "Image Component Default Tests development mode should render picture via getImageProps",
-      "Image Component Default Tests development mode should show empty string src error",
-      "Image Component Default Tests development mode should show error when CSS position changed on fill image",
-      "Image Component Default Tests development mode should show error when invalid Infinity width prop",
-      "Image Component Default Tests development mode should show error when invalid height prop",
-      "Image Component Default Tests development mode should show error when invalid width prop",
-      "Image Component Default Tests development mode should show error when missing height prop",
-      "Image Component Default Tests development mode should show error when missing width prop",
-      "Image Component Default Tests development mode should show error when static import and placeholder=blur and blurDataUrl is missing",
-      "Image Component Default Tests development mode should show error when string src and placeholder=blur and blurDataURL is missing",
-      "Image Component Default Tests development mode should show error when width prop on fill image",
-      "Image Component Default Tests development mode should show invalid src error",
-      "Image Component Default Tests development mode should show invalid src error when protocol-relative",
-      "Image Component Default Tests development mode should show missing alt error",
-      "Image Component Default Tests development mode should show missing src error",
-      "Image Component Default Tests development mode should update the image on src change",
-      "Image Component Default Tests development mode should warn at most once even after state change",
-      "Image Component Default Tests development mode should warn when legacy prop layout=fill",
-      "Image Component Default Tests development mode should warn when legacy prop layout=responsive",
-      "Image Component Default Tests development mode should warn when loader is missing width",
-      "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
-      "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
-      "Image Component Default Tests development mode should work when using flexbox",
-      "Image Component Default Tests development mode should work when using overrideSrc prop",
-      "Image Component Default Tests development mode should work with image with blob src",
-      "Image Component Default Tests development mode should work with sizes and automatically use responsive srcset"
-    ],
-    "failed": [],
-    "pending": [
-      "Image Component Default Tests production mode Fill-mode tests should add 100% width and height to fill images",
-      "Image Component Default Tests production mode Fill-mode tests should add position styles to fill images",
-      "Image Component Default Tests production mode Fill-mode tests should add position:absolute to fill images",
-      "Image Component Default Tests production mode Fill-mode tests should include a data-attribute on fill images",
-      "Image Component Default Tests production mode should apply filter style after image loads",
-      "Image Component Default Tests production mode should apply style inheritance for img elements but not wrapper elements",
-      "Image Component Default Tests production mode should be valid HTML",
-      "Image Component Default Tests production mode should callback native onError even when error before hydration",
-      "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
-      "Image Component Default Tests production mode should callback native onLoad with sythetic event",
-      "Image Component Default Tests production mode should callback onLoadingComplete when image is fully loaded",
-      "Image Component Default Tests production mode should correctly ignore prose styles",
-      "Image Component Default Tests production mode should correctly rotate image",
-      "Image Component Default Tests production mode should emit image for next/dynamic with non ssr case",
-      "Image Component Default Tests production mode should handle the styles prop appropriately",
-      "Image Component Default Tests production mode should have blurry placeholder when enabled",
-      "Image Component Default Tests production mode should have data url placeholder when enabled",
-      "Image Component Default Tests production mode should lazy load with placeholder=blur",
-      "Image Component Default Tests production mode should load the images",
-      "Image Component Default Tests production mode should not create an image folder in server/chunks",
-      "Image Component Default Tests production mode should not pass through user-provided srcset (causing a flash)",
-      "Image Component Default Tests production mode should preload priority images",
-      "Image Component Default Tests production mode should remove blurry placeholder after image loads",
-      "Image Component Default Tests production mode should remove data url placeholder after image loads",
-      "Image Component Default Tests production mode should render as unoptimized with empty string src prop",
-      "Image Component Default Tests production mode should render as unoptimized with missing src prop",
-      "Image Component Default Tests production mode should render correct objectFit when blurDataURL and fill",
-      "Image Component Default Tests production mode should render correct objectFit when data url placeholder and fill",
-      "Image Component Default Tests production mode should render no wrappers or sizers",
-      "Image Component Default Tests production mode should render picture via getImageProps",
-      "Image Component Default Tests production mode should update the image on src change",
-      "Image Component Default Tests production mode should warn when legacy prop layout=fill",
-      "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
-      "Image Component Default Tests production mode should work when using flexbox",
-      "Image Component Default Tests production mode should work when using overrideSrc prop",
-      "Image Component Default Tests production mode should work with image with blob src",
-      "Image Component Default Tests production mode should work with sizes and automatically use responsive srcset"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-new/app-dir/test/static.test.ts": {
-    "passed": [
-      "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
-      "Static Image Component Tests development mode Should automatically provide an image height and width",
-      "Static Image Component Tests development mode should add a blur placeholder a statically imported jpg",
-      "Static Image Component Tests development mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests development mode should add a blur placeholder a statically imported png with fill",
-      "Static Image Component Tests development mode should add a data URL placeholder to an image",
-      "Static Image Component Tests development mode should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
-      "Static Image Component Tests development mode should add placeholder with blurDataURL and fill",
-      "Static Image Component Tests development mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
-      "Static Image Component Tests development mode should load direct imported image",
-      "Static Image Component Tests development mode should use height prop to adjust both width and height",
-      "Static Image Component Tests development mode should use width and height prop to override import",
-      "Static Image Component Tests development mode should use width prop to adjust both width and height"
-    ],
-    "failed": [],
-    "pending": [
-      "Build Error Tests production mode should throw build error when import statement is used with missing file",
-      "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
-      "Static Image Component Tests production mode Should automatically provide an image height and width",
-      "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
-      "Static Image Component Tests production mode Should use immutable cache-control header for static import",
-      "Static Image Component Tests production mode should add a blur placeholder a statically imported jpg",
-      "Static Image Component Tests production mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests production mode should add a blur placeholder a statically imported png with fill",
-      "Static Image Component Tests production mode should add a data URL placeholder to an image",
-      "Static Image Component Tests production mode should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
-      "Static Image Component Tests production mode should add placeholder with blurDataURL and fill",
-      "Static Image Component Tests production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
-      "Static Image Component Tests production mode should load direct imported image",
-      "Static Image Component Tests production mode should use height prop to adjust both width and height",
-      "Static Image Component Tests production mode should use width and height prop to override import",
-      "Static Image Component Tests production mode should use width prop to adjust both width and height"
     ],
     "flakey": [],
     "runtimeError": false
