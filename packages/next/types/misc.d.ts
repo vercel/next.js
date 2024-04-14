@@ -27,14 +27,9 @@ declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client'
-declare module 'react-server-dom-webpack/server.edge'
 declare module 'react-server-dom-webpack/server.node'
 declare module 'react-server-dom-webpack/client.edge'
 
-declare module 'VAR_MODULE_GLOBAL_ERROR'
-declare module 'VAR_USERLAND'
-declare module 'VAR_MODULE_DOCUMENT'
-declare module 'VAR_MODULE_APP'
 
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
