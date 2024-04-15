@@ -18,6 +18,7 @@
     "created-by: Next.js team": [
       { "type": "user", "pattern": "acdlite" },
       { "type": "user", "pattern": "balazsorban44" },
+      { "type": "user", "pattern": "eps1lon" },
       { "type": "user", "pattern": "Ethan-Arrowood" },
       { "type": "user", "pattern": "feedthejim" },
       { "type": "user", "pattern": "gnoff" },
@@ -46,6 +47,7 @@
       { "type": "user", "pattern": "manovotny" }
     ],
     "created-by: turbopack team": [
+      { "type": "user", "pattern": "bgw" },
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "kwonoj" },

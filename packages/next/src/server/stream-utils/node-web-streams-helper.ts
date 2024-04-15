@@ -195,25 +195,33 @@ function createHeadInsertionTransformStream(
       }
 
       const insertion = await insert()
-      const encodedInsertion = encoder.encode(insertion)
+
       if (inserted) {
-        controller.enqueue(encodedInsertion)
+        if (insertion) {
+          const encodedInsertion = encoder.encode(insertion)
+          controller.enqueue(encodedInsertion)
+        }
         controller.enqueue(chunk)
         freezing = true
       } else {
         // TODO (@Ethan-Arrowood): Replace the generic `indexOfUint8Array` method with something finely tuned for the subset of things actually being checked for.
         const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
         if (index !== -1) {
-          const insertedHeadContent = new Uint8Array(
-            chunk.length + encodedInsertion.length
-          )
-          insertedHeadContent.set(chunk.slice(0, index))
-          insertedHeadContent.set(encodedInsertion, index)
-          insertedHeadContent.set(
-            chunk.slice(index),
-            index + encodedInsertion.length
-          )
-          controller.enqueue(insertedHeadContent)
+          if (insertion) {
+            const encodedInsertion = encoder.encode(insertion)
+            const insertedHeadContent = new Uint8Array(
+              chunk.length + encodedInsertion.length
+            )
+            insertedHeadContent.set(chunk.slice(0, index))
+            insertedHeadContent.set(encodedInsertion, index)
+            insertedHeadContent.set(
+              chunk.slice(index),
+              index + encodedInsertion.length
+            )
+            controller.enqueue(insertedHeadContent)
+          } else {
+            controller.enqueue(chunk)
+          }
           freezing = true
           inserted = true
         }

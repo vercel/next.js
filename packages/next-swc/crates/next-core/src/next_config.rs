@@ -83,9 +83,7 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
-    pub analytics_id: Option<String>,
 
-    ///
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -415,6 +413,7 @@ pub enum RuleConfigItemOrShortcut {
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
     Conditional(IndexMap<String, RuleConfigItem>),
+    Boolean(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -737,25 +736,35 @@ impl NextConfig {
                         .collect(),
                 )
             }
+            enum FindRuleResult<'a> {
+                Found(&'a RuleConfigItemOptions),
+                NotFound,
+                Break,
+            }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
                 active_conditions: &HashSet<String>,
-            ) -> Option<&'a RuleConfigItemOptions> {
+            ) -> FindRuleResult<'a> {
                 match rule {
-                    RuleConfigItem::Options(rule) => {
-                        return Some(rule);
-                    }
+                    RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
                     RuleConfigItem::Conditional(map) => {
                         for (condition, rule) in map.iter() {
                             if condition == "default" || active_conditions.contains(condition) {
-                                if let Some(rule) = find_rule(rule, active_conditions) {
-                                    return Some(rule);
+                                match find_rule(rule, active_conditions) {
+                                    FindRuleResult::Found(rule) => {
+                                        return FindRuleResult::Found(rule);
+                                    }
+                                    FindRuleResult::Break => {
+                                        return FindRuleResult::Break;
+                                    }
+                                    FindRuleResult::NotFound => {}
                                 }
                             }
                         }
+                        FindRuleResult::NotFound
                     }
+                    RuleConfigItem::Boolean(_) => FindRuleResult::Break,
                 }
-                None
             }
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
@@ -768,7 +777,7 @@ impl NextConfig {
                     );
                 }
                 RuleConfigItemOrShortcut::Advanced(rule) => {
-                    if let Some(RuleConfigItemOptions { loaders, rename_as }) =
+                    if let FindRuleResult::Found(RuleConfigItemOptions { loaders, rename_as }) =
                         find_rule(rule, &active_conditions)
                     {
                         rules.insert(
@@ -864,10 +873,8 @@ impl NextConfig {
             "{}/_next/",
             if let Some(asset_prefix) = &this.asset_prefix {
                 asset_prefix
-            } else if let Some(base_path) = &this.base_path {
-                base_path
             } else {
-                ""
+                this.base_path.as_ref().map_or("", |b| b.as_str())
             }
             .trim_end_matches('/')
         ))))
@@ -892,6 +899,17 @@ impl NextConfig {
                 .as_ref()
                 .and_then(|turbo| turbo.use_swc_css)
                 .unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .optimize_package_imports
+                .clone()
+                .unwrap_or_default(),
         ))
     }
 }

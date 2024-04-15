@@ -1,7 +1,7 @@
 import React, { use } from 'react'
 import * as next from 'next/headers'
 
-export const Dynamic = ({ pathname, fallback }) => {
+export const Dynamic = ({ pathname, fallback = null }) => {
   if (fallback) {
     return <div>Dynamic Loading...</div>
   }

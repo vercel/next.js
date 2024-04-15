@@ -1,4 +1,4 @@
-import type { BrowserInterface } from 'test/lib/browsers/base'
+import type { BrowserInterface } from 'next-webdriver'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import fs from 'fs/promises'
@@ -349,6 +349,23 @@ createNextDescribe(
         await browser.loadPage(next.url + '/alternates/child/123')
         await matchDom('link', 'rel="canonical"', {
           href: 'https://example.com/alternates/child/123',
+        })
+      })
+
+      it('should not contain query in canonical url after client navigation', async () => {
+        const browser = await next.browser('/')
+        await browser.waitForElementByCss('p#index')
+        await browser.eval(`next.router.push('/alternates')`)
+        // wait for /alternates page is loaded
+        await browser.waitForElementByCss('p#alternates')
+
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
         })
       })
 

@@ -111,7 +111,7 @@ pub struct TransformOptions {
     pub optimize_server_react: Option<crate::transforms::optimize_server_react::Config>,
 }
 
-pub fn custom_before_pass<'a, C: Comments + 'a>(
+pub fn custom_before_pass<'a, C>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
@@ -120,7 +120,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     unresolved_mark: Mark,
 ) -> impl Fold + 'a
 where
-    C: Clone,
+    C: Clone + Comments + 'a,
 {
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop();
@@ -217,7 +217,7 @@ where
             opts.prefer_esm,
             NextDynamicMode::Webpack,
             file.name.clone(),
-            opts.pages_dir.clone()
+            opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
         ),
         Optional::new(
             crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),

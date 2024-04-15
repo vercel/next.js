@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Readable } from 'stream'
 
 import {
@@ -124,6 +124,41 @@ createNextDescribe(
 
               const meta = getRequestMeta(res.headers)
               expect(meta.method).toEqual(method)
+            }
+          )
+        }
+      )
+
+      describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
+        'abort via a %s request',
+        (method) => {
+          it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
+            'aborts without error on %s',
+            async (path) => {
+              const outputIdx = next.cliOutput.length
+              const controller = new AbortController()
+
+              const resProm = next
+                .fetch(basePath + path, {
+                  method,
+                  signal: controller.signal,
+                })
+                .catch((err) => err)
+
+              setTimeout(() => {
+                controller.abort()
+              }, 10)
+
+              await resProm
+
+              for (let i = 0; i < 3; i++) {
+                await waitFor(1000)
+                const trimmedOutput = next.cliOutput.substring(outputIdx)
+                expect(trimmedOutput).not.toContain('Error')
+                expect(trimmedOutput).not.toContain(
+                  'should not be disturbed or locked'
+                )
+              }
             }
           )
         }
