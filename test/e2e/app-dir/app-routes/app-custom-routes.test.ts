@@ -657,7 +657,7 @@ createNextDescribe(
 
     describe('streaming', () => {
       it('should support streaming response using node runtime', async () => {
-        const res = await next.fetch('/advanced/streaming')
+        const res = await next.webFetch(basePath + '/advanced/streaming')
         expect(res.status).toEqual(200)
 
         const decoder = new TextDecoder()
@@ -677,7 +677,7 @@ createNextDescribe(
       })
 
       it('should support streaming response using edge runtime', async () => {
-        const res = await next.fetch('/advanced/streaming/edge')
+        const res = await next.webFetch(basePath + '/advanced/streaming/edge')
         expect(res.status).toEqual(200)
 
         const decoder = new TextDecoder()

@@ -34,3 +34,5 @@ export async function GET() {
 
   return new Response(stream)
 }
+
+export const dynamic = 'force-dynamic'

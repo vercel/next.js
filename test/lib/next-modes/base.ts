@@ -550,6 +550,10 @@ export class NextInstance {
     return fetchViaHTTP(this.url, pathname, null, opts)
   }
 
+  public async webFetch(pathname: string, opts?: Parameters<typeof fetch>[1]) {
+    return fetch(this.url + pathname, opts)
+  }
+
   public on(event: Event, cb: (...args: any[]) => any) {
     if (!this.events[event]) {
       this.events[event] = new Set()
