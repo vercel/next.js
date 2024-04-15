@@ -118,9 +118,9 @@ const browserNonTranspileModules = [
   /[\\/]node_modules[\\/]process[\\/]browser/,
   // Exclude precompiled react packages from browser compilation due to SWC helper insertion (#61791),
   // We fixed the issue but it's safer to exclude them from compilation since they don't need to be re-compiled.
-  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/,
+  /[\\/]next[\\/]dist[\\/]node_modules[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/,
 ]
-const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
+const precompileRegex = /[\\/]next[\\/]dist[\\/]node_modules[\\/]/
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/

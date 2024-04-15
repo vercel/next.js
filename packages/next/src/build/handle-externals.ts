@@ -64,7 +64,7 @@ export async function resolveExternal(
     resolveContext: string,
     resolveRequest: string
   ) => Promise<[string | null, boolean]>,
-  isLocalCallback?: (res: string) => any,
+  isLocalCallback?: (res: string, request: string) => any,
   baseResolveCheck = true,
   esmResolveOptions: any = NODE_ESM_RESOLVE_OPTIONS,
   nodeResolveOptions: any = NODE_RESOLVE_OPTIONS,
@@ -112,7 +112,7 @@ export async function resolveExternal(
     }
 
     if (isLocalCallback) {
-      return { localRes: isLocalCallback(res) }
+      return { localRes: isLocalCallback(res, request) }
     }
 
     // Bundled Node.js code is relocated without its node_modules tree.
@@ -432,21 +432,27 @@ function resolveBundlingOptOutPackages({
 
 /**
  * @param localRes the full path to the file
+ * @param request the path to the file as returned by webpack
  * @returns the externalized path
  * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
  * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
  * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
  */
-function resolveNextExternal(localRes: string) {
+function resolveNextExternal(localRes: string, request = localRes) {
   const isExternal = externalPattern.test(localRes)
 
   // if the file ends with .external, we need to make it a commonjs require in all cases
   // this is used mainly to share the async local storage across the routing, rendering and user layers.
   if (isExternal) {
+    const ext = path.extname(localRes)
     // it's important we return the path that starts with `next/dist/` here instead of the absolute path
     // otherwise NFT will get tripped up
+    const absPath = localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+
     return `commonjs ${normalizePathSep(
-      localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+      ext === '.js' && ext !== path.extname(request)
+        ? absPath.replace(/\.js$/, '')
+        : absPath
     )}`
   }
 }

@@ -177,14 +177,10 @@ export function createServerOnlyClientOnlyAliases(
     ? {
         'server-only$': 'server-only/empty',
         'client-only$': 'client-only/error',
-        'server-only$': 'server-only/empty',
-        'client-only$': 'client-only/error',
       }
     : {
         'server-only$': 'server-only/index',
         'client-only$': 'client-only/index',
-        'client-only$': 'client-only/index',
-        'server-only': 'server-only/index',
       }
 }
 
@@ -256,8 +252,8 @@ export function createRSCAliases(
     'react-dom/static.edge$': `react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}`,
+    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}`,
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `react-server-dom-webpack${bundledReactChannel}/client.edge`,
@@ -315,27 +311,25 @@ export function createRSCAliases(
 // Keep in sync with insert_optimized_module_aliases in import_map.rs
 export function getOptimizedModuleAliases(): CompilerAliases {
   return {
-    unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
+    unfetch: require.resolve('next/dist/build/polyfills/fetch/index'),
     'isomorphic-unfetch': require.resolve(
-      'next/dist/build/polyfills/fetch/index.js'
+      'next/dist/build/polyfills/fetch/index'
     ),
     'whatwg-fetch': require.resolve(
-      'next/dist/build/polyfills/fetch/whatwg-fetch.js'
+      'next/dist/build/polyfills/fetch/whatwg-fetch'
     ),
-    'object-assign': require.resolve(
-      'next/dist/build/polyfills/object-assign.js'
-    ),
+    'object-assign': require.resolve('next/dist/build/polyfills/object-assign'),
     'object.assign/auto': require.resolve(
-      'next/dist/build/polyfills/object.assign/auto.js'
+      'next/dist/build/polyfills/object.assign/auto'
     ),
     'object.assign/implementation': require.resolve(
-      'next/dist/build/polyfills/object.assign/implementation.js'
+      'next/dist/build/polyfills/object.assign/implementation'
     ),
     'object.assign/polyfill': require.resolve(
-      'next/dist/build/polyfills/object.assign/polyfill.js'
+      'next/dist/build/polyfills/object.assign/polyfill'
     ),
     'object.assign/shim': require.resolve(
-      'next/dist/build/polyfills/object.assign/shim.js'
+      'next/dist/build/polyfills/object.assign/shim'
     ),
     url: require.resolve('native-url'),
   }

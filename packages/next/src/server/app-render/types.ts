@@ -8,7 +8,7 @@ import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 
-import s from 'superstruct'
+import * as s from 'superstruct'
 
 export type DynamicParamTypes =
   | 'catchall'

@@ -24,9 +24,9 @@
 /// <reference types="node" />
 
 declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils3'
+declare module 'loader-utils3'
 
-declare module 'next/dist/compiled/webpack/webpack' {
+declare module 'webpack/webpack' {
   import type webpackSources from 'webpack-sources1'
   export function init(): void
   export let BasicEvaluatedExpression: any
