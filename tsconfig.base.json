@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "strict": false,
+    "strictNullChecks": true,
     "noEmit": true,
     "allowJs": true,
     "resolveJsonModule": true,
