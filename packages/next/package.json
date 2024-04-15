@@ -320,6 +320,18 @@
     "ws": "8.2.3",
     "zod": "3.22.3"
   },
+  "keywords": [
+    "react",
+    "framework",
+    "nextjs",
+    "web",
+    "server",
+    "node",
+    "front-end",
+    "back-end",
+    "cli",
+    "vercel"
+  ],
   "engines": {
     "node": ">=18.17.0"
   }
