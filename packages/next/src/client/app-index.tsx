@@ -131,14 +131,6 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>) {
-  // TODO: remove in the next major version
-  if (process.env.__NEXT_ANALYTICS_ID) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      require('./performance-relayer-app')()
-    }, [])
-  }
-
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
