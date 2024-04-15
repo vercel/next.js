@@ -139,6 +139,32 @@ createNextDescribe(
       ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
+    it('should not log errors for non-action form POSTs', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/non-action-form')
+      await browser.elementByCss('button').click()
+
+      await check(() => browser.url(), next.url + '/', true, 2)
+
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('Failed to find Server Action "null"')
+          )
+            ? 'error'
+            : ''
+        }, '')
+      }
+    })
+
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie')
@@ -309,6 +335,19 @@ createNextDescribe(
       await browser.elementByCss('#navigate-client').click()
       // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
       await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should not block router.back() while a server action is in flight', async () => {
+      let browser = await next.browser('/')
+
+      // click /client link to add a history entry
+      await browser.elementByCss("[href='/client']").click()
+      await browser.elementByCss('#slow-inc').click()
+
+      await browser.back()
+
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/`, true, 2)
     })
 
     it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
@@ -511,6 +550,45 @@ createNextDescribe(
         logs.some((log) => log.message === 'error caught in user code')
       ).toBe(true)
     })
+
+    it.each(['node', 'edge'])(
+      'should forward action request to a worker that contains the action handler (%s)',
+      async (runtime) => {
+        const cliOutputIndex = next.cliOutput.length
+        const browser = await next.browser(`/delayed-action/${runtime}`)
+
+        // confirm there's no data yet
+        expect(await browser.elementById('delayed-action-result').text()).toBe(
+          ''
+        )
+
+        // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
+        await browser.elementById('run-action').click()
+
+        // navigate away from the page
+        await browser
+          .elementByCss(`[href='/delayed-action/${runtime}/other']`)
+          .click()
+          .waitForElementByCss('#other-page')
+
+        await retry(async () => {
+          expect(
+            await browser.elementById('delayed-action-result').text()
+          ).toMatch(
+            // matches a Math.random() string
+            /0\.\d+/
+          )
+        })
+
+        // make sure that we still are rendering other-page content
+        expect(await browser.hasElementByCssSelector('#other-page')).toBe(true)
+
+        // make sure we didn't get any errors in the console
+        expect(next.cliOutput.slice(cliOutputIndex)).not.toContain(
+          'Failed to find Server Action'
+        )
+      }
+    )
 
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
