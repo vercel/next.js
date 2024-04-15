@@ -5,11 +5,6 @@ describe('not-found-multi-root-layout', () => {
     files: __dirname,
   })
 
-  if (process.env.TURBOPACK) {
-    it.skip('should skip turbopack', () => {})
-    return
-  }
-
   it('should render main not-found', async () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('h1').text()).toBe('Main Not Found')
@@ -20,8 +15,12 @@ describe('not-found-multi-root-layout', () => {
     expect(await browser.elementByCss('h1').text()).toBe('Sub Not Found')
   })
 
-  it('should render root not-found for uncaught routes', async () => {
-    const browser = await next.browser('/404')
-    expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
-  })
+  // turbo does not create root layout if missing, so skip this test
+  // GH#63103
+  if (!process.env.TURBOPACK) {
+    it('should render root not-found for uncaught routes', async () => {
+      const browser = await next.browser('/404')
+      expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
+    })
+  }
 })
