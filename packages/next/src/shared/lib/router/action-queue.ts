@@ -155,8 +155,11 @@ function dispatchAction(
       action: newAction,
       setState,
     })
-  } else if (payload.type === ACTION_NAVIGATE) {
-    // Navigations take priority over any pending actions.
+  } else if (
+    payload.type === ACTION_NAVIGATE ||
+    payload.type === ACTION_RESTORE
+  ) {
+    // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
 

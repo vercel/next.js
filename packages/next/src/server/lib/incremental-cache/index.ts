@@ -7,6 +7,7 @@ import type {
   IncrementalCacheKindHint,
 } from '../../response-cache'
 import type { Revalidate } from '../revalidate'
+import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
@@ -67,7 +68,7 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly disableForTestmode?: boolean
   readonly cacheHandler?: CacheHandler
   readonly hasCustomCacheHandler: boolean
-  readonly prerenderManifest: PrerenderManifest
+  readonly prerenderManifest: DeepReadonly<PrerenderManifest>
   readonly requestHeaders: Record<string, undefined | string | string[]>
   readonly requestProtocol?: 'http' | 'https'
   readonly allowedRevalidateHeaderKeys?: string[]
@@ -115,7 +116,7 @@ export class IncrementalCache implements IncrementalCacheType {
     allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
-    getPrerenderManifest: () => PrerenderManifest
+    getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
     experimental: { ppr: boolean }
@@ -384,14 +385,19 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
+    const headers =
+      typeof (init.headers || {}).keys === 'function'
+        ? Object.fromEntries(init.headers as Headers)
+        : Object.assign(init.headers || {}, {})
+
+    if ('traceparent' in headers) delete headers['traceparent']
+
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
       this.fetchCacheKeyPrefix || '',
       url,
       init.method,
-      typeof (init.headers || {}).keys === 'function'
-        ? Object.fromEntries(init.headers as Headers)
-        : init.headers,
+      headers,
       init.mode,
       init.redirect,
       init.credentials,

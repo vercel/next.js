@@ -135,6 +135,7 @@ import { NextDataPathnameNormalizer } from './future/normalizers/request/next-da
 import { getIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 import { toRoute } from './lib/to-route'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -285,9 +286,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
-  protected readonly clientReferenceManifest?: ClientReferenceManifest
+  protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
-  protected nextFontManifest?: NextFontManifest
+  protected nextFontManifest?: DeepReadonly<NextFontManifest>
   private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
@@ -314,9 +315,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     shouldEnsure?: boolean
     url?: string
   }): Promise<FindComponentsResult | null>
-  protected abstract getFontManifest(): FontManifest | undefined
-  protected abstract getPrerenderManifest(): PrerenderManifest
-  protected abstract getNextFontManifest(): NextFontManifest | undefined
+  protected abstract getFontManifest(): DeepReadonly<FontManifest> | undefined
+  protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getNextFontManifest():
+    | DeepReadonly<NextFontManifest>
+    | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
