@@ -27,7 +27,6 @@ const zSizeLimit = z.custom<SizeLimit>((val) => {
   return false
 })
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zExportMap: zod.ZodType<ExportPathMap> = z.record(
   z.string(),
   z.object({
@@ -40,7 +39,6 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
   })
 )
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zRouteHas: zod.ZodType<RouteHas> = z.union([
   z.object({
     type: z.enum(['header', 'query', 'cookie']),
@@ -54,7 +52,6 @@ const zRouteHas: zod.ZodType<RouteHas> = z.union([
   }),
 ])
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zRewrite: zod.ZodType<Rewrite> = z.object({
   source: z.string(),
   destination: z.string(),
@@ -65,7 +62,6 @@ const zRewrite: zod.ZodType<Rewrite> = z.object({
   internal: z.boolean().optional(),
 })
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zRedirect: zod.ZodType<Redirect> = z
   .object({
     source: z.string(),
@@ -89,7 +85,6 @@ const zRedirect: zod.ZodType<Redirect> = z
     ])
   )
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zHeader: zod.ZodType<Header> = z.object({
   source: z.string(),
   basePath: z.literal(false).optional(),
@@ -101,7 +96,6 @@ const zHeader: zod.ZodType<Header> = z.object({
   internal: z.boolean().optional(),
 })
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   z.string(),
   z.object({
@@ -111,7 +105,6 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 const zTurboRuleConfigItemOptions: zod.ZodType<TurboRuleConfigItemOptions> =
   z.object({
     loaders: z.array(zTurboLoaderItem),
@@ -130,7 +123,6 @@ const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
 const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut> =
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
-// @ts-ignore ts check incompatible due to `strictNullChecks: false`
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     amp: z
