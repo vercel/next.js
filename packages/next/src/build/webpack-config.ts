@@ -1880,7 +1880,8 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      isClient &&
+      !dev &&
+        isClient &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&
