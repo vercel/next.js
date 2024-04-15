@@ -255,11 +255,11 @@ jobs:
           check-latest: true
       - run: corepack enable
 
+      # we always want to run this to set environment variables
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.settings.target }}
-          skip-install: ${{ matrix.settings.docker }}
 
       - name: normalize versions
         run: node scripts/normalize-version-bump.js

@@ -105,8 +105,6 @@ jobs:
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-        with:
-          components: rustfmt, clippy
 
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
