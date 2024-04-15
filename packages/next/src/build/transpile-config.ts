@@ -8,7 +8,8 @@ const transformableExtensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 function registerSWCTransform(swcOptions: SWCOptions, isESM: boolean) {
   if (isESM) {
-    // TODO: Implement importing ESM
+    delete (require.extensions as any)['.js']
+    transformableExtensions.push('.js')
   }
 
   for (const ext of transformableExtensions) {
@@ -56,7 +57,9 @@ async function validateModuleType(
   let packageJson: any
   try {
     packageJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
-  } catch {}
+  } catch {
+    packageJson = {}
+  }
 
   if (packageJson.type === 'module') {
     return 'module'
@@ -95,12 +98,12 @@ export async function transpileConfig({
     // TODO: dig to not using fs ops, import(data:text/javascript,...)
     await writeFile(tempConfigPath, code, 'utf8')
 
-    return (await import(tempConfigPath)).default
+    return await import(tempConfigPath)
   } catch (error) {
     throw error
   } finally {
     transformableExtensions.forEach((ext) => delete require.extensions[ext])
     require.extensions['.js'] = originalJsHandler
-    await unlink(tempConfigPath).catch(() => {})
+    // await unlink(tempConfigPath).catch(() => {})
   }
 }
