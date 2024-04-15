@@ -230,7 +230,6 @@ enum ChunkContentGraphNode {
     },
     // Async module that is referenced from the chunk group
     AsyncModule {
-        item: Vc<Box<dyn ChunkItem>>,
         module: Vc<Box<dyn ChunkableModule>>,
     },
     // ModuleReferences that are not placed in the current chunk group
@@ -268,9 +267,7 @@ async fn graph_node_to_referenced_nodes_with_available_chunk_items(
     let edges = graph_node_to_referenced_nodes(node, chunking_context);
     let edges_ref = edges.await?;
     for (unchanged, edge) in edges_ref.iter().enumerate() {
-        if let ChunkContentGraphNode::ChunkItem { item, .. }
-        | ChunkContentGraphNode::AsyncModule { item, .. } = edge.node
-        {
+        if let ChunkContentGraphNode::ChunkItem { item, .. } = edge.node {
             if let Some(info) = *available_chunk_items.get(item).await? {
                 let mut new_edges = Vec::with_capacity(edges_ref.len());
                 new_edges.extend(edges_ref[0..unchanged].iter().cloned());
@@ -281,11 +278,6 @@ async fn graph_node_to_referenced_nodes_with_available_chunk_items(
                         ChunkContentGraphNode::ChunkItem { item, .. } => {
                             if let Some(info) = *available_chunk_items.get(item).await? {
                                 available_chunk_item_info.insert(item, info);
-                                continue;
-                            }
-                        }
-                        ChunkContentGraphNode::AsyncModule { item, module: _ } => {
-                            if available_chunk_items.get(item).await?.is_some() {
                                 continue;
                             }
                         }
@@ -428,11 +420,11 @@ async fn graph_node_to_referenced_nodes(
                         ChunkingType::Async => {
                             let chunk_loading =
                                 chunking_context.environment().chunk_loading().await?;
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
                             if matches!(*chunk_loading, ChunkLoading::None) {
+                                let chunk_item = chunkable_module
+                                    .as_chunk_item(chunking_context)
+                                    .resolve()
+                                    .await?;
                                 Ok((
                                     Some(ChunkGraphEdge {
                                         key: Some(module),
@@ -448,7 +440,6 @@ async fn graph_node_to_referenced_nodes(
                                     Some(ChunkGraphEdge {
                                         key: None,
                                         node: ChunkContentGraphNode::AsyncModule {
-                                            item: chunk_item,
                                             module: chunkable_module,
                                         },
                                     }),
@@ -622,7 +613,7 @@ async fn chunk_content_internal_parallel(
             ChunkContentGraphNode::ChunkItem { item, .. } => {
                 chunk_items.insert(item);
             }
-            ChunkContentGraphNode::AsyncModule { module, .. } => {
+            ChunkContentGraphNode::AsyncModule { module } => {
                 let module = module.resolve().await?;
                 async_modules.insert(module);
             }
