@@ -180,17 +180,9 @@ export default function imgixLoader({ src, width, quality }) {
 // Doc (Optimise): https://www.pixelbin.io/docs/optimizations/quality/#image-quality-when-delivering
 // Doc (Auto Format Delivery): https://www.pixelbin.io/docs/optimizations/format/#automatic-format-selection-with-f_auto-url-parameter
 export default function pixelBinLoader({ src, width, quality }) {
-  const cloudName = '<your-cloud-name>'
-  const optimizeTransformation = `/t.resize(w:${width})~t.compress(q:${
-    quality || 75
-  })/`
-  const baseURL = `https://cdn.pixelbin.io/v2/${cloudName}${optimizeTransformation}`
-  const adjustedSrc = src.startsWith('/') ? src.slice(1) : src
-  const fullPath = new URL(adjustedSrc, baseURL)
-  if (!fullPath.searchParams.has('f_auto')) {
-    fullPath.searchParams.set('f_auto', 'true')
-  }
-  return fullPath.href
+  const name = '<your-cloud-name>'
+  const opt = `t.resize(w:${width})~t.compress(q:${quality || 75})`
+  return `https://cdn.pixelbin.io/v2/${name}/${opt}/${src}?f_auto=true`
 }
 ```
 
