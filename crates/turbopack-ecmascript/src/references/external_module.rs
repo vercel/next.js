@@ -89,7 +89,7 @@ impl CachedExternalModule {
         Ok(EcmascriptModuleContent {
             inner_code: code.build(),
             source_map: None,
-            is_esm: true,
+            is_esm: self.external_type != CachedExternalType::CommonJs,
         }
         .cell())
     }
