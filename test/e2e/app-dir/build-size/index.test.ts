@@ -22,7 +22,7 @@ createNextDescribe(
         // convert pretty-bytes format into bytes so we can compare units
         const sizeToBytes = (size: string) => {
           const units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-          const [value, unit] = size.split(' ')
+          const [value, unit] = size.split(' ', 2)
           const exp = units.indexOf(unit)
           return parseFloat(value) * Math.pow(1024, exp)
         }

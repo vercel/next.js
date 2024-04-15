@@ -58,6 +58,8 @@ const styles = css`
 
     opacity: 0.4;
     transition: opacity 0.25s ease;
+
+    color: var(--color-font);
   }
   [data-nextjs-dialog-left-right] > button:last-of-type:hover {
     opacity: 0.7;

@@ -21,7 +21,7 @@ const ${componentName} = (props: ${componentName}Props): JSX.Element => (
 );
 
 export default withDatasourceCheck()<${componentName}Props>(${componentName});
-`
+`;
 }
 
-export default generateComponentSrc
+export default generateComponentSrc;

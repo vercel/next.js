@@ -2,19 +2,23 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import type { PageConfig } from '../../../../../types'
 import type { ParsedUrlQuery } from 'querystring'
+import { wrapApiHandler, type __ApiPreviewProps } from '../../../api-utils'
+import type { RouteModuleOptions } from '../route-module'
 
-import {
-  RouteModule,
-  RouteModuleOptions,
-  type RouteModuleHandleContext,
-} from '../route-module'
-import { apiResolver } from '../../../api-utils/node'
-import { __ApiPreviewProps } from '../../../api-utils'
+import { RouteModule, type RouteModuleHandleContext } from '../route-module'
+import { apiResolver } from '../../../api-utils/node/api-resolver'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
   res: ServerResponse
 ) => Promise<void>
+
+/**
+ * The PagesAPIModule is the type of the module exported by the bundled Pages
+ * API module.
+ */
+export type PagesAPIModule =
+  typeof import('../../../../build/templates/pages-api')
 
 type PagesAPIUserlandModule = {
   /**
@@ -100,6 +104,8 @@ export class PagesAPIRouteModule extends RouteModule<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
 > {
+  private apiResolverWrapped: typeof apiResolver
+
   constructor(options: PagesAPIRouteModuleOptions) {
     super(options)
 
@@ -108,6 +114,11 @@ export class PagesAPIRouteModule extends RouteModule<
         `Page ${options.definition.page} does not export a default function.`
       )
     }
+
+    this.apiResolverWrapped = wrapApiHandler(
+      options.definition.page,
+      apiResolver
+    )
   }
 
   /**
@@ -121,7 +132,8 @@ export class PagesAPIRouteModule extends RouteModule<
     res: ServerResponse,
     context: PagesAPIRouteHandlerContext
   ): Promise<void> {
-    await apiResolver(
+    const { apiResolverWrapped } = this
+    await apiResolverWrapped(
       req,
       res,
       context.query,

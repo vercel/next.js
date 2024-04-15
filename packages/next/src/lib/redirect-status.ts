@@ -1,7 +1,4 @@
-import {
-  PERMANENT_REDIRECT_STATUS,
-  TEMPORARY_REDIRECT_STATUS,
-} from '../shared/lib/constants'
+import { RedirectStatusCode } from '../client/components/redirect-status-code'
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
@@ -11,7 +8,9 @@ export function getRedirectStatus(route: {
 }): number {
   return (
     route.statusCode ||
-    (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
+    (route.permanent
+      ? RedirectStatusCode.PermanentRedirect
+      : RedirectStatusCode.TemporaryRedirect)
   )
 }
 

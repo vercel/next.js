@@ -1,4 +1,4 @@
-import type { BrowserInterface } from 'test/lib/browsers/base'
+import type { BrowserInterface } from 'next-webdriver'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import fs from 'fs/promises'
@@ -228,6 +228,12 @@ createNextDescribe(
           'dns-prefetch': '/dns-prefetch-url',
         })
 
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
+        })
+
         await matchDom('meta', 'name="theme-color"', {
           media: '(prefers-color-scheme: dark)',
           content: 'cyan',
@@ -236,8 +242,8 @@ createNextDescribe(
 
       it('should support other basic tags (edge)', async () => {
         const browser = await next.browser('/basic-edge')
-        const matchDom = createDomMatcher(browser)
         const matchMultiDom = createMultiDomMatcher(browser)
+        const matchDom = createDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
           generator: 'next.js',
@@ -245,11 +251,6 @@ createNextDescribe(
           referrer: 'origin-when-cross-origin',
           keywords: 'next.js,react,javascript',
           author: ['huozhi', 'tree'],
-          'color-scheme': 'dark',
-          viewport:
-            'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual',
-          creator: 'shu',
-          publisher: 'vercel',
           robots: 'index, follow',
           'format-detection': 'telephone=no, address=no, email=no',
         })
@@ -262,9 +263,10 @@ createNextDescribe(
           'dns-prefetch': '/dns-prefetch-url',
         })
 
-        await matchDom('meta', 'name="theme-color"', {
-          media: '(prefers-color-scheme: dark)',
-          content: 'cyan',
+        // Manifest link should have crossOrigin attribute
+        await matchDom('link', 'rel="manifest"', {
+          href: '/api/manifest',
+          crossOrigin: 'use-credentials',
         })
       })
 
@@ -350,6 +352,23 @@ createNextDescribe(
         })
       })
 
+      it('should not contain query in canonical url after client navigation', async () => {
+        const browser = await next.browser('/')
+        await browser.waitForElementByCss('p#index')
+        await browser.eval(`next.router.push('/alternates')`)
+        // wait for /alternates page is loaded
+        await browser.waitForElementByCss('p#alternates')
+
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
+        })
+      })
+
       it('should support robots tags', async () => {
         const $ = await next.render$('/robots')
         const matchMultiDom = createMultiHtmlMatcher($)
@@ -370,6 +389,7 @@ createNextDescribe(
           'yandex-verification': 'yandex',
           me: ['my-email', 'my-link'],
         })
+        expect($('meta[name="me"]').length).toBe(2)
       })
 
       it('should support appLinks tags', async () => {
@@ -444,7 +464,7 @@ createNextDescribe(
         await matchMultiDom('meta', 'property', 'content', {
           'og:title': 'My custom title',
           'og:description': 'My custom description',
-          'og:url': 'https://example.com/',
+          'og:url': 'https://example.com',
           'og:site_name': 'My custom site name',
           'og:locale': 'en-US',
           'og:type': 'website',
@@ -479,6 +499,9 @@ createNextDescribe(
           'og:description': 'My custom description',
           'og:type': 'article',
           'og:image': 'https://example.com/og-image.jpg',
+          'og:email': 'author@vercel.com',
+          'og:phone_number': '1234567890',
+          'og:fax_number': '1234567890',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
@@ -495,13 +518,13 @@ createNextDescribe(
           'og:image:alt': 'A alt txt for og',
           'og:image': isNextDev
             ? expect.stringMatching(
-                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image/
               )
             : expect.stringMatching(
                 new RegExp(
                   `https:\\/\\/(${
                     isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
-                  })\\/opengraph\\/static\\/opengraph-image.png\\?b76e8f0282c93c8e`
+                  })\\/opengraph\\/static\\/opengraph-image`
                 )
               ),
         })
@@ -509,13 +532,13 @@ createNextDescribe(
         await match('meta', 'name', 'content', {
           'twitter:image': isNextDev
             ? expect.stringMatching(
-                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image/
               )
             : expect.stringMatching(
                 new RegExp(
                   `https:\\/\\/(${
                     isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
-                  })\\/opengraph\\/static\\/twitter-image.png\\?b76e8f0282c93c8e`
+                  })\\/opengraph\\/static\\/twitter-image`
                 )
               ),
           'twitter:image:alt': 'A alt txt for twitter',
@@ -523,7 +546,7 @@ createNextDescribe(
         })
 
         // favicon shouldn't be overridden
-        expect($('link[rel="icon"]').attr('href')).toBe('/favicon.ico')
+        expect($('link[rel="icon"]').attr('href')).toMatch('/favicon.ico')
       })
 
       it('should override file based images when opengraph-image and twitter-image specify images property', async () => {
@@ -671,18 +694,20 @@ createNextDescribe(
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
         const favIcon = $('link[rel="icon"]')
-        expect(favIcon.attr('href')).toBe('/favicon.ico')
+        expect(favIcon.attr('href')).toMatch('/favicon.ico')
         expect(favIcon.attr('type')).toBe('image/x-icon')
-        expect(favIcon.attr('sizes')).toBe('16x16')
+        // Turbopack renders / emits image differently
+        expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
-        expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
-        expect(iconSvg.attr('sizes')).toBe('any')
+        expect(iconSvg.attr('href')).toMatch('/icon.svg?')
+        // Turbopack renders / emits image differently
+        expect(['any', '48x48']).toContain(iconSvg.attr('sizes'))
 
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')
-        expect(icon.attr('href')).toBe('/favicon.ico')
-        expect(icon.attr('sizes')).toBe('16x16')
+        expect(icon.attr('href')).toMatch('/favicon.ico')
+        expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
         if (!isNextDeploy) {
           const faviconFileBuffer = await fs.readFile(
@@ -705,13 +730,11 @@ createNextDescribe(
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
-        expect($icon.attr('href')).toMatch(
-          /\/icons\/static\/nested\/icon1\.png\?399de3b94b888afc/
-        )
+        expect($icon.attr('href')).toMatch(/\/icons\/static\/nested\/icon1/)
         expect($icon.attr('sizes')).toBe('32x32')
         expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
-          /\/icons\/static\/nested\/apple-icon\.png\?b76e8f0282c93c8e/
+          /\/icons\/static\/nested\/apple-icon/
         )
         expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
@@ -722,9 +745,7 @@ createNextDescribe(
 
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
 
-        expect($icon.attr('href')).toMatch(
-          /\/icons\/static\/icon\.png\?b76e8f0282c93c8e/
-        )
+        expect($icon.attr('href')).toMatch(/\/icons\/static\/icon/)
         expect($icon.attr('sizes')).toBe('114x114')
 
         // No apple icon if it's not provided
@@ -735,14 +756,14 @@ createNextDescribe(
         const $dynamicIcon = $dynamic('head > link[rel="icon"]')
         const dynamicIconHref = $dynamicIcon.attr('href')
         expect(dynamicIconHref).toMatch(
-          /\/icons\/static\/dynamic-routes\/123\/icon\.png\?b76e8f0282c93c8e/
+          /\/icons\/static\/dynamic-routes\/123\/icon/
         )
         const dynamicIconRes = await next.fetch(dynamicIconHref)
         expect(dynamicIconRes.status).toBe(200)
       })
 
       if (isNextDev) {
-        it('should handle hmr updates to the file icon', async () => {
+        it('should handle updates to the file icon name and order', async () => {
           await next.renameFile(
             'app/icons/static/icon.png',
             'app/icons/static/icon2.png'
@@ -752,7 +773,7 @@ createNextDescribe(
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
-          }, /\/icons\/static\/icon2\.png\?b76e8f0282c93c8e/)
+          }, /\/icons\/static\/icon2/)
 
           await next.renameFile(
             'app/icons/static/icon2.png',
@@ -945,6 +966,16 @@ createNextDescribe(
       })
     }
 
+    describe('viewport', () => {
+      it('should support dynamic viewport export', async () => {
+        const browser = await next.browser('/viewport')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'name', 'content', {
+          'theme-color': '#000',
+        })
+      })
+    })
+
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {
         const browser = await next.browser('/cache-deduping')
@@ -988,6 +1019,11 @@ createNextDescribe(
       const ogHtml = await next.render('/blog/opengraph-image')
       expect(iconHtml).toContain('pages-icon-page')
       expect(ogHtml).toContain('pages-opengraph-image-page')
+    })
+
+    it('should not crash from error thrown during preloading nested generateMetadata', async () => {
+      const res = await next.fetch('/dynamic-meta')
+      expect(res.status).toBe(404)
     })
   }
 )

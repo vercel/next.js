@@ -1,4 +1,5 @@
 module.exports = {
+  // REPLACEME
   experimental: {
     caseSensitiveRoutes: true,
   },

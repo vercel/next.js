@@ -3,8 +3,18 @@ const NOT_FOUND_ERROR_CODE = 'NEXT_NOT_FOUND'
 type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
 
 /**
- * When used in a React server component, this will set the status code to 404.
- * When used in a custom app route it will just send a 404 status.
+ * This function allows you to render the [not-found.js file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
+ * within a route segment as well as inject a tag.
+ *
+ * `notFound()` can be used in
+ * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+ * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+ * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+ *
+ * - In a Server Component, this will insert a `<meta name="robots" content="noindex" />` meta tag and set the status code to 404.
+ * - In a Route Handler or Server Action, it will serve a 404 to the caller.
+ *
+ * Read more: [Next.js Docs: `notFound`](https://nextjs.org/docs/app/api-reference/functions/not-found)
  */
 export function notFound(): never {
   // eslint-disable-next-line no-throw-literal
@@ -20,6 +30,10 @@ export function notFound(): never {
  * @param error the error that may reference a not found error
  * @returns true if the error is a not found error
  */
-export function isNotFoundError(error: any): error is NotFoundError {
-  return error?.digest === NOT_FOUND_ERROR_CODE
+export function isNotFoundError(error: unknown): error is NotFoundError {
+  if (typeof error !== 'object' || error === null || !('digest' in error)) {
+    return false
+  }
+
+  return error.digest === NOT_FOUND_ERROR_CODE
 }

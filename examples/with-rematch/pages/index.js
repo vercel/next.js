@@ -1,13 +1,13 @@
-import { useSelector, useDispatch } from 'react-redux'
-import Header from '../shared/components/header'
-import { useRematchDispatch } from '../shared/utils'
+import { useSelector, useDispatch } from "react-redux";
+import Header from "../shared/components/header";
+import { useRematchDispatch } from "../shared/utils";
 
 const Home = () => {
-  const counter = useSelector((state) => state.counter)
-  const dispatch = useDispatch()
+  const counter = useSelector((state) => state.counter);
+  const dispatch = useDispatch();
   const { increment } = useRematchDispatch((dispatch) => ({
     increment: dispatch.counter.increment,
-  }))
+  }));
 
   return (
     <div>
@@ -26,7 +26,7 @@ const Home = () => {
       </p>
       <br />
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

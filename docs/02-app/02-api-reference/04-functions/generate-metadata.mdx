@@ -7,12 +7,13 @@ related:
   description: View all the Metadata API options.
   links:
     - app/api-reference/file-conventions/metadata
+    - app/api-reference/functions/generate-viewport
     - app/building-your-application/optimizing/metadata
 ---
 
 This page covers all **Config-based Metadata** options with `generateMetadata` and the static metadata object.
 
-```tsx filename="layout.tsx / page.tsx" switcher
+```tsx filename="layout.tsx | page.tsx" switcher
 import { Metadata } from 'next'
 
 // either Static metadata
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }) {
 }
 ```
 
-```jsx filename="layout.js / page.js" switcher
+```jsx filename="layout.js | page.js" switcher
 // either Static metadata
 export const metadata = {
   title: '...',
@@ -51,7 +52,7 @@ export async function generateMetadata({ params }) {
 
 To define static metadata, export a [`Metadata` object](#metadata-fields) from a `layout.js` or `page.js` file.
 
-```tsx filename="layout.tsx / page.tsx" switcher
+```tsx filename="layout.tsx | page.tsx" switcher
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -62,7 +63,7 @@ export const metadata: Metadata = {
 export default function Page() {}
 ```
 
-```jsx filename="layout.js / page.js" switcher
+```jsx filename="layout.js | page.js" switcher
 export const metadata = {
   title: '...',
   description: '...',
@@ -174,7 +175,7 @@ The `title` attribute is used to set the title of the document. It can be define
 
 #### String
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   title: 'Next.js',
 }
@@ -342,7 +343,7 @@ export const metadata = {
 
 ### `description`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   description: 'The React Framework for the Web',
 }
@@ -354,14 +355,13 @@ export const metadata = {
 
 ### Basic Fields
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   generator: 'Next.js',
   applicationName: 'Next.js',
   referrer: 'origin-when-cross-origin',
   keywords: ['Next.js', 'React', 'JavaScript'],
   authors: [{ name: 'Seb' }, { name: 'Josh', url: 'https://nextjs.org' }],
-  colorScheme: 'dark',
   creator: 'Jiachi Liu',
   publisher: 'Sebastian Markbåge',
   formatDetection: {
@@ -394,7 +394,7 @@ export const metadata = {
 - The field's relative path will be composed with `metadataBase` to form a fully qualified URL.
 - If not configured, `metadataBase` is **automatically populated** with a [default value](#default-value).
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   metadataBase: new URL('https://acme.com'),
   alternates: {
@@ -470,7 +470,7 @@ Any `metadata` fields that inherit the above `metadataBase` and set their own va
 
 ### `openGraph`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   openGraph: {
     title: 'Next.js',
@@ -479,12 +479,12 @@ export const metadata = {
     siteName: 'Next.js',
     images: [
       {
-        url: 'https://nextjs.org/og.png',
+        url: 'https://nextjs.org/og.png', // Must be an absolute URL
         width: 800,
         height: 600,
       },
       {
-        url: 'https://nextjs.org/og-alt.png',
+        url: 'https://nextjs.org/og-alt.png', // Must be an absolute URL
         width: 1800,
         height: 1600,
         alt: 'My custom alt',
@@ -512,7 +512,7 @@ export const metadata = {
 <meta property="og:type" content="website" />
 ```
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   openGraph: {
     title: 'Next.js',
@@ -571,7 +571,7 @@ export const metadata: Metadata = {
 
 > **Good to know**: We recommend using the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) for icons where possible. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   icons: {
     icon: '/icon.png',
@@ -595,10 +595,14 @@ export const metadata = {
 />
 ```
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   icons: {
-    icon: [{ url: '/icon.png' }, new URL('/icon.png', 'https://example.com')],
+    icon: [
+      { url: '/icon.png' },
+      new URL('/icon.png', 'https://example.com'),
+      { url: '/icon-dark.png', media: '(prefers-color-scheme: dark)' },
+    ],
     shortcut: ['/shortcut-icon.png'],
     apple: [
       { url: '/apple-icon.png' },
@@ -617,12 +621,13 @@ export const metadata = {
 ```html filename="<head> output" hideLineNumbers
 <link rel="shortcut icon" href="/shortcut-icon.png" />
 <link rel="icon" href="/icon.png" />
+<link rel="icon" href="https://example.com/icon.png" />
+<link rel="icon" href="/icon-dark.png" media="(prefers-color-scheme: dark)" />
 <link rel="apple-touch-icon" href="/apple-icon.png" />
 <link
   rel="apple-touch-icon-precomposed"
   href="/apple-touch-icon-precomposed.png"
 />
-<link rel="icon" href="https://example.com/icon.png" />
 <link
   rel="apple-touch-icon"
   href="/apple-icon-x3.png"
@@ -635,41 +640,13 @@ export const metadata = {
 
 ### `themeColor`
 
-Learn more about [theme-color](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
-
-**Simple theme color**
-
-```jsx filename="layout.js / page.js"
-export const metadata = {
-  themeColor: 'black',
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta name="theme-color" content="black" />
-```
-
-**With media attribute**
-
-```jsx filename="layout.js / page.js"
-export const metadata = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'cyan' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="cyan" />
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="black" />
-```
+> **Deprecated**: The `themeColor` option in `metadata` is deprecated as of Next.js 14. Please use the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport) instead.
 
 ### `manifest`
 
 A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/docs/Web/Manifest).
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   manifest: 'https://nextjs.org/manifest.json',
 }
@@ -681,9 +658,11 @@ export const metadata = {
 
 ### `twitter`
 
+The Twitter specification is (surprisingly) used for more than just X (formerly known as Twitter).
+
 Learn more about the [Twitter Card markup reference](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup).
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   twitter: {
     card: 'summary_large_image',
@@ -692,7 +671,7 @@ export const metadata = {
     siteId: '1467726470533754880',
     creator: '@nextjs',
     creatorId: '1467726470533754880',
-    images: ['https://nextjs.org/og.png'],
+    images: ['https://nextjs.org/og.png'], // Must be an absolute URL
   },
 }
 ```
@@ -707,7 +686,7 @@ export const metadata = {
 <meta name="twitter:image" content="https://nextjs.org/og.png" />
 ```
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   twitter: {
     card: 'app',
@@ -757,28 +736,11 @@ export const metadata = {
 
 ### `viewport`
 
-> **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
-
-```jsx filename="layout.js / page.js"
-export const metadata = {
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1"
-/>
-```
+> **Deprecated**: The `viewport` option in `metadata` is deprecated as of Next.js 14. Please use the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport) instead.
 
 ### `verification`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   verification: {
     google: 'google',
@@ -801,7 +763,7 @@ export const metadata = {
 
 ### `appleWebApp`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   itunes: {
     appId: 'myAppStoreID',
@@ -845,7 +807,7 @@ export const metadata = {
 
 ### `alternates`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   alternates: {
     canonical: 'https://nextjs.org',
@@ -881,7 +843,7 @@ export const metadata = {
 
 ### `appLinks`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   appLinks: {
     ios: {
@@ -913,7 +875,7 @@ export const metadata = {
 
 Describes a collection of records, documents, or other materials of historical interest ([source](https://www.w3.org/TR/2011/WD-html5-20110113/links.html#rel-archives)).
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   archives: ['https://nextjs.org/13'],
 }
@@ -925,7 +887,7 @@ export const metadata = {
 
 ### `assets`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   assets: ['https://nextjs.org/assets'],
 }
@@ -937,7 +899,7 @@ export const metadata = {
 
 ### `bookmarks`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   bookmarks: ['https://nextjs.org/13'],
 }
@@ -949,7 +911,7 @@ export const metadata = {
 
 ### `category`
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   category: 'technology',
 }
@@ -963,7 +925,7 @@ export const metadata = {
 
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const metadata = {
   other: {
     custom: 'meta',
@@ -973,6 +935,20 @@ export const metadata = {
 
 ```html filename="<head> output" hideLineNumbers
 <meta name="custom" content="meta" />
+```
+
+If you want to generate multiple same key meta tags you can use array value.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  other: {
+    custom: ['meta1', 'meta2'],
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
 ## Unsupported Metadata
@@ -1154,6 +1130,7 @@ export const metadata = {
 
 ## Version History
 
-| Version   | Changes                                       |
-| --------- | --------------------------------------------- |
-| `v13.2.0` | `metadata` and `generateMetadata` introduced. |
+| Version   | Changes                                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.2.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
+| `v13.2.0` | `metadata` and `generateMetadata` introduced.                                                                                                           |

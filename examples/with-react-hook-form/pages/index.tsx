@@ -1,27 +1,27 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 
 interface User {
-  name: string
+  name: string;
 }
 
 interface LoginFormValues {
-  username: string
-  password: string
-  remember: boolean
+  username: string;
+  password: string;
+  remember: boolean;
 }
 
 const IndexPage = () => {
-  const [user, setUser] = useState<User>()
+  const [user, setUser] = useState<User>();
   const {
     register,
     formState: { errors },
     handleSubmit,
-  } = useForm<LoginFormValues>()
+  } = useForm<LoginFormValues>();
   const onSubmit = handleSubmit(({ username, password, remember }) => {
     // You should handle login logic with username, password and remember form data
-    setUser({ name: username })
-  })
+    setUser({ name: username });
+  });
 
   return (
     <div className="container">
@@ -36,14 +36,14 @@ const IndexPage = () => {
             <input
               type="text"
               placeholder="user name"
-              {...register('username', {
-                required: { value: true, message: 'User name is required' },
+              {...register("username", {
+                required: { value: true, message: "User name is required" },
                 minLength: {
                   value: 3,
-                  message: 'User name cannot be less than 3 character',
+                  message: "User name cannot be less than 3 character",
                 },
               })}
-              className={'form-field' + (errors.username ? ' has-error' : '')}
+              className={"form-field" + (errors.username ? " has-error" : "")}
             />
             {errors.username && (
               <span className="error-label">{errors.username.message}</span>
@@ -53,20 +53,20 @@ const IndexPage = () => {
             <input
               type="password"
               placeholder="password"
-              {...register('password', {
+              {...register("password", {
                 required: {
                   value: true,
-                  message: 'Please enter your password',
+                  message: "Please enter your password",
                 },
               })}
-              className={'form-field' + (errors.password ? ' has-error' : '')}
+              className={"form-field" + (errors.password ? " has-error" : "")}
             />
             {errors.password && (
               <span className="error-label">{errors.password.message}</span>
             )}
           </div>
           <div className="row row-remember">
-            <input type="checkbox" id="remember" {...register('remember')} />
+            <input type="checkbox" id="remember" {...register("remember")} />
             <label htmlFor="remember" className="remember-label">
               Remember me
             </label>
@@ -79,7 +79,7 @@ const IndexPage = () => {
         </form>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default IndexPage
+export default IndexPage;

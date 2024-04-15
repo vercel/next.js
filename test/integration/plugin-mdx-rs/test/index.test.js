@@ -5,7 +5,7 @@ import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 const context = {}
 
-describe('Configuration', () => {
+describe('MDX-rs Configuration', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort)

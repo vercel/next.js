@@ -55,7 +55,10 @@ export function expectUnsupportedModuleDevError(
   output = context.logs.output
 ) {
   expectUnsupportedModuleProdError(moduleName, output)
-  expect(stripAnsi(output)).toContain(importStatement)
+  // turbopack have correct error overly, but doesn't emit those into cli
+  if (!process.env.TURBOPACK) {
+    expect(stripAnsi(output)).toContain(importStatement)
+  }
 
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(responseText).toContain(escapeLF(moduleNotSupportedMessage))
@@ -70,8 +73,12 @@ export function expectModuleNotFoundProdError(
 ) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
-  const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(stripAnsi(output)).toContain(moduleNotFoundMessage)
+  const moduleNotFoundMessages = [
+    expect.stringContaining(`Error: Cannot find module '${moduleName}'`),
+    expect.stringContaining(getModuleNotFound(moduleName)),
+  ]
+
+  expect(moduleNotFoundMessages).toContainEqual(stripAnsi(output))
 }
 
 export function expectModuleNotFoundDevError(

@@ -126,13 +126,18 @@ const API_DOCS: Record<
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
       '"edge"': 'Prefer the Edge runtime.',
-      '"experimental-edge"': 'Prefer the experimental Edge runtime.',
+      '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
     },
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime',
   },
   metadata: {
     description: 'Next.js Metadata configurations',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/metadata',
+  },
+  maxDuration: {
+    description:
+      '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
 }
 
@@ -249,7 +254,7 @@ const config = {
   getQuickInfoAtPosition(fileName: string, position: number) {
     const ts = getTs()
 
-    let overriden: tsModule.QuickInfo | undefined
+    let overridden: tsModule.QuickInfo | undefined
     visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) return
 
@@ -274,7 +279,7 @@ const config = {
           : !!API_DOCS[entryConfig].options?.[key]
 
         if (isValid) {
-          overriden = {
+          overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
@@ -295,7 +300,7 @@ const config = {
           }
         } else {
           // Wrong value, display the docs link
-          overriden = {
+          overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
@@ -308,7 +313,7 @@ const config = {
         }
       } else {
         // Hovers the name of the config
-        overriden = {
+        overridden = {
           kind: ts.ScriptElementKind.enumElement,
           kindModifiers: ts.ScriptElementKindModifier.none,
           textSpan: {
@@ -326,7 +331,7 @@ const config = {
         }
       }
     })
-    return overriden
+    return overridden
   },
 
   // Show details on the side when auto completing.

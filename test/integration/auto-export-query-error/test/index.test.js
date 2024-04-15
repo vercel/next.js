@@ -1,10 +1,9 @@
 /* eslint-env jest */
 
 import path from 'path'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
-const outdir = path.join(__dirname, 'out')
 let stderr
 let exitCode
 
@@ -22,18 +21,22 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  describe('server mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      const { stderr: curStderr, code: curCode } = await nextExport(
-        appDir,
-        { outdir },
-        { stderr: true }
-      )
-      stderr = curStderr
-      exitCode = curCode
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { stderr: curStderr, code: curCode } = await nextBuild(
+          appDir,
+          [],
+          {
+            stderr: true,
+          }
+        )
+        stderr = curStderr
+        exitCode = curCode
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

@@ -1,10 +1,8 @@
-# Hello World example
+# Welcome to Next.js
 
-This example shows the most basic idea behind Next. We have 2 pages: `pages/index.tsx` and `pages/about.tsx`. The former responds to `/` requests and the latter to `/about`. Using `next/link` you can add hyperlinks between them with universal routing capabilities. The `day` directory shows that you can have subdirectories.
+This is the most minimal starter for your Next.js project.
 
 ## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/hello-world)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world)
 

@@ -27,11 +27,12 @@ export function isFolderEmpty(root: string, name: string): boolean {
     '.yarn',
   ]
 
-  const conflicts = fs
-    .readdirSync(root)
-    .filter((file) => !validFiles.includes(file))
-    // Support IntelliJ IDEA-based editors
-    .filter((file) => !/\.iml$/.test(file))
+  const conflicts = fs.readdirSync(root).filter(
+    (file) =>
+      !validFiles.includes(file) &&
+      // Support IntelliJ IDEA-based editors
+      !/\.iml$/.test(file)
+  )
 
   if (conflicts.length > 0) {
     console.log(

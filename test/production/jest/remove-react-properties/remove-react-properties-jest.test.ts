@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 
@@ -41,11 +41,11 @@ describe('next/jest', () => {
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'yarn jest --forceExit tests/index.test.tsx && yarn next build',
+          build: 'jest --forceExit tests/index.test.tsx && next build',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

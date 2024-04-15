@@ -3,7 +3,6 @@ import { promises } from 'fs'
 import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
-import chalk from 'next/dist/compiled/chalk'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
@@ -28,6 +27,7 @@ import type {
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
+import * as Log from '../build/output/log'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -70,6 +70,12 @@ export interface ImageParamsResult {
   mimeType: string
   sizes: number[]
   minimumCacheTTL: number
+}
+
+interface ImageUpstream {
+  buffer: Buffer
+  contentType: string | null | undefined
+  cacheControl: string | null | undefined
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -168,6 +174,12 @@ export class ImageOptimizerCache {
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
+
+    if (domains.length > 0) {
+      Log.warnOnce(
+        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+      )
+    }
 
     if (!url) {
       return { errorMessage: '"url" parameter is required' }
@@ -294,7 +306,7 @@ export class ImageOptimizerCache {
       const now = Date.now()
 
       for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.')
+        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.', 4)
         const buffer = await promises.readFile(join(cacheDir, file))
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
@@ -348,7 +360,7 @@ export class ImageOptimizerCache {
         value.etag
       )
     } catch (err) {
-      console.error(`Failed to write image to cache ${cacheKey}`, err)
+      Log.error(`Failed to write image to cache ${cacheKey}`, err)
     }
   }
 }
@@ -367,13 +379,15 @@ export class ImageError extends Error {
   }
 }
 
-function parseCacheControl(str: string | null): Map<string, string> {
+function parseCacheControl(
+  str: string | null | undefined
+): Map<string, string> {
   const map = new Map<string, string>()
   if (!str) {
     return map
   }
   for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=')
+    let [key, value] = directive.trim().split('=', 2)
     key = key.toLowerCase()
     if (value) {
       value = value.toLowerCase()
@@ -383,7 +397,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
   return map
 }
 
-export function getMaxAge(str: string | null): number {
+export function getMaxAge(str: string | null | undefined): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -438,9 +452,8 @@ export async function optimizeImage({
           chromaSubsampling: '4:2:0', // same as webp
         })
       } else {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
+        Log.warnOnce(
+          `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
             'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
         )
         transformer.webp({ quality })
@@ -450,23 +463,22 @@ export async function optimizeImage({
     } else if (contentType === PNG) {
       transformer.png({ quality })
     } else if (contentType === JPEG) {
-      transformer.jpeg({ quality })
+      transformer.jpeg({ quality, progressive: true })
     }
 
     optimizedBuffer = await transformer.toBuffer()
     // End sharp transformation logic
   } else {
     if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
-      console.error(
+      Log.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
       throw new ImageError(500, 'Internal Server Error')
     }
     // Show sharp warning in production once
     if (showSharpMissingWarning) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
+      Log.warnOnce(
+        `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
           'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
       )
       showSharpMissingWarning = false
@@ -512,86 +524,94 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function imageOptimizer(
+export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+  const res = await fetch(href)
+
+  if (!res.ok) {
+    Log.error('upstream image response failed for', href, res.status)
+    throw new ImageError(
+      res.status,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const contentType = res.headers.get('Content-Type')
+  const cacheControl = res.headers.get('Cache-Control')
+
+  return { buffer, contentType, cacheControl }
+}
+
+export async function fetchInternalImage(
+  href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
-  paramsResult: ImageParamsResult,
-  nextConfig: NextConfigComplete,
-  isDev: boolean | undefined,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>
-): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
-  let upstreamBuffer: Buffer
-  let upstreamType: string | null | undefined
-  let maxAge: number
-  const { isAbsolute, href, width, mimeType, quality } = paramsResult
+): Promise<ImageUpstream> {
+  try {
+    const mocked = createRequestResponseMocks({
+      url: href,
+      method: _req.method || 'GET',
+      headers: _req.headers,
+      socket: _req.socket,
+    })
 
-  if (isAbsolute) {
-    const upstreamRes = await fetch(href)
+    await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+    await mocked.res.hasStreamed
 
-    if (!upstreamRes.ok) {
-      console.error(
-        'upstream image response failed for',
-        href,
-        upstreamRes.status
-      )
+    if (!mocked.res.statusCode) {
+      Log.error('image response failed for', href, mocked.res.statusCode)
       throw new ImageError(
-        upstreamRes.status,
-        '"url" parameter is valid but upstream response is invalid'
+        mocked.res.statusCode,
+        '"url" parameter is valid but internal response is invalid'
       )
     }
 
-    upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
-    upstreamType =
-      detectContentType(upstreamBuffer) ||
-      upstreamRes.headers.get('Content-Type')
-    maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
-  } else {
-    try {
-      const mocked = createRequestResponseMocks({
-        url: href,
-        method: _req.method || 'GET',
-        headers: _req.headers,
-        socket: _req.socket,
-      })
-
-      await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
-      await mocked.res.hasStreamed
-
-      if (!mocked.res.statusCode) {
-        console.error('image response failed for', href, mocked.res.statusCode)
-        throw new ImageError(
-          mocked.res.statusCode,
-          '"url" parameter is valid but internal response is invalid'
-        )
-      }
-
-      upstreamBuffer = Buffer.concat(mocked.res.buffers)
-      upstreamType =
-        detectContentType(upstreamBuffer) ||
-        mocked.res.getHeader('Content-Type')
-      const cacheControl = mocked.res.getHeader('Cache-Control')
-      maxAge = cacheControl ? getMaxAge(cacheControl) : 0
-    } catch (err) {
-      console.error('upstream image response failed for', href, err)
-      throw new ImageError(
-        500,
-        '"url" parameter is valid but upstream response is invalid'
-      )
-    }
+    const buffer = Buffer.concat(mocked.res.buffers)
+    const contentType = mocked.res.getHeader('Content-Type')
+    const cacheControl = mocked.res.getHeader('Cache-Control')
+    return { buffer, contentType, cacheControl }
+  } catch (err) {
+    Log.error('upstream image response failed for', href, err)
+    throw new ImageError(
+      500,
+      '"url" parameter is valid but upstream response is invalid'
+    )
   }
+}
+
+export async function imageOptimizer(
+  imageUpstream: ImageUpstream,
+  paramsResult: Pick<
+    ImageParamsResult,
+    'href' | 'width' | 'quality' | 'mimeType'
+  >,
+  nextConfig: {
+    output: NextConfigComplete['output']
+    images: Pick<
+      NextConfigComplete['images'],
+      'dangerouslyAllowSVG' | 'minimumCacheTTL'
+    >
+  },
+  isDev: boolean | undefined
+): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
+  const { href, quality, width, mimeType } = paramsResult
+  const upstreamBuffer = imageUpstream.buffer
+  const maxAge = getMaxAge(imageUpstream.cacheControl)
+  const upstreamType =
+    detectContentType(upstreamBuffer) ||
+    imageUpstream.contentType?.toLowerCase().trim()
 
   if (upstreamType) {
-    upstreamType = upstreamType.toLowerCase().trim()
-
     if (
       upstreamType.startsWith('image/svg') &&
       !nextConfig.images.dangerouslyAllowSVG
     ) {
-      console.error(
+      Log.error(
         `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
       )
       throw new ImageError(
@@ -599,15 +619,21 @@ export async function imageOptimizer(
         '"url" parameter is valid but image type is not allowed'
       )
     }
-    const vector = VECTOR_TYPES.includes(upstreamType)
-    const animate =
-      ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
 
-    if (vector || animate) {
+    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+      Log.warnOnce(
+        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+      )
+      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
+    }
+    if (VECTOR_TYPES.includes(upstreamType)) {
+      // We don't warn here because we already know that "dangerouslyAllowSVG"
+      // was enabled above, therefore the user explicitly opted in.
+      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
     if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      console.error(
+      Log.error(
         "The requested resource isn't a valid image for",
         href,
         'received',
@@ -686,13 +712,13 @@ function getFileNameWithExtension(
   url: string,
   contentType: string | null
 ): string {
-  const [urlWithoutQueryParams] = url.split('?')
+  const [urlWithoutQueryParams] = url.split('?', 1)
   const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
   if (!contentType || !fileNameWithExtension) {
     return 'image.bin'
   }
 
-  const [fileName] = fileNameWithExtension.split('.')
+  const [fileName] = fileNameWithExtension.split('.', 1)
   const extension = getExtension(contentType)
   return `${fileName}.${extension}`
 }
@@ -793,17 +819,4 @@ export async function getImageSize(
 
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
-}
-
-export class Deferred<T> {
-  promise: Promise<T>
-  resolve!: (value: T) => void
-  reject!: (error?: Error) => void
-
-  constructor() {
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
-  }
 }

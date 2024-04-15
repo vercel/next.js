@@ -1,0 +1,10 @@
+
+  x You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+  | react-essentials#server-components
+  | 
+  | 
+   ,-[input.js:8:1]
+ 8 | 
+ 9 | import 'server-only'
+   : ^^^^^^^^^^^^^^^^^^^^
+   `----

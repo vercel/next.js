@@ -1,42 +1,36 @@
-import React, { useMemo, useRef } from 'react'
-import type {
-  AppRouterInstance,
-  NavigateOptions,
-} from '../app-router-context.shared-runtime'
-import { PathnameContext } from '../hooks-client-context.shared-runtime'
+import type { AppRouterInstance } from '../app-router-context.shared-runtime'
+import type { Params } from './utils/route-matcher'
 import type { NextRouter } from './router'
+
+import React, { useMemo, useRef } from 'react'
+import { PathnameContext } from '../hooks-client-context.shared-runtime'
 import { isDynamicRoute } from './utils'
 import { asPathToSearchParams } from './utils/as-path-to-search-params'
-import { Params } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
-/**
- * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
- *
- * @param router the NextRouter to adapt
- * @returns an AppRouterInstance
- */
+/** It adapts a Pages Router (`NextRouter`) to the App Router Instance. */
 export function adaptForAppRouterInstance(
-  router: NextRouter
+  pagesRouter: NextRouter
 ): AppRouterInstance {
   return {
-    back(): void {
-      router.back()
+    back() {
+      pagesRouter.back()
     },
-    forward(): void {
-      router.forward()
+    forward() {
+      pagesRouter.forward()
     },
-    refresh(): void {
-      router.reload()
+    refresh() {
+      pagesRouter.reload()
     },
-    push(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.push(href, undefined, { scroll })
+    fastRefresh() {},
+    push(href, { scroll } = {}) {
+      void pagesRouter.push(href, undefined, { scroll })
     },
-    replace(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.replace(href, undefined, { scroll })
+    replace(href, { scroll } = {}) {
+      void pagesRouter.replace(href, undefined, { scroll })
     },
-    prefetch(href: string): void {
-      void router.prefetch(href)
+    prefetch(href) {
+      void pagesRouter.prefetch(href)
     },
   }
 }

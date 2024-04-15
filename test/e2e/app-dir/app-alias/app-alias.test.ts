@@ -4,9 +4,6 @@ createNextDescribe(
   'app-dir alias',
   {
     files: __dirname,
-    packageJson: {
-      type: 'module',
-    },
     skipDeployment: true,
   },
   ({ next, isNextStart }) => {

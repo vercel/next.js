@@ -1,9 +1,10 @@
-import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
-import {
-  decorateServerError,
-  getServerError,
-} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import { AsyncLocalStorage } from 'async_hooks'
 import {
   COMPILER_NAMES,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -13,22 +14,31 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type {
-  EdgeFunctionDefinition,
-  SUPPORTED_NATIVE_MODULES,
-} from '../../../build/webpack/plugins/middleware-plugin'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
 import BufferImplementation from 'node:buffer'
 import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
+import { intervalsManager, timeoutsManager } from './resource-managers'
 
 interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
+}
+
+let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
+
+if (process.env.NODE_ENV === 'development') {
+  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
+  getServerError = middleware.getServerError
+  decorateServerError =
+    require('../../../shared/lib/error-source').decorateServerError
+} else {
+  getServerError = (error: Error, _: string) => error
+  decorateServerError = (_: Error, __: string) => {}
 }
 
 /**
@@ -41,11 +51,27 @@ const moduleContexts = new Map<string, ModuleContext>()
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 /**
+ * Same as clearModuleContext but for all module contexts.
+ */
+export async function clearAllModuleContexts() {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+  moduleContexts.clear()
+  pendingModuleCaches.clear()
+}
+
+/**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
+ *
+ * This function also clears all intervals and timeouts created by the
+ * module context.
  */
 export async function clearModuleContext(path: string) {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+
   const handleContext = (
     key: string,
     cache: ReturnType<(typeof moduleContexts)['get']>,
@@ -207,6 +233,10 @@ const NativeModuleMap = (() => {
   return new Map(Object.entries(mods))
 })()
 
+export const requestStore = new AsyncLocalStorage<{
+  headers: Headers
+}>()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -233,6 +263,12 @@ async function createModuleContext(options: ModuleContextOptions) {
           return value
         },
       })
+
+      if (process.env.NODE_ENV !== 'production') {
+        context.__next_log_error__ = function (err: unknown) {
+          options.onError(err)
+        }
+      }
 
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
@@ -310,6 +346,19 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         init.headers = new Headers(init.headers ?? {})
+
+        // Forward subrequest header from incoming request to outgoing request
+        const store = requestStore.getStore()
+        if (
+          store?.headers.has('x-middleware-subrequest') &&
+          !init.headers.has('x-middleware-subrequest')
+        ) {
+          init.headers.set(
+            'x-middleware-subrequest',
+            store.headers.get('x-middleware-subrequest') ?? ''
+          )
+        }
+
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
         const value = prevs.concat(options.moduleName).join(':')
@@ -376,7 +425,25 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       Object.assign(context, wasm)
 
+      context.performance = performance
+
       context.AsyncLocalStorage = AsyncLocalStorage
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setInterval = (...args: Parameters<typeof setInterval>) =>
+        intervalsManager.add(args)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.clearInterval = (interval: number) =>
+        intervalsManager.remove(interval)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
+        timeoutsManager.add(args)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.clearTimeout = (timeout: number) =>
+        timeoutsManager.remove(timeout)
 
       return context
     },
@@ -399,6 +466,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
 interface ModuleContextOptions {
   moduleName: string
+  onError: (err: unknown) => void
   onWarning: (warn: Error) => void
   useCache: boolean
   distDir: string

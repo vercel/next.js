@@ -1,4 +1,4 @@
-const Page = async () => {
+export default function Page() {
   return (
     <>
       <h1>Next.js 13 + Grafbase</h1>
@@ -7,7 +7,5 @@ const Page = async () => {
         explore each post by clicking the link in the nav.
       </p>
     </>
-  )
+  );
 }
-
-export default Page

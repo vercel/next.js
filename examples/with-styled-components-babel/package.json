@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
@@ -9,14 +9,13 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-is": "^18.2.0",
-    "styled-components": "^5.3.5"
+    "styled-components": "^6.1.0"
   },
   "devDependencies": {
-    "@types/node": "18.7.14",
-    "@types/react": "^18.0.18",
-    "@types/styled-components": "5.1.26",
-    "babel-plugin-styled-components": "^2.0.7",
-    "typescript": "4.8.2"
+    "@types/node": "^18.18.3",
+    "@types/react": "^18.2.33",
+    "@types/react-dom": "^18.2.14",
+    "babel-plugin-styled-components": "^2.1.4",
+    "typescript": "^5.2.2"
   }
 }

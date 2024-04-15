@@ -1,12 +1,12 @@
-import { getPayload } from 'payload/dist/payload'
-import config from './payload.config'
+import { getPayload } from "payload/dist/payload";
+import config from "./payload.config";
 
 if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI environment variable is missing')
+  throw new Error("MONGODB_URI environment variable is missing");
 }
 
 if (!process.env.PAYLOAD_SECRET) {
-  throw new Error('PAYLOAD_SECRET environment variable is missing')
+  throw new Error("PAYLOAD_SECRET environment variable is missing");
 }
 
 /**
@@ -16,15 +16,15 @@ if (!process.env.PAYLOAD_SECRET) {
  *
  * Source: https://github.com/vercel/next.js/blob/canary/examples/with-mongodb-mongoose/lib/dbConnect.js
  */
-let cached = (global as any).payload
+let cached = (global as any).payload;
 
 if (!cached) {
-  cached = (global as any).payload = { client: null, promise: null }
+  cached = (global as any).payload = { client: null, promise: null };
 }
 
 export const getPayloadClient = async () => {
   if (cached.client) {
-    return cached.client
+    return cached.client;
   }
 
   if (!cached.promise) {
@@ -33,17 +33,17 @@ export const getPayloadClient = async () => {
       mongoURL: process.env.MONGODB_URI as string,
       secret: process.env.PAYLOAD_SECRET as string,
       config: config,
-    })
+    });
   }
 
   try {
-    cached.client = await cached.promise
+    cached.client = await cached.promise;
   } catch (e) {
-    cached.promise = null
-    throw e
+    cached.promise = null;
+    throw e;
   }
 
-  return cached.client
-}
+  return cached.client;
+};
 
-export default getPayloadClient
+export default getPayloadClient;

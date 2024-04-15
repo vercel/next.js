@@ -1,5 +1,5 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { ConfigurationContext } from '../../../utils'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 

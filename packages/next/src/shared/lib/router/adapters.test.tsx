@@ -1,5 +1,5 @@
+import type { NextRouter } from './router'
 import { adaptForAppRouterInstance } from './adapters'
-import { NextRouter } from './router'
 
 describe('adaptForAppRouterInstance', () => {
   beforeEach(() => jest.resetAllMocks())

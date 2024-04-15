@@ -16,6 +16,9 @@ export default function Layout({ children, slot }) {
       <div>
         <Link href="/parallel-catchall/bar">catchall bar</Link>
       </div>
+      <div>
+        <Link href="/parallel-catchall/baz">catchall baz</Link>
+      </div>
     </div>
   )
 }

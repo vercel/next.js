@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -15,7 +15,7 @@ import {
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
 
-describe('should set-up next', () => {
+describe('required server files i18n', () => {
   let next: NextInstance
   let server
   let appPort
@@ -48,11 +48,12 @@ describe('should set-up next', () => {
       packageJson: {
         scripts: {
           build: wasmPkgIsAvailable
-            ? 'rm -rfv node_modules/@next/swc && yarn next build'
-            : 'yarn next build',
+            ? 'rm -rfv node_modules/@next/swc && next build'
+            : 'next build',
         },
       },
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      buildCommand: 'pnpm build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],

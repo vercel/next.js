@@ -1,5 +1,5 @@
 import { normalizePagePath } from '../../../../../shared/lib/page-path/normalize-page-path'
-import { Normalizer } from '../../normalizer'
+import type { Normalizer } from '../../normalizer'
 import { Normalizers } from '../../normalizers'
 import { PrefixingNormalizer } from '../../prefixing-normalizer'
 import { wrapNormalizerFn } from '../../wrap-normalizer-fn'

@@ -329,8 +329,7 @@ const plugin = (options: any = {}) => {
                 return parsedDeclaration
               }
 
-              const splittedUrl = url.split(/(\?)?#/)
-              const [pathname, query, hashOrQuery] = splittedUrl
+              const [pathname, query, hashOrQuery] = url.split(/(\?)?#/, 3)
 
               let hash = query ? '?' : ''
               hash += hashOrQuery ? `#${hashOrQuery}` : ''

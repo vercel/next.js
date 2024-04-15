@@ -82,7 +82,7 @@ describe('next/font/local loader', () => {
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
-        font-feature-settings: \\"smcp\\" on;
+        font-feature-settings: "smcp" on;
         ascent-override: 90%;
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');

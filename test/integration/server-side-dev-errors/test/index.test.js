@@ -60,11 +60,11 @@ describe('server-side dev errors', () => {
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gspPage, content)
-      await hasRedbox(browser, false)
+      await hasRedbox(browser)
     } finally {
       await fs.writeFile(gspPage, content)
     }
@@ -92,11 +92,11 @@ describe('server-side dev errors', () => {
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gsspPage, content)
-      await hasRedbox(browser, false)
+      await hasRedbox(browser)
     } finally {
       await fs.writeFile(gsspPage, content)
     }
@@ -124,11 +124,11 @@ describe('server-side dev errors', () => {
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicGsspPage, content)
-      await hasRedbox(browser, false)
+      await hasRedbox(browser)
     } finally {
       await fs.writeFile(dynamicGsspPage, content)
     }
@@ -149,18 +149,18 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/hello.js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(apiPage, content)
-      await hasRedbox(browser, false)
+      await hasRedbox(browser)
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -181,18 +181,18 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/blog/[slug].js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicApiPage, content)
-      await hasRedbox(browser, false)
+      await hasRedbox(browser)
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }
@@ -206,7 +206,7 @@ describe('server-side dev errors', () => {
       const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-rejection.js') &&
-        err.includes('7:19') &&
+        err.includes('7:20') &&
         err.includes('getServerSideProps') &&
         err.includes('catch this rejection')
         ? 'success'
@@ -222,7 +222,7 @@ describe('server-side dev errors', () => {
       const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
 
       return cleanStderr.includes('pages/uncaught-empty-rejection.js') &&
-        cleanStderr.includes('7:19') &&
+        cleanStderr.includes('7:20') &&
         cleanStderr.includes('getServerSideProps') &&
         cleanStderr.includes('new Error()')
         ? 'success'
@@ -238,7 +238,7 @@ describe('server-side dev errors', () => {
       const err = stderr.slice(stderrIdx)
 
       return err.includes('pages/uncaught-exception.js') &&
-        err.includes('7:10') &&
+        err.includes('7:11') &&
         err.includes('getServerSideProps') &&
         err.includes('catch this exception')
         ? 'success'
@@ -254,7 +254,7 @@ describe('server-side dev errors', () => {
       const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
 
       return cleanStderr.includes('pages/uncaught-empty-exception.js') &&
-        cleanStderr.includes('7:10') &&
+        cleanStderr.includes('7:11') &&
         cleanStderr.includes('getServerSideProps') &&
         cleanStderr.includes('new Error()')
         ? 'success'

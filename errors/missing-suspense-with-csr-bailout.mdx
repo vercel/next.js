@@ -1,0 +1,75 @@
+---
+title: Missing Suspense boundary with useSearchParams
+---
+
+#### Why This Error Occurred
+
+Reading search parameters through `useSearchParams()` without a Suspense boundary will opt the entire page into client-side rendering. This could cause your page to be blank until the client-side JavaScript has loaded.
+
+#### Possible Ways to Fix It
+
+Ensure that calls to `useSearchParams()` are wrapped in a Suspense boundary.
+
+```tsx filename="app/search.tsx" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+
+function Search() {
+  const searchParams = useSearchParams()
+
+  return <input placeholder="Search..." />
+}
+
+export function Searchbar() {
+  return (
+    // You could have a loading skeleton as the `fallback` too
+    <Suspense>
+      <Search />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/search.js" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+
+function Search() {
+  const searchParams = useSearchParams()
+
+  return <input placeholder="Search..." />
+}
+
+export function Searchbar() {
+  return (
+    // You could have a loading skeleton as the `fallback` too
+    <Suspense>
+      <Search />
+    </Suspense>
+  )
+}
+```
+
+This will ensure the page does not de-opt to client-side rendering.
+
+#### Disabling
+
+We don't recommend disabling this rule. However, if you need to, you can disable it by setting the `missingSuspenseWithCSRBailout` option to `false` in your `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+}
+```
+
+This configuration option will be removed in a future major version.
+
+### Useful Links
+
+- [`useSearchParams`](https://nextjs.org/docs/app/api-reference/functions/use-search-params)

@@ -1,0 +1,22 @@
+name: Notify about the top 15 issues (most reacted) in the last 90 days
+
+on:
+  schedule:
+    - cron: '0 13 * * 1' # Every Monday at 1PM UTC (9AM EST)
+  workflow_dispatch:
+
+jobs:
+  popular-issues:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: corepack enable
+      - name: 'Send notification to Slack'
+        run: node ./.github/actions/next-repo-info/dist/issues/index.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}

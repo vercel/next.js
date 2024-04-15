@@ -29,7 +29,7 @@ export class NextDevInstance extends NextInstance {
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
-      'yarn',
+      'pnpm',
       'next',
       useTurbo ? getTurbopackFlag() : undefined,
       useDirArg && this.testDir,
@@ -37,6 +37,13 @@ export class NextDevInstance extends NextInstance {
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
     }
 
     console.log('running', startArgs.join(' '))
@@ -107,7 +114,7 @@ export class NextDevInstance extends NextInstance {
             msg.includes('started server on') &&
             msg.includes('url:')
           ) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
             resolveServer()
           }
         }

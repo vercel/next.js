@@ -3,8 +3,8 @@ import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { matcher } from 'next/dist/compiled/micromatch'
-import { ServerRuntime } from 'next/types'
+import picomatch from 'next/dist/compiled/picomatch'
+import type { ServerRuntime } from 'next/types'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -18,13 +18,28 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 // TODO: migrate preferredRegion here
 // Don't forget to update the next-types-plugin file as well
 const AUTHORIZED_EXTRA_ROUTER_PROPS = ['maxDuration']
 
-export interface MiddlewareConfig {
+export interface MiddlewareConfigParsed
+  extends Omit<MiddlewareConfig, 'matcher'> {
   matchers?: MiddlewareMatcher[]
+}
+
+/**
+ * This interface represents the exported `config` object in a `middleware.ts` file.
+ *
+ * Read more: [Next.js Docs: Middleware `config` object](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#config-object-optional)
+ */
+export interface MiddlewareConfig {
+  /**
+   * Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher),
+   * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
+   */
+  matcher?: string | string[] | MiddlewareMatcher[]
   unstable_allowDynamicGlobs?: string[]
   regions?: string[] | string
 }
@@ -44,7 +59,7 @@ export interface PageStaticInfo {
   ssr?: boolean
   rsc?: RSCModuleType
   generateStaticParams?: boolean
-  middleware?: MiddlewareConfig
+  middleware?: MiddlewareConfigParsed
   amp?: boolean | 'hybrid'
   extraConfig?: Record<string, any>
 }
@@ -53,7 +68,7 @@ const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
 const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+  /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
@@ -61,13 +76,16 @@ const SERVER_ACTION_DIRECTIVE = 'use server'
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
   source: string,
-  isServerLayer: boolean
+  isReactServerLayer: boolean
 ): RSCMeta {
-  const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const actionsJson = source.match(ACTION_MODULE_LABEL)
+  const actions = actionsJson
+    ? (Object.values(JSON.parse(actionsJson[1])) as string[])
+    : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 
-  if (!isServerLayer) {
+  if (!isReactServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
@@ -368,8 +386,8 @@ function getMiddlewareConfig(
   pageFilePath: string,
   config: any,
   nextConfig: NextConfig
-): Partial<MiddlewareConfig> {
-  const result: Partial<MiddlewareConfig> = {}
+): Partial<MiddlewareConfigParsed> {
+  const result: Partial<MiddlewareConfigParsed> = {}
 
   if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
@@ -391,7 +409,7 @@ function getMiddlewareConfig(
       : [config.unstable_allowDynamic]
     for (const glob of result.unstable_allowDynamicGlobs ?? []) {
       try {
-        matcher(glob)
+        picomatch(glob)
       } catch (err) {
         throw new Error(
           `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
@@ -455,12 +473,12 @@ export async function isDynamicMetadataRoute(
   pageFilePath: string
 ): Promise<boolean> {
   const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
-
-  const swcAST = await parseModule(pageFilePath, fileContent)
-  const exportsInfo = checkExports(swcAST, pageFilePath)
-
-  return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
+  if (/generateImageMetadata|generateSitemaps/.test(fileContent)) {
+    const swcAST = await parseModule(pageFilePath, fileContent)
+    const exportsInfo = checkExports(swcAST, pageFilePath)
+    return !!(exportsInfo.generateImageMetadata || exportsInfo.generateSitemaps)
+  }
+  return false
 }
 
 /**
@@ -475,13 +493,13 @@ export async function getPageStaticInfo(params: {
   nextConfig: Partial<NextConfig>
   isDev?: boolean
   page?: string
-  pageType: 'pages' | 'app' | 'root'
+  pageType: PAGE_TYPES
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
     )
   ) {
@@ -499,19 +517,19 @@ export async function getPageStaticInfo(params: {
     const rsc = rscInfo.type
 
     // default / failsafe value for config
-    let config: any
+    let config: any // TODO: type this as unknown
     try {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
       if (e instanceof UnsupportedValueError) {
         warnAboutUnsupportedValue(pageFilePath, page, e)
       }
-      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+      // `export config` doesn't exist, or other unknown error thrown by swc, silence them
     }
 
     const extraConfig: Record<string, any> = {}
 
-    if (extraProperties && pageType === 'app') {
+    if (extraProperties && pageType === PAGE_TYPES.APP) {
       for (const prop of extraProperties) {
         if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(prop)) continue
         try {
@@ -522,14 +540,14 @@ export async function getPageStaticInfo(params: {
           }
         }
       }
-    } else if (pageType === 'pages') {
+    } else if (pageType === PAGE_TYPES.PAGES) {
       for (const key in config) {
         if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(key)) continue
         extraConfig[key] = config[key]
       }
     }
 
-    if (pageType === 'app') {
+    if (pageType === PAGE_TYPES.APP) {
       if (config) {
         let message = `Page config in ${pageFilePath} is deprecated. Replace \`export const config=…\` with the following:`
 
@@ -562,7 +580,7 @@ export async function getPageStaticInfo(params: {
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
     let resolvedRuntime
-    if (pageType === 'app') {
+    if (pageType === PAGE_TYPES.APP) {
       resolvedRuntime = runtime
     } else {
       resolvedRuntime = runtime || config.runtime
@@ -585,7 +603,7 @@ export async function getPageStaticInfo(params: {
       }
     }
 
-    const requiresServerRuntime = ssr || ssg || pageType === 'app'
+    const requiresServerRuntime = ssr || ssg || pageType === PAGE_TYPES.APP
 
     const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
 
@@ -600,7 +618,7 @@ export async function getPageStaticInfo(params: {
 
     if (
       resolvedRuntime === SERVER_RUNTIME.edge &&
-      pageType === 'pages' &&
+      pageType === PAGE_TYPES.PAGES &&
       page &&
       !isAnAPIRoute
     ) {
@@ -619,7 +637,7 @@ export async function getPageStaticInfo(params: {
     )
 
     if (
-      pageType === 'app' &&
+      pageType === PAGE_TYPES.APP &&
       directives?.has('client') &&
       generateStaticParams
     ) {

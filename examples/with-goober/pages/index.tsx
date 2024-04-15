@@ -1,12 +1,12 @@
-import { styled } from 'goober'
+import { styled } from "goober";
 
-const Title = styled('h1')`
+const Title = styled("h1")`
   padding: 0;
   margin: 0;
   color: tomato;
-`
+`;
 
-const SmallTitle = styled('p')`
+const SmallTitle = styled("p")`
   font-size: 1em;
   color: dodgerblue;
   transition: padding 200ms ease-in-out;
@@ -16,7 +16,7 @@ const SmallTitle = styled('p')`
     padding-left: 2em;
     color: darkseagreen;
   }
-`
+`;
 
 export default function Home() {
   return (
@@ -24,5 +24,5 @@ export default function Home() {
       <Title>You are using 🥜 goober! Yay!</Title>
       <SmallTitle>Go on, try it!</SmallTitle>
     </>
-  )
+  );
 }

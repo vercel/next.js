@@ -37,8 +37,8 @@ function runTests(url: string) {
   })
 }
 
-describe('Image Loader Config', () => {
-  describe('dev mode - component', () => {
+describe('Image Loader Config new', () => {
+  describe('development mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -48,19 +48,21 @@ describe('Image Loader Config', () => {
     })
     runTests('/')
   })
-
-  describe('server mode - component', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests('/')
-  })
-  describe('dev mode - getImgProps', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode - component',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => {
+        killApp(app)
+      })
+      runTests('/')
+    }
+  )
+  describe('development mode - getImageProps', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -70,16 +72,18 @@ describe('Image Loader Config', () => {
     })
     runTests('/get-img-props')
   })
-
-  describe('server mode - getImgProps', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => {
-      killApp(app)
-    })
-    runTests('/get-img-props')
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode - getImageProps',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => {
+        killApp(app)
+      })
+      runTests('/get-img-props')
+    }
+  )
 })

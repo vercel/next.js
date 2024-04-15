@@ -1,10 +1,13 @@
-import connect from './error-overlay/hot-dev-client'
-import { sendMessage } from './error-overlay/websocket'
+import connect from '../components/react-dev-overlay/pages/hot-reloader-client'
+import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
+
+let reloading = false
 
 export default (mode: 'webpack' | 'turbopack') => {
   const devClient = connect(mode)
 
   devClient.subscribeToHmrEvent((obj: any) => {
+    if (reloading) return
     // if we're on an error/404 page, we can't reliably tell if the newly added/removed page
     // matches the current path. In that case, assume any added/removed entries should trigger a reload of the current page
     const isOnErrorPage =
@@ -19,6 +22,7 @@ export default (mode: 'webpack' | 'turbopack') => {
             clientId: window.__nextDevClientId,
           })
         )
+        reloading = true
         return window.location.reload()
       }
       case 'removedPage': {
@@ -54,7 +58,9 @@ export default (mode: 'webpack' | 'turbopack') => {
         return
       }
       case 'serverError':
-      case 'devPagesManifestUpdate': {
+      case 'devPagesManifestUpdate':
+      case 'building':
+      case 'finishBuilding': {
         return
       }
       default: {

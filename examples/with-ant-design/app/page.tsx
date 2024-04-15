@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import { SmileFilled } from '@ant-design/icons'
+import React from "react";
+import Link from "next/link";
+import { SmileFilled } from "@ant-design/icons";
 import {
   Button,
   DatePicker,
@@ -12,12 +12,12 @@ import {
   Slider,
   Switch,
   ConfigProvider,
-} from 'antd'
-import theme from './themeConfig'
+} from "antd";
+import theme from "./themeConfig";
 
 const HomePage = () => (
   <ConfigProvider theme={theme}>
-    <div style={{ padding: 100, height: '100vh' }}>
+    <div style={{ padding: 100, height: "100vh" }}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
           <SmileFilled style={{ fontSize: 48 }} />
@@ -27,7 +27,7 @@ const HomePage = () => (
       <div>
         <Form
           layout="horizontal"
-          size={'large'}
+          size={"large"}
           labelCol={{ span: 8 }}
           wrapperCol={{ span: 8 }}
         >
@@ -51,11 +51,11 @@ const HomePage = () => (
               defaultValue="lucy"
               style={{ width: 192 }}
               options={[
-                { value: 'jack', label: 'Jack' },
-                { value: 'lucy', label: 'Lucy' },
-                { value: 'Yiminghe', label: 'yiminghe' },
-                { value: 'lijianan', label: 'lijianan' },
-                { value: 'disabled', label: 'Disabled', disabled: true },
+                { value: "jack", label: "Jack" },
+                { value: "lucy", label: "Lucy" },
+                { value: "Yiminghe", label: "yiminghe" },
+                { value: "lijianan", label: "lijianan" },
+                { value: "disabled", label: "Disabled", disabled: true },
               ]}
             />
           </Form.Item>
@@ -72,6 +72,6 @@ const HomePage = () => (
       </div>
     </div>
   </ConfigProvider>
-)
+);
 
-export default HomePage
+export default HomePage;

@@ -1,9 +1,0 @@
-[[profile.default.overrides]]
-filter = "package(next-dev-tests)"
-# Default is 100ms. Extending this addresses false positives in the
-# next-dev integration tests.
-leak-timeout = "500ms"
-retries = 2
-slow-timeout = "60s"
-threads-required = 4
-failure-output = "immediate-final"

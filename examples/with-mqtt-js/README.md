@@ -33,7 +33,7 @@ cp .env.local.example .env.local
 Then set each variable on `.env.local`:
 
 - `NEXT_MQTT_URI`: The URI of the broker. For example `wss://test.mosquitto.org:8081/mqtt`
-- `NEXT_MQTT_CLIENTID`: An arbritrary string of max. 23 characters.
+- `NEXT_MQTT_CLIENTID`: An arbitrary string of max. 23 characters.
 - `NEXT_MQTT_USERNAME`: The username for the connection to the broker.
 - `NEXT_MQTT_PASSWORD`: The password for the connection to the broker.
 

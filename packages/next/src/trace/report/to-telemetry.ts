@@ -1,5 +1,6 @@
-import { Telemetry } from '../../telemetry/storage'
+import type { Telemetry } from '../../telemetry/storage'
 import { traceGlobals } from '../shared'
+import type { TraceEvent } from '../types'
 
 const TRACE_EVENT_ACCESSLIST = new Map(
   Object.entries({
@@ -7,8 +8,8 @@ const TRACE_EVENT_ACCESSLIST = new Map(
   })
 )
 
-const reportToTelemetry = (spanName: string, duration: number) => {
-  const eventName = TRACE_EVENT_ACCESSLIST.get(spanName)
+const reportToTelemetry = ({ name, duration }: TraceEvent) => {
+  const eventName = TRACE_EVENT_ACCESSLIST.get(name)
   if (!eventName) {
     return
   }

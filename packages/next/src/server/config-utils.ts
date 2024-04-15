@@ -136,7 +136,6 @@ export function loadWebpackHook() {
         '@babel/runtime/package.json',
         'next/dist/compiled/@babel/runtime/package.json',
       ],
-      ['undici', 'next/dist/compiled/undici'],
     ].map(
       // Use dynamic require.resolve to avoid statically analyzable since they're only for build time
       ([request, replacement]) => [request, require.resolve(replacement)]

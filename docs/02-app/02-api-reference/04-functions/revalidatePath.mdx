@@ -9,6 +9,8 @@ description: API Reference for the revalidatePath function.
 >
 > - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `revalidatePath` only invalidates the cache when the included path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
+> - Currently, `revalidatePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#router-cache). This behavior is temporary and will be updated in the future to apply only to the specific path.
+> - Using `revalidatePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).
 
 ## Parameters
 
@@ -16,8 +18,8 @@ description: API Reference for the revalidatePath function.
 revalidatePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
-- `path`: A string representing the filesystem path associated with the data you want to revalidate. This is the literal route segment (for example, `/product/123`) not the path on the filesystem `/product/[slug]/page`. Must be less than 1024 characters.
-- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate.
+- `path`: Either a string representing the filesystem path associated with the data you want to revalidate (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters. This value is case-sensitive.
+- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate. If `path` contains a dynamic segment (for example, `/product/[slug]/page`), this parameter is required.
 
 ## Returns
 
@@ -56,6 +58,16 @@ revalidatePath('/(main)/post/[slug]', 'layout')
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
 
+### Revalidating All Data
+
+```ts
+import { revalidatePath } from 'next/cache'
+
+revalidatePath('/', 'layout')
+```
+
+This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
+
 ### Server Action
 
 ```ts filename="app/actions.ts" switcher
@@ -73,17 +85,17 @@ export default async function submit() {
 
 ```ts filename="app/api/revalidate/route.ts" switcher
 import { revalidatePath } from 'next/cache'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (path) {
     revalidatePath(path)
-    return NextResponse.json({ revalidated: true, now: Date.now() })
+    return Response.json({ revalidated: true, now: Date.now() })
   }
 
-  return NextResponse.json({
+  return Response.json({
     revalidated: false,
     now: Date.now(),
     message: 'Missing path to revalidate',
@@ -92,7 +104,6 @@ export async function GET(request: NextRequest) {
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function GET(request) {
@@ -100,10 +111,10 @@ export async function GET(request) {
 
   if (path) {
     revalidatePath(path)
-    return NextResponse.json({ revalidated: true, now: Date.now() })
+    return Response.json({ revalidated: true, now: Date.now() })
   }
 
-  return NextResponse.json({
+  return Response.json({
     revalidated: false,
     now: Date.now(),
     message: 'Missing path to revalidate',

@@ -1,5 +1,5 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
 
 // getDirSize recursively gets size of all files in a directory
 async function getDirSize(dir, ctx = { size: 0 }) {

@@ -1,5 +1,5 @@
-import { gql, useMutation } from '@apollo/client'
-import PropTypes from 'prop-types'
+import { gql, useMutation } from "@apollo/client";
+import PropTypes from "prop-types";
 
 const VOTE_POST = gql`
   mutation votePost($id: String!) {
@@ -9,10 +9,10 @@ const VOTE_POST = gql`
       votes
     }
   }
-`
+`;
 
 const PostUpvoter = ({ votes, id }) => {
-  const [votePost] = useMutation(VOTE_POST)
+  const [votePost] = useMutation(VOTE_POST);
 
   const upvotePost = () => {
     votePost({
@@ -20,15 +20,15 @@ const PostUpvoter = ({ votes, id }) => {
         id,
       },
       optimisticResponse: {
-        __typename: 'Mutation',
+        __typename: "Mutation",
         updatePost: {
-          __typename: 'Post',
+          __typename: "Post",
           id,
           votes: votes + 1,
         },
       },
-    })
-  }
+    });
+  };
 
   return (
     <button onClick={() => upvotePost()}>
@@ -47,19 +47,19 @@ const PostUpvoter = ({ votes, id }) => {
           border-color: transparent transparent #000000 transparent;
           border-style: solid;
           border-width: 0 4px 6px 4px;
-          content: '';
+          content: "";
           height: 0;
           margin-right: 5px;
           width: 0;
         }
       `}</style>
     </button>
-  )
-}
+  );
+};
 
 PostUpvoter.propTypes = {
   id: PropTypes.string.isRequired,
   votes: PropTypes.number.isRequired,
-}
+};
 
-export default PostUpvoter
+export default PostUpvoter;

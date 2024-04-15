@@ -1,4 +1,4 @@
-export default function TestComponent({ name = 'world' }) {
+export default function TestComponent({ name = "world" }) {
   return (
     <>
       <div>Hello, {name}!</div>
@@ -12,5 +12,5 @@ export default function TestComponent({ name = 'world' }) {
         }
       `}</style>
     </>
-  )
+  );
 }

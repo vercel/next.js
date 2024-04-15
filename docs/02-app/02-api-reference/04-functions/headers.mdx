@@ -63,23 +63,62 @@ const headersList = headers()
 `headers()` can be used in combination with [Suspense for Data Fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
 
 ```jsx filename="app/page.js"
+import { Suspense } from 'react'
 import { headers } from 'next/headers'
 
-async function getUser() {
-  const headersInstance = headers()
-  const authorization = headersInstance.get('authorization')
-  // Forward the authorization header
+async function User() {
+  const authorization = headers().get('authorization')
   const res = await fetch('...', {
-    headers: { authorization },
+    headers: { authorization }, // Forward the authorization header
   })
-  return res.json()
-}
+  const user = await res.json()
 
-export default async function UserPage() {
-  const user = await getUser()
   return <h1>{user.name}</h1>
 }
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <User />
+    </Suspense>
+  )
+}
 ```
+
+#### IP Address
+
+`headers()` can be used to get the IP address of the client.
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { headers } from 'next/headers'
+
+function IP() {
+  const FALLBACK_IP_ADDRESS = '0.0.0.0'
+  const forwardedFor = headers().get('x-forwarded-for')
+
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0] ?? FALLBACK_IP_ADDRESS
+  }
+
+  return headers().get('x-real-ip') ?? FALLBACK_IP_ADDRESS
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <IP />
+    </Suspense>
+  )
+}
+```
+
+In addition to `x-forwarded-for`, `headers()` can also read:
+
+- `x-real-ip`
+- `x-forwarded-host`
+- `x-forwarded-port`
+- `x-forwarded-proto`
 
 ## Version History
 

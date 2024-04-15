@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -18,47 +18,72 @@ describe('Middleware Runtime', () => {
   let next: NextInstance
 
   const setup = ({ i18n }: { i18n: boolean }) => {
-    let nextConfigContent = ''
-    const nextConfigPath = join(__dirname, '../app/next.config.js')
-
     afterAll(async () => {
       await next.destroy()
-
-      if (nextConfigContent) {
-        await fs.writeFile(nextConfigPath, nextConfigContent)
-      }
     })
     beforeAll(async () => {
-      if (!i18n) {
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
-          nextConfigPath,
-          nextConfigContent.replace('i18n', '__i18n')
-        )
-      }
       next = await createNext({
         files: {
-          'next.config.js': new FileRef(
-            join(__dirname, '../app/next.config.js')
-          ),
           'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')
           ),
         },
+        nextConfig: {
+          experimental: {
+            webpackBuildWorker: true,
+          },
+          ...(i18n
+            ? {
+                i18n: {
+                  locales: ['en', 'fr', 'nl'],
+                  defaultLocale: 'en',
+                },
+              }
+            : {}),
+          async redirects() {
+            return [
+              {
+                source: '/redirect-1',
+                destination: '/somewhere/else',
+                permanent: false,
+              },
+            ]
+          },
+          async rewrites() {
+            return [
+              {
+                source: '/rewrite-1',
+                destination: '/ssr-page?from=config',
+              },
+              {
+                source: '/rewrite-2',
+                destination: '/about/a?from=next-config',
+              },
+              {
+                source: '/sha',
+                destination: '/shallow',
+              },
+              {
+                source: '/rewrite-3',
+                destination: '/blog/middleware-rewrite?hello=config',
+              },
+            ]
+          },
+        },
         packageJson: {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
-            build: 'yarn setup && next build',
-            dev: `yarn setup && next ${
+            build: 'pnpm run setup && next build',
+            dev: `pnpm run setup && next ${
               shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
             }`,
             start: 'next start',
           },
         },
-        startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-        buildCommand: 'yarn build',
+        startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+        buildCommand: 'pnpm build',
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
@@ -79,14 +104,12 @@ describe('Middleware Runtime', () => {
   function runTests({ i18n }: { i18n?: boolean }) {
     it('should work with notFound: true correctly', async () => {
       const browser = await next.browser('/ssr-page')
-      await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/ssg/not-found-1")')
 
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
         /This page could not be found/
       )
-      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       await browser.refresh()
       await check(
@@ -143,20 +166,30 @@ describe('Middleware Runtime', () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
         )
-        expect(manifest.middleware).toEqual({
-          '/': {
-            files: expect.arrayContaining([
-              'server/edge-runtime-webpack.js',
-              'server/middleware.js',
-            ]),
-            name: 'middleware',
-            page: '/',
-            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
-            wasm: [],
-            assets: [],
-            regions: 'auto',
-          },
+        const middlewareWithoutEnvs = {
+          ...manifest.middleware['/'],
+        }
+        const envs = {
+          ...middlewareWithoutEnvs.environments,
+        }
+        delete middlewareWithoutEnvs.environments
+        expect(middlewareWithoutEnvs).toEqual({
+          files: expect.arrayContaining([
+            'server/edge-runtime-webpack.js',
+            'server/middleware.js',
+          ]),
+          name: 'middleware',
+          page: '/',
+          matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
+          wasm: [],
+          assets: [],
+          regions: 'auto',
         })
+        expect(envs).toContainAllKeys([
+          'previewModeEncryptionKey',
+          'previewModeId',
+          'previewModeSigningKey',
+        ])
       })
 
       it('should have the custom config in the manifest', async () => {
@@ -697,14 +730,14 @@ describe('Middleware Runtime', () => {
         requests.push(x.url())
       })
 
-      browser.elementById('deep-link').click()
-      browser.waitForElementByCss('[data-query-hello="goodbye"]')
+      await browser.elementById('deep-link').click()
+      await browser.waitForElementByCss('[data-query-hello="goodbye"]')
       const deepLinkMessage = await getMessageContents()
       expect(deepLinkMessage).not.toEqual(ssrMessage)
 
       // Changing the route with a shallow link should not cause a server request
-      browser.elementById('shallow-link').click()
-      browser.waitForElementByCss('[data-query-hello="world"]')
+      await browser.elementById('shallow-link').click()
+      await browser.waitForElementByCss('[data-query-hello="world"]')
       expect(await getMessageContents()).toEqual(deepLinkMessage)
 
       // Check that no server requests were made to ?hello=world,

@@ -1,6 +1,6 @@
-import { Global, css, styled } from '@filbert-js/macro'
+import { Global, css, styled } from "@filbert-js/macro";
 
-import React from 'react'
+import React from "react";
 
 const Heading = styled.h1`
   outline: none;
@@ -19,10 +19,10 @@ const Heading = styled.h1`
     color: #3793e0;
     text-decoration: none;
   }
-`
+`;
 const Small = styled.div`
   color: black;
-`
+`;
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -32,7 +32,7 @@ const Container = styled.div`
   > * + * {
     margin-top: 1rem;
   }
-`
+`;
 export default function Home() {
   return (
     <Container>
@@ -60,7 +60,7 @@ export default function Home() {
       />
       <Heading>
         <a target="_black" href="https://filbert-js.vercel.app/">
-          {' '}
+          {" "}
           Welcome to Filbert!
         </a>
       </Heading>
@@ -73,5 +73,5 @@ export default function Home() {
         Nextjs is awesome
       </div>
     </Container>
-  )
+  );
 }

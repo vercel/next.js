@@ -1,6 +1,7 @@
-import { parse, StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { parse } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
-const regexNextStatic = /\/_next(\/static\/.+)/g
+const regexNextStatic = /\/_next(\/static\/.+)/
 
 export function parseStack(stack: string): StackFrame[] {
   const frames = parse(stack)
@@ -13,7 +14,7 @@ export function parseStack(stack: string): StackFrame[] {
           ?.replace(/\\/g, '/')
           ?.replace(/\/$/, '')
         if (distDir) {
-          frame.file = 'file://' + distDir.concat(res.pop()!)
+          frame.file = 'file://' + distDir.concat(res.pop()!) + url.search
         }
       }
     } catch {}

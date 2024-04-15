@@ -1,26 +1,29 @@
-import '../../server/web/globals'
 import type { AdapterOptions } from '../../server/web/adapter'
+
+import '../../server/web/globals'
+
 import { adapter } from '../../server/web/adapter'
 
 // Import the userland code.
-// @ts-expect-error - replaced by webpack/turbopack loader
 import * as _mod from 'VAR_USERLAND'
 
 const mod = { ..._mod }
 const handler = mod.middleware || mod.default
 
+const page = 'VAR_DEFINITION_PAGE'
+
 if (typeof handler !== 'function') {
   throw new Error(
-    `The Middleware must export a \`middleware\` or a \`default\` function`
+    `The Middleware "${page}" must export a \`middleware\` or a \`default\` function`
   )
 }
 
-export default function (
+export default function nHandler(
   opts: Omit<AdapterOptions, 'IncrementalCache' | 'page' | 'handler'>
 ) {
   return adapter({
     ...opts,
-    page: '',
+    page,
     handler,
   })
 }

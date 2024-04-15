@@ -42,9 +42,8 @@ export const createNextApp = (
   delete cloneEnv.RUN_ID
   delete cloneEnv.BUILD_NUMBER
 
-  if (testVersion) {
-    cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion
-  }
+  cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion || 'canary'
+
   return spawn('node', [cli].concat(args), {
     ...options,
     env: {
@@ -136,7 +135,7 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
+  // Tailwind templates share the same files (tailwind.config.js, postcss.config.mjs)
   if (template !== 'app-tw' && template !== 'default-tw') {
     projectFilesShouldNotExist({
       cwd,

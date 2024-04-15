@@ -1,59 +1,59 @@
-import { Dialog } from '@headlessui/react'
-import { motion } from 'framer-motion'
-import { useRouter } from 'next/router'
-import { useRef, useState } from 'react'
-import useKeypress from 'react-use-keypress'
-import type { ImageProps } from '../utils/types'
-import SharedModal from './SharedModal'
+import { Dialog } from "@headlessui/react";
+import { motion } from "framer-motion";
+import { useRouter } from "next/router";
+import { useRef, useState } from "react";
+import useKeypress from "react-use-keypress";
+import type { ImageProps } from "../utils/types";
+import SharedModal from "./SharedModal";
 
 export default function Modal({
   images,
   onClose,
 }: {
-  images: ImageProps[]
-  onClose?: () => void
+  images: ImageProps[];
+  onClose?: () => void;
 }) {
-  let overlayRef = useRef()
-  const router = useRouter()
+  let overlayRef = useRef();
+  const router = useRouter();
 
-  const { photoId } = router.query
-  let index = Number(photoId)
+  const { photoId } = router.query;
+  let index = Number(photoId);
 
-  const [direction, setDirection] = useState(0)
-  const [curIndex, setCurIndex] = useState(index)
+  const [direction, setDirection] = useState(0);
+  const [curIndex, setCurIndex] = useState(index);
 
   function handleClose() {
-    router.push('/', undefined, { shallow: true })
-    onClose()
+    router.push("/", undefined, { shallow: true });
+    onClose();
   }
 
   function changePhotoId(newVal: number) {
     if (newVal > index) {
-      setDirection(1)
+      setDirection(1);
     } else {
-      setDirection(-1)
+      setDirection(-1);
     }
-    setCurIndex(newVal)
+    setCurIndex(newVal);
     router.push(
       {
         query: { photoId: newVal },
       },
       `/p/${newVal}`,
-      { shallow: true }
-    )
+      { shallow: true },
+    );
   }
 
-  useKeypress('ArrowRight', () => {
+  useKeypress("ArrowRight", () => {
     if (index + 1 < images.length) {
-      changePhotoId(index + 1)
+      changePhotoId(index + 1);
     }
-  })
+  });
 
-  useKeypress('ArrowLeft', () => {
+  useKeypress("ArrowLeft", () => {
     if (index > 0) {
-      changePhotoId(index - 1)
+      changePhotoId(index - 1);
     }
-  })
+  });
 
   return (
     <Dialog
@@ -80,5 +80,5 @@ export default function Modal({
         navigation={true}
       />
     </Dialog>
-  )
+  );
 }

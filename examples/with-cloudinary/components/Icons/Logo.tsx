@@ -67,5 +67,5 @@ export default function Logo() {
         y2="0.65"
       ></line>
     </svg>
-  )
+  );
 }

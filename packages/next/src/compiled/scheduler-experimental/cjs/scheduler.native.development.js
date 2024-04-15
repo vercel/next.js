@@ -17,6 +17,9 @@ if (process.env.NODE_ENV !== "production") {
 var enableSchedulerDebugging = false;
 var enableProfiling = false;
 var frameYieldMs = 5;
+var userBlockingPriorityTimeout = 250;
+var normalPriorityTimeout = 5000;
+var lowPriorityTimeout = 10000;
 
 function push(heap, node) {
   var index = heap.length;
@@ -132,15 +135,7 @@ if (hasPerformanceNow) {
 // 0b111111111111111111111111111111
 
 
-var maxSigned31BitInt = 1073741823; // Times out immediately
-
-var IMMEDIATE_PRIORITY_TIMEOUT = -1; // Eventually times out
-
-var USER_BLOCKING_PRIORITY_TIMEOUT = 250;
-var NORMAL_PRIORITY_TIMEOUT = 5000;
-var LOW_PRIORITY_TIMEOUT = 10000; // Never times out
-
-var IDLE_PRIORITY_TIMEOUT = maxSigned31BitInt; // Tasks are stored on a min heap
+var maxSigned31BitInt = 1073741823; // Tasks are stored on a min heap
 
 var taskQueue = [];
 var timerQueue = []; // Incrementing id counter. Used to maintain insertion order.
@@ -309,24 +304,29 @@ function unstable_scheduleCallback$1(priorityLevel, callback, options) {
 
   switch (priorityLevel) {
     case ImmediatePriority:
-      timeout = IMMEDIATE_PRIORITY_TIMEOUT;
+      // Times out immediately
+      timeout = -1;
       break;
 
     case UserBlockingPriority:
-      timeout = USER_BLOCKING_PRIORITY_TIMEOUT;
+      // Eventually times out
+      timeout = userBlockingPriorityTimeout;
       break;
 
     case IdlePriority:
-      timeout = IDLE_PRIORITY_TIMEOUT;
+      // Never times out
+      timeout = maxSigned31BitInt;
       break;
 
     case LowPriority:
-      timeout = LOW_PRIORITY_TIMEOUT;
+      // Eventually times out
+      timeout = lowPriorityTimeout;
       break;
 
     case NormalPriority:
     default:
-      timeout = NORMAL_PRIORITY_TIMEOUT;
+      // Eventually times out
+      timeout = normalPriorityTimeout;
       break;
   }
 

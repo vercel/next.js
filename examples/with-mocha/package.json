@@ -12,8 +12,8 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.0.1",
-    "@babel/register": "^7.0.0",
+    "@babel/core": "7.22.5",
+    "@babel/register": "7.22.5",
     "cross-env": "7.0.2",
     "enzyme": "^3.11.0",
     "enzyme-adapter-react-16": "^1.15.2",

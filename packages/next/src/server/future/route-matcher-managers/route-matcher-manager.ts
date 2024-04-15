@@ -1,5 +1,5 @@
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
 
 export type MatchOptions = {
