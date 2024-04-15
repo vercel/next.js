@@ -1479,6 +1479,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/root-not-found-missing-root-layout": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "root-not-found-missing-root-layout should not conflict with generated layout on dev server"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": ["Strict Mode enabled by default should work using browser"],
     "failed": [],
