@@ -72,6 +72,10 @@ impl<'a> SpanRef<'a> {
         self.span.is_complete
     }
 
+    pub fn is_root(&self) -> bool {
+        self.index == 0
+    }
+
     pub fn nice_name(&self) -> (&'a str, &'a str) {
         let (category, title) = self.names().nice_name.get_or_init(|| {
             if let Some(name) = self
@@ -357,35 +361,37 @@ impl<'a> SpanRef<'a> {
             let mut queue = VecDeque::with_capacity(8);
             queue.push_back(*self);
             while let Some(span) = queue.pop_front() {
-                let (cat, name) = span.nice_name();
-                if !cat.is_empty() {
-                    index
-                        .raw_entry_mut()
-                        .from_key(cat)
-                        .and_modify(|_, v| v.push(span.index()))
-                        .or_insert_with(|| (cat.to_string(), vec![span.index()]));
-                }
-                if !name.is_empty() {
-                    index
-                        .raw_entry_mut()
-                        .from_key(name)
-                        .and_modify(|_, v| v.push(span.index()))
-                        .or_insert_with(|| (name.to_string(), vec![span.index()]));
-                }
-                for (_, value) in span.span.args.iter() {
-                    index
-                        .raw_entry_mut()
-                        .from_key(value)
-                        .and_modify(|_, v| v.push(span.index()))
-                        .or_insert_with(|| (value.to_string(), vec![span.index()]));
-                }
-                if !span.is_complete() {
-                    let name = "incomplete";
-                    index
-                        .raw_entry_mut()
-                        .from_key(name)
-                        .and_modify(|_, v| v.push(span.index()))
-                        .or_insert_with(|| (name.to_string(), vec![span.index()]));
+                if !span.is_root() {
+                    let (cat, name) = span.nice_name();
+                    if !cat.is_empty() {
+                        index
+                            .raw_entry_mut()
+                            .from_key(cat)
+                            .and_modify(|_, v| v.push(span.index()))
+                            .or_insert_with(|| (cat.to_string(), vec![span.index()]));
+                    }
+                    if !name.is_empty() {
+                        index
+                            .raw_entry_mut()
+                            .from_key(name)
+                            .and_modify(|_, v| v.push(span.index()))
+                            .or_insert_with(|| (name.to_string(), vec![span.index()]));
+                    }
+                    for (_, value) in span.span.args.iter() {
+                        index
+                            .raw_entry_mut()
+                            .from_key(value)
+                            .and_modify(|_, v| v.push(span.index()))
+                            .or_insert_with(|| (value.to_string(), vec![span.index()]));
+                    }
+                    if !span.is_complete() {
+                        let name = "incomplete";
+                        index
+                            .raw_entry_mut()
+                            .from_key(name)
+                            .and_modify(|_, v| v.push(span.index()))
+                            .or_insert_with(|| (name.to_string(), vec![span.index()]));
+                    }
                 }
                 for child in span.children() {
                     queue.push_back(child);

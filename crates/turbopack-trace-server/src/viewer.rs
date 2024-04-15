@@ -388,7 +388,9 @@ impl Viewer {
                         }
                     }
                 }
-                if !has_results {
+                if has_results {
+                    highlighted_spans.insert(span.id());
+                } else {
                     children.last_mut().unwrap().item.filtered = true;
                 }
             }
