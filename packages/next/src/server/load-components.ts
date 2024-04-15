@@ -30,6 +30,7 @@ import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export type ManifestItem = {
   id: number | string
@@ -52,10 +53,10 @@ export interface LoadableManifest {
 export type LoadComponentsReturnType<NextModule = any> = {
   Component: NextComponentType
   pageConfig: PageConfig
-  buildManifest: BuildManifest
-  subresourceIntegrityManifest?: Record<string, string>
-  reactLoadableManifest: ReactLoadableManifest
-  clientReferenceManifest?: ClientReferenceManifest
+  buildManifest: DeepReadonly<BuildManifest>
+  subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
+  reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest?: any
   Document: DocumentType
   App: AppType
@@ -71,13 +72,13 @@ export type LoadComponentsReturnType<NextModule = any> = {
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-export async function loadManifestWithRetries(
+export async function loadManifestWithRetries<T extends object>(
   manifestPath: string,
   attempts = 3
-): Promise<unknown> {
+) {
   while (true) {
     try {
-      return loadManifest(manifestPath)
+      return loadManifest<T>(manifestPath)
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
@@ -90,13 +91,13 @@ export async function loadManifestWithRetries(
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-export async function evalManifestWithRetries(
+export async function evalManifestWithRetries<T extends object>(
   manifestPath: string,
   attempts = 3
-): Promise<unknown> {
+) {
   while (true) {
     try {
-      return evalManifest(manifestPath)
+      return evalManifest<T>(manifestPath)
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
@@ -109,12 +110,12 @@ export async function evalManifestWithRetries(
 async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
-): Promise<ClientReferenceManifest | undefined> {
+) {
   try {
-    const context = (await evalManifestWithRetries(manifestPath)) as {
+    const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
-    }
-    return context.__RSC_MANIFEST[entryName] as ClientReferenceManifest
+    }>(manifestPath)
+    return context.__RSC_MANIFEST[entryName]
   } catch (err) {
     return undefined
   }
@@ -149,12 +150,10 @@ async function loadComponentsImpl<N = any>({
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
-    loadManifestWithRetries(
-      join(distDir, BUILD_MANIFEST)
-    ) as Promise<BuildManifest>,
-    loadManifestWithRetries(
+    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+    loadManifestWithRetries<ReactLoadableManifest>(
       join(distDir, REACT_LOADABLE_MANIFEST)
-    ) as Promise<ReactLoadableManifest>,
+    ),
     hasClientManifest
       ? loadClientReferenceManifest(
           join(
@@ -167,9 +166,9 @@ async function loadComponentsImpl<N = any>({
         )
       : undefined,
     isAppPath
-      ? (loadManifestWithRetries(
+      ? loadManifestWithRetries<ActionManifest>(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
-        ).catch(() => null) as Promise<ActionManifest | null>)
+        ).catch(() => null)
       : null,
   ])
 

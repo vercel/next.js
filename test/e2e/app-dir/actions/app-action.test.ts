@@ -139,6 +139,32 @@ createNextDescribe(
       ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
+    it('should not log errors for non-action form POSTs', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/non-action-form')
+      await browser.elementByCss('button').click()
+
+      await check(() => browser.url(), next.url + '/', true, 2)
+
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('Failed to find Server Action "null"')
+          )
+            ? 'error'
+            : ''
+        }, '')
+      }
+    })
+
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie')
@@ -309,6 +335,19 @@ createNextDescribe(
       await browser.elementByCss('#navigate-client').click()
       // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
       await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should not block router.back() while a server action is in flight', async () => {
+      let browser = await next.browser('/')
+
+      // click /client link to add a history entry
+      await browser.elementByCss("[href='/client']").click()
+      await browser.elementByCss('#slow-inc').click()
+
+      await browser.back()
+
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/`, true, 2)
     })
 
     it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
