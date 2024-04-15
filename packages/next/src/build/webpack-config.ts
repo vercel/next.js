@@ -1815,7 +1815,6 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
