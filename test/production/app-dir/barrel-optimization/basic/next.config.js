@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    webVitalsAttribution: ['CLS', 'LCP'],
+    optimizePackageImports: ['my-lib'],
   },
 }
