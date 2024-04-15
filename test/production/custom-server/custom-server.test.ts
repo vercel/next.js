@@ -15,6 +15,10 @@ createNextDescribe(
       expect($('p').text()).toBe(`Page ${page}`)
     })
 
+    it('should not log any error messages when server is started with "quiet" setting', async () => {
+      await next.render(`/error`)
+    })
+
     describe('with app dir', () => {
       it('should render app with react canary', async () => {
         const $ = await next.render$(`/1`)
