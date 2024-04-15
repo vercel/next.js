@@ -461,6 +461,8 @@ jobs:
         'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
+        'test-turbopack-production',
+        'test-turbopack-production-integration',
       ]
 
     if: always()
