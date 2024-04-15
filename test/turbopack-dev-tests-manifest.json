@@ -3191,9 +3191,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
-    "passed": [
-      "useReportWebVitals hook should send web-vitals to vercel-insights"
-    ],
+    "passed": ["useReportWebVitals hook should send web-vitals"],
     "failed": [],
     "pending": [],
     "flakey": [],
