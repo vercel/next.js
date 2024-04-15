@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { getProjectDir } from '../lib/get-project-dir'
 import { printAndExit } from '../server/lib/utils'
 import loadConfig from '../server/config'
@@ -18,7 +18,6 @@ import {
   type PackageManager,
 } from '../lib/helpers/get-pkg-manager'
 import spawn from 'next/dist/compiled/cross-spawn'
-import { spawnSync } from 'child_process'
 
 export interface NextTestOptions {
   testRunner?: string
@@ -70,6 +69,7 @@ export async function nextTest(
     )
   }
 
+  // execute test runner specific function
   switch (configuredTestRunner) {
     case 'playwright':
       return runPlaywright(baseDir, nextConfig, options)
@@ -148,6 +148,10 @@ async function runPlaywright(
         cwd: baseDir,
         shell: false,
         stdio: 'inherit',
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+        },
       }
     )
     return new Promise((resolve) => {
