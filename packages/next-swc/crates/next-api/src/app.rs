@@ -103,6 +103,7 @@ impl AppProject {
     fn route_ty(self: Vc<Self>) -> ServerContextType {
         ServerContextType::AppRoute {
             app_dir: self.app_dir(),
+            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
         }
     }
 
@@ -328,8 +329,27 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        let transitions = [
+            (
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+                    Vc::upcast(self.client_transition()),
+                    self.ssr_transition(),
+                )),
+            ),
+            (
+                "next-dynamic".to_string(),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
+            ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+        ]
+        .into_iter()
+        .collect();
+
         ModuleAssetContext::new(
-            Default::default(),
+            Vc::cell(transitions),
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
