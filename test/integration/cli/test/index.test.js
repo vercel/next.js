@@ -49,17 +49,28 @@ const runAndCaptureOutput = async ({ port }) => {
   return { stdout, stderr }
 }
 
+const exitCodes = (killSignal) => {
+  switch (killSignal) {
+    case 'SIGINT':
+      return 143
+    case 'SIGTERM':
+      return 130
+    default:
+      return 0
+  }
+}
+
 const testExitSignal = async (
   killSignal = '',
   args = [],
   readyRegex = /Creating an optimized production/
 ) => {
+  const exitCode = exitCodes(killSignal)
   let instance
   const killSigint = (inst) => {
     instance = inst
   }
   let output = ''
-
   let cmdPromise = runNextCommand(args, {
     ignoreFail: true,
     instance: killSigint,
@@ -76,7 +87,7 @@ const testExitSignal = async (
   // See: https://nodejs.org/api/process.html#process_signal_events
   const expectedExitSignal = process.platform === `win32` ? killSignal : null
   expect(signal).toBe(expectedExitSignal)
-  expect(code).toBe(0)
+  expect(code).toBe(exitCode)
 }
 
 describe('CLI Usage', () => {
