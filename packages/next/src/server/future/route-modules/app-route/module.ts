@@ -4,6 +4,7 @@ import type { AppConfig } from '../../../../build/utils'
 import type { NextRequest } from '../../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../../build'
 import type { NextURL } from '../../../web/next-url'
+import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 
 import {
   RouteModule,
@@ -63,7 +64,7 @@ export type AppRouteModule =
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: StaticGenerationContext['renderOpts']
-  prerenderManifest: PrerenderManifest
+  prerenderManifest: DeepReadonly<PrerenderManifest>
 }
 
 /**

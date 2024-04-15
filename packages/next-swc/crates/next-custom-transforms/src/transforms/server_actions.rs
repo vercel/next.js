@@ -572,6 +572,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
+    fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
+        let old_in_export_decl = self.in_export_decl;
+        let old_in_default_export_decl = self.in_default_export_decl;
+        self.in_export_decl = false;
+        self.in_default_export_decl = false;
+        m.visit_mut_children_with(self);
+        self.in_export_decl = old_in_export_decl;
+        self.in_default_export_decl = old_in_default_export_decl;
+    }
+
+    fn visit_mut_class_method(&mut self, m: &mut ClassMethod) {
+        let old_in_export_decl = self.in_export_decl;
+        let old_in_default_export_decl = self.in_default_export_decl;
+        self.in_export_decl = false;
+        self.in_default_export_decl = false;
+        m.visit_mut_children_with(self);
+        self.in_export_decl = old_in_export_decl;
+        self.in_default_export_decl = old_in_default_export_decl;
+    }
+
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
