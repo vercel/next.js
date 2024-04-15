@@ -547,9 +547,16 @@ export class NextInstance {
     pathname: string,
     opts?: import('node-fetch').RequestInit
   ) {
+    // TODO: Switch to built-in fetch instead of using node-fetch.
     return fetchViaHTTP(this.url, pathname, null, opts)
   }
 
+  /**
+   * Performs a fetch request to the NextInstance with the options provided.
+   * @param pathname The pathname to fetch
+   * @param opts the optional options to pass to the underlying fetch
+   * @returns
+   */
   public async webFetch(pathname: string, opts?: Parameters<typeof fetch>[1]) {
     return fetch(this.url + pathname, opts)
   }
