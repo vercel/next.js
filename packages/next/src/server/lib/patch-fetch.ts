@@ -662,6 +662,7 @@ function createPatchedFetcher(
             const err = new DynamicServerError(dynamicUsageReason)
             staticGenerationStore.dynamicUsageErr = err
             staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+            throw err
           }
 
           const hasNextConfig = 'next' in init
@@ -689,6 +690,7 @@ function createPatchedFetcher(
               const err = new DynamicServerError(dynamicUsageReason)
               staticGenerationStore.dynamicUsageErr = err
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              throw err
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {
