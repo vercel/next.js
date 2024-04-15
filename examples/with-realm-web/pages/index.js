@@ -1,5 +1,5 @@
-import useSWR from 'swr'
-import { generateAuthHeader, REALM_GRAPHQL_ENDPOINT } from '../lib/RealmClient'
+import useSWR from "swr";
+import { generateAuthHeader, REALM_GRAPHQL_ENDPOINT } from "../lib/RealmClient";
 
 const FIND_MOVIES = `
   query FindMovies{
@@ -9,23 +9,23 @@ const FIND_MOVIES = `
       runtime
     }
   }
-`
+`;
 
 const fetcher = async (query) =>
   fetch(REALM_GRAPHQL_ENDPOINT, {
-    method: 'POST',
+    method: "POST",
     headers: await generateAuthHeader(),
     body: JSON.stringify({ query }),
-  }).then((res) => res.json())
+  }).then((res) => res.json());
 
 const IndexPage = () => {
-  const { data } = useSWR(FIND_MOVIES, fetcher)
+  const { data } = useSWR(FIND_MOVIES, fetcher);
 
   if (data && data.error) {
-    console.error(data.error)
-    return <p>An error occurred: ${data.error}</p>
+    console.error(data.error);
+    return <p>An error occurred: ${data.error}</p>;
   }
-  const movies = data ? data.data.movies : null
+  const movies = data ? data.data.movies : null;
 
   return (
     <>
@@ -55,7 +55,7 @@ const IndexPage = () => {
                     <td>{movie.title}</td>
                     <td>{movie.runtime}</td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
@@ -88,7 +88,7 @@ const IndexPage = () => {
         }
       `}</style>
     </>
-  )
-}
+  );
+};
 
-export default IndexPage
+export default IndexPage;

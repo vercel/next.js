@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -38,9 +38,8 @@ describe('required server files app router', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
-        experimental: {
-          incrementalCacheHandlerPath: './cache-handler.js',
-        },
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
         },

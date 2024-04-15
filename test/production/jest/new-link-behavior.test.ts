@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 describe('next/jest newLinkBehavior', () => {
   let next: NextInstance
@@ -41,11 +41,12 @@ describe('next/jest newLinkBehavior', () => {
       },
       packageJson: {
         scripts: {
-          build: 'next build && yarn jest --forceExit test/index.test.jsx',
+          build: 'next build && jest --forceExit test/index.test.jsx',
         },
       },
+      installCommand: 'pnpm i',
       skipStart: true,
-      buildCommand: `yarn build`,
+      buildCommand: `pnpm build`,
     })
   })
 

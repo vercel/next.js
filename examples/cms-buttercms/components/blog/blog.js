@@ -1,6 +1,6 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-import PostPreviewCondensed from './post-preview-condensed'
+import PostPreviewCondensed from "./post-preview-condensed";
 
 export default function Blog({ posts }) {
   return (
@@ -38,5 +38,5 @@ export default function Blog({ posts }) {
         </div>
       </div>
     </section>
-  )
+  );
 }

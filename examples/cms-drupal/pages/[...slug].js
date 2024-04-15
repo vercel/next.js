@@ -1,28 +1,28 @@
-import { useRouter } from 'next/router'
-import ErrorPage from 'next/error'
-import Head from 'next/head'
+import { useRouter } from "next/router";
+import ErrorPage from "next/error";
+import Head from "next/head";
 import {
   getPathsFromContext,
   getResourceCollectionFromContext,
   getResourceFromContext,
-} from 'next-drupal'
+} from "next-drupal";
 
-import Container from '../components/container'
-import PostBody from '../components/post-body'
-import MoreStories from '../components/more-stories'
-import Header from '../components/header'
-import PostHeader from '../components/post-header'
-import SectionSeparator from '../components/section-separator'
-import Layout from '../components/layout'
-import PostTitle from '../components/post-title'
+import Container from "../components/container";
+import PostBody from "../components/post-body";
+import MoreStories from "../components/more-stories";
+import Header from "../components/header";
+import PostHeader from "../components/post-header";
+import SectionSeparator from "../components/section-separator";
+import Layout from "../components/layout";
+import PostTitle from "../components/post-title";
 
-import { CMS_NAME } from '../lib/constants'
-import { absoluteURL } from '../lib/api'
+import { CMS_NAME } from "../lib/constants";
+import { absoluteURL } from "../lib/api";
 
 export default function Post({ post, morePosts, preview }) {
-  const router = useRouter()
+  const router = useRouter();
   if (!router.isFallback && !post?.id) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
   return (
     <Layout preview={preview}>
@@ -63,31 +63,31 @@ export default function Post({ post, morePosts, preview }) {
         )}
       </Container>
     </Layout>
-  )
+  );
 }
 
 export async function getStaticProps(context) {
-  const post = await getResourceFromContext('node--article', context, {
+  const post = await getResourceFromContext("node--article", context, {
     params: {
-      include: 'field_image,uid,uid.user_picture',
+      include: "field_image,uid,uid.user_picture",
     },
-  })
+  });
 
-  let morePosts = []
+  let morePosts = [];
   if (post) {
     morePosts = await getResourceCollectionFromContext(
-      'node--article',
+      "node--article",
       context,
       {
         params: {
-          include: 'field_image,uid,uid.user_picture',
-          sort: '-created',
-          'filter[id][condition][path]': 'id',
-          'filter[id][condition][operator]': '<>',
-          'filter[id][condition][value]': post.id,
+          include: "field_image,uid,uid.user_picture",
+          sort: "-created",
+          "filter[id][condition][path]": "id",
+          "filter[id][condition][operator]": "<>",
+          "filter[id][condition][value]": post.id,
         },
-      }
-    )
+      },
+    );
   }
 
   return {
@@ -96,12 +96,12 @@ export async function getStaticProps(context) {
       post,
       morePosts,
     },
-  }
+  };
 }
 
 export async function getStaticPaths(context) {
   return {
-    paths: await getPathsFromContext('node--article', context),
+    paths: await getPathsFromContext("node--article", context),
     fallback: true,
-  }
+  };
 }

@@ -1,0 +1,8 @@
+
+  x You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn
+  | more: https://nextjs.org/docs/getting-started/react-essentials\n\n
+   ,-[input.js:8:1]
+ 8 | 
+ 9 | import 'client-only'
+   : ^^^^^^^^^^^^^^^^^^^^
+   `----

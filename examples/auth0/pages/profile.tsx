@@ -1,10 +1,10 @@
-import { withPageAuthRequired } from '@auth0/nextjs-auth0/client'
-import Layout from '../components/layout'
-import { User } from '../interfaces'
+import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
+import Layout from "../components/layout";
+import { User } from "../interfaces";
 
 type ProfileCardProps = {
-  user: User
-}
+  user: User;
+};
 
 const ProfileCard = ({ user }: ProfileCardProps) => {
   return (
@@ -18,16 +18,16 @@ const ProfileCard = ({ user }: ProfileCardProps) => {
         <p>name: {user.name}</p>
       </div>
     </>
-  )
-}
+  );
+};
 
 const Profile = ({ user, isLoading }) => {
   return (
     <Layout user={user} loading={isLoading}>
       {isLoading ? <>Loading...</> : <ProfileCard user={user} />}
     </Layout>
-  )
-}
+  );
+};
 
 // Protected route, checking user authentication client-side.(CSR)
-export default withPageAuthRequired(Profile)
+export default withPageAuthRequired(Profile);

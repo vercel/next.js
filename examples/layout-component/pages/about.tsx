@@ -1,6 +1,6 @@
-import type { NextPageWithLayout } from './_app'
-import Layout from '../components/layout'
-import Sidebar from '../components/sidebar'
+import type { NextPageWithLayout } from "./_app";
+import Layout from "../components/layout";
+import Sidebar from "../components/sidebar";
 
 const About: NextPageWithLayout = () => {
   return (
@@ -25,15 +25,15 @@ const About: NextPageWithLayout = () => {
       </p>
       <h3>Try It Out</h3>
       <p>
-        To visualize this, try tying in the search input in the{' '}
+        To visualize this, try tying in the search input in the{" "}
         <code>Sidebar</code> and then changing routes. You'll notice the input
         state is persisted.
       </p>
     </section>
-  )
-}
+  );
+};
 
-export default About
+export default About;
 
 About.getLayout = function getLayout(page: React.ReactElement) {
   return (
@@ -41,5 +41,5 @@ About.getLayout = function getLayout(page: React.ReactElement) {
       <Sidebar />
       {page}
     </Layout>
-  )
-}
+  );
+};

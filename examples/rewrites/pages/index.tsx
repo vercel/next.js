@@ -1,6 +1,6 @@
-import styles from '../styles.module.css'
-import Link from 'next/link'
-import Code from '../components/Code'
+import styles from "../styles.module.css";
+import Link from "next/link";
+import Code from "../components/Code";
 
 export default function Index() {
   return (
@@ -9,7 +9,7 @@ export default function Index() {
         <h1>Rewrites with Next.js</h1>
         <hr className={styles.hr} />
         <p>
-          The links below are{' '}
+          The links below are{" "}
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/rewrites"
             legacyBehavior
@@ -17,7 +17,7 @@ export default function Index() {
             <>
               custom <Code>rewrites</Code>
             </>
-          </Link>{' '}
+          </Link>{" "}
           that map an incoming request path to a different destination path.
         </p>
         <nav>
@@ -52,5 +52,5 @@ export default function Index() {
         <hr className={styles.hr} />
       </div>
     </div>
-  )
+  );
 }

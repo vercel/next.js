@@ -29,7 +29,7 @@ export class NextDevInstance extends NextInstance {
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
-      'yarn',
+      'pnpm',
       'next',
       useTurbo ? getTurbopackFlag() : undefined,
       useDirArg && this.testDir,

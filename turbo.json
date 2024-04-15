@@ -73,6 +73,18 @@
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
     },
+    "build-native-wasi": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "dependsOn": ["^build-native-wasi"],
+      "outputs": ["native/*"]
+    },
     "cache-build-native": {
       "inputs": [
         "../../.cargo/**",
@@ -96,11 +108,41 @@
     "typescript": {},
     "//#typescript": {},
     "rust-check": {
+      "dependsOn": [
+        "^rust-check-fmt",
+        "^rust-check-clippy",
+        "^rust-check-napi-rustls"
+      ]
+    },
+    "rust-check-fmt": {
       "inputs": [
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "cache": false
+    },
+    "rust-check-clippy": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ]
+    },
+    "rust-check-napi-rustls": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
       ]
     },
     "test-cargo-unit": {
@@ -108,24 +150,9 @@
         "../../.cargo/**",
         "../../packages/next-swc/crates/**",
         "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
-      ]
-    },
-    "test-cargo-integration": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../packages/next-swc/crates/**",
-        "../../packages/next/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
-      ]
-    },
-    "test-cargo-bench": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../packages/next-swc/crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
       ]
     },
     "//#get-test-timings": {

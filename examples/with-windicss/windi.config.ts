@@ -1,8 +1,8 @@
-import { defineConfig } from 'windicss/helpers'
+import { defineConfig } from "windicss/helpers";
 
 export default defineConfig({
   extract: {
-    include: ['**/*.{jsx,tsx,css}'],
-    exclude: ['node_modules', '.git', '.next'],
+    include: ["**/*.{jsx,tsx,css}"],
+    exclude: ["node_modules", ".git", ".next"],
   },
-})
+});

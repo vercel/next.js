@@ -5,4 +5,4 @@
  * Environment: Production
  * Project Id: a7844231-064c-016c-1dad-38228cbc505d
  */
-export const webhooks = {} as const
+export const webhooks = {} as const;

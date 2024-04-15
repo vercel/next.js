@@ -164,21 +164,27 @@ measure the time it takes for the page to hydrate and render:
 
 You can handle all the results of these metrics separately:
 
-```js
-export function reportWebVitals(metric) {
-  switch (metric.name) {
-    case 'Next.js-hydration':
-      // handle hydration results
-      break
-    case 'Next.js-route-change-to-render':
-      // handle route-change to render results
-      break
-    case 'Next.js-render':
-      // handle render results
-      break
-    default:
-      break
-  }
+```jsx filename="pages/_app.js"
+import { useReportWebVitals } from 'next/web-vitals'
+
+function MyApp({ Component, pageProps }) {
+  useReportWebVitals((metric) => {
+    switch (metric.name) {
+      case 'Next.js-hydration':
+        // handle hydration results
+        break
+      case 'Next.js-route-change-to-render':
+        // handle route-change to render results
+        break
+      case 'Next.js-render':
+        // handle render results
+        break
+      default:
+        break
+    }
+  })
+
+  return <Component {...pageProps} />
 }
 ```
 

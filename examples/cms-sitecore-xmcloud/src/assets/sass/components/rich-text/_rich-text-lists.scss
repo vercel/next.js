@@ -1,5 +1,5 @@
-@import '@sass/abstracts/vars';
-@import '@sass/abstracts/mixins';
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
 
 .rich-text-lists,
 .field-featurelist {
@@ -18,13 +18,13 @@
         display: inline-block;
         vertical-align: middle;
         @include font-size(1.2);
-        font-family: 'FontAwesome', sans-serif;
+        font-family: "FontAwesome", sans-serif;
         position: absolute;
         top: 3px;
         left: 0;
         color: $text-basic;
         text-align: center;
-        content: '\f00c';
+        content: "\f00c";
         width: 20px;
         margin: 0 5px 0 0;
         padding: 0;
@@ -39,13 +39,13 @@
         display: inline-block;
         vertical-align: middle;
         @include font-size(1.2);
-        font-family: 'FontAwesome', sans-serif;
+        font-family: "FontAwesome", sans-serif;
         position: absolute;
         top: 3px;
         left: 0;
         color: $text-basic;
         text-align: center;
-        content: '\f046';
+        content: "\f046";
         width: 20px;
         margin: 0 5px 0 0;
         padding: 0;

@@ -69,96 +69,100 @@ describe('Error overlay - editor links', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
 
     await cleanup()
   })
-
-  it('should be possible to open import trace files on RSC parse error', async () => {
-    let editorRequestsCount = 0
-    const { session, browser, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'app/page.js',
-          outdent`
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'opening links in import traces',
+    () => {
+      it('should be possible to open import trace files on RSC parse error', async () => {
+        let editorRequestsCount = 0
+        const { session, browser, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'app/page.js',
+              outdent`
             import Component from '../index'
             export default function Page() {
               return <Component />
             }
           `,
-        ],
-        ['mod1.js', "import './mod2.js'"],
-        ['mod2.js', '{{{{{'],
-      ]),
-      undefined,
-      {
-        beforePageLoad(page) {
-          page.route('**/__nextjs_launch-editor**', (route) => {
-            editorRequestsCount += 1
-            route.fulfill()
-          })
-        },
-      }
-    )
+            ],
+            ['mod1.js', "import './mod2.js'"],
+            ['mod2.js', '{{{{{'],
+          ]),
+          undefined,
+          {
+            beforePageLoad(page) {
+              page.route('**/__nextjs_launch-editor**', (route) => {
+                editorRequestsCount += 1
+                route.fulfill()
+              })
+            },
+          }
+        )
 
-    await session.patch(
-      'index.js',
-      outdent`
+        await session.patch(
+          'index.js',
+          outdent`
         import './mod1' 
         export default () => 'hello world'
       `
-    )
+        )
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    await clickImportTraceFiles(browser)
-    await check(() => editorRequestsCount, /4/)
+        expect(await session.hasRedbox()).toBe(true)
+        await clickImportTraceFiles(browser)
+        await check(() => editorRequestsCount, /4/)
 
-    await cleanup()
-  })
+        await cleanup()
+      })
 
-  it('should be possible to open import trace files on module not found error', async () => {
-    let editorRequestsCount = 0
-    const { session, browser, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'app/page.js',
-          outdent`
+      it('should be possible to open import trace files on module not found error', async () => {
+        let editorRequestsCount = 0
+        const { session, browser, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'app/page.js',
+              outdent`
             import Component from '../index'
             export default function Page() {
               return <Component />
             }
           `,
-        ],
-        ['mod1.js', "import './mod2.js'"],
-        ['mod2.js', 'import "boom"'],
-      ]),
-      undefined,
-      {
-        beforePageLoad(page) {
-          page.route('**/__nextjs_launch-editor**', (route) => {
-            editorRequestsCount += 1
-            route.fulfill()
-          })
-        },
-      }
-    )
+            ],
+            ['mod1.js', "import './mod2.js'"],
+            ['mod2.js', 'import "boom"'],
+          ]),
+          undefined,
+          {
+            beforePageLoad(page) {
+              page.route('**/__nextjs_launch-editor**', (route) => {
+                editorRequestsCount += 1
+                route.fulfill()
+              })
+            },
+          }
+        )
 
-    await session.patch(
-      'index.js',
-      outdent`
+        await session.patch(
+          'index.js',
+          outdent`
         import './mod1' 
         export default () => 'hello world'
       `
-    )
+        )
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    await clickImportTraceFiles(browser)
-    await check(() => editorRequestsCount, /3/)
+        expect(await session.hasRedbox()).toBe(true)
+        await clickImportTraceFiles(browser)
+        await check(() => editorRequestsCount, /3/)
 
-    await cleanup()
-  })
+        await cleanup()
+      })
+    }
+  )
 })

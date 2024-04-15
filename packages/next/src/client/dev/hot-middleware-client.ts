@@ -1,5 +1,5 @@
-import connect from './error-overlay/hot-dev-client'
-import { sendMessage } from './error-overlay/websocket'
+import connect from '../components/react-dev-overlay/pages/hot-reloader-client'
+import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
 
 let reloading = false
 

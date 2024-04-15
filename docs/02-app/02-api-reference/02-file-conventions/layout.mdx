@@ -94,7 +94,7 @@ export default function ShopLayout({ children, params }) {
 
 ### Layouts do not receive `searchParams`
 
-Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering) which could lead to stale `searchParams` between navigations.
+Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
 
 When using client-side navigation, Next.js automatically only renders the part of the page below the common layout between two routes.
 

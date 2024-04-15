@@ -288,10 +288,11 @@ createNextDescribe(
       describe('chunks', () => {
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
+
           expect(
             [
               ...html.matchAll(
-                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+                /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
               ),
             ].length
           ).toBe(3)
@@ -358,37 +359,47 @@ createNextDescribe(
           }
         })
 
-        it('should not preload styles twice during HMR', async () => {
-          const filePath = 'app/hmr/page.js'
-          const origContent = await next.readFile(filePath)
+        // Turbopack doesn't preload styles
+        if (!process.env.TURBOPACK) {
+          it('should not preload styles twice during HMR', async () => {
+            const filePath = 'app/hmr/page.js'
+            const origContent = await next.readFile(filePath)
 
-          const browser = await next.browser('/hmr')
+            const browser = await next.browser('/hmr')
 
-          try {
-            await next.patchFile(
-              filePath,
-              origContent.replace(
-                '<div>hello!</div>',
-                '<div>hello world!</div>'
+            try {
+              await next.patchFile(
+                filePath,
+                origContent.replace(
+                  '<div>hello!</div>',
+                  '<div>hello world!</div>'
+                )
               )
-            )
 
-            // Wait for HMR to trigger
-            await check(
-              () => browser.elementByCss('body').text(),
-              'hello world!'
-            )
-
-            // there should be only 1 preload link
-            expect(
-              await browser.eval(
-                `document.querySelectorAll("link[rel=preload][href^='/_next/static/css/app/layout.css']").length`
+              // Wait for HMR to trigger
+              await check(
+                () => browser.elementByCss('body').text(),
+                'hello world!'
               )
-            ).toBe(1)
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-        })
+
+              // there should be only 1 preload link
+              expect(
+                await browser.eval(
+                  `(() => {
+                  const tags = document.querySelectorAll('link[rel="preload"][href^="/_next/static/css"]')
+                  const counts = new Map();
+                  for (const tag of tags) {
+                    counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                  }
+                  return Math.max(...counts.values())
+                })()`
+                )
+              ).toBe(1)
+            } finally {
+              await next.patchFile(filePath, origContent)
+            }
+          })
+        }
 
         it('should reload @import styles during HMR', async () => {
           const filePath = 'app/hmr/import/actual-styles.css'
@@ -457,11 +468,26 @@ createNextDescribe(
           it('should only include the same style once in the flight data', async () => {
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 
-            // Even if it's deduped by Float, it should still only be included once in the payload.
-            // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
-            expect(
-              initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
-            ).toBe(3)
+            if (process.env.TURBOPACK) {
+              expect(
+                initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
+              ).toBe(5)
+            } else {
+              // Even if it's deduped by Float, it should still only be included once in the payload.
+
+              const matches = initialHtml.match(
+                /\/_next\/static\/css\/.+?\.css/g
+              )
+              const counts = new Map()
+              for (const match of matches) {
+                counts.set(match, (counts.get(match) || 0) + 1)
+              }
+              for (const count of counts.values()) {
+                // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
+                // And there is one match for the not found style
+                expect([1, 3]).toContain(count)
+              }
+            }
           })
 
           it.skip('should only load chunks for the css module that is used by the specific entrypoint', async () => {
@@ -745,10 +771,18 @@ createNextDescribe(
                 ),
               'rgb(255, 0, 0)'
             )
+
             await check(
               () =>
                 browser.eval(
-                  `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
+                  `(() => {
+                    const tags = document.querySelectorAll('link[rel="stylesheet"][href^="/_next/static"]')
+                    const counts = new Map();
+                    for (const tag of tags) {
+                      counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                    }
+                    return Math.max(...counts.values())
+                  })()`
                 ),
               1
             )

@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('next/jest', () => {
@@ -136,11 +136,11 @@ describe('next/jest', () => {
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'next build && yarn jest test/mock.test.js test/dynamic.test.js',
+          build: 'next build && jest test/mock.test.js test/dynamic.test.js',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

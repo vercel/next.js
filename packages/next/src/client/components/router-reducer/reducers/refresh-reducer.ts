@@ -1,6 +1,6 @@
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToFullTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   Mutable,
@@ -13,6 +13,9 @@ import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -27,17 +30,22 @@ export function refreshReducer(
   mutable.preserveCustomHistoryState = false
 
   const cache: CacheNode = createEmptyCacheNode()
+
+  // If the current tree was intercepted, the nextUrl should be included in the request.
+  // This is to ensure that the refresh request doesn't get intercepted, accidentally triggering the interception route.
+  const includeNextUrl = hasInterceptionRouteInCurrentTree(state.tree)
+
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
   cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    state.nextUrl,
+    includeNextUrl ? state.nextUrl : null,
     state.buildId
   )
 
   return cache.lazyData.then(
-    ([flightData, canonicalUrlOverride]) => {
+    async ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
@@ -61,15 +69,16 @@ export function refreshReducer(
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToFullTree(
+        const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
-          treePatch
+          treePatch,
+          state.canonicalUrl
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -105,10 +114,17 @@ export function refreshReducer(
             cacheNodeSeedData,
             head
           )
-          mutable.cache = cache
           mutable.prefetchCache = new Map()
         }
 
+        await refreshInactiveParallelSegments({
+          state,
+          updatedTree: newTree,
+          updatedCache: cache,
+          includeNextUrl,
+        })
+
+        mutable.cache = cache
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 

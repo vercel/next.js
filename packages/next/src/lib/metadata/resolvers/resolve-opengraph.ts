@@ -17,6 +17,11 @@ import {
   resolveAbsoluteUrlWithPathname,
 } from './resolve-url'
 import { resolveTitle } from './resolve-title'
+import { isFullStringUrl } from '../../url'
+import { warnOnce } from '../../../build/output/log'
+
+type FlattenArray<T> = T extends (infer U)[] ? U : T
+type ResolvedMetadataBase = ResolvedMetadata['metadataBase']
 
 const OgTypeFields = {
   article: ['authors', 'tags'],
@@ -34,41 +39,58 @@ const OgTypeFields = {
   ],
 } as const
 
+function resolveAndValidateImage(
+  item: FlattenArray<OpenGraph['images'] | Twitter['images']>,
+  metadataBase: NonNullable<ResolvedMetadataBase>,
+  isMetadataBaseMissing: boolean
+) {
+  if (!item) return undefined
+  const isItemUrl = isStringOrURL(item)
+  const inputUrl = isItemUrl ? item : item.url
+  if (!inputUrl) return undefined
+
+  validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
+
+  return isItemUrl
+    ? {
+        url: resolveUrl(inputUrl, metadataBase),
+      }
+    : {
+        ...item,
+        // Update image descriptor url
+        url: resolveUrl(inputUrl, metadataBase),
+      }
+}
+
 export function resolveImages(
   images: Twitter['images'],
-  metadataBase: ResolvedMetadata['metadataBase']
+  metadataBase: ResolvedMetadataBase
 ): NonNullable<ResolvedMetadata['twitter']>['images']
 export function resolveImages(
   images: OpenGraph['images'],
-  metadataBase: ResolvedMetadata['metadataBase']
+  metadataBase: ResolvedMetadataBase
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
 export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
-  metadataBase: ResolvedMetadata['metadataBase']
+  metadataBase: ResolvedMetadataBase
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
   const resolvedImages = resolveAsArrayOrUndefined(images)
   if (!resolvedImages) return resolvedImages
 
+  const { isMetadataBaseMissing, fallbackMetadataBase } =
+    getSocialImageFallbackMetadataBase(metadataBase)
   const nonNullableImages = []
   for (const item of resolvedImages) {
-    if (!item) continue
-    const isItemUrl = isStringOrURL(item)
-    const inputUrl = isItemUrl ? item : item.url
-    if (!inputUrl) continue
-
-    nonNullableImages.push(
-      isItemUrl
-        ? {
-            url: resolveUrl(item, metadataBase),
-          }
-        : {
-            ...item,
-            // Update image descriptor url
-            url: resolveUrl(item.url, metadataBase),
-          }
+    const resolvedItem = resolveAndValidateImage(
+      item,
+      fallbackMetadataBase,
+      isMetadataBaseMissing
     )
+    if (!resolvedItem) continue
+
+    nonNullableImages.push(resolvedItem)
   }
 
   return nonNullableImages
@@ -94,10 +116,27 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   }
 }
 
+function validateResolvedImageUrl(
+  inputUrl: string | URL,
+  fallbackMetadataBase: NonNullable<ResolvedMetadataBase>,
+  isMetadataBaseMissing: boolean
+): void {
+  // Only warn on the image url that needs to be resolved with metadataBase
+  if (
+    typeof inputUrl === 'string' &&
+    !isFullStringUrl(inputUrl) &&
+    isMetadataBaseMissing
+  ) {
+    warnOnce(
+      `metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "${fallbackMetadataBase.origin}". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase`
+    )
+  }
+}
+
 export const resolveOpenGraph: FieldResolverExtraArgs<
   'openGraph',
-  [ResolvedMetadata['metadataBase'], MetadataContext, string | null]
-> = (openGraph, metadataBase, { pathname }, titleTemplate) => {
+  [ResolvedMetadataBase, MetadataContext, string | null]
+> = (openGraph, metadataBase, metadataContext, titleTemplate) => {
   if (!openGraph) return null
 
   function resolveProps(target: ResolvedOpenGraph, og: OpenGraph) {
@@ -114,9 +153,7 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
         }
       }
     }
-
-    const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
-    target.images = resolveImages(og.images, imageMetadataBase)
+    target.images = resolveImages(og.images, metadataBase)
   }
 
   const resolved = {
@@ -126,7 +163,11 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
   resolveProps(resolved, openGraph)
 
   resolved.url = openGraph.url
-    ? resolveAbsoluteUrlWithPathname(openGraph.url, metadataBase, pathname)
+    ? resolveAbsoluteUrlWithPathname(
+        openGraph.url,
+        metadataBase,
+        metadataContext
+      )
     : null
 
   return resolved
@@ -142,7 +183,7 @@ const TwitterBasicInfoKeys = [
 
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
-  [ResolvedMetadata['metadataBase'], string | null]
+  [ResolvedMetadataBase, string | null]
 > = (twitter, metadataBase, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
@@ -153,8 +194,8 @@ export const resolveTwitter: FieldResolverExtraArgs<
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
-  const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
-  resolved.images = resolveImages(twitter.images, imageMetadataBase)
+
+  resolved.images = resolveImages(twitter.images, metadataBase)
 
   card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')
   resolved.card = card

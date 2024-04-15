@@ -55,7 +55,7 @@ createNextDescribe(
 
       it('should have proper error when no children are provided', async () => {
         const browser = await webdriver(next.appPort, '/link-no-child')
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toContain(
           'No children were passed to <Link> with `href` of `/about` but one child is required'
         )
@@ -63,7 +63,7 @@ createNextDescribe(
 
       it('should not throw error when one number type child is provided', async () => {
         const browser = await webdriver(next.appPort, '/link-number-child')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         if (browser) await browser.close()
       })
 
@@ -281,7 +281,7 @@ createNextDescribe(
         try {
           browser = await webdriver(next.appPort, '/nav')
           await browser.elementByCss('#empty-props').click()
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
             /should resolve to an object\. But found "null" instead\./
           )
@@ -1114,6 +1114,22 @@ createNextDescribe(
           await browser.close()
         }
       })
+
+      it('router.replace with shallow=true shall not throw route cancelled errors', async () => {
+        const browser = await webdriver(next.appPort, '/nav/query-only-shallow')
+        try {
+          await browser.elementByCss('#router-replace').click()
+          // the error occurs on every replace() after the first one
+          await browser.elementByCss('#router-replace').click()
+
+          await check(
+            () => browser.waitForElementByCss('#routeState').text(),
+            '{"completed":2,"errors":0}'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     describe('with getInitialProp redirect', () => {
@@ -1381,11 +1397,11 @@ createNextDescribe(
         let browser
         try {
           browser = await webdriver(next.appPort, '/error-inside-browser-page')
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(
-            /pages[\\/]error-inside-browser-page\.js \(5:12\)/
+            /pages[\\/]error-inside-browser-page\.js \(5:13\)/
           )
         } finally {
           if (browser) {
@@ -1401,10 +1417,10 @@ createNextDescribe(
             next.appPort,
             '/error-in-the-browser-global-scope'
           )
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
-          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
+          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
         } finally {
           if (browser) {
             await browser.close()
@@ -1679,7 +1695,7 @@ createNextDescribe(
           await browser.waitForElementByCss('.nav-about')
           await browser.back()
           await waitFor(1000)
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()
@@ -1699,7 +1715,7 @@ createNextDescribe(
           await browser.waitForElementByCss('.nav-about')
           await browser.back()
           await waitFor(1000)
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()
@@ -1717,7 +1733,7 @@ createNextDescribe(
           await browser.waitForElementByCss('.nav-about')
           await browser.back()
           await waitFor(1000)
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()
@@ -1783,17 +1799,17 @@ createNextDescribe(
 
       await browser.elementByCss('a').click()
 
-      browser.waitForElementByCss('#relative-1')
+      await browser.waitForElementByCss('#relative-1')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative 1/)
       await browser.elementByCss('a').click()
 
-      browser.waitForElementByCss('#relative-2')
+      await browser.waitForElementByCss('#relative-2')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative 2/)
 
       await browser.elementByCss('button').click()
-      browser.waitForElementByCss('#relative')
+      await browser.waitForElementByCss('#relative')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative index/)
 

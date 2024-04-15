@@ -1,6 +1,6 @@
-import Head from 'next/head'
+import Head from "next/head";
 
-import { CMS_NAME, HOME_OG_IMAGE_URL } from '../lib/constants'
+import { CMS_NAME, HOME_OG_IMAGE_URL } from "../lib/constants";
 
 export default function Meta() {
   return (
@@ -39,5 +39,5 @@ export default function Meta() {
       />
       <meta property="og:image" content={HOME_OG_IMAGE_URL} />
     </Head>
-  )
+  );
 }

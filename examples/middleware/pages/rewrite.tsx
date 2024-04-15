@@ -1,7 +1,7 @@
-import { NextPage } from 'next'
+import { NextPage } from "next";
 
 export const RewritePage: NextPage = () => {
-  return <h1>Rewrite</h1>
-}
+  return <h1>Rewrite</h1>;
+};
 
-export default RewritePage
+export default RewritePage;

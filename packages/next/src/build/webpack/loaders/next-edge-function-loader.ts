@@ -40,6 +40,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
         import 'next/dist/esm/server/web/globals'
         import { adapter } from 'next/dist/esm/server/web/adapter'
         import { IncrementalCache } from 'next/dist/esm/server/lib/incremental-cache'
+        import { wrapApiHandler } from 'next/dist/esm/server/api-utils'
 
         import handler from ${stringifiedPagePath}
 
@@ -52,7 +53,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
               ...opts,
               IncrementalCache,
               page: ${JSON.stringify(page)},
-              handler,
+              handler: wrapApiHandler(${JSON.stringify(page)}, handler),
           })
         }
     `

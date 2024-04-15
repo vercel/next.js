@@ -283,7 +283,11 @@ import { createContext } from 'react'
 
 export const ThemeContext = createContext({})
 
-export default function ThemeProvider({ children }) {
+export default function ThemeProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return <ThemeContext.Provider value="dark">{children}</ThemeContext.Provider>
 }
 ```
@@ -398,7 +402,7 @@ export default function Layout({ children }) {
 
 ### Passing props from Server to Client Components (Serialization)
 
-If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://developer.mozilla.org/docs/Glossary/Serialization) by React.
+If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.
 
 If your Client Components depend on data that is not serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-client-with-third-party-libraries) or on the server via a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 

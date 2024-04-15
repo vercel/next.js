@@ -31,4 +31,20 @@ declare module 'next/navigation' {
       string | string[]
     >
   >(): T | null
+
+  /**
+   * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+   * that lets you read the active route segments **below** the Layout it is called from.
+   *
+   * If used from `pages/`, the hook will return `null`.
+   */
+  export function useSelectedLayoutSegments(): string[] | null
+
+  /**
+   * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+   * that lets you read the active route segment **one level below** the Layout it is called from.
+   *
+   * If used from `pages/`, the hook will return `null`.
+   */
+  export function useSelectedLayoutSegment(): string | null
 }

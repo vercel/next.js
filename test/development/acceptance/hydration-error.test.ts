@@ -15,7 +15,7 @@ describe('Error overlay for hydration errors', () => {
   })
 
   it('should show correct hydration error when client and server render different text', async () => {
-    const { cleanup, session } = await sandbox(
+    const { cleanup, session, browser } = await sandbox(
       next,
       new Map([
         [
@@ -34,15 +34,33 @@ describe('Error overlay for hydration errors', () => {
       ])
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Text content does not match server-rendered HTML.
-
-      Warning: Text content did not match. Server: "server" Client: "client"
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+      `"Text content did not match. Server: "server" Client: "client""`
+    )
+
+    await session.patch(
+      'index.js',
+      outdent`
+      export default function Mismatch() {
+          return (
+            <div className="parent">
+              <main className="child">Value</main>
+            </div>
+          );
+        }
+    `
+    )
+
+    expect(await session.hasRedbox()).toBe(false)
+
+    expect(await browser.elementByCss('.child').text()).toBe('Value')
 
     await cleanup()
   })

@@ -9,7 +9,10 @@ use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent, FileSystemPath},
     turbopack::{
-        core::{asset::AssetContent, source::Source, virtual_source::VirtualSource},
+        core::{
+            asset::AssetContent, file_source::FileSource, source::Source,
+            virtual_source::VirtualSource,
+        },
         ecmascript::utils::StringifyJs,
         turbopack::ModuleAssetContext,
     },
@@ -20,6 +23,8 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment},
+    next_config::NextConfig,
+    parse_segment_config_from_source,
 };
 
 /// Computes the route source for a Next.js metadata file.
@@ -54,13 +59,25 @@ pub fn get_app_metadata_route_entry(
     page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
+    next_config: Vc<NextConfig>,
 ) -> Vc<AppEntry> {
+    // Read original source's segment config before replacing source into
+    // dynamic|static metadata route handler.
+    let original_path = match metadata {
+        MetadataItem::Static { path } | MetadataItem::Dynamic { path } => path,
+    };
+
+    let source = Vc::upcast(FileSource::new(original_path));
+    let segment_config = parse_segment_config_from_source(source);
+
     get_app_route_entry(
         nodejs_context,
         edge_context,
         get_app_metadata_route_source(page.clone(), mode, metadata),
         page,
         project_root,
+        Some(segment_config),
+        next_config,
     )
 }
 
@@ -94,7 +111,7 @@ async fn static_route_source(
 
     let cache_control = if stem == "favicon" {
         CACHE_HEADER_REVALIDATE
-    } else if mode == NextMode::Build {
+    } else if mode.is_production() {
         CACHE_HEADER_LONG_CACHE
     } else {
         CACHE_HEADER_NONE
@@ -143,6 +160,8 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 
     let content_type = get_content_type(path).await?;
 
+    // refer https://github.com/vercel/next.js/blob/7b2b9823432fb1fa28ae0ac3878801d638d93311/packages/next/src/build/webpack/loaders/next-metadata-route-loader.ts#L84
+    // for the original template.
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
@@ -153,6 +172,10 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
             const contentType = {content_type}
             const cacheControl = {cache_control}
             const fileType = {file_type}
+
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
 
             export async function GET() {{
               const data = await handler()
@@ -195,8 +218,7 @@ async fn dynamic_site_map_route_source(
 
     let mut static_generation_code = "";
 
-    if mode == NextMode::Build
-        && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string()))
+    if mode.is_production() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string()))
     {
         static_generation_code = indoc! {
             r#"
@@ -225,6 +247,10 @@ async fn dynamic_site_map_route_source(
             const contentType = {content_type}
             const cacheControl = {cache_control}
             const fileType = {file_type}
+
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
 
             export async function GET(_, ctx) {{
                 const {{ __metadata_id__ = [], ...params }} = ctx.params || {{}}
@@ -293,6 +319,10 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
             const handler = imageModule.default
             const generateImageMetadata = imageModule.generateImageMetadata
+
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
 
             export async function GET(_, ctx) {{
                 const {{ __metadata_id__ = [], ...params }} = ctx.params || {{}}

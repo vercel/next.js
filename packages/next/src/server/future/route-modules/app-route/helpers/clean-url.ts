@@ -4,10 +4,11 @@
  * @param urlString the url to clean
  * @returns the cleaned url
  */
-export function cleanURL(urlString: string): string {
-  const url = new URL(urlString)
-  url.host = 'localhost:3000'
-  url.search = ''
-  url.protocol = 'http'
-  return url.toString()
+
+export function cleanURL(url: string | URL): URL {
+  const u = new URL(url)
+  u.host = 'localhost:3000'
+  u.search = ''
+  u.protocol = 'http'
+  return u
 }

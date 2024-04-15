@@ -1,4 +1,4 @@
-import PostsPreview from './post-preview'
+import PostsPreview from "./post-preview";
 
 export default function PostsList({ posts }) {
   return (
@@ -20,5 +20,5 @@ export default function PostsList({ posts }) {
         {!posts.length && <div>No blog posts found.</div>}
       </div>
     </div>
-  )
+  );
 }

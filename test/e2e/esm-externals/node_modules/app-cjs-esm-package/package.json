@@ -1,0 +1,10 @@
+{
+  "name": "app-cjs-esm-package",
+  "exports": {
+    "./entry": {
+      "browser": "./browser.js",
+      "import": "./correct.js",
+      "require": "./alternative.js"
+    }
+  }
+}

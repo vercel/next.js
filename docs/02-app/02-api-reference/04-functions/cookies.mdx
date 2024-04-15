@@ -52,8 +52,8 @@ A method that takes a cookie name and returns a `boolean` based on if the cookie
 import { cookies } from 'next/headers'
 
 export default function Page() {
-  const cookiesList = cookies()
-  const hasCookie = cookiesList.has('theme')
+  const cookieStore = cookies()
+  const hasCookie = cookieStore.has('theme')
   return '...'
 }
 ```

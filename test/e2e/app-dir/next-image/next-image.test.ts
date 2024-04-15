@@ -13,39 +13,69 @@ createNextDescribe(
 
         const layout = $('#app-layout')
 
-        expect([
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85',
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=85',
-        ]).toPartiallyContain(layout.attr('src'))
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=85 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85 2x',
-        ]).toPartiallyContain(layout.attr('srcset'))
+        if (process.env.TURBOPACK) {
+          expect(layout.attr('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85"`
+          )
+        } else {
+          expect(layout.attr('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85"`
+          )
+        }
+
+        if (process.env.TURBOPACK) {
+          expect(layout.attr('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85 2x"`
+          )
+        } else {
+          expect(layout.attr('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85 2x"`
+          )
+        }
 
         const page = $('#app-page')
-        expect([
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90',
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=90',
-        ]).toPartiallyContain(page.attr('src'))
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=90 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90 2x',
-        ]).toPartiallyContain(page.attr('srcset'))
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=90 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90 2x',
-        ]).toPartiallyContain(page.attr('srcset'))
+
+        if (process.env.TURBOPACK) {
+          expect(page.attr('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
+          )
+        } else {
+          expect(page.attr('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90"`
+          )
+        }
+
+        if (process.env.TURBOPACK) {
+          expect(page.attr('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90 2x"`
+          )
+        } else {
+          expect(page.attr('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90 2x"`
+          )
+        }
 
         const comp = $('#app-comp')
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=80',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80',
-        ]).toPartiallyContain(comp.attr('src'))
 
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=80 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=80 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80 2x',
-        ]).toPartiallyContain(comp.attr('srcset'))
+        if (process.env.TURBOPACK) {
+          expect(comp.attr('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80"`
+          )
+        } else {
+          expect(comp.attr('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80"`
+          )
+        }
+
+        if (process.env.TURBOPACK) {
+          expect(comp.attr('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80 2x"`
+          )
+        } else {
+          expect(comp.attr('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80 2x"`
+          )
+        }
       })
 
       it('should render images on /client route', async () => {
@@ -126,71 +156,70 @@ createNextDescribe(
         const browser = await next.browser('/')
 
         const layout = await browser.elementById('app-layout')
-        expect([
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85',
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=85',
-        ]).toPartiallyContain(await layout.getAttribute('src'))
 
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=85 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85 2x',
-        ]).toPartiallyContain(await layout.getAttribute('srcset'))
+        if (process.env.TURBOPACK) {
+          expect(await layout.getAttribute('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85"`
+          )
+        } else {
+          expect(await layout.getAttribute('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85"`
+          )
+        }
+
+        if (process.env.TURBOPACK) {
+          expect(await layout.getAttribute('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85 2x"`
+          )
+        } else {
+          expect(await layout.getAttribute('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=85 2x"`
+          )
+        }
 
         const page = await browser.elementById('app-page')
-        expect([
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90',
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=90',
-        ]).toPartiallyContain(await page.getAttribute('src'))
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=90 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90 2x',
-        ]).toPartiallyContain(await page.getAttribute('srcset'))
+
+        if (process.env.TURBOPACK) {
+          expect(await page.getAttribute('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
+          )
+        } else {
+          expect(await page.getAttribute('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90"`
+          )
+        }
+
+        if (process.env.TURBOPACK) {
+          expect(await page.getAttribute('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90 2x"`
+          )
+        } else {
+          expect(await page.getAttribute('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=90 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90 2x"`
+          )
+        }
 
         const comp = await browser.elementById('app-comp')
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=80',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80',
-        ]).toPartiallyContain(await comp.getAttribute('src'))
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=80 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=80 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80 2x',
-        ]).toPartiallyContain(await comp.getAttribute('srcset'))
-      })
 
-      it('should render images on /client route', async () => {
-        const browser = await next.browser('/client')
+        if (process.env.TURBOPACK) {
+          expect(await comp.getAttribute('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80"`
+          )
+        } else {
+          expect(await comp.getAttribute('src')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80"`
+          )
+        }
 
-        const root = await browser.elementById('app-layout')
-        expect(await root.getAttribute('src')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=85/
-        )
-        expect(await root.getAttribute('srcset')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=640&q=85 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=85 2x/
-        )
-
-        const layout = await browser.elementById('app-client-layout')
-        expect(await layout.getAttribute('src')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=55/
-        )
-        expect(await layout.getAttribute('srcset')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=640&q=55 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=55 2x/
-        )
-
-        const page = await browser.elementById('app-client-page')
-        expect(await page.getAttribute('src')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=60/
-        )
-        expect(await page.getAttribute('srcset')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=640&q=60 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=60 2x/
-        )
-
-        const comp = await browser.elementById('app-client-comp')
-        expect(await comp.getAttribute('src')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=50/
-        )
-        expect(await comp.getAttribute('srcset')).toMatch(
-          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=640&q=50 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=50 2x/
-        )
+        if (process.env.TURBOPACK) {
+          expect(await comp.getAttribute('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=80 2x"`
+          )
+        } else {
+          expect(await comp.getAttribute('srcset')).toMatchInlineSnapshot(
+            `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=80 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=80 2x"`
+          )
+        }
       })
 
       it('should render images nested under page dir on /nested route', async () => {

@@ -6,20 +6,20 @@
     "start": "next start"
   },
   "dependencies": {
-    "@types/node": "20.10.3",
-    "@types/react": "18.2.42",
-    "@types/react-dom": "18.2.17",
+    "@types/node": "20.11.0",
+    "@types/react": "18.2.47",
+    "@types/react-dom": "18.2.18",
     "@types/uuid": "9.0.7",
-    "@vercel/kv": "^1.0.0",
+    "@vercel/kv": "^1.0.1",
     "autoprefixer": "10.4.16",
-    "clsx": "^2.0.0",
-    "geist": "^1.2.0",
-    "next": "canary",
-    "postcss": "^8.4.32",
+    "clsx": "^2.1.0",
+    "geist": "^1.2.1",
+    "next": "latest",
+    "postcss": "^8.4.33",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "tailwindcss": "3.3.6",
-    "typescript": "5.3.2",
+    "tailwindcss": "3.4.1",
+    "typescript": "5.3.3",
     "uuid": "^9.0.1"
   }
 }

@@ -1,23 +1,23 @@
-import { GetStaticPaths, GetStaticProps } from 'next'
-import { useRouter } from 'next/router'
+import { GetStaticPaths, GetStaticProps } from "next";
+import { useRouter } from "next/router";
 
 const DynamicPage = () => {
-  const { query } = useRouter()
+  const { query } = useRouter();
   return (
     <>
       <h1>Dynamic Page</h1>
       <h2>Query: {query.dynamic}</h2>
     </>
-  )
-}
+  );
+};
 
 export const getStaticProps: GetStaticProps = async () => {
   return {
     props: {
-      dynamic: 'hello',
+      dynamic: "hello",
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths: GetStaticPaths = async () => {
   return {
@@ -27,7 +27,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
       },
     })),
     fallback: false,
-  }
-}
+  };
+};
 
-export default DynamicPage
+export default DynamicPage;
