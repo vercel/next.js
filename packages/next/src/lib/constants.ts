@@ -1,4 +1,4 @@
-import type { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../types'
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 
