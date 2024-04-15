@@ -239,7 +239,10 @@ impl CodeGenerateable for EsmAssetReference {
                             insert_hoisted_stmt(program, stmt);
                         }));
                     }
-                    ReferencedAsset::External(request, ExternalType::EcmaScriptModule) => {
+                    ReferencedAsset::External(
+                        request,
+                        ExternalType::OriginalReference | ExternalType::EcmaScriptModule,
+                    ) => {
                         if !*chunking_context
                             .environment()
                             .supports_esm_externals()
