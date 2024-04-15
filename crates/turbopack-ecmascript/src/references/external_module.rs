@@ -83,7 +83,7 @@ impl CachedExternalModule {
         if self.external_type == CachedExternalType::CommonJs {
             writeln!(code, "module.exports = mod;")?;
         } else {
-            writeln!(code, "__turbopack_dynamic__(mod);")?;
+            writeln!(code, "__turbopack_export_namespace__(mod);")?;
         }
 
         Ok(EcmascriptModuleContent {

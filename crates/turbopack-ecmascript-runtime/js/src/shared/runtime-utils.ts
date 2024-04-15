@@ -147,7 +147,11 @@ function exportValue(module: Module, value: any) {
 }
 
 function exportNamespace(module: Module, namespace: any) {
-  module.exports = module.namespaceObject = namespace;
+  if (isAsyncModuleExt(module.exports)) {
+    module.exports[turbopackExports] = namespace;
+  } else {
+    module.exports = module.namespaceObject = namespace;
+  }
 }
 
 function createGetter(obj: Record<string | symbol, any>, key: string | symbol) {
@@ -443,7 +447,7 @@ function asyncModule(
     if (err) {
       reject((promise[turbopackError] = err));
     } else {
-      resolve(exports);
+      resolve(promise[turbopackExports]);
     }
 
     resolveQueue(queue);

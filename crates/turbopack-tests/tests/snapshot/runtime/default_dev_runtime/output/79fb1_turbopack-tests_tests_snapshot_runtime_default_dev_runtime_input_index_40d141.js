@@ -84,7 +84,11 @@ function exportValue(module, value) {
     module.exports = value;
 }
 function exportNamespace(module, namespace) {
-    module.exports = module.namespaceObject = namespace;
+    if (isAsyncModuleExt(module.exports)) {
+        module.exports[turbopackExports] = namespace;
+    } else {
+        module.exports = module.namespaceObject = namespace;
+    }
 }
 function createGetter(obj, key) {
     return ()=>obj[key];
@@ -282,7 +286,7 @@ function asyncModule(module, body, hasAwait) {
         if (err) {
             reject(promise[turbopackError] = err);
         } else {
-            resolve(exports);
+            resolve(promise[turbopackExports]);
         }
         resolveQueue(queue);
     }
