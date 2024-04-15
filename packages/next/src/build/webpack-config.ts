@@ -1821,7 +1821,10 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
-          edgeEnvironments: edgePreviewProps || {},
+          edgeEnvironments: {
+            ...edgePreviewProps,
+            buildId,
+          },
         }),
       isClient &&
         new BuildManifestPlugin({

@@ -186,6 +186,7 @@ describe('Middleware Runtime', () => {
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
+          'buildId',
           'previewModeEncryptionKey',
           'previewModeId',
           'previewModeSigningKey',

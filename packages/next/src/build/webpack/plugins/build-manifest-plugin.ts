@@ -29,6 +29,34 @@ export type ClientBuildManifest = {
 // generated).
 export const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
+// Return different path for edge runtime and nodejs runtime
+// edge: '"/static/" + process.env.NEXT_BUILD_ID + "/low-priority.js"'
+// nodejs: '/static/<build id>/low-priority.js'
+function buildLowPriorityPath(
+  filename: string,
+  buildId: string,
+  isEdgeRuntime: boolean
+) {
+  return isEdgeRuntime
+    ? `"${CLIENT_STATIC_FILES_PATH}/" + process.env.NEXT_BUILD_ID + "/${filename}"`
+    : `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
+}
+
+function createEdgeRuntimeManifest(
+  originAssetMap: BuildManifest,
+  buildId: string
+): string {
+  const assetMap = {
+    ...originAssetMap,
+    lowPriorityFiles: [
+      buildLowPriorityPath('_buildManifest.js', buildId, true),
+      buildLowPriorityPath('_ssgManifest.js', buildId, true),
+    ],
+  }
+
+  return JSON.stringify(assetMap, null, 2)
+}
+
 function normalizeRewrite(item: {
   source: string
   destination: string
@@ -231,19 +259,27 @@ export default class BuildManifestPlugin {
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
-        assetMap.lowPriorityFiles.push(
-          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+        const buildManifestPath = buildLowPriorityPath(
+          '_buildManifest.js',
+          this.buildId,
+          false
         )
-        const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
-
-        assetMap.lowPriorityFiles.push(ssgManifestPath)
+        const ssgManifestPath = buildLowPriorityPath(
+          '_ssgManifest.js',
+          this.buildId,
+          false
+        )
+        assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
       }
 
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
         // eslint-disable-next-line
-        .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
+        .reduce(
+          (a, c) => ((a[c] = assetMap.pages[c]), a),
+          {} as typeof assetMap.pages
+        )
 
       let buildManifestName = BUILD_MANIFEST
 
@@ -256,7 +292,10 @@ export default class BuildManifestPlugin {
       )
 
       assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] = new sources.RawSource(
-        `self.__BUILD_MANIFEST=${JSON.stringify(assetMap)}`
+        `self.__BUILD_MANIFEST=${createEdgeRuntimeManifest(
+          assetMap,
+          this.buildId
+        )}`
       )
 
       if (!this.isDevFallback) {
