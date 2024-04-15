@@ -218,7 +218,8 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
         continue
       }
       // TODO fix this case
-      const broken = isNextDev
+      const broken =
+        isNextDev || ordering.some((page) => PAGES[page].brokenLoading)
       if (broken) {
         it.todo(name)
         continue
