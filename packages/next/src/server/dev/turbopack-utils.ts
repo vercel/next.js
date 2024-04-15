@@ -41,7 +41,7 @@ export async function getTurbopackJsConfig(
   return jsConfig ?? { compilerOptions: {} }
 }
 
-class ModuleBuildError extends Error {}
+export class ModuleBuildError extends Error {}
 
 /**
  * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
