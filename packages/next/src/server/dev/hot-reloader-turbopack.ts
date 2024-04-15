@@ -363,7 +363,7 @@ export async function createHotReloaderTurbopack(
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(currentEntryIssues, key, change)
+      processIssues(currentEntryIssues, key, change, false, true)
       const payload = await makePayload(change)
       if (payload) {
         sendHmr(key, payload)
@@ -401,7 +401,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data)
+        processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -453,6 +453,7 @@ export async function createHotReloaderTurbopack(
         manifestLoader,
         nextConfig: opts.nextConfig,
         rewrites: opts.fsChecker.rewrites,
+        logErrors: true,
 
         dev: {
           assetMapper,
@@ -778,6 +779,7 @@ export async function createHotReloaderTurbopack(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: opts.fsChecker.rewrites,
+            logErrors: true,
 
             hooks: {
               subscribeToChanges,
@@ -830,6 +832,7 @@ export async function createHotReloaderTurbopack(
           manifestLoader,
           readyIds,
           rewrites: opts.fsChecker.rewrites,
+          logErrors: true,
 
           hooks: {
             subscribeToChanges,

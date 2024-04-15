@@ -107,6 +107,7 @@ import {
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -137,7 +138,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   requestId: string
   defaultRevalidate: Revalidate
   pagePath: string
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
   flightDataRendererErrorHandler: ErrorHandler
   serverComponentsErrorHandler: ErrorHandler

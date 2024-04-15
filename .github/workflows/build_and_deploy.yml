@@ -269,11 +269,14 @@ jobs:
         if: ${{ matrix.settings.setup }}
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
         with:
           save-if: 'true'
           cache-provider: 'turbo'
           shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
+
+      - name: Clear native build
+        run: rm -rf packages/next-swc/native
 
       # we only need custom caching for docker builds
       # as they are on an older Node.js version and have

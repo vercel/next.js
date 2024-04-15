@@ -302,6 +302,7 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
+    edgePreviewProps,
   }: {
     buildId: string
     encryptionKey: string
@@ -322,6 +323,7 @@ export default async function getBaseWebpackConfig(
     jsConfig: any
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
+    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -688,6 +690,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
+      reserved: ['AbortSignal'],
       ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
@@ -1698,6 +1701,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
+          appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
@@ -1766,13 +1770,13 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
+          edgeEnvironments: edgePreviewProps || {},
         }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
@@ -1837,7 +1841,8 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      isClient &&
+      !dev &&
+        isClient &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&

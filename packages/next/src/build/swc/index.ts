@@ -1164,6 +1164,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+      if (!rule) return
       if ('loaders' in rule) {
         checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
       } else {
@@ -1219,7 +1220,7 @@ async function loadWasm(importPath = '') {
         // the import path must be exact when not in node_modules
         pkgPath = path.join(importPath, pkg, 'wasm.js')
       }
-      let bindings = await import(pkgPath)
+      let bindings = await import(pathToFileURL(pkgPath).toString())
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }

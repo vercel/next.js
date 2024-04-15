@@ -22,7 +22,7 @@ import {
 } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { FontManifest, FontConfig } from './font-utils'
-import type { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { LoadComponentsReturnType } from './load-components'
 import type {
   GetServerSideProps,
   GetStaticProps,
@@ -106,6 +106,7 @@ import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
 import { getErrorSource } from '../shared/lib/error-source'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -255,15 +256,15 @@ export type RenderOptsPartial = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   optimizeFonts: FontConfig
-  fontManifest?: FontManifest
+  fontManifest?: DeepReadonly<FontManifest>
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  clientReferenceManifest?: ClientReferenceManifest
-  nextFontManifest?: NextFontManifest
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
   locale?: string
   locales?: string[]
@@ -845,7 +846,7 @@ export async function renderToHTMLImpl(
           },
         },
         () =>
-          getStaticProps!({
+          getStaticProps({
             ...(pageIsDynamic
               ? { params: query as ParsedUrlQuery }
               : undefined),
@@ -855,6 +856,11 @@ export async function renderToHTMLImpl(
             locales: renderOpts.locales,
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
+            revalidateReason: renderOpts.isOnDemandRevalidate
+              ? 'on-demand'
+              : isBuildTimeSSG
+              ? 'build'
+              : 'stale',
           })
       )
     } catch (staticPropsError: any) {
@@ -1431,7 +1437,7 @@ export async function renderToHTMLImpl(
   const dynamicImports = new Set<string>()
 
   for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem = reactLoadableManifest[mod]
+    const manifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
       dynamicImportsIds.add(manifestItem.id)

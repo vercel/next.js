@@ -1479,6 +1479,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/root-not-found-missing-root-layout/index.test.ts": {
+    "passed": [],
+    "failed": [
+      "root-not-found-missing-root-layout should not conflict with generated layout on dev server"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": ["Strict Mode enabled by default should work using browser"],
     "failed": [],
@@ -2357,6 +2366,8 @@
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should log a warning when a server action is not found but an id is provided",
@@ -3189,9 +3200,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
-    "passed": [
-      "useReportWebVitals hook should send web-vitals to vercel-insights"
-    ],
+    "passed": ["useReportWebVitals hook should send web-vitals"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6911,6 +6920,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/revalidate-reason/revalidate-reason.test.ts": {
+    "passed": [
+      "revalidate-reason development mode should support revalidateReason: \"stale\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
@@ -7097,6 +7115,15 @@
       "transpile packages css should handle scss modules imports inside transpiled modules",
       "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
       "transpile packages optional deps should not throw an error when optional deps are not installed"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/tsconfig-module-preserve/index.test.ts": {
+    "passed": [
+      "tsconfig module: preserve allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
     ],
     "failed": [],
     "pending": [],
@@ -14084,6 +14111,7 @@
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
+      "Image Component Default Tests development mode should work when using overrideSrc prop",
       "Image Component Default Tests development mode should work with image with blob src",
       "Image Component Default Tests development mode should work with sizes and automatically use responsive srcset"
     ],
@@ -14123,6 +14151,7 @@
       "Image Component Default Tests production mode should warn when legacy prop layout=fill",
       "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests production mode should work when using flexbox",
+      "Image Component Default Tests production mode should work when using overrideSrc prop",
       "Image Component Default Tests production mode should work with image with blob src",
       "Image Component Default Tests production mode should work with sizes and automatically use responsive srcset"
     ],
@@ -14299,6 +14328,7 @@
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
+      "Image Component Default Tests development mode should work when using overrideSrc prop",
       "Image Component Default Tests development mode should work with image with blob src",
       "Image Component Default Tests development mode should work with sizes and automatically use responsive srcset"
     ],
@@ -14339,6 +14369,7 @@
       "Image Component Default Tests production mode should warn when legacy prop layout=fill",
       "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests production mode should work when using flexbox",
+      "Image Component Default Tests production mode should work when using overrideSrc prop",
       "Image Component Default Tests production mode should work with image with blob src",
       "Image Component Default Tests production mode should work with sizes and automatically use responsive srcset"
     ],
@@ -15999,6 +16030,7 @@
       "tsconfig.json verifier allows you to set target mode",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
+      "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\"",
       "tsconfig.json verifier creates compilerOptions when you extend another config"
     ],
     "flakey": [],

@@ -558,7 +558,7 @@ export async function setupFsCheck(opts: {
 
         // check decoded variant as well
         if (!matchedItem && !opts.dev) {
-          matchedItem = items.has(curItemPath)
+          matchedItem = items.has(curDecodedItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008

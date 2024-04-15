@@ -256,7 +256,7 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
-  let { isServer, pagesDir, development, hasJsxRuntime, configFile } =
+  let { isServer, pagesDir, development, hasJsxRuntime, configFile, cwd } =
     loaderOptions
 
   let customConfig: any = configFile
@@ -325,6 +325,7 @@ function getFreshConfig(
       supportsTopLevelAwait: true,
 
       isServer,
+      cwd,
       pagesDir,
       isDev: development,
       hasJsxRuntime,
