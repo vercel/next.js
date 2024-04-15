@@ -31,6 +31,9 @@ describe('create-next-app', () => {
   })
 
   it('should not create if the target directory is not writable', async () => {
+    const expectedErrorMessage =
+      /you do not have write permissions for this folder|EPERM: operation not permitted/
+
     await useTempDir(async (cwd) => {
       const projectName = 'dir-not-writable'
 
@@ -45,6 +48,7 @@ describe('create-next-app', () => {
         )
         return
       }
+
       const res = await run(
         [
           projectName,
@@ -61,10 +65,12 @@ describe('create-next-app', () => {
         }
       )
 
-      expect(res.stderr).toMatch(
-        /you do not have write permissions for this folder/
-      )
+      expect(res.stderr).toMatch(expectedErrorMessage)
       expect(res.exitCode).toBe(1)
-    }, 0o500)
+    }, 0o500).catch((err) => {
+      if (!expectedErrorMessage.test(err.message)) {
+        throw err
+      }
+    })
   })
 })

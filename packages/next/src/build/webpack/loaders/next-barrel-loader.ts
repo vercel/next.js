@@ -221,9 +221,12 @@ async function getBarrelMapping(
             true,
             isClientEntry
           )
+
           if (targetMatches) {
             // Merge the export list
             exportList = exportList.concat(targetMatches.exportList)
+            // Inherit the client boundary from the target matched file
+            isClientEntry = isClientEntry || targetMatches.isClientEntry
           }
         })
       )

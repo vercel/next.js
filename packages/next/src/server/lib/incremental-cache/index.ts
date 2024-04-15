@@ -385,14 +385,19 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
+    const headers =
+      typeof (init.headers || {}).keys === 'function'
+        ? Object.fromEntries(init.headers as Headers)
+        : Object.assign(init.headers || {}, {})
+
+    if ('traceparent' in headers) delete headers['traceparent']
+
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
       this.fetchCacheKeyPrefix || '',
       url,
       init.method,
-      typeof (init.headers || {}).keys === 'function'
-        ? Object.fromEntries(init.headers as Headers)
-        : init.headers,
+      headers,
       init.mode,
       init.redirect,
       init.credentials,
