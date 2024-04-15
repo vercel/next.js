@@ -42,6 +42,7 @@ const { spawn } = require('child_process')
 
   // pull cache if it was available
   if (task.cache.local || task.cache.remote) {
+    console.log('Cache Status', task.taskId, task.hash, task.cache)
     await new Promise((resolve, reject) => {
       const child = spawn(
         '/bin/bash',
