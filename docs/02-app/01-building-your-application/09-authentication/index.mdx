@@ -585,7 +585,7 @@ To create and manage stateless sessions in your Next.js application, there are a
 2. Write logic to encrypt/decrypt session data using a session management library.
 3. Save the session as a cookie using the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the [recommended options](#3-setting-the-cookie-recommended-options).
 
-In addition to the above, consider adding functionality to [update (or refreshs)](#updating-or-extending-the-session) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
+In addition to the above, consider adding functionality to [update (or refresh)](#updating-or-refreshing-sessions) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
 
 > **Tips:**
 >
@@ -613,7 +613,7 @@ const secretKey = process.env.SESSION_SECRET
 
 #### 2. Encrypting and decrypting sessions
 
-Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)):
+Next, you can use your preferred session management library to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)):
 
 ```tsx filename="app/actions/session.ts" switcher
 import 'server-only'
