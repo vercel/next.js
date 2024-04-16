@@ -281,6 +281,16 @@ export async function LightningCssLoader(
     return
   }
 
+  if (options.postcss) {
+    const { postcssWithPlugins } = await options.postcss()
+
+    if (postcssWithPlugins?.plugins?.length > 0) {
+      throw new Error(
+        `[${LOADER_NAME}]: experimental.useLightningcss does not work with postcss plugins. Please remove 'useLightningcss: true' from your configuration.`
+      )
+    }
+  }
+
   const exports: CssExport[] = []
   const imports: CssImport[] = []
   const icssImports: CssImport[] = []

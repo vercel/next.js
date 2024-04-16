@@ -93,6 +93,7 @@ pub enum ServerContextType {
     },
     AppRoute {
         app_dir: Vc<FileSystemPath>,
+        ecmascript_client_reference_transition_name: Option<Vc<String>>,
     },
     Middleware,
     Instrumentation,
@@ -616,8 +617,27 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::AppRoute { .. } => {
+        ServerContextType::AppRoute {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        } => {
             next_server_rules.extend(source_transform_rules);
+            if let Some(ecmascript_client_reference_transition_name) =
+                ecmascript_client_reference_transition_name
+            {
+                next_server_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDirectiveTransformer::new(
+                        ecmascript_client_reference_transition_name,
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            }
+
+            next_server_rules.push(
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                    .await?,
+            );
 
             let module_options_context = ModuleOptionsContext {
                 esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
