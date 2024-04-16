@@ -15,12 +15,11 @@ function createTemporaryFixture(fixtureName: string) {
   const fixturePath = join(__dirname, fixtureName)
   const stat = statSync(fixturePath)
   if (!stat.isDirectory()) {
-    throw new Error(`Fixture ${fixtureName} is invalid.`)
+    throw new Error(`Fixture ${fixtureName} is not a directory.`)
   }
 
   const dir = mkdtempSync(join(tmpdir(), fixtureName))
   cpSync(fixturePath, dir, { recursive: true })
-
   return dir
 }
 
@@ -90,9 +89,6 @@ describe('next test', () => {
         stderr: true,
         stdout: true,
         cwd: fixture,
-        env: {
-          JEST_WORKER_ID: undefined,
-        },
       })
 
       expect(stdout).toContain('1 passed')
@@ -103,7 +99,7 @@ describe('next test', () => {
   })
 
   describe('test runner validation', () => {
-    it.only('should validate configured/specified test runner', async () => {
+    it('should validate configured/specified test runner', async () => {
       const fixture = createTemporaryFixture('basic-example')
 
       try {
@@ -117,9 +113,6 @@ describe('next test', () => {
           stderr: true,
           stdout: true,
           cwd: fixture,
-          env: {
-            JEST_WORKER_ID: undefined,
-          },
         })
 
         expect(stdout).toBe('')
@@ -136,9 +129,6 @@ describe('next test', () => {
             stderr: true,
             stdout: true,
             cwd: fixture,
-            env: {
-              JEST_WORKER_ID: undefined,
-            },
           }
         ))
 
@@ -151,5 +141,26 @@ describe('next test', () => {
         rmSync(fixture, { recursive: true, force: true })
       }
     })
+  })
+
+  it('should pass args to test runner', async () => {
+    const fixture = createTemporaryFixture('basic-example')
+
+    try {
+      const { stdout, stderr } = await nextTest(
+        fixture,
+        ['--test-runner-args=--version'],
+        {
+          stderr: true,
+          stdout: true,
+          cwd: fixture,
+        }
+      )
+
+      expect(stdout).toContain('Version 1')
+      expect(stderr).toBe('')
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+    }
   })
 })

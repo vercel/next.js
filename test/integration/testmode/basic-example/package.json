@@ -1,5 +1,5 @@
 {
-  "name": "next-testmode-integration-test-first-time-setup-js",
+  "name": "next-testmode-integration-test-basic-example",
   "private": "true",
   "scripts": {
     "dev": "next dev",
