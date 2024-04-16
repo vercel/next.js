@@ -41,6 +41,7 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { isWebpackServerOnlyLayer } from '../../utils'
+import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 
 interface Options {
   dev: boolean
@@ -664,7 +665,16 @@ export class FlightClientEntryPlugin {
       if (!modRequest) return
       if (visited.has(modRequest)) {
         if (clientComponentImports[modRequest]) {
+          const isCjsModule =
+            getModuleBuildInfo(mod).rsc?.clientEntryType === 'cjs'
           for (const name of importedIdentifiers) {
+            // For cjs module default import, we include the whole module since
+            const isCjsDefaultImport = isCjsModule && name === 'default'
+            // Always include __esModule along with cjs module default export,
+            // to make sure it work with client module proxy from React.
+            if (isCjsDefaultImport) {
+              clientComponentImports[modRequest].add('__esModule')
+            }
             clientComponentImports[modRequest].add(name)
           }
         }

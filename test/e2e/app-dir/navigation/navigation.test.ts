@@ -841,22 +841,16 @@ createNextDescribe(
       it('should render the final state of the page with correct metadata', async () => {
         const browser = await next.browser('/metadata-await-promise')
 
-        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
-        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
-          await browser
-            .elementByCss("[href='/metadata-await-promise/nested']")
-            .click()
-        } else {
-          const loadingText = await browser
-            .elementByCss("[href='/metadata-await-promise/nested']")
-            .click()
-            .waitForElementByCss('#loading')
-            .text()
-
-          expect(loadingText).toBe('Loading')
-        }
+        await browser
+          .elementByCss("[href='/metadata-await-promise/nested']")
+          .click()
 
         await retry(async () => {
+          // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+          if (!(isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR)) {
+            expect(await browser.eval(`window.shownLoading`)).toBe(true)
+          }
+
           expect(await browser.elementById('page-content').text()).toBe(
             'Content'
           )
