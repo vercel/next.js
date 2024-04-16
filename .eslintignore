@@ -40,4 +40,4 @@ packages/next-bundle-analyzer/index.d.ts
 examples/with-typescript-graphql/lib/gql/
 test/development/basic/hmr/components/parse-error.js
 packages/next-swc/docs/assets/**/*
-amp-validator-wasm.js
+**/amp-validator-wasm.js
