@@ -14,7 +14,7 @@ import { hasRedbox } from 'next-test-utils'
         files: join(__dirname, 'fixture'),
 
         dependencies: {
-          '@mui/material': '5.15.4',
+          '@mui/material': '5.15.15',
           '@emotion/react': '11.11.1',
           '@emotion/styled': '11.11.0',
         },

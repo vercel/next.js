@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { DOMAttributeNames } from './head-manager'
+import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
@@ -24,16 +24,6 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
  * @deprecated Use `ScriptProps` instead.
  */
 export type Props = ScriptProps
-
-const ignoreProps = [
-  'onLoad',
-  'onReady',
-  'dangerouslySetInnerHTML',
-  'children',
-  'onError',
-  'strategy',
-  'stylesheets',
-]
 
 const insertStylesheets = (stylesheets: string[]) => {
   // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
@@ -148,14 +138,7 @@ const loadScript = (props: ScriptProps): void => {
     ScriptCache.set(src, loadPromise)
   }
 
-  for (const [k, value] of Object.entries(props)) {
-    if (value === undefined || ignoreProps.includes(k)) {
-      continue
-    }
-
-    const attr = DOMAttributeNames[k] || k.toLowerCase()
-    el.setAttribute(attr, value)
-  }
+  setAttributesFromProps(el, props)
 
   if (strategy === 'worker') {
     el.setAttribute('type', 'text/partytown')

@@ -1,14 +1,9 @@
-import type {
-  IncomingHttpHeaders,
-  IncomingMessage,
-  OutgoingHttpHeaders,
-  ServerResponse,
-} from 'http'
-import type { WebNextRequest } from '../base-http/web'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { SizeLimit } from '../../../types'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import {
   RSC_HEADER,
@@ -43,6 +38,7 @@ import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
+import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -66,8 +62,8 @@ function nodeHeadersToRecord(
 }
 
 function getForwardedHeaders(
-  req: IncomingMessage,
-  res: ServerResponse
+  req: BaseNextRequest,
+  res: BaseNextResponse
 ): Headers {
   // Get request headers and cookies
   const requestHeaders = req.headers
@@ -108,7 +104,7 @@ function getForwardedHeaders(
 }
 
 async function addRevalidationHeader(
-  res: ServerResponse,
+  res: BaseNextResponse,
   {
     staticGenerationStore,
     requestStore,
@@ -151,8 +147,8 @@ async function addRevalidationHeader(
  * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
  */
 async function createForwardedActionResponse(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   host: Host,
   workerPathname: string,
   basePath: string,
@@ -181,35 +177,33 @@ async function createForwardedActionResponse(
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
   try {
-    let readableStream: ReadableStream<Uint8Array> | undefined
-    if (process.env.NEXT_RUNTIME === 'edge') {
-      const webRequest = req as unknown as WebNextRequest
-      if (!webRequest.body) {
-        throw new Error('invariant: Missing request body.')
+    let body: BodyInit | AsyncIterable<any> | undefined
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(req)
+    ) {
+      if (!req.body) {
+        throw new Error('Invariant: missing request body.')
       }
 
-      readableStream = webRequest.body
+      body = req.body
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      body = req.stream()
     } else {
-      // Convert the Node.js readable stream to a Web Stream.
-      readableStream = new ReadableStream({
-        start(controller) {
-          req.on('data', (chunk) => {
-            controller.enqueue(new Uint8Array(chunk))
-          })
-          req.on('end', () => {
-            controller.close()
-          })
-          req.on('error', (err) => {
-            controller.error(err)
-          })
-        },
-      })
+      throw new Error('Invariant: Unknown request type.')
     }
 
     // Forward the request to the new worker
     const response = await fetch(fetchUrl, {
       method: 'POST',
-      body: readableStream,
+      body,
       duplex: 'half',
       headers: forwardedHeaders,
       next: {
@@ -238,8 +232,8 @@ async function createForwardedActionResponse(
 }
 
 async function createRedirectRenderResult(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   originalHost: Host,
   redirectUrl: string,
   basePath: string,
@@ -370,8 +364,8 @@ export async function handleAction({
   serverActions,
   ctx,
 }: {
-  req: IncomingMessage
-  res: ServerResponse
+  req: BaseNextRequest
+  res: BaseNextResponse
   ComponentMod: AppPageModule
   serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
@@ -550,18 +544,22 @@ export async function handleAction({
 
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
-      if (process.env.NEXT_RUNTIME === 'edge') {
+      if (
+        // The type check here ensures that `req` is correctly typed, and the
+        // environment variable check provides dead code elimination.
+        process.env.NEXT_RUNTIME === 'edge' &&
+        isWebNextRequest(req)
+      ) {
         // Use react-server-dom-webpack/server.edge
         const { decodeReply, decodeAction, decodeFormState } = ComponentMod
 
-        const webRequest = req as unknown as WebNextRequest
-        if (!webRequest.body) {
+        if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
 
         if (isMultipartAction) {
           // TODO-APP: Add streaming support
-          const formData = await webRequest.request.formData()
+          const formData = await req.request.formData()
           if (isFetchAction) {
             bound = await decodeReply(formData, serverModuleMap)
           } else {
@@ -590,7 +588,7 @@ export async function handleAction({
 
           let actionData = ''
 
-          const reader = webRequest.body.getReader()
+          const reader = req.body.getReader()
           while (true) {
             const { done, value } = await reader.read()
             if (done) {
@@ -607,7 +605,12 @@ export async function handleAction({
             bound = await decodeReply(actionData, serverModuleMap)
           }
         }
-      } else {
+      } else if (
+        // The type check here ensures that `req` is correctly typed, and the
+        // environment variable check provides dead code elimination.
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        isNodeNextRequest(req)
+      ) {
         // Use react-server-dom-webpack/server.node which supports streaming
         const {
           decodeReply,
@@ -627,32 +630,17 @@ export async function handleAction({
               headers: req.headers,
               limits: { fieldSize: limit },
             })
-            req.pipe(bb)
+            req.body.pipe(bb)
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
-            // Convert the Node.js readable stream to a Web Stream.
-            const readableStream = new ReadableStream({
-              start(controller) {
-                req.on('data', (chunk) => {
-                  controller.enqueue(new Uint8Array(chunk))
-                })
-                req.on('end', () => {
-                  controller.close()
-                })
-                req.on('error', (err) => {
-                  controller.error(err)
-                })
-              },
-            })
-
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
             const fakeRequest = new Request('http://localhost', {
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: readableStream,
+              body: req.stream(),
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -681,7 +669,7 @@ export async function handleAction({
 
           const chunks = []
 
-          for await (const chunk of req) {
+          for await (const chunk of req.body) {
             chunks.push(Buffer.from(chunk))
           }
 
@@ -706,6 +694,8 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
             bound = await decodeReply(actionData, serverModuleMap)
           }
         }
+      } else {
+        throw new Error('Invariant: Unknown request type.')
       }
 
       // actions.js

@@ -575,7 +575,7 @@ async fn insert_next_server_special_aliases(
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
-        | ServerContextType::AppRoute { app_dir } => {
+        | ServerContextType::AppRoute { app_dir, .. } => {
             import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),

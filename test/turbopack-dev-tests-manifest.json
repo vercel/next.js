@@ -1479,6 +1479,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/root-not-found-missing-root-layout/index.test.ts": {
+    "passed": [],
+    "failed": [
+      "root-not-found-missing-root-layout should not conflict with generated layout on dev server"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": ["Strict Mode enabled by default should work using browser"],
     "failed": [],
@@ -3191,9 +3200,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
-    "passed": [
-      "useReportWebVitals hook should send web-vitals to vercel-insights"
-    ],
+    "passed": ["useReportWebVitals hook should send web-vitals"],
     "failed": [],
     "pending": [],
     "flakey": [],
