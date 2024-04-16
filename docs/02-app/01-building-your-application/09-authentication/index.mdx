@@ -21,7 +21,7 @@ This diagram shows the auth flow with React and Next.js features:
   height="1383"
 />
 
-The examples on this page will walk you through basic username and password auth for educational purposes. While you can implement a custom auth solution, for increased security and simplicity, we recommend using third-party authentication provider. These offer built-in solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list of Next.js examples in the [Vercel Templates Marketplace](https://vercel.com/templates?type=authentication).
+The examples on this page will walk you through basic username and password auth for educational purposes. While you can implement a custom auth solution, for increased security and simplicity, we recommend using an authentication library. These offer built-in solutions for authentication, session management, and authorization, as well as additional features such as social logins, multi-factor authentication, and role-based access control. You can find a list in the [Auth Libraries](#auth-libraries) section.
 
 ## Authentication
 
@@ -432,7 +432,7 @@ After successfully creating the user account or verifying the user, you can crea
 
 > **Tips:**
 >
-> - The example above is verbose since it breaks down the authentication steps for the purpose of education. This highlights that implementing your own secure solution can quickly become complex. Consider using an [Auth Library](https://vercel.com/templates?type=authentication) to simplify the process.
+> - The example above is verbose since it breaks down the authentication steps for the purpose of education. This highlights that implementing your own secure solution can quickly become complex. Consider using an [Auth Library](#auth-libraries) to simplify the process.
 > - To improve the user experience, you may want to check for duplicate emails or usernames earlier in the authentication flow. For example, as the user types in their email or the input field loses focus. This can help prevent unnecessary form submissions and provide immediate feedback to the user. You can debounce requests with libraries such as [use-debounce](https://www.npmjs.com/package/use-debounce) to manage the frequency of these checks.
 
 </AppOnly>
@@ -591,11 +591,11 @@ To create and manage stateless sessions in your Next.js application, there are a
 2. Write logic to encrypt/decrypt session data using a session management library.
 3. Save the session as a cookie using the Next.js [`cookies()`](/docs/app/api-reference/functions/cookies) API. The cookie should be set on the server, and include the [recommended options](#3-setting-the-cookie-recommended-options).
 
-In addition to the above, consider adding functionality to [update (or refresh)](#updating-or-refreshing-sessions) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
+In addition to the above, consider adding functionality to [update (or refreshs)](#updating-or-extending-the-session) the session when the user returns to the application, and [delete](#deleting-the-session) the session when the user logs out.
 
 > **Tips:**
 >
-> - If you're using an [auth library](https://vercel.com/templates?type=authentication), check if they handle sessions.
+> - If you're using an [auth library](#auth-libraries), check if they handle sessions.
 
 #### 1. Generating a secret key
 
@@ -619,7 +619,7 @@ const secretKey = process.env.SESSION_SECRET
 
 #### 2. Encrypting and decrypting sessions
 
-Next, you can use your preferred session management library to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)):
+Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)):
 
 ```tsx filename="app/actions/session.ts" switcher
 import 'server-only'
@@ -1353,7 +1353,10 @@ export async function getProfileDTO(slug) {
 
 By centralizing your data requests and authorization logic in a DAL and using DTOs, you can ensure that all data requests are secure and consistent, making it it easier to maintain, audit, and debug as your application scales.
 
-> **Good to know**: Learn more about security best practices in [Security in Next.js article](/blog/security-nextjs-server-components-actions).
+> **Good to know**:
+>
+> - There are a couple of different ways you can define a DTO, from using `toJSON()`, to individual functions like the example above, to JS classes. Since these are JavaScript patterns and not a React or Next.js feature, we recommend doing some research to find the best pattern for your application.
+> - Learn more about security best practices in our [Security in Next.js article](/blog/security-nextjs-server-components-actions).
 
 ### Server Components
 
@@ -1444,6 +1447,10 @@ export const getUser = cache(async () => {
   // Get user ID from session and fetch data
 })
 ```
+
+> **Good to know:**
+>
+> - A common pattern in SPAs is to `return null` in a layout or a top-level component if a user is not authorized. Since Next.js applications have multiple entry points, this pattern is **not recommended** since will not prevent nested layouts and pages and Server Actions from being accessed.
 
 #### Server Actions
 
@@ -1603,7 +1610,7 @@ export default function Profile() {
 }
 ```
 
-If session data is needed in Client Components (e.g. for client-side data fetching),use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) APIs to prevent sensitive session data from being exposed to the client.
+If session data is needed in Client Components (e.g. for client-side data fetching),use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
 
 </AppOnly>
 
@@ -1675,6 +1682,25 @@ export default async function handler(req, res) {
 This example demonstrates an API Route with a two-tier security check for authentication and authorization. It first checks for an active session, and then verifies if the logged-in user is an 'admin'. This approach ensures secure access, limited to authenticated and authorized users, maintaining robust security for request processing.
 
 </PagesOnly>
+
+## Resources
+
+Now that you've learned about authentication in Next.js, here are Next.js-compatible libraries and resources to help you implement secure authentication and session management:
+
+### Auth Libraries
+
+- [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
+- [Clerk](https://clerk.com/docs/quickstarts/nextjs)
+- [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
+- [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
+- [NextAuth.js](https://authjs.dev/getting-started/installation?framework=next.js)
+- [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
+- [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
+
+## Session Management Libraries
+
+- [Iron Session](https://github.com/vvo/iron-session)
+- [Jose](https://github.com/panva/jose)
 
 ## Further Reading
 
