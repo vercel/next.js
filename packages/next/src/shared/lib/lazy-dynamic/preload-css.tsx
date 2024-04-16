@@ -1,6 +1,6 @@
 'use client'
 
-import { getExpectedRequestStore } from '../../../client/components/request-async-storage.external'
+import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 
 export function PreloadCss({ moduleIds }: { moduleIds: string[] | undefined }) {
   // Early return in client compilation and only load requestStore on server side
@@ -8,13 +8,12 @@ export function PreloadCss({ moduleIds }: { moduleIds: string[] | undefined }) {
     return null
   }
 
-  const requestStore = getExpectedRequestStore('next/dynamic css')
-
+  const requestStore = requestAsyncStorage.getStore()
   const allFiles = []
 
   // Search the current dynamic call unique key id in react loadable manifest,
   // and find the corresponding CSS files to preload
-  if (requestStore.reactLoadableManifest && moduleIds) {
+  if (requestStore?.reactLoadableManifest && moduleIds) {
     const manifest = requestStore.reactLoadableManifest
     for (const key of moduleIds) {
       if (!manifest[key]) continue

@@ -4,6 +4,7 @@ import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../../server/web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/adapters/request-cookies'
 
+;('TURBOPACK { transition: next-shared }')
 import { createAsyncLocalStorage } from './async-local-storage'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
