@@ -371,6 +371,31 @@ createNextDescribe(
       }, 'success')
     })
 
+    it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
+      let browser = await next.browser('/revalidate')
+      let initialJustPutit = await browser.elementById('justputit').text()
+
+      // this triggers a revalidate + redirect in a client component
+      await browser.elementById('redirect-revalidate-client').click()
+      await retry(async () => {
+        const newJustPutIt = await browser.elementById('justputit').text()
+        expect(newJustPutIt).not.toBe(initialJustPutit)
+
+        expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
+      })
+
+      // this triggers a revalidate + redirect in a server component
+      browser = await next.browser('/revalidate')
+      initialJustPutit = await browser.elementById('justputit').text()
+      await browser.elementById('redirect-revalidate').click()
+      await retry(async () => {
+        const newJustPutIt = await browser.elementById('justputit').text()
+        expect(newJustPutIt).not.toBe(initialJustPutit)
+
+        expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
+      })
+    })
+
     it('should support next/dynamic with ssr: false', async () => {
       const browser = await next.browser('/dynamic-csr')
 
