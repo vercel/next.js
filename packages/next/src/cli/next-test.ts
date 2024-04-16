@@ -154,8 +154,9 @@ async function runPlaywright(
         },
       }
     )
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       playwright.on('close', (c) => resolve(c))
+      playwright.on('error', (err) => reject(err))
     })
   }
 }

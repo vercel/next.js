@@ -82,7 +82,7 @@ describe('next test', () => {
     })
   })
 
-  it.only('should execute playwright tests', async () => {
+  it('should execute playwright tests', async () => {
     const fixture = createTemporaryFixture('basic-example')
 
     try {
@@ -95,11 +95,61 @@ describe('next test', () => {
         },
       })
 
-      console.log({ stdout, stderr })
       expect(stdout).toContain('1 passed')
       expect(stderr).toBe('')
     } finally {
       rmSync(fixture, { recursive: true, force: true })
     }
+  })
+
+  describe('test runner validation', () => {
+    it.only('should validate configured/specified test runner', async () => {
+      const fixture = createTemporaryFixture('basic-example')
+
+      try {
+        // First, test that `defaultTestRunner` takes precedence over the default playwright.
+        writeFileSync(
+          join(fixture, 'next.config.js'),
+          "module.exports = { experimental: { testProxy: true, defaultTestRunner: 'invalid-test-runner'}}"
+        )
+
+        let { stdout, stderr } = await nextTest(fixture, [], {
+          stderr: true,
+          stdout: true,
+          cwd: fixture,
+          env: {
+            JEST_WORKER_ID: undefined,
+          },
+        })
+
+        expect(stdout).toBe('')
+        // Assert the assigned `defaultTestRunner` is printed in the error
+        expect(stderr).toContain(
+          'Test runner invalid-test-runner is not supported.'
+        )
+
+        // Second, test that the `--test-runner` arg takes precedence over `defaultTestRunner` and default playwright
+        ;({ stdout, stderr } = await nextTest(
+          fixture,
+          ['--test-runner=invalid-test-runner-2'],
+          {
+            stderr: true,
+            stdout: true,
+            cwd: fixture,
+            env: {
+              JEST_WORKER_ID: undefined,
+            },
+          }
+        ))
+
+        expect(stdout).toBe('')
+        // Assert the assigned `--test-runner` arg is printed in the error
+        expect(stderr).toContain(
+          'Test runner invalid-test-runner-2 is not supported.'
+        )
+      } finally {
+        rmSync(fixture, { recursive: true, force: true })
+      }
+    })
   })
 })
