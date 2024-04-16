@@ -5,7 +5,9 @@ import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
 import type { PrerenderState } from '../../server/app-render/dynamic-rendering'
 
-import { createAsyncLocalStorage } from './async-local-storage'
+// Share the instance module in the next-shared layer
+;('TURBOPACK { transition: next-shared }')
+import { staticGenerationAsyncStorage } from './static-generation-async-storage-instance'
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
@@ -53,5 +55,4 @@ export interface StaticGenerationStore {
 export type StaticGenerationAsyncStorage =
   AsyncLocalStorage<StaticGenerationStore>
 
-export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-  createAsyncLocalStorage()
+export { staticGenerationAsyncStorage }
