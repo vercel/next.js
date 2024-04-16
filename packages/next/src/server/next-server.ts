@@ -1132,12 +1132,14 @@ export default class NextNodeServer extends BaseServer {
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
+        const isMiddlewareRequest = req.headers['x-middleware-invoke']
 
         const reqCallback = () => {
           // we don't log for non-route requests
-          const isRouteRequest = getRequestMeta(req).match
+          const routeMatch = getRequestMeta(req).match
+
           const isRSC = isRSCRequestCheck(req)
-          if (!isRouteRequest || isRSC) return
+          if (!routeMatch || isRSC || isMiddlewareRequest) return
 
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
