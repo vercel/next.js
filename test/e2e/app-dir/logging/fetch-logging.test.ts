@@ -155,17 +155,23 @@ describe('app-dir - logging', () => {
           })
         })
 
-        it('should exlucde Middleware invoked and _rsc requests', async () => {
+        it('should log each page request only once', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/')
+          const logsAfterRequest = stripAnsi(next.cliOutput.slice(outputIndex))
+          // Only show `GET /` once
+          expect(logsAfterRequest.split('GET /').length).toBe(2)
+        })
+
+        it('should exlucde Middleware invoked and _rsc requests', async () => {
+          const outputIndex = next.cliOutput.length
+
           const browser = await next.browser('/link')
           await browser.elementByCss('a').click()
           await browser.waitForElementByCss('h2')
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
           expect(logs).not.toContain('/_next/static')
           expect(logs).not.toContain('?_rsc')
-          // Only show `GET /` once
-          expect(logs.split('GET /').length).toBe(2)
         })
       }
     } else {
