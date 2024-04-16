@@ -1,0 +1,22 @@
+name: next_swc Benchmark
+
+# Configure Manual Trigger
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout
+      - name: Install iai-callgrind
+        uses: taiki-e/install-action@v2
+        with:
+          tool: iai-callgrind-runner
+      - name: Run bench
+        run: cargo bench --manifest-path $GITHUB_WORKSPACE/packages/next-swc/crates/next-build-test/Cargo.toml
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: output/test/code-coverage.html
