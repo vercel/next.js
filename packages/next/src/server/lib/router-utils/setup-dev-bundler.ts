@@ -76,6 +76,7 @@ import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { ModuleBuildError } from '../../dev/turbopack-utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -127,8 +128,6 @@ async function verifyTypeScript(opts: SetupOpts) {
   }
   return usingTypeScript
 }
-
-class ModuleBuildError extends Error {}
 
 export async function propagateServerField(
   opts: SetupOpts,
@@ -972,15 +971,7 @@ async function startWatcher(opts: SetupOpts) {
               errorToLog = err
             }
 
-            if (type === 'warning') {
-              Log.warn(errorToLog)
-            } else if (type === 'app-dir') {
-              logAppDirError(errorToLog)
-            } else if (type) {
-              Log.error(`${type}:`, errorToLog)
-            } else {
-              Log.error(errorToLog)
-            }
+            logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -993,17 +984,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (err instanceof ModuleBuildError) {
-        Log.error(err.message)
-      } else if (type === 'warning') {
-        Log.warn(err)
-      } else if (type === 'app-dir') {
-        logAppDirError(err)
-      } else if (type) {
-        Log.error(`${type}:`, err)
-      } else {
-        Log.error(err)
-      }
+      logError(err, type)
     }
   }
 
@@ -1022,6 +1003,23 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
+  }
+}
+
+function logError(
+  err: unknown,
+  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+) {
+  if (err instanceof ModuleBuildError) {
+    Log.error(err.message)
+  } else if (type === 'warning') {
+    Log.warn(err)
+  } else if (type === 'app-dir') {
+    logAppDirError(err)
+  } else if (type) {
+    Log.error(`${type}:`, err)
+  } else {
+    Log.error(err)
   }
 }
 

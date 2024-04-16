@@ -703,6 +703,8 @@ createNextDescribe(
             "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
             "force-dynamic-prerender/[slug]/page.js",
             "force-dynamic-prerender/[slug]/page_client-reference-manifest.js",
+            "force-no-store-bailout/page.js",
+            "force-no-store-bailout/page_client-reference-manifest.js",
             "force-no-store/page.js",
             "force-no-store/page_client-reference-manifest.js",
             "force-static-fetch-no-store.html",

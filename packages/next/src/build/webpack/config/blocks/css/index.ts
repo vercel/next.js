@@ -57,7 +57,8 @@ let postcssInstancePromise: Promise<any>
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
-  disablePostcssPresetEnv: boolean | undefined
+  disablePostcssPresetEnv: boolean | undefined,
+  useLightningcss: boolean | undefined
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
@@ -128,7 +129,8 @@ export async function lazyPostCSS(
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
-        disablePostcssPresetEnv
+        disablePostcssPresetEnv,
+        useLightningcss
       )
 
       return {
@@ -155,7 +157,8 @@ export const css = curry(async function css(
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
-      ctx.experimental.disablePostcssPresetEnv
+      ctx.experimental.disablePostcssPresetEnv,
+      ctx.experimental.useLightningcss
     )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
