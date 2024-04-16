@@ -1528,6 +1528,72 @@ export async function GET() {
 
 The example above demonstrates a Route Handler with a two-tier security check. It first checks for an active session, and then verifies if the logged-in user is an 'admin'.
 
+## Context Providers
+
+Using context providers for auth work due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
+
+This works, however, any children Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
+
+```tsx filename="app/layout.ts" switcher
+import { ContextProvider } from 'auth-lib'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <ContextProvider>{children}</ContextProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+```tsx filename="app/layout.ts" switcher
+import { ContextProvider } from 'auth-lib'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <ContextProvider>{children}</ContextProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+```tsx filename="app/ui/profile.ts switcher
+"use client";
+
+import { useSession } from "auth-lib";
+
+export default function Profile() {
+  const { userId } = useSession();
+  const { data } = useSWR(`/api/user/${userId}`, fetcher)
+
+  return (
+    // ...
+  );
+}
+```
+
+```jsx filename="app/ui/profile.js switcher
+"use client";
+
+import { useSession } from "auth-lib";
+
+export default function Profile() {
+  const { userId } = useSession();
+  const { data } = useSWR(`/api/user/${userId}`, fetcher)
+
+  return (
+    // ...
+  );
+}
+```
+
+If session data is needed in Client Components (e.g. for client-side data fetching),use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) APIs to prevent sensitive session data from being exposed to the client.
+
 </AppOnly>
 
 <PagesOnly>
