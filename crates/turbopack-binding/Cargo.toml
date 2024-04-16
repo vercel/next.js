@@ -153,7 +153,6 @@ __turbopack_node_dynamic_embed_contents = [
 __turbopack_static = ["__turbopack", "turbopack-static"]
 __turbopack_swc_utils = ["__turbopack", "turbopack-swc-utils"]
 __turbopack_test_utils = ["__turbopack", "turbopack-test-utils"]
-__turbopack_tests = ["__turbopack", "turbopack-tests"]
 
 __features = []
 __feature_mdx_rs = ["__features", "mdxjs/serializable"]
@@ -163,7 +162,6 @@ __feature_node_file_trace_custom_allocator = [
   "node-file-trace/custom_allocator",
 ]
 __feature_auto_hash_map = ["__features", "auto-hash-map"]
-__feature_swc_ast_explorer = ["__features", "swc-ast-explorer"]
 __feature_tracing_signpost = ["__features", "tracing-signpost"]
 
 __swc_custom_transform = []
@@ -201,7 +199,6 @@ swc_relay = { optional = true, workspace = true }
 testing = { optional = true, workspace = true }
 
 auto-hash-map = { optional = true, workspace = true }
-swc-ast-explorer = { optional = true, workspace = true }
 tracing-signpost = { optional = true, workspace = true }
 
 node-file-trace = { optional = true, workspace = true }
@@ -239,5 +236,4 @@ turbopack-nodejs = { optional = true, workspace = true }
 turbopack-static = { optional = true, workspace = true }
 turbopack-swc-utils = { optional = true, workspace = true }
 turbopack-test-utils = { optional = true, workspace = true }
-turbopack-tests = { optional = true, workspace = true }
 turbopack-trace-utils = { optional = true, workspace = true }
