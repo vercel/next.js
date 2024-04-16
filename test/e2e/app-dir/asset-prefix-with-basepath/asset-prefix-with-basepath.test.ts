@@ -48,10 +48,10 @@ describe('app-dir assetPrefix with basePath handling', () => {
 
     expect(bundles.length).toBeGreaterThan(0)
 
-    bundles.forEach(async (src) => {
+    for (const src of bundles) {
       const { status } = await next.fetch(decodeURI(src))
 
       expect(status).toBe(200)
-    })
+    }
   })
 })

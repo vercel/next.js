@@ -4,17 +4,15 @@ import Avatar from "./avatar";
 import CoverImage from "./cover-image";
 import DateComponent from "./date";
 
+import type { MoreStoriesQueryResult } from "@/sanity.types";
 import { sanityFetch } from "@/sanity/lib/fetch";
-import {
-  MoreStoriesQueryResponse,
-  moreStoriesQuery,
-} from "@/sanity/lib/queries";
+import { moreStoriesQuery } from "@/sanity/lib/queries";
 
 export default async function MoreStories(params: {
   skip: string;
   limit: number;
 }) {
-  const data = await sanityFetch<MoreStoriesQueryResponse>({
+  const data = await sanityFetch<MoreStoriesQueryResult>({
     query: moreStoriesQuery,
     params,
   });

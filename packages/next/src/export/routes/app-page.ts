@@ -18,6 +18,7 @@ import {
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -40,16 +41,18 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
+  let isDefaultNotFound = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
-  if (page === '/_not-found') {
+  if (page === '/_not-found/page') {
+    isDefaultNotFound = true
     pathname = '/404'
   }
 
   try {
     const result = await lazyRenderAppPage(
-      req,
-      res,
+      new NodeNextRequest(req),
+      new NodeNextResponse(res),
       pathname,
       query,
       renderOpts
@@ -137,8 +140,11 @@ export async function exportAppPage(
       ? res.statusCode
       : undefined
 
-    // If it's parallel route the status from mock response is 404
-    if (isNonSuccessfulStatusCode && !isParallelRoute) {
+    if (isDefaultNotFound) {
+      // Override the default /_not-found page status code to 404
+      status = 404
+    } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
+      // If it's parallel route the status from mock response is 404
       status = res.statusCode
     }
 

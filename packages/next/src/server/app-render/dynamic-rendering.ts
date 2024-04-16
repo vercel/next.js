@@ -126,7 +126,7 @@ export function trackDynamicDataAccessed(
   const pathname = getPathname(store.urlPathname)
   if (store.isUnstableCacheCallback) {
     throw new Error(
-      `Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" oustide of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      `Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
     )
   } else if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
