@@ -1,3 +1,4 @@
+import type { PostcssInstance } from '../index'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ConfigurationContext } from '../../../utils'
 
@@ -6,7 +7,7 @@ import { cssFileResolve } from './file-resolve'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  postcss: any,
+  postcss: () => Promise<PostcssInstance>,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
