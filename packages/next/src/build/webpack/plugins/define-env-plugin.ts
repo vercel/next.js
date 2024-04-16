@@ -225,7 +225,6 @@ export function getDefineEnv({
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
-    'process.env.__NEXT_ANALYTICS_ID': config.analyticsId, // TODO: remove in the next major version
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
       config.skipMiddlewareUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':

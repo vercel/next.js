@@ -123,14 +123,12 @@ export default class BuildManifestPlugin {
   private buildId: string
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
-  private exportRuntime: boolean
   private appDirEnabled: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
-    exportRuntime?: boolean
     appDirEnabled: boolean
   }) {
     this.buildId = options.buildId
@@ -144,7 +142,6 @@ export default class BuildManifestPlugin {
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
-    this.exportRuntime = !!options.exportRuntime
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -258,12 +255,9 @@ export default class BuildManifestPlugin {
         JSON.stringify(assetMap, null, 2)
       )
 
-      if (this.exportRuntime) {
-        assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] =
-          new sources.RawSource(
-            `self.__BUILD_MANIFEST=${JSON.stringify(assetMap)}`
-          )
-      }
+      assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] = new sources.RawSource(
+        `self.__BUILD_MANIFEST=${JSON.stringify(assetMap)}`
+      )
 
       if (!this.isDevFallback) {
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
