@@ -14603,7 +14603,8 @@
       "passed": [],
       "failed": [
         "app-dir client-components-tree-shaking should only include imported components 3rd party package in browser bundle with direct imports",
-        "app-dir client-components-tree-shaking should only include imported relative components in browser bundle with direct imports"
+        "app-dir client-components-tree-shaking should only include imported relative components in browser bundle with direct imports",
+        "app-dir client-components-tree-shaking should only include the imported identifier of CJS module in browser bundle"
       ],
       "pending": [],
       "flakey": [],
