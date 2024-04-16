@@ -158,9 +158,13 @@ describe('app-dir - logging', () => {
         it('should log each page request only once', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/')
-          const logsAfterRequest = stripAnsi(next.cliOutput.slice(outputIndex))
-          // Only show `GET /` once
-          expect(logsAfterRequest.split('GET /').length).toBe(2)
+          await retry(() => {
+            const logsAfterRequest = stripAnsi(
+              next.cliOutput.slice(outputIndex)
+            )
+            // Only show `GET /` once
+            expect(logsAfterRequest.split('GET /').length).toBe(2)
+          })
         })
 
         it('should exlucde Middleware invoked and _rsc requests', async () => {
