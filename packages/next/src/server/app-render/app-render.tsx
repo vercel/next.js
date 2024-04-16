@@ -28,12 +28,15 @@ import RenderResult, {
 import {
   chainStreams,
   renderToInitialFizzStream,
-  continueFizzStream,
-  continueDynamicPrerender,
-  continueStaticPrerender,
-  continueDynamicHTMLResume,
-  continueDynamicDataResume,
 } from '../stream-utils/node-web-streams-helper'
+import {
+  createDynamicPrerenderStream,
+  createStaticPrerenderStream,
+  createDynamicRenderStream,
+  createStaticRenderStream,
+  createDynamicHTMLResumeStream,
+  createDynamicDataResumeStream,
+} from './app-render-streams'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
@@ -831,8 +834,6 @@ async function renderToHTMLOrFlightImpl(
     nonce = getScriptNonceFromHeader(csp)
   }
 
-  const validateRootLayout = dev
-
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
 
@@ -946,15 +947,17 @@ async function renderToHTMLOrFlightImpl(
         basePath: renderOpts.basePath,
       })
 
+      const previousPostponedValue =
+        typeof renderOpts.postponed === 'string'
+          ? JSON.parse(renderOpts.postponed)
+          : null
+
       const renderer = createStaticRenderer({
         ppr: renderOpts.experimental.ppr,
         isStaticGeneration,
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
-        postponed:
-          typeof renderOpts.postponed === 'string'
-            ? JSON.parse(renderOpts.postponed)
-            : null,
+        postponed: previousPostponedValue,
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
@@ -1003,9 +1006,10 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
-              stream: await continueDynamicPrerender(stream, {
-                getServerInsertedHTML,
-              }),
+              stream: createDynamicPrerenderStream(
+                stream,
+                getServerInsertedHTML
+              ),
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
@@ -1033,9 +1037,10 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
-                stream: await continueDynamicPrerender(stream, {
-                  getServerInsertedHTML,
-                }),
+                stream: createDynamicPrerenderStream(
+                  stream,
+                  getServerInsertedHTML
+                ),
               }
             } else {
               // This is the Static case
@@ -1093,19 +1098,22 @@ async function renderToHTMLOrFlightImpl(
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
 
+              const inlinedDataStream = createInlinedDataReadableStream(
+                dataStream,
+                nonce,
+                formState
+              )
+
               return {
-                stream: await continueStaticPrerender(renderedHTMLStream, {
-                  inlinedDataStream: createInlinedDataReadableStream(
-                    dataStream,
-                    nonce,
-                    formState
-                  ),
-                  getServerInsertedHTML,
-                }),
+                stream: await createStaticPrerenderStream(
+                  renderedHTMLStream,
+                  inlinedDataStream,
+                  getServerInsertedHTML
+                ),
               }
             }
           }
-        } else if (renderOpts.postponed) {
+        } else if (previousPostponedValue) {
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
           const inlinedDataStream = createInlinedDataReadableStream(
             dataStream,
@@ -1115,35 +1123,42 @@ async function renderToHTMLOrFlightImpl(
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
-              stream: await continueDynamicHTMLResume(stream, {
+              stream: createDynamicHTMLResumeStream(
+                stream,
                 inlinedDataStream,
-                getServerInsertedHTML,
-              }),
+                getServerInsertedHTML
+              ),
             }
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
-              stream: await continueDynamicDataResume(stream, {
-                inlinedDataStream,
-              }),
+              stream: createDynamicDataResumeStream(inlinedDataStream),
             }
           }
         } else {
-          // This may be a static render or a dynamic render
-          // @TODO factor this further to make the render types more clearly defined and remove
-          // the deluge of optional params that passed to configure the various behaviors
-          return {
-            stream: await continueFizzStream(stream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                dataStream,
-                nonce,
-                formState
+          const inlinedDataStream = createInlinedDataReadableStream(
+            dataStream,
+            nonce,
+            formState
+          )
+          if (isStaticGeneration || generateStaticHTML) {
+            return {
+              stream: createStaticRenderStream(
+                stream,
+                inlinedDataStream,
+                getServerInsertedHTML,
+                dev === true
               ),
-              isStaticGeneration: isStaticGeneration || generateStaticHTML,
-              getServerInsertedHTML,
-              serverInsertedHTMLToHead: true,
-              validateRootLayout,
-            }),
+            }
+          } else {
+            return {
+              stream: createDynamicRenderStream(
+                stream,
+                inlinedDataStream,
+                getServerInsertedHTML,
+                dev === true
+              ),
+            }
           }
         }
       } catch (err) {
@@ -1255,29 +1270,42 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          return {
-            // Returning the error that was thrown so it can be used to handle
-            // the response in the caller.
-            err,
-            stream: await continueFizzStream(fizzStream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                // This is intentionally using the readable datastream from the
-                // main render rather than the flight data from the error page
-                // render
-                dataStream,
-                nonce,
-                formState
+          const inlinedDataStream = createInlinedDataReadableStream(
+            // This is intentionally using the readable datastream from the
+            // main render rather than the flight data from the error page
+            // render
+            dataStream,
+            nonce,
+            formState
+          )
+          const getServerInsertedHTMLForErrorRender = makeGetServerInsertedHTML(
+            {
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: [],
+              basePath: renderOpts.basePath,
+            }
+          )
+          if (isStaticGeneration || generateStaticHTML) {
+            return {
+              err,
+              stream: createStaticRenderStream(
+                fizzStream,
+                inlinedDataStream,
+                getServerInsertedHTMLForErrorRender,
+                dev === true
               ),
-              isStaticGeneration,
-              getServerInsertedHTML: makeGetServerInsertedHTML({
-                polyfills,
-                renderServerInsertedHTML,
-                serverCapturedErrors: [],
-                basePath: renderOpts.basePath,
-              }),
-              serverInsertedHTMLToHead: true,
-              validateRootLayout,
-            }),
+            }
+          } else {
+            return {
+              err,
+              stream: createDynamicRenderStream(
+                fizzStream,
+                inlinedDataStream,
+                getServerInsertedHTMLForErrorRender,
+                dev === true
+              ),
+            }
           }
         } catch (finalErr: any) {
           if (

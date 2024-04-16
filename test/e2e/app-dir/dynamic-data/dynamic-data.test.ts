@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { getRedboxHeader, hasRedbox, retry } from 'next-test-utils'
 
 process.env.__TEST_SENTINEL = 'build'
 
@@ -269,20 +269,24 @@ createNextDescribe(
       it('displays redbox when accessing dynamic data inside a cache scope', async () => {
         let browser = await next.browser('/cookies')
         try {
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(
-            'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
-          )
+          await retry(async () => {
+            expect(await hasRedbox(browser)).toBe(true)
+            expect(await getRedboxHeader(browser)).toMatch(
+              'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
+            )
+          })
         } finally {
           await browser.close()
         }
 
         browser = await next.browser('/headers')
         try {
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(
-            'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
-          )
+          await retry(async () => {
+            expect(await hasRedbox(browser)).toBe(true)
+            expect(await getRedboxHeader(browser)).toMatch(
+              'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
+            )
+          })
         } finally {
           await browser.close()
         }
