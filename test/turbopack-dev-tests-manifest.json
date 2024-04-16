@@ -1532,10 +1532,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/root-not-found-missing-root-layout/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "root-not-found-missing-root-layout should not conflict with generated layout on dev server"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
