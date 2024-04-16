@@ -286,7 +286,7 @@ export async function LightningCssLoader(
 
     if (postcssWithPlugins?.plugins?.length > 0) {
       throw new Error(
-        `[${LOADER_NAME}]: experimental.useLightnintcss does not work with postcss plugins. Please remove 'useLightningcss: true' from your configuration.`
+        `[${LOADER_NAME}]: experimental.useLightningcss does not work with postcss plugins. Please remove 'useLightningcss: true' from your configuration.`
       )
     }
   }
