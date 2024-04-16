@@ -153,8 +153,8 @@ export interface MiddlewareRoutingItem {
 }
 
 export type RouteHandler<
-  ServerRequest extends BaseNextRequest,
-  ServerResponse extends BaseNextResponse
+  ServerRequest extends BaseNextRequest = BaseNextRequest,
+  ServerResponse extends BaseNextResponse = BaseNextResponse
 > = (
   req: ServerRequest,
   res: ServerResponse,
@@ -241,8 +241,10 @@ type BaseRenderOpts = RenderOpts & {
  * be the base Node.js request and response types.
  */
 export interface BaseRequestHandler<
-  ServerRequest extends BaseNextRequest | IncomingMessage,
-  ServerResponse extends BaseNextResponse | HTTPServerResponse
+  ServerRequest extends BaseNextRequest | IncomingMessage = BaseNextRequest,
+  ServerResponse extends
+    | BaseNextResponse
+    | HTTPServerResponse = BaseNextResponse
 > {
   (
     req: ServerRequest,
@@ -252,8 +254,8 @@ export interface BaseRequestHandler<
 }
 
 export type RequestContext<
-  ServerRequest extends BaseNextRequest,
-  ServerResponse extends BaseNextResponse
+  ServerRequest extends BaseNextRequest = BaseNextRequest,
+  ServerResponse extends BaseNextResponse = BaseNextResponse
 > = {
   req: ServerRequest
   res: ServerResponse
