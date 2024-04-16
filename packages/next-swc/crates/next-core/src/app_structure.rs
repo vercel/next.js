@@ -20,6 +20,7 @@ use turbopack_binding::{
 };
 
 use crate::{
+    mode::NextMode,
     next_app::{
         metadata::{
             match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
@@ -683,12 +684,14 @@ fn add_app_metadata_route(
 pub fn get_entrypoints(
     app_dir: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<String>>,
+    next_mode: Vc<NextMode>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir,
         get_directory_tree(app_dir, page_extensions),
         get_global_metadata(app_dir, page_extensions),
         Default::default(),
+        next_mode,
     )
 }
 
@@ -698,6 +701,7 @@ fn directory_tree_to_entrypoints(
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    next_mode: Vc<NextMode>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -706,6 +710,7 @@ fn directory_tree_to_entrypoints(
         directory_tree,
         AppPage::new(),
         root_layouts,
+        next_mode,
     )
 }
 
@@ -719,6 +724,7 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
+    next_mode: Vc<NextMode>,
 ) -> Result<Vc<Option<Vc<LoaderTree>>>> {
     let app_path = AppPath::from(app_page.clone());
 
@@ -749,6 +755,24 @@ async fn directory_tree_to_loader_tree(
         components.not_found = Some(
             get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()),
         );
+    }
+
+    let is_next_mode_dev = matches!(&*next_mode.await?, NextMode::Development);
+    if is_root_directory && components.layout.is_none() && is_next_mode_dev {
+        components.layout = Some(
+            get_next_package(app_dir).join("dist/client/components/default-layout.js".to_string()),
+        );
+
+        MissingRootLayoutIssue {
+            app_dir,
+            severity: IssueSeverity::Warning.into(),
+            message: StyledString::Text(
+                "Page does not have a root layout. Created base layout for you.".to_string(),
+            )
+            .into(),
+        }
+        .cell()
+        .emit();
     }
 
     let mut tree = LoaderTree {
@@ -823,6 +847,7 @@ async fn directory_tree_to_loader_tree(
             *subdirectory,
             child_app_page.clone(),
             for_app_path.clone(),
+            next_mode,
         )
         .await?;
 
@@ -942,6 +967,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    next_mode: Vc<NextMode>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -951,6 +977,7 @@ async fn directory_tree_to_entrypoints_internal(
         directory_tree,
         app_page,
         root_layouts,
+        next_mode,
     )
     .instrument(span)
     .await
@@ -963,6 +990,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    next_mode: Vc<NextMode>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -992,6 +1020,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             directory_tree_vc,
             app_page.clone(),
             app_path,
+            next_mode,
         )
         .await?;
 
@@ -1120,6 +1149,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 subdirectory,
                 child_app_page.clone(),
                 root_layouts,
+                next_mode,
             )
             .await?;
 
@@ -1147,6 +1177,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             directory_tree_vc,
                             app_page.clone(),
                             app_path,
+                            next_mode,
                         );
                         loader_trees.push(loader_tree);
                     }
@@ -1246,6 +1277,44 @@ struct DirectoryTreeIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for DirectoryTreeIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text("An issue occurred while preparing your Next.js app".to_string())
+                .cell(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.app_dir
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct MissingRootLayoutIssue {
+    pub severity: Vc<IssueSeverity>,
+    pub app_dir: Vc<FileSystemPath>,
+    pub message: Vc<StyledString>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingRootLayoutIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
         self.severity

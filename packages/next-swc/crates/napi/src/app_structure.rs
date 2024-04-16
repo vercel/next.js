@@ -6,9 +6,12 @@ use napi::{
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction,
 };
-use next_core::app_structure::{
-    find_app_dir, get_entrypoints as get_entrypoints_impl, Components, Entrypoint, Entrypoints,
-    LoaderTree, MetadataItem, MetadataWithAltItem,
+use next_core::{
+    app_structure::{
+        find_app_dir, get_entrypoints as get_entrypoints_impl, Components, Entrypoint, Entrypoints,
+        LoaderTree, MetadataItem, MetadataWithAltItem,
+    },
+    mode::NextMode,
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{ReadRef, Vc};
@@ -333,6 +336,7 @@ async fn get_value(
     project_dir: String,
     page_extensions: Vec<String>,
     watching: bool,
+    is_next_dev: bool,
 ) -> Result<Vc<OptionEntrypointsForJs>> {
     let page_extensions = Vc::cell(page_extensions);
     let fs = project_fs(root_dir.clone(), watching);
@@ -344,9 +348,13 @@ async fn get_value(
     let project_path = fs.root().join(project_relative);
 
     let app_dir = find_app_dir(project_path);
-
+    let mode = if is_next_dev {
+        NextMode::Development
+    } else {
+        NextMode::Build
+    };
     let result = if let Some(app_dir) = *app_dir.await? {
-        let entrypoints = get_entrypoints_impl(app_dir, page_extensions);
+        let entrypoints = get_entrypoints_impl(app_dir, page_extensions, mode.into());
         let entrypoints_for_js = prepare_entrypoints_for_js(project_path, entrypoints);
 
         Some(entrypoints_for_js)
@@ -364,6 +372,7 @@ pub fn stream_entrypoints(
     project_dir: String,
     page_extensions: Vec<String>,
     func: JsFunction,
+    is_next_dev: bool,
 ) -> napi::Result<()> {
     register();
     let func: ThreadsafeFunction<Option<ReadRef<EntrypointsForJs>>, ErrorStrategy::CalleeHandled> =
@@ -386,6 +395,7 @@ pub fn stream_entrypoints(
                 (*project_dir).clone(),
                 page_extensions.iter().map(|s| s.to_string()).collect(),
                 true,
+                is_next_dev,
             )
             .await?
             {
@@ -409,6 +419,7 @@ pub async fn get_entrypoints(
     root_dir: String,
     project_dir: String,
     page_extensions: Vec<String>,
+    is_next_dev: bool,
 ) -> napi::Result<serde_json::Value> {
     register();
     let result = turbo_tasks
@@ -418,6 +429,7 @@ pub async fn get_entrypoints(
                 project_dir,
                 page_extensions.iter().map(|s| s.to_string()).collect(),
                 false,
+                is_next_dev,
             )
             .await?
             {

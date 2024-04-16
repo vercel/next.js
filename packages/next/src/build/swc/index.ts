@@ -1446,27 +1446,31 @@ function loadNative(importPath?: string) {
             rootDir: string,
             applicationDir: string,
             pageExtensions: PageExtensions,
-            fn: (entrypoints: any) => void
+            fn: (entrypoints: any) => void,
+            isNextDev: boolean
           ) => {
             return (customBindings ?? bindings).streamEntrypoints(
               turboTasks,
               rootDir,
               applicationDir,
               pageExtensions,
-              fn
+              fn,
+              isNextDev
             )
           },
           get: (
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: PageExtensions
+            pageExtensions: PageExtensions,
+            isNextDev: boolean
           ) => {
             return (customBindings ?? bindings).getEntrypoints(
               turboTasks,
               rootDir,
               applicationDir,
-              pageExtensions
+              pageExtensions,
+              isNextDev
             )
           },
         },

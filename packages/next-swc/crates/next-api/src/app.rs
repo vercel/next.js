@@ -135,7 +135,11 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
-        get_entrypoints(self.app_dir, self.project.next_config().page_extensions())
+        get_entrypoints(
+            self.app_dir,
+            self.project.next_config().page_extensions(),
+            self.project.next_mode(),
+        )
     }
 
     #[turbo_tasks::function]
