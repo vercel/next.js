@@ -7,11 +7,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    // Use module: preserve, and remove moduleResolution, esModuleInterop and resolveJsonModule once Next ships support
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
+    "module": "preserve",
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
