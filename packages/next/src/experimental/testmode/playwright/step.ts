@@ -39,7 +39,6 @@ export async function step<T>(
   let result: Awaited<T>
   let reportedError: any
   try {
-    console.log(props.title, props)
     await test.step(props.title, async () => {
       result = await handler(({ error }) => {
         reportedError = error
