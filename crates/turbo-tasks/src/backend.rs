@@ -1,9 +1,9 @@
 use std::{
     any::Any,
     borrow::Cow,
-    fmt,
-    fmt::{Debug, Display, Write},
+    fmt::{self, Debug, Display, Write},
     future::Future,
+    hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
     sync::Arc,
@@ -12,6 +12,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Result};
 use auto_hash_map::AutoMap;
+use nohash_hasher::NoHashHasher;
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
@@ -19,7 +20,7 @@ pub use crate::id::BackendJobId;
 use crate::{
     event::EventListener, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     ConcreteTaskInput, FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider,
-    TaskIdSet, TraitRef, TraitTypeId, VcValueTrait, VcValueType,
+    TaskIdSet, TraitRef, TraitTypeId, ValueTypeId, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -228,6 +229,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         duration: Duration,
         instant: Instant,
+        cell_counters: AutoMap<ValueTypeId, u32, BuildHasherDefault<NoHashHasher<ValueTypeId>>, 8>,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;

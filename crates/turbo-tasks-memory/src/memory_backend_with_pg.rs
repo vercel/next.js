@@ -3,6 +3,7 @@ use std::{
     collections::{BinaryHeap, HashMap},
     fmt::Debug,
     future::Future,
+    hash::BuildHasherDefault,
     mem::{replace, take},
     pin::Pin,
     sync::{
@@ -16,6 +17,7 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use concurrent_queue::ConcurrentQueue;
 use dashmap::{mapref::entry::Entry, DashMap, DashSet};
+use nohash_hasher::NoHashHasher;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
@@ -27,7 +29,7 @@ use turbo_tasks::{
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{IdFactory, NoMoveVec, SharedError},
-    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
+    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused, ValueTypeId,
 };
 
 type RootTaskFn =
@@ -1154,6 +1156,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         duration: Duration,
         _instant: Instant,
+        _cell_counters: AutoMap<ValueTypeId, u32, BuildHasherDefault<NoHashHasher<ValueTypeId>>, 8>,
         _stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> bool {
