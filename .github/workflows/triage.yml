@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: balazsorban44/nissuer@1.9.2
         with:
-          label-area-prefix: 'bug'
+          label-area-prefix: ''
           label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
           label-comments: |
             {
