@@ -82,7 +82,7 @@ body:
         - 'Markdown (MDX)'
         - 'Metadata'
         - 'Middleware'
-        - 'Output (export, standalone)'
+        - 'Output (export/standalone)'
         - 'Pages Router'
         - 'Parallel & Intercepting Routes'
         - 'Partial Prerendering (PPR)'
