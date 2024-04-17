@@ -21,6 +21,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       parallelRoutes: new Map(),
       lazyDataResolved: false,
       loading: null,
+      error: null,
     }
     const existingCache: CacheNode = {
       lazyData: null,
@@ -30,6 +31,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       prefetchHead: null,
       lazyDataResolved: false,
       loading: null,
+      error: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -44,6 +46,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                 head: null,
                 prefetchHead: null,
                 loading: null,
+                error: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -59,6 +62,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                           parallelRoutes: new Map(),
                           lazyDataResolved: false,
                           loading: null,
+                          error: null,
                         },
                       ],
                     ]),
@@ -75,6 +79,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
 
     expect(cache).toMatchInlineSnapshot(`
       {
+        "error": null,
         "head": null,
         "lazyData": null,
         "lazyDataResolved": false,
@@ -82,6 +87,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
         "parallelRoutes": Map {
           "children" => Map {
             "linking" => {
+              "error": null,
               "head": null,
               "lazyData": null,
               "lazyDataResolved": false,
@@ -89,6 +95,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
               "parallelRoutes": Map {
                 "children" => Map {
                   "" => {
+                    "error": null,
                     "head": null,
                     "lazyData": null,
                     "lazyDataResolved": false,
@@ -109,6 +116,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
               </React.Fragment>,
             },
             "dashboard" => {
+              "error": null,
               "head": null,
               "lazyData": null,
               "lazyDataResolved": false,
