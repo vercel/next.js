@@ -5,11 +5,13 @@ import fs from 'fs-extra'
 const nextConfigPath = path.join(__dirname, '../next.config.js')
 
 describe('next.config.js validation', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it.each([
-      {
-        name: 'invalid config types',
-        configContent: `
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it.each([
+        {
+          name: 'invalid config types',
+          configContent: `
         module.exports = {
           swcMinify: 'hello',
           rewrites: true,
@@ -18,15 +20,15 @@ describe('next.config.js validation', () => {
           }
         }
       `,
-        outputs: [
-          `received 'something' at "images.loader"`,
-          'Expected function, received boolean at "rewrites"',
-          'Expected boolean, received string at "swcMinify"',
-        ],
-      },
-      {
-        name: 'unexpected config fields',
-        configContent: `
+          outputs: [
+            `received 'something' at "images.loader"`,
+            'Expected function, received boolean at "rewrites"',
+            'Expected boolean, received string at "swcMinify"',
+          ],
+        },
+        {
+          name: 'unexpected config fields',
+          configContent: `
         module.exports = {
           nonExistent: true,
           experimental: {
@@ -34,29 +36,33 @@ describe('next.config.js validation', () => {
           }
         }
       `,
-        outputs: [
-          `Unrecognized key(s) in object: 'nonExistent'`,
-          `Unrecognized key(s) in object: 'anotherNonExistent' at "experimental"`,
-        ],
-      },
-    ])(
-      'it should validate correctly for $name',
-      async ({ outputs, configContent }) => {
-        await fs.writeFile(nextConfigPath, configContent)
-        const result = await nextBuild(path.join(__dirname, '../'), undefined, {
-          stderr: true,
-          stdout: true,
-        })
-        await fs.remove(nextConfigPath)
+          outputs: [
+            `Unrecognized key(s) in object: 'nonExistent'`,
+            `Unrecognized key(s) in object: 'anotherNonExistent' at "experimental"`,
+          ],
+        },
+      ])(
+        'it should validate correctly for $name',
+        async ({ outputs, configContent }) => {
+          await fs.writeFile(nextConfigPath, configContent)
+          const result = await nextBuild(
+            path.join(__dirname, '../'),
+            undefined,
+            {
+              stderr: true,
+              stdout: true,
+            }
+          )
+          await fs.remove(nextConfigPath)
 
-        for (const output of outputs) {
-          expect(result.stdout + result.stderr).toContain(output)
+          for (const output of outputs) {
+            expect(result.stdout + result.stderr).toContain(output)
+          }
         }
-      }
-    )
+      )
 
-    it('should allow undefined environment variables', async () => {
-      const configContent = `
+      it('should allow undefined environment variables', async () => {
+        const configContent = `
         module.exports = {
           env: {
             FOO: 'bar',
@@ -65,17 +71,18 @@ describe('next.config.js validation', () => {
         }
       `
 
-      await fs.writeFile(nextConfigPath, configContent)
-      const result = await nextBuild(path.join(__dirname, '../'), undefined, {
-        stderr: true,
-        stdout: true,
+        await fs.writeFile(nextConfigPath, configContent)
+        const result = await nextBuild(path.join(__dirname, '../'), undefined, {
+          stderr: true,
+          stdout: true,
+        })
+
+        await fs.remove(nextConfigPath)
+
+        expect(result.stdout + result.stderr).not.toContain(
+          '"env.QUX" is missing'
+        )
       })
-
-      await fs.remove(nextConfigPath)
-
-      expect(result.stdout + result.stderr).not.toContain(
-        '"env.QUX" is missing'
-      )
-    })
-  })
+    }
+  )
 })

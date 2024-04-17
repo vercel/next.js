@@ -11,6 +11,7 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
+import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -46,7 +47,18 @@ export function createInitialRouterState({
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
     lazyDataResolved: false,
     loading: initialSeedData[3],
+    error: initialSeedData[4],
   }
+
+  const canonicalUrl =
+    // location.href is read as the initial value for canonicalUrl in the browser
+    // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+    location
+      ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
+        createHrefFromUrl(location)
+      : initialCanonicalUrl
+
+  addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
 
   const prefetchCache = new Map<string, PrefetchCacheEntry>()
 
@@ -79,13 +91,7 @@ export function createInitialRouterState({
       hashFragment: null,
       segmentPaths: [],
     },
-    canonicalUrl:
-      // location.href is read as the initial value for canonicalUrl in the browser
-      // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-      location
-        ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-          createHrefFromUrl(location)
-        : initialCanonicalUrl,
+    canonicalUrl,
     nextUrl:
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??

@@ -9,7 +9,6 @@ export default function Page() {
       <p>hello root page</p>
       <button
         onClick={async () => {
-          // @ts-expect-error Async Transitions
           startTransition(async () => {
             await relativeRedirect()
           })
@@ -20,7 +19,6 @@ export default function Page() {
       </button>
       <button
         onClick={async () => {
-          // @ts-expect-error Async Transitions
           startTransition(async () => {
             await absoluteRedirect()
           })

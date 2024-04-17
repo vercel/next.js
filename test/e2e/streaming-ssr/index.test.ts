@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { createNext, createNextDescribe } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,

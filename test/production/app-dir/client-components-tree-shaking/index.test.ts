@@ -70,5 +70,32 @@ createNextDescribe(
         )
       ).toBe(false)
     })
+
+    it('should only include the imported identifier of CJS module in browser bundle', async () => {
+      const clientChunksDir = join(
+        next.testDir,
+        '.next',
+        'static',
+        'chunks',
+        'app',
+        'cjs-dep'
+      )
+
+      const chunkContents = fs
+        .readdirSync(clientChunksDir, {
+          withFileTypes: true,
+        })
+        .filter((dirent) => dirent.isFile())
+        .map((chunkDirent) =>
+          fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
+        )
+
+      expect(
+        chunkContents.some((content) => content.includes('cjs-client:default'))
+      ).toBe(true)
+      expect(
+        chunkContents.every((content) => content.includes('cjs-client:foo'))
+      ).toBe(false)
+    })
   }
 )

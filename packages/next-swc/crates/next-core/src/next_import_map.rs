@@ -9,7 +9,8 @@ use turbopack_binding::{
         core::{
             reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
-                options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
+                node::node_cjs_resolve_options,
+                options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
                 parse::Request,
                 pattern::Pattern,
                 resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
@@ -17,7 +18,6 @@ use turbopack_binding::{
             source::Source,
         },
         node::execution_context::ExecutionContext,
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
 
@@ -39,9 +39,13 @@ use crate::{
     util::NextRuntime,
 };
 
-const NODE_INTERNALS: [&str; 48] = [
-    "assert",
-    "async_hooks",
+/// List of node.js internals that are not supported by edge runtime.
+/// If these imports are used & user does not provide alias for the polyfill,
+/// runtime error will be thrown.
+/// This is not identical to the list of entire node.js internals, refer
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
+/// for the allowed imports.
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
     "child_process",
     "cluster",
     "console",
@@ -51,7 +55,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "dns",
     "dns/promises",
     "domain",
-    "events",
     "fs",
     "fs/promises",
     "http",
@@ -80,8 +83,6 @@ const NODE_INTERNALS: [&str; 48] = [
     "tls",
     "trace_events",
     "tty",
-    "util",
-    "util/types",
     "v8",
     "vm",
     "wasi",
@@ -468,7 +469,24 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    insert_unsupported_node_internal_aliases(&mut import_map, project_path, execution_context);
+    // Look for where 'server/web/globals.ts` are imported to find out corresponding
+    // context
+    match ty {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
+            insert_unsupported_node_internal_aliases(
+                &mut import_map,
+                project_path,
+                execution_context,
+            );
+        }
+        _ => {}
+    }
 
     Ok(import_map.cell())
 }
@@ -486,7 +504,7 @@ fn insert_unsupported_node_internal_aliases(
     ))
     .into();
 
-    NODE_INTERNALS.iter().for_each(|module| {
+    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
         import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
     });
 }
@@ -543,9 +561,12 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@opentelemetry/api",
-        // TODO(WEB-625) this actually need to prefer the local version of
-        // @opentelemetry/api
-        external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+        // It needs to prefer the local version of @opentelemetry/api
+        ImportMapping::Alternatives(vec![
+            external_if_node(project_path, "@opentelemetry/api"),
+            external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+        ])
+        .cell(),
     );
 
     match ty {
@@ -554,7 +575,7 @@ async fn insert_next_server_special_aliases(
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
-        | ServerContextType::AppRoute { app_dir } => {
+        | ServerContextType::AppRoute { app_dir, .. } => {
             import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
@@ -675,43 +696,47 @@ async fn rsc_aliases(
     };
 
     if runtime == NextRuntime::NodeJs {
-        if let ServerContextType::AppSSR { .. } = ty {
-            alias.extend(indexmap! {
-                "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
-                "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-                "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
-                "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
-                "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-            })
-        }
+        match ty {
+            ServerContextType::AppSSR { .. } => {
+                alias.extend(indexmap! {
+                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
+                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
+                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                })
+            }
+            ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+                alias.extend(indexmap! {
+                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
+                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
+                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
-        if let ServerContextType::AppRSC { .. } = ty {
-            alias.extend(indexmap! {
-                "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
-                "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-                "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
-                "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
-                "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                "next/navigation" => format!("next/dist/api/navigation.react-server"),
-
-                // Needed to make `react-dom/server` work.
-                "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
-            })
+                    // Needed to make `react-dom/server` work.
+                    "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
+                })
+            }
+            _ => {}
         }
     }
 
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+        } else {
+            // x-ref: https://github.com/facebook/react/pull/25436
+            alias["react-dom"] =
+                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
         }
-        // Use server rendering stub for RSC and SSR
-        // x-ref: https://github.com/facebook/react/pull/25436
-        alias["react-dom"] =
-            format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
@@ -819,10 +844,7 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new(
-            project_path,
-        )))
-        .into(),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
     );
 
     import_map.insert_alias(
@@ -835,6 +857,13 @@ async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
+
+    import_map.insert_alias(
+        // Make sure you can't import custom server as it'll cause all Next.js internals to be
+        // bundled which doesn't work.
+        AliasPattern::exact("next"),
+        ImportMapping::Empty.into(),
+    );
 
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
@@ -865,10 +894,7 @@ async fn insert_next_shared_aliases(
     );
     import_map.insert_exact_alias(
         "private-next-rsc-action-encryption",
-        request_to_import_mapping(
-            project_path,
-            "next/dist/server/app-render/action-encryption",
-        ),
+        request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
     );
 
     insert_turbopack_dev_alias(import_map);
@@ -897,22 +923,6 @@ async fn insert_next_shared_aliases(
 }
 
 #[turbo_tasks::function]
-async fn package_lookup_resolve_options(
-    project_path: Vc<FileSystemPath>,
-) -> Result<Vc<ResolveOptions>> {
-    Ok(resolve_options(
-        project_path,
-        ResolveOptionsContext {
-            enable_node_modules: Some(project_path.root().resolve().await?),
-            enable_node_native_modules: true,
-            custom_conditions: vec!["development".to_string()],
-            ..Default::default()
-        }
-        .cell(),
-    ))
-}
-
-#[turbo_tasks::function]
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
@@ -920,7 +930,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(context_directory),
+        node_cjs_resolve_options(context_directory.root()),
     );
     let source = result
         .first_source()

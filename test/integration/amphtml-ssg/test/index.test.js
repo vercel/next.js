@@ -99,27 +99,33 @@ const runTests = (isDev = false) => {
 }
 
 describe('AMP SSG Support', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      // TODO: use browser instead to do checks that now need filesystem access
-      builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        // TODO: use browser instead to do checks that now need filesystem access
+        builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests(true)
+    }
+  )
   describe('export mode', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         let buildId

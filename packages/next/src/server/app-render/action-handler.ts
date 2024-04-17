@@ -1,14 +1,9 @@
-import type {
-  IncomingHttpHeaders,
-  IncomingMessage,
-  OutgoingHttpHeaders,
-  ServerResponse,
-} from 'http'
-import type { WebNextRequest } from '../base-http/web'
-import type { SizeLimit } from '../../../types'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import {
   RSC_HEADER,
@@ -36,15 +31,14 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
-import {
-  getIsServerAction,
-  getServerActionRequestMetadata,
-} from '../lib/server-action-request-meta'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
+import { selectWorkerForForwarding } from './action-utils'
+import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -68,8 +62,8 @@ function nodeHeadersToRecord(
 }
 
 function getForwardedHeaders(
-  req: IncomingMessage,
-  res: ServerResponse
+  req: BaseNextRequest,
+  res: BaseNextResponse
 ): Headers {
   // Get request headers and cookies
   const requestHeaders = req.headers
@@ -110,7 +104,7 @@ function getForwardedHeaders(
 }
 
 async function addRevalidationHeader(
-  res: ServerResponse,
+  res: BaseNextResponse,
   {
     staticGenerationStore,
     requestStore,
@@ -149,9 +143,97 @@ async function addRevalidationHeader(
   )
 }
 
+/**
+ * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
+ */
+async function createForwardedActionResponse(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  host: Host,
+  workerPathname: string,
+  basePath: string,
+  staticGenerationStore: StaticGenerationStore
+) {
+  if (!host) {
+    throw new Error(
+      'Invariant: Missing `host` header from a forwarded Server Actions request.'
+    )
+  }
+
+  const forwardedHeaders = getForwardedHeaders(req, res)
+
+  // indicate that this action request was forwarded from another worker
+  // we use this to skip rendering the flight tree so that we don't update the UI
+  // with the response from the forwarded worker
+  forwardedHeaders.set('x-action-forwarded', '1')
+
+  const proto =
+    staticGenerationStore.incrementalCache?.requestProtocol || 'https'
+
+  // For standalone or the serverful mode, use the internal origin directly
+  // other than the host headers from the request.
+  const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${host.value}`
+
+  const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
+
+  try {
+    let body: BodyInit | AsyncIterable<any> | undefined
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(req)
+    ) {
+      if (!req.body) {
+        throw new Error('Invariant: missing request body.')
+      }
+
+      body = req.body
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      body = req.stream()
+    } else {
+      throw new Error('Invariant: Unknown request type.')
+    }
+
+    // Forward the request to the new worker
+    const response = await fetch(fetchUrl, {
+      method: 'POST',
+      body,
+      duplex: 'half',
+      headers: forwardedHeaders,
+      next: {
+        // @ts-ignore
+        internal: 1,
+      },
+    })
+
+    if (response.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
+      // copy the headers from the redirect response to the response we're sending
+      for (const [key, value] of response.headers) {
+        if (!actionsForbiddenHeaders.includes(key)) {
+          res.setHeader(key, value)
+        }
+      }
+
+      return new FlightRenderResult(response.body!)
+    } else {
+      // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+      response.body?.cancel()
+    }
+  } catch (err) {
+    // we couldn't stream the forwarded response, so we'll just do a normal redirect
+    console.error(`failed to forward action response`, err)
+  }
+}
+
 async function createRedirectRenderResult(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   originalHost: Host,
   redirectUrl: string,
   basePath: string,
@@ -204,13 +286,11 @@ async function createRedirectRenderResult(
     }
 
     // Ensures that when the path was revalidated we don't return a partial response on redirects
-    // if (staticGenerationStore.pathWasRevalidated) {
     forwardedHeaders.delete('next-router-state-tree')
-    // }
 
     try {
-      const headResponse = await fetch(fetchUrl, {
-        method: 'HEAD',
+      const response = await fetch(fetchUrl, {
+        method: 'GET',
         headers: forwardedHeaders,
         next: {
           // @ts-ignore
@@ -218,17 +298,7 @@ async function createRedirectRenderResult(
         },
       })
 
-      if (
-        headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
-      ) {
-        const response = await fetch(fetchUrl, {
-          method: 'GET',
-          headers: forwardedHeaders,
-          next: {
-            // @ts-ignore
-            internal: 1,
-          },
-        })
+      if (response.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
           if (!actionsForbiddenHeaders.includes(key)) {
@@ -237,6 +307,9 @@ async function createRedirectRenderResult(
         }
 
         return new FlightRenderResult(response.body!)
+      } else {
+        // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+        response.body?.cancel()
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
@@ -291,8 +364,8 @@ export async function handleAction({
   serverActions,
   ctx,
 }: {
-  req: IncomingMessage
-  res: ServerResponse
+  req: BaseNextRequest
+  res: BaseNextResponse
   ComponentMod: AppPageModule
   serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
@@ -315,12 +388,18 @@ export async function handleAction({
     }
 > {
   const contentType = req.headers['content-type']
+  const { serverActionsManifest, page } = ctx.renderOpts
 
-  const { actionId, isURLEncodedAction, isMultipartAction, isFetchAction } =
-    getServerActionRequestMetadata(req)
+  const {
+    actionId,
+    isURLEncodedAction,
+    isMultipartAction,
+    isFetchAction,
+    isServerAction,
+  } = getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
-  if (!getIsServerAction(req)) {
+  if (!isServerAction) {
     return
   }
 
@@ -437,21 +516,50 @@ export async function handleAction({
   let actionResult: RenderResult | undefined
   let formState: any | undefined
   let actionModId: string | undefined
+  const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
+
+  if (actionId) {
+    const forwardedWorker = selectWorkerForForwarding(
+      actionId,
+      page,
+      serverActionsManifest
+    )
+
+    // If forwardedWorker is truthy, it means there isn't a worker for the action
+    // in the current handler, so we forward the request to a worker that has the action.
+    if (forwardedWorker) {
+      return {
+        type: 'done',
+        result: await createForwardedActionResponse(
+          req,
+          res,
+          host,
+          forwardedWorker,
+          ctx.renderOpts.basePath,
+          staticGenerationStore
+        ),
+      }
+    }
+  }
 
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
-      if (process.env.NEXT_RUNTIME === 'edge') {
+      if (
+        // The type check here ensures that `req` is correctly typed, and the
+        // environment variable check provides dead code elimination.
+        process.env.NEXT_RUNTIME === 'edge' &&
+        isWebNextRequest(req)
+      ) {
         // Use react-server-dom-webpack/server.edge
         const { decodeReply, decodeAction, decodeFormState } = ComponentMod
 
-        const webRequest = req as unknown as WebNextRequest
-        if (!webRequest.body) {
+        if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
 
         if (isMultipartAction) {
           // TODO-APP: Add streaming support
-          const formData = await webRequest.request.formData()
+          const formData = await req.request.formData()
           if (isFetchAction) {
             bound = await decodeReply(formData, serverModuleMap)
           } else {
@@ -470,7 +578,9 @@ export async function handleAction({
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
-            console.error(err)
+            if (actionId !== null) {
+              console.error(err)
+            }
             return {
               type: 'not-found',
             }
@@ -478,7 +588,7 @@ export async function handleAction({
 
           let actionData = ''
 
-          const reader = webRequest.body.getReader()
+          const reader = req.body.getReader()
           while (true) {
             const { done, value } = await reader.read()
             if (done) {
@@ -495,7 +605,12 @@ export async function handleAction({
             bound = await decodeReply(actionData, serverModuleMap)
           }
         }
-      } else {
+      } else if (
+        // The type check here ensures that `req` is correctly typed, and the
+        // environment variable check provides dead code elimination.
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        isNodeNextRequest(req)
+      ) {
         // Use react-server-dom-webpack/server.node which supports streaming
         const {
           decodeReply,
@@ -515,32 +630,17 @@ export async function handleAction({
               headers: req.headers,
               limits: { fieldSize: limit },
             })
-            req.pipe(bb)
+            req.body.pipe(bb)
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
-            // Convert the Node.js readable stream to a Web Stream.
-            const readableStream = new ReadableStream({
-              start(controller) {
-                req.on('data', (chunk) => {
-                  controller.enqueue(new Uint8Array(chunk))
-                })
-                req.on('end', () => {
-                  controller.close()
-                })
-                req.on('error', (err) => {
-                  controller.error(err)
-                })
-              },
-            })
-
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
             const fakeRequest = new Request('http://localhost', {
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: readableStream,
+              body: req.stream(),
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -559,7 +659,9 @@ export async function handleAction({
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
-            console.error(err)
+            if (actionId !== null) {
+              console.error(err)
+            }
             return {
               type: 'not-found',
             }
@@ -567,7 +669,7 @@ export async function handleAction({
 
           const chunks = []
 
-          for await (const chunk of req) {
+          for await (const chunk of req.body) {
             chunks.push(Buffer.from(chunk))
           }
 
@@ -592,6 +694,8 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
             bound = await decodeReply(actionData, serverModuleMap)
           }
         }
+      } else {
+        throw new Error('Invariant: Unknown request type.')
       }
 
       // actions.js
@@ -610,7 +714,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         actionModId =
           actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
       } catch (err) {
-        console.error(err)
+        if (actionId !== null) {
+          console.error(err)
+        }
         return {
           type: 'not-found',
         }
@@ -634,8 +740,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
         actionResult = await generateFlight(ctx, {
           actionResult: Promise.resolve(returnVal),
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
+          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
+          skipFlight:
+            !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
         })
       }
     })
@@ -741,8 +848,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         type: 'done',
         result: await generateFlight(ctx, {
           actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
+          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
+          skipFlight:
+            !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
         }),
       }
     }

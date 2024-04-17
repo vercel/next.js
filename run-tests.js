@@ -20,10 +20,13 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('test-pattern')
   .boolean('timings')
   .boolean('write-timings')
+  .number('retries')
   .boolean('debug')
   .string('g')
   .alias('g', 'group')
   .number('c')
+  .boolean('related')
+  .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
@@ -185,8 +188,6 @@ async function getTestTimings() {
 }
 
 async function main() {
-  let numRetries = DEFAULT_NUM_RETRIES
-
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
@@ -198,8 +199,10 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
+    related: argv.related ?? false,
+    retries: argv.retries ?? DEFAULT_NUM_RETRIES,
   }
-
+  let numRetries = options.retries
   const hideOutput = !options.debug
 
   let filterTestsBy
@@ -232,10 +235,20 @@ async function main() {
   let prevTimings
 
   if (tests.length === 0) {
+    /** @type {RegExp | undefined} */
     let testPatternRegex
 
     if (options.testPattern) {
       testPatternRegex = new RegExp(options.testPattern)
+    }
+
+    if (options.related) {
+      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
+      const tests = await getRelatedTests()
+      if (tests.length)
+        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
+
+      console.log('Running related tests:', testPatternRegex.toString())
     }
 
     tests = (

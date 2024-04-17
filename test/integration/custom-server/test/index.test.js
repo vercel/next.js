@@ -141,7 +141,7 @@ describe.each([
   })
 
   describe('with generateEtags enabled', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
@@ -211,7 +211,7 @@ describe.each([
   describe('Error when rendering without starting slash', () => {
     afterEach(() => killApp(server))
 
-    it('should warn in dev mode', async () => {
+    it('should warn in development mode', async () => {
       let stderr = ''
       await startServer(
         {},
@@ -227,7 +227,7 @@ describe.each([
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should warn in production mode', async () => {

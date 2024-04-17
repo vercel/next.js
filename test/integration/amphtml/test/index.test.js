@@ -25,225 +25,228 @@ let app
 const context = {}
 
 describe('AMP Usage', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let output = ''
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let output = ''
 
-    beforeAll(async () => {
-      await rename(
-        join(appDir, 'pages/invalid-amp.js'),
-        join(appDir, 'pages/invalid-amp.js.bak')
-      )
-      const result = await nextBuild(appDir, undefined, {
-        stdout: true,
-        stderr: true,
-      })
-
-      output = stripAnsi(result.stdout + result.stderr)
-
-      appPort = context.appPort = await findPort()
-      app = await nextStart(appDir, context.appPort)
-    })
-    afterAll(async () => {
-      await rename(
-        join(appDir, 'pages/invalid-amp.js.bak'),
-        join(appDir, 'pages/invalid-amp.js')
-      )
-      return killApp(app)
-    })
-
-    it('should have amp optimizer in trace', async () => {
-      const trace = JSON.parse(
-        readFileSync(join(appDir, '.next/next-server.js.nft.json'), 'utf8')
-      )
-      expect(
-        trace.files.some((file) =>
-          file.replace(/\\/g, '/').includes('@ampproject/toolbox-optimizer')
+      beforeAll(async () => {
+        await rename(
+          join(appDir, 'pages/invalid-amp.js'),
+          join(appDir, 'pages/invalid-amp.js.bak')
         )
-      ).toBe(true)
-    })
+        const result = await nextBuild(appDir, undefined, {
+          stdout: true,
+          stderr: true,
+        })
 
-    it('should not contain missing files warning', async () => {
-      expect(output).toContain('Compiled successfully')
-      expect(output).not.toContain('Could not find files for')
-    })
+        output = stripAnsi(result.stdout + result.stderr)
 
-    describe('With basic usage', () => {
-      it('should render the page', async () => {
-        const html = await renderViaHTTP(appPort, '/')
-        expect(html).toMatch(/Hello World/)
+        appPort = context.appPort = await findPort()
+        app = await nextStart(appDir, context.appPort)
       })
-    })
-
-    describe('With basic AMP usage', () => {
-      it('should render the page as valid AMP', async () => {
-        const html = await renderViaHTTP(appPort, '/?amp=1')
-        await validateAMP(html)
-        expect(html).toMatch(/Hello World/)
-
-        const $ = cheerio.load(html)
-        expect($('.abc')).toHaveLength(1)
-      })
-
-      it('should render the page without leaving render target', async () => {
-        const html = await renderViaHTTP(appPort, '/special-chars')
-        await validateAMP(html)
-        expect(html).not.toContain('__NEXT_AMP_RENDER_TARGET__')
-      })
-
-      it('should not output client pages for AMP only', async () => {
-        const browser = await webdriver(appPort, '/nav')
-        await browser.elementByCss('#only-amp-link').click()
-
-        const result = await browser.eval('window.NAV_PAGE_LOADED')
-
-        expect(result).toBeFalsy()
-      })
-
-      it('should not output client pages for AMP only with config exported after declaration', async () => {
-        const browser = await webdriver(appPort, '/nav')
-        await browser.elementByCss('#var-before-export-link').click()
-
-        const result = await browser.eval('window.NAV_PAGE_LOADED')
-
-        expect(result).toBeFalsy()
-      })
-
-      it('should drop custom scripts', async () => {
-        const html = await renderViaHTTP(appPort, '/custom-scripts')
-        expect(html).not.toMatch(/src='\/im-not-allowed\.js'/)
-        expect(html).not.toMatch(/console\.log("I'm not either :p")'/)
-      })
-
-      it('should not drop custom amp scripts', async () => {
-        const html = await renderViaHTTP(appPort, '/amp-script?amp=1')
-        await validateAMP(html)
-      })
-
-      it('should optimize clean', async () => {
-        const html = await renderViaHTTP(appPort, '/only-amp')
-        await validateAMP(html)
-      })
-
-      it('should auto import extensions', async () => {
-        const html = await renderViaHTTP(appPort, '/auto-import')
-        await validateAMP(html)
-      })
-    })
-
-    describe('With AMP context', () => {
-      it('should render the normal page that uses the AMP hook', async () => {
-        const html = await renderViaHTTP(appPort, '/use-amp-hook')
-        expect(html).toMatch(/Hello others/)
-        expect(html).toMatch(/no AMP for you\.\.\./)
-      })
-
-      it('should render the AMP page that uses the AMP hook', async () => {
-        const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
-        await validateAMP(html)
-        expect(html).toMatch(/Hello AMP/)
-        expect(html).toMatch(/AMP Power!!!/)
-      })
-
-      it('should render nested normal page with AMP hook', async () => {
-        const html = await renderViaHTTP(appPort, '/nested')
-        expect(html).toMatch(/Hello others/)
-      })
-
-      it('should render nested AMP page with AMP hook', async () => {
-        const html = await renderViaHTTP(appPort, '/nested?amp=1')
-        await validateAMP(html)
-        expect(html).toMatch(/Hello AMP/)
-      })
-    })
-
-    describe('canonical amphtml', () => {
-      it('should render link rel amphtml', async () => {
-        const html = await renderViaHTTP(appPort, '/use-amp-hook')
-        const $ = cheerio.load(html)
-        expect($('link[rel=amphtml]').first().attr('href')).toBe(
-          'http://localhost:1234/use-amp-hook.amp'
+      afterAll(async () => {
+        await rename(
+          join(appDir, 'pages/invalid-amp.js.bak'),
+          join(appDir, 'pages/invalid-amp.js')
         )
+        return killApp(app)
       })
 
-      it('should render amphtml from provided rel link', async () => {
-        const html = await renderViaHTTP(appPort, '/use-amp-hook.amp')
-        await validateAMP(html)
-      })
-
-      it('should render link rel amphtml with existing query', async () => {
-        const html = await renderViaHTTP(appPort, '/use-amp-hook?hello=1')
-        expect(html).not.toMatch(/&amp;amp=1/)
-      })
-
-      it('should render the AMP page that uses the AMP hook', async () => {
-        const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
-        const $ = cheerio.load(html)
-        await validateAMP(html)
-        expect($('link[rel=canonical]').first().attr('href')).toBe(
-          'http://localhost:1234/use-amp-hook'
+      it('should have amp optimizer in trace', async () => {
+        const trace = JSON.parse(
+          readFileSync(join(appDir, '.next/next-server.js.nft.json'), 'utf8')
         )
+        expect(
+          trace.files.some((file) =>
+            file.replace(/\\/g, '/').includes('@ampproject/toolbox-optimizer')
+          )
+        ).toBe(true)
       })
 
-      it('should render a canonical regardless of amp-only status (explicit)', async () => {
-        const html = await renderViaHTTP(appPort, '/only-amp')
-        const $ = cheerio.load(html)
-        await validateAMP(html)
-        expect($('link[rel=canonical]').first().attr('href')).toBe(
-          'http://localhost:1234/only-amp'
-        )
+      it('should not contain missing files warning', async () => {
+        expect(output).toContain('Compiled successfully')
+        expect(output).not.toContain('Could not find files for')
       })
 
-      it('should not render amphtml link tag with no AMP page', async () => {
-        const html = await renderViaHTTP(appPort, '/normal')
-        const $ = cheerio.load(html)
-        expect($('link[rel=amphtml]').first().attr('href')).not.toBeTruthy()
+      describe('With basic usage', () => {
+        it('should render the page', async () => {
+          const html = await renderViaHTTP(appPort, '/')
+          expect(html).toMatch(/Hello World/)
+        })
       })
 
-      it('should remove conflicting amp tags', async () => {
-        const html = await renderViaHTTP(appPort, '/conflicting-tag?amp=1')
-        const $ = cheerio.load(html)
-        await validateAMP(html)
-        expect($('meta[name=viewport]').attr('content')).not.toBe(
-          'something :p'
-        )
+      describe('With basic AMP usage', () => {
+        it('should render the page as valid AMP', async () => {
+          const html = await renderViaHTTP(appPort, '/?amp=1')
+          await validateAMP(html)
+          expect(html).toMatch(/Hello World/)
+
+          const $ = cheerio.load(html)
+          expect($('.abc')).toHaveLength(1)
+        })
+
+        it('should render the page without leaving render target', async () => {
+          const html = await renderViaHTTP(appPort, '/special-chars')
+          await validateAMP(html)
+          expect(html).not.toContain('__NEXT_AMP_RENDER_TARGET__')
+        })
+
+        it('should not output client pages for AMP only', async () => {
+          const browser = await webdriver(appPort, '/nav')
+          await browser.elementByCss('#only-amp-link').click()
+
+          const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+          expect(result).toBeFalsy()
+        })
+
+        it('should not output client pages for AMP only with config exported after declaration', async () => {
+          const browser = await webdriver(appPort, '/nav')
+          await browser.elementByCss('#var-before-export-link').click()
+
+          const result = await browser.eval('window.NAV_PAGE_LOADED')
+
+          expect(result).toBeFalsy()
+        })
+
+        it('should drop custom scripts', async () => {
+          const html = await renderViaHTTP(appPort, '/custom-scripts')
+          expect(html).not.toMatch(/src='\/im-not-allowed\.js'/)
+          expect(html).not.toMatch(/console\.log("I'm not either :p")'/)
+        })
+
+        it('should not drop custom amp scripts', async () => {
+          const html = await renderViaHTTP(appPort, '/amp-script?amp=1')
+          await validateAMP(html)
+        })
+
+        it('should optimize clean', async () => {
+          const html = await renderViaHTTP(appPort, '/only-amp')
+          await validateAMP(html)
+        })
+
+        it('should auto import extensions', async () => {
+          const html = await renderViaHTTP(appPort, '/auto-import')
+          await validateAMP(html)
+        })
       })
 
-      it('should allow manually setting canonical', async () => {
-        const html = await renderViaHTTP(appPort, '/manual-rels?amp=1')
-        const $ = cheerio.load(html)
-        await validateAMP(html)
-        expect($('link[rel=canonical]').attr('href')).toBe(
-          '/my-custom-canonical'
-        )
+      describe('With AMP context', () => {
+        it('should render the normal page that uses the AMP hook', async () => {
+          const html = await renderViaHTTP(appPort, '/use-amp-hook')
+          expect(html).toMatch(/Hello others/)
+          expect(html).toMatch(/no AMP for you\.\.\./)
+        })
+
+        it('should render the AMP page that uses the AMP hook', async () => {
+          const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
+          await validateAMP(html)
+          expect(html).toMatch(/Hello AMP/)
+          expect(html).toMatch(/AMP Power!!!/)
+        })
+
+        it('should render nested normal page with AMP hook', async () => {
+          const html = await renderViaHTTP(appPort, '/nested')
+          expect(html).toMatch(/Hello others/)
+        })
+
+        it('should render nested AMP page with AMP hook', async () => {
+          const html = await renderViaHTTP(appPort, '/nested?amp=1')
+          await validateAMP(html)
+          expect(html).toMatch(/Hello AMP/)
+        })
       })
 
-      it('should allow manually setting amphtml rel', async () => {
-        const html = await renderViaHTTP(appPort, '/manual-rels')
-        const $ = cheerio.load(html)
-        expect($('link[rel=amphtml]').attr('href')).toBe('/my-custom-amphtml')
-        expect($('link[rel=amphtml]')).toHaveLength(1)
-      })
-    })
+      describe('canonical amphtml', () => {
+        it('should render link rel amphtml', async () => {
+          const html = await renderViaHTTP(appPort, '/use-amp-hook')
+          const $ = cheerio.load(html)
+          expect($('link[rel=amphtml]').first().attr('href')).toBe(
+            'http://localhost:1234/use-amp-hook.amp'
+          )
+        })
 
-    describe('combined styles', () => {
-      it('should combine style tags', async () => {
-        const html = await renderViaHTTP(appPort, '/styled?amp=1')
-        const $ = cheerio.load(html)
-        expect($('style[amp-custom]').first().text()).toMatch(
-          /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:(?:blue|#00f)}body{background-color:green}/
-        )
+        it('should render amphtml from provided rel link', async () => {
+          const html = await renderViaHTTP(appPort, '/use-amp-hook.amp')
+          await validateAMP(html)
+        })
+
+        it('should render link rel amphtml with existing query', async () => {
+          const html = await renderViaHTTP(appPort, '/use-amp-hook?hello=1')
+          expect(html).not.toMatch(/&amp;amp=1/)
+        })
+
+        it('should render the AMP page that uses the AMP hook', async () => {
+          const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
+          const $ = cheerio.load(html)
+          await validateAMP(html)
+          expect($('link[rel=canonical]').first().attr('href')).toBe(
+            'http://localhost:1234/use-amp-hook'
+          )
+        })
+
+        it('should render a canonical regardless of amp-only status (explicit)', async () => {
+          const html = await renderViaHTTP(appPort, '/only-amp')
+          const $ = cheerio.load(html)
+          await validateAMP(html)
+          expect($('link[rel=canonical]').first().attr('href')).toBe(
+            'http://localhost:1234/only-amp'
+          )
+        })
+
+        it('should not render amphtml link tag with no AMP page', async () => {
+          const html = await renderViaHTTP(appPort, '/normal')
+          const $ = cheerio.load(html)
+          expect($('link[rel=amphtml]').first().attr('href')).not.toBeTruthy()
+        })
+
+        it('should remove conflicting amp tags', async () => {
+          const html = await renderViaHTTP(appPort, '/conflicting-tag?amp=1')
+          const $ = cheerio.load(html)
+          await validateAMP(html)
+          expect($('meta[name=viewport]').attr('content')).not.toBe(
+            'something :p'
+          )
+        })
+
+        it('should allow manually setting canonical', async () => {
+          const html = await renderViaHTTP(appPort, '/manual-rels?amp=1')
+          const $ = cheerio.load(html)
+          await validateAMP(html)
+          expect($('link[rel=canonical]').attr('href')).toBe(
+            '/my-custom-canonical'
+          )
+        })
+
+        it('should allow manually setting amphtml rel', async () => {
+          const html = await renderViaHTTP(appPort, '/manual-rels')
+          const $ = cheerio.load(html)
+          expect($('link[rel=amphtml]').attr('href')).toBe('/my-custom-amphtml')
+          expect($('link[rel=amphtml]')).toHaveLength(1)
+        })
       })
 
-      it('should remove sourceMaps from styles', async () => {
-        const html = await renderViaHTTP(appPort, '/styled?amp=1')
-        const $ = cheerio.load(html)
-        const styles = $('style[amp-custom]').first().text()
+      describe('combined styles', () => {
+        it('should combine style tags', async () => {
+          const html = await renderViaHTTP(appPort, '/styled?amp=1')
+          const $ = cheerio.load(html)
+          expect($('style[amp-custom]').first().text()).toMatch(
+            /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:(?:blue|#00f)}body{background-color:green}/
+          )
+        })
 
-        expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
-        expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
+        it('should remove sourceMaps from styles', async () => {
+          const html = await renderViaHTTP(appPort, '/styled?amp=1')
+          const $ = cheerio.load(html)
+          const styles = $('style[amp-custom]').first().text()
+
+          expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
+          expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
+        })
       })
-    })
-  })
+    }
+  )
 
   describe('AMP dev no-warn', () => {
     let dynamicAppPort
@@ -269,7 +272,7 @@ describe('AMP Usage', () => {
     })
   })
 
-  describe('AMP dev mode', () => {
+  describe('AMP development mode', () => {
     let dynamicAppPort
     let ampDynamic
     let output = ''
