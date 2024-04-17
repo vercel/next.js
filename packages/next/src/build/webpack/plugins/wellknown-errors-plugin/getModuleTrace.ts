@@ -1,7 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { relative } from 'path'
-import isInternal from '../../../../shared/lib/is-internal'
 
 function formatModule(compiler: webpack.Compiler, module: any) {
   const relativePath = relative(compiler.context, module.resource).replace(
@@ -23,7 +22,7 @@ export function formatModuleTrace(
     const mod = moduleTrace[i]
     if (!mod.resource) continue
 
-    if (!isInternal(mod.resource)) {
+    if (!mod.resource.includes('node_modules/')) {
       importTrace.unshift(formatModule(compiler, mod))
     } else {
       firstExternalModule = mod
