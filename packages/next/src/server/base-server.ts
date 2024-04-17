@@ -124,6 +124,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
+import { ActionPathnameNormalizer } from './future/normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -373,6 +374,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
+    readonly action: ActionPathnameNormalizer | undefined
     readonly postponed: PostponedPathnameNormalizer | undefined
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
@@ -467,6 +469,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
+      action:
+        this.enabledDirectories.app && this.minimalMode
+          ? new ActionPathnameNormalizer()
+          : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -957,7 +963,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
-          // For ISR  the URL is normalized to the prerenderPath so if
+          // For ISR the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
           if (this.normalizers.data?.match(urlPathname)) {
@@ -1408,6 +1414,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
+    }
+
+    if (this.normalizers.action) {
+      normalizers.push(this.normalizers.action)
     }
 
     for (const normalizer of normalizers) {
