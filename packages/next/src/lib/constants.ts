@@ -8,6 +8,7 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SUFFIX = '.rsc'
+export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
