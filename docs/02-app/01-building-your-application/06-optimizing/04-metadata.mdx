@@ -254,8 +254,6 @@ To use it, you can import `ImageResponse` from `next/og`:
 ```jsx filename="app/about/route.js"
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge'
-
 export async function GET() {
   return new ImageResponse(
     (
