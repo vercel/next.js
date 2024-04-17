@@ -117,7 +117,6 @@ const __default__ = proxy.default;
           esmSource += `\nexports['*'] = createProxy(String.raw\`${resourceKey}#*\`);`
         } else if (ref === 'default') {
           esmSource += `\
-// export { __esModule, $$typeof };
 export default createProxy(String.raw\`${resourceKey}#default\`);
 `
         } else {
