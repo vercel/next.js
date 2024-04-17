@@ -1,6 +1,5 @@
 'use client'
 
-import type { ReactNode } from 'react'
 import React, {
   use,
   useEffect,
@@ -34,6 +33,7 @@ import {
 import type {
   AppRouterState,
   ReducerActions,
+  ReducerState,
   RouterChangeByServerResponse,
   RouterNavigate,
   ServerActionDispatcher,
@@ -45,13 +45,10 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import {
-  useReducerWithReduxDevtools,
   useUnwrapState,
   type ReduxDevtoolsSyncFn,
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
-import { createInitialRouterState } from './router-reducer/create-initial-router-state'
-import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -64,12 +61,6 @@ import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { FlightRouterState } from '../../server/app-render/types'
-const isServer = typeof window === 'undefined'
-
-// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
-let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
-  ? null!
-  : new Map()
 
 let globalServerActionDispatcher = null as ServerActionDispatcher | null
 
@@ -126,17 +117,6 @@ function getSelectedParams(
   }
 
   return params
-}
-
-type AppRouterProps = Omit<
-  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
-  'initialParallelRoutes'
-> & {
-  buildId: string
-  initialHead: ReactNode
-  initialLayerAssets: ReactNode
-  assetPrefix: string
-  missingSlots?: Set<string>
 }
 
 function isExternalURL(url: URL) {
@@ -286,51 +266,26 @@ function Head({
   return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
+interface RouterProps {
+  reducerState: ReducerState
+  dispatch: React.Dispatch<ReducerActions>
+  sync: ReduxDevtoolsSyncFn
+  assetPrefix: string
+  buildId: string
+  missingSlots?: Set<string>
+}
+
 /**
  * The global router that wraps the application components.
  */
 function Router({
-  buildId,
-  initialHead,
-  initialLayerAssets,
-  initialTree,
-  initialCanonicalUrl,
-  initialSeedData,
-  couldBeIntercepted,
+  reducerState,
+  dispatch,
+  sync,
   assetPrefix,
+  buildId,
   missingSlots,
-}: AppRouterProps) {
-  const initialState = useMemo(
-    () =>
-      createInitialRouterState({
-        buildId,
-        initialSeedData,
-        initialCanonicalUrl,
-        initialTree,
-        initialParallelRoutes,
-        location: !isServer ? window.location : null,
-        initialHead,
-        initialLayerAssets,
-        couldBeIntercepted,
-      }),
-    [
-      buildId,
-      initialSeedData,
-      initialCanonicalUrl,
-      initialTree,
-      initialHead,
-      initialLayerAssets,
-      couldBeIntercepted,
-    ]
-  )
-  const [reducerState, dispatch, sync] =
-    useReducerWithReduxDevtools(initialState)
-
-  useEffect(() => {
-    // Ensure initialParallelRoutes is cleaned up from memory once it's used.
-    initialParallelRoutes = null!
-  }, [])
-
+}: RouterProps) {
   const { canonicalUrl } = useUnwrapState(reducerState)
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
@@ -743,7 +698,9 @@ function Router({
 }
 
 export default function AppRouter(
-  props: AppRouterProps & { globalErrorComponent: ErrorComponent }
+  props: RouterProps & {
+    globalErrorComponent: ErrorComponent
+  }
 ) {
   const { globalErrorComponent, ...rest } = props
 

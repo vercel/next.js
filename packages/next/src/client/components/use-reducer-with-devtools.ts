@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react'
-import React, { use, useContext } from 'react'
+import React, { use } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
 import {
   isThenable,
@@ -7,7 +7,7 @@ import {
   type ReducerActions,
   type ReducerState,
 } from './router-reducer/router-reducer-types'
-import { ActionQueueContext } from '../../shared/lib/router/action-queue'
+import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 
 export type ReduxDevtoolsSyncFn = (state: AppRouterState) => void
 
@@ -86,25 +86,14 @@ export function useUnwrapState(state: ReducerState): AppRouterState {
   return state
 }
 
-function useReducerWithReduxDevtoolsNoop(
-  initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
-  return [initialState, () => {}, () => {}]
-}
-
-function useReducerWithReduxDevtoolsImpl(
-  initialState: AppRouterState
+export function useReducerWithReduxDevtools(
+  initialState: AppRouterState,
+  actionQueue: AppRouterActionQueue
 ): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
   const [state, setState] = React.useState<ReducerState>(initialState)
 
-  const actionQueue = useContext(ActionQueueContext)
-
-  if (!actionQueue) {
-    throw new Error('Invariant: Missing ActionQueueContext')
-  }
-
-  const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>(undefined)
-  const enabledRef = useRef<boolean>(undefined)
+  const devtoolsConnectionRef = React.useRef<ReduxDevToolsInstance>(undefined)
+  const enabledRef = React.useRef<boolean>(undefined)
 
   useEffect(() => {
     if (devtoolsConnectionRef.current || enabledRef.current === false) {
@@ -140,15 +129,9 @@ function useReducerWithReduxDevtoolsImpl(
 
   const dispatch = useCallback(
     (action: ReducerActions) => {
-      if (!actionQueue.state) {
-        // we lazy initialize the mutable action queue state since the data needed
-        // to generate the state is not available when the actionQueue context is created
-        actionQueue.state = initialState
-      }
-
       actionQueue.dispatch(action, setState)
     },
-    [actionQueue, initialState]
+    [actionQueue]
   )
 
   // Sync is called after a state update in the HistoryUpdater,
@@ -168,8 +151,3 @@ function useReducerWithReduxDevtoolsImpl(
 
   return [state, dispatch, sync]
 }
-
-export const useReducerWithReduxDevtools =
-  typeof window !== 'undefined'
-    ? useReducerWithReduxDevtoolsImpl
-    : useReducerWithReduxDevtoolsNoop
