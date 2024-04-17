@@ -147,15 +147,11 @@ describe('next test', () => {
     const fixture = createTemporaryFixture('basic-example')
 
     try {
-      const { stdout, stderr } = await nextTest(
-        fixture,
-        ['--test-runner-args=--version'],
-        {
-          stderr: true,
-          stdout: true,
-          cwd: fixture,
-        }
-      )
+      const { stdout, stderr } = await nextTest(fixture, ['--version'], {
+        stderr: true,
+        stdout: true,
+        cwd: fixture,
+      })
 
       expect(stdout).toContain('Version 1')
       expect(stderr).toBe('')
