@@ -1,4 +1,4 @@
-export type Event = 'request'
+export type Event = 'request' | 'response'
 
 /**
  * This is the base Browser interface all browser
