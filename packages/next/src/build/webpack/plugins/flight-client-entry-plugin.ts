@@ -39,14 +39,15 @@ import {
 } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { isWebpackServerOnlyLayer } from '../../utils'
+import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  encryptionKey: string
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -166,6 +167,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
+  encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
 
@@ -174,6 +176,7 @@ export class FlightClientEntryPlugin {
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
+    this.encryptionKey = options.encryptionKey
   }
 
   apply(compiler: webpack.Compiler) {
@@ -662,7 +665,16 @@ export class FlightClientEntryPlugin {
       if (!modRequest) return
       if (visited.has(modRequest)) {
         if (clientComponentImports[modRequest]) {
+          const isCjsModule =
+            getModuleBuildInfo(mod).rsc?.clientEntryType === 'cjs'
           for (const name of importedIdentifiers) {
+            // For cjs module default import, we include the whole module since
+            const isCjsDefaultImport = isCjsModule && name === 'default'
+            // Always include __esModule along with cjs module default export,
+            // to make sure it work with client module proxy from React.
+            if (isCjsDefaultImport) {
+              clientComponentImports[modRequest].add('__esModule')
+            }
             clientComponentImports[modRequest].add(name)
           }
         }
@@ -1000,9 +1012,7 @@ export class FlightClientEntryPlugin {
       {
         node: serverActions,
         edge: edgeServerActions,
-
-        // Assign encryption
-        encryptionKey: await generateRandomActionKeyRaw(this.dev),
+        encryptionKey: this.encryptionKey,
       },
       null,
       this.dev ? 2 : undefined

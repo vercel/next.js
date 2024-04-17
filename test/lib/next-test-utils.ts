@@ -529,6 +529,9 @@ export async function killApp(
   instance?: ChildProcess,
   signal: NodeJS.Signals | number = 'SIGKILL'
 ) {
+  if (!instance) {
+    return
+  }
   if (
     instance?.pid &&
     instance.exitCode === null &&
@@ -558,7 +561,10 @@ export async function startApp(app: NextServer) {
   return server
 }
 
-export async function stopApp(server: http.Server) {
+export async function stopApp(server: http.Server | undefined) {
+  if (!server) {
+    return
+  }
   if (server['__app']) {
     await server['__app'].close()
   }
@@ -747,7 +753,7 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
         .call(document.querySelectorAll('nextjs-portal'))
         .find((p) =>
           p.shadowRoot.querySelector(
-            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+            '#nextjs__container_errors_label, #nextjs__container_errors_label'
           )
         )
     )
@@ -805,7 +811,7 @@ export async function getRedboxSource(browser: BrowserInterface) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_errors_label'
             )
           )
         const root = portal.shadowRoot
@@ -852,7 +858,7 @@ export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
           )
         const root = portal.shadowRoot
         const text = root.querySelector(
-          '#nextjs__container_errors__extra'
+          '#nextjs__container_errors__notes'
         )?.innerText
         return text
       }),

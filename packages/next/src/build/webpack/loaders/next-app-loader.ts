@@ -200,9 +200,10 @@ async function createTreeCodeFromPath(
 
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const hasRootNotFound = await resolver(
+  const rootNotFound = await resolver(
     `${appDirPrefix}/${FILE_TYPES['not-found']}`
   )
+  const hasRootNotFound = Boolean(rootNotFound)
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -382,7 +383,8 @@ async function createTreeCodeFromPath(
         )?.[1]
         rootLayout = layoutPath
 
-        if (isDefaultNotFound && !layoutPath && !rootLayout) {
+        const isRootNotFound = hasRootNotFound && isRootLayer && isNotFoundRoute
+        if ((isRootNotFound || isDefaultNotFound) && !layoutPath) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
@@ -401,9 +403,14 @@ async function createTreeCodeFromPath(
         ? parallelSegment[0]
         : parallelSegment
 
+      // normalize the parallel segment key to remove any special markers that we inserted in the
+      // earlier logic (such as children$ and page$). These should never appear in the loader tree, and
+      // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
         parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
           ? 'children'
+          : parallelSegmentKey === PAGE_SEGMENT
+          ? PAGE_SEGMENT_KEY
           : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)

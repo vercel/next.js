@@ -259,6 +259,8 @@ export async function startServer(
         maxExperimentalFeatures: 3,
       })
 
+      Log.event(`Starting...`)
+
       try {
         const cleanup = () => {
           debug('start-server process cleanup')
@@ -320,7 +322,7 @@ export async function startServer(
 
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
-            ...serverOptions,
+            dir: serverOptions.dir,
             isDev: true,
           })
         }
