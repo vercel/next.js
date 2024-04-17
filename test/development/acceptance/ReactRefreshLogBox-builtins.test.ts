@@ -11,7 +11,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
   })
 
   // Module trace is only available with webpack 5
-  test.only('Node.js builtins', async () => {
+  test('Node.js builtins', async () => {
     const { session, cleanup } = await sandbox(
       next,
       new Map([
