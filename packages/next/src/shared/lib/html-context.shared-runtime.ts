@@ -1,5 +1,5 @@
 import type { BuildManifest } from '../../server/get-page-files'
-import type { ServerRuntime } from 'next/types'
+import type { ServerRuntime } from '../../types'
 import type { NEXT_DATA } from './utils'
 import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'

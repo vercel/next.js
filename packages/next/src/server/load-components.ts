@@ -9,7 +9,7 @@ import type {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from 'next/types'
+} from '../types'
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'

@@ -5,7 +5,7 @@ import type {
   GetStaticProps,
   NextComponentType,
   PageConfig,
-} from '../../../../../types'
+} from '../../../../types'
 import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
 import type { NextParsedUrlQuery } from '../../../request-meta'
 import type { RenderOpts } from '../../../render'

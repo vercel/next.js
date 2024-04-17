@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
-import type { PageConfig } from '../../../../../types'
+import type { PageConfig } from '../../../../types'
 import type { ParsedUrlQuery } from 'querystring'
 import { wrapApiHandler, type __ApiPreviewProps } from '../../../api-utils'
 import type { RouteModuleOptions } from '../route-module'

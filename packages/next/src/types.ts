@@ -11,27 +11,22 @@ import type React from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage, ServerResponse } from 'http'
 
-import {
+import type {
   NextPageContext,
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
   NextApiHandler,
-  // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/shared/lib/utils'
+} from './shared/lib/utils'
 
-import type {
-  NextApiRequestCookies,
-  // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/server/api-utils'
+import type { NextApiRequestCookies } from './server/api-utils'
 
-// @ts-ignore This path is generated at build time and conflicts otherwise
-import next from '../dist/server/next'
+import next from './server/next'
 
 export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-export { NextConfig } from '../dist/server/config'
+export { NextConfig } from './server/config'
 
 export type {
   Metadata,
@@ -41,8 +36,7 @@ export type {
   Viewport,
   ResolvingViewport,
   ResolvedViewport,
-  // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/lib/metadata/types/metadata-interface'
+} from './lib/metadata/types/metadata-interface'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
@@ -160,7 +154,7 @@ export type PageConfig = {
   unstable_excludeFiles?: string[]
 }
 
-export {
+export type {
   NextPageContext,
   NextComponentType,
   NextApiResponse,
