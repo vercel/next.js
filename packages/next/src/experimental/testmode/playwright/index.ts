@@ -6,6 +6,8 @@ import type { NextWorkerFixture } from './next-worker-fixture'
 import { applyNextWorkerFixture } from './next-worker-fixture'
 import { applyNextFixture } from './next-fixture'
 
+export * from './with-next'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
 

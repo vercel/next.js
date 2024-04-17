@@ -360,6 +360,10 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .argument(
+    '[test-runner-args...]',
+    'Any additional arguments or options to pass down to the test runner `test` command.'
+  )
   .option(
     '-t, --test-runner [test-runner]',
     `Any supported test runner. Options: ${bold(
@@ -368,15 +372,12 @@ program
       "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
     )}`
   )
-  .option(
-    '-a, --test-runner-args [args...]',
-    'Commands, arguments, and options to pass through to the test runner. Defaults to executing tests (`playwright test`)'
-  )
-  .action((directory, options) =>
-    import('../cli/next-test.js').then((mod) => {
-      mod.nextTest(directory, options)
+  .allowUnknownOption()
+  .action((directory, testRunnerArgs, options) => {
+    return import('../cli/next-test.js').then((mod) => {
+      mod.nextTest(directory, testRunnerArgs, options)
     })
-  )
+  })
   .usage('[directory] [options]')
 
 program.parse(process.argv)
