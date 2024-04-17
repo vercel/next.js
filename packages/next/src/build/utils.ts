@@ -360,14 +360,21 @@ export interface PageInfo {
 
 export type PageInfos = Map<string, PageInfo>
 
-export type SerializedPageInfos = [string, PageInfo][]
-
-export function serializePageInfos(input: PageInfos): SerializedPageInfos {
-  return Array.from(input.entries())
+export interface RoutesUsingEdgeRuntime {
+  [route: string]: 0
 }
 
-export function deserializePageInfos(input: SerializedPageInfos): PageInfos {
-  return new Map(input)
+export function collectRoutesUsingEdgeRuntime(
+  input: PageInfos
+): RoutesUsingEdgeRuntime {
+  const routesUsingEdgeRuntime: RoutesUsingEdgeRuntime = {}
+  for (const [route, info] of input.entries()) {
+    if (isEdgeRuntime(info.runtime)) {
+      routesUsingEdgeRuntime[route] = 0
+    }
+  }
+
+  return routesUsingEdgeRuntime
 }
 
 export async function printTreeView(
