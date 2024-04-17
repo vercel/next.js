@@ -1041,18 +1041,18 @@ function addClientImport(
 
   // If it's not analyzed as named ESM exports, e.g. if it's mixing `export *` with named exports,
   // We'll include all modules since it's not able to do tree-shaking.
-  if (assumedSourceType === 'auto') {
-    clientComponentImports[modRequest].add('*')
-  } else {
-    for (const name of importedIdentifiers) {
-      // For cjs module default import, we include the whole module since
-      const isCjsDefaultImport = isCjsModule && name === 'default'
-      // Always include __esModule along with cjs module default export,
-      // to make sure it work with client module proxy from React.
-      if (isCjsDefaultImport) {
-        clientComponentImports[modRequest].add('__esModule')
-      }
-      clientComponentImports[modRequest].add(name)
+  for (const name of importedIdentifiers) {
+    // For cjs module default import, we include the whole module since
+    const isCjsDefaultImport = isCjsModule && name === 'default'
+    const isAutoModuleSourceType = assumedSourceType === 'auto'
+    // Always include __esModule along with cjs module default export,
+    // to make sure it work with client module proxy from React.
+    if (isCjsDefaultImport) {
+      clientComponentImports[modRequest].add('__esModule')
     }
+    if (isAutoModuleSourceType) {
+      clientComponentImports[modRequest].add('*')
+    }
+    clientComponentImports[modRequest].add(name)
   }
 }

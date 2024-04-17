@@ -96,7 +96,6 @@ export default function transformSource(
         )
         return
       }
-      console.log('resource', this.resourcePath, 'clientRefs', clientRefs)
 
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
