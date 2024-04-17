@@ -88,7 +88,7 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
 } from '../lib/constants'
-import { BubbledError, getTracer } from './lib/trace/tracer'
+import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -1675,7 +1675,10 @@ export default class NextNodeServer extends BaseServer<
       if ('response' in result) {
         if (isMiddlewareInvoke) {
           bubblingResult = true
-          throw new BubbledError(true, result)
+          const err = new Error()
+          ;(err as any).result = result
+          ;(err as any).bubble = true
+          throw err
         }
 
         for (const [key, value] of Object.entries(
