@@ -105,8 +105,6 @@ jobs:
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-        with:
-          components: rustfmt, clippy
 
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
@@ -125,7 +123,7 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'
