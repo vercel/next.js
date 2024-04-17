@@ -619,9 +619,9 @@ async function renderToHTMLOrFlightImpl(
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
     const instrumented = wrapClientComponentLoader(ComponentMod)
-    // @ts-ignore
+    // @ts-expect-error
     globalThis.__next_require__ = instrumented.require
-    // @ts-ignore
+    // @ts-expect-error
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 

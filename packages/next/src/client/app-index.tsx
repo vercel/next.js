@@ -1,8 +1,6 @@
 import '../build/polyfills/polyfill-module'
-// @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
-// @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 

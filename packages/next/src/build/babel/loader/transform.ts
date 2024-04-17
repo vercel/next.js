@@ -52,7 +52,7 @@ function transformAstPass(file: any, pluginPairs: any[], parentSpan: Span) {
   const visitor = traverse.visitors.merge(
     visitors,
     passes,
-    // @ts-ignore - the exported types are incorrect here
+    // @ts-expect-error - the exported types are incorrect here
     file.opts.wrapPluginVisitorMethod
   )
 

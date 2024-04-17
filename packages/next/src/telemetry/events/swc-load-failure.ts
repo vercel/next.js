@@ -1,6 +1,5 @@
 import { traceGlobals } from '../../trace/shared'
 import type { Telemetry } from '../storage'
-// @ts-ignore JSON
 import { version as nextVersion, optionalDependencies } from 'next/package.json'
 
 const EVENT_PLUGIN_PRESENT = 'NEXT_SWC_LOAD_FAILURE'
@@ -29,7 +28,7 @@ export async function eventSwcLoadFailure(
   let installedSwcPackages
 
   try {
-    // @ts-ignore
+    // @ts-expect-error
     glibcVersion = process.report?.getReport().header.glibcVersionRuntime
   } catch {}
 

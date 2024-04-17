@@ -233,7 +233,7 @@ export const resolveAppleWebApp: FieldResolver<'appleWebApp'> = (appWebApp) => {
 export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
   if (!appLinks) return null
   for (const key in appLinks) {
-    // @ts-ignore // TODO: type infer
+    // @ts-expect-error // TODO: type infer
     appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
   }
   return appLinks as ResolvedMetadata['appLinks']

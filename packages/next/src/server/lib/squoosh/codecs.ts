@@ -36,46 +36,46 @@ export interface RotateOptions {
 
 // MozJPEG
 import type { MozJPEGModule as MozJPEGEncodeModule } from './mozjpeg/mozjpeg_enc'
-// @ts-ignore
+// @ts-expect-error
 import mozEnc from './mozjpeg/mozjpeg_node_enc.js'
 const mozEncWasm = path.resolve(__dirname, './mozjpeg/mozjpeg_node_enc.wasm')
-// @ts-ignore
+// @ts-expect-error
 import mozDec from './mozjpeg/mozjpeg_node_dec.js'
 const mozDecWasm = path.resolve(__dirname, './mozjpeg/mozjpeg_node_dec.wasm')
 
 // WebP
 import type { WebPModule as WebPEncodeModule } from './webp/webp_enc'
-// @ts-ignore
+// @ts-expect-error
 import webpEnc from './webp/webp_node_enc.js'
 const webpEncWasm = path.resolve(__dirname, './webp/webp_node_enc.wasm')
-// @ts-ignore
+// @ts-expect-error
 import webpDec from './webp/webp_node_dec.js'
 const webpDecWasm = path.resolve(__dirname, './webp/webp_node_dec.wasm')
 
 // AVIF
 import type { AVIFModule as AVIFEncodeModule } from './avif/avif_enc'
-// @ts-ignore
+// @ts-expect-error
 import avifEnc from './avif/avif_node_enc.js'
 const avifEncWasm = path.resolve(__dirname, './avif/avif_node_enc.wasm')
-// @ts-ignore
+// @ts-expect-error
 import avifDec from './avif/avif_node_dec.js'
 const avifDecWasm = path.resolve(__dirname, './avif/avif_node_dec.wasm')
 
 // PNG
-// @ts-ignore
+// @ts-expect-error
 import * as pngEncDec from './png/squoosh_png.js'
 const pngEncDecWasm = path.resolve(__dirname, './png/squoosh_png_bg.wasm')
 const pngEncDecInit = () =>
   pngEncDec.default(fsp.readFile(pathify(pngEncDecWasm)))
 
 // OxiPNG
-// @ts-ignore
+// @ts-expect-error
 import * as oxipng from './png/squoosh_oxipng.js'
 const oxipngWasm = path.resolve(__dirname, './png/squoosh_oxipng_bg.wasm')
 const oxipngInit = () => oxipng.default(fsp.readFile(pathify(oxipngWasm)))
 
 // Resize
-// @ts-ignore
+// @ts-expect-error
 import * as resize from './resize/squoosh_resize.js'
 const resizeWasm = path.resolve(__dirname, './resize/squoosh_resize_bg.wasm')
 const resizeInit = () => resize.default(fsp.readFile(pathify(resizeWasm)))

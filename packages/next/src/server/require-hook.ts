@@ -9,7 +9,7 @@ const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
 let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
-  ? // @ts-ignore
+  ? // @ts-expect-error
     __non_webpack_require__.resolve
   : require.resolve
 

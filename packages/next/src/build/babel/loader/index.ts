@@ -12,7 +12,6 @@ async function nextBabelLoader(
   const target = this.target
   const loaderOptions = parentTrace
     .traceChild('get-options')
-    // @ts-ignore TODO: remove ignore once webpack 5 types are used
     .traceFn(() => this.getOptions())
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')

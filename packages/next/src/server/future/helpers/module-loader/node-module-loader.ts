@@ -8,7 +8,7 @@ export class NodeModuleLoader implements ModuleLoader {
     if (process.env.NEXT_RUNTIME !== 'edge') {
       // Need to `await` to cover the case that route is marked ESM modules by ESM escalation.
       return await (process.env.NEXT_MINIMAL
-        ? // @ts-ignore
+        ? // @ts-expect-error
           __non_webpack_require__(id)
         : require(id))
     }

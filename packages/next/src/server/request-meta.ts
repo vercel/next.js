@@ -219,7 +219,7 @@ export function getNextInternalQuery(
 
   for (const key of keysToInclude) {
     if (key in query) {
-      // @ts-ignore this can't be typed correctly
+      // @ts-expect-error this can't be typed correctly
       nextInternalQuery[key] = query[key]
     }
   }

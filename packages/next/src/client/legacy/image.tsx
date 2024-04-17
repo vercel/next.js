@@ -565,7 +565,6 @@ const ImageElement = ({
         <noscript>
           <img
             {...rest}
-            // @ts-ignore - TODO: upgrade to `@types/react@17`
             loading={loading}
             decoding="async"
             data-nimg={layout}
@@ -860,7 +859,7 @@ export default function Image({
       ) {
         perfObserver = new PerformanceObserver((entryList) => {
           for (const entry of entryList.getEntries()) {
-            // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+            // @ts-expect-error - missing "LargestContentfulPaint" class with "element" prop
             const imgSrc = entry?.element?.src || ''
             const lcpImage = allImgs.get(imgSrc)
             if (

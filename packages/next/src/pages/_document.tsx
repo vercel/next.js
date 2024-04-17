@@ -114,14 +114,14 @@ function AmpStyles({
     ? (styles as React.ReactElement[])
     : []
   if (
-    // @ts-ignore Property 'props' does not exist on type ReactElement
+    // @ts-expect-error Property 'props' does not exist on type ReactElement
     styles.props &&
-    // @ts-ignore Property 'props' does not exist on type ReactElement
+    // @ts-expect-error Property 'props' does not exist on type ReactElement
     Array.isArray(styles.props.children)
   ) {
     const hasStyles = (el: React.ReactElement) =>
       el?.props?.dangerouslySetInnerHTML?.__html
-    // @ts-ignore Property 'props' does not exist on type ReactElement
+    // @ts-expect-error Property 'props' does not exist on type ReactElement
     styles.props.children.forEach((child: React.ReactElement) => {
       if (Array.isArray(child)) {
         child.forEach((el) => hasStyles(el) && curStyles.push(el))
@@ -218,7 +218,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   try {
     let {
       partytownSnippet,
-      // @ts-ignore: Prevent webpack from processing this require
+      // @ts-expect-error: Prevent webpack from processing this require
     } = __non_webpack_require__('@builder.io/partytown/integration'!)
 
     const children = Array.isArray(props.children)
@@ -1205,7 +1205,7 @@ export function Html(
 export function Main() {
   const { docComponentsRendered } = useHtmlContext()
   docComponentsRendered.Main = true
-  // @ts-ignore
+  // @ts-expect-error
   return <next-js-internal-body-render-target />
 }
 

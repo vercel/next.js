@@ -1357,7 +1357,7 @@ export async function renderToHTMLImpl(
 
     const contentHTML = rawStyledJsxInsertedHTML + content
 
-    // @ts-ignore: documentInitialPropsRes is set
+    // @ts-expect-error: documentInitialPropsRes is set
     const { docProps } = (documentInitialPropsRes as any) || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {

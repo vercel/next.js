@@ -99,7 +99,7 @@ export async function handleFetch(
     method: 'POST',
     body: JSON.stringify(proxyRequest),
     next: {
-      // @ts-ignore
+      // @ts-expect-error
       internal: true,
     },
   })
@@ -129,7 +129,7 @@ export function interceptFetch(originalFetch: Fetch) {
     init?: FetchInitArg
   ): Promise<Response> {
     // Passthrough internal requests.
-    // @ts-ignore
+    // @ts-expect-error
     if (init?.next?.internal) {
       return originalFetch(input, init)
     }

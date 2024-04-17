@@ -562,7 +562,7 @@ export function getImgProps(
     ) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
-          // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+          // @ts-expect-error - missing "LargestContentfulPaint" class with "element" prop
           const imgSrc = entry?.element?.src || ''
           const lcpImage = allImgs.get(imgSrc)
           if (

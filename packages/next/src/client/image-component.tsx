@@ -29,7 +29,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context.shared-ru
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
-// @ts-ignore - This is replaced by webpack alias
+// @ts-expect-error - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
 // This is replaced by webpack define plugin
@@ -237,7 +237,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             if (forwardedRef) {
               if (typeof forwardedRef === 'function') forwardedRef(img)
               else if (typeof forwardedRef === 'object') {
-                // @ts-ignore - .current is read only it's usually assigned by react internally
                 forwardedRef.current = img
               }
             }

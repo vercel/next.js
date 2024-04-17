@@ -491,7 +491,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   ignore: ignoreFn,
                   mixedModules: true,
                 })
-                // @ts-ignore
                 fileList = result.fileList
                 result.esmFileList.forEach((file) => fileList.add(file))
                 reasons = result.reasons

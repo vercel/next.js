@@ -220,7 +220,7 @@ function getCrypto(context, scopedContext) {
       SubtleCrypto: scopedContext.SubtleCrypto || globalThis.SubtleCrypto
     };
   } else if (
-    // @ts-ignore
+    // @ts-expect-error
     import_crypto.default.webcrypto
   ) {
     const webcrypto = import_crypto.default.webcrypto;

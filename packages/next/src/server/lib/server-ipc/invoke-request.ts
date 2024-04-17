@@ -35,7 +35,7 @@ export const invokeRequest = async (
       : {}),
 
     next: {
-      // @ts-ignore
+      // @ts-expect-error
       internal: true,
     },
   })

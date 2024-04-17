@@ -94,7 +94,6 @@ export class FontStylesheetGatheringPlugin {
               let result
               if (node.name === '_jsx' || node.name === '__jsx') {
                 result = new BasicEvaluatedExpression()
-                // @ts-ignore
                 result.setRange(node.range)
                 result.setExpression(node)
                 result.setIdentifier(node.name)
