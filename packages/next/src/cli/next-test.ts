@@ -180,6 +180,6 @@ function defaultPlaywrightConfig(typescript: boolean) {
  * You can access the default config by using a function: \`withNext((config) => {})\`
  */`
   return typescript
-    ? `import { withNext } from 'next/experimental/testmode/playwright';\n\n${comment}export default withNext({});`
-    : `const { withNext } = require('next/experimental/testmode/playwright');\n\n${comment}module.exports = withNext();`
+    ? `import { withNext } from 'next/experimental/testmode/playwright';\n\n${comment}\nexport default withNext();`
+    : `const { withNext } = require('next/experimental/testmode/playwright');\n\n${comment}\nmodule.exports = withNext();`
 }
