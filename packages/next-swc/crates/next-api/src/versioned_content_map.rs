@@ -28,23 +28,26 @@ pub struct OutputAssetsOperation(Vc<OutputAssets>);
 )]
 struct MapEntry {
     assets_operation: Vc<OutputAssets>,
-    emit_operation: Vc<Completion>,
+    side_effects: Vc<Completion>,
 }
 
 #[turbo_tasks::value(transparent)]
 struct OptionMapEntry(Option<MapEntry>);
 
-type VersionedContentMapInner = HashMap<Vc<FileSystemPath>, MapEntry>;
+type PathToOutputOperation = HashMap<Vc<FileSystemPath>, Vc<OutputAssets>>;
+type OutputOperationToSideEffects = HashMap<Vc<OutputAssets>, Vc<Completion>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
-    map: State<VersionedContentMapInner>,
+    map_path_to_op: State<PathToOutputOperation>,
+    map_op_to_side_effects: State<OutputOperationToSideEffects>,
 }
 
 impl ValueDefault for VersionedContentMap {
     fn value_default() -> Vc<Self> {
         VersionedContentMap {
-            map: State::new(HashMap::new()),
+            map_path_to_op: State::new(HashMap::new()),
+            map_op_to_side_effects: State::new(HashMap::new()),
         }
         .cell()
     }
@@ -66,30 +69,45 @@ impl VersionedContentMap {
         assets_operation: Vc<OutputAssetsOperation>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
-    ) -> Result<()> {
-        let assets_operation = *assets_operation.await?;
-        // Make sure all written client assets are up-to-date
-        let emit_operation =
-            emit_client_assets(assets_operation, client_relative_path, client_output_path);
-        let assets = assets_operation.await?;
+    ) -> Result<Vc<Completion>> {
+        let this = self.await?;
+        let side_effects =
+            self.output_side_effects(assets_operation, client_relative_path, client_output_path);
+        let assets = *assets_operation.await?;
+        this.map_op_to_side_effects
+            .update_conditionally(|map| map.insert(assets, side_effects) != Some(side_effects));
+        Ok(side_effects)
+    }
+
+    #[turbo_tasks::function]
+    async fn output_side_effects(
+        self: Vc<Self>,
+        assets_operation: Vc<OutputAssetsOperation>,
+        client_relative_path: Vc<FileSystemPath>,
+        client_output_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Completion>> {
+        let assets = *assets_operation.await?;
         let entries: Vec<_> = assets
+            .await?
             .iter()
-            .map(|&asset| async move {
-                Ok((
-                    asset.ident().path().resolve().await?,
-                    MapEntry {
-                        assets_operation,
-                        emit_operation,
-                    },
-                ))
-            })
+            .map(|&asset| async move { Ok((asset.ident().path().resolve().await?, assets)) })
             .try_join()
             .await?;
-        self.await?.map.update_conditionally(move |map| {
-            map.extend(entries);
-            true
+        self.await?.map_path_to_op.update_conditionally(move |map| {
+            let mut changed = false;
+            for (k, v) in entries {
+                if map.insert(k, v) != Some(v) {
+                    changed = true;
+                }
+            }
+            changed
         });
-        Ok(())
+        // Make sure all written client assets are up-to-date
+        Ok(emit_client_assets(
+            assets,
+            client_relative_path,
+            client_output_path,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -125,12 +143,14 @@ impl VersionedContentMap {
         let result = self.raw_get(path).await?;
         if let Some(MapEntry {
             assets_operation,
-            emit_operation,
+            side_effects,
         }) = *result
         {
             // NOTE(alexkirsz) This is necessary to mark the task as active again.
             Vc::connect(assets_operation);
-            Vc::connect(emit_operation);
+            Vc::connect(side_effects);
+
+            side_effects.await?;
 
             for &asset in assets_operation.await?.iter() {
                 if asset.ident().path().resolve().await? == path {
@@ -145,7 +165,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<String>>> {
         let keys = {
-            let map = self.map.get();
+            let map = self.map_path_to_op.get();
             map.keys().copied().collect::<Vec<_>>()
         };
         let root = &root.await?;
@@ -159,10 +179,23 @@ impl VersionedContentMap {
 
     #[turbo_tasks::function]
     async fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
-        let result = {
-            let map = self.map.get();
+        let assets = {
+            let map = self.map_path_to_op.get();
             map.get(&path).copied()
         };
-        Ok(Vc::cell(result))
+        let Some(assets) = assets else {
+            return Ok(Vc::cell(None));
+        };
+        let side_effects = {
+            let map = self.map_op_to_side_effects.get();
+            map.get(&assets).copied()
+        };
+        let Some(side_effects) = side_effects else {
+            return Ok(Vc::cell(None));
+        };
+        Ok(Vc::cell(Some(MapEntry {
+            assets_operation: assets,
+            side_effects,
+        })))
     }
 }

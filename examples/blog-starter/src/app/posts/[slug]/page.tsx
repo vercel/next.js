@@ -53,6 +53,7 @@ export function generateMetadata({ params }: Params): Metadata {
   const title = `${post.title} | Next.js Blog Example with ${CMS_NAME}`;
 
   return {
+    title,
     openGraph: {
       title,
       images: [post.ogImage.url],

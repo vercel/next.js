@@ -59,9 +59,37 @@ createNextDescribe(
     it('should handle redirect in dynamic in suspense boundary routes with basePath', async () => {
       const browser = await next.browser('/base/dynamic/source')
       await retry(async () => {
-        expect(await browser.url()).toBe(`${next.url}/base/dynamic/dest`)
+        // Check content is loaded first to avoid flakiness
         expect(await browser.elementByCss('p').text()).toBe(`id:dest`)
+        expect(await browser.url()).toBe(`${next.url}/base/dynamic/dest`)
       })
     })
+
+    it.each(['/base/refresh', '/base/refresh?foo=bar'])(
+      `should only make a single RSC call to the current page (%s)`,
+      async (path) => {
+        let rscRequests = []
+        const browser = await next.browser(path, {
+          beforePageLoad(page) {
+            page.on('request', (request) => {
+              return request.allHeaders().then((headers) => {
+                if (
+                  headers['RSC'.toLowerCase()] === '1' &&
+                  // Prefetches also include `RSC`
+                  headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+                ) {
+                  rscRequests.push(request.url())
+                }
+              })
+            })
+          },
+        })
+        await browser.elementByCss('button').click()
+        await retry(async () => {
+          expect(rscRequests.length).toBe(1)
+          expect(rscRequests[0]).toContain(`${next.url}${path}`)
+        })
+      }
+    )
   }
 )

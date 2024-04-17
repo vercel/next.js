@@ -1,4 +1,4 @@
-import type { BrowserInterface } from 'test/lib/browsers/base'
+import type { BrowserInterface } from 'next-webdriver'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import fs from 'fs/promises'
@@ -352,6 +352,23 @@ createNextDescribe(
         })
       })
 
+      it('should not contain query in canonical url after client navigation', async () => {
+        const browser = await next.browser('/')
+        await browser.waitForElementByCss('p#index')
+        await browser.eval(`next.router.push('/alternates')`)
+        // wait for /alternates page is loaded
+        await browser.waitForElementByCss('p#alternates')
+
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
+        })
+      })
+
       it('should support robots tags', async () => {
         const $ = await next.render$('/robots')
         const matchMultiDom = createMultiHtmlMatcher($)
@@ -482,6 +499,9 @@ createNextDescribe(
           'og:description': 'My custom description',
           'og:type': 'article',
           'og:image': 'https://example.com/og-image.jpg',
+          'og:email': 'author@vercel.com',
+          'og:phone_number': '1234567890',
+          'og:fax_number': '1234567890',
           'article:published_time': '2023-01-01T00:00:00.000Z',
           'article:author': ['author1', 'author2', 'author3'],
         })
@@ -999,6 +1019,11 @@ createNextDescribe(
       const ogHtml = await next.render('/blog/opengraph-image')
       expect(iconHtml).toContain('pages-icon-page')
       expect(ogHtml).toContain('pages-opengraph-image-page')
+    })
+
+    it('should not crash from error thrown during preloading nested generateMetadata', async () => {
+      const res = await next.fetch('/dynamic-meta')
+      expect(res.status).toBe(404)
     })
   }
 )

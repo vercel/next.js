@@ -20,6 +20,8 @@ export function applyFlightData(
 
   if (flightDataPath.length === 3) {
     const rsc = cacheNodeSeedData[2]
+    const loading = cacheNodeSeedData[3]
+    cache.loading = loading
     cache.rsc = rsc
     // This is a PPR-only field. When PPR is enabled, we shouldn't hit
     // this path during a navigation, but until PPR is fully implemented
@@ -43,6 +45,7 @@ export function applyFlightData(
     // PPR value, if it exists.
     cache.prefetchRsc = existingCache.prefetchRsc
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
+    cache.loading = existingCache.loading
     // Create a copy of the existing cache with the rsc applied.
     fillCacheWithNewSubTreeData(
       cache,

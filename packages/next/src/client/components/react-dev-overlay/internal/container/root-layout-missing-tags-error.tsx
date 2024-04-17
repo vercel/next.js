@@ -5,7 +5,7 @@ import { Overlay } from '../components/Overlay'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { HotlinkedText } from '../components/hot-linked-text'
 
-export type RootLayoutMissingTagsErrorProps = {
+type RootLayoutMissingTagsErrorProps = {
   missingTags: string[]
   versionInfo?: VersionInfo
 }
@@ -29,7 +29,7 @@ export const RootLayoutMissingTagsError: React.FC<RootLayoutMissingTagsErrorProp
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
               <p
                 id="nextjs__container_errors_desc"
-                className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+                className="nextjs__container_errors_desc"
               >
                 <HotlinkedText
                   text={`The following tags are missing in the Root Layout: ${missingTags

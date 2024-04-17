@@ -14,6 +14,11 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-ro
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import type {
+  ErrorModuleData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
+import type { ErrorComponent } from '../../client/components/error-boundary'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -126,7 +131,7 @@ async function createComponentTreeInternal({
     : [React.Fragment]
 
   const [ErrorComponent, errorStyles, errorScripts] = error
-    ? await createComponentStylesAndScripts({
+    ? await createComponentStylesAndScripts<ErrorComponent>({
         ctx,
         filePath: error[1],
         getComponent: error[0],
@@ -457,14 +462,7 @@ async function createComponentTreeInternal({
           <LayoutRouter
             parallelRouterKey={parallelRouteKey}
             segmentPath={createSegmentPath(currentSegmentPath)}
-            loading={Loading ? <Loading /> : undefined}
-            loadingStyles={loadingStyles}
-            loadingScripts={loadingScripts}
             // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
-            hasLoading={Boolean(Loading)}
-            error={ErrorComponent}
-            errorStyles={errorStyles}
-            errorScripts={errorScripts}
             template={
               <Template>
                 <RenderFromTemplateContext />
@@ -493,6 +491,14 @@ async function createComponentTreeInternal({
     parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData
   }
 
+  const loadingData: LoadingModuleData = Loading
+    ? [<Loading />, loadingStyles, loadingScripts]
+    : null
+
+  const errorData: ErrorModuleData = ErrorComponent
+    ? [ErrorComponent, errorStyles, errorScripts]
+    : null
+
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!Component) {
     return {
@@ -505,6 +511,8 @@ async function createComponentTreeInternal({
         // reason that I'm not aware of, so I'm leaving it as-is out of extreme
         // caution, for now.
         <>{parallelRouteProps.children}</>,
+        loadingData,
+        errorData,
       ],
       styles: layerAssets,
     }
@@ -534,6 +542,8 @@ async function createComponentTreeInternal({
           reason='dynamic = "force-dynamic" was used'
           pathname={staticGenerationStore.urlPathname}
         />,
+        loadingData,
+        errorData,
       ],
       styles: layerAssets,
     }
@@ -625,6 +635,8 @@ async function createComponentTreeInternal({
             TODO-APP update router to use a Symbol for partial tree detection */}
         {null}
       </>,
+      loadingData,
+      errorData,
     ],
     styles: layerAssets,
   }

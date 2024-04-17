@@ -57,25 +57,28 @@ function runTests() {
 }
 
 describe('CSS optimization for SSR apps', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { experimental: {optimizeCss: true} }`,
-        'utf8'
-      )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.writeFile(
+          nextConfig,
+          `module.exports = { experimental: {optimizeCss: true} }`,
+          'utf8'
+        )
 
-      if (fs.pathExistsSync(join(appDir, '.next'))) {
-        await fs.remove(join(appDir, '.next'))
-      }
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
-    runTests()
-  })
+        if (fs.pathExistsSync(join(appDir, '.next'))) {
+          await fs.remove(join(appDir, '.next'))
+        }
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(nextConfig)
+      })
+      runTests()
+    }
+  )
 })

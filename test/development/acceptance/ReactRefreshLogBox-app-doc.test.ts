@@ -97,7 +97,7 @@ describe.each(['default', 'turbo'])(
       if (process.env.TURBOPACK) {
         expect(source).toMatchInlineSnapshot(`
           "./pages/_app.js:2:11
-          Ecmascript file had an error
+          Parsing ecmascript source code failed
             1 | function MyApp({ Component, pageProps }) {
           > 2 |   return <<Component {...pageProps} />;
               |           ^
@@ -186,7 +186,7 @@ describe.each(['default', 'turbo'])(
       if (process.env.TURBOPACK) {
         expect(source).toMatchInlineSnapshot(`
           "./pages/_document.js:3:36
-          Ecmascript file had an error
+          Parsing ecmascript source code failed
             1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
             2 |
           > 3 | class MyDocument extends Document {{

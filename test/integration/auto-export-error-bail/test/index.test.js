@@ -30,7 +30,10 @@ const runTests = () => {
 }
 
 describe('Auto Export _error bail', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runTests()
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runTests()
+    }
+  )
 })

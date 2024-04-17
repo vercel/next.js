@@ -1,7 +1,7 @@
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../app/error-overlay-reducer'
+} from '../../shared'
 import type { SupportedErrorEvent } from '../container/Errors'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'

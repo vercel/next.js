@@ -131,14 +131,6 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>) {
-  // TODO: remove in the next major version
-  if (process.env.__NEXT_ANALYTICS_ID) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      require('./performance-relayer-app')()
-    }, [])
-  }
-
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -165,7 +157,7 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags || null
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const hasMissingTags = !!rootLayoutMissingTags?.length
 
   const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
@@ -190,8 +182,8 @@ export function hydrate() {
         require('./components/react-dev-overlay/app/ReactDevOverlay')
           .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
 
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE
 
       const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
@@ -207,10 +199,7 @@ export function hydrate() {
       const errorTree = (
         <FallbackLayout>
           <ReactDevOverlay
-            state={{
-              ...INITIAL_OVERLAY_STATE,
-              rootLayoutMissingTags,
-            }}
+            state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
             onReactError={() => {}}
           >
             {reactEl}

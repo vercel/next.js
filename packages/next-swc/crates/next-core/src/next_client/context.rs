@@ -1,4 +1,4 @@
-use core::result::Result::Ok;
+use std::iter::once;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -9,7 +9,6 @@ use turbopack_binding::{
     turbopack::{
         browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
-            chunk::MinifyType,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -28,7 +27,6 @@ use turbopack_binding::{
             module_options::{
                 module_options_context::ModuleOptionsContext, JsxTransformOptions,
                 MdxTransformModuleOptions, ModuleRule, TypescriptTransformOptions,
-                WebpackLoadersOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -37,10 +35,9 @@ use turbopack_binding::{
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
-    babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
     mode::NextMode,
-    next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
+    next_build::get_postcss_package_mapping,
     next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
     next_config::NextConfig,
     next_import_map::{
@@ -49,8 +46,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
+            NextSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
@@ -58,8 +55,8 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
+        webpack_rules::webpack_loader_options,
     },
-    sass::maybe_add_sass_loader,
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
@@ -150,9 +147,10 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path, project_path, *mode.await?);
+    let custom_conditions = vec![mode.await?.condition().to_string()];
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec![mode.await?.node_env().to_string()],
+        custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
         resolved_map: Some(next_client_resolved_map),
@@ -162,6 +160,7 @@ pub async fn get_client_resolve_options_context(
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
         ],
         ..Default::default()
     };
@@ -215,35 +214,24 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let foreign_webpack_rules = maybe_add_sass_loader(
-        next_config.sass_config(),
-        *next_config.webpack_rules().await?,
+    let conditions = vec!["browser".to_string(), mode.await?.condition().to_string()];
+    let foreign_enable_webpack_loaders = webpack_loader_options(
+        project_path,
+        next_config,
+        true,
+        conditions
+            .iter()
+            .cloned()
+            .chain(once("foreign".to_string()))
+            .collect(),
     )
     .await?;
-    let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
-        WebpackLoadersOptions {
-            rules,
-            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
-                "loader-runner".to_owned(),
-            ))),
-        }
-        .cell()
-    });
 
     // Now creates a webpack rules that applies to all codes.
-    let webpack_rules = *foreign_webpack_rules.clone();
-    let webpack_rules = *maybe_add_babel_loader(project_path, webpack_rules).await?;
-    let enable_webpack_loaders = webpack_rules.map(|rules| {
-        WebpackLoadersOptions {
-            rules,
-            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
-                "loader-runner".to_owned(),
-            ))),
-        }
-        .cell()
-    });
+    let enable_webpack_loaders =
+        webpack_loader_options(project_path, next_config, false, conditions).await?;
 
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
@@ -282,12 +270,13 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         enable_postcss_transform,
+        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
 
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
-        enable_webpack_loaders: foreign_webpack_loaders,
+        enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -321,7 +310,7 @@ pub async fn get_client_module_options_context(
             ),
         ],
         custom_rules: next_client_rules,
-        use_lightningcss,
+        use_swc_css,
         ..module_options_context
     }
     .cell();
@@ -345,13 +334,10 @@ pub async fn get_client_chunking_context(
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
+        next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if next_mode.should_minify() {
-        MinifyType::Minify
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(next_mode.minify_type())
     .asset_base_path(asset_prefix);
 
     if next_mode.is_development() {

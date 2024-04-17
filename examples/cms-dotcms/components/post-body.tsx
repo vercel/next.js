@@ -4,8 +4,8 @@ import Avatar from "./avatar";
 
 export default function PostBody({ content }) {
   return (
-    <div className="prose lg:prose-xl max-w-2xl mx-auto">
-      <div className="block md:hidden mb-6">
+    <div className="prose lg:prose-xl mx-auto max-w-2xl">
+      <div className="mb-6 block md:hidden">
         {content.author.length ? (
           <Avatar
             name={`${content.author[0].firstName} ${content.author[0].lastName}`}

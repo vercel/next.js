@@ -1,77 +1,12 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { BrowserInterface } from 'test/lib/browsers/base'
-import type { Request } from 'playwright'
-
-const getPathname = (url: string) => {
-  const urlObj = new URL(url)
-  return urlObj.pathname
-}
-
-const browserConfigWithFixedTime = {
-  beforePageLoad: (page) => {
-    page.addInitScript(() => {
-      const startTime = new Date()
-      const fixedTime = new Date('2023-04-17T00:00:00Z')
-
-      // Override the Date constructor
-      // @ts-ignore
-      // eslint-disable-next-line no-native-reassign
-      Date = class extends Date {
-        constructor() {
-          super()
-          // @ts-ignore
-          return new startTime.constructor(fixedTime)
-        }
-
-        static now() {
-          return fixedTime.getTime()
-        }
-      }
-    })
-  },
-}
-
-const fastForwardTo = (ms) => {
-  // Increment the fixed time by the specified duration
-  const currentTime = new Date()
-  currentTime.setTime(currentTime.getTime() + ms)
-
-  // Update the Date constructor to use the new fixed time
-  // @ts-ignore
-  // eslint-disable-next-line no-native-reassign
-  Date = class extends Date {
-    constructor() {
-      super()
-      // @ts-ignore
-      return new currentTime.constructor(currentTime)
-    }
-
-    static now() {
-      return currentTime.getTime()
-    }
-  }
-}
-
-const createRequestsListener = async (browser: BrowserInterface) => {
-  // wait for network idle
-  await browser.waitForIdleNetwork()
-
-  let requests = []
-
-  browser.on('request', (req: Request) => {
-    requests.push([req.url(), !!req.headers()['next-router-prefetch']])
-  })
-
-  await browser.refresh()
-
-  return {
-    getRequests: () => requests,
-    clearRequests: () => {
-      requests = []
-    },
-  }
-}
+import { BrowserInterface } from 'next-webdriver'
+import {
+  browserConfigWithFixedTime,
+  createRequestsListener,
+  fastForwardTo,
+  getPathname,
+} from './test-utils'
 
 createNextDescribe(
   'app dir client cache semantics',
@@ -80,7 +15,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      // since the router behavior is different in dev mode (no viewport prefetching + liberal revalidation)
+      // since the router behavior is different in development mode (no viewport prefetching + liberal revalidation)
       // we only check the production behavior
       it('should skip dev', () => {})
     } else {
@@ -373,9 +308,7 @@ createNextDescribe(
           expect(newNumber).toBe(initialNumber)
         })
 
-        // TODO: Rather than reusing parts of a stale prefetch cache entry to make this work,
-        // we should be able to copy over the existing loading from a previous cache node on navigation.
-        it.skip('should refetch below the fold after 30 seconds', async () => {
+        it('should refetch below the fold after 30 seconds', async () => {
           const randomLoadingNumber = await browser
             .elementByCss('[href="/1?timeout=1000"]')
             .click()
@@ -436,6 +369,26 @@ createNextDescribe(
 
           expect(newNumber).not.toBe(randomNumber)
         })
+
+        it('should respect a loading boundary that returns `null`', async () => {
+          await browser.elementByCss('[href="/null-loading"]').click()
+
+          // the page content should disappear immediately
+          expect(
+            await browser.hasElementByCssSelector('[href="/null-loading"]')
+          ).toBeFalse()
+
+          // the root layout should still be visible
+          expect(
+            await browser.hasElementByCssSelector('#root-layout')
+          ).toBeTrue()
+
+          // the dynamic content should eventually appear
+          await browser.waitForElementByCss('#random-number')
+          expect(
+            await browser.hasElementByCssSelector('#random-number')
+          ).toBeTrue()
+        })
       })
 
       it('should seed the prefetch cache with the fetched page data', async () => {
@@ -456,9 +409,24 @@ createNextDescribe(
         // The number should be the same as we've seeded it in the prefetch cache when we loaded the full page
         expect(newNumber).toBe(initialNumber)
       })
-      describe('router.push', () => {
-        it('should re-use the cache for 30 seconds', async () => {})
-        it('should fully refetch the page after 30 seconds', async () => {})
+
+      it('should renew the initial seeded data after expiration time', async () => {
+        const browser = (await next.browser(
+          '/without-loading/1',
+          browserConfigWithFixedTime
+        )) as BrowserInterface
+
+        const initialNumber = await browser.elementById('random-number').text()
+
+        // Expire the cache
+        await browser.eval(fastForwardTo, 30 * 1000)
+        await browser.elementByCss('[href="/without-loading"]').click()
+        await browser.elementByCss('[href="/without-loading/1"]').click()
+
+        const newNumber = await browser.elementById('random-number').text()
+
+        // The number should be different, as the seeded data has expired after 30s
+        expect(newNumber).not.toBe(initialNumber)
       })
     }
   }

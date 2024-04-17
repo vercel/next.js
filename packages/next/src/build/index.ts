@@ -45,6 +45,7 @@ import type {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -176,11 +177,15 @@ import {
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
+  isRelevantWarning,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
+import { traceMemoryUsage } from '../lib/memory/trace'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -333,17 +338,38 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
 
 async function writePrerenderManifest(
   distDir: string,
-  manifest: Readonly<PrerenderManifest>
+  manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeEdgePartialPrerenderManifest(distDir, manifest)
+}
+
+async function writeEdgePartialPrerenderManifest(
+  distDir: string,
+  manifest: DeepReadonly<Partial<PrerenderManifest>>
+): Promise<void> {
+  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
+  // Use env vars in JS bundle and inject the actual vars to edge manifest.
+  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
+    {
+      ...manifest,
+      preview: {
+        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
+        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
+        previewModeEncryptionKey:
+          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+      },
+    }
   await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(
+      JSON.stringify(edgePartialPrerenderManifest)
+    )}`
   )
 }
 
 async function writeClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
+  prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
     buildId,
     distDir,
@@ -713,7 +739,7 @@ export default async function build(
           )
         )
 
-      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -763,6 +789,11 @@ export default async function build(
         app: typeof appDir === 'string',
         pages: typeof pagesDir === 'string',
       }
+
+      // Generate a random encryption key for this build.
+      // This key is used to encrypt cross boundary values and can be used to generate hashes.
+      const encryptionKey = await generateEncryptionKeyBase64()
+      NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -1211,17 +1242,7 @@ export default async function build(
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
-      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
-      const partialManifest: Partial<PrerenderManifest> = {
-        preview: previewProps,
-      }
-
-      await writeFileUtf8(
-        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-        `self.__PRERENDER_MANIFEST=${JSON.stringify(
-          JSON.stringify(partialManifest)
-        )}`
-      )
+      await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
@@ -1338,6 +1359,11 @@ export default async function build(
           throw new Error("next build doesn't support turbopack yet")
         }
 
+        await validateTurboNextConfig({
+          dir,
+          isDev: false,
+        })
+
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
@@ -1351,15 +1377,14 @@ export default async function build(
           env: process.env as Record<string, string>,
           defineEnv: createDefineEnv({
             isTurbopack: true,
-            allowedRevalidateHeaderKeys: undefined,
-            clientRouterFilters: undefined,
+            clientRouterFilters: NextBuildContext.clientRouterFilters,
             config,
             dev,
             distDir,
-            fetchCacheKeyPrefix: undefined,
+            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
             hasRewrites,
+            // TODO: Implement
             middlewareMatchers: undefined,
-            previewModeId: undefined,
           }),
         })
 
@@ -1396,7 +1421,11 @@ export default async function build(
 
         const currentEntryIssues: EntryIssuesMap = new Map()
 
-        const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
+        const manifestLoader = new TurbopackManifestLoader({
+          buildId,
+          distDir,
+          encryptionKey,
+        })
 
         // TODO: implement this
         const emptyRewritesObjToBeImplemented = {
@@ -1437,6 +1466,7 @@ export default async function build(
           manifestLoader,
           nextConfig: config,
           rewrites: emptyRewritesObjToBeImplemented,
+          logErrors: false,
         })
 
         const progress = createProgress(
@@ -1471,6 +1501,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
             })
           )
         }
@@ -1486,6 +1517,7 @@ export default async function build(
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
             })
           )
         }
@@ -1496,6 +1528,7 @@ export default async function build(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: emptyRewritesObjToBeImplemented,
+            logErrors: false,
           })
         )
         await Promise.all(promises)
@@ -1509,18 +1542,41 @@ export default async function build(
           page: string
           message: string
         }[] = []
+        const warnings: {
+          page: string
+          message: string
+        }[] = []
         for (const [page, entryIssues] of currentEntryIssues) {
           for (const issue of entryIssues.values()) {
-            errors.push({
-              page,
-              message: formatIssue(issue),
-            })
+            if (issue.severity !== 'warning') {
+              errors.push({
+                page,
+                message: formatIssue(issue),
+              })
+            } else {
+              if (isRelevantWarning(issue)) {
+                warnings.push({
+                  page,
+                  message: formatIssue(issue),
+                })
+              }
+            }
           }
+        }
+
+        if (warnings.length > 0) {
+          Log.warn(
+            `Turbopack build collected ${warnings.length} warnings:\n${warnings
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
         }
 
         if (errors.length > 0) {
           throw new Error(
-            `Turbopack build failed with ${errors.length} issues:\n${errors
+            `Turbopack build failed with ${errors.length} errors:\n${errors
               .map((e) => {
                 return 'Page: ' + e.page + '\n' + e.message
               })
@@ -1566,6 +1622,7 @@ export default async function build(
       }
 
       Log.info('Creating an optimized production build ...')
+      traceMemoryUsage('Starting build', nextBuildSpan)
 
       if (!isGenerateMode) {
         if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
@@ -1574,6 +1631,7 @@ export default async function build(
           const serverBuildPromise = webpackBuild(useBuildWorker, [
             'server',
           ]).then((res) => {
+            traceMemoryUsage('Finished server compilation', nextBuildSpan)
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
 
@@ -1612,6 +1670,7 @@ export default async function build(
             'edge-server',
           ]).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished edge-server compilation', nextBuildSpan)
           })
           if (runServerAndEdgeInParallel) {
             await serverBuildPromise
@@ -1620,6 +1679,7 @@ export default async function build(
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished client compilation', nextBuildSpan)
           })
 
           Log.event('Compiled successfully')
@@ -1634,6 +1694,7 @@ export default async function build(
           const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
+          traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1649,6 +1710,7 @@ export default async function build(
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
+        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
@@ -2288,6 +2350,7 @@ export default async function build(
       })
 
       if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
         console.warn(
@@ -2406,6 +2469,10 @@ export default async function build(
         {
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
+        },
+        {
+          featureName: 'experimental/ppr',
+          invocationCount: config.experimental.ppr ? 1 : 0,
         },
       ]
       telemetry.record(
@@ -2688,7 +2755,7 @@ export default async function build(
               {
                 type: 'header',
                 key: 'content-type',
-                value: 'multipart/form-data',
+                value: 'multipart/form-data;.*',
               },
             ]
 
@@ -2916,12 +2983,13 @@ export default async function build(
                 if (i18n) {
                   if (additionalSsgFile) return
 
+                  const localeExt = page === '/' ? path.extname(file) : ''
+                  const relativeDestNoPages = relativeDest.slice(
+                    'pages/'.length
+                  )
+
                   for (const locale of i18n.locales) {
                     const curPath = `/${locale}${page === '/' ? '' : page}`
-                    const localeExt = page === '/' ? path.extname(file) : ''
-                    const relativeDestNoPages = relativeDest.slice(
-                      'pages/'.length
-                    )
 
                     if (isSsg && ssgNotFoundPaths.includes(curPath)) {
                       continue
@@ -3253,7 +3321,7 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        const prerenderManifest: Readonly<PrerenderManifest> = {
+        const prerenderManifest: DeepReadonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
@@ -3289,19 +3357,6 @@ export default async function build(
         }
         return Promise.reject(err)
       })
-
-      if (debugOutput) {
-        nextBuildSpan
-          .traceChild('print-custom-routes')
-          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
-      }
-
-      // TODO: remove in the next major version
-      if (config.analyticsId) {
-        Log.warn(
-          `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-        )
-      }
 
       if (Boolean(config.experimental.nextScriptWorkers)) {
         await nextBuildSpan
@@ -3351,6 +3406,12 @@ export default async function build(
 
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()
       console.log()
+
+      if (debugOutput) {
+        nextBuildSpan
+          .traceChild('print-custom-routes')
+          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+      }
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {

@@ -43,7 +43,6 @@ type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
-  experimentalTestProxy?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -194,20 +193,11 @@ const nextDev = async (
 
   config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
-  const isExperimentalTestProxy = options.experimentalTestProxy
-
   if (
     options.experimentalUploadTrace &&
     !process.env.NEXT_TRACE_UPLOAD_DISABLED
   ) {
     traceUploadUrl = options.experimentalUploadTrace
-  }
-
-  // TODO: remove in the next major version
-  if (config.analyticsId) {
-    Log.warn(
-      `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-    )
   }
 
   const devServerOptions: StartServerOptions = {
@@ -216,7 +206,6 @@ const nextDev = async (
     allowRetry,
     isDev: true,
     hostname: host,
-    isExperimentalTestProxy,
   }
 
   if (options.turbo) {

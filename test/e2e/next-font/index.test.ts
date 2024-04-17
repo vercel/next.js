@@ -1,6 +1,6 @@
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -12,7 +12,7 @@ const mockedGoogleFontResponses = require.resolve(
 function getClassNameRegex(className: string): RegExp {
   // Turbopack uses a different format for its css modules than webpack-based Next.js
   return shouldRunTurboDevTest()
-    ? new RegExp(`^${className}__.*__.{8}$`) // e.g. `className__inter_c6e282f1__a8cc5613`
+    ? new RegExp(`^.*__.{6}__${className}$`) // e.g. `ks7jmG__nabla_abb2401d-module__className`
     : new RegExp(`^__${className}_.{6}$`) // e.g. `__className_a8cc56`
 }
 

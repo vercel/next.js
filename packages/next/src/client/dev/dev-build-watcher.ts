@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
 import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
-import { addMessageListener } from './error-overlay/websocket'
+import { addMessageListener } from '../components/react-dev-overlay/pages/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'

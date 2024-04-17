@@ -48,7 +48,7 @@ struct Fallback {
 pub(super) async fn get_font_fallback(
     context: Vc<FileSystemPath>,
     options_vc: Vc<NextFontGoogleOptions>,
-    request_hash: Vc<u32>,
+    request_hash: u32,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {

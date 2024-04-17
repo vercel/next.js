@@ -45,7 +45,10 @@ declare module 'next/dist/compiled/webpack/webpack' {
     NormalModule,
     ResolvePluginInstance,
     ModuleFilenameHelpers,
+  } from 'webpack'
+  export type {
     LoaderDefinitionFunction,
     LoaderContext,
+    ModuleGraph,
   } from 'webpack'
 }

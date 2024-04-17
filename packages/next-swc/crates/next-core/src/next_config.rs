@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -81,9 +83,7 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
-    pub analytics_id: Option<String>,
 
-    ///
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -387,20 +387,33 @@ pub enum RemotePatternProtocal {
 pub struct ExperimentalTurboConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<IndexMap<String, RuleConfigItem>>,
+    pub rules: Option<IndexMap<String, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
     pub resolve_extensions: Option<Vec<String>>,
+    pub use_swc_css: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleConfigItemOptions {
+    pub loaders: Vec<LoaderItem>,
+    #[serde(default, alias = "as")]
+    pub rename_as: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum RuleConfigItemOrShortcut {
+    Loaders(Vec<LoaderItem>),
+    Advanced(RuleConfigItem),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
-    Loaders(Vec<LoaderItem>),
-    Options {
-        loaders: Vec<LoaderItem>,
-        #[serde(default, alias = "as")]
-        rename_as: Option<String>,
-    },
+    Options(RuleConfigItemOptions),
+    Conditional(IndexMap<String, RuleConfigItem>),
+    Boolean(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -504,8 +517,6 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
-
-    use_lightningcss: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -692,7 +703,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn webpack_rules(self: Vc<Self>) -> Result<Vc<OptionWebpackRules>> {
+    pub async fn webpack_rules(
+        self: Vc<Self>,
+        active_conditions: Vec<String>,
+    ) -> Result<Vc<OptionWebpackRules>> {
         let this = self.await?;
         let Some(turbo_rules) = this
             .experimental
@@ -705,8 +719,9 @@ impl NextConfig {
         if turbo_rules.is_empty() {
             return Ok(Vc::cell(None));
         }
+        let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
         let mut rules = IndexMap::new();
-        for (ext, rule) in turbo_rules {
+        for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
                 Vc::cell(
                     loaders
@@ -721,18 +736,60 @@ impl NextConfig {
                         .collect(),
                 )
             }
-            let rule = match rule {
-                RuleConfigItem::Loaders(loaders) => LoaderRuleItem {
-                    loaders: transform_loaders(loaders),
-                    rename_as: None,
-                },
-                RuleConfigItem::Options { loaders, rename_as } => LoaderRuleItem {
-                    loaders: transform_loaders(loaders),
-                    rename_as: rename_as.clone(),
-                },
-            };
-
-            rules.insert(ext.clone(), rule);
+            enum FindRuleResult<'a> {
+                Found(&'a RuleConfigItemOptions),
+                NotFound,
+                Break,
+            }
+            fn find_rule<'a>(
+                rule: &'a RuleConfigItem,
+                active_conditions: &HashSet<String>,
+            ) -> FindRuleResult<'a> {
+                match rule {
+                    RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
+                    RuleConfigItem::Conditional(map) => {
+                        for (condition, rule) in map.iter() {
+                            if condition == "default" || active_conditions.contains(condition) {
+                                match find_rule(rule, active_conditions) {
+                                    FindRuleResult::Found(rule) => {
+                                        return FindRuleResult::Found(rule);
+                                    }
+                                    FindRuleResult::Break => {
+                                        return FindRuleResult::Break;
+                                    }
+                                    FindRuleResult::NotFound => {}
+                                }
+                            }
+                        }
+                        FindRuleResult::NotFound
+                    }
+                    RuleConfigItem::Boolean(_) => FindRuleResult::Break,
+                }
+            }
+            match rule {
+                RuleConfigItemOrShortcut::Loaders(loaders) => {
+                    rules.insert(
+                        ext.to_string(),
+                        LoaderRuleItem {
+                            loaders: transform_loaders(loaders),
+                            rename_as: None,
+                        },
+                    );
+                }
+                RuleConfigItemOrShortcut::Advanced(rule) => {
+                    if let FindRuleResult::Found(RuleConfigItemOptions { loaders, rename_as }) =
+                        find_rule(rule, &active_conditions)
+                    {
+                        rules.insert(
+                            ext.to_string(),
+                            LoaderRuleItem {
+                                loaders: transform_loaders(loaders),
+                                rename_as: rename_as.clone(),
+                            },
+                        );
+                    }
+                }
+            }
         }
         Ok(Vc::cell(Some(Vc::cell(rules))))
     }
@@ -816,10 +873,8 @@ impl NextConfig {
             "{}/_next/",
             if let Some(asset_prefix) = &this.asset_prefix {
                 asset_prefix
-            } else if let Some(base_path) = &this.base_path {
-                base_path
             } else {
-                ""
+                this.base_path.as_ref().map_or("", |b| b.as_str())
             }
             .trim_end_matches('/')
         ))))
@@ -836,9 +891,25 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn use_lightningcss(self: Vc<Self>) -> Result<Vc<bool>> {
+    pub async fn use_swc_css(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.await?.experimental.use_lightningcss.unwrap_or(false),
+            self.await?
+                .experimental
+                .turbo
+                .as_ref()
+                .and_then(|turbo| turbo.use_swc_css)
+                .unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .optimize_package_imports
+                .clone()
+                .unwrap_or_default(),
         ))
     }
 }

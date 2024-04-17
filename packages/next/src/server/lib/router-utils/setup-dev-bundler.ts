@@ -75,6 +75,8 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { ModuleBuildError } from '../../dev/turbopack-utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -127,8 +129,6 @@ async function verifyTypeScript(opts: SetupOpts) {
   return usingTypeScript
 }
 
-class ModuleBuildError extends Error {}
-
 export async function propagateServerField(
   opts: SetupOpts,
   field: PropagateToWorkersField,
@@ -162,6 +162,7 @@ async function startWatcher(opts: SetupOpts) {
         distDir: distDir,
         config: opts.nextConfig,
         buildId: 'development',
+        encryptionKey: await generateEncryptionKeyBase64(),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
@@ -553,15 +554,15 @@ async function startWatcher(opts: SetupOpts) {
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
               dev: true,
               distDir,
-              fetchCacheKeyPrefix: undefined,
+              fetchCacheKeyPrefix:
+                opts.nextConfig.experimental.fetchCacheKeyPrefix,
               hasRewrites,
+              // TODO: Implement
               middlewareMatchers: undefined,
-              previewModeId: undefined,
             }),
           })
         }
@@ -625,19 +626,18 @@ async function startWatcher(opts: SetupOpts) {
               ) {
                 const newDefine = getDefineEnv({
                   isTurbopack: false,
-                  allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
                   dev: true,
                   distDir,
-                  fetchCacheKeyPrefix: undefined,
+                  fetchCacheKeyPrefix:
+                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
                   hasRewrites,
                   isClient,
                   isEdgeServer,
                   isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
-                  previewModeId: undefined,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
@@ -971,15 +971,7 @@ async function startWatcher(opts: SetupOpts) {
               errorToLog = err
             }
 
-            if (type === 'warning') {
-              Log.warn(errorToLog)
-            } else if (type === 'app-dir') {
-              logAppDirError(errorToLog)
-            } else if (type) {
-              Log.error(`${type}:`, errorToLog)
-            } else {
-              Log.error(errorToLog)
-            }
+            logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -992,17 +984,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (err instanceof ModuleBuildError) {
-        Log.error(err.message)
-      } else if (type === 'warning') {
-        Log.warn(err)
-      } else if (type === 'app-dir') {
-        logAppDirError(err)
-      } else if (type) {
-        Log.error(`${type}:`, err)
-      } else {
-        Log.error(err)
-      }
+      logError(err, type)
     }
   }
 
@@ -1021,6 +1003,23 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
+  }
+}
+
+function logError(
+  err: unknown,
+  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+) {
+  if (err instanceof ModuleBuildError) {
+    Log.error(err.message)
+  } else if (type === 'warning') {
+    Log.warn(err)
+  } else if (type === 'app-dir') {
+    logAppDirError(err)
+  } else if (type) {
+    Log.error(`${type}:`, err)
+  } else {
+    Log.error(err)
   }
 }
 

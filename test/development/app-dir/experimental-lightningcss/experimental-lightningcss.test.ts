@@ -34,7 +34,7 @@ describeVariants.each(['default'])(
         // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
         const $ = await next.render$('/')
         expect($('p').text()).toBe('hello world')
-        // We remove hash frmo the class name in test mode using env var because it is not deterministic.
+        // We remove hash from the class name in test mode using env var because it is not deterministic.
         expect($('p').attr('class')).toBe('search-keyword style-module__blue')
       })
 

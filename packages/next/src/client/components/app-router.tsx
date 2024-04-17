@@ -182,8 +182,12 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
+    head: null,
+    prefetchHead: null,
     parallelRoutes: new Map(),
     lazyDataResolved: false,
+    loading: null,
+    error: null,
   }
 }
 
@@ -449,6 +453,11 @@ function Router({
         return
       }
 
+      // Clear the pendingMpaPath value so that a subsequent MPA navigation to the same URL can be triggered.
+      // This is necessary because if the browser restored from bfcache, the pendingMpaPath would still be set to the value
+      // of the last MPA navigation.
+      globalMutable.pendingMpaPath = undefined
+
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
@@ -610,6 +619,28 @@ function Router({
     return getSelectedParams(tree)
   }, [tree])
 
+  const layoutRouterContext = useMemo(() => {
+    return {
+      childNodes: cache.parallelRoutes,
+      tree,
+      // Root node always has `url`
+      // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+      url: canonicalUrl,
+      loading: cache.loading,
+      error: cache.error,
+    }
+  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading, cache.error])
+
+  const globalLayoutRouterContext = useMemo(() => {
+    return {
+      buildId,
+      changeByServerResponse,
+      tree,
+      focusAndScrollRef,
+      nextUrl,
+    }
+  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+
   let head
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
@@ -660,24 +691,10 @@ function Router({
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
             <GlobalLayoutRouterContext.Provider
-              value={{
-                buildId,
-                changeByServerResponse,
-                tree,
-                focusAndScrollRef,
-                nextUrl,
-              }}
+              value={globalLayoutRouterContext}
             >
               <AppRouterContext.Provider value={appRouter}>
-                <LayoutRouterContext.Provider
-                  value={{
-                    childNodes: cache.parallelRoutes,
-                    tree,
-                    // Root node always has `url`
-                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                    url: canonicalUrl,
-                  }}
-                >
+                <LayoutRouterContext.Provider value={layoutRouterContext}>
                   {content}
                 </LayoutRouterContext.Provider>
               </AppRouterContext.Provider>
