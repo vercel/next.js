@@ -76,6 +76,7 @@ body:
         - 'Lazy Loading'
         - 'Font (next/font)'
         - 'Image (next/image)'
+        - 'Instrumentation'
         - 'Internationalization (i18n)'
         - 'Linting'
         - 'Markdown (MDX)'
