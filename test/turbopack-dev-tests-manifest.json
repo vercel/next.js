@@ -2495,6 +2495,8 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
+      "app dir - basepath should only make a single RSC call to the current page (/base/refresh)",
+      "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
       "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
@@ -4419,6 +4421,17 @@
       "parallel-routes-catchall should match correctly when defining an explicit page & slot",
       "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
       "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-duplicate-rendering/parallel-routes-duplicate-rendering.test.ts": {
+    "passed": [
+      "parallel-routes-duplicate-rendering should render parallel routes that repeat slot content",
+      "parallel-routes-duplicate-rendering should still be able to handle error pages",
+      "parallel-routes-duplicate-rendering should still be able to handle not-found pages"
     ],
     "failed": [],
     "pending": [],
