@@ -16,6 +16,8 @@ import {
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { isNextRouterError } from './components/is-next-router-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
+import AppRouter from './components/app-router'
+import type { InitialRSCPayload } from '../server/app-render/app-render'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -170,7 +172,39 @@ const initialServerResponse = createFromReadableStream(readable, {
 })
 
 function ServerRoot(): React.ReactNode {
-  return use(initialServerResponse)
+  const initialResponse = use<InitialRSCPayload>(initialServerResponse)
+
+  const {
+    b: buildId,
+    p: assetPrefix,
+    c: initialCanonicalUrl,
+    i: couldBeIntercepted,
+    s: initialStyles,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    l: initialLayerAssets,
+    m: missingSlots,
+    G: GlobalError,
+  } = initialResponse
+
+  return (
+    <>
+      {initialStyles}
+      <AppRouter
+        buildId={buildId}
+        assetPrefix={assetPrefix}
+        initialCanonicalUrl={initialCanonicalUrl}
+        couldBeIntercepted={couldBeIntercepted}
+        initialTree={initialTree}
+        initialSeedData={initialSeedData}
+        missingSlots={missingSlots}
+        initialHead={initialHead}
+        initialLayerAssets={initialLayerAssets}
+        globalErrorComponent={GlobalError}
+      />
+    </>
+  )
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
