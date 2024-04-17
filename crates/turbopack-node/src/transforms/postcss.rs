@@ -248,13 +248,18 @@ pub(crate) async fn config_loader_source(
     // Bundling would break the ability to use `require.resolve` in the config file.
     let code = formatdoc! {
         r#"
-            const configPath = `${{process.cwd()}}/{config_path}`;
+            import {{ pathToFileURL }} from 'url';
 
-            const mod = await __turbopack_external_import__(configPath);
+            const configPath = `${{process.cwd()}}/${{{config_path}}}`;
+            // Absolute paths don't work with ESM imports on Windows:
+            // https://github.com/nodejs/node/issues/31710
+            // convert it to a file:// URL, which works on all platforms
+            const configUrl = pathToFileURL(configPath).toString();
+            const mod = await __turbopack_external_import__(configUrl);
 
             export default mod.default ?? mod;
         "#,
-        config_path = config_path,
+        config_path = serde_json::to_string(&config_path).expect("a string should be serializable"),
     };
 
     Ok(Vc::upcast(VirtualSource::new(
