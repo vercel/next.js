@@ -42,6 +42,11 @@ export async function nextTest(
   testRunnerArgs: string[] = [],
   options: NextTestOptions = {}
 ) {
+  // The following mess is in order to support an existing Next.js CLI pattern of optionally, passing a project `directory` as the first argument to execute the command on.
+  // This is problematic for `next test` because as a wrapper around a test runner's `test` command, it needs to pass through any additional arguments and options.
+  // Thus, `directory` could either be a valid Next.js project directory (that the user intends to run `next test` on), or it is the first argument for the test runner.
+  // Unfortunately, since many test runners support passing a path (to a test file or directory containing test files), we must check if `directory` is both a valid path and a valid Next.js project.
+
   let baseDir, nextConfig
 
   try {
