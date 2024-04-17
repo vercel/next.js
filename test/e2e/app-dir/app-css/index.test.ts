@@ -482,9 +482,9 @@ describe('app dir - css', () => {
               counts.set(match, (counts.get(match) || 0) + 1)
             }
             for (const count of counts.values()) {
-              // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
+              // There are 2 matches, one for the rendered <link> and one for float preload
               // And there is one match for the not found style
-              expect([1, 3]).toContain(count)
+              expect([1, 2]).toContain(count)
             }
           }
         })
