@@ -119,8 +119,7 @@ export function formatIssue(issue: Issue) {
   if (
     source?.range &&
     source.source.content &&
-    // ignore node_modules or Next.js/React internals, as these can often be huge bundled files.
-    !filePath.includes('node_modules') &&
+    // ignore Next.js/React internals, as these can often be huge bundled files.
     !isInternal(filePath)
   ) {
     const { start, end } = source.range

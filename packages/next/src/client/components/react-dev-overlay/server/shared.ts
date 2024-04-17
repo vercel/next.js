@@ -43,17 +43,13 @@ export function findSourcePackage({
 
 /**
  * It looks up the code frame of the traced source.
- * @note It ignores node_modules or Next.js/React internals, as these can often be huge budnled files.
+ * @note It ignores Next.js/React internals, as these can often be huge bundled files.
  */
 export function getOriginalCodeFrame(
   frame: StackFrame,
   source: string | null
 ): string | null | undefined {
-  if (
-    !source ||
-    frame.file?.includes('node_modules') ||
-    isInternal(frame.file)
-  ) {
+  if (!source || isInternal(frame.file)) {
     return null
   }
 
