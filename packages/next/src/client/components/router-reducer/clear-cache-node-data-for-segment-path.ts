@@ -44,7 +44,6 @@ export function clearCacheNodeDataForSegmentPath(
         parallelRoutes: new Map(),
         lazyDataResolved: false,
         loading: null,
-        error: null,
       })
     }
     return
@@ -62,7 +61,6 @@ export function clearCacheNodeDataForSegmentPath(
         parallelRoutes: new Map(),
         lazyDataResolved: false,
         loading: null,
-        error: null,
       })
     }
     return
@@ -78,7 +76,6 @@ export function clearCacheNodeDataForSegmentPath(
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
       lazyDataResolved: childCacheNode.lazyDataResolved,
       loading: childCacheNode.loading,
-      error: childCacheNode.error,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)
   }
