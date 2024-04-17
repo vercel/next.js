@@ -893,7 +893,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('next/dist/compiled/react-is')
+      const { isValidElementType } = require('react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${initialData.page}"`

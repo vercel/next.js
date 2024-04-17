@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="node" />
-import type { SatoriOptions } from "next/dist/compiled/@vercel/og/satori";
+import type { SatoriOptions } from "@vercel/og/satori";
 import type { EmojiType } from './emoji';
 import type { OutgoingHttpHeader } from 'http';
 declare type ImageOptions = {

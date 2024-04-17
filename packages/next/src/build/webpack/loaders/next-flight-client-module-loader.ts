@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 import { getRSCModuleInformation } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
 

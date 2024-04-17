@@ -1,6 +1,6 @@
 import { promises } from 'fs'
 import * as Log from '../build/output/log'
-import findUp from 'next/dist/compiled/find-up'
+import findUp from 'find-up'
 // @ts-ignore no-json types
 import nextPkgJson from 'next/package.json'
 import type { UnwrapPromise } from './coalesced-function'

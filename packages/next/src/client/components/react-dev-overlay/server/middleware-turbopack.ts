@@ -11,7 +11,7 @@ import {
 
 import fs, { constants as FS } from 'fs/promises'
 import { launchEditor } from '../internal/helpers/launchEditor'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()

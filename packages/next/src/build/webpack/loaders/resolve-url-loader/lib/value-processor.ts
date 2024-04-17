@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-import loaderUtils from 'next/dist/compiled/loader-utils2'
+import loaderUtils from 'loader-utils2'
 import path from 'path'
 
 function valueProcessor(filename: any, options: any) {

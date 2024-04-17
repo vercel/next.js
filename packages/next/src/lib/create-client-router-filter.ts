@@ -1,4 +1,4 @@
-import type { Token } from 'next/dist/compiled/path-to-regexp'
+import type { Token } from 'path-to-regexp'
 import { BloomFilter } from '../shared/lib/bloom-filter'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'

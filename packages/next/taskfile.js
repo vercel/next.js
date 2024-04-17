@@ -30,7 +30,7 @@ export async function browser_polyfills(task, opts) {
 export async function copy_regenerator_runtime(task, opts) {
   await task
     .source(join(dirname(require.resolve('regenerator-runtime')), '**/*'))
-    .target('src/compiled/regenerator-runtime')
+    .target('src/node_modules/regenerator-runtime')
 }
 
 // eslint-disable-next-line camelcase
@@ -61,7 +61,7 @@ const externals = {
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
   // Ensure latest version is used
-  'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
+  'postcss-safe-parser': 'next/dist/node_modules/postcss-safe-parser',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -78,7 +78,7 @@ const externals = {
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
 // eslint-disable-next-line camelcase
-externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
+externals['node-html-parser'] = 'next/dist/node_modules/node-html-parser'
 export async function ncc_node_html_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-html-parser')))
@@ -87,12 +87,12 @@ export async function ncc_node_html_parser(task, opts) {
       externals,
       target: 'es5',
     })
-    .target('src/compiled/node-html-parser')
+    .target('src/node_modules/node-html-parser')
 }
 
 // eslint-disable-next-line camelcase
 externals['@mswjs/interceptors/ClientRequest'] =
-  'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+  'next/dist/node_modules/@mswjs/interceptors/ClientRequest'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
     .source(
@@ -103,7 +103,7 @@ export async function ncc_mswjs_interceptors(task, opts) {
       externals,
       target: 'es5',
     })
-    .target('src/compiled/@mswjs/interceptors/ClientRequest')
+    .target('src/node_modules/@mswjs/interceptors/ClientRequest')
 }
 
 export async function capsize_metrics() {
@@ -120,10 +120,10 @@ export async function capsize_metrics() {
 }
 
 // eslint-disable-next-line camelcase
-externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
+externals['@babel/runtime'] = 'next/dist/node_modules/@babel/runtime'
 export async function copy_babel_runtime(task, opts) {
   const runtimeDir = dirname(require.resolve('@babel/runtime/package.json'))
-  const outputDir = join(__dirname, 'src/compiled/@babel/runtime')
+  const outputDir = join(__dirname, 'src/node_modules/@babel/runtime')
   const runtimeFiles = glob.sync('**/*', {
     cwd: runtimeDir,
     ignore: ['node_modules/**/*'],
@@ -138,14 +138,14 @@ export async function copy_babel_runtime(task, opts) {
     }
     let contents = await fs.readFile(inputPath, 'utf8')
 
-    if (inputPath.endsWith('.js')) {
-      contents = contents
-        .replace(
-          'regenerator-runtime',
-          'next/dist/compiled/regenerator-runtime'
-        )
-        .replace('@babel/runtime', 'next/dist/compiled/@babel/runtime')
-    }
+    // if (inputPath.endsWith('.js')) {
+    //   contents = contents
+    //     .replace(
+    //       'regenerator-runtime',
+    //       'next/dist/node_modules/regenerator-runtime'
+    //     )
+    //     .replace('@babel/runtime', 'next/dist/node_modules/@babel/runtime')
+    // }
 
     if (inputPath.endsWith('package.json')) {
       contents = JSON.stringify({
@@ -159,7 +159,7 @@ export async function copy_babel_runtime(task, opts) {
   }
 }
 
-externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
+externals['@vercel/og'] = 'next/dist/node_modules/@vercel/og'
 export async function copy_vercel_og(task, opts) {
   function copy_og_asset(globPattern) {
     return task
@@ -172,7 +172,7 @@ export async function copy_vercel_og(task, opts) {
           globPattern
         )
       )
-      .target('src/compiled/@vercel/og')
+      .target('src/node_modules/@vercel/og')
   }
 
   await copy_og_asset('./dist/*.ttf')
@@ -194,10 +194,10 @@ export async function copy_vercel_og(task, opts) {
         'type Yoga = any'
       )
     })
-    .target('src/compiled/@vercel/og/satori')
+    .target('src/node_modules/@vercel/og/satori')
   await task
     .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
-    .target('src/compiled/@vercel/og/satori')
+    .target('src/node_modules/@vercel/og/satori')
 
   await task
     .source(
@@ -210,15 +210,15 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source.replace(
-        /['"]satori['"]/g,
-        '"next/dist/compiled/@vercel/og/satori"'
-      )
+      // file.data = source.replace(
+      //   /['"]satori['"]/g,
+      //   '"next/dist/node_modules/@vercel/og/satori"'
+      // )
     })
-    .target('src/compiled/@vercel/og')
+    .target('src/node_modules/@vercel/og')
 
   await writeJson(
-    join(__dirname, 'src/compiled/@vercel/og/package.json'),
+    join(__dirname, 'src/node_modules/@vercel/og/package.json'),
     {
       name: '@vercel/og',
       version: require('@vercel/og/package.json').version,
@@ -240,70 +240,72 @@ export async function copy_vercel_og(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['node-fetch'] = 'next/dist/compiled/node-fetch'
+externals['node-fetch'] = 'next/dist/node_modules/node-fetch'
 export async function ncc_node_fetch(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-fetch')))
     .ncc({ packageName: 'node-fetch', externals })
-    .target('src/compiled/node-fetch')
+    .target('src/node_modules/node-fetch')
 }
 
-externals['anser'] = 'next/dist/compiled/anser'
-externals['next/dist/compiled/anser'] = 'next/dist/compiled/anser'
+externals['anser'] = 'next/dist/node_modules/anser'
+externals['next/dist/node_modules/anser'] = 'next/dist/node_modules/anser'
 export async function ncc_node_anser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('anser')))
     .ncc({ packageName: 'anser', externals })
-    .target('src/compiled/anser')
+    .target('src/node_modules/anser')
 }
 
-externals['stacktrace-parser'] = 'next/dist/compiled/stacktrace-parser'
-externals['next/dist/compiled/stacktrace-parser'] =
-  'next/dist/compiled/stacktrace-parser'
+externals['stacktrace-parser'] = 'next/dist/node_modules/stacktrace-parser'
+externals['next/dist/node_modules/stacktrace-parser'] =
+  'next/dist/node_modules/stacktrace-parser'
 export async function ncc_node_stacktrace_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('stacktrace-parser')))
     .ncc({ packageName: 'stacktrace-parser', externals })
-    .target('src/compiled/stacktrace-parser')
+    .target('src/node_modules/stacktrace-parser')
 }
 
-externals['data-uri-to-buffer'] = 'next/dist/compiled/data-uri-to-buffer'
-externals['next/dist/compiled/data-uri-to-buffer'] =
-  'next/dist/compiled/data-uri-to-buffer'
+externals['data-uri-to-buffer'] = 'next/dist/node_modules/data-uri-to-buffer'
+externals['next/dist/node_modules/data-uri-to-buffer'] =
+  'next/dist/node_modules/data-uri-to-buffer'
 export async function ncc_node_data_uri_to_buffer(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('data-uri-to-buffer')))
     .ncc({ packageName: 'data-uri-to-buffer', externals })
-    .target('src/compiled/data-uri-to-buffer')
+    .target('src/node_modules/data-uri-to-buffer')
 }
 
-externals['css.escape'] = 'next/dist/compiled/css.escape'
-externals['next/dist/compiled/css.escape'] = 'next/dist/compiled/css.escape'
+externals['css.escape'] = 'next/dist/node_modules/css.escape'
+externals['next/dist/node_modules/css.escape'] =
+  'next/dist/node_modules/css.escape'
 export async function ncc_node_cssescape(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('css.escape')))
     .ncc({ packageName: 'css.escape', externals })
-    .target('src/compiled/css.escape')
+    .target('src/node_modules/css.escape')
 }
 
-externals['shell-quote'] = 'next/dist/compiled/shell-quote'
-externals['next/dist/compiled/shell-quote'] = 'next/dist/compiled/shell-quote'
+externals['shell-quote'] = 'next/dist/node_modules/shell-quote'
+externals['next/dist/node_modules/shell-quote'] =
+  'next/dist/node_modules/shell-quote'
 export async function ncc_node_shell_quote(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('shell-quote')))
     .ncc({ packageName: 'shell-quote', externals })
-    .target('src/compiled/shell-quote')
+    .target('src/node_modules/shell-quote')
 }
 
-externals['platform'] = 'next/dist/compiled/platform'
-externals['next/dist/compiled/platform'] = 'next/dist/compiled/platform'
+externals['platform'] = 'next/dist/node_modules/platform'
+externals['next/dist/node_modules/platform'] = 'next/dist/node_modules/platform'
 export async function ncc_node_platform(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('platform')))
     .ncc({ packageName: 'platform', externals })
-    .target('src/compiled/platform')
+    .target('src/node_modules/platform')
 
-  const clientFile = join(__dirname, 'src/compiled/platform/platform.js')
+  const clientFile = join(__dirname, 'src/node_modules/platform/platform.js')
   const content = await fs.readFile(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
   // be treated as commonjs
@@ -323,21 +325,22 @@ export async function ncc_node_platform(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['acorn'] = 'next/dist/compiled/acorn'
+externals['acorn'] = 'next/dist/node_modules/acorn'
 export async function ncc_acorn(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('acorn')))
     .ncc({ packageName: 'acorn', externals })
-    .target('src/compiled/acorn')
+    .target('src/node_modules/acorn')
 }
 
 // eslint-disable-next-line camelcase
-externals['@edge-runtime/cookies'] = 'next/dist/compiled/@edge-runtime/cookies'
+externals['@edge-runtime/cookies'] =
+  'next/dist/node_modules/@edge-runtime/cookies'
 
 export async function ncc_edge_runtime_cookies() {
   // `@edge-runtime/cookies` is precompiled and pre-bundled
   // so we vendor the package as it is.
-  const dest = 'src/compiled/@edge-runtime/cookies'
+  const dest = 'src/node_modules/@edge-runtime/cookies'
   const pkg = await readJson(
     require.resolve('@edge-runtime/cookies/package.json')
   )
@@ -363,12 +366,12 @@ export async function ncc_edge_runtime_cookies() {
 
 // eslint-disable-next-line camelcase
 externals['@edge-runtime/primitives'] =
-  'next/dist/compiled/@edge-runtime/primitives'
+  'next/dist/node_modules/@edge-runtime/primitives'
 
 export async function ncc_edge_runtime_primitives() {
   // `@edge-runtime/primitives` is precompiled and pre-bundled
   // so we vendor the package as it is.
-  const dest = 'src/compiled/@edge-runtime/primitives'
+  const dest = 'src/node_modules/@edge-runtime/primitives'
   await fs.mkdir(dest, { recursive: true })
   const primitivesPath = dirname(
     require.resolve('@edge-runtime/primitives/package.json')
@@ -404,24 +407,14 @@ export async function ncc_edge_runtime_primitives() {
 
 // eslint-disable-next-line camelcase
 externals['@edge-runtime/ponyfill'] =
-  'next/dist/compiled/@edge-runtime/ponyfill'
+  'next/dist/node_modules/@edge-runtime/ponyfill'
 export async function ncc_edge_runtime_ponyfill(task, opts) {
-  const indexFile = await fs.readFile(
-    require.resolve('@edge-runtime/ponyfill/src/index.js'),
-    'utf8'
-  )
-  const dest = 'src/compiled/@edge-runtime/ponyfill'
-  await fs.mkdir(dest, { recursive: true })
-  await fs.writeFile(
-    join(dest, 'index.js'),
-    indexFile.replace(
-      `require('@edge-runtime/primitives')`,
-      `require(${JSON.stringify(externals['@edge-runtime/primitives'])})`
-    )
-  )
+  const dest = 'src/node_modules/@edge-runtime/ponyfill'
+
   await fs.cp(
-    require.resolve('@edge-runtime/ponyfill/src/index.d.ts'),
-    join(dest, 'index.d.ts')
+    dirname(require.resolve('@edge-runtime/ponyfill/src/index.js')),
+    'src/node_modules/@edge-runtime/ponyfill',
+    { recursive: true }
   )
 
   const pkg = await readJson(
@@ -438,7 +431,7 @@ export async function ncc_edge_runtime_ponyfill(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['edge-runtime'] = 'next/dist/compiled/edge-runtime'
+externals['edge-runtime'] = 'next/dist/node_modules/edge-runtime'
 export async function ncc_edge_runtime(task, opts) {
   const vmPath = resolveFrom(
     dirname(require.resolve('edge-runtime')),
@@ -449,20 +442,20 @@ export async function ncc_edge_runtime(task, opts) {
 
   // ensure ncc doesn't attempt to bundle dynamic requires
   // so that they work at runtime correctly
-  await fs.writeFile(
-    vmPath,
-    content.replace(
-      /require\.resolve\('@edge-runtime\/primitives/g,
-      `__non_webpack_require__.resolve('next/dist/compiled/@edge-runtime/primitives`
-    )
-  )
+  // await fs.writeFile(
+  //   vmPath,
+  //   content.replace(
+  //     /require\.resolve\('@edge-runtime\/primitives/g,
+  //     `__non_webpack_require__.resolve('next/dist/node_modules/@edge-runtime/primitives`
+  //   )
+  // )
 
   await task
     .source(relative(__dirname, require.resolve('edge-runtime')))
     .ncc({ packageName: 'edge-runtime', externals })
-    .target('src/compiled/edge-runtime')
+    .target('src/node_modules/edge-runtime')
 
-  const outputFile = join(__dirname, 'src/compiled/edge-runtime/index.js')
+  const outputFile = join(__dirname, 'src/node_modules/edge-runtime/index.js')
 
   await fs.writeFile(
     outputFile,
@@ -475,7 +468,7 @@ export async function ncc_edge_runtime(task, opts) {
 // eslint-disable-next-line camelcase
 export async function ncc_next_font(task, opts) {
   // `@next/font` can be copied as is, its only dependency is already NCCed
-  const destDir = join(__dirname, 'dist/compiled/@next/font')
+  const destDir = join(__dirname, 'dist/node_modules/@next/font')
   const pkgPath = require.resolve('@next/font/package.json')
   const pkg = await readJson(pkgPath)
   const srcDir = dirname(pkgPath)
@@ -500,19 +493,19 @@ export async function ncc_next_font(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['watchpack'] = 'next/dist/compiled/watchpack'
+externals['watchpack'] = 'next/dist/node_modules/watchpack'
 export async function ncc_watchpack(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('watchpack')))
     .ncc({ packageName: 'watchpack', externals })
-    .target('src/compiled/watchpack')
+    .target('src/node_modules/watchpack')
 }
 
 // eslint-disable-next-line camelcase
-externals['jest-worker'] = 'next/dist/compiled/jest-worker'
+externals['jest-worker'] = 'next/dist/node_modules/jest-worker'
 export async function ncc_jest_worker(task, opts) {
-  await rmrf(join(__dirname, 'src/compiled/jest-worker'))
-  await fs.mkdir(join(__dirname, 'src/compiled/jest-worker/workers'), {
+  await rmrf(join(__dirname, 'src/node_modules/jest-worker'))
+  await fs.mkdir(join(__dirname, 'src/node_modules/jest-worker/workers'), {
     recursive: true,
   })
 
@@ -521,7 +514,7 @@ export async function ncc_jest_worker(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('jest-worker')))
     .ncc({ packageName: 'jest-worker', externals })
-    .target('src/compiled/jest-worker')
+    .target('src/node_modules/jest-worker')
 
   for (const worker of workers) {
     const content = await fs.readFile(
@@ -552,23 +545,23 @@ export async function ncc_jest_worker(task, opts) {
         )
       )
       .ncc({ externals })
-      .target('src/compiled/jest-worker/out')
+      .target('src/node_modules/jest-worker/out')
 
     await fs.rename(
-      join(__dirname, 'src/compiled/jest-worker/out', worker + '.tmp.js'),
-      join(__dirname, 'src/compiled/jest-worker', worker)
+      join(__dirname, 'src/node_modules/jest-worker/out', worker + '.tmp.js'),
+      join(__dirname, 'src/node_modules/jest-worker', worker)
     )
   }
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/workers'))
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/out'))
+  await rmrf(join(__dirname, 'src/node_modules/jest-worker/workers'))
+  await rmrf(join(__dirname, 'src/node_modules/jest-worker/out'))
 }
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_refresh_utils(task, opts) {
-  await rmrf(join(__dirname, 'dist/compiled/react-refresh'))
+  await rmrf(join(__dirname, 'dist/node_modules/react-refresh'))
   await fs.cp(
     dirname(require.resolve('react-refresh/package.json')),
-    join(__dirname, 'dist/compiled/react-refresh'),
+    join(__dirname, 'dist/node_modules/react-refresh'),
     { recursive: true, force: true }
   )
 
@@ -578,7 +571,7 @@ export async function ncc_react_refresh_utils(task, opts) {
   )
   const destDir = join(
     __dirname,
-    'dist/compiled/@next/react-refresh-utils/dist'
+    'dist/node_modules/@next/react-refresh-utils/dist'
   )
   await rmrf(destDir)
   await fs.mkdir(destDir, { recursive: true })
@@ -592,18 +585,12 @@ export async function ncc_react_refresh_utils(task, opts) {
     const outputFile = join(destDir, file)
 
     await fs.mkdir(dirname(outputFile), { recursive: true })
-    await fs.writeFile(
-      outputFile,
-      content.replace(
-        /react-refresh\/runtime/g,
-        'next/dist/compiled/react-refresh/runtime'
-      )
-    )
+    await fs.writeFile(outputFile, content)
   }
 }
 
 // eslint-disable-next-line camelcase
-externals['browserslist'] = 'next/dist/compiled/browserslist'
+externals['browserslist'] = 'next/dist/node_modules/browserslist'
 export async function ncc_browserslist(task, opts) {
   const browserslistModule = require.resolve('browserslist')
   const nodeFile = join(dirname(browserslistModule), 'node.js')
@@ -622,72 +609,72 @@ export async function ncc_browserslist(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
-    .target('src/compiled/browserslist')
+    .target('src/node_modules/browserslist')
 
   await fs.writeFile(nodeFile, content)
 }
 
 // eslint-disable-next-line camelcase
-externals['@napi-rs/triples'] = 'next/dist/compiled/@napi-rs/triples'
+externals['@napi-rs/triples'] = 'next/dist/node_modules/@napi-rs/triples'
 export async function ncc_napirs_triples(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@napi-rs/triples')))
     .ncc({ packageName: '@napi-rs/triples', externals })
-    .target('src/compiled/@napi-rs/triples')
+    .target('src/node_modules/@napi-rs/triples')
 }
 
 // eslint-disable-next-line camelcase
-externals['p-limit'] = 'next/dist/compiled/p-limit'
+externals['p-limit'] = 'next/dist/node_modules/p-limit'
 export async function ncc_p_limit(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('p-limit')))
     .ncc({ packageName: 'p-limit', externals })
-    .target('src/compiled/p-limit')
+    .target('src/node_modules/p-limit')
 }
 
 // eslint-disable-next-line camelcase
-externals['raw-body'] = 'next/dist/compiled/raw-body'
+externals['raw-body'] = 'next/dist/node_modules/raw-body'
 export async function ncc_raw_body(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('raw-body')))
     .ncc({ packageName: 'raw-body', externals })
-    .target('src/compiled/raw-body')
+    .target('src/node_modules/raw-body')
 }
 
 // eslint-disable-next-line camelcase
-externals['image-size'] = 'next/dist/compiled/image-size'
+externals['image-size'] = 'next/dist/node_modules/image-size'
 export async function ncc_image_size(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('image-size')))
     .ncc({ packageName: 'image-size', externals })
-    .target('src/compiled/image-size')
+    .target('src/node_modules/image-size')
 }
 
 // eslint-disable-next-line camelcase
-externals['get-orientation'] = 'next/dist/compiled/get-orientation'
+externals['get-orientation'] = 'next/dist/node_modules/get-orientation'
 export async function ncc_get_orientation(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('get-orientation')))
     .ncc({ packageName: 'get-orientation', externals })
-    .target('src/compiled/get-orientation')
+    .target('src/node_modules/get-orientation')
 }
 
 // eslint-disable-next-line camelcase
-externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
+externals['@hapi/accept'] = 'next/dist/node_modules/@hapi/accept'
 export async function ncc_hapi_accept(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@hapi/accept')))
     .ncc({ packageName: '@hapi/accept', externals })
-    .target('src/compiled/@hapi/accept')
+    .target('src/node_modules/@hapi/accept')
 }
 
 // eslint-disable-next-line camelcase
-externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
+externals['amphtml-validator'] = 'next/dist/node_modules/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('amphtml-validator')))
     .ncc({ packageName: 'amphtml-validator', externals })
-    .target('src/compiled/amphtml-validator')
+    .target('src/node_modules/amphtml-validator')
 }
 
 // eslint-disable-next-line camelcase
@@ -700,7 +687,7 @@ export async function ncc_assert(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/assert')
+    .target('src/node_modules/assert')
 }
 
 // eslint-disable-next-line camelcase
@@ -713,7 +700,7 @@ export async function ncc_browser_zlib(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/browserify-zlib')
+    .target('src/node_modules/browserify-zlib')
 }
 
 // eslint-disable-next-line camelcase
@@ -726,28 +713,28 @@ export async function ncc_buffer(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/buffer')
+    .target('src/node_modules/buffer')
 }
 
 // eslint-disable-next-line camelcase
 export async function copy_react_is(task, opts) {
   await task
     .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
-    .target('src/compiled/react-is')
+    .target('src/node_modules/react-is')
 }
 
 // eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
-  await fs.mkdir(join(__dirname, 'src/compiled/constants-browserify'), {
+  await fs.mkdir(join(__dirname, 'src/node_modules/constants-browserify'), {
     recursive: true,
   })
   await writeJson(
-    join(__dirname, 'src/compiled/constants-browserify/package.json'),
+    join(__dirname, 'src/node_modules/constants-browserify/package.json'),
     { name: 'constants-browserify', main: './constants.json' }
   )
   await task
     .source(require.resolve('constants-browserify'))
-    .target('src/compiled/constants-browserify')
+    .target('src/node_modules/constants-browserify')
 }
 
 // eslint-disable-next-line camelcase
@@ -760,7 +747,7 @@ export async function ncc_crypto_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/crypto-browserify')
+    .target('src/node_modules/crypto-browserify')
 }
 
 // eslint-disable-next-line camelcase
@@ -773,7 +760,7 @@ export async function ncc_domain_browser(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/domain-browser')
+    .target('src/node_modules/domain-browser')
 }
 
 // eslint-disable-next-line camelcase
@@ -786,7 +773,7 @@ export async function ncc_events(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/events')
+    .target('src/node_modules/events')
 }
 
 // eslint-disable-next-line camelcase
@@ -798,13 +785,16 @@ export async function ncc_stream_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/stream-browserify')
+    .target('src/node_modules/stream-browserify')
 
   // while ncc'ing readable-stream the browser mapping does not replace the
   // require('stream') with require('events').EventEmitter correctly so we
   // patch this manually as leaving require('stream') causes a circular
   // reference breaking the browser polyfill
-  const outputFile = join(__dirname, 'src/compiled/stream-browserify/index.js')
+  const outputFile = join(
+    __dirname,
+    'src/node_modules/stream-browserify/index.js'
+  )
 
   await fs.writeFile(
     outputFile,
@@ -824,7 +814,7 @@ export async function ncc_stream_http(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/stream-http')
+    .target('src/node_modules/stream-http')
 }
 
 // eslint-disable-next-line camelcase
@@ -837,7 +827,7 @@ export async function ncc_https_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/https-browserify')
+    .target('src/node_modules/https-browserify')
 }
 
 // eslint-disable-next-line camelcase
@@ -850,7 +840,7 @@ export async function ncc_os_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/os-browserify')
+    .target('src/node_modules/os-browserify')
 }
 
 // eslint-disable-next-line camelcase
@@ -863,9 +853,9 @@ export async function ncc_path_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/path-browserify')
+    .target('src/node_modules/path-browserify')
 
-  const filePath = join(__dirname, 'src/compiled/path-browserify/index.js')
+  const filePath = join(__dirname, 'src/node_modules/path-browserify/index.js')
   const content = await fs.readFile(filePath, 'utf8')
 
   // Remove process usage from path-browserify polyfill for edge-runtime
@@ -882,7 +872,7 @@ export async function ncc_process(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/process')
+    .target('src/node_modules/process')
 }
 
 // eslint-disable-next-line camelcase
@@ -895,7 +885,7 @@ export async function ncc_querystring_es3(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/querystring-es3')
+    .target('src/node_modules/querystring-es3')
 }
 
 // eslint-disable-next-line camelcase
@@ -908,7 +898,7 @@ export async function ncc_string_decoder(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/string_decoder')
+    .target('src/node_modules/string_decoder')
 }
 
 // eslint-disable-next-line camelcase
@@ -921,7 +911,7 @@ export async function ncc_util(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/util')
+    .target('src/node_modules/util')
 }
 
 // eslint-disable-next-line camelcase
@@ -934,7 +924,7 @@ export async function ncc_punycode(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/punycode')
+    .target('src/node_modules/punycode')
 }
 
 // eslint-disable-next-line camelcase
@@ -947,7 +937,7 @@ export async function ncc_set_immediate(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/setimmediate')
+    .target('src/node_modules/setimmediate')
 }
 
 // eslint-disable-next-line camelcase
@@ -958,12 +948,12 @@ export async function ncc_timers_browserify(task, opts) {
       packageName: 'timers-browserify',
       externals: {
         ...externals,
-        setimmediate: 'next/dist/compiled/setimmediate',
+        setimmediate: 'next/dist/node_modules/setimmediate',
       },
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/timers-browserify')
+    .target('src/node_modules/timers-browserify')
 }
 
 // eslint-disable-next-line camelcase
@@ -976,7 +966,7 @@ export async function ncc_tty_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/tty-browserify')
+    .target('src/node_modules/tty-browserify')
 }
 
 // eslint-disable-next-line camelcase
@@ -989,12 +979,12 @@ export async function ncc_vm_browserify(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/vm-browserify')
+    .target('src/node_modules/vm-browserify')
 }
 
 // eslint-disable-next-line camelcase
 externals['@ampproject/toolbox-optimizer'] =
-  'next/dist/compiled/@ampproject/toolbox-optimizer'
+  'next/dist/node_modules/@ampproject/toolbox-optimizer'
 export async function ncc_amp_optimizer(task, opts) {
   await task
     .source(
@@ -1005,10 +995,10 @@ export async function ncc_amp_optimizer(task, opts) {
       precompiled: false,
       packageName: '@ampproject/toolbox-optimizer',
     })
-    .target('dist/compiled/@ampproject/toolbox-optimizer')
+    .target('dist/node_modules/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
-externals['async-retry'] = 'next/dist/compiled/async-retry'
+externals['async-retry'] = 'next/dist/node_modules/async-retry'
 export async function ncc_async_retry(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('async-retry')))
@@ -1016,19 +1006,19 @@ export async function ncc_async_retry(task, opts) {
       packageName: 'async-retry',
       externals,
     })
-    .target('src/compiled/async-retry')
+    .target('src/node_modules/async-retry')
 }
 // eslint-disable-next-line camelcase
-externals['async-sema'] = 'next/dist/compiled/async-sema'
+externals['async-sema'] = 'next/dist/node_modules/async-sema'
 export async function ncc_async_sema(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('async-sema')))
     .ncc({ packageName: 'async-sema', externals })
-    .target('src/compiled/async-sema')
+    .target('src/node_modules/async-sema')
 }
 
 externals['postcss-plugin-stub-for-cssnano-simple'] =
-  'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple'
+  'next/dist/node_modules/postcss-plugin-stub-for-cssnano-simple'
 // eslint-disable-next-line camelcase
 export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
   await task
@@ -1036,28 +1026,28 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
     .ncc({
       externals,
     })
-    .target('src/compiled/postcss-plugin-stub-for-cssnano-simple')
+    .target('src/node_modules/postcss-plugin-stub-for-cssnano-simple')
 }
 
 const babelCorePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
-  '@babel/generator': 'next/dist/compiled/babel/generator',
-  '@babel/traverse': 'next/dist/compiled/babel/traverse',
-  '@babel/types': 'next/dist/compiled/babel/types',
-  '@babel/core': 'next/dist/compiled/babel/core',
-  '@babel/parser': 'next/dist/compiled/babel/parser',
-  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
+  'code-frame': 'next/dist/node_modules/babel/code-frame',
+  '@babel/generator': 'next/dist/node_modules/babel/generator',
+  '@babel/traverse': 'next/dist/node_modules/babel/traverse',
+  '@babel/types': 'next/dist/node_modules/babel/types',
+  '@babel/core': 'next/dist/node_modules/babel/core',
+  '@babel/parser': 'next/dist/node_modules/babel/parser',
+  '@babel/core/lib/config': 'next/dist/node_modules/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':
-    'next/dist/compiled/babel/core-lib-normalize-config',
+    'next/dist/node_modules/babel/core-lib-normalize-config',
   '@babel/core/lib/transformation/normalize-opts':
-    'next/dist/compiled/babel/core-lib-normalize-opts',
+    'next/dist/node_modules/babel/core-lib-normalize-opts',
   '@babel/core/lib/transformation/block-hoist-plugin':
-    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
+    'next/dist/node_modules/babel/core-lib-block-hoisting-plugin',
   '@babel/core/lib/transformation/plugin-pass':
-    'next/dist/compiled/babel/core-lib-plugin-pass',
+    'next/dist/node_modules/babel/core-lib-plugin-pass',
 }
-externals['next/dist/compiled/babel/code-frame'] =
-  'next/dist/compiled/babel/code-frame'
+externals['next/dist/node_modules/babel/code-frame'] =
+  'next/dist/node_modules/babel/code-frame'
 
 Object.assign(externals, babelCorePackages)
 
@@ -1065,7 +1055,8 @@ Object.assign(externals, babelCorePackages)
 export async function ncc_babel_bundle(task, opts) {
   const bundleExternals = {
     ...externals,
-    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
+    'next/dist/node_modules/babel-packages':
+      'next/dist/node_modules/babel-packages',
   }
   for (const pkg of Object.keys(babelCorePackages)) {
     delete bundleExternals[pkg]
@@ -1077,7 +1068,7 @@ export async function ncc_babel_bundle(task, opts) {
       bundleName: 'babel',
       externals: bundleExternals,
     })
-    .target('src/compiled/babel')
+    .target('src/node_modules/babel')
 }
 
 // eslint-disable-next-line camelcase
@@ -1101,22 +1092,28 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .ncc({
       externals: externals,
     })
-    .target(`src/compiled/babel-packages`)
+    .target(`src/node_modules/babel-packages`)
 
-  await writeJson(join(__dirname, 'src/compiled/babel-packages/package.json'), {
-    name: 'babel-packages',
-    main: './packages-bundle.js',
-  })
+  await writeJson(
+    join(__dirname, 'src/node_modules/babel-packages/package.json'),
+    {
+      name: 'babel-packages',
+      main: './packages-bundle.js',
+    }
+  )
 
-  await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
+  await task
+    .source('src/bundles/babel/packages/*')
+    .target('src/node_modules/babel')
 }
 
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+externals['cssnano-simple'] = 'next/dist/node_modules/cssnano-simple'
 // eslint-disable-next-line camelcase
 export async function ncc_cssnano_simple_bundle(task, opts) {
   const bundleExternals = {
     ...externals,
-    'postcss-svgo': 'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple',
+    'postcss-svgo':
+      'next/dist/node_modules/postcss-plugin-stub-for-cssnano-simple',
   }
 
   await task
@@ -1124,194 +1121,194 @@ export async function ncc_cssnano_simple_bundle(task, opts) {
     .ncc({
       externals: bundleExternals,
     })
-    .target('src/compiled/cssnano-simple')
+    .target('src/node_modules/cssnano-simple')
 }
 
 // eslint-disable-next-line camelcase
-externals['bytes'] = 'next/dist/compiled/bytes'
+externals['bytes'] = 'next/dist/node_modules/bytes'
 export async function ncc_bytes(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('bytes')))
     .ncc({ packageName: 'bytes', externals })
-    .target('src/compiled/bytes')
+    .target('src/node_modules/bytes')
 }
 // eslint-disable-next-line camelcase
-externals['ci-info'] = 'next/dist/compiled/ci-info'
+externals['ci-info'] = 'next/dist/node_modules/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ci-info')))
     .ncc({ packageName: 'ci-info', externals })
-    .target('src/compiled/ci-info')
+    .target('src/node_modules/ci-info')
 }
 // eslint-disable-next-line camelcase
-externals['cli-select'] = 'next/dist/compiled/cli-select'
+externals['cli-select'] = 'next/dist/node_modules/cli-select'
 export async function ncc_cli_select(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('cli-select')))
     .ncc({ packageName: 'cli-select', externals })
-    .target('src/compiled/cli-select')
+    .target('src/node_modules/cli-select')
 }
-externals['commmander'] = 'next/dist/compiled/commander'
+externals['commmander'] = 'next/dist/node_modules/commander'
 export async function ncc_commander(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('commander')))
     .ncc({ packageName: 'commander', externals })
-    .target('src/compiled/commander')
+    .target('src/node_modules/commander')
 }
-externals['comment-json'] = 'next/dist/compiled/comment-json'
+externals['comment-json'] = 'next/dist/node_modules/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('comment-json')))
     .ncc({ packageName: 'comment-json', externals })
-    .target('src/compiled/comment-json')
+    .target('src/node_modules/comment-json')
 }
 // eslint-disable-next-line camelcase
-externals['compression'] = 'next/dist/compiled/compression'
+externals['compression'] = 'next/dist/node_modules/compression'
 export async function ncc_compression(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('compression')))
     .ncc({ packageName: 'compression', externals })
-    .target('src/compiled/compression')
+    .target('src/node_modules/compression')
 }
 // eslint-disable-next-line camelcase
-externals['conf'] = 'next/dist/compiled/conf'
+externals['conf'] = 'next/dist/node_modules/conf'
 export async function ncc_conf(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('conf')))
     .ncc({ packageName: 'conf', externals })
-    .target('src/compiled/conf')
+    .target('src/node_modules/conf')
 }
 // eslint-disable-next-line camelcase
-externals['content-disposition'] = 'next/dist/compiled/content-disposition'
+externals['content-disposition'] = 'next/dist/node_modules/content-disposition'
 export async function ncc_content_disposition(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('content-disposition')))
     .ncc({ packageName: 'content-disposition', externals })
-    .target('src/compiled/content-disposition')
+    .target('src/node_modules/content-disposition')
 }
 // eslint-disable-next-line camelcase
-externals['content-type'] = 'next/dist/compiled/content-type'
+externals['content-type'] = 'next/dist/node_modules/content-type'
 export async function ncc_content_type(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('content-type')))
     .ncc({ packageName: 'content-type', externals })
-    .target('src/compiled/content-type')
+    .target('src/node_modules/content-type')
 }
 // eslint-disable-next-line camelcase
-externals['cookie'] = 'next/dist/compiled/cookie'
+externals['cookie'] = 'next/dist/node_modules/cookie'
 export async function ncc_cookie(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
-    .target('src/compiled/cookie')
+    .target('src/node_modules/cookie')
 }
 // eslint-disable-next-line camelcase
-externals['cross-spawn'] = 'next/dist/compiled/cross-spawn'
+externals['cross-spawn'] = 'next/dist/node_modules/cross-spawn'
 export async function ncc_cross_spawn(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('cross-spawn')))
     .ncc({ packageName: 'cross-spawn', externals })
-    .target('src/compiled/cross-spawn')
+    .target('src/node_modules/cross-spawn')
 }
 // eslint-disable-next-line camelcase
-externals['debug'] = 'next/dist/compiled/debug'
+externals['debug'] = 'next/dist/node_modules/debug'
 export async function ncc_debug(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('debug')))
     .ncc({ packageName: 'debug', externals })
-    .target('src/compiled/debug')
+    .target('src/node_modules/debug')
 }
 // eslint-disable-next-line camelcase
-externals['devalue'] = 'next/dist/compiled/devalue'
+externals['devalue'] = 'next/dist/node_modules/devalue'
 export async function ncc_devalue(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('devalue')))
     .ncc({ packageName: 'devalue', externals })
-    .target('src/compiled/devalue')
+    .target('src/node_modules/devalue')
 }
 
 // eslint-disable-next-line camelcase
-externals['find-up'] = 'next/dist/compiled/find-up'
+externals['find-up'] = 'next/dist/node_modules/find-up'
 export async function ncc_find_up(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('find-up')))
     .ncc({ packageName: 'find-up', externals })
-    .target('src/compiled/find-up')
+    .target('src/node_modules/find-up')
 }
 // eslint-disable-next-line camelcase
-externals['fresh'] = 'next/dist/compiled/fresh'
+externals['fresh'] = 'next/dist/node_modules/fresh'
 export async function ncc_fresh(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('fresh')))
     .ncc({ packageName: 'fresh', externals })
-    .target('src/compiled/fresh')
+    .target('src/node_modules/fresh')
 }
 // eslint-disable-next-line camelcase
-externals['glob'] = 'next/dist/compiled/glob'
+externals['glob'] = 'next/dist/node_modules/glob'
 export async function ncc_glob(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('glob')))
     .ncc({ packageName: 'glob', externals })
-    .target('src/compiled/glob')
+    .target('src/node_modules/glob')
 }
 // eslint-disable-next-line camelcase
-externals['gzip-size'] = 'next/dist/compiled/gzip-size'
+externals['gzip-size'] = 'next/dist/node_modules/gzip-size'
 export async function ncc_gzip_size(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('gzip-size')))
     .ncc({ packageName: 'gzip-size', externals })
-    .target('src/compiled/gzip-size')
+    .target('src/node_modules/gzip-size')
 }
 // eslint-disable-next-line camelcase
-externals['http-proxy'] = 'next/dist/compiled/http-proxy'
+externals['http-proxy'] = 'next/dist/node_modules/http-proxy'
 export async function ncc_http_proxy(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('http-proxy')))
     .ncc({ packageName: 'http-proxy', externals })
-    .target('src/compiled/http-proxy')
+    .target('src/node_modules/http-proxy')
 }
 // eslint-disable-next-line camelcase
-externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
+externals['ignore-loader'] = 'next/dist/node_modules/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ignore-loader')))
     .ncc({ packageName: 'ignore-loader', externals })
-    .target('src/compiled/ignore-loader')
+    .target('src/node_modules/ignore-loader')
 }
 // eslint-disable-next-line camelcase
-externals['is-animated'] = 'next/dist/compiled/is-animated'
+externals['is-animated'] = 'next/dist/node_modules/is-animated'
 export async function ncc_is_animated(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('is-animated')))
     .ncc({ packageName: 'is-animated', externals })
-    .target('src/compiled/is-animated')
+    .target('src/node_modules/is-animated')
 }
 // eslint-disable-next-line camelcase
-externals['is-docker'] = 'next/dist/compiled/is-docker'
+externals['is-docker'] = 'next/dist/node_modules/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('is-docker')))
     .ncc({ packageName: 'is-docker', externals })
-    .target('src/compiled/is-docker')
+    .target('src/node_modules/is-docker')
 }
 // eslint-disable-next-line camelcase
-externals['is-wsl'] = 'next/dist/compiled/is-wsl'
+externals['is-wsl'] = 'next/dist/node_modules/is-wsl'
 export async function ncc_is_wsl(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('is-wsl')))
     .ncc({ packageName: 'is-wsl', externals })
-    .target('src/compiled/is-wsl')
+    .target('src/node_modules/is-wsl')
 }
 // eslint-disable-next-line camelcase
-externals['json5'] = 'next/dist/compiled/json5'
+externals['json5'] = 'next/dist/node_modules/json5'
 export async function ncc_json5(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('json5')))
     .ncc({ packageName: 'json5', externals })
-    .target('src/compiled/json5')
+    .target('src/node_modules/json5')
 }
 // eslint-disable-next-line camelcase
-externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
+externals['jsonwebtoken'] = 'next/dist/node_modules/jsonwebtoken'
 export async function ncc_jsonwebtoken(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('jsonwebtoken')))
@@ -1322,59 +1319,59 @@ export async function ncc_jsonwebtoken(task, opts) {
         semver: 'next/dist/lib/semver-noop',
       },
     })
-    .target('src/compiled/jsonwebtoken')
+    .target('src/node_modules/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
-externals['loader-runner'] = 'next/dist/compiled/loader-runner'
+externals['loader-runner'] = 'next/dist/node_modules/loader-runner'
 export async function ncc_loader_runner(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('loader-runner')))
     .ncc({ packageName: 'loader-runner', externals })
-    .target('src/compiled/loader-runner')
+    .target('src/node_modules/loader-runner')
 }
 // eslint-disable-next-line camelcase
 externals['loader-utils'] = 'error loader-utils version not specified'
-externals['loader-utils2'] = 'next/dist/compiled/loader-utils2'
+externals['loader-utils2'] = 'next/dist/node_modules/loader-utils2'
 export async function ncc_loader_utils2(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('loader-utils2')))
     .ncc({ packageName: 'loader-utils2', externals })
-    .target('src/compiled/loader-utils2')
+    .target('src/node_modules/loader-utils2')
 }
 // eslint-disable-next-line camelcase
-externals['loader-utils3'] = 'next/dist/compiled/loader-utils3'
+externals['loader-utils3'] = 'next/dist/node_modules/loader-utils3'
 export async function ncc_loader_utils3(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('loader-utils3')))
     .ncc({ packageName: 'loader-utils3', externals })
-    .target('src/compiled/loader-utils3')
+    .target('src/node_modules/loader-utils3')
 }
 // eslint-disable-next-line camelcase
-externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
+externals['lodash.curry'] = 'next/dist/node_modules/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('lodash.curry')))
     .ncc({ packageName: 'lodash.curry', externals })
-    .target('src/compiled/lodash.curry')
+    .target('src/node_modules/lodash.curry')
 }
 // eslint-disable-next-line camelcase
-externals['lru-cache'] = 'next/dist/compiled/lru-cache'
+externals['lru-cache'] = 'next/dist/node_modules/lru-cache'
 export async function ncc_lru_cache(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('lru-cache')))
     .ncc({ packageName: 'lru-cache', externals })
-    .target('src/compiled/lru-cache')
+    .target('src/node_modules/lru-cache')
 }
 // eslint-disable-next-line camelcase
-externals['nanoid'] = 'next/dist/compiled/nanoid'
+externals['nanoid'] = 'next/dist/node_modules/nanoid'
 export async function ncc_nanoid(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('nanoid')))
     .ncc({ packageName: 'nanoid', externals })
-    .target('src/compiled/nanoid')
+    .target('src/node_modules/nanoid')
 }
 // eslint-disable-next-line camelcase
-externals['native-url'] = 'next/dist/compiled/native-url'
+externals['native-url'] = 'next/dist/node_modules/native-url'
 export async function ncc_native_url(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('native-url')))
@@ -1382,55 +1379,55 @@ export async function ncc_native_url(task, opts) {
       packageName: 'native-url',
       externals: {
         ...externals,
-        querystring: 'next/dist/compiled/querystring-es3',
+        querystring: 'next/dist/node_modules/querystring-es3',
       },
       target: 'es5',
     })
-    .target('src/compiled/native-url')
+    .target('src/node_modules/native-url')
 }
 // eslint-disable-next-line camelcase
-externals['neo-async'] = 'next/dist/compiled/neo-async'
+externals['neo-async'] = 'next/dist/node_modules/neo-async'
 export async function ncc_neo_async(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('neo-async')))
     .ncc({ packageName: 'neo-async', externals })
-    .target('src/compiled/neo-async')
+    .target('src/node_modules/neo-async')
 }
 
 // eslint-disable-next-line camelcase
-externals['ora'] = 'next/dist/compiled/ora'
+externals['ora'] = 'next/dist/node_modules/ora'
 export async function ncc_ora(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ora')))
     .ncc({ packageName: 'ora', externals })
-    .target('src/compiled/ora')
+    .target('src/node_modules/ora')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-flexbugs-fixes'] =
-  'next/dist/compiled/postcss-flexbugs-fixes'
+  'next/dist/node_modules/postcss-flexbugs-fixes'
 export async function ncc_postcss_flexbugs_fixes(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-flexbugs-fixes')))
     .ncc({ packageName: 'postcss-flexbugs-fixes', externals })
-    .target('src/compiled/postcss-flexbugs-fixes')
+    .target('src/node_modules/postcss-flexbugs-fixes')
 }
 // eslint-disable-next-line camelcase
 export async function ncc_postcss_safe_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-safe-parser')))
     .ncc({ packageName: 'postcss-safe-parser', externals })
-    .target('src/compiled/postcss-safe-parser')
+    .target('src/node_modules/postcss-safe-parser')
 }
 // eslint-disable-next-line camelcase
-externals['postcss-preset-env'] = 'next/dist/compiled/postcss-preset-env'
+externals['postcss-preset-env'] = 'next/dist/node_modules/postcss-preset-env'
 export async function ncc_postcss_preset_env(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-preset-env')))
     .ncc({ packageName: 'postcss-preset-env', externals })
-    .target('src/compiled/postcss-preset-env')
+    .target('src/node_modules/postcss-preset-env')
 }
 // eslint-disable-next-line camelcase
-externals['postcss-scss'] = 'next/dist/compiled/postcss-scss'
+externals['postcss-scss'] = 'next/dist/node_modules/postcss-scss'
 export async function ncc_postcss_scss(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-scss')))
@@ -1441,11 +1438,11 @@ export async function ncc_postcss_scss(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/postcss-scss')
+    .target('src/node_modules/postcss-scss')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-modules-extract-imports'] =
-  'next/dist/compiled/postcss-modules-extract-imports'
+  'next/dist/node_modules/postcss-modules-extract-imports'
 export async function ncc_postcss_modules_extract_imports(task, opts) {
   await task
     .source(
@@ -1458,11 +1455,11 @@ export async function ncc_postcss_modules_extract_imports(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/postcss-modules-extract-imports')
+    .target('src/node_modules/postcss-modules-extract-imports')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-modules-local-by-default'] =
-  'next/dist/compiled/postcss-modules-local-by-default'
+  'next/dist/node_modules/postcss-modules-local-by-default'
 export async function ncc_postcss_modules_local_by_default(task, opts) {
   await task
     .source(
@@ -1475,10 +1472,11 @@ export async function ncc_postcss_modules_local_by_default(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/postcss-modules-local-by-default')
+    .target('src/node_modules/postcss-modules-local-by-default')
 }
 // eslint-disable-next-line camelcase
-externals['postcss-modules-scope'] = 'next/dist/compiled/postcss-modules-scope'
+externals['postcss-modules-scope'] =
+  'next/dist/node_modules/postcss-modules-scope'
 export async function ncc_postcss_modules_scope(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-modules-scope')))
@@ -1489,11 +1487,11 @@ export async function ncc_postcss_modules_scope(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/postcss-modules-scope')
+    .target('src/node_modules/postcss-modules-scope')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-modules-values'] =
-  'next/dist/compiled/postcss-modules-values'
+  'next/dist/node_modules/postcss-modules-values'
 export async function ncc_postcss_modules_values(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-modules-values')))
@@ -1504,10 +1502,11 @@ export async function ncc_postcss_modules_values(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/postcss-modules-values')
+    .target('src/node_modules/postcss-modules-values')
 }
 // eslint-disable-next-line camelcase
-externals['postcss-value-parser'] = 'next/dist/compiled/postcss-value-parser'
+externals['postcss-value-parser'] =
+  'next/dist/node_modules/postcss-value-parser'
 export async function ncc_postcss_value_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-value-parser')))
@@ -1518,10 +1517,10 @@ export async function ncc_postcss_value_parser(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/postcss-value-parser')
+    .target('src/node_modules/postcss-value-parser')
 }
 // eslint-disable-next-line camelcase
-externals['icss-utils'] = 'next/dist/compiled/icss-utils'
+externals['icss-utils'] = 'next/dist/node_modules/icss-utils'
 export async function ncc_icss_utils(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('icss-utils')))
@@ -1532,27 +1531,32 @@ export async function ncc_icss_utils(task, opts) {
         ...externals,
       },
     })
-    .target('src/compiled/icss-utils')
+    .target('src/node_modules/icss-utils')
 }
 
-externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
-externals['scheduler'] = 'next/dist/compiled/scheduler'
+externals['scheduler'] = 'next/dist/node_modules/scheduler-experimental'
+externals['scheduler'] = 'next/dist/node_modules/scheduler'
 export async function copy_vendor_react(task_) {
   function* copy_vendor_react_impl(task, opts) {
     const channel = opts.experimental ? `experimental-builtin` : `builtin`
     const packageSuffix = opts.experimental ? `-experimental` : ``
 
-    // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
-    // "The name `react` was looked up in the Haste module map" warnings.
-    // TODO-APP: remove unused fields from package.json and unused files
-    function overridePackageName(source) {
+    function overridePackageJson(source, packageExports) {
       const json = JSON.parse(source)
+      // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
+      // "The name `react` was looked up in the Haste module map" warnings.
+      // TODO-APP: remove unused fields from package.json and unused files
       json.name = json.name + '-' + channel
+
       return JSON.stringify(
         {
           name: json.name,
           main: json.main,
-          exports: json.exports,
+          exports: json.exports && {
+            './cjs/*': ['./cjs/*.js', './cjs/*'],
+            ...packageExports,
+            ...json.exports,
+          },
           dependencies: json.dependencies,
           peerDependencies: json.peerDependencies,
           browser: json.browser,
@@ -1570,16 +1574,16 @@ export async function copy_vendor_react(task_) {
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageJson(file.data.toString())
         }
       })
-      .target(`src/compiled/scheduler${packageSuffix}`)
+      .target(`src/node_modules/scheduler${packageSuffix}`)
     yield task
       .source(join(schedulerDir, 'cjs/**/*.js'))
-      .target(`src/compiled/scheduler${packageSuffix}/cjs`)
+      .target(`src/node_modules/scheduler${packageSuffix}/cjs`)
     yield task
       .source(join(schedulerDir, 'LICENSE'))
-      .target(`src/compiled/scheduler${packageSuffix}`)
+      .target(`src/node_modules/scheduler${packageSuffix}`)
 
     const reactDir = dirname(
       relative(__dirname, require.resolve(`react-${channel}/package.json`))
@@ -1593,63 +1597,67 @@ export async function copy_vendor_react(task_) {
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageJson(file.data.toString(), {
+            './react.react-server': './react.react-server.js',
+          })
         }
       })
-      .target(`src/compiled/react${packageSuffix}`)
+      .target(`src/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'LICENSE'))
-      .target(`src/compiled/react${packageSuffix}`)
+      .target(`src/node_modules/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
       // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']react["']\)/g,
-          `require("next/dist/compiled/react${packageSuffix}")`
-        )
-      })
-      .target(`src/compiled/react${packageSuffix}/cjs`)
+      // .run({ every: true }, function* (file) {
+      //   const source = file.data.toString()
+      //   // We replace the module/chunk loading code with our own implementation in Next.js.
+      //   file.data = source.replace(
+      //     /require\(["']react["']\)/g,
+      //     `require("next/dist/node_modules/react${packageSuffix}")`
+      //   )
+      // })
+      .target(`src/node_modules/react${packageSuffix}/cjs`)
 
     yield task
       .source(join(reactDomDir, '*.{json,js}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
+          file.data = overridePackageJson(file.data.toString(), {
+            './react-dom.react-server': './react-dom.react-server.js',
+          })
         }
       })
-      .target(`src/compiled/react-dom${packageSuffix}`)
+      .target(`src/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'LICENSE'))
-      .target(`src/compiled/react-dom${packageSuffix}`)
+      .target(`src/node_modules/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'cjs/**/*.js'))
       // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
+      // .run({ every: true }, function* (file) {
+      //   const source = file.data.toString()
+      //   // We replace the module/chunk loading code with our own implementation in Next.js.
+      //   file.data = source
+      //     .replace(
+      //       /require\(["']scheduler["']\)/g,
+      //       `require("next/dist/node_modules/scheduler${packageSuffix}")`
+      //     )
+      //     .replace(
+      //       /require\(["']react["']\)/g,
+      //       `require("next/dist/node_modules/react${packageSuffix}")`
+      //     )
 
-        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
-      })
-      .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+      //   // Note that we don't replace `react-dom` with `next/dist/node_modules/react-dom`
+      //   // as it mighe be aliased to the server rendering stub.
+      // })
+      .target(`src/node_modules/react-dom${packageSuffix}/cjs`)
 
     // Remove unused files
     const reactDomCompiledDir = join(
       __dirname,
-      `src/compiled/react-dom${packageSuffix}`
+      `src/node_modules/react-dom${packageSuffix}`
     )
     const itemsToRemove = [
       'static.js',
@@ -1679,7 +1687,7 @@ export async function copy_vendor_react(task_) {
     )
     yield task
       .source(join(reactServerDomWebpackDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+      .target(`src/node_modules/react-server-dom-webpack${packageSuffix}`)
     yield task
       .source(join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
@@ -1701,10 +1709,10 @@ export async function copy_vendor_react(task_) {
             'globalThis.__next_require__'
           )
         } else if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data)
+          file.data = overridePackageJson(file.data)
         }
       })
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+      .target(`src/node_modules/react-server-dom-webpack${packageSuffix}`)
 
     // react-server-dom-turbopack
     // Currently, this `next` and `experimental` channels are always in sync so
@@ -1719,7 +1727,7 @@ export async function copy_vendor_react(task_) {
     )
     yield task
       .source(join(reactServerDomTurbopackDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
+      .target(`src/node_modules/react-server-dom-turbopack${packageSuffix}`)
     yield task
       .source(
         join(reactServerDomTurbopackDir, '{package.json,*.js,cjs/**/*.js}')
@@ -1744,10 +1752,10 @@ export async function copy_vendor_react(task_) {
             .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
             .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
         } else if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data)
+          file.data = overridePackageJson(file.data)
         }
       })
-      .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
+      .target(`src/node_modules/react-server-dom-turbopack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic
@@ -1764,13 +1772,13 @@ export async function copy_vendor_react(task_) {
 export async function ncc_rsc_poison_packages(task, opts) {
   await task
     .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/compiled/server-only')
+    .target('src/node_modules/server-only')
   await task
     .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/compiled/client-only')
+    .target('src/node_modules/client-only')
 }
 
-externals['sass-loader'] = 'next/dist/compiled/sass-loader'
+externals['sass-loader'] = 'next/dist/node_modules/sass-loader'
 // eslint-disable-next-line camelcase
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
@@ -1796,11 +1804,11 @@ export async function ncc_sass_loader(task, opts) {
       },
       target: 'es5',
     })
-    .target('src/compiled/sass-loader')
+    .target('src/node_modules/sass-loader')
 }
 // eslint-disable-next-line camelcase
 externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
-externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
+externals['schema-utils2'] = 'next/dist/node_modules/schema-utils2'
 export async function ncc_schema_utils2(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('schema-utils2')))
@@ -1809,10 +1817,10 @@ export async function ncc_schema_utils2(task, opts) {
       bundleName: 'schema-utils2',
       externals,
     })
-    .target('src/compiled/schema-utils2')
+    .target('src/node_modules/schema-utils2')
 }
 // eslint-disable-next-line camelcase
-externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
+externals['schema-utils3'] = 'next/dist/node_modules/schema-utils3'
 export async function ncc_schema_utils3(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('schema-utils3')))
@@ -1821,38 +1829,39 @@ export async function ncc_schema_utils3(task, opts) {
       bundleName: 'schema-utils3',
       externals,
     })
-    .target('src/compiled/schema-utils3')
+    .target('src/node_modules/schema-utils3')
 }
-externals['semver'] = 'next/dist/compiled/semver'
+externals['semver'] = 'next/dist/node_modules/semver'
 export async function ncc_semver(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('semver')))
     .ncc({ packageName: 'semver', externals })
-    .target('src/compiled/semver')
+    .target('src/node_modules/semver')
 }
 // eslint-disable-next-line camelcase
-externals['send'] = 'next/dist/compiled/send'
+externals['send'] = 'next/dist/node_modules/send'
 export async function ncc_send(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('send')))
     .ncc({ packageName: 'send', externals })
-    .target('src/compiled/send')
+    .target('src/node_modules/send')
 }
 // eslint-disable-next-line camelcase
 // NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
-externals['source-map'] = 'next/dist/compiled/source-map'
+externals['source-map'] = 'next/dist/node_modules/source-map'
 export async function ncc_source_map(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('source-map')))
     .ncc({ packageName: 'source-map', externals })
-    .target('src/compiled/source-map')
+    .target('src/node_modules/source-map')
 }
 // eslint-disable-next-line camelcase
 // NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
-externals['source-map08'] = 'next/dist/compiled/source-map08'
-externals['next/dist/compiled/source-map08'] = 'next/dist/compiled/source-map08'
+externals['source-map08'] = 'next/dist/node_modules/source-map08'
+externals['next/dist/node_modules/source-map08'] =
+  'next/dist/node_modules/source-map08'
 export async function ncc_source_map08(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('source-map08')))
@@ -1862,87 +1871,88 @@ export async function ncc_source_map08(task, opts) {
       externals,
       minify: false,
     })
-    .target('src/compiled/source-map08')
+    .target('src/node_modules/source-map08')
 }
 // eslint-disable-next-line camelcase
-externals['string-hash'] = 'next/dist/compiled/string-hash'
+externals['string-hash'] = 'next/dist/node_modules/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('string-hash')))
     .ncc({ packageName: 'string-hash', externals })
-    .target('src/compiled/string-hash')
+    .target('src/node_modules/string-hash')
 }
 // eslint-disable-next-line camelcase
-externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
-externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
+externals['strip-ansi'] = 'next/dist/node_modules/strip-ansi'
+externals['next/dist/node_modules/strip-ansi'] =
+  'next/dist/node_modules/strip-ansi'
 export async function ncc_strip_ansi(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('strip-ansi')))
     .ncc({ packageName: 'strip-ansi', externals })
-    .target('src/compiled/strip-ansi')
+    .target('src/node_modules/strip-ansi')
 }
 // eslint-disable-next-line camelcase
-externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
+externals['@vercel/nft'] = 'next/dist/node_modules/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@vercel/nft')))
     .ncc({ packageName: '@vercel/nft', externals })
-    .target('src/compiled/@vercel/nft')
+    .target('src/node_modules/@vercel/nft')
 }
 
 // eslint-disable-next-line camelcase
-externals['tar'] = 'next/dist/compiled/tar'
+externals['tar'] = 'next/dist/node_modules/tar'
 export async function ncc_tar(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('tar')))
     .ncc({ packageName: 'tar', externals })
-    .target('src/compiled/tar')
+    .target('src/node_modules/tar')
 }
 
 // eslint-disable-next-line camelcase
-externals['terser'] = 'next/dist/compiled/terser'
+externals['terser'] = 'next/dist/node_modules/terser'
 export async function ncc_terser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('terser')))
     .ncc({ packageName: 'terser', externals })
-    .target('src/compiled/terser')
+    .target('src/node_modules/terser')
 }
 // eslint-disable-next-line camelcase
-externals['text-table'] = 'next/dist/compiled/text-table'
+externals['text-table'] = 'next/dist/node_modules/text-table'
 export async function ncc_text_table(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('text-table')))
     .ncc({ packageName: 'text-table', externals })
-    .target('src/compiled/text-table')
+    .target('src/node_modules/text-table')
 }
 // eslint-disable-next-line camelcase
-externals['unistore'] = 'next/dist/compiled/unistore'
+externals['unistore'] = 'next/dist/node_modules/unistore'
 export async function ncc_unistore(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('unistore')))
     .ncc({ packageName: 'unistore', externals })
-    .target('src/compiled/unistore')
+    .target('src/node_modules/unistore')
 }
 
 // eslint-disable-next-line camelcase
-externals['superstruct'] = 'next/dist/compiled/superstruct'
+externals['superstruct'] = 'next/dist/node_modules/superstruct'
 export async function ncc_superstruct(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('superstruct')))
     .ncc({ packageName: 'superstruct', externals })
-    .target('src/compiled/superstruct')
+    .target('src/node_modules/superstruct')
 }
 
-externals['zod'] = 'next/dist/compiled/zod'
+externals['zod'] = 'next/dist/node_modules/zod'
 export async function ncc_zod(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('zod')))
     .ncc({ packageName: 'zod', externals })
-    .target('src/compiled/zod')
+    .target('src/node_modules/zod')
 }
 
 // eslint-disable-next-line camelcase
-externals['web-vitals'] = 'next/dist/compiled/web-vitals'
+externals['web-vitals'] = 'next/dist/node_modules/web-vitals'
 export async function ncc_web_vitals(task, opts) {
   await task
     .source(
@@ -1953,11 +1963,11 @@ export async function ncc_web_vitals(task, opts) {
     )
     // web-vitals@3.0.0 is pure ESM, compile to CJS for pre-compiled
     .ncc({ packageName: 'web-vitals', externals, target: 'es5', esm: false })
-    .target('src/compiled/web-vitals')
+    .target('src/node_modules/web-vitals')
 }
 // eslint-disable-next-line camelcase
 externals['web-vitals-attribution'] =
-  'next/dist/compiled/web-vitals-attribution'
+  'next/dist/node_modules/web-vitals-attribution'
 export async function ncc_web_vitals_attribution(task, opts) {
   await task
     .source(
@@ -1973,38 +1983,38 @@ export async function ncc_web_vitals_attribution(task, opts) {
       target: 'es5',
       esm: false,
     })
-    .target('src/compiled/web-vitals-attribution')
+    .target('src/node_modules/web-vitals-attribution')
 }
 // eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'error webpack-sources version not specified'
-externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
+externals['webpack-sources1'] = 'next/dist/node_modules/webpack-sources1'
 export async function ncc_webpack_sources1(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('webpack-sources1')))
     .ncc({ packageName: 'webpack-sources1', externals, target: 'es5' })
-    .target('src/compiled/webpack-sources1')
+    .target('src/node_modules/webpack-sources1')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
+externals['webpack-sources3'] = 'next/dist/node_modules/webpack-sources3'
 export async function ncc_webpack_sources3(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('webpack-sources3')))
     .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
-    .target('src/compiled/webpack-sources3')
+    .target('src/node_modules/webpack-sources3')
 }
 
 // eslint-disable-next-line camelcase
-externals['picomatch'] = 'next/dist/compiled/picomatch'
+externals['picomatch'] = 'next/dist/node_modules/picomatch'
 export async function ncc_minimatch(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('picomatch')))
     .ncc({ packageName: 'picomatch', externals })
-    .target('src/compiled/picomatch')
+    .target('src/node_modules/picomatch')
 }
 
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
-  'next/dist/compiled/mini-css-extract-plugin'
+  'next/dist/node_modules/mini-css-extract-plugin'
 
 export async function ncc_mini_css_extract_plugin(task, opts) {
   await task
@@ -2022,7 +2032,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
         'webpack-sources': externals['webpack-sources1'],
       },
     })
-    .target('src/compiled/mini-css-extract-plugin')
+    .target('src/node_modules/mini-css-extract-plugin')
   await task
     .source(
       relative(
@@ -2037,10 +2047,10 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './hmr': './hmr',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': 'next/dist/node_modules/schema-utils3',
       },
     })
-    .target('src/compiled/mini-css-extract-plugin/hmr')
+    .target('src/node_modules/mini-css-extract-plugin/hmr')
   await task
     .source(relative(__dirname, require.resolve('mini-css-extract-plugin')))
     .ncc({
@@ -2051,16 +2061,16 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
         'schema-utils': externals['schema-utils3'],
       },
     })
-    .target('src/compiled/mini-css-extract-plugin')
+    .target('src/node_modules/mini-css-extract-plugin')
 }
 
 // eslint-disable-next-line camelcase
-externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
+externals['ua-parser-js'] = 'next/dist/node_modules/ua-parser-js'
 export async function ncc_ua_parser_js(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ua-parser-js')))
     .ncc({ packageName: 'ua-parser-js', externals })
-    .target('src/compiled/ua-parser-js')
+    .target('src/node_modules/ua-parser-js')
 }
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
@@ -2072,6 +2082,7 @@ export async function ncc_webpack_bundle5(task, opts) {
   for (const pkg of Object.keys(webpackBundlePackages)) {
     delete bundleExternals[pkg]
   }
+
   await task
     .source('src/bundles/webpack/bundle5.js')
     .ncc({
@@ -2083,14 +2094,14 @@ export async function ncc_webpack_bundle5(task, opts) {
       externals: bundleExternals,
       target: 'es5',
     })
-    .target('src/compiled/webpack')
+    .target('src/node_modules/webpack')
 }
 
 const webpackBundlePackages = {
-  webpack: 'next/dist/compiled/webpack/webpack-lib',
-  'webpack/lib/NormalModule': 'next/dist/compiled/webpack/NormalModule',
+  webpack: 'next/dist/node_modules/webpack/webpack-lib',
+  'webpack/lib/NormalModule': 'next/dist/node_modules/webpack/NormalModule',
   'webpack/lib/node/NodeTargetPlugin':
-    'next/dist/compiled/webpack/NodeTargetPlugin',
+    'next/dist/node_modules/webpack/NodeTargetPlugin',
 }
 
 Object.assign(externals, webpackBundlePackages)
@@ -2098,52 +2109,52 @@ Object.assign(externals, webpackBundlePackages)
 export async function ncc_webpack_bundle_packages(task, opts) {
   await task
     .source('src/bundles/webpack/packages/*')
-    .target('src/compiled/webpack/')
+    .target('src/node_modules/webpack/')
 }
 
 // eslint-disable-next-line camelcase
-externals['ws'] = 'next/dist/compiled/ws'
+externals['ws'] = 'next/dist/node_modules/ws'
 export async function ncc_ws(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ws')))
     .ncc({ packageName: 'ws', externals })
-    .target('src/compiled/ws')
+    .target('src/node_modules/ws')
 }
 
-externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
+externals['path-to-regexp'] = 'next/dist/node_modules/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('path-to-regexp')))
-    .target('dist/compiled/path-to-regexp')
+    .target('dist/node_modules/path-to-regexp')
 }
 
 // eslint-disable-next-line camelcase
-externals['@opentelemetry/api'] = 'next/dist/compiled/@opentelemetry/api'
+externals['@opentelemetry/api'] = 'next/dist/node_modules/@opentelemetry/api'
 export async function ncc_opentelemetry_api(task, opts) {
   await task
     .source(
       opts.src || relative(__dirname, require.resolve('@opentelemetry/api'))
     )
     .ncc({ packageName: '@opentelemetry/api', externals })
-    .target('src/compiled/@opentelemetry/api')
+    .target('src/node_modules/@opentelemetry/api')
 }
 
 // eslint-disable-next-line camelcase
-externals['http-proxy-agent'] = 'next/dist/compiled/http-proxy-agent'
+externals['http-proxy-agent'] = 'next/dist/node_modules/http-proxy-agent'
 export async function ncc_http_proxy_agent(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('http-proxy-agent')))
     .ncc({ packageName: 'http-proxy-agent', externals })
-    .target('src/compiled/http-proxy-agent')
+    .target('src/node_modules/http-proxy-agent')
 }
 
 // eslint-disable-next-line camelcase
-externals['https-proxy-agent'] = 'next/dist/compiled/https-proxy-agent'
+externals['https-proxy-agent'] = 'next/dist/node_modules/https-proxy-agent'
 export async function ncc_https_proxy_agent(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('https-proxy-agent')))
     .ncc({ packageName: 'https-proxy-agent', externals })
-    .target('src/compiled/https-proxy-agent')
+    .target('src/node_modules/https-proxy-agent')
 }
 
 export async function precompile(task, opts) {
@@ -2156,18 +2167,31 @@ export async function precompile(task, opts) {
     ],
     opts
   )
+  await task.start('internal_node_modules_symlink')
+}
+
+// package.json exports can't reference `node_modules`, creating a symlink allows it for
+// backwards compatibility reasons.
+export async function internal_node_modules_symlink(task) {
+  const dist = join(__dirname, 'dist')
+  const internalSymlink = join(dist, 'internal')
+
+  await fs.unlink(internalSymlink).catch((err) => {
+    if (err.code !== 'ENOENT') throw err
+  })
+  await fs.symlink(join(dist, 'node_modules'), internalSymlink, 'dir')
 }
 
 // eslint-disable-next-line camelcase
 export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
-  await task.source('src/compiled/**/*').target('dist/compiled')
+  await task.source('src/node_modules/**/*').target('dist/node_modules')
 }
 
 export async function ncc(task, opts) {
   await task
-    .clear('compiled')
+    .clear('src/node_modules')
     .parallel(
       [
         'ncc_node_html_parser',

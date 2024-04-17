@@ -1,9 +1,9 @@
 import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
-import type { Token } from 'next/dist/compiled/path-to-regexp'
+import type { Token } from 'path-to-regexp'
 
 import fs from 'fs/promises'
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { parse } from 'next/dist/compiled/path-to-regexp'
+import { webpack, sources } from 'webpack/webpack'
+import { parse } from 'path-to-regexp'
 import path from 'path'
 
 import { WEBPACK_LAYERS } from '../../../../lib/constants'

@@ -1,4 +1,4 @@
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'webpack/webpack'
 import crypto from 'crypto'
 import { SUBRESOURCE_INTEGRITY_MANIFEST } from '../../../shared/lib/constants'
 

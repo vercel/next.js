@@ -11,15 +11,15 @@ import '../lib/setup-exception-listeners'
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import crypto from 'crypto'
-import { makeRe } from 'next/dist/compiled/picomatch'
+import { makeRe } from 'picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
-import devalue from 'next/dist/compiled/devalue'
-import findUp from 'next/dist/compiled/find-up'
-import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
-import { Sema } from 'next/dist/compiled/async-sema'
+import devalue from 'devalue'
+import findUp from 'find-up'
+import { nanoid } from 'nanoid/index.cjs'
+import { Sema } from 'async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -2369,11 +2369,7 @@ export default async function build(
           path.relative(
             dir,
             path.join(
-              path.dirname(
-                require.resolve(
-                  'next/dist/compiled/@ampproject/toolbox-optimizer'
-                )
-              ),
+              path.dirname(require.resolve('@ampproject/toolbox-optimizer')),
               '**/*'
             )
           )
@@ -2434,8 +2430,7 @@ export default async function build(
       await writeBuildId(distDir, buildId)
 
       if (config.experimental.optimizeCss) {
-        const globOrig =
-          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+        const globOrig = require('glob') as typeof import('glob')
 
         const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
           globOrig(

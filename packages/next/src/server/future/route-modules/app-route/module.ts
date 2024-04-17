@@ -47,7 +47,7 @@ import { staticGenerationAsyncStorage } from '../../../../client/components/stat
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../../lib/server-action-request-meta'
-import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
+import { RequestCookies } from '@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../../client/components/static-generation-bailout'
 

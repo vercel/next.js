@@ -1,11 +1,7 @@
 import * as path from 'path'
-import {
-  webpack,
-  ModuleFilenameHelpers,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
-import pLimit from 'next/dist/compiled/p-limit'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { webpack, ModuleFilenameHelpers, sources } from 'webpack/webpack'
+import pLimit from 'p-limit'
+import { Worker } from 'jest-worker'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment: any) {

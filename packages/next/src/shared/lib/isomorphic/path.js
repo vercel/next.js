@@ -6,7 +6,7 @@
 let path
 
 if (process.env.NEXT_RUNTIME === 'edge') {
-  path = require('next/dist/compiled/path-browserify')
+  path = require('path-browserify')
 } else {
   path = require('path')
 }

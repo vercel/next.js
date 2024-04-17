@@ -10,7 +10,7 @@ import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 let TSCONFIG_WARNED = false
 
 function parseJsonFile(filePath: string) {
-  const JSON5 = require('next/dist/compiled/json5')
+  const JSON5 = require('json5')
   const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file
@@ -22,7 +22,7 @@ function parseJsonFile(filePath: string) {
     return JSON5.parse(contents)
   } catch (err) {
     if (!isError(err)) throw err
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
+    const { codeFrameColumns } = require('babel/code-frame')
     const codeFrame = codeFrameColumns(
       String(contents),
       {

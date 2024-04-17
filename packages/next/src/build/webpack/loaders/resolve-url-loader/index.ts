@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-import { SourceMapConsumer } from 'next/dist/compiled/source-map'
+import { SourceMapConsumer } from 'source-map'
 import valueProcessor from './lib/value-processor'
 import { defaultJoin } from './lib/join-function'
 import process from './lib/postcss'

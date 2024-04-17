@@ -1,4 +1,4 @@
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'webpack/webpack'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { NEXT_FONT_MANIFEST } from '../../../shared/lib/constants'
 import { traverseModules } from '../utils'

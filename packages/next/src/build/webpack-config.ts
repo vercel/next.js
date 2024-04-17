@@ -1,8 +1,8 @@
 import React from 'react'
-import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
+import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'webpack/webpack'
 import path from 'path'
 
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -118,9 +118,9 @@ const browserNonTranspileModules = [
   /[\\/]node_modules[\\/]process[\\/]browser/,
   // Exclude precompiled react packages from browser compilation due to SWC helper insertion (#61791),
   // We fixed the issue but it's safer to exclude them from compilation since they don't need to be re-compiled.
-  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/,
+  /[\\/]next[\\/]dist[\\/]node_modules[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/,
 ]
-const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
+const precompileRegex = /[\\/]next[\\/]dist[\\/]node_modules[\\/]/
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
@@ -161,8 +161,7 @@ const devtoolRevertWarning = execOnce(
 
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
-const reactRefreshLoaderName =
-  'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+const reactRefreshLoaderName = '@next/react-refresh-utils/dist/loader'
 
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
@@ -584,7 +583,7 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+                `@next/react-refresh-utils/dist/runtime`
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
@@ -611,9 +610,7 @@ export default async function getBaseWebpackConfig(
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
-                    require.resolve(
-                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-                    ),
+                    require.resolve(`@next/react-refresh-utils/dist/runtime`),
                     `./` +
                       path
                         .relative(
@@ -762,10 +759,7 @@ export default async function getBaseWebpackConfig(
     'react',
     'react-dom',
     ...(hasAppDir
-      ? [
-          `next/dist/compiled/react${bundledReactChannel}`,
-          `next/dist/compiled/react-dom${bundledReactChannel}`,
-        ]
+      ? [`react${bundledReactChannel}`, `react-dom${bundledReactChannel}`]
       : []),
   ]) {
     addPackagePath(packageName, dir, topLevelFrameworkPaths)
@@ -855,7 +849,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     '@builder.io/partytown': '{}',
-                    'next/dist/compiled/etag': '{}',
+                    etag: '{}',
                   },
                   getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
@@ -1577,63 +1571,31 @@ export default async function getBaseWebpackConfig(
                           setImmediate: false,
                         }
                       : {
-                          assert: require.resolve('next/dist/compiled/assert'),
-                          buffer: require.resolve('next/dist/compiled/buffer/'),
-                          constants: require.resolve(
-                            'next/dist/compiled/constants-browserify'
-                          ),
-                          crypto: require.resolve(
-                            'next/dist/compiled/crypto-browserify'
-                          ),
-                          domain: require.resolve(
-                            'next/dist/compiled/domain-browser'
-                          ),
-                          http: require.resolve(
-                            'next/dist/compiled/stream-http'
-                          ),
-                          https: require.resolve(
-                            'next/dist/compiled/https-browserify'
-                          ),
-                          os: require.resolve(
-                            'next/dist/compiled/os-browserify'
-                          ),
-                          path: require.resolve(
-                            'next/dist/compiled/path-browserify'
-                          ),
-                          punycode: require.resolve(
-                            'next/dist/compiled/punycode'
-                          ),
+                          assert: require.resolve('assert'),
+                          buffer: require.resolve('buffer/'),
+                          constants: require.resolve('constants-browserify'),
+                          crypto: require.resolve('crypto-browserify'),
+                          domain: require.resolve('domain-browser'),
+                          http: require.resolve('stream-http'),
+                          https: require.resolve('https-browserify'),
+                          os: require.resolve('os-browserify'),
+                          path: require.resolve('path-browserify'),
+                          punycode: require.resolve('punycode'),
                           process: require.resolve('./polyfills/process'),
                           // Handled in separate alias
-                          querystring: require.resolve(
-                            'next/dist/compiled/querystring-es3'
-                          ),
-                          stream: require.resolve(
-                            'next/dist/compiled/stream-browserify'
-                          ),
-                          string_decoder: require.resolve(
-                            'next/dist/compiled/string_decoder'
-                          ),
-                          sys: require.resolve('next/dist/compiled/util/'),
-                          timers: require.resolve(
-                            'next/dist/compiled/timers-browserify'
-                          ),
-                          tty: require.resolve(
-                            'next/dist/compiled/tty-browserify'
-                          ),
+                          querystring: require.resolve('querystring-es3'),
+                          stream: require.resolve('stream-browserify'),
+                          string_decoder: require.resolve('string_decoder'),
+                          sys: require.resolve('util/'),
+                          timers: require.resolve('timers-browserify'),
+                          tty: require.resolve('tty-browserify'),
                           // Handled in separate alias
                           // url: require.resolve('url/'),
-                          util: require.resolve('next/dist/compiled/util/'),
-                          vm: require.resolve(
-                            'next/dist/compiled/vm-browserify'
-                          ),
-                          zlib: require.resolve(
-                            'next/dist/compiled/browserify-zlib'
-                          ),
-                          events: require.resolve('next/dist/compiled/events/'),
-                          setImmediate: require.resolve(
-                            'next/dist/compiled/setimmediate'
-                          ),
+                          util: require.resolve('util/'),
+                          vm: require.resolve('vm-browserify'),
+                          zlib: require.resolve('browserify-zlib'),
+                          events: require.resolve('events/'),
+                          setImmediate: require.resolve('setimmediate'),
                         },
                 },
               },

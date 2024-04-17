@@ -1,6 +1,6 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import LRUCache from 'lru-cache'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_SOFT_TAGS_HEADER,

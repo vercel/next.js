@@ -9,9 +9,9 @@ import type {
   Tracer,
   AttributeValue,
   TextMapGetter,
-} from 'next/dist/compiled/@opentelemetry/api'
+} from '@opentelemetry/api'
 
-let api: typeof import('next/dist/compiled/@opentelemetry/api')
+let api: typeof import('@opentelemetry/api')
 
 // we want to allow users to use their own version of @opentelemetry/api if they
 // want to, so we try to require it first, and if it fails we fall back to the
@@ -26,7 +26,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     api = require('@opentelemetry/api')
   } catch (err) {
-    api = require('next/dist/compiled/@opentelemetry/api')
+    api = require('@opentelemetry/api')
   }
 }
 

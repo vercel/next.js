@@ -2,7 +2,7 @@ import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 
-import ws from 'next/dist/compiled/ws'
+import ws from 'ws'
 
 import type { OutputState } from '../../build/output/store'
 import { store as consoleStore } from '../../build/output/store'

@@ -3,7 +3,7 @@ import path from 'path'
 
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
 import type { NecessaryDependencies } from './has-necessary-dependencies'
-import semver from 'next/dist/compiled/semver'
+import semver from 'semver'
 import { CompileError } from './compile-error'
 import * as log from '../build/output/log'
 

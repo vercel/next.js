@@ -4,7 +4,7 @@ import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
-import fresh from 'next/dist/compiled/fresh'
+import fresh from 'fresh'
 import { formatRevalidate } from './lib/revalidate'
 import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 
@@ -80,7 +80,7 @@ export async function sendRenderResult({
       etagPayload = payload.split('\n').sort().join('\n')
     } else if (type === 'html' && payload.includes('__next_f')) {
       const { parse } =
-        require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+        require('node-html-parser') as typeof import('node-html-parser')
 
       try {
         // Parse the HTML

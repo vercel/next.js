@@ -2,9 +2,9 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from 'next/types'
 import type { __ApiPreviewProps } from '../.'
-import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { CookieSerializeOptions } from 'cookie'
 
-import bytes from 'next/dist/compiled/bytes'
+import bytes from 'bytes'
 import { generateETag } from '../../lib/etag'
 import { sendEtagResponse } from '../../send-payload'
 import { Stream } from 'stream'
@@ -143,8 +143,7 @@ function setDraftMode<T>(
   // To delete a cookie, set `expires` to a date in the past:
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -181,8 +180,7 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
-  const jsonwebtoken =
-    require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
+  const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
   const { encryptWithSecret } =
     require('../../crypto-utils') as typeof import('../../crypto-utils')
   const payload = jsonwebtoken.sign(
@@ -209,8 +207,7 @@ function setPreviewData<T>(
     )
   }
 
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

@@ -76,7 +76,7 @@ export function tryGetPreviewData(
   }
   try {
     const jsonwebtoken =
-      require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
+      require('jsonwebtoken') as typeof import('jsonwebtoken')
     encryptedPreviewData = jsonwebtoken.verify(
       tokenPreviewData,
       options.previewModeSigningKey

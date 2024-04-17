@@ -1,5 +1,5 @@
 import { red } from './picocolors'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from 'jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'

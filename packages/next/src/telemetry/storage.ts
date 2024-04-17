@@ -1,15 +1,15 @@
 import type { BinaryLike } from 'crypto'
 import { bold, cyan, magenta } from '../lib/picocolors'
-import Conf from 'next/dist/compiled/conf'
+import Conf from 'conf'
 import { createHash, randomBytes } from 'crypto'
-import isDockerFunction from 'next/dist/compiled/is-docker'
+import isDockerFunction from 'is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
 import * as ciEnvironment from './ci-info'
 import { _postPayload } from './post-payload'
 import { getRawProjectId } from './project-id'
-import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
+import { AbortController } from '@edge-runtime/ponyfill'
 import fs from 'fs'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.

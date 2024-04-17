@@ -21,6 +21,21 @@ module.exports = function (task) {
       options.externals = { ...options.externals }
       delete options.externals[options.packageName]
     }
+    if (options.externals) {
+      for (const [key, val] of Object.entries(options.externals)) {
+        let newVal = val.replace(/^next\/dist\/node_modules\//, '')
+        let newKey = key.replace(/^next\/dist\/node_modules\//, '')
+
+        if (newKey !== key) {
+          delete options.externals[key]
+          options.externals[newKey] = val
+        }
+        if (newVal !== val) {
+          options.externals[newKey] = newVal
+        }
+      }
+    }
+
     let precompiled = options.precompiled !== false
     delete options.precompiled
 
@@ -81,9 +96,10 @@ function writePackageManifest(
 
   const compiledPackagePath = join(
     __dirname,
-    `${!precompiled ? 'dist/' : ''}src/compiled/${bundleName || packageName}`
+    `${!precompiled ? 'dist/' : 'src/'}node_modules/${
+      bundleName || packageName
+    }`
   )
-
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
   if (existsSync(potentialLicensePath)) {
     this._.files.push({

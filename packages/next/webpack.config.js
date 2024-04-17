@@ -23,38 +23,38 @@ const pagesExternals = [
 const appExternals = [
   // Externalize the react-dom/server legacy implementation outside of the runtime.
   // If users are using them and imported from 'react-dom/server' they will get the external asset bundled.
-  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js',
-  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.min.js',
-  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js',
-  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.min.js',
+  'react-dom/cjs/react-dom-server-legacy.browser.development.js',
+  'react-dom/cjs/react-dom-server-legacy.browser.production.min.js',
+  'react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js',
+  'react-dom-experimental/cjs/react-dom-server-legacy.browser.production.min.js',
 ]
 
 function makeAppAliases(reactChannel = '') {
   return {
-    react$: `next/dist/compiled/react${reactChannel}`,
-    'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
-    'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
-    'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
-    'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    react$: `react${reactChannel}`,
+    'react/react.react-server$': `react${reactChannel}/react.react-server`,
+    'react-dom/server-rendering-stub$': `react-dom${reactChannel}/server-rendering-stub`,
+    // 'react-dom$': `react-dom${reactChannel}/server-rendering-stub`,
+    'react/jsx-runtime$': `react${reactChannel}/jsx-runtime`,
+    'react/jsx-dev-runtime$': `react${reactChannel}/jsx-dev-runtime`,
+    'react-dom/client$': `react-dom${reactChannel}/client`,
+    'react-dom/server$': `react-dom${reactChannel}/server`,
+    'react-dom/static$': `react-dom-experimental/static`,
+    'react-dom/static.edge$': `react-dom-experimental/static.edge`,
+    'react-dom/static.browser$': `react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}`,
     // In Next.js runtime only use react-dom/server.edge
     'react-dom/server.browser$': 'react-dom/server.edge',
     // react-server-dom-webpack alias
-    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
-    'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
-    'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
-    'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
+    'react-server-dom-turbopack/client$': `react-server-dom-turbopack${reactChannel}/client`,
+    'react-server-dom-turbopack/client.edge$': `react-server-dom-turbopack${reactChannel}/client.edge`,
+    'react-server-dom-turbopack/server.edge$': `react-server-dom-turbopack${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/server.node$': `react-server-dom-turbopack${reactChannel}/server.node`,
+    'react-server-dom-webpack/client$': `react-server-dom-webpack${reactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `react-server-dom-webpack${reactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `react-server-dom-webpack${reactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `react-server-dom-webpack${reactChannel}/server.node`,
   }
 }
 
@@ -65,19 +65,19 @@ const sharedExternals = [
   'styled-jsx',
   'styled-jsx/style',
   '@opentelemetry/api',
-  'next/dist/compiled/@ampproject/toolbox-optimizer',
-  'next/dist/compiled/edge-runtime',
-  'next/dist/compiled/@edge-runtime/ponyfill',
-  'next/dist/compiled/undici',
-  'next/dist/compiled/raw-body',
+  '@ampproject/toolbox-optimizer',
+  'edge-runtime',
+  '@edge-runtime/ponyfill',
+  'undici',
+  'raw-body',
   'next/dist/server/capsize-font-metrics.json',
   'critters',
-  'next/dist/compiled/node-html-parser',
-  'next/dist/compiled/compression',
-  'next/dist/compiled/jsonwebtoken',
-  'next/dist/compiled/@opentelemetry/api',
-  'next/dist/compiled/@mswjs/interceptors/ClientRequest',
-  'next/dist/compiled/ws',
+  'node-html-parser',
+  'compression',
+  'jsonwebtoken',
+  '@opentelemetry/api',
+  '@mswjs/interceptors/ClientRequest',
+  'ws',
 ]
 
 const externalsMap = {
@@ -124,7 +124,16 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
           path.join(__dirname, '..'),
           resolved.replace('esm' + path.sep, '')
         )
-        callback(null, `commonjs ${relative}`)
+        const ext = path.extname(relative)
+
+        callback(
+          null,
+          `commonjs ${
+            ext === '.js' && ext !== path.extname(request)
+              ? relative.replace(/\.js$/, '')
+              : relative
+          }`
+        )
       } else {
         const regexMatch = Object.keys(externalsRegexMap).find((regex) =>
           new RegExp(regex).test(request)
@@ -143,7 +152,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     target: 'node',
     mode: 'production',
     output: {
-      path: path.join(__dirname, 'dist/compiled/next-server'),
+      path: path.join(__dirname, 'dist/node_modules/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
         experimental ? '-experimental' : ''
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
@@ -233,16 +242,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
           resolve: {
             conditionNames: ['react-server', '...'],
             alias: {
-              react$: `next/dist/compiled/react${
+              react$: `react${
                 experimental ? '-experimental' : ''
               }/react.react-server`,
-              'next/dist/compiled/react$': `next/dist/compiled/react${
-                experimental ? '-experimental' : ''
-              }/react.react-server`,
-              'react-dom$': `next/dist/compiled/react-dom${
-                experimental ? '-experimental' : ''
-              }/react-dom.react-server`,
-              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
+              'react-dom$': `react-dom${
                 experimental ? '-experimental' : ''
               }/react-dom.react-server`,
             },
@@ -254,16 +257,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
           resolve: {
             conditionNames: ['react-server', '...'],
             alias: {
-              react$: `next/dist/compiled/react${
+              react$: `react${
                 experimental ? '-experimental' : ''
               }/react.react-server`,
-              'next/dist/compiled/react$': `next/dist/compiled/react${
-                experimental ? '-experimental' : ''
-              }/react.react-server`,
-              'react-dom$': `next/dist/compiled/react-dom${
-                experimental ? '-experimental' : ''
-              }/react-dom.react-server`,
-              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
+              'react-dom$': `react-dom${
                 experimental ? '-experimental' : ''
               }/react-dom.react-server`,
             },

@@ -4,7 +4,7 @@ import type { Span } from '../trace'
 
 import path from 'path'
 import * as Log from './output/log'
-import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
+import { Worker as JestWorker } from 'jest-worker'
 import { verifyAndLint } from '../lib/verifyAndLint'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'

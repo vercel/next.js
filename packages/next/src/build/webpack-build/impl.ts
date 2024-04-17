@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'webpack/webpack'
 import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
@@ -37,7 +37,7 @@ import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoint
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 
-import origDebug from 'next/dist/compiled/debug'
+import origDebug from 'debug'
 import { Telemetry } from '../../telemetry/storage'
 
 const debug = origDebug('next:build:webpack-build')

@@ -1,11 +1,11 @@
 import type { IncomingMessage } from 'http'
-import type { Key } from 'next/dist/compiled/path-to-regexp'
+import type { Key } from 'path-to-regexp'
 import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { Params } from './route-matcher'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
-import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { compile, pathToRegexp } from 'path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 import {

@@ -5,11 +5,11 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
 
-import { urlToRequest } from 'next/dist/compiled/loader-utils3'
-import modulesValues from 'next/dist/compiled/postcss-modules-values'
-import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
-import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
-import modulesScope from 'next/dist/compiled/postcss-modules-scope'
+import { urlToRequest } from 'loader-utils3'
+import modulesValues from 'postcss-modules-values'
+import localByDefault from 'postcss-modules-local-by-default'
+import extractImports from 'postcss-modules-extract-imports'
+import modulesScope from 'postcss-modules-scope'
 import camelCase from './camelcase'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'

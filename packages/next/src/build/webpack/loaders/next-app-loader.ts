@@ -1,4 +1,4 @@
-import type webpack from 'next/dist/compiled/webpack/webpack'
+import type webpack from 'webpack/webpack'
 import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,

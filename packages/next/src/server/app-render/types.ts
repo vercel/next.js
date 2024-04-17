@@ -12,7 +12,7 @@ import type {
   LoadingModuleData,
 } from '../../shared/lib/app-router-context.shared-runtime'
 
-import s from 'next/dist/compiled/superstruct'
+import * as s from 'superstruct'
 
 export type DynamicParamTypes =
   | 'catchall'

@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { SizeLimit } from 'next/types'
 
-import { parse } from 'next/dist/compiled/content-type'
+import { parse } from 'content-type'
 import isError from '../../../lib/is-error'
 import { ApiError } from '../index'
 
@@ -42,8 +42,7 @@ export async function parseBody(
   let buffer
 
   try {
-    const getRawBody =
-      require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
+    const getRawBody = require('raw-body') as typeof import('raw-body')
     buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
     if (isError(e) && e.type === 'entity.too.large') {

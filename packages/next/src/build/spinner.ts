@@ -1,4 +1,4 @@
-import ora from 'next/dist/compiled/ora'
+import ora from 'ora'
 import * as Log from './output/log'
 
 const dotsSpinner = {

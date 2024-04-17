@@ -21,7 +21,7 @@ import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-ma
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 import fs from 'fs'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from 'jest-worker'
 import { join as pathJoin } from 'path'
 import { ampValidation } from '../../build/output'
 import {
@@ -58,7 +58,7 @@ import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-provide
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import LRUCache from 'lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
@@ -175,7 +175,7 @@ export default class DevServer extends Server {
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
       const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
+        require('amphtml-validator') as typeof import('amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(

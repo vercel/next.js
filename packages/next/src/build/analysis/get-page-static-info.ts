@@ -2,8 +2,8 @@ import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
-import LRUCache from 'next/dist/compiled/lru-cache'
-import picomatch from 'next/dist/compiled/picomatch'
+import LRUCache from 'lru-cache'
+import picomatch from 'picomatch'
 import type { ServerRuntime } from 'next/types'
 import {
   extractExportedConstValue,

@@ -21,8 +21,8 @@
 // CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type ws from 'next/dist/compiled/ws'
+import type { webpack } from 'webpack/webpack'
+import type ws from 'ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'

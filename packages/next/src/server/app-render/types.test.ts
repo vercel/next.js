@@ -1,5 +1,5 @@
 import { flightRouterStateSchema } from './types'
-import { assert } from 'next/dist/compiled/superstruct'
+import { assert } from 'superstruct'
 
 const validFixtures = [
   [

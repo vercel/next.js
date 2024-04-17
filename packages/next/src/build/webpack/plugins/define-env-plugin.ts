@@ -3,7 +3,7 @@ import type {
   NextConfigComplete,
 } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
 
 function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
