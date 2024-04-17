@@ -1162,9 +1162,7 @@
     },
     "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
       "passed": [],
-      "failed": [
-        "useReportWebVitals hook should send web-vitals to vercel-insights"
-      ],
+      "failed": ["useReportWebVitals hook should send web-vitals"],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2162,6 +2160,18 @@
         "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
       ],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/not-found/multi-root-layout/index.test.ts": {
+      "passed": [
+        "not-found-multi-root-layout should render main not-found",
+        "not-found-multi-root-layout should render sub not-found"
+      ],
+      "failed": [
+        "not-found-multi-root-layout should render root not-found for uncaught routes"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -14593,7 +14603,8 @@
       "passed": [],
       "failed": [
         "app-dir client-components-tree-shaking should only include imported components 3rd party package in browser bundle with direct imports",
-        "app-dir client-components-tree-shaking should only include imported relative components in browser bundle with direct imports"
+        "app-dir client-components-tree-shaking should only include imported relative components in browser bundle with direct imports",
+        "app-dir client-components-tree-shaking should only include the imported identifier of CJS module in browser bundle"
       ],
       "pending": [],
       "flakey": [],

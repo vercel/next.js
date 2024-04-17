@@ -8,6 +8,7 @@ import type {
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState } from '../../server/app-render/types'
 import React from 'react'
+import type { ErrorComponent } from '../../client/components/error-boundary'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -18,6 +19,10 @@ export type CacheNode = ReadyCacheNode | LazyCacheNode
 
 export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
+  | null
+
+export type ErrorModuleData =
+  | [ErrorComponent, React.ReactNode, React.ReactNode]
   | null
 
 export type LazyCacheNode = {
@@ -59,6 +64,7 @@ export type LazyCacheNode = {
   head: React.ReactNode
 
   loading: LoadingModuleData
+  error: ErrorModuleData
 
   /**
    * Child parallel routes.
@@ -106,6 +112,7 @@ export type ReadyCacheNode = {
   head: React.ReactNode
 
   loading: LoadingModuleData
+  error: ErrorModuleData
 
   parallelRoutes: Map<string, ChildSegmentMap>
 }
@@ -160,6 +167,7 @@ export const LayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   url: string
   loading: LoadingModuleData
+  error: ErrorModuleData
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{

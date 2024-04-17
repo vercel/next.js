@@ -156,8 +156,7 @@ jobs:
               set -e &&
               apt update &&
               apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup show &&
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
@@ -177,8 +176,7 @@ jobs:
               set -e &&
               apk update &&
               apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup show &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-musl &&
@@ -197,8 +195,7 @@ jobs:
               apt update &&
               apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup show &&
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
@@ -220,8 +217,7 @@ jobs:
               apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup show &&
               rustup target add aarch64-unknown-linux-musl &&
               cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x native/next-swc.*.node
@@ -255,11 +251,11 @@ jobs:
           check-latest: true
       - run: corepack enable
 
+      # we always want to run this to set environment variables
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.settings.target }}
-          skip-install: ${{ matrix.settings.docker }}
 
       - name: normalize versions
         run: node scripts/normalize-version-bump.js
@@ -269,11 +265,14 @@ jobs:
         if: ${{ matrix.settings.setup }}
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
         with:
           save-if: 'true'
           cache-provider: 'turbo'
           shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
+
+      - name: Clear native build
+        run: rm -rf packages/next-swc/native
 
       # we only need custom caching for docker builds
       # as they are on an older Node.js version and have
@@ -289,7 +288,7 @@ jobs:
 
       - name: Build in docker
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock"  -e RUST_TOOLCHAIN -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_REMOTE_ONLY -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
+        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_REMOTE_ONLY -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
 
       - name: cache build
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
