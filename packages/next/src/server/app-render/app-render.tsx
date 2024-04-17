@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type {
   ActionResult,
   DynamicParamTypesShort,
@@ -16,6 +15,8 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import React from 'react'
 
@@ -107,6 +108,7 @@ import {
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
+import { isNodeNextRequest } from '../base-http/helpers'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -137,12 +139,12 @@ export type AppRenderContext = AppRenderBaseContext & {
   requestId: string
   defaultRevalidate: Revalidate
   pagePath: string
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
   flightDataRendererErrorHandler: ErrorHandler
   serverComponentsErrorHandler: ErrorHandler
   isNotFoundPath: boolean
-  res: ServerResponse
+  res: BaseNextResponse
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -457,9 +459,10 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         couldBeIntercepted={couldBeIntercepted}
         initialHead={
           <>
-            {ctx.res.statusCode > 400 && (
-              <meta name="robots" content="noindex" />
-            )}
+            {typeof ctx.res.statusCode === 'number' &&
+              ctx.res.statusCode > 400 && (
+                <meta name="robots" content="noindex" />
+              )}
             {/* Adding requestId as react key to make metadata remount for each render */}
             <MetadataTree key={ctx.requestId} />
           </>
@@ -513,7 +516,9 @@ async function ReactServerError({
     <>
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={requestId} />
-      {res.statusCode >= 400 && <meta name="robots" content="noindex" />}
+      {typeof res.statusCode === 'number' && res.statusCode >= 400 && (
+        <meta name="robots" content="noindex" />
+      )}
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
@@ -535,6 +540,7 @@ async function ReactServerError({
       <head></head>
       <body></body>
     </html>,
+    null,
     null,
   ]
   return (
@@ -580,8 +586,8 @@ function ReactServerEntrypoint<T>({
 export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
 
 async function renderToHTMLOrFlightImpl(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
@@ -619,8 +625,13 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
-  if (typeof req.on === 'function') {
-    req.on('end', () => {
+  if (
+    // The type check here ensures that `req` is correctly typed, and the
+    // environment variable check provides dead code elimination.
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    isNodeNextRequest(req)
+  ) {
+    req.originalRequest.on('end', () => {
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
         if (metrics) {
@@ -1412,8 +1423,8 @@ async function renderToHTMLOrFlightImpl(
 }
 
 export type AppPageRender = (
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts

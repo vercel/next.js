@@ -168,9 +168,9 @@ export default function ({
                 t.binaryExpression(
                   '+',
                   t.stringLiteral(
-                    (state.file.opts.caller?.pagesDir
+                    (state.file.opts.caller?.cwd
                       ? relativePath(
-                          state.file.opts.caller.pagesDir,
+                          state.file.opts.caller.cwd,
                           state.file.opts.filename
                         )
                       : state.file.opts.filename) + ' -> '

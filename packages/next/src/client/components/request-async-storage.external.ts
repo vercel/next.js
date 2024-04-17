@@ -5,12 +5,17 @@ import type { ReadonlyHeaders } from '../../server/web/spec-extension/adapters/h
 import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/adapters/request-cookies'
 
 import { createAsyncLocalStorage } from './async-local-storage'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 export interface RequestStore {
   readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
+  readonly reactLoadableManifest: DeepReadonly<
+    Record<string, { files: string[] }>
+  >
+  readonly assetPrefix: string
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

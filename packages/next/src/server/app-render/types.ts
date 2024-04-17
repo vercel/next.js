@@ -6,7 +6,11 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type {
+  ErrorModuleData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -88,7 +92,8 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   node: React.ReactNode | null,
-  loading: LoadingModuleData
+  loading: LoadingModuleData,
+  error: ErrorModuleData
 ]
 
 export type FlightDataPath =
@@ -126,14 +131,14 @@ export interface RenderOptsPartial {
   buildId: string
   basePath: string
   trailingSlash: boolean
-  clientReferenceManifest?: ClientReferenceManifest
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
-  nextFontManifest?: NextFontManifest
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean

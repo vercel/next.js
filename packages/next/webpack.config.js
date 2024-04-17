@@ -177,6 +177,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
         'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
         'this.minimalMode': JSON.stringify(true),
         'this.renderOpts.dev': JSON.stringify(dev),
+        'renderOpts.dev': JSON.stringify(dev),
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),

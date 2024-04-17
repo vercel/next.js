@@ -9,7 +9,6 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render/types'
-import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, {
@@ -358,6 +357,7 @@ function InnerLayoutRouter({
       parallelRoutes: new Map(),
       lazyDataResolved: false,
       loading: null,
+      error: null,
     }
 
     /**
@@ -437,10 +437,10 @@ function InnerLayoutRouter({
       // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
       // the patch to the tree.
       childNode.lazyDataResolved = true
-    }
 
-    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(unresolvedThenable) as never
+      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+      use(unresolvedThenable) as never
+    }
   }
 
   // If we get to this point, then we know we have something we can render.
@@ -453,6 +453,7 @@ function InnerLayoutRouter({
         // TODO-APP: overriding of url for parallel routes
         url: url,
         loading: childNode.loading,
+        error: childNode.error,
       }}
     >
       {resolvedRsc}
@@ -507,9 +508,6 @@ function LoadingBoundary({
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
-  error,
-  errorStyles,
-  errorScripts,
   templateStyles,
   templateScripts,
   template,
@@ -519,9 +517,6 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
-  error: ErrorComponent | undefined
-  errorStyles: React.ReactNode | undefined
-  errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
@@ -534,7 +529,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url, loading } = context
+  const { childNodes, tree, url, loading, error } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -580,9 +575,9 @@ export default function OuterLayoutRouter({
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
                 <ErrorBoundary
-                  errorComponent={error}
-                  errorStyles={errorStyles}
-                  errorScripts={errorScripts}
+                  errorComponent={error?.[0]}
+                  errorStyles={error?.[1]}
+                  errorScripts={error?.[2]}
                 >
                   <LoadingBoundary
                     hasLoading={Boolean(loading)}
