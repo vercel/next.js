@@ -31,6 +31,23 @@ createNextDescribe(
       })
     })
 
+    it('should only apply corresponding css for page loaded in edge runtime', async () => {
+      const browser = await next.browser('/ssr/edge')
+      await retry(async () => {
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('.text')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+        // Default border width, which is not effected by bar.css that is not loaded in /ssr
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('.text')).borderWidth`
+          )
+        ).toBe('0px')
+      })
+    })
+
     it('should only apply corresponding css for page loaded that /another', async () => {
       const browser = await next.browser('/another')
       await retry(async () => {
@@ -46,6 +63,11 @@ createNextDescribe(
           )
         ).toBe('1px')
       })
+    })
+
+    it('should not throw with accessing to ALS in preload css', async () => {
+      const output = next.cliOutput
+      expect(output).not.toContain('was called outside a request scope')
     })
   }
 )

@@ -139,6 +139,32 @@ createNextDescribe(
       ).toBeGreaterThanOrEqual(currentTimestamp)
     })
 
+    it('should not log errors for non-action form POSTs', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/non-action-form')
+      await browser.elementByCss('button').click()
+
+      await check(() => browser.url(), next.url + '/', true, 2)
+
+      // we don't have access to runtime logs on deploy
+      if (!isNextDeploy) {
+        await check(() => {
+          return logs.some((log) =>
+            log.includes('Failed to find Server Action "null"')
+          )
+            ? 'error'
+            : ''
+        }, '')
+      }
+    })
+
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie')
@@ -311,6 +337,19 @@ createNextDescribe(
       await check(() => browser.url(), `${next.url}/client`, true, 2)
     })
 
+    it('should not block router.back() while a server action is in flight', async () => {
+      let browser = await next.browser('/')
+
+      // click /client link to add a history entry
+      await browser.elementByCss("[href='/client']").click()
+      await browser.elementByCss('#slow-inc').click()
+
+      await browser.back()
+
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/`, true, 2)
+    })
+
     it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
       let browser = await next.browser('/client')
       const initialRandomNumber = await browser
@@ -330,6 +369,31 @@ createNextDescribe(
 
         return newRandomNumber === initialRandomNumber ? 'fail' : 'success'
       }, 'success')
+    })
+
+    it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
+      let browser = await next.browser('/revalidate')
+      let initialJustPutit = await browser.elementById('justputit').text()
+
+      // this triggers a revalidate + redirect in a client component
+      await browser.elementById('redirect-revalidate-client').click()
+      await retry(async () => {
+        const newJustPutIt = await browser.elementById('justputit').text()
+        expect(newJustPutIt).not.toBe(initialJustPutit)
+
+        expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
+      })
+
+      // this triggers a revalidate + redirect in a server component
+      browser = await next.browser('/revalidate')
+      initialJustPutit = await browser.elementById('justputit').text()
+      await browser.elementById('redirect-revalidate').click()
+      await retry(async () => {
+        const newJustPutIt = await browser.elementById('justputit').text()
+        expect(newJustPutIt).not.toBe(initialJustPutit)
+
+        expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
+      })
     })
 
     it('should support next/dynamic with ssr: false', async () => {

@@ -4,6 +4,7 @@ node_modules
 **/.vscode/**
 **/dist/**
 e2e-tests/**
+examples/cms-sanity/sanity.types.ts
 examples/with-eslint/**
 examples/with-typescript-eslint-jest/**
 examples/with-kea/**

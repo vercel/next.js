@@ -310,7 +310,13 @@ function createPatchedFetcher(
           _cache === 'no-cache' ||
           _cache === 'no-store' ||
           fetchCacheMode === 'force-no-store' ||
-          fetchCacheMode === 'only-no-store'
+          fetchCacheMode === 'only-no-store' ||
+          // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
+          // we shouldn't consider caching the fetch. This is because the `dynamic` cache
+          // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
+          // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
+          // other configurations.
+          (!fetchCacheMode && staticGenerationStore.forceDynamic)
         ) {
           curRevalidate = 0
         }
@@ -662,6 +668,7 @@ function createPatchedFetcher(
             const err = new DynamicServerError(dynamicUsageReason)
             staticGenerationStore.dynamicUsageErr = err
             staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+            throw err
           }
 
           const hasNextConfig = 'next' in init
@@ -689,6 +696,7 @@ function createPatchedFetcher(
               const err = new DynamicServerError(dynamicUsageReason)
               staticGenerationStore.dynamicUsageErr = err
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              throw err
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {
