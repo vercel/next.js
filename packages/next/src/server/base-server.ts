@@ -102,7 +102,7 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
-import { getTracer, SpanKind } from './lib/trace/tracer'
+import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
@@ -1390,7 +1390,11 @@ export default abstract class Server<
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (this.minimalMode || this.renderOpts.dev || (err as any).bubble) {
+      if (
+        this.minimalMode ||
+        this.renderOpts.dev ||
+        (isBubbledError(err) && err.bubble)
+      ) {
         throw err
       }
       this.logError(getProperError(err))
