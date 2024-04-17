@@ -29,7 +29,7 @@ import type {
   PreviewData,
   ServerRuntime,
   SizeLimit,
-} from 'next/types'
+} from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
@@ -81,11 +81,8 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type PagesRenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
-  streamFromString,
   streamToString,
-  chainStreams,
   renderToInitialFizzStream,
-  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -470,11 +467,6 @@ export async function renderToHTMLImpl(
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
-
-  let serverComponentsInlinedTransformStream: TransformStream<
-    Uint8Array,
-    Uint8Array
-  > | null = null
 
   const isFallback = !!query.__nextFallback
   const notFoundSrcPage = query.__nextNotFoundSrcPage
@@ -1246,7 +1238,7 @@ export async function renderToHTMLImpl(
     }
 
     async function loadDocumentInitialProps(
-      renderShell?: (
+      renderShell: (
         _App: AppType,
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
@@ -1277,26 +1269,10 @@ export async function renderToHTMLImpl(
         const { App: EnhancedApp, Component: EnhancedComponent } =
           enhanceComponents(options, App, Component)
 
-        if (renderShell) {
-          return renderShell(EnhancedApp, EnhancedComponent).then(
-            async (stream) => {
-              await stream.allReady
-              const html = await streamToString(stream)
-              return { html, head }
-            }
-          )
-        }
+        const stream = await renderShell(EnhancedApp, EnhancedComponent)
+        await stream.allReady
+        const html = await streamToString(stream)
 
-        const html = await renderToString(
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              {renderPageTree(EnhancedApp, EnhancedComponent, {
-                ...props,
-                router,
-              })}
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
         return { html, head }
       }
       const documentCtx = { ...ctx, renderPage }
@@ -1349,48 +1325,39 @@ export async function renderToHTMLImpl(
       })
     }
 
-    const createBodyResult = getTracer().wrap(
-      RenderSpan.createBodyResult,
-      (initialStream: ReactReadableStream, suffix?: string) => {
-        return continueFizzStream(initialStream, {
-          suffix,
-          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
-          isStaticGeneration: true,
-          // this must be called inside bodyResult so appWrappers is
-          // up to date when `wrapApp` is called
-          getServerInsertedHTML: () => {
-            return renderToString(styledJsxInsertedHTML())
-          },
-          serverInsertedHTMLToHead: false,
-          validateRootLayout: undefined,
-        })
-      }
-    )
-
-    const hasDocumentGetInitialProps = !(
-      process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
-    )
-
-    let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
+    const hasDocumentGetInitialProps =
+      process.env.NEXT_RUNTIME !== 'edge' && !!Document.getInitialProps
 
     // If it has getInitialProps, we will render the shell in `renderPage`.
     // Otherwise we do it right now.
     let documentInitialPropsRes:
       | {}
       | Awaited<ReturnType<typeof loadDocumentInitialProps>>
-    if (hasDocumentGetInitialProps) {
-      documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
-      if (documentInitialPropsRes === null) return null
-      const { docProps } = documentInitialPropsRes as any
-      // includes suffix in initial html stream
-      bodyResult = (suffix: string) =>
-        createBodyResult(streamFromString(docProps.html + suffix))
-    } else {
-      const stream = await renderShell(App, Component)
-      bodyResult = (suffix: string) => createBodyResult(stream, suffix)
-      documentInitialPropsRes = {}
+
+    const [rawStyledJsxInsertedHTML, content] = await Promise.all([
+      renderToString(styledJsxInsertedHTML()),
+      (async () => {
+        if (hasDocumentGetInitialProps) {
+          documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
+          if (documentInitialPropsRes === null) return null
+          const { docProps } = documentInitialPropsRes as any
+          return docProps.html
+        } else {
+          documentInitialPropsRes = {}
+          const stream = await renderShell(App, Component)
+          await stream.allReady
+          return streamToString(stream)
+        }
+      })(),
+    ])
+
+    if (content === null) {
+      return null
     }
 
+    const contentHTML = rawStyledJsxInsertedHTML + content
+
+    // @ts-ignore: documentInitialPropsRes is set
     const { docProps } = (documentInitialPropsRes as any) || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {
@@ -1410,7 +1377,7 @@ export async function renderToHTMLImpl(
     }
 
     return {
-      bodyResult,
+      contentHTML,
       documentElement,
       head,
       headTags: [],
@@ -1577,12 +1544,7 @@ export async function renderToHTMLImpl(
     prefix += '<!-- __NEXT_DATA__ -->'
   }
 
-  const content = await streamToString(
-    chainStreams(
-      streamFromString(prefix),
-      await documentResult.bodyResult(renderTargetSuffix)
-    )
-  )
+  const content = prefix + documentResult.contentHTML + renderTargetSuffix
 
   const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
     inAmpMode,

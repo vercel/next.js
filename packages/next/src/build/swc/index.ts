@@ -227,8 +227,11 @@ export async function loadBindings(
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
     const isWebContainer = process.versions.webcontainer
+    // Normal execution relies on the param `useWasmBinary` flag to load, but
+    // in certain cases where there isn't a native binary we always load wasm fallback first.
     const shouldLoadWasmFallbackFirst =
-      (!disableWasmFallback && unsupportedPlatform && useWasmBinary) ||
+      (!disableWasmFallback && useWasmBinary) ||
+      unsupportedPlatform ||
       isWebContainer
 
     if (!unsupportedPlatform && useWasmBinary) {

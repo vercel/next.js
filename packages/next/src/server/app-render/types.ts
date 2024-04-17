@@ -1,13 +1,16 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime, SizeLimit } from '../../../types'
+import type { ServerRuntime, SizeLimit } from '../../types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type {
+  ErrorModuleData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -89,7 +92,8 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   node: React.ReactNode | null,
-  loading: LoadingModuleData
+  loading: LoadingModuleData,
+  error: ErrorModuleData
 ]
 
 export type FlightDataPath =
