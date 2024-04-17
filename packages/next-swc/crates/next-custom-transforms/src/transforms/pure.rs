@@ -2,23 +2,23 @@ use turbopack_binding::swc::core::{
     common::{comments::Comments, errors::HANDLER, util::take::Take, Span, Spanned, DUMMY_SP},
     ecma::{
         ast::{CallExpr, Callee, EmptyStmt, Expr, Module, ModuleDecl, ModuleItem, Stmt},
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+        visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     },
 };
 
 use crate::transforms::import_analyzer::ImportMap;
 
-pub fn pure_magic<C>(comments: C) -> impl Fold
+pub fn pure_magic<C>(comments: C) -> PureTransform<C>
 where
     C: Comments,
 {
-    as_folder(PureTransform {
+    PureTransform {
         imports: Default::default(),
         comments,
-    })
+    }
 }
 
-struct PureTransform<C>
+pub struct PureTransform<C>
 where
     C: Comments,
 {

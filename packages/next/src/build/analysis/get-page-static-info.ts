@@ -3,7 +3,7 @@ import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { matcher } from 'next/dist/compiled/micromatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import type { ServerRuntime } from 'next/types'
 import {
   extractExportedConstValue,
@@ -24,8 +24,22 @@ import { PAGE_TYPES } from '../../lib/page-types'
 // Don't forget to update the next-types-plugin file as well
 const AUTHORIZED_EXTRA_ROUTER_PROPS = ['maxDuration']
 
-export interface MiddlewareConfig {
+export interface MiddlewareConfigParsed
+  extends Omit<MiddlewareConfig, 'matcher'> {
   matchers?: MiddlewareMatcher[]
+}
+
+/**
+ * This interface represents the exported `config` object in a `middleware.ts` file.
+ *
+ * Read more: [Next.js Docs: Middleware `config` object](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#config-object-optional)
+ */
+export interface MiddlewareConfig {
+  /**
+   * Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher),
+   * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
+   */
+  matcher?: string | string[] | MiddlewareMatcher[]
   unstable_allowDynamicGlobs?: string[]
   regions?: string[] | string
 }
@@ -45,7 +59,7 @@ export interface PageStaticInfo {
   ssr?: boolean
   rsc?: RSCModuleType
   generateStaticParams?: boolean
-  middleware?: MiddlewareConfig
+  middleware?: MiddlewareConfigParsed
   amp?: boolean | 'hybrid'
   extraConfig?: Record<string, any>
 }
@@ -372,8 +386,8 @@ function getMiddlewareConfig(
   pageFilePath: string,
   config: any,
   nextConfig: NextConfig
-): Partial<MiddlewareConfig> {
-  const result: Partial<MiddlewareConfig> = {}
+): Partial<MiddlewareConfigParsed> {
+  const result: Partial<MiddlewareConfigParsed> = {}
 
   if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
@@ -395,7 +409,7 @@ function getMiddlewareConfig(
       : [config.unstable_allowDynamic]
     for (const glob of result.unstable_allowDynamicGlobs ?? []) {
       try {
-        matcher(glob)
+        picomatch(glob)
       } catch (err) {
         throw new Error(
           `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
@@ -503,14 +517,14 @@ export async function getPageStaticInfo(params: {
     const rsc = rscInfo.type
 
     // default / failsafe value for config
-    let config: any
+    let config: any // TODO: type this as unknown
     try {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
       if (e instanceof UnsupportedValueError) {
         warnAboutUnsupportedValue(pageFilePath, page, e)
       }
-      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+      // `export config` doesn't exist, or other unknown error thrown by swc, silence them
     }
 
     const extraConfig: Record<string, any> = {}

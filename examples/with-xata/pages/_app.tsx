@@ -1,15 +1,15 @@
-import type { AppProps } from 'next/app'
-import Head from 'next/head'
-import '../styles/root.css'
+import type { AppProps } from "next/app";
+import Head from "next/head";
+import "../styles/root.css";
 
 const metas = {
-  title: 'Next.js with-xata',
-  description: 'Run Next.js with Xata with this awesome template',
+  title: "Next.js with-xata",
+  description: "Run Next.js with Xata with this awesome template",
   image:
-    process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000/og.jpg'
-      : 'https://nextjs-with-xata.vercel.app/og.jpg',
-}
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:3000/og.jpg"
+      : "https://nextjs-with-xata.vercel.app/og.jpg",
+};
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -58,5 +58,5 @@ export default function App({ Component, pageProps }: AppProps) {
       </Head>
       <Component {...pageProps} />
     </>
-  )
+  );
 }

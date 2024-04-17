@@ -11,5 +11,5 @@ export default function SearchWidget() {
         </form>
       </div>
     </div>
-  )
+  );
 }

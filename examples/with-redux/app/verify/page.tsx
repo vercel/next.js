@@ -7,5 +7,5 @@ export default function VerifyPage() {
         page navigations.
       </p>
     </>
-  )
+  );
 }

@@ -1,7 +1,7 @@
 // Import react-foundation components
-import { Grid, Cell } from 'react-foundation'
+import { Grid, Cell } from "react-foundation";
 // Own custom component
-import { Card } from './Card'
+import { Card } from "./Card";
 
 export const Article = () => {
   return (
@@ -13,5 +13,5 @@ export const Article = () => {
         <Card isColumn />
       </Cell>
     </Grid>
-  )
-}
+  );
+};

@@ -91,6 +91,8 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
+  public resetRequestCache(): void {}
+
   private loadTagsManifest() {
     if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {

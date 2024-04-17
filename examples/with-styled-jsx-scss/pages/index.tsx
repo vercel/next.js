@@ -1,4 +1,4 @@
-const backgroundColor = '#eee'
+const backgroundColor = "#eee";
 
 export default function Home() {
   return (
@@ -22,5 +22,5 @@ export default function Home() {
         }
       `}</style>
     </div>
-  )
+  );
 }

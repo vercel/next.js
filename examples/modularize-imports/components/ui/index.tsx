@@ -4,4 +4,4 @@
 // export { HeadingLarge };
 
 // Flag as module for TypeScript
-export {}
+export {};

@@ -1,7 +1,11 @@
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
-import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
+import {
+  BARREL_OPTIMIZATION_PREFIX,
+  RSC_MODULE_TYPES,
+} from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
+import { formatBarrelOptimizedResource } from '../../utils'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
@@ -23,6 +27,26 @@ export default function transformSource(
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
+
+  // Resource key is the unique identifier for the resource. When RSC renders
+  // a client module, that key is used to identify that module across all compiler
+  // layers.
+  //
+  // Usually it's the module's file path + the export name (e.g. `foo.js#bar`).
+  // But with Barrel Optimizations, one file can be splitted into multiple modules,
+  // so when you import `foo.js#bar` and `foo.js#baz`, they are actually different
+  // "foo.js" being created by the Barrel Loader (one only exports `bar`, the other
+  // only exports `baz`).
+  //
+  // Because of that, we must add another query param to the resource key to
+  // differentiate them.
+  let resourceKey: string = this.resourcePath
+  if (this._module?.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+    resourceKey = formatBarrelOptimizedResource(
+      resourceKey,
+      this._module.matchResource
+    )
+  }
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
@@ -61,7 +85,7 @@ export default function transformSource(
 
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
-const proxy = createProxy(String.raw\`${this.resourcePath}\`)
+const proxy = createProxy(String.raw\`${resourceKey}\`)
 
 // Accessing the __esModule property and exporting $$typeof are required here.
 // The __esModule getter forces the proxy target to create the default export
@@ -73,14 +97,15 @@ const __default__ = proxy.default;
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = createProxy(String.raw\`${this.resourcePath}#\`);`
+          esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
         } else if (ref === 'default') {
-          esmSource += `
+          esmSource += `\
 export { __esModule, $$typeof };
-export default __default__;`
+export default createProxy(String.raw\`${resourceKey}#default\`);
+`
         } else {
           esmSource += `
-const e${cnt} = createProxy(String.raw\`${this.resourcePath}#${ref}\`);
+const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
 export { e${cnt++} as ${ref} };`
         }
       }

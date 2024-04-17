@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import Form from '@/components/form'
+import Head from "next/head";
+import Form from "@/components/form";
 
 export default function Contact() {
   return (
@@ -12,5 +12,5 @@ export default function Contact() {
         <Form />
       </div>
     </>
-  )
+  );
 }

@@ -1,25 +1,25 @@
-import type {
-  StaticGenerationStore,
-  StaticGenerationAsyncStorage,
-} from '../../../client/components/static-generation-async-storage.external'
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import {
   addImplicitTags,
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
+
+let noStoreFetchIdx = 0
 
 async function cacheNewResult<T>(
   result: T,
   incrementalCache: IncrementalCache,
   cacheKey: string,
   tags: string[],
-  revalidate: number | false | undefined
+  revalidate: number | false | undefined,
+  fetchIdx: number,
+  fetchUrl: string
 ): Promise<unknown> {
   await incrementalCache.set(
     cacheKey,
@@ -38,22 +38,29 @@ async function cacheNewResult<T>(
       revalidate,
       fetchCache: true,
       tags,
+      fetchIdx,
+      fetchUrl,
     }
   )
   return
 }
 
+/**
+ * This function allows you to cache the results of expensive operations, like database queries, and reuse them across multiple requests.
+ *
+ * Read more: [Next.js Docs: `unstable_cache`](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
+ */
 export function unstable_cache<T extends Callback>(
   cb: T,
   keyParts?: string[],
   options: {
+    /**
+     * The revalidation interval in seconds.
+     */
     revalidate?: number | false
     tags?: string[]
   } = {}
 ): T {
-  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-    (fetch as any).__nextGetStaticStore?.() || _staticGenerationAsyncStorage
-
   if (options.revalidate === 0) {
     throw new Error(
       `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${cb.toString()}`
@@ -83,8 +90,7 @@ export function unstable_cache<T extends Callback>(
   }`
 
   const cachedCb = async (...args: any[]) => {
-    const store: undefined | StaticGenerationStore =
-      staticGenerationAsyncStorage?.getStore()
+    const store = staticGenerationAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
@@ -104,8 +110,12 @@ export function unstable_cache<T extends Callback>(
     // the keyspace smaller than the execution space
     const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
     const cacheKey = await incrementalCache.fetchCacheKey(invocationKey)
+    const fetchUrl = `unstable_cache ${cb.name ? ` ${cb.name}` : cacheKey}`
+    const fetchIdx = (store ? store.nextFetchId : noStoreFetchIdx) ?? 1
 
     if (store) {
+      store.nextFetchId = fetchIdx + 1
+
       // We are in an App Router context. We try to return the cached entry if it exists and is valid
       // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
       // the background. If the entry is missing or invalid we generate a new entry and return it.
@@ -148,7 +158,8 @@ export function unstable_cache<T extends Callback>(
         // we should bypass cache similar to fetches
         store.fetchCache !== 'force-no-store' &&
         !store.isOnDemandRevalidate &&
-        !incrementalCache.isOnDemandRevalidate
+        !incrementalCache.isOnDemandRevalidate &&
+        !store.isDraftMode
       ) {
         // We attempt to get the current cache entry from the incremental cache.
         const cacheEntry = await incrementalCache.get(cacheKey, {
@@ -156,6 +167,7 @@ export function unstable_cache<T extends Callback>(
           revalidate: options.revalidate,
           tags,
           softTags: implicitTags,
+          fetchIdx,
         })
 
         if (cacheEntry && cacheEntry.value) {
@@ -172,7 +184,10 @@ export function unstable_cache<T extends Callback>(
           } else {
             // We have a valid cache entry so we will be returning it. We also check to see if we need
             // to background revalidate it by checking if it is stale.
-            const cachedResponse = JSON.parse(cacheEntry.value.data.body)
+            const cachedResponse =
+              cacheEntry.value.data.body !== undefined
+                ? JSON.parse(cacheEntry.value.data.body)
+                : undefined
             if (cacheEntry.isStale) {
               // In App Router we return the stale result and revalidate in the background
               if (!store.pendingRevalidates) {
@@ -198,7 +213,9 @@ export function unstable_cache<T extends Callback>(
                       incrementalCache,
                       cacheKey,
                       tags,
-                      options.revalidate
+                      options.revalidate,
+                      fetchIdx,
+                      fetchUrl
                     )
                   })
                   // @TODO This error handling seems wrong. We swallow the error?
@@ -232,10 +249,13 @@ export function unstable_cache<T extends Callback>(
         incrementalCache,
         cacheKey,
         tags,
-        options.revalidate
+        options.revalidate,
+        fetchIdx,
+        fetchUrl
       )
       return result
     } else {
+      noStoreFetchIdx += 1
       // We are in Pages Router or were called outside of a render. We don't have a store
       // so we just call the callback directly when it needs to run.
       // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
@@ -262,7 +282,9 @@ export function unstable_cache<T extends Callback>(
             // will fall through to generating a new cache entry below
           } else if (!cacheEntry.isStale) {
             // We have a valid cache entry and it is fresh so we return it
-            return JSON.parse(cacheEntry.value.data.body)
+            return cacheEntry.value.data.body !== undefined
+              ? JSON.parse(cacheEntry.value.data.body)
+              : undefined
           }
         }
       }
@@ -285,7 +307,7 @@ export function unstable_cache<T extends Callback>(
           isUnstableCacheCallback: true,
           urlPathname: '/',
           isStaticGeneration: false,
-          postpone: undefined,
+          prerenderState: null,
         },
         cb,
         ...args
@@ -295,7 +317,9 @@ export function unstable_cache<T extends Callback>(
         incrementalCache,
         cacheKey,
         tags,
-        options.revalidate
+        options.revalidate,
+        fetchIdx,
+        fetchUrl
       )
       return result
     }

@@ -1,34 +1,34 @@
-import { useState } from 'react'
-import { useChannel, usePresence } from '@ably-labs/react-hooks'
-import type { Types } from 'ably'
-import type { ProxyMessage, TextMessage } from '../types'
+import { useState } from "react";
+import { useChannel, usePresence } from "@ably-labs/react-hooks";
+import type { Types } from "ably";
+import type { ProxyMessage, TextMessage } from "../types";
 
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import Head from "next/head";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
 
 export default function Home() {
-  const [messages, setMessages] = useState<TextMessage[]>([])
+  const [messages, setMessages] = useState<TextMessage[]>([]);
 
   const [channel, ably] = useChannel(
-    'some-channel-name',
+    "some-channel-name",
     async (message: Types.Message) => {
-      console.log('Received Ably message', message)
-      setMessages((messages) => [...messages, message.data])
-    }
-  )
+      console.log("Received Ably message", message);
+      setMessages((messages) => [...messages, message.data]);
+    },
+  );
 
-  const [presenceData, updateStatus] = usePresence('your-channel-name')
+  const [presenceData, updateStatus] = usePresence("your-channel-name");
 
   const messageList = messages.map((message, index) => {
-    return <li key={index}>{message.text}</li>
-  })
+    return <li key={index}>{message.text}</li>;
+  });
 
   const presentClients = presenceData.map((msg, index) => (
     <li key={index}>
       {msg.clientId}: {msg.data}
     </li>
-  ))
+  ));
 
   return (
     <div className={styles.container}>
@@ -48,7 +48,7 @@ export default function Home() {
         <h2>Present Clients</h2>
         <button
           onClick={() => {
-            updateStatus('hello')
+            updateStatus("hello");
           }}
         >
           Update status to hello
@@ -61,8 +61,8 @@ export default function Home() {
           onClick={() => {
             const message: TextMessage = {
               text: `${ably.auth.clientId} sent a message`,
-            }
-            channel.publish('test-message', message)
+            };
+            channel.publish("test-message", message);
           }}
         >
           Send A Message
@@ -72,15 +72,15 @@ export default function Home() {
           onClick={() => {
             const proxyMessage: ProxyMessage = {
               sender: `${ably.auth.clientId}`,
-            }
+            };
 
-            fetch('/api/send-message', {
-              method: 'POST',
+            fetch("/api/send-message", {
+              method: "POST",
               headers: {
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
               },
               body: JSON.stringify(proxyMessage),
-            })
+            });
           }}
         >
           Send A Message From the Server
@@ -110,5 +110,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  )
+  );
 }

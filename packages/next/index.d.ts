@@ -9,6 +9,7 @@
 /// <reference path="./dynamic.d.ts" />
 /// <reference path="./error.d.ts" />
 /// <reference path="./head.d.ts" />
+/// <reference path="./headers.d.ts" />
 /// <reference path="./image.d.ts" />
 /// <reference path="./link.d.ts" />
 /// <reference path="./navigation.d.ts" />

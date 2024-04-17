@@ -41,7 +41,7 @@ impl NextDynamicEntryModule {
             bail!("dynamic client asset must be chunkable");
         };
 
-        Ok(client_chunking_context.root_chunk_group(client_entry_module))
+        Ok(client_chunking_context.root_chunk_group_assets(client_entry_module))
     }
 }
 

@@ -20,6 +20,8 @@ export function getSegmentParam(segment: string): {
 
   if (segment.startsWith('[[...') && segment.endsWith(']]')) {
     return {
+      // TODO-APP: Optional catchall does not currently work with parallel routes,
+      // so for now aren't handling a potential interception marker.
       type: 'optional-catchall',
       param: segment.slice(5, -2),
     }
@@ -27,14 +29,14 @@ export function getSegmentParam(segment: string): {
 
   if (segment.startsWith('[...') && segment.endsWith(']')) {
     return {
-      type: 'catchall',
+      type: interceptionMarker ? 'catchall-intercepted' : 'catchall',
       param: segment.slice(4, -1),
     }
   }
 
   if (segment.startsWith('[') && segment.endsWith(']')) {
     return {
-      type: 'dynamic',
+      type: interceptionMarker ? 'dynamic-intercepted' : 'dynamic',
       param: segment.slice(1, -1),
     }
   }

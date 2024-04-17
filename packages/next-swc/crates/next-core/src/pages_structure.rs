@@ -6,7 +6,7 @@ use turbopack_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
 };
 
-use crate::embed_js::next_js_file_path;
+use crate::next_import_map::get_next_package;
 
 /// A final route in the pages directory.
 #[turbo_tasks::value]
@@ -45,6 +45,11 @@ impl PagesStructureItem {
         this.next_router_path.await?;
         Ok(Completion::new())
     }
+
+    #[turbo_tasks::function]
+    pub fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project_path
+    }
 }
 
 /// A (sub)directory in the pages directory with all analyzed routes and
@@ -81,6 +86,21 @@ impl PagesStructure {
             pages.routes_changed().await?;
         }
         Ok(Completion::new())
+    }
+
+    #[turbo_tasks::function]
+    pub fn app(&self) -> Vc<PagesStructureItem> {
+        self.app
+    }
+
+    #[turbo_tasks::function]
+    pub fn document(&self) -> Vc<PagesStructureItem> {
+        self.document
+    }
+
+    #[turbo_tasks::function]
+    pub fn error(&self) -> Vc<PagesStructureItem> {
+        self.error
     }
 }
 
@@ -148,6 +168,7 @@ pub async fn find_pages_structure(
     .await?;
 
     Ok(get_pages_structure_for_root_directory(
+        project_root,
         pages_root,
         next_router_root,
         page_extensions,
@@ -157,6 +178,7 @@ pub async fn find_pages_structure(
 /// Handles the root pages directory.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_root_directory(
+    project_root: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPathOption>,
     next_router_path: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<String>>,
@@ -184,7 +206,7 @@ async fn get_pages_structure_for_root_directory(
                             "_app" => {
                                 let item_next_router_path =
                                     next_router_path.join("_app".to_string());
-                                let _ = app_item.insert(PagesStructureItem::new(
+                                app_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
                                     item_next_router_path,
@@ -193,7 +215,7 @@ async fn get_pages_structure_for_root_directory(
                             "_document" => {
                                 let item_next_router_path =
                                     next_router_path.join("_document".to_string());
-                                let _ = document_item.insert(PagesStructureItem::new(
+                                document_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
                                     item_next_router_path,
@@ -202,7 +224,7 @@ async fn get_pages_structure_for_root_directory(
                             "_error" => {
                                 let item_next_router_path =
                                     next_router_path.join("_error".to_string());
-                                let _ = error_item.insert(PagesStructureItem::new(
+                                error_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
                                     item_next_router_path,
@@ -226,7 +248,7 @@ async fn get_pages_structure_for_root_directory(
                     }
                     DirectoryEntry::Directory(dir_project_path) => match name.as_ref() {
                         "api" => {
-                            let _ = api_directory.insert(get_pages_structure_for_directory(
+                            api_directory = Some(get_pages_structure_for_directory(
                                 *dir_project_path,
                                 next_router_path.join(name.clone()),
                                 1,
@@ -272,7 +294,7 @@ async fn get_pages_structure_for_root_directory(
     } else {
         let app_router_path = next_router_path.join("_app".to_string());
         PagesStructureItem::new(
-            next_js_file_path("entry/pages/_app.tsx".to_string()),
+            get_next_package(project_root).join("app.js".to_string()),
             app_router_path,
             app_router_path,
         )
@@ -283,7 +305,7 @@ async fn get_pages_structure_for_root_directory(
     } else {
         let document_router_path = next_router_path.join("_document".to_string());
         PagesStructureItem::new(
-            next_js_file_path("entry/pages/_document.tsx".to_string()),
+            get_next_package(project_root).join("document.js".to_string()),
             document_router_path,
             document_router_path,
         )
@@ -294,7 +316,7 @@ async fn get_pages_structure_for_root_directory(
     } else {
         let error_router_path = next_router_path.join("_error".to_string());
         PagesStructureItem::new(
-            next_js_file_path("entry/pages/_error.tsx".to_string()),
+            get_next_package(project_root).join("error.js".to_string()),
             error_router_path,
             error_router_path,
         )
@@ -311,8 +333,7 @@ async fn get_pages_structure_for_root_directory(
 }
 
 /// Handles a directory in the pages directory (or the pages directory itself).
-/// Calls itself recursively for sub directories or the
-/// [create_page_source_for_file] method for files.
+/// Calls itself recursively for sub directories.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_directory(
     project_path: Vc<FileSystemPath>,
@@ -386,10 +407,9 @@ async fn get_pages_structure_for_directory(
 }
 
 fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a str> {
-    page_extensions.iter().find_map(|allowed| {
-        name.strip_suffix(allowed)
-            .and_then(|name| name.strip_suffix('.'))
-    })
+    page_extensions
+        .iter()
+        .find_map(|allowed| name.strip_suffix(allowed)?.strip_suffix('.'))
 }
 
 fn next_router_path_for_basename(

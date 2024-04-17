@@ -1,16 +1,16 @@
-import { PropsWithChildren } from 'react'
+import { PropsWithChildren } from "react";
 import {
   CacheLocation,
   FpjsProvider,
   LoadOptions,
-} from '@fingerprintjs/fingerprintjs-pro-react'
+} from "@fingerprintjs/fingerprintjs-pro-react";
 
-const fpjsPublicApiKey = process.env.NEXT_PUBLIC_FPJS_PUBLIC_API_KEY as string
+const fpjsPublicApiKey = process.env.NEXT_PUBLIC_FPJS_PUBLIC_API_KEY as string;
 
 export const InMemoryCache: React.FC<PropsWithChildren> = ({ children }) => {
   const loadOptions: LoadOptions = {
     apiKey: fpjsPublicApiKey,
-  }
+  };
 
   return (
     <FpjsProvider
@@ -28,5 +28,5 @@ export const InMemoryCache: React.FC<PropsWithChildren> = ({ children }) => {
         {children}
       </div>
     </FpjsProvider>
-  )
-}
+  );
+};

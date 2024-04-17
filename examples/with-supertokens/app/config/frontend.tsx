@@ -1,19 +1,19 @@
-import ThirdPartyEmailPasswordReact from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
-import Session from 'supertokens-auth-react/recipe/session'
-import { appInfo } from './appInfo'
-import { useRouter } from 'next/navigation'
-import { SuperTokensConfig } from 'supertokens-auth-react/lib/build/types'
-import { ThirdPartyEmailPasswordPreBuiltUI } from 'supertokens-auth-react/recipe/thirdpartyemailpassword/prebuiltui'
+import ThirdPartyEmailPasswordReact from "supertokens-auth-react/recipe/thirdpartyemailpassword";
+import Session from "supertokens-auth-react/recipe/session";
+import { appInfo } from "./appInfo";
+import { useRouter } from "next/navigation";
+import { SuperTokensConfig } from "supertokens-auth-react/lib/build/types";
+import { ThirdPartyEmailPasswordPreBuiltUI } from "supertokens-auth-react/recipe/thirdpartyemailpassword/prebuiltui";
 
 const routerInfo: { router?: ReturnType<typeof useRouter>; pathName?: string } =
-  {}
+  {};
 
 export function setRouter(
   router: ReturnType<typeof useRouter>,
-  pathName: string
+  pathName: string,
 ) {
-  routerInfo.router = router
-  routerInfo.pathName = pathName
+  routerInfo.router = router;
+  routerInfo.pathName = pathName;
 }
 
 export const frontendConfig = (): SuperTokensConfig => {
@@ -40,13 +40,13 @@ export const frontendConfig = (): SuperTokensConfig => {
           assign: (url) => routerInfo.router!.push(url.toString()),
           setHref: (url) => routerInfo.router!.push(url.toString()),
         },
-      }
+      };
     },
-  }
-}
+  };
+};
 
 export const recipeDetails = {
-  docsLink: 'https://supertokens.com/docs/thirdpartyemailpassword/introduction',
-}
+  docsLink: "https://supertokens.com/docs/thirdpartyemailpassword/introduction",
+};
 
-export const PreBuiltUIList = [ThirdPartyEmailPasswordPreBuiltUI]
+export const PreBuiltUIList = [ThirdPartyEmailPasswordPreBuiltUI];

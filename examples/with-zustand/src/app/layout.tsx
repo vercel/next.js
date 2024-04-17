@@ -1,9 +1,9 @@
-import StoreProvider from '@/lib/storeProvider'
+import StoreProvider from "@/lib/StoreProvider";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html>
@@ -13,5 +13,5 @@ export default function RootLayout({
         </StoreProvider>
       </body>
     </html>
-  )
+  );
 }

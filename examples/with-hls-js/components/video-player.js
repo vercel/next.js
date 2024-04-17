@@ -1,28 +1,28 @@
-import { useEffect, useRef } from 'react'
-import Hls from 'hls.js'
+import { useEffect, useRef } from "react";
+import Hls from "hls.js";
 
 export default function VideoPlayer({ src }) {
-  const videoRef = useRef(null)
+  const videoRef = useRef(null);
 
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
+    const video = videoRef.current;
+    if (!video) return;
 
-    video.controls = true
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.controls = true;
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // This will run in safari, where HLS is supported natively
-      video.src = src
+      video.src = src;
     } else if (Hls.isSupported()) {
       // This will run in all other modern browsers
-      const hls = new Hls()
-      hls.loadSource(src)
-      hls.attachMedia(video)
+      const hls = new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(video);
     } else {
       console.error(
-        'This is an old browser that does not support MSE https://developer.mozilla.org/docs/Web/API/Media_Source_Extensions_API'
-      )
+        "This is an old browser that does not support MSE https://developer.mozilla.org/docs/Web/API/Media_Source_Extensions_API",
+      );
     }
-  }, [src, videoRef])
+  }, [src, videoRef]);
 
   return (
     <>
@@ -33,5 +33,5 @@ export default function VideoPlayer({ src }) {
         }
       `}</style>
     </>
-  )
+  );
 }

@@ -19,7 +19,7 @@ use turbopack_binding::swc::core::{
 /// Creates a SWC visitor to transform `next/dynamic` calls to have the
 /// corresponding `loadableGenerated` property.
 ///
-/// [NOTE] We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
+/// **NOTE** We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
 /// with current loadable manifest, which causes hydration errors.
 pub fn next_dynamic(
     is_development: bool,
@@ -28,14 +28,14 @@ pub fn next_dynamic(
     prefer_esm: bool,
     mode: NextDynamicMode,
     filename: FileName,
-    pages_dir: Option<PathBuf>,
+    pages_or_app_dir: Option<PathBuf>,
 ) -> impl Fold {
     NextDynamicPatcher {
         is_development,
         is_server_compiler,
         is_react_server_layer,
         prefer_esm,
-        pages_dir,
+        pages_or_app_dir,
         filename,
         dynamic_bindings: vec![],
         is_next_dynamic_first_arg: false,
@@ -81,7 +81,7 @@ struct NextDynamicPatcher {
     is_server_compiler: bool,
     is_react_server_layer: bool,
     prefer_esm: bool,
-    pages_dir: Option<PathBuf>,
+    pages_or_app_dir: Option<PathBuf>,
     filename: FileName,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
@@ -216,6 +216,11 @@ impl Fold for NextDynamicPatcher {
                         return expr;
                     };
 
+                    let project_dir = match self.pages_or_app_dir.as_deref() {
+                        Some(pages_or_app) => pages_or_app.parent(),
+                        _ => None,
+                    };
+
                     // dev client or server:
                     // loadableGenerated: {
                     //   modules:
@@ -233,7 +238,7 @@ impl Fold for NextDynamicPatcher {
                                         "$left + $right" as Expr,
                                         left: Expr = format!(
                                             "{} -> ",
-                                            rel_filename(self.pages_dir.as_deref(), &self.filename)
+                                            rel_filename(project_dir, &self.filename)
                                         )
                                         .into(),
                                         right: Expr = dynamically_imported_specifier.clone().into(),
@@ -517,6 +522,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::DevelopmentId {
@@ -543,6 +549,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::BuildTransition {
@@ -572,6 +579,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::BuildId {
@@ -598,6 +606,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
             }

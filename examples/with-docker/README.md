@@ -30,8 +30,8 @@ To add support for Docker to an existing project, just copy the [`Dockerfile`](h
 // next.config.js
 module.exports = {
   // ... rest of the configuration.
-  output: 'standalone',
-}
+  output: "standalone",
+};
 ```
 
 This will build the project as a standalone app inside the Docker image.

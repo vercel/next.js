@@ -13157,7 +13157,6 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 const { default: stripAnsi } = __nccwpck_require__(4140);
-const { default: nodeFetch } = __nccwpck_require__(201);
 const fs = __nccwpck_require__(7147);
 const path = __nccwpck_require__(1017);
 const semver = __nccwpck_require__(9263);
@@ -13168,13 +13167,17 @@ const commentTitlePre = `## Failing next.js integration test suites`;
 function findNextJsVersionFromBuildLogs(octokit, token, job) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
-        console.log('Checking logs for the job ', job.name);
+        console.log('findNextJsVersionFromBuildLogs: Checking logs for the job ', job.name);
         // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
         const jobLogRedirectResponse = yield octokit.rest.actions.downloadJobLogsForWorkflowRun(Object.assign(Object.assign({ accept: 'application/vnd.github+json' }, _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.repo), { job_id: job.id }));
+        console.log('findNextJsVersionFromBuildLogs: Trying to get logs from redirect url ', jobLogRedirectResponse.url);
         // fetch the actual logs
-        const jobLogsResponse = yield nodeFetch(jobLogRedirectResponse.url, {
+        const jobLogsResponse = yield fetch(jobLogRedirectResponse.url, {
             headers: {
-                Authorization: `token ${token}`,
+                Accept: 'application/vnd.github.v3+json',
+                // [NOTE] we used to attach auth token, but seems this can cause 403
+                // redirect url is public anyway
+                //Authorization: `token ${token}`,
             },
         });
         if (!jobLogsResponse.ok) {
@@ -13195,16 +13198,18 @@ function findNextJsVersionFromBuildLogs(octokit, token, job) {
 // Download logs for a job in a workflow run by reading redirect url from workflow log response.
 function fetchJobLogsFromWorkflow(octokit, token, job) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log('Checking test results for the job ', job.name);
+        console.log(`fetchJobLogsFromWorkflow ${job.name}: Checking test results for the job`);
         // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
         const jobLogRedirectResponse = yield octokit.rest.actions.downloadJobLogsForWorkflowRun(Object.assign(Object.assign({ accept: 'application/vnd.github.v3+json' }, _actions_github__WEBPACK_IMPORTED_MODULE_0__.context.repo), { job_id: job.id }));
+        console.log(`fetchJobLogsFromWorkflow ${job.name}: Trying to get logs from redirect url ${jobLogRedirectResponse.url}`);
         // fetch the actual logs
-        const jobLogsResponse = yield nodeFetch(jobLogRedirectResponse.url, {
+        const jobLogsResponse = yield fetch(jobLogRedirectResponse.url, {
             headers: {
                 Accept: 'application/vnd.github.v3+json',
-                Authorization: `token ${token}`,
+                //Authorization: `token ${token}`,
             },
         });
+        console.log(`fetchJobLogsFromWorkflow ${job.name}: Logs response status ${jobLogsResponse.status}`);
         if (!jobLogsResponse.ok) {
             throw new Error(`Failed to get logsUrl, got status ${jobLogsResponse.status}`);
         }
@@ -13296,7 +13301,7 @@ function getJobResults(octokit, token, sha) {
         const nextSwcBuildJob = jobs === null || jobs === void 0 ? void 0 : jobs.find((job) => job.name.includes('Build Next.js for the turbopack integration test'));
         const nextSwcBuildLogs = (yield fetchJobLogsFromWorkflow(octokit, token, nextSwcBuildJob)).logs.split('\n');
         const buildTimeMatch = ((_a = nextSwcBuildLogs.find((line) => line.includes('Time (abs ≡):'))) !== null && _a !== void 0 ? _a : '').match(/  ([+-]?(?=\.\d|\d)(?:\d+)?(?:\.?\d*))(?:[Ee]([+-]?\d+))? s/);
-        const buildTime = buildTimeMatch.length >= 2 ? buildTimeMatch[1] : undefined;
+        const buildTime = (buildTimeMatch === null || buildTimeMatch === void 0 ? void 0 : buildTimeMatch.length) >= 2 ? buildTimeMatch[1] : undefined;
         const nextSwcBuildSize = ((_b = nextSwcBuildLogs.find((line) => line.includes('NEXT_SWC_FILESIZE:') &&
             /NEXT_SWC_FILESIZE: (\d+)/.test(line))) !== null && _b !== void 0 ? _b : '').match(/NEXT_SWC_FILESIZE: (\d+)/)[1];
         console.log(`Found next-swc build information from build logs`, {
@@ -13308,6 +13313,7 @@ function getJobResults(octokit, token, sha) {
         console.log(`Logs found for ${integrationTestJobs.length} jobs`, integrationTestJobs.map((job) => job.name));
         // Iterate over all of next.js integration test jobs, read logs and collect failed test results if exists.
         const fullJobLogsFromWorkflow = yield Promise.all(integrationTestJobs.map((job) => fetchJobLogsFromWorkflow(octokit, token, job)));
+        console.log('Logs downloaded for all jobs');
         const testResultManifest = {
             nextjsVersion,
             buildTime,

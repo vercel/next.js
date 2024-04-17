@@ -63,9 +63,9 @@ async function loadDefaultErrorComponentsImpl(
     Document,
     Component,
     pageConfig: {},
-    buildManifest: await loadManifestWithRetries(
+    buildManifest: (await loadManifestWithRetries(
       join(distDir, `fallback-${BUILD_MANIFEST}`)
-    ),
+    )) as BuildManifest,
     reactLoadableManifest: {},
     ComponentMod,
     page: '/_error',

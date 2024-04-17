@@ -1,0 +1,165 @@
+---
+title: Production Checklist
+description: Recommendations to ensure the best performance and user experience before taking your Next.js application to production.
+---
+
+Before taking your Next.js application to production, there are some optimizations and patterns you should consider implementing for the best user experience, performance, and security.
+
+This page provides best practices that you can use as a reference when [building your application](#during-development), [before going to production](#before-going-to-production), and [after deployment](#after-deployment) - as well as the [automatic Next.js optimizations](#automatic-optimizations) you should be aware of.
+
+## Automatic optimizations
+
+These Next.js optimizations are enabled by default and require no configuration:
+
+<AppOnly>
+
+- **[Server Components](/docs/app/building-your-application/rendering/server-components):** Next.js uses Server Components by default. Server Components run on the server, and don't require JavaScript to render on the client. As such, they have no impact on the size of your client-side JavaScript bundles. You can then use [Client Components](/docs/app/building-your-application/rendering/client-components) as needed for interactivity.
+- **[Code-splitting](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works):** Server Components enable automatic code-splitting by route segments. You may also consider [lazy loading](/docs/app/building-your-application/optimizing/lazy-loading) Client Components and third-party libraries, where appropriate.
+- **[Prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching):** When a link to a new route enters the user's viewport, Next.js prefetches the route in background. This makes navigation to new routes almost instant. You can opt out of prefetching, where appropriate.
+- **[Static Rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default):** Next.js statically renders Server and Client Components on the server at build time and caches the rendered result to improve your application's performance. You can opt into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) for specific routes, where appropriate. {/* TODO: Update when PPR is stable */}
+- **[Caching](/docs/app/building-your-application/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
+
+</AppOnly>
+
+<PagesOnly>
+
+- **[Code-splitting](/docs/pages/building-your-application/routing/pages-and-layouts):** Next.js automatically code-splits your application code by pages. This means only the code needed for the current page is loaded on navigation. You may also consider [lazy loading](/docs/pages/building-your-application/optimizing/lazy-loading) third-party libraries, where appropriate.
+- **[Prefetching](/docs/pages/api-reference/components/link#prefetch):** When a link to a new route enters the user's viewport, Next.js prefetches the route in background. This makes navigation to new routes almost instant. You can opt out of prefetching, where appropriate.
+- **[Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization):** Next.js automatically determines that a page is static (can be pre-rendered) if it has no blocking data requirements. Optimized pages can be cached, and served to the end-user from multiple CDN locations. You may opt into [Server-side Rendering](/docs/pages/building-your-application/data-fetching/get-server-side-props), where appropriate.
+
+</PagesOnly>
+
+These defaults aim to improve your application's performance, and reduce the cost and amount of data transferred on each network request.
+
+## During development
+
+While building your application, we recommend using the following features to ensure the best performance and user experience:
+
+### Routing and rendering
+
+<AppOnly>
+
+- **[Layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts):** Use layouts to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) on navigation.
+- **[`<Link>` component](/docs/app/building-your-application/routing/linking-and-navigating#link-component):** Use the `<Link>` component for [client-side navigation and prefetching](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
+- **[Error Handling](/docs/app/building-your-application/routing/error-handling):** Gracefully handle [catch-all errors](/docs/app/building-your-application/routing/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
+- **[Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree) to avoid unnecessarily increasing your client-side JavaScript bundle.
+- **[Dynamic Functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions):** Be aware that dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required)). Ensure dynamic function usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
+
+> **Good to know**: [Partial Prerendering (Experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
+
+</AppOnly>
+
+<PagesOnly>
+
+- **[`<Link>` component](/docs/pages/building-your-application/routing/linking-and-navigating):** Use the `<Link>` component for client-side navigation and prefetching.
+- **[Custom Errors](/docs/pages/building-your-application/routing/custom-error):** Gracefully handle [500](/docs/pages/building-your-application/routing/custom-error#500-page) and [404 errors](/docs/pages/building-your-application/routing/custom-error#404-page)
+
+</PagesOnly>
+
+### Data fetching and caching
+
+<AppOnly>
+
+- **[Server Components](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server):** Leverage the benefits of fetching data on the server using Server Components.
+- **[Route Handlers](/docs/app/building-your-application/routing/route-handlers):** Use Route Handlers to access your backend resources from Client Components. But do not call Route Handlers from Server Components to avoid an additional server request.
+- **[Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
+- **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/patterns#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/patterns#preloading-data) where appropriate.
+- **[Data Caching](/docs/app/building-your-application/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
+- **[Static Images](/docs/app/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
+
+</AppOnly>
+
+<PagesOnly>
+
+- **[API Routes](/docs/pages/building-your-application/routing/api-routes):** Use Route Handlers to access your backend resources, and prevent sensitive secrets from being exposed to the client.
+- **[Data Caching](/docs/pages/building-your-application/data-fetching/get-static-props):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `getStaticProps` are cached where appropriate.
+- **[Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration):** Use Incremental Static Regeneration to update static pages after they've been built, without rebuilding your entire site.
+- **[Static Images](/docs/pages/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
+
+</PagesOnly>
+
+### UI and accessibility
+
+<AppOnly>
+
+- **[Forms and Validation](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms):** Use Server Actions to handle form submissions, server-side validation, and handle errors.
+
+</AppOnly>
+
+- **[Font Module](/docs/app/building-your-application/optimizing/fonts):** Optimize fonts by using the Font Module, which automatically hosts your font files with other static assets, removes external network requests, and reduces [layout shift](https://web.dev/articles/cls).
+- **[`<Image>` Component](/docs/app/building-your-application/optimizing/images):** Optimize images by using the Image Component, which automatically optimizes images, prevents layout shift, and serves them in modern formats like WebP or AVIF.
+- **[`<Script>` Component](/docs/app/building-your-application/optimizing/scripts):** Optimize third-party scripts by using the Script Component, which automatically defers scripts and prevents them from blocking the main thread.
+- **[ESLint](/docs/architecture/accessibility#linting):** Use the built-in `eslint-plugin-jsx-a11y` plugin to catch accessibility issues early.
+
+### Security
+
+<AppOnly>
+
+- **[Tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
+- **[Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authentication-and-authorization):** Ensure users are authorized to call Server Actions. Review the the recommended [security practices](/blog/security-nextjs-server-components-actions).
+
+</AppOnly>
+
+- **[Environment Variables](/docs/app/building-your-application/configuring/environment-variables):** Ensure your `.env.*` files are added to `.gitignore` and only public variables are prefixed with `NEXT_PUBLIC_`.
+- **[Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy):** Consider adding a Content Security Policy to protect your application against various security threats such as cross-site scripting, clickjacking, and other code injection attacks.
+
+### Metadata and SEO
+
+<AppOnly>
+
+- **[Metadata API](/docs/app/building-your-application/optimizing/metadata):** Use the Metadata API to improve your application's Search Engine Optimization (SEO) by adding page titles, descriptions, and more.
+- **[Open Graph (OG) images](/docs/app/api-reference/file-conventions/metadata/opengraph-image):** Create OG images to prepare your application for social sharing.
+- **[Sitemaps](/docs/app/api-reference/functions/generate-sitemaps) and [Robots](/docs/app/api-reference/file-conventions/metadata/robots):** Help Search Engines crawl and index your pages by generating sitemaps and robots files.
+
+</AppOnly>
+
+<PagesOnly>
+
+- **[`<Head>` Component](/docs/pages/api-reference/components/head):** Use the `next/head` component to add page titles, descriptions, and more.
+
+</PagesOnly>
+
+### Type safety
+
+- **TypeScript and [TS Plugin](/docs/app/building-your-application/configuring/typescript):** Use TypeScript and the TypeScript plugin for better type-safety, and to help you catch errors early.
+
+## Before going to production
+
+Before going to production, you can run `next build` to build your application locally and catch any build errors, then run `next start` to measure the performance of your application in a production-like environment.
+
+### Core Web Vitals
+
+- **[Lighthouse](https://developers.google.com/web/tools/lighthouse):** Run lighthouse in incognito to gain a better understanding of how your users will experience your site, and to identify areas for improvement. This is a simulated test and should be paired with looking at field data (such as Core Web Vitals).
+
+<AppOnly>
+
+- **[`useReportWebVitals` hook](/docs/app/api-reference/functions/use-report-web-vitals):** Use this hook to send [Core Web Vitals](https://web.dev/articles/vitals) data to analytics tools.
+
+</AppOnly>
+
+### Analyzing bundles
+
+Use the [`@next/bundle-analyzer` plugin](/docs/app/building-your-application/optimizing/bundle-analyzer) to analyze the size of your JavaScript bundles and identify large modules and dependencies that might be impacting your application's performance.
+
+Additionally, the following tools can you understand the impact of adding new dependencies to your application:
+
+- [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost)
+- [Package Phobia](https://packagephobia.com/)
+- [Bundle Phobia](https://bundlephobia.com/)
+- [bundlejs](https://bundlejs.com/)
+
+## After deployment
+
+Depending on where you deploy your application, you might have access to additional tools and integrations to help you monitor and improve your application's performance.
+
+For Vercel deployments, we recommend the following:
+
+- **[Analytics](https://vercel.com/analytics?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** A built-in analytics dashboard to help you understand your application's traffic, including the number of unique visitors, page views, and more.
+- **[Speed Insights](https://vercel.com/docs/speed-insights?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** Real-world performance insights based on visitor data, offering a practical view of how your website is performing in the field.
+- **[Logging](https://vercel.com/docs/observability/runtime-logs?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** Runtime and Activity logs to help you debug issues and monitor your application in production. Alternatively, see the [integrations page](https://vercel.com/integrations?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs) for a list of third-party tools and services.
+
+> **Good to know:**
+>
+> To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the [Vercel Production Checklist](https://vercel.com/docs/production-checklist?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs).
+
+Following these recommendations will help you build a faster, more reliable, and secure application for your users.

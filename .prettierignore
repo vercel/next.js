@@ -20,6 +20,7 @@ packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next-swc/crates/**/tests/**/output*
 packages/next-swc/crates/core/tests/loader/issue-32553/input.js
 packages/next-swc/native/**/*
+packages/next-swc/docs/assets/**/*
 
 packages/next-codemod/transforms/__testfixtures__/**
 packages/next-codemod/transforms/__tests__/**
@@ -36,3 +37,5 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
+test/lib/amp-validator-wasm.js
+test/production/pages-dir/production/fixture/amp-validator-wasm.js

@@ -153,7 +153,7 @@ fn filename(path: &str) -> &str {
     split_directory(path).1
 }
 
-fn split_extension(path: &str) -> (&str, Option<&str>) {
+pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
     let filename = filename(path);
     if let Some((filename_before_extension, ext)) = filename.rsplit_once('.') {
         if filename_before_extension.is_empty() {
@@ -251,7 +251,7 @@ pub fn is_metadata_route(mut route: &str) -> bool {
     !page.ends_with("/page") && is_metadata_route_file(&page, &[], false)
 }
 
-/// http://www.cse.yorku.ca/~oz/hash.html
+/// djb_2 hash implementation referenced from [here](http://www.cse.yorku.ca/~oz/hash.html)
 fn djb2_hash(str: &str) -> u32 {
     str.chars().fold(5381, |hash, c| {
         ((hash << 5).wrapping_add(hash)).wrapping_add(c as u32) // hash * 33 + c

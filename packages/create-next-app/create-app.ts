@@ -11,7 +11,6 @@ import {
   existsInRepo,
   hasRepo,
 } from './helpers/examples'
-import { makeDir } from './helpers/make-dir'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
@@ -133,7 +132,7 @@ export async function createApp({
 
   const appName = path.basename(root)
 
-  await makeDir(root)
+  fs.mkdirSync(root, { recursive: true })
   if (!isFolderEmpty(root, appName)) {
     process.exit(1)
   }

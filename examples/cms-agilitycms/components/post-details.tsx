@@ -1,9 +1,9 @@
-import Header from './header'
-import PostHeader from './post-header'
-import PostBody from './post-body'
-import SectionSeparator from './section-separator'
-import Head from 'next/head'
-import { CMS_NAME } from '../lib/constants'
+import Header from "./header";
+import PostHeader from "./post-header";
+import PostBody from "./post-body";
+import SectionSeparator from "./section-separator";
+import Head from "next/head";
+import { CMS_NAME } from "../lib/constants";
 
 export default function PostDetails({ post }) {
   return (
@@ -26,15 +26,15 @@ export default function PostDetails({ post }) {
       </article>
       <SectionSeparator />
     </>
-  )
+  );
 }
 
 // The data returned here will be send as `props` to the component
 PostDetails.getCustomInitialProps = async function ({ client, pageInSitemap }) {
-  const contentID = pageInSitemap.contentID
-  const post = await client.getPostDetails({ contentID })
+  const contentID = pageInSitemap.contentID;
+  const post = await client.getPostDetails({ contentID });
 
   return {
     post,
-  }
-}
+  };
+};

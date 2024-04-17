@@ -77,6 +77,7 @@ impl<'a> FontImportsGenerator<'a> {
                             type_only: false,
                             with: None,
                             span: DUMMY_SP,
+                            phase: Default::default(),
                         });
                     }
                 }

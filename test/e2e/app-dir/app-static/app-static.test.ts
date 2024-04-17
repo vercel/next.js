@@ -3,7 +3,13 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  normalizeRegEx,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
@@ -34,6 +40,58 @@ createNextDescribe(
       }
     })
 
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
+    })
+
+    if (isNextDeploy) {
+      describe('new tags have been specified on subsequent fetch', () => {
+        it('should not fetch from memory cache', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+
+        it('should not fetch from memory cache after revalidateTag is used', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const revalidateRes = await next.fetch(
+            '/api/revlidate-tag-node?tag=thankyounext'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+      })
+    }
+
     if (isNextStart) {
       it('should propagate unstable_cache tags correctly', async () => {
         const meta = JSON.parse(
@@ -44,6 +102,34 @@ createNextDescribe(
         expect(meta.headers['x-next-cache-tags']).toContain(
           'unstable_cache_tag1'
         )
+      })
+
+      it('should infer a fetchCache of force-no-store when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/no-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/no-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).not.toBe(initData)
+        })
+      })
+
+      it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/with-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/with-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).toBe(initData)
+        })
       })
 
       if (!process.env.CUSTOM_CACHE_HANDLER) {
@@ -209,6 +295,33 @@ createNextDescribe(
         expect(newData).not.toEqual(data)
       }
     })
+
+    if (!isDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should properly revalidate a route handler that triggers dynamic usage with force-static', async () => {
+        // wait for the revalidation period
+        let res = await next.fetch('/route-handler/no-store-force-static')
+
+        let data = await res.json()
+        // grab the initial timestamp
+        const initialTimestamp = data.now
+
+        // confirm its cached still
+        res = await next.fetch('/route-handler/no-store-force-static')
+
+        data = await res.json()
+
+        expect(data.now).toBe(initialTimestamp)
+
+        // wait for the revalidation time
+        await waitFor(3000)
+
+        // verify fresh data
+        res = await next.fetch('/route-handler/no-store-force-static')
+        data = await res.json()
+
+        expect(data.now).not.toBe(initialTimestamp)
+      })
+    }
 
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
@@ -480,6 +593,36 @@ createNextDescribe(
     })
 
     if (isNextStart) {
+      if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+        it('should have deterministic etag across revalidates', async () => {
+          const initialRes = await next.fetch(
+            '/variable-revalidate-stable/revalidate-3'
+          )
+          expect(initialRes.status).toBe(200)
+
+          // check 2 revalidate passes to ensure it's consistent
+          for (let i = 0; i < 2; i++) {
+            let startIdx = next.cliOutput.length
+
+            await retry(
+              async () => {
+                const res = await next.fetch(
+                  '/variable-revalidate-stable/revalidate-3'
+                )
+                expect(next.cliOutput.substring(startIdx)).toContain(
+                  'rendering /variable-revalidate-stable'
+                )
+                expect(initialRes.headers.get('etag')).toBe(
+                  res.headers.get('etag')
+                )
+              },
+              12_000,
+              3_000
+            )
+          }
+        })
+      }
+
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
           await glob('**/*', {
@@ -494,235 +637,255 @@ createNextDescribe(
             )
           })
 
-        expect(files.sort()).toEqual(
+        expect(files.sort()).toMatchInlineSnapshot(`
           [
-            'page.js',
-            'index.rsc',
-            'index.html',
-            'blog/seb.rsc',
-            'blog/tim.rsc',
-            '_not-found.js',
-            'blog/seb.html',
-            'blog/tim.html',
-            'isr-error-handling.rsc',
-            '_not-found.rsc',
-            '_not-found.html',
-            'blog/styfle.rsc',
-            'force-cache.rsc',
-            'blog/styfle.html',
-            'force-cache.html',
-            'isr-error-handling/page.js',
-            'ssg-draft-mode.rsc',
-            'ssr-forced/page.js',
-            'articles/works.rsc',
-            'force-cache/page.js',
-            'force-cache/large-data/page.js',
-            'force-cache/large-data/page_client-reference-manifest.js',
-            'ssg-draft-mode.html',
-            'articles/works.html',
-            'no-store/static.rsc',
-            '(new)/custom/page.js',
-            'force-static/page.js',
-            'response-url/page.js',
-            'no-store/static.html',
-            'blog/[author]/page.js',
-            'default-cache/page.js',
-            'fetch-no-cache/page.js',
-            'force-no-store/page.js',
-            'force-static-fetch-no-store.html',
-            'force-static-fetch-no-store.rsc',
-            'force-static-fetch-no-store/page.js',
-            'force-static-fetch-no-store/page_client-reference-manifest.js',
-            'force-static/first.rsc',
-            'api/draft-mode/route.js',
-            'api/large-data/route.js',
-            'blog/tim/first-post.rsc',
-            'force-static/first.html',
-            'force-static/second.rsc',
-            'ssg-draft-mode/test.rsc',
-            'isr-error-handling.html',
-            'articles/[slug]/page.js',
-            'no-store/static/page.js',
-            'blog/seb/second-post.rsc',
-            'blog/tim/first-post.html',
-            'force-static/second.html',
-            'ssg-draft-mode/test.html',
-            'no-store/dynamic/page.js',
-            'blog/seb/second-post.html',
-            'ssg-draft-mode/test-2.rsc',
-            'blog/styfle/first-post.rsc',
-            'dynamic-error/[id]/page.js',
-            'ssg-draft-mode/test-2.html',
-            'blog/styfle/first-post.html',
-            'blog/styfle/second-post.rsc',
-            'force-static/[slug]/page.js',
-            'hooks/use-pathname/slug.rsc',
-            'route-handler/post/route.js',
-            'blog/[author]/[slug]/page.js',
-            'blog/styfle/second-post.html',
-            'hooks/use-pathname/slug.html',
-            'flight/[slug]/[slug2]/page.js',
-            'variable-revalidate/cookie.rsc',
-            'ssr-auto/cache-no-store/page.js',
-            'variable-revalidate/cookie.html',
-            'api/revalidate-tag-edge/route.js',
-            'api/revalidate-tag-node/route.js',
-            'variable-revalidate/encoding.rsc',
-            'api/revalidate-path-edge/route.js',
-            'api/revalidate-path-node/route.js',
-            'gen-params-dynamic/[slug]/page.js',
-            'hooks/use-pathname/[slug]/page.js',
-            'page_client-reference-manifest.js',
-            'react-fetch-deduping-edge/page.js',
-            'react-fetch-deduping-node/page.js',
-            'variable-revalidate/encoding.html',
-            'variable-revalidate/cookie/page.js',
-            'ssg-draft-mode/[[...route]]/page.js',
-            'variable-revalidate/post-method.rsc',
-            'stale-cache-serving/app-page/page.js',
-            'dynamic-no-gen-params/[slug]/page.js',
-            'static-to-dynamic-error/[id]/page.js',
-            'variable-revalidate/encoding/page.js',
-            'variable-revalidate/no-store/page.js',
-            'variable-revalidate/post-method.html',
-            'variable-revalidate/revalidate-3.rsc',
-            'gen-params-dynamic-revalidate/one.rsc',
-            'route-handler/revalidate-360/route.js',
-            'route-handler/static-cookies/route.js',
-            'variable-revalidate-edge/body/page.js',
-            'variable-revalidate/authorization.rsc',
-            'variable-revalidate/revalidate-3.html',
-            'force-dynamic-prerender/[slug]/page.js',
-            'gen-params-dynamic-revalidate/one.html',
-            'ssr-auto/fetch-revalidate-zero/page.js',
-            'variable-revalidate/authorization.html',
-            '_not-found_client-reference-manifest.js',
-            'force-dynamic-no-prerender/[id]/page.js',
-            'variable-revalidate/post-method/page.js',
-            'variable-revalidate/status-code/page.js',
-            'dynamic-no-gen-params-ssr/[slug]/page.js',
-            'hooks/use-search-params/force-static.rsc',
-            'partial-gen-params/[lang]/[slug]/page.js',
-            'variable-revalidate/headers-instance.rsc',
-            'variable-revalidate/revalidate-3/page.js',
-            'stale-cache-serving-edge/app-page/page.js',
-            'hooks/use-search-params/force-static.html',
-            'hooks/use-search-params/with-suspense.rsc',
-            'route-handler/revalidate-360-isr/route.js',
-            'variable-revalidate-edge/encoding/page.js',
-            'variable-revalidate-edge/no-store/page.js',
-            'variable-revalidate/authorization/page.js',
-            'variable-revalidate/headers-instance.html',
-            'stale-cache-serving/route-handler/route.js',
-            'hooks/use-search-params/with-suspense.html',
-            'route-handler-edge/revalidate-360/route.js',
-            'variable-revalidate/revalidate-360-isr.rsc',
-            'variable-revalidate/revalidate-360/page.js',
-            'static-to-dynamic-error-forced/[id]/page.js',
-            'variable-config-revalidate/revalidate-3.rsc',
-            'variable-revalidate/revalidate-360-isr.html',
-            'isr-error-handling/page_client-reference-manifest.js',
-            'gen-params-dynamic-revalidate/[slug]/page.js',
-            'hooks/use-search-params/force-static/page.js',
-            'ssr-forced/page_client-reference-manifest.js',
-            'variable-config-revalidate/revalidate-3.html',
-            'variable-revalidate-edge/post-method/page.js',
-            'variable-revalidate/headers-instance/page.js',
-            'force-cache/page_client-reference-manifest.js',
-            'hooks/use-search-params/with-suspense/page.js',
-            'variable-revalidate-edge/revalidate-3/page.js',
-            '(new)/custom/page_client-reference-manifest.js',
-            'force-static/page_client-reference-manifest.js',
-            'response-url/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-360-isr/page.js',
-            'stale-cache-serving-edge/route-handler/route.js',
-            'blog/[author]/page_client-reference-manifest.js',
-            'default-cache/page_client-reference-manifest.js',
-            'variable-config-revalidate/revalidate-3/page.js',
-            'variable-revalidate/post-method-request/page.js',
-            'fetch-no-cache/page_client-reference-manifest.js',
-            'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
-            'force-no-store/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/RAND.rsc',
-            'partial-gen-params-no-additional-lang/fr/RAND.rsc',
-            'partial-gen-params-no-additional-slug/en/RAND.rsc',
-            'partial-gen-params-no-additional-slug/fr/RAND.rsc',
-            'articles/[slug]/page_client-reference-manifest.js',
-            'no-store/static/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/RAND.html',
-            'partial-gen-params-no-additional-lang/en/first.rsc',
-            'partial-gen-params-no-additional-lang/fr/RAND.html',
-            'partial-gen-params-no-additional-lang/fr/first.rsc',
-            'partial-gen-params-no-additional-slug/en/RAND.html',
-            'partial-gen-params-no-additional-slug/en/first.rsc',
-            'partial-gen-params-no-additional-slug/fr/RAND.html',
-            'partial-gen-params-no-additional-slug/fr/first.rsc',
-            'no-store/dynamic/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/first.html',
-            'partial-gen-params-no-additional-lang/en/second.rsc',
-            'partial-gen-params-no-additional-lang/fr/first.html',
-            'partial-gen-params-no-additional-lang/fr/second.rsc',
-            'partial-gen-params-no-additional-slug/en/first.html',
-            'partial-gen-params-no-additional-slug/en/second.rsc',
-            'partial-gen-params-no-additional-slug/fr/first.html',
-            'partial-gen-params-no-additional-slug/fr/second.rsc',
-            'dynamic-error/[id]/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/second.html',
-            'partial-gen-params-no-additional-lang/fr/second.html',
-            'partial-gen-params-no-additional-slug/en/second.html',
-            'partial-gen-params-no-additional-slug/fr/second.html',
-            'variable-revalidate-edge/post-method-request/page.js',
-            'force-static/[slug]/page_client-reference-manifest.js',
-            'blog/[author]/[slug]/page_client-reference-manifest.js',
-            'flight/[slug]/[slug2]/page_client-reference-manifest.js',
-            'hooks/use-search-params/static-bailout.html',
-            'hooks/use-search-params/static-bailout.rsc',
-            'hooks/use-search-params/static-bailout/page.js',
-            'hooks/use-search-params/static-bailout/page_client-reference-manifest.js',
-            'ssr-auto/cache-no-store/page_client-reference-manifest.js',
-            'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
-            'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
-            'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
-            'react-fetch-deduping-edge/page_client-reference-manifest.js',
-            'react-fetch-deduping-node/page_client-reference-manifest.js',
-            'variable-revalidate/cookie/page_client-reference-manifest.js',
-            'ssg-draft-mode/[[...route]]/page_client-reference-manifest.js',
-            'stale-cache-serving/app-page/page_client-reference-manifest.js',
-            'dynamic-no-gen-params/[slug]/page_client-reference-manifest.js',
-            'static-to-dynamic-error/[id]/page_client-reference-manifest.js',
-            'variable-revalidate/encoding/page_client-reference-manifest.js',
-            'variable-revalidate/no-store/page_client-reference-manifest.js',
-            'variable-revalidate-edge/body/page_client-reference-manifest.js',
-            'force-dynamic-prerender/[slug]/page_client-reference-manifest.js',
-            'ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js',
-            'force-dynamic-no-prerender/[id]/page_client-reference-manifest.js',
-            'variable-revalidate/post-method/page_client-reference-manifest.js',
-            'variable-revalidate/status-code/page_client-reference-manifest.js',
-            'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
-            'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
-            'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
-            'variable-revalidate-edge/encoding/page_client-reference-manifest.js',
-            'variable-revalidate-edge/no-store/page_client-reference-manifest.js',
-            'variable-revalidate/authorization/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-360/page_client-reference-manifest.js',
-            'static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js',
-            'gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js',
-            'hooks/use-search-params/force-static/page_client-reference-manifest.js',
-            'variable-revalidate-edge/post-method/page_client-reference-manifest.js',
-            'variable-revalidate/headers-instance/page_client-reference-manifest.js',
-            'hooks/use-search-params/with-suspense/page_client-reference-manifest.js',
-            'variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js',
-            'variable-config-revalidate/revalidate-3/page_client-reference-manifest.js',
-            'variable-revalidate/post-method-request/page_client-reference-manifest.js',
-            'force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js',
-            'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
-          ].sort()
-        )
+            "(new)/custom/page.js",
+            "(new)/custom/page_client-reference-manifest.js",
+            "_not-found.html",
+            "_not-found.rsc",
+            "_not-found/page.js",
+            "_not-found/page_client-reference-manifest.js",
+            "api/draft-mode/route.js",
+            "api/large-data/route.js",
+            "api/revalidate-path-edge/route.js",
+            "api/revalidate-path-node/route.js",
+            "api/revalidate-tag-edge/route.js",
+            "api/revalidate-tag-node/route.js",
+            "articles/[slug]/page.js",
+            "articles/[slug]/page_client-reference-manifest.js",
+            "articles/works.html",
+            "articles/works.rsc",
+            "blog/[author]/[slug]/page.js",
+            "blog/[author]/[slug]/page_client-reference-manifest.js",
+            "blog/[author]/page.js",
+            "blog/[author]/page_client-reference-manifest.js",
+            "blog/seb.html",
+            "blog/seb.rsc",
+            "blog/seb/second-post.html",
+            "blog/seb/second-post.rsc",
+            "blog/styfle.html",
+            "blog/styfle.rsc",
+            "blog/styfle/first-post.html",
+            "blog/styfle/first-post.rsc",
+            "blog/styfle/second-post.html",
+            "blog/styfle/second-post.rsc",
+            "blog/tim.html",
+            "blog/tim.rsc",
+            "blog/tim/first-post.html",
+            "blog/tim/first-post.rsc",
+            "default-cache/page.js",
+            "default-cache/page_client-reference-manifest.js",
+            "dynamic-error/[id]/page.js",
+            "dynamic-error/[id]/page_client-reference-manifest.js",
+            "dynamic-no-gen-params-ssr/[slug]/page.js",
+            "dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js",
+            "dynamic-no-gen-params/[slug]/page.js",
+            "dynamic-no-gen-params/[slug]/page_client-reference-manifest.js",
+            "dynamic-param-edge/[slug]/page.js",
+            "dynamic-param-edge/[slug]/page_client-reference-manifest.js",
+            "fetch-no-cache/page.js",
+            "fetch-no-cache/page_client-reference-manifest.js",
+            "flight/[slug]/[slug2]/page.js",
+            "flight/[slug]/[slug2]/page_client-reference-manifest.js",
+            "force-cache.html",
+            "force-cache.rsc",
+            "force-cache/large-data/page.js",
+            "force-cache/large-data/page_client-reference-manifest.js",
+            "force-cache/page.js",
+            "force-cache/page_client-reference-manifest.js",
+            "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
+            "force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
+            "force-dynamic-no-prerender/[id]/page.js",
+            "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
+            "force-dynamic-prerender/[slug]/page.js",
+            "force-dynamic-prerender/[slug]/page_client-reference-manifest.js",
+            "force-no-store-bailout/page.js",
+            "force-no-store-bailout/page_client-reference-manifest.js",
+            "force-no-store/page.js",
+            "force-no-store/page_client-reference-manifest.js",
+            "force-static-fetch-no-store.html",
+            "force-static-fetch-no-store.rsc",
+            "force-static-fetch-no-store/page.js",
+            "force-static-fetch-no-store/page_client-reference-manifest.js",
+            "force-static/[slug]/page.js",
+            "force-static/[slug]/page_client-reference-manifest.js",
+            "force-static/first.html",
+            "force-static/first.rsc",
+            "force-static/page.js",
+            "force-static/page_client-reference-manifest.js",
+            "force-static/second.html",
+            "force-static/second.rsc",
+            "gen-params-dynamic-revalidate/[slug]/page.js",
+            "gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js",
+            "gen-params-dynamic-revalidate/one.html",
+            "gen-params-dynamic-revalidate/one.rsc",
+            "gen-params-dynamic/[slug]/page.js",
+            "gen-params-dynamic/[slug]/page_client-reference-manifest.js",
+            "hooks/use-pathname/[slug]/page.js",
+            "hooks/use-pathname/[slug]/page_client-reference-manifest.js",
+            "hooks/use-pathname/slug.html",
+            "hooks/use-pathname/slug.rsc",
+            "hooks/use-search-params/force-static.html",
+            "hooks/use-search-params/force-static.rsc",
+            "hooks/use-search-params/force-static/page.js",
+            "hooks/use-search-params/force-static/page_client-reference-manifest.js",
+            "hooks/use-search-params/with-suspense.html",
+            "hooks/use-search-params/with-suspense.rsc",
+            "hooks/use-search-params/with-suspense/page.js",
+            "hooks/use-search-params/with-suspense/page_client-reference-manifest.js",
+            "index.html",
+            "index.rsc",
+            "isr-error-handling.html",
+            "isr-error-handling.rsc",
+            "isr-error-handling/page.js",
+            "isr-error-handling/page_client-reference-manifest.js",
+            "no-store/dynamic/page.js",
+            "no-store/dynamic/page_client-reference-manifest.js",
+            "no-store/static.html",
+            "no-store/static.rsc",
+            "no-store/static/page.js",
+            "no-store/static/page_client-reference-manifest.js",
+            "page.js",
+            "page_client-reference-manifest.js",
+            "partial-gen-params-no-additional-lang/[lang]/[slug]/page.js",
+            "partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js",
+            "partial-gen-params-no-additional-lang/en/RAND.html",
+            "partial-gen-params-no-additional-lang/en/RAND.rsc",
+            "partial-gen-params-no-additional-lang/en/first.html",
+            "partial-gen-params-no-additional-lang/en/first.rsc",
+            "partial-gen-params-no-additional-lang/en/second.html",
+            "partial-gen-params-no-additional-lang/en/second.rsc",
+            "partial-gen-params-no-additional-lang/fr/RAND.html",
+            "partial-gen-params-no-additional-lang/fr/RAND.rsc",
+            "partial-gen-params-no-additional-lang/fr/first.html",
+            "partial-gen-params-no-additional-lang/fr/first.rsc",
+            "partial-gen-params-no-additional-lang/fr/second.html",
+            "partial-gen-params-no-additional-lang/fr/second.rsc",
+            "partial-gen-params-no-additional-slug/[lang]/[slug]/page.js",
+            "partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js",
+            "partial-gen-params-no-additional-slug/en/RAND.html",
+            "partial-gen-params-no-additional-slug/en/RAND.rsc",
+            "partial-gen-params-no-additional-slug/en/first.html",
+            "partial-gen-params-no-additional-slug/en/first.rsc",
+            "partial-gen-params-no-additional-slug/en/second.html",
+            "partial-gen-params-no-additional-slug/en/second.rsc",
+            "partial-gen-params-no-additional-slug/fr/RAND.html",
+            "partial-gen-params-no-additional-slug/fr/RAND.rsc",
+            "partial-gen-params-no-additional-slug/fr/first.html",
+            "partial-gen-params-no-additional-slug/fr/first.rsc",
+            "partial-gen-params-no-additional-slug/fr/second.html",
+            "partial-gen-params-no-additional-slug/fr/second.rsc",
+            "partial-gen-params/[lang]/[slug]/page.js",
+            "partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js",
+            "react-fetch-deduping-edge/page.js",
+            "react-fetch-deduping-edge/page_client-reference-manifest.js",
+            "react-fetch-deduping-node/page.js",
+            "react-fetch-deduping-node/page_client-reference-manifest.js",
+            "response-url/page.js",
+            "response-url/page_client-reference-manifest.js",
+            "route-handler-edge/revalidate-360/route.js",
+            "route-handler/no-store-force-static/route.js",
+            "route-handler/no-store/route.js",
+            "route-handler/post/route.js",
+            "route-handler/revalidate-360-isr/route.js",
+            "route-handler/revalidate-360/route.js",
+            "route-handler/static-cookies/route.js",
+            "specify-new-tags/one-tag/page.js",
+            "specify-new-tags/one-tag/page_client-reference-manifest.js",
+            "specify-new-tags/two-tags/page.js",
+            "specify-new-tags/two-tags/page_client-reference-manifest.js",
+            "ssg-draft-mode.html",
+            "ssg-draft-mode.rsc",
+            "ssg-draft-mode/[[...route]]/page.js",
+            "ssg-draft-mode/[[...route]]/page_client-reference-manifest.js",
+            "ssg-draft-mode/test-2.html",
+            "ssg-draft-mode/test-2.rsc",
+            "ssg-draft-mode/test.html",
+            "ssg-draft-mode/test.rsc",
+            "ssr-auto/cache-no-store/page.js",
+            "ssr-auto/cache-no-store/page_client-reference-manifest.js",
+            "ssr-auto/fetch-revalidate-zero/page.js",
+            "ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js",
+            "ssr-forced/page.js",
+            "ssr-forced/page_client-reference-manifest.js",
+            "stale-cache-serving-edge/app-page/page.js",
+            "stale-cache-serving-edge/app-page/page_client-reference-manifest.js",
+            "stale-cache-serving-edge/route-handler/route.js",
+            "stale-cache-serving/app-page/page.js",
+            "stale-cache-serving/app-page/page_client-reference-manifest.js",
+            "stale-cache-serving/route-handler/route.js",
+            "static-to-dynamic-error-forced/[id]/page.js",
+            "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
+            "static-to-dynamic-error/[id]/page.js",
+            "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "too-many-cache-tags/page.js",
+            "too-many-cache-tags/page_client-reference-manifest.js",
+            "unstable-cache/dynamic-undefined/page.js",
+            "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
+            "unstable-cache/dynamic/page.js",
+            "unstable-cache/dynamic/page_client-reference-manifest.js",
+            "variable-config-revalidate/revalidate-3.html",
+            "variable-config-revalidate/revalidate-3.rsc",
+            "variable-config-revalidate/revalidate-3/page.js",
+            "variable-config-revalidate/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate-edge/body/page.js",
+            "variable-revalidate-edge/body/page_client-reference-manifest.js",
+            "variable-revalidate-edge/encoding/page.js",
+            "variable-revalidate-edge/encoding/page_client-reference-manifest.js",
+            "variable-revalidate-edge/no-store/page.js",
+            "variable-revalidate-edge/no-store/page_client-reference-manifest.js",
+            "variable-revalidate-edge/post-method-request/page.js",
+            "variable-revalidate-edge/post-method-request/page_client-reference-manifest.js",
+            "variable-revalidate-edge/post-method/page.js",
+            "variable-revalidate-edge/post-method/page_client-reference-manifest.js",
+            "variable-revalidate-edge/revalidate-3/page.js",
+            "variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate-stable/revalidate-3.html",
+            "variable-revalidate-stable/revalidate-3.rsc",
+            "variable-revalidate-stable/revalidate-3/page.js",
+            "variable-revalidate-stable/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate/authorization.html",
+            "variable-revalidate/authorization.rsc",
+            "variable-revalidate/authorization/page.js",
+            "variable-revalidate/authorization/page_client-reference-manifest.js",
+            "variable-revalidate/cookie.html",
+            "variable-revalidate/cookie.rsc",
+            "variable-revalidate/cookie/page.js",
+            "variable-revalidate/cookie/page_client-reference-manifest.js",
+            "variable-revalidate/encoding.html",
+            "variable-revalidate/encoding.rsc",
+            "variable-revalidate/encoding/page.js",
+            "variable-revalidate/encoding/page_client-reference-manifest.js",
+            "variable-revalidate/headers-instance.html",
+            "variable-revalidate/headers-instance.rsc",
+            "variable-revalidate/headers-instance/page.js",
+            "variable-revalidate/headers-instance/page_client-reference-manifest.js",
+            "variable-revalidate/no-store/page.js",
+            "variable-revalidate/no-store/page_client-reference-manifest.js",
+            "variable-revalidate/post-method-request/page.js",
+            "variable-revalidate/post-method-request/page_client-reference-manifest.js",
+            "variable-revalidate/post-method.html",
+            "variable-revalidate/post-method.rsc",
+            "variable-revalidate/post-method/page.js",
+            "variable-revalidate/post-method/page_client-reference-manifest.js",
+            "variable-revalidate/revalidate-3.html",
+            "variable-revalidate/revalidate-3.rsc",
+            "variable-revalidate/revalidate-3/page.js",
+            "variable-revalidate/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate/revalidate-360-isr.html",
+            "variable-revalidate/revalidate-360-isr.rsc",
+            "variable-revalidate/revalidate-360-isr/page.js",
+            "variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js",
+            "variable-revalidate/revalidate-360/page.js",
+            "variable-revalidate/revalidate-360/page_client-reference-manifest.js",
+            "variable-revalidate/status-code/page.js",
+            "variable-revalidate/status-code/page_client-reference-manifest.js",
+          ]
+        `)
       })
 
       it('should have correct prerender-manifest entries', async () => {
@@ -767,7 +930,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -783,7 +946,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -803,7 +966,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 1,
@@ -819,7 +982,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -835,7 +998,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -851,7 +1014,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -867,7 +1030,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -883,7 +1046,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -899,7 +1062,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -915,7 +1078,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -931,7 +1094,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -947,7 +1110,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -963,7 +1126,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -979,7 +1142,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -995,7 +1158,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1011,7 +1174,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1027,27 +1190,11 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/force-static",
-            },
-            "/hooks/use-search-params/static-bailout": {
-              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params/static-bailout",
             },
             "/hooks/use-search-params/with-suspense": {
               "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
@@ -1059,7 +1206,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1075,7 +1222,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1091,7 +1238,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1107,7 +1254,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1123,7 +1270,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1139,7 +1286,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1155,7 +1302,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1171,7 +1318,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1187,7 +1334,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1203,7 +1350,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1219,7 +1366,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1235,7 +1382,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1251,7 +1398,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1267,7 +1414,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1283,11 +1430,31 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/route-handler/no-store-force-static": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
+              },
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/route-handler/no-store-force-static",
             },
             "/route-handler/revalidate-360-isr": {
               "dataRoute": null,
@@ -1299,7 +1466,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1319,7 +1486,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1339,7 +1506,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1355,7 +1522,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1371,7 +1538,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1387,11 +1554,27 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
               "srcRoute": "/variable-config-revalidate/revalidate-3",
+            },
+            "/variable-revalidate-stable/revalidate-3": {
+              "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate-stable/revalidate-3",
             },
             "/variable-revalidate/authorization": {
               "dataRoute": "/variable-revalidate/authorization.rsc",
@@ -1403,7 +1586,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1419,7 +1602,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1435,7 +1618,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1451,7 +1634,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1467,7 +1650,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1483,7 +1666,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1499,7 +1682,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1520,7 +1703,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1537,7 +1720,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1554,7 +1737,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1571,7 +1754,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1588,7 +1771,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1605,7 +1788,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1622,7 +1805,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1639,7 +1822,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1656,7 +1839,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1673,7 +1856,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1690,7 +1873,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -2187,6 +2370,7 @@ createNextDescribe(
 
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
+        const pageData2 = $('#page-data-2').text()
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2198,6 +2382,8 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#page-data-2').text()).toBe(pageData2)
+        expect(pageData).toBe(pageData2)
         return 'success'
       }, 'success')
 
@@ -2888,26 +3074,6 @@ createNextDescribe(
 
     describe('useSearchParams', () => {
       describe('client', () => {
-        it('should bailout to client rendering - without suspense boundary', async () => {
-          const url =
-            '/hooks/use-search-params/static-bailout?first=value&second=other&third'
-          const browser = await next.browser(url)
-
-          expect(await browser.elementByCss('#params-first').text()).toBe(
-            'value'
-          )
-          expect(await browser.elementByCss('#params-second').text()).toBe(
-            'other'
-          )
-          expect(await browser.elementByCss('#params-third').text()).toBe('')
-          expect(await browser.elementByCss('#params-not-real').text()).toBe(
-            'N/A'
-          )
-
-          const $ = await next.render$(url)
-          expect($('meta[content=noindex]').length).toBe(0)
-        })
-
         it('should bailout to client rendering - with suspense boundary', async () => {
           const url =
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
@@ -2974,17 +3140,9 @@ createNextDescribe(
           })
         }
       })
-      // Don't run these tests in dev mode since they won't be statically generated
+      // Don't run these tests in development mode since they won't be statically generated
       if (!isDev) {
         describe('server response', () => {
-          it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await next.fetch(
-              '/hooks/use-search-params/static-bailout'
-            )
-            const html = await res.text()
-            expect(html).toInclude('<html id="__next_error__">')
-          })
-
           it('should bailout to client rendering - with suspense boundary', async () => {
             const res = await next.fetch(
               '/hooks/use-search-params/with-suspense'
@@ -3058,6 +3216,52 @@ createNextDescribe(
       })
     })
 
+    describe('unstable_cache', () => {
+      it('should retrieve the same value on second request', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+      })
+
+      it('should bypass cache in draft mode', async () => {
+        const draftRes = await next.fetch('/api/draft-mode?status=enable')
+        const setCookie = draftRes.headers.get('set-cookie')
+        const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+        expect(cookieHeader.Cookie).toBeTruthy()
+
+        const res = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).not.toEqual(data2)
+      })
+
+      it('should not error when retrieving the value undefined', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+        expect(data).toEqual('typeof cachedData: undefined')
+      })
+    })
+
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')
       const checkUrl = async () =>
@@ -3116,7 +3320,7 @@ createNextDescribe(
         })
       }
       if (!process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode', async () => {
+        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
@@ -3137,14 +3341,14 @@ createNextDescribe(
                 .length
             ).toBe(2)
             expect(next.cliOutput.substring(cliOutputStart)).toContain(
-              'Error: fetch for over 2MB of data can not be cached'
+              'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
             )
             return 'success'
           }, 'success')
         })
       }
       if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should cache request if response data size is greater than 2MB in Dev mode', async () => {
+        it('should cache request if response data size is greater than 2MB in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
@@ -3168,10 +3372,15 @@ createNextDescribe(
           }, 'success')
 
           expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-            'Error: fetch for over 2MB of data can not be cached'
+            'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
           )
         })
       }
+    })
+
+    it('should build dynamic param with edge runtime correctly', async () => {
+      const browser = await next.browser('/dynamic-param-edge/hello')
+      expect(await browser.elementByCss('#slug').text()).toBe('hello')
     })
   }
 )

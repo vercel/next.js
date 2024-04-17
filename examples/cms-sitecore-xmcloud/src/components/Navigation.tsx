@@ -1,58 +1,58 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Link,
   LinkField,
   Text,
   TextField,
   useSitecoreContext,
-} from '@sitecore-jss/sitecore-jss-nextjs'
+} from "@sitecore-jss/sitecore-jss-nextjs";
 
 interface Fields {
-  Id: string
-  DisplayName: string
-  Title: TextField
-  NavigationTitle: TextField
-  Href: string
-  Querystring: string
-  Children: Array<Fields>
-  Styles: string[]
+  Id: string;
+  DisplayName: string;
+  Title: TextField;
+  NavigationTitle: TextField;
+  Href: string;
+  Querystring: string;
+  Children: Array<Fields>;
+  Styles: string[];
 }
 
 type NavigationProps = {
-  params?: { [key: string]: string }
-  fields: Fields
-  handleClick: (event?: React.MouseEvent<HTMLElement>) => void
-  relativeLevel: number
-}
+  params?: { [key: string]: string };
+  fields: Fields;
+  handleClick: (event?: React.MouseEvent<HTMLElement>) => void;
+  relativeLevel: number;
+};
 
 const getNavigationText = function (
-  props: NavigationProps
+  props: NavigationProps,
 ): JSX.Element | string {
-  let text
+  let text;
 
   if (props.fields.NavigationTitle) {
-    text = <Text field={props.fields.NavigationTitle} />
+    text = <Text field={props.fields.NavigationTitle} />;
   } else if (props.fields.Title) {
-    text = <Text field={props.fields.Title} />
+    text = <Text field={props.fields.Title} />;
   } else {
-    text = props.fields.DisplayName
+    text = props.fields.DisplayName;
   }
 
-  return text
-}
+  return text;
+};
 
 const getLinkTitle = (props: NavigationProps): string | undefined => {
-  let title
+  let title;
   if (props.fields.NavigationTitle?.value) {
-    title = props.fields.NavigationTitle.value.toString()
+    title = props.fields.NavigationTitle.value.toString();
   } else if (props.fields.Title?.value) {
-    title = props.fields.Title.value.toString()
+    title = props.fields.Title.value.toString();
   } else {
-    title = props.fields.DisplayName
+    title = props.fields.DisplayName;
   }
 
-  return title
-}
+  return title;
+};
 
 const getLinkField = (props: NavigationProps): LinkField => ({
   value: {
@@ -60,12 +60,12 @@ const getLinkField = (props: NavigationProps): LinkField => ({
     title: getLinkTitle(props),
     querystring: props.fields.Querystring,
   },
-})
+});
 
 const NavigationList = (props: NavigationProps) => {
-  const { sitecoreContext } = useSitecoreContext()
+  const { sitecoreContext } = useSitecoreContext();
 
-  let children: JSX.Element[] = []
+  let children: JSX.Element[] = [];
   if (props.fields.Children && props.fields.Children.length) {
     children = props.fields.Children.map((element: Fields, index: number) => (
       <NavigationList
@@ -74,14 +74,14 @@ const NavigationList = (props: NavigationProps) => {
         handleClick={props.handleClick}
         relativeLevel={props.relativeLevel + 1}
       />
-    ))
+    ));
   }
 
   return (
     <li
       className={props.fields.Styles.concat(
-        'rel-level' + props.relativeLevel
-      ).join(' ')}
+        "rel-level" + props.relativeLevel,
+      ).join(" ")}
       key={props.fields.Id}
       tabIndex={0}
     >
@@ -96,19 +96,19 @@ const NavigationList = (props: NavigationProps) => {
       </div>
       {children.length > 0 ? <ul className="clearfix">{children}</ul> : null}
     </li>
-  )
-}
+  );
+};
 
 export const Default = (props: NavigationProps): JSX.Element => {
-  const [isOpenMenu, openMenu] = useState(false)
-  const { sitecoreContext } = useSitecoreContext()
+  const [isOpenMenu, openMenu] = useState(false);
+  const { sitecoreContext } = useSitecoreContext();
   const styles =
     props.params != null
-      ? `${props.params.GridParameters ?? ''} ${
-          props.params.Styles ?? ''
+      ? `${props.params.GridParameters ?? ""} ${
+          props.params.Styles ?? ""
         }`.trimEnd()
-      : ''
-  const id = props.params != null ? props.params.RenderingIdentifier : null
+      : "";
+  const id = props.params != null ? props.params.RenderingIdentifier : null;
 
   if (!Object.values(props.fields).length) {
     return (
@@ -118,23 +118,23 @@ export const Default = (props: NavigationProps): JSX.Element => {
       >
         <div className="component-content">[Navigation]</div>
       </div>
-    )
+    );
   }
 
   const handleToggleMenu = (
     event?: React.MouseEvent<HTMLElement>,
-    flag?: boolean
+    flag?: boolean,
   ): void => {
     if (event && sitecoreContext?.pageEditing) {
-      event.preventDefault()
+      event.preventDefault();
     }
 
     if (flag !== undefined) {
-      return openMenu(flag)
+      return openMenu(flag);
     }
 
-    openMenu(!isOpenMenu)
-  }
+    openMenu(!isOpenMenu);
+  };
 
   const list = Object.values(props.fields)
     .filter((element) => element)
@@ -147,7 +147,7 @@ export const Default = (props: NavigationProps): JSX.Element => {
         }
         relativeLevel={1}
       />
-    ))
+    ));
 
   return (
     <div className={`component navigation ${styles}`} id={id ? id : undefined}>
@@ -166,5 +166,5 @@ export const Default = (props: NavigationProps): JSX.Element => {
         </div>
       </label>
     </div>
-  )
-}
+  );
+};

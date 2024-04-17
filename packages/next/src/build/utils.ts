@@ -52,7 +52,10 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   WEBPACK_LAYERS,
 } from '../lib/constants'
-import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
+import {
+  MODERN_BROWSERSLIST_TARGET,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+} from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -83,6 +86,7 @@ import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -477,7 +481,7 @@ export async function printTreeView(
       if (item === '/_app' || item === '/_app.server') {
         symbol = ' '
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ℇ'
+        symbol = 'ƒ'
       } else if (pageInfo?.isPPR) {
         if (
           // If the page has an empty prelude, then it's equivalent to a dynamic page
@@ -486,7 +490,7 @@ export async function printTreeView(
           // since in this case we're able to partially prerender it
           (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
         ) {
-          symbol = 'λ'
+          symbol = 'ƒ'
         } else if (!pageInfo?.hasPostponed) {
           symbol = '○'
         } else {
@@ -497,7 +501,7 @@ export async function printTreeView(
       } else if (pageInfo?.isSSG) {
         symbol = '●'
       } else {
-        symbol = 'λ'
+        symbol = 'ƒ'
       }
 
       usedSymbols.add(symbol)
@@ -687,7 +691,10 @@ export async function printTreeView(
   })
 
   // If there's no app /_notFound page present, then the 404 is still using the pages/404
-  if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
+  if (
+    !lists.pages.includes('/404') &&
+    !lists.app?.includes(UNDERSCORE_NOT_FOUND_ROUTE)
+  ) {
     lists.pages = [...lists.pages, '/404']
   }
 
@@ -742,16 +749,7 @@ export async function printTreeView(
           '(Partial Prerender)',
           'prerendered as static HTML with dynamic server-streamed content',
         ],
-        usedSymbols.has('λ') && [
-          'λ',
-          '(Dynamic)',
-          `server-rendered on demand using Node.js`,
-        ],
-        usedSymbols.has('ℇ') && [
-          'ℇ',
-          '(Edge Runtime)',
-          `server-rendered on demand using the Edge Runtime`,
-        ],
+        usedSymbols.has('ƒ') && ['ƒ', '(Dynamic)', `server-rendered on demand`],
       ].filter((x) => x) as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
@@ -775,7 +773,6 @@ export function printCustomRoutes({
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
     print(underline(type))
-    print()
 
     /*
         ┌ source
@@ -817,9 +814,10 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    print(routesStr, '\n')
+    print(`${routesStr}\n`)
   }
 
+  print()
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }
@@ -1304,7 +1302,7 @@ export async function buildAppStaticPaths({
   configFileName,
   generateParams,
   isrFlushToDisk,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
@@ -1315,10 +1313,10 @@ export async function buildAppStaticPaths({
   page: string
   configFileName: string
   generateParams: GenerateParamsResults
-  incrementalCacheHandlerPath?: string
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
+  cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   ppr: boolean
@@ -1328,11 +1326,11 @@ export async function buildAppStaticPaths({
 
   let CacheHandler: any
 
-  if (incrementalCacheHandlerPath) {
+  if (cacheHandler) {
     CacheHandler = interopDefault(
-      await import(
-        formatDynamicImportPath(dir, incrementalCacheHandlerPath)
-      ).then((mod) => mod.default || mod)
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
     )
   }
 
@@ -1368,7 +1366,6 @@ export async function buildAppStaticPaths({
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
-        isBot: false,
         // building static paths should never postpone
         experimental: { ppr: false },
       },
@@ -1483,7 +1480,7 @@ export async function isPageStatic({
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   ppr,
 }: {
   dir: string
@@ -1501,7 +1498,7 @@ export async function isPageStatic({
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export'
   ppr: boolean
 }): Promise<{
@@ -1551,8 +1548,9 @@ export async function isPageStatic({
           useCache: true,
           distDir,
         })
-        const mod =
-          runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
+        const mod = (
+          await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
+        ).ComponentMod
 
         isClientComponent = isClientReference(mod)
         componentsResult = {
@@ -1579,7 +1577,13 @@ export async function isPageStatic({
       const routeModule: RouteModule =
         componentsResult.ComponentMod?.routeModule
 
+      let supportsPPR = false
+
       if (pageType === 'app') {
+        if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+          supportsPPR = true
+        }
+
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
@@ -1649,7 +1653,7 @@ export async function isPageStatic({
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
         // TODO: (PPR) remove this once PPR is enabled by default
-        if (appConfig.dynamic === 'force-dynamic' && !ppr) {
+        if (appConfig.dynamic === 'force-dynamic' && !supportsPPR) {
           appConfig.revalidate = 0
         }
 
@@ -1667,7 +1671,7 @@ export async function isPageStatic({
             requestHeaders: {},
             isrFlushToDisk,
             maxMemoryCacheSize,
-            incrementalCacheHandlerPath,
+            cacheHandler,
             ppr,
             ComponentMod,
           }))
@@ -1744,12 +1748,18 @@ export async function isPageStatic({
         isStatic = true
       }
 
-      // When PPR is enabled, any route may contain or be completely static, so
+      // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
       let isPPR = false
-      if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+      if (supportsPPR) {
         isPPR = true
         isStatic = true
+      }
+
+      // interception routes depend on `Next-URL` and `Next-Router-State-Tree` request headers and thus cannot be prerendered
+      if (isInterceptionRouteAppPath(page)) {
+        isStatic = false
+        isPPR = false
       }
 
       return {
@@ -1775,12 +1785,17 @@ export async function isPageStatic({
     })
 }
 
-export async function hasCustomGetInitialProps(
-  page: string,
-  distDir: string,
-  runtimeEnvConfig: any,
+export async function hasCustomGetInitialProps({
+  page,
+  distDir,
+  runtimeEnvConfig,
+  checkingApp,
+}: {
+  page: string
+  distDir: string
+  runtimeEnvConfig: any
   checkingApp: boolean
-): Promise<boolean> {
+}): Promise<boolean> {
   require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
@@ -1799,11 +1814,15 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export async function getDefinedNamedExports(
-  page: string,
-  distDir: string,
+export async function getDefinedNamedExports({
+  page,
+  distDir,
+  runtimeEnvConfig,
+}: {
+  page: string
+  distDir: string
   runtimeEnvConfig: any
-): Promise<ReadonlyArray<string>> {
+}): Promise<ReadonlyArray<string>> {
   require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
@@ -2072,13 +2091,6 @@ const dir = path.join(__dirname)
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
-// Make sure commands gracefully respect termination signals (e.g. from Docker)
-// Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-  process.on('SIGTERM', () => process.exit(0))
-  process.on('SIGINT', () => process.exit(0))
-}
-
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 
@@ -2208,10 +2220,20 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-export function isWebpackServerLayer(
+export function isWebpackServerOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
+  )
+}
+
+export function isWebpackClientOnlyLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.clientOnly.includes(layer as any)
+  )
 }
 
 export function isWebpackDefaultLayer(

@@ -5,7 +5,6 @@ import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
@@ -34,6 +33,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -62,13 +62,16 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
+import { buildCustomRoute } from '../../lib/build-custom-route'
+import { decorateServerError } from '../../shared/lib/error-source'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
+      require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
@@ -102,7 +105,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch: typeof fetch
+  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
@@ -152,11 +155,11 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.originalFetch = global.fetch
+    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
-    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
+    this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
@@ -164,12 +167,9 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths).length
       },
     })
-    ;(this.renderOpts as any).ampSkipValidation =
+    this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    ;(this.renderOpts as any).ampValidator = (
-      html: string,
-      pathname: string
-    ) => {
+    this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
@@ -281,8 +281,14 @@ export default class DevServer extends Server {
       .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
+    // Store globals again to preserve changes made by the instrumentation hook.
+    this.storeGlobals()
+
     this.ready?.resolve()
     this.ready = undefined
+
+    // In dev, this needs to be called after prepare because the build entries won't be known in the constructor
+    this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -355,8 +361,8 @@ export default class DevServer extends Server {
   }
 
   async runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
+    request: NodeNextRequest
+    response: NodeNextResponse
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
     middlewareList: MiddlewareRoutingItem[]
@@ -392,7 +398,7 @@ export default class DevServer extends Server {
       }
 
       const err = getProperError(error)
-      ;(err as any).middleware = true
+      decorateServerError(err, COMPILER_NAMES.edgeServer)
       const { request, response, parsedUrl } = params
 
       /**
@@ -414,8 +420,8 @@ export default class DevServer extends Server {
   }
 
   async runEdgeFunction(params: {
-    req: BaseNextRequest
-    res: BaseNextResponse
+    req: NodeNextRequest
+    res: NodeNextResponse
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
@@ -425,6 +431,7 @@ export default class DevServer extends Server {
     try {
       return super.runEdgeFunction({
         ...params,
+        onError: (err) => this.logErrorWithOriginalStack(err, 'app-dir'),
         onWarning: (warn) => {
           this.logErrorWithOriginalStack(warn, 'warning')
         },
@@ -443,8 +450,8 @@ export default class DevServer extends Server {
   }
 
   public async handleRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: NodeNextRequest,
+    res: NodeNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     const span = trace('handle-request', undefined, { url: req.url })
@@ -538,6 +545,15 @@ export default class DevServer extends Server {
         pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
       ) ?? undefined
     )
+  }
+
+  protected getinterceptionRoutePatterns(): RegExp[] {
+    const rewrites = generateInterceptionRoutesRewrites(
+      Object.keys(this.appPathRoutes ?? {}),
+      this.nextConfig.basePath
+    ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
+
+    return rewrites ?? []
   }
 
   protected getMiddleware() {
@@ -695,11 +711,10 @@ export default class DevServer extends Server {
           page,
           isAppPath,
           requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: this.nextConfig.cacheHandler,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
@@ -755,8 +770,12 @@ export default class DevServer extends Server {
     return nextInvoke as NonNullable<typeof result>
   }
 
+  private storeGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
   private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch
+    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {

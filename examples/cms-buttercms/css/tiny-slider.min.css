@@ -27,7 +27,7 @@
   white-space: normal;
 }
 .tns-horizontal.tns-no-subpixel:after {
-  content: '';
+  content: "";
   display: table;
   clear: both;
 }
@@ -122,7 +122,7 @@
   right: 0;
 }
 .tns-t-ct:after {
-  content: '';
+  content: "";
   display: table;
   clear: both;
 }

@@ -1,29 +1,29 @@
-import { getFirestore, setDoc, doc } from 'firebase/firestore'
-import Head from 'next/head'
-import Link from 'next/link'
-import { useEffect } from 'react'
-import { useUser } from '../context/userContext'
+import { getFirestore, setDoc, doc } from "firebase/firestore";
+import Head from "next/head";
+import Link from "next/link";
+import { useEffect } from "react";
+import { useUser } from "../context/userContext";
 
 export default function Home() {
   // Our custom hook to get context values
-  const { loadingUser, user } = useUser()
+  const { loadingUser, user } = useUser();
 
-  const profile = { username: 'nextjs_user', message: 'Awesome!!' }
+  const profile = { username: "nextjs_user", message: "Awesome!!" };
 
   useEffect(() => {
     if (!loadingUser) {
       // You know that the user is loaded: either logged in or out!
-      console.log(user)
+      console.log(user);
     }
     // You also have your firebase app initialized
-  }, [loadingUser, user])
+  }, [loadingUser, user]);
 
   const createUser = async () => {
-    const db = getFirestore()
-    await setDoc(doc(db, 'profile', profile.username), profile)
+    const db = getFirestore();
+    await setDoc(doc(db, "profile", profile.username), profile);
 
-    alert('User created!!')
-  }
+    alert("User created!!");
+  };
 
   return (
     <div className="container">
@@ -196,5 +196,5 @@ export default function Home() {
         }
       `}</style>
     </div>
-  )
+  );
 }

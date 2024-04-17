@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { type getDictionary } from '../../../get-dictionary'
+import { useState } from "react";
+import { type getDictionary } from "../../../get-dictionary";
 
 export default function Counter({
   dictionary,
 }: {
-  dictionary: Awaited<ReturnType<typeof getDictionary>>['counter']
+  dictionary: Awaited<ReturnType<typeof getDictionary>>["counter"];
 }) {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
   return (
     <p>
       This component is rendered on client:
@@ -20,5 +20,5 @@ export default function Counter({
         {dictionary.increment}
       </button>
     </p>
-  )
+  );
 }
