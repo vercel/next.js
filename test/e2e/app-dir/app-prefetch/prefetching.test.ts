@@ -301,6 +301,23 @@ createNextDescribe(
       expect(prefetchResponse).toContain('Loading Prefetch Auto')
     })
 
+    it('should not re-render error component when triggering a prefetch action', async () => {
+      const browser = await next.browser('/with-error')
+
+      const initialRandom = await browser
+        .elementByCss('button')
+        .click()
+        .waitForElementByCss('#random-number')
+        .text()
+
+      await browser.eval('window.next.router.prefetch("/")')
+
+      // confirm the error component was not re-rendered
+      expect(await browser.elementById('random-number').text()).toBe(
+        initialRandom
+      )
+    })
+
     describe('dynamic rendering', () => {
       describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
         it('should not re-render layout when navigating between sub-pages', async () => {

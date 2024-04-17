@@ -81,7 +81,7 @@ export abstract class BaseNextResponse<Destination = any> {
 
   // Utils implemented using the abstract methods above
 
-  redirect(destination: string, statusCode: number) {
+  public redirect(destination: string, statusCode: number) {
     this.setHeader('Location', destination)
     this.statusCode = statusCode
 
@@ -90,6 +90,7 @@ export abstract class BaseNextResponse<Destination = any> {
     if (statusCode === RedirectStatusCode.PermanentRedirect) {
       this.setHeader('Refresh', `0;url=${destination}`)
     }
+
     return this
   }
 }
