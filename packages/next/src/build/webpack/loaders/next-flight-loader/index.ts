@@ -113,8 +113,6 @@ const __default__ = proxy.default;
       for (const ref of clientRefs) {
         if (ref === '') {
           esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
-        } else if (ref == '*') {
-          esmSource += `\nexports['*'] = createProxy(String.raw\`${resourceKey}#*\`);`
         } else if (ref === 'default') {
           esmSource += `\
 export default createProxy(String.raw\`${resourceKey}#default\`);
