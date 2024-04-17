@@ -283,6 +283,10 @@ impl AppProject {
                 ))),
             ),
             ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.shared_transition()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -315,6 +319,10 @@ impl AppProject {
                 "next-ssr".to_string(),
                 Vc::upcast(self.edge_ssr_transition()),
             ),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.edge_shared_transition()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -344,6 +352,10 @@ impl AppProject {
                 ))),
             ),
             ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.shared_transition()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -359,8 +371,30 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn edge_route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        let transitions = [
+            (
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+                    Vc::upcast(self.client_transition()),
+                    self.edge_ssr_transition(),
+                )),
+            ),
+            (
+                "next-dynamic".to_string(),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
+            ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.edge_shared_transition()),
+            ),
+        ]
+        .into_iter()
+        .collect();
         ModuleAssetContext::new(
-            Default::default(),
+            Vc::cell(transitions),
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
@@ -436,12 +470,32 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    fn shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
+        ContextTransition::new(
+            self.project().server_compile_time_info(),
+            self.ssr_module_options_context(),
+            self.ssr_resolve_options_context(),
+            Vc::cell("app-shared".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
     fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
         ContextTransition::new(
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-ssr".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn edge_shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
+        ContextTransition::new(
+            self.project().edge_compile_time_info(),
+            self.edge_ssr_module_options_context(),
+            self.edge_ssr_resolve_options_context(),
+            Vc::cell("app-edge-shared".to_string()),
         )
     }
 
