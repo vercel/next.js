@@ -170,7 +170,6 @@ const WEBPACK_LAYERS = {
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
-      WEBPACK_LAYERS_NAMES.shared,
     ],
     nonClientServerTarget: [
       // middleware and pages api
