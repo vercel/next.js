@@ -27,9 +27,7 @@ Then, add the bundle analyzer's settings to your `next.config.js`.
 /** @type {import('next').NextConfig} */
 const nextConfig = {}
 
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: true,
-})
+const withBundleAnalyzer = require('@next/bundle-analyzer')()
 
 module.exports = process.env.ANALYZE === 'true' ? withBundleAnalyzer(nextConfig) : nextConfig
 ```
