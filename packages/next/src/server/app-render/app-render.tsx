@@ -541,7 +541,6 @@ async function ReactServerError({
       <body></body>
     </html>,
     null,
-    null,
   ]
   return (
     <AppRouter

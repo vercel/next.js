@@ -9,7 +9,7 @@ import * as Log from '../../build/output/log'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
-    | { suggested: any }
+    | { suggested: any; reason?: string }
     | {
         parsedValue?: any
         parsedValues?: Array<any>
@@ -23,6 +23,11 @@ function getDesiredCompilerOptions(
   tsOptions?: CompilerOptions
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
+    target: {
+      suggested: 'ES2017',
+      reason:
+        'For top-level `await`. Note: Next.js only polyfills for the esmodules target.',
+    },
     // These are suggested values and will be set when not present in the
     // tsconfig.json
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
@@ -168,7 +173,12 @@ export async function writeConfigurationDefaults(
         }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
-          cyan(optionKey) + ' was set to ' + bold(check.suggested)
+          cyan(optionKey) +
+            ' was set to ' +
+            bold(check.suggested) +
+            check.reason
+            ? ` (${check.reason})`
+            : ''
         )
       }
     } else if ('value' in check) {

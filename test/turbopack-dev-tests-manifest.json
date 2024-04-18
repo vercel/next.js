@@ -1531,15 +1531,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/root-not-found-missing-root-layout/index.test.ts": {
-    "passed": [],
-    "failed": [
-      "root-not-found-missing-root-layout should not conflict with generated layout on dev server"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": ["Strict Mode enabled by default should work using browser"],
     "failed": [],
@@ -2495,6 +2486,8 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
+      "app dir - basepath should only make a single RSC call to the current page (/base/refresh)",
+      "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
       "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
@@ -3502,6 +3495,8 @@
   },
   "test/e2e/app-dir/dynamic-css/index.test.ts": {
     "passed": [
+      "app dir - dynamic css should not throw with accessing to ALS in preload css",
+      "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
       "app dir - dynamic css should only apply corresponding css for page loaded that /another",
       "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
       "app dir - dynamic css should preload css of dynamic component during SSR"
@@ -4268,17 +4263,6 @@
     "passed": [
       "app dir - not-found - group route with default runtime should use the not-found page under group routes",
       "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/not-found/multi-root-layout/index.test.ts": {
-    "passed": [
-      "not-found-multi-root-layout should render main not-found",
-      "not-found-multi-root-layout should render root not-found for uncaught routes",
-      "not-found-multi-root-layout should render sub not-found"
     ],
     "failed": [],
     "pending": [],
@@ -5416,6 +5400,30 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/async-modules-app/index.test.ts": {
+    "passed": ["Async modules app router server component async module"],
+    "failed": [],
+    "pending": ["Async modules app router client component async module"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/async-modules/index.test.ts": {
+    "passed": [
+      "Async modules can render async 404 pages",
+      "Async modules csr async page modules",
+      "Async modules ssr async page modules",
+      "Async modules works on async api routes",
+      "Async modules works with getServerSideProps",
+      "Async modules works with getStaticProps"
+    ],
+    "failed": [],
+    "pending": [
+      "Async modules can render async AMP pages",
+      "Async modules can render async error page"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7937,31 +7945,6 @@
       "app type checking production mode should generate route types correctly and report link error",
       "app type checking production mode should generate route types correctly and report router API errors",
       "app type checking production mode should type check invalid entry exports"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/async-modules/test/index.test.js": {
-    "passed": [
-      "Async modules development mode can render async 404 pages",
-      "Async modules development mode csr async page modules",
-      "Async modules development mode ssr async page modules",
-      "Async modules development mode works on async api routes",
-      "Async modules development mode works with getServerSideProps",
-      "Async modules development mode works with getStaticProps"
-    ],
-    "failed": [],
-    "pending": [
-      "Async modules development mode can render async AMP pages",
-      "Async modules development mode can render async error page",
-      "Async modules production mode can render async 404 pages",
-      "Async modules production mode can render async AMP pages",
-      "Async modules production mode can render async error page",
-      "Async modules production mode csr async page modules",
-      "Async modules production mode ssr async page modules",
-      "Async modules production mode works on async api routes",
-      "Async modules production mode works with getServerSideProps",
-      "Async modules production mode works with getStaticProps"
     ],
     "flakey": [],
     "runtimeError": false

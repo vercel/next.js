@@ -1,5 +1,5 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import type { SizeLimit } from '../../../types'
+import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
