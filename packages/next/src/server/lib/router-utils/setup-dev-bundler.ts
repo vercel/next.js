@@ -154,6 +154,7 @@ async function startWatcher(opts: SetupOpts) {
 
   const serverFields: ServerFields = {}
 
+  const encryptionKey = await generateEncryptionKeyBase64()
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await createHotReloaderTurbopack(opts, serverFields, distDir)
     : new HotReloaderWebpack(opts.dir, {
@@ -162,7 +163,7 @@ async function startWatcher(opts: SetupOpts) {
         distDir: distDir,
         config: opts.nextConfig,
         buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64(),
+        encryptionKey,
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
@@ -563,6 +564,7 @@ async function startWatcher(opts: SetupOpts) {
               hasRewrites,
               // TODO: Implement
               middlewareMatchers: undefined,
+              encryptionKey,
             }),
           })
         }
@@ -638,6 +640,7 @@ async function startWatcher(opts: SetupOpts) {
                   isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
+                  encryptionKey,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

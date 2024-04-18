@@ -37,6 +37,7 @@ export interface DefineEnvPluginOptions {
   isNodeOrEdgeCompilation: boolean
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
+  encryptionKey: string
 }
 
 interface DefineEnv {
@@ -137,6 +138,7 @@ export function getDefineEnv({
   isNodeOrEdgeCompilation,
   isNodeServer,
   middlewareMatchers,
+  encryptionKey,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -254,6 +256,7 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
+    'process.env.__NEXT_ENCRYPTION_KEY': encryptionKey,
   }
   return serializeDefineEnv(defineEnv)
 }

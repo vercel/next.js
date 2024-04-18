@@ -217,6 +217,9 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
+
+        // Random key created via `generateEncryptionKeyBase64` for testing.
+        encryptionKey: '2UbCWL+RT8ros1StnG5+Fc0FGGMi1W2BxjeJucb1nyo=',
       }),
     })
     projectUpdateSubscription = filterMapAsyncIterator(

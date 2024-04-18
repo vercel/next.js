@@ -451,6 +451,7 @@ export function createDefineEnv({
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
+  encryptionKey,
 }: Omit<
   DefineEnvPluginOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
@@ -476,6 +477,7 @@ export function createDefineEnv({
         isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
+        encryptionKey,
       })
     )
   }

@@ -1385,6 +1385,7 @@ export default async function build(
             hasRewrites,
             // TODO: Implement
             middlewareMatchers: undefined,
+            encryptionKey,
           }),
         })
 

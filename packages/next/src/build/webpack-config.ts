@@ -1734,6 +1734,7 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
+        encryptionKey,
       }),
       isClient &&
         new ReactLoadablePlugin({
