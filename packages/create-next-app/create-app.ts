@@ -34,6 +34,7 @@ export async function createApp({
   appRouter,
   srcDir,
   importAlias,
+  experimentalTestMode,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -45,6 +46,7 @@ export async function createApp({
   appRouter: boolean
   srcDir: boolean
   importAlias: string
+  experimentalTestMode: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -230,6 +232,7 @@ export async function createApp({
       eslint,
       srcDir,
       importAlias,
+      experimentalTestMode,
     })
   }
 

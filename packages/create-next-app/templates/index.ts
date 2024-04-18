@@ -38,6 +38,7 @@ export const installTemplate = async ({
   eslint,
   srcDir,
   importAlias,
+  experimentalTestMode,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -52,6 +53,10 @@ export const installTemplate = async ({
     copySource.push(
       mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
       "!postcss.config.mjs",
+    );
+  if (!experimentalTestMode)
+    copySource.push(
+      mode === "ts" ? "!playwright.config.ts" : "!playwright.config.js",
     );
 
   await copy(copySource, root, {
@@ -220,6 +225,14 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       eslint: "^8",
       "eslint-config-next": version,
+    };
+  }
+
+  /* Default Test Mode dependencies. */
+  if (experimentalTestMode) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      "@playwright/test": "^1",
     };
   }
 

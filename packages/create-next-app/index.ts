@@ -93,6 +93,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--experimental-test-mode',
+    `
+
+  Initialize Next.js Test Mode (Playwright E2E Testing).
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -257,6 +264,7 @@ async function run(): Promise<void> {
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
+      experimentalTestMode: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -381,6 +389,27 @@ async function run(): Promise<void> {
       }
     }
 
+    if (
+      !process.argv.includes('--experimental-test-mode') &&
+      !process.argv.includes('--no-experimental-test-mode')
+    ) {
+      if (ciInfo.isCI) {
+        program.app = getPrefOrDefault('experimentalTestMode')
+      } else {
+        const styledExperimentalTestMode = blue('Experimental Test Mode')
+        const { experimentalTestMode } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'experimentalTestMode',
+          message: `Would you like to use ${styledExperimentalTestMode}?`,
+          initial: getPrefOrDefault('experimentalTestMode'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.app = Boolean(experimentalTestMode)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
@@ -438,6 +467,7 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      experimentalTestMode: program.experimentalTestMode,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -466,6 +496,7 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      experimentalTestMode: program.experimentalTestMode,
     })
   }
   conf.set('preferences', preferences)

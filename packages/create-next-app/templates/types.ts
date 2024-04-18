@@ -21,4 +21,5 @@ export interface InstallTemplateArgs {
   tailwind: boolean;
   srcDir: boolean;
   importAlias: string;
+  experimentalTestMode: boolean;
 }
