@@ -9,6 +9,7 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render/types'
+import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, {
@@ -358,7 +359,6 @@ function InnerLayoutRouter({
       parallelRoutes: new Map(),
       lazyDataResolved: false,
       loading: null,
-      error: null,
     }
 
     /**
@@ -455,7 +455,6 @@ function InnerLayoutRouter({
         // TODO-APP: overriding of url for parallel routes
         url: url,
         loading: childNode.loading,
-        error: childNode.error,
       }}
     >
       {resolvedRsc}
@@ -510,6 +509,9 @@ function LoadingBoundary({
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
+  error,
+  errorStyles,
+  errorScripts,
   templateStyles,
   templateScripts,
   template,
@@ -519,6 +521,9 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
+  error: ErrorComponent | undefined
+  errorStyles: React.ReactNode | undefined
+  errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
@@ -531,7 +536,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url, loading, error } = context
+  const { childNodes, tree, url, loading } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -577,9 +582,9 @@ export default function OuterLayoutRouter({
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
                 <ErrorBoundary
-                  errorComponent={error?.[0]}
-                  errorStyles={error?.[1]}
-                  errorScripts={error?.[2]}
+                  errorComponent={error}
+                  errorStyles={errorStyles}
+                  errorScripts={errorScripts}
                 >
                   <LoadingBoundary
                     hasLoading={Boolean(loading)}
