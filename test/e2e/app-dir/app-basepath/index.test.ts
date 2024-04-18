@@ -135,6 +135,8 @@ describe('app dir - basepath', () => {
       await browser.elementById(buttonId).click()
       await check(() => browser.url(), /\/base\/another/)
 
+      expect(await browser.waitForElementByCss('#page-2').text()).toBe(`Page 2`)
+
       // verify that the POST request was only made to the action handler
       expect(requests).toHaveLength(1)
       expect(responses).toHaveLength(1)
@@ -160,7 +162,7 @@ describe('app dir - basepath', () => {
     browser.on('request', (req: Request) => {
       const url = req.url()
 
-      if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+      if (!url.includes('_next')) {
         requests.push(req)
       }
     })
@@ -168,7 +170,7 @@ describe('app dir - basepath', () => {
     browser.on('response', (res: Response) => {
       const url = res.url()
 
-      if (url.includes(initialPagePath) || url.includes(destinationPagePath)) {
+      if (!url.includes('_next')) {
         responses.push(res)
       }
     })

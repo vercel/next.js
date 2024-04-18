@@ -773,21 +773,42 @@ describe('app-dir action handling', () => {
     it.each(['relative', 'absolute'])(
       `should handle calls to redirect() with a %s URL in a single pass`,
       async (redirectType) => {
-        const browser = await next.browser('/client/edge')
+        const initialPagePath = '/client/redirects'
+        const destinationPagePath = '/redirect-target'
+
+        const browser = await next.browser(initialPagePath)
 
         const requests: Request[] = []
         const responses: Response[] = []
 
         browser.on('request', (req: Request) => {
-          requests.push(req)
+          const url = req.url()
+
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
+            requests.push(req)
+          }
         })
 
         browser.on('response', (res: Response) => {
-          responses.push(res)
+          const url = res.url()
+
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
+            responses.push(res)
+          }
         })
 
         await browser.elementById(`redirect-${redirectType}`).click()
-        await check(() => browser.url(), /\/redirect-target/)
+        await check(() => browser.url(), `${next.url}${destinationPagePath}`)
+
+        expect(await browser.waitForElementByCss('#redirected').text()).toBe(
+          'redirected'
+        )
 
         // no other requests should be made
         expect(requests).toHaveLength(1)
@@ -796,14 +817,14 @@ describe('app-dir action handling', () => {
         const request = requests[0]
         const response = responses[0]
 
-        expect(request.url()).toEqual(`${next.url}/client/edge`)
+        expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
         expect(response.status()).toEqual(303)
       }
     )
 
     it('should handle calls to redirect() with external URLs', async () => {
-      const browser = await next.browser('/client/edge')
+      const browser = await next.browser('/client/redirects')
 
       await browser.elementByCss('#redirect-external').click()
 

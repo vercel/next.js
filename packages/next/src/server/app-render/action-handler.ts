@@ -251,17 +251,14 @@ function getAppRelativeRedirectUrl(
   host: Host,
   redirectUrl: string
 ): URL | null {
-  if (!host) {
-    return null
-  }
-
-  const parsedRedirectUrl = new URL(redirectUrl, 'http://n')
-
   if (redirectUrl.startsWith('/')) {
-    return parsedRedirectUrl
+    // Make sure we are appending the basePath to relative URLS
+    return new URL(`${basePath}${redirectUrl}`, 'http://n')
   }
 
-  if (host.value !== parsedRedirectUrl.host) {
+  const parsedRedirectUrl = new URL(redirectUrl)
+
+  if (host?.value !== parsedRedirectUrl.host) {
     return null
   }
 
@@ -312,7 +309,7 @@ async function createRedirectRenderResult(
       process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
 
     const fetchUrl = new URL(
-      `${origin}${basePath}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
+      `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {
