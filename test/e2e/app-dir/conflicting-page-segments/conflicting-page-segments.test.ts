@@ -18,7 +18,7 @@ createNextDescribe(
         expect(html).toContain(
           'You cannot have two parallel pages that resolve to the same path.'
         )
-      } else if (!process.env.TURBOPACK) {
+      } else {
         await expect(next.start()).rejects.toThrow('next build failed')
 
         await check(
