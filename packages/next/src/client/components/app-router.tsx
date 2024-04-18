@@ -187,7 +187,6 @@ export function createEmptyCacheNode(): CacheNode {
     parallelRoutes: new Map(),
     lazyDataResolved: false,
     loading: null,
-    error: null,
   }
 }
 
@@ -627,9 +626,8 @@ function Router({
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
       loading: cache.loading,
-      error: cache.error,
     }
-  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading, cache.error])
+  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading])
 
   const globalLayoutRouterContext = useMemo(() => {
     return {

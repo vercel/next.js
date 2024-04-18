@@ -6,11 +6,8 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
+import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
-import type {
-  ErrorModuleData,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -92,8 +89,7 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   node: React.ReactNode | null,
-  loading: LoadingModuleData,
-  error: ErrorModuleData
+  loading: LoadingModuleData
 ]
 
 export type FlightDataPath =

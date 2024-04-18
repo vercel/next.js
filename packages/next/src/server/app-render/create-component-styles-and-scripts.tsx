@@ -5,9 +5,7 @@ import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
-export async function createComponentStylesAndScripts<
-  T = React.ComponentType<unknown>
->({
+export async function createComponentStylesAndScripts({
   filePath,
   getComponent,
   injectedCSS,
@@ -19,7 +17,7 @@ export async function createComponentStylesAndScripts<
   injectedCSS: Set<string>
   injectedJS: Set<string>
   ctx: AppRenderContext
-}): Promise<[T, React.ReactNode, React.ReactNode]> {
+}): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
   const { styles: cssHrefs, scripts: jsHrefs } = getLinkAndScriptTags(
     ctx.clientReferenceManifest,
     filePath,
