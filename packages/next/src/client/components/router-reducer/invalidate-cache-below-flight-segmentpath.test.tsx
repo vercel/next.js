@@ -34,7 +34,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       head: null,
       prefetchHead: null,
       loading: null,
-      error: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
     }
@@ -46,7 +45,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       prefetchHead: null,
       lazyDataResolved: false,
       loading: null,
-      error: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -61,7 +59,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 prefetchHead: null,
                 lazyDataResolved: false,
                 loading: null,
-                error: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -76,7 +73,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           prefetchHead: null,
                           lazyDataResolved: false,
                           loading: null,
-                          error: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -119,7 +115,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       head: null,
       prefetchHead: null,
       loading: null,
-      error: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -132,7 +127,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 head: null,
                 prefetchHead: null,
                 loading: null,
-                error: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -142,7 +136,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         {
                           lazyData: null,
                           loading: null,
-                          error: null,
                           parallelRoutes: new Map(),
                           rsc: <React.Fragment>Page</React.Fragment>,
                           prefetchRsc: null,
