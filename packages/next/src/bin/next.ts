@@ -264,9 +264,11 @@ program
     '--no-inline-config',
     'Prevents comments from changing config or rules.'
   )
-  .option(
-    '--report-unused-disable-directives',
-    'Adds reported errors for unused eslint-disable directives.'
+  .addOption(
+    new Option(
+      '--report-unused-disable-directives-severity <level>',
+      'Specify severity level for unused eslint-disable directives.'
+    ).choices(['error', 'off', 'warn'])
   )
   .option('--no-cache', 'Disables caching.')
   .option('--cache-location, <cacheLocation>', 'Specify a location for cache.')

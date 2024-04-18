@@ -268,7 +268,7 @@ class NextTracerImpl implements NextTracer {
         options,
         (span: Span) => {
           const startTime =
-            'performance' in globalThis
+            'performance' in globalThis && 'measure' in performance
               ? globalThis.performance.now()
               : undefined
 

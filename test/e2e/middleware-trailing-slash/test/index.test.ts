@@ -109,19 +109,21 @@ describe('Middleware Runtime trailing slash', () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
         )
-        expect(manifest.middleware).toEqual({
-          '/': {
-            files: expect.arrayContaining([
-              'prerender-manifest.js',
-              'server/edge-runtime-webpack.js',
-              'server/middleware.js',
-            ]),
-            name: 'middleware',
-            page: '/',
-            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
-            wasm: [],
-            assets: [],
-          },
+        const middlewareWithoutEnvs = {
+          ...manifest.middleware['/'],
+        }
+        delete middlewareWithoutEnvs.environments
+        expect(middlewareWithoutEnvs).toEqual({
+          files: expect.arrayContaining([
+            'prerender-manifest.js',
+            'server/edge-runtime-webpack.js',
+            'server/middleware.js',
+          ]),
+          name: 'middleware',
+          page: '/',
+          matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
+          wasm: [],
+          assets: [],
         })
       })
 

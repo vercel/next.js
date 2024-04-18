@@ -15,10 +15,11 @@ import {
 import { SERVER_RUNTIME } from '../../../../lib/constants'
 import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import type { SizeLimit } from '../../../../../types'
+import type { SizeLimit } from '../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
+import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 
 export function getRender({
   dev,
@@ -53,7 +54,7 @@ export function getRender({
   renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
-  prerenderManifest: PrerenderManifest
+  prerenderManifest: DeepReadonly<PrerenderManifest>
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   interceptionRouteRewrites?: ManifestRewriteRoute[]
