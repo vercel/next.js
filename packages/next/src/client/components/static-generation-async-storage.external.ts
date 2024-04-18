@@ -51,6 +51,8 @@ export interface StaticGenerationStore {
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
+
+  requestEndedState?: { ended?: boolean }
 }
 
 export type StaticGenerationAsyncStorage =

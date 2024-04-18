@@ -1127,6 +1127,7 @@ export default class NextNodeServer extends BaseServer {
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
+
         const _res = res as NodeNextResponse | ServerResponse
         const origRes =
           'originalResponse' in _res ? _res.originalResponse : _res
@@ -1247,6 +1248,7 @@ export default class NextNodeServer extends BaseServer {
               }
             }
           }
+          delete normalizedReq.fetchMetrics
           origRes.off('close', reqCallback)
         }
         origRes.on('close', reqCallback)
