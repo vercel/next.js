@@ -85,6 +85,9 @@ export function makeGetServerInsertedHTML({
             })
         }
         {traceData.map(({ key, value }) => {
+          // The meta-tag name is prefixed with "_next-trace-data-" for mainly two reasons:
+          // - Avoid collisions with meta tags created by the user
+          // - Allow clients that want to propagate _all_ trace data to explicitly query for meta tags prefixed with "_next-trace-data-"
           return (
             <meta key={key} name={`_next-trace-data-${key}`} content={value} />
           )
