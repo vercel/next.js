@@ -11,7 +11,6 @@ import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { myParseInt } from '../server/lib/utils'
 import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test.js'
-import { getProjectDir } from '../lib/get-project-dir'
 
 if (
   semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
