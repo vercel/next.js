@@ -1,4 +1,4 @@
-const { withNext } = require('next/experimental/testmode/playwright')
+const { withNext, devices } = require('next/experimental/testmode/playwright')
 
 /*
  * Specify any additional Playwright config options here.
@@ -6,4 +6,11 @@ const { withNext } = require('next/experimental/testmode/playwright')
  * You can access the default config by using a function: \`withNext((config) => {})\`
  */
 
-module.exports = withNext()
+module.exports = withNext({
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+})
