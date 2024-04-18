@@ -1232,6 +1232,7 @@ export default class NextNodeServer extends BaseServer<
               }
             }
           }
+          delete normalizedReq.fetchMetrics
           originalResponse.off('close', reqCallback)
         }
         originalResponse.on('close', reqCallback)
