@@ -9,7 +9,7 @@ import type { FetchMetric } from '../base-http'
 
 export type StaticGenerationContext = {
   urlPathname: string
-  requestEndedState: { ended?: boolean }
+  requestEndedState?: { ended?: boolean }
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
