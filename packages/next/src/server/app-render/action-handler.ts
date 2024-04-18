@@ -544,6 +544,15 @@ export async function handleAction({
     }
   }
 
+  const defaultBodySizeLimit = '1 MB'
+  const bodySizeLimit = serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+  const bodySizeLimitBytes =
+    bodySizeLimit !== defaultBodySizeLimit
+      ? (require('next/dist/compiled/bytes') as typeof import('bytes')).parse(
+          bodySizeLimit
+        )
+      : 1024 * 1024 // 1 MB
+
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
       if (
@@ -554,15 +563,41 @@ export async function handleAction({
       ) {
         // Use react-server-dom-webpack/server.edge
         const { decodeReply, decodeAction, decodeFormState } = ComponentMod
-        if (!req.body) {
-          throw new Error('invariant: Missing request body.')
+        if (!req.request.body) {
+          throw new Error('Invariant: missing request body')
         }
 
-        // TODO: add body limit
-
         if (isMultipartAction) {
-          // TODO-APP: Add streaming support
-          const formData = await req.request.formData()
+          let size = 0
+          const request = new Request(req.request, {
+            // Copy over the options only needed for the formData parsing to
+            // work. We aren't using this request object out of this scope.
+            headers: req.request.headers,
+            method: req.request.method,
+            signal: req.request.signal,
+            body: req.request.body.pipeThrough(
+              new TransformStream<Uint8Array, Uint8Array>({
+                transform: (chunk, controller) => {
+                  size += chunk.byteLength
+                  if (size > bodySizeLimitBytes) {
+                    const { ApiError } = require('../api-utils')
+
+                    return controller.error(
+                      new ApiError(
+                        413,
+                        `Body exceeded ${bodySizeLimit} limit.
+                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                      )
+                    )
+                  }
+
+                  controller.enqueue(chunk)
+                },
+              })
+            ),
+          })
+
+          const formData = await request.formData()
           if (isFetchAction) {
             bound = await decodeReply(formData, serverModuleMap)
           } else {
@@ -591,14 +626,25 @@ export async function handleAction({
 
           let actionData = ''
 
-          const reader = req.body.getReader()
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) {
-              break
+          const decoder = new TextDecoder()
+          const reader = req.request.body.getReader()
+
+          let size = 0
+          let result = await reader.read()
+          while (!result.done) {
+            size += result.value.byteLength
+            if (size > bodySizeLimitBytes) {
+              const { ApiError } = require('../api-utils')
+
+              throw new ApiError(
+                413,
+                `Body exceeded ${bodySizeLimit} limit.
+              To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+              )
             }
 
-            actionData += new TextDecoder().decode(value)
+            actionData += decoder.decode(result.value)
+            result = await reader.read()
           }
 
           if (isURLEncodedAction) {
@@ -624,16 +670,6 @@ export async function handleAction({
 
         const { Transform } =
           require('node:stream') as typeof import('node:stream')
-
-        const defaultBodySizeLimit = '1 MB'
-        const bodySizeLimit =
-          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
-        const bodySizeLimitBytes =
-          bodySizeLimit !== defaultBodySizeLimit
-            ? (
-                require('next/dist/compiled/bytes') as typeof import('bytes')
-              ).parse(bodySizeLimit)
-            : 1024 * 1024 // 1 MB
 
         let size = 0
         const body = req.body.pipe(
