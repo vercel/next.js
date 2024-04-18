@@ -248,7 +248,11 @@ async function main() {
       if (tests.length)
         testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
 
-      console.log('Running related tests:', testPatternRegex?.toString())
+      if (testPatternRegex) {
+        console.log('Running related tests:', testPatternRegex.toString())
+      } else {
+        console.log('No matching related tests.')
+      }
     }
 
     tests = (
