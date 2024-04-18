@@ -104,6 +104,7 @@ In order to make the value of an environment variable accessible in the browser,
 ```txt filename="Terminal"
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
+> **Note**: All environment variables using NEXT_PUBLIC_ are rendered in plain text during build time, avoid using sensitive environment variables on client side, this could possibly compromise security and leak sensitive data.
 
 This will tell Next.js to replace all references to `process.env.NEXT_PUBLIC_ANALYTICS_ID` in the Node.js environment with the value from the environment in which you run `next build`, allowing you to use it anywhere in your code. It will be inlined into any JavaScript sent to the browser.
 
