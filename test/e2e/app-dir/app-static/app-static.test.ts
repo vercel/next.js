@@ -40,6 +40,22 @@ createNextDescribe(
       }
     })
 
+    it('should still cache even though the `traceparent` header was different', async () => {
+      const res = await next.fetch('/strip-header-traceparent')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#data1').text()
+      const data2 = $('#data2').text()
+      expect(data1).toBeTruthy()
+      expect(data1).toBe(data2)
+
+      const echoedHeaders = JSON.parse($('#echoedHeaders').text())
+      expect(echoedHeaders.headers.traceparent).toEqual('C')
+    })
+
     it('should warn for too many cache tags', async () => {
       const res = await next.fetch('/too-many-cache-tags')
       expect(res.status).toBe(200)
