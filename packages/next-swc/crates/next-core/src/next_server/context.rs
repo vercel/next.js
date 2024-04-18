@@ -325,7 +325,7 @@ pub async fn get_server_module_options_context(
     let mut foreign_next_server_rules =
         get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
             .await?;
-    let internal_custom_rules =
+    let mut internal_custom_rules =
         get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
             .await?;
 
@@ -622,10 +622,16 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
         } => {
             next_server_rules.extend(source_transform_rules);
+
+            let mut common_next_server_rules = vec![
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                    .await?,
+            ];
+
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
             {
-                next_server_rules.push(get_ecma_transform_rule(
+                common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
                         ecmascript_client_reference_transition_name,
                     )),
@@ -634,10 +640,8 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
-            next_server_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
-                    .await?,
-            );
+            next_server_rules.extend(common_next_server_rules.iter().cloned());
+            internal_custom_rules.extend(common_next_server_rules);
 
             let module_options_context = ModuleOptionsContext {
                 esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
