@@ -223,6 +223,9 @@ export async function writeConfigurationDefaults(
         )
     )
   } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
+    if (!Array.isArray(userTsConfig.include)) {
+      userTsConfig.include = []
+    }
     userTsConfig.include.push(nextAppTypes)
     suggestedActions.push(
       cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
@@ -270,14 +273,13 @@ export async function writeConfigurationDefaults(
       )
     }
 
-    // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+    // If `strict` is set to `false` and `strictNullChecks` is set to `false`,
     // then set `strictNullChecks` to `true`.
     if (
       hasPagesDir &&
       hasAppDir &&
-      userTsConfig.compilerOptions &&
-      !userTsConfig.compilerOptions.strict &&
-      !('strictNullChecks' in userTsConfig.compilerOptions)
+      !tsOptions.strict &&
+      !('strictNullChecks' in tsOptions)
     ) {
       userTsConfig.compilerOptions.strictNullChecks = true
       suggestedActions.push(
