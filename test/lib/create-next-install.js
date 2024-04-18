@@ -66,6 +66,28 @@ async function createNextInstall({
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
+        for (const item of ['package.json', 'packages']) {
+          await rootSpan
+            .traceChild(`copy ${item} to temp dir`)
+            .traceAsyncFn(() =>
+              fs.copy(
+                path.join(origRepoDir, item),
+                path.join(tmpRepoDir, item),
+                {
+                  filter: (item) => {
+                    return (
+                      !item.includes('node_modules') &&
+                      !item.includes('pnpm-lock.yaml') &&
+                      !item.includes('.DS_Store') &&
+                      // Exclude Rust compilation files
+                      !/next-swc[\\/]target/.test(item)
+                    )
+                  },
+                }
+              )
+            )
+        }
+
         await rootSpan
           .traceChild('ensure swc binary')
           .traceAsyncFn(async () => {
@@ -81,7 +103,7 @@ async function createNextInstall({
                   folder
                 )
                 const outputPath = path.join(
-                  origRepoDir,
+                  tmpRepoDir,
                   'packages/next-swc/native'
                 )
                 await fs.copy(swcPkgPath, outputPath, {
@@ -99,33 +121,9 @@ async function createNextInstall({
             }
           })
 
-        for (const item of ['package.json', 'packages']) {
-          await rootSpan
-            .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(() =>
-              fs.copy(
-                path.join(origRepoDir, item),
-                path.join(tmpRepoDir, item),
-                {
-                  filter: (item) => {
-                    return (
-                      !item.includes('node_modules') &&
-                      !item.includes('pnpm-lock.yaml') &&
-                      !item.includes('.DS_Store') &&
-                      // Exclude Rust compilation files
-                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                      !/next-swc[\\/]target/.test(item)
-                    )
-                  },
-                }
-              )
-            )
-        }
-
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
           linkPackages({
             repoDir: tmpRepoDir,
-            nextSwcVersion: null,
           })
         )
       }
