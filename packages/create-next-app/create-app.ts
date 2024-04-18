@@ -232,6 +232,7 @@ export async function createApp({
       eslint,
       srcDir,
       importAlias,
+      skipInstall,
     })
   }
 
