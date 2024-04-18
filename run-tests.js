@@ -1,3 +1,5 @@
+//@ts-check
+
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
@@ -5,6 +7,7 @@ const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
+// @ts-expect-error
 const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
@@ -226,19 +229,16 @@ async function main() {
   console.log('Running tests with concurrency:', options.concurrency)
 
   /** @type TestFile[] */
-  let tests = argv._.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/)).map(
-    (file) => ({
-      file,
-      excludedCases: [],
-    })
-  )
+  let tests = argv._.filter((arg) =>
+    arg.toString().match(/\.test\.(js|ts|tsx)/)
+  ).map((file) => ({ file: file.toString(), excludedCases: [] }))
   let prevTimings
 
   if (tests.length === 0) {
     /** @type {RegExp | undefined} */
     let testPatternRegex
 
-    if (options.testPattern) {
+    if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
     }
 
@@ -248,7 +248,7 @@ async function main() {
       if (tests.length)
         testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
 
-      console.log('Running related tests:', testPatternRegex.toString())
+      console.log('Running related tests:', testPatternRegex?.toString())
     }
 
     tests = (
@@ -324,12 +324,13 @@ async function main() {
       return true
     })
 
-  if (options.group) {
+  if (options.group && typeof options.group === 'string') {
     const groupParts = options.group.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
 
     if (prevTimings) {
+      /** @type {TestFile[][]} */
       const groups = [[]]
       const groupTimes = [0]
 
@@ -476,6 +477,7 @@ ${ENDGROUP}`)
         // Format the output of junit report to include the test name
         // For the debugging purpose to compare actual run list to the generated reports
         // [NOTE]: This won't affect if junit reporter is not enabled
+        // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
         JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
         // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
         // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
@@ -566,6 +568,7 @@ ${ENDGROUP}`)
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
+          // @ts-expect-error
           err.output = outputChunks
             .map(({ chunk }) => chunk.toString())
             .join('')
