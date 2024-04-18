@@ -6,11 +6,12 @@ const { withNext, devices } = require('next/experimental/testmode/playwright')
  * You can access the default config by using a function: \`withNext((config) => {})\`
  */
 
-module.exports = withNext({
-  projects: [
+module.exports = withNext((config) => {
+  config.projects = [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-  ],
+  ]
+  return config
 })

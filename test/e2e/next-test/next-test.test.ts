@@ -10,6 +10,8 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 
 import { nextTest } from 'next-test-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { spawnSync } from 'child_process'
 
 function createTemporaryFixture(fixtureName: string) {
   const fixturePath = join(__dirname, fixtureName)
@@ -24,6 +26,14 @@ function createTemporaryFixture(fixtureName: string) {
 }
 
 describe('next test', () => {
+  const { next: basicExample } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'basic-example')),
+    dependencies: {
+      '@playwright/test': '1.43.1',
+    },
+    skipStart: true,
+  })
+
   describe('first time setup', () => {
     it.each([['first-time-setup-js'], ['first-time-setup-ts']])(
       'should correctly install missing dependencies and generate missing configuration file for %s',
@@ -82,81 +92,101 @@ describe('next test', () => {
   })
 
   it('should execute playwright tests', async () => {
-    const fixture = createTemporaryFixture('basic-example')
+    const { stdout, stderr } = spawnSync(
+      'pnpm',
+      ['next', 'experimental-test'],
+      {
+        cwd: basicExample.testDir,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+        },
+      }
+    )
 
-    try {
-      const { stdout, stderr } = await nextTest(fixture, [], {
-        stderr: true,
-        stdout: true,
-        cwd: fixture,
-      })
-
-      expect(stdout).toContain('1 passed')
-      expect(stderr).toBe('')
-    } finally {
-      rmSync(fixture, { recursive: true, force: true })
-    }
+    expect(stdout).toContain('1 passed')
+    expect(stderr).toBe('')
   })
 
   describe('test runner validation', () => {
+    beforeEach(() => {
+      // First, test that `defaultTestRunner` takes precedence over the default playwright.
+      writeFileSync(
+        join(basicExample.testDir, 'next.config.js'),
+        "module.exports = { experimental: { testProxy: true, defaultTestRunner: 'invalid-test-runner'}}"
+      )
+    })
+
+    afterEach(() => {
+      writeFileSync(
+        join(basicExample.testDir, 'next.config.js'),
+        'module.exports = { experimental: { testProxy: true }}'
+      )
+    })
+
     it('should validate configured/specified test runner', async () => {
-      const fixture = createTemporaryFixture('basic-example')
+      let { stdout, stderr } = spawnSync(
+        'pnpm',
+        ['next', 'experimental-test'],
+        {
+          cwd: basicExample.testDir,
+          encoding: 'utf-8',
+          env: {
+            ...process.env,
+            JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+          },
+        }
+      )
 
-      try {
-        // First, test that `defaultTestRunner` takes precedence over the default playwright.
-        writeFileSync(
-          join(fixture, 'next.config.js'),
-          "module.exports = { experimental: { testProxy: true, defaultTestRunner: 'invalid-test-runner'}}"
-        )
+      expect(stdout).toBe('')
+      // Assert the assigned `defaultTestRunner` is printed in the error
+      expect(stderr).toContain(
+        'Test runner invalid-test-runner is not supported.'
+      )
 
-        let { stdout, stderr } = await nextTest(fixture, [], {
-          stderr: true,
-          stdout: true,
-          cwd: fixture,
-        })
+      // Second, test that the `--test-runner` arg takes precedence over `defaultTestRunner` and default playwright
+      ;({ stdout, stderr } = spawnSync(
+        'pnpm',
+        ['next', 'experimental-test', '--test-runner=invalid-test-runner-2'],
+        {
+          cwd: basicExample.testDir,
+          encoding: 'utf-8',
+          env: {
+            ...process.env,
+            JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+          },
+        }
+      ))
 
-        expect(stdout).toBe('')
-        // Assert the assigned `defaultTestRunner` is printed in the error
-        expect(stderr).toContain(
-          'Test runner invalid-test-runner is not supported.'
-        )
-
-        // Second, test that the `--test-runner` arg takes precedence over `defaultTestRunner` and default playwright
-        ;({ stdout, stderr } = await nextTest(
-          fixture,
-          ['--test-runner=invalid-test-runner-2'],
-          {
-            stderr: true,
-            stdout: true,
-            cwd: fixture,
-          }
-        ))
-
-        expect(stdout).toBe('')
-        // Assert the assigned `--test-runner` arg is printed in the error
-        expect(stderr).toContain(
-          'Test runner invalid-test-runner-2 is not supported.'
-        )
-      } finally {
-        rmSync(fixture, { recursive: true, force: true })
-      }
+      expect(stdout).toBe('')
+      // Assert the assigned `--test-runner` arg is printed in the error
+      expect(stderr).toContain(
+        'Test runner invalid-test-runner-2 is not supported.'
+      )
     })
   })
 
   it('should pass args to test runner', async () => {
-    const fixture = createTemporaryFixture('basic-example')
+    const { stdout, stderr } = spawnSync(
+      'pnpm',
+      ['next', 'experimental-test', '--list'],
+      {
+        cwd: basicExample.testDir,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+        },
+      }
+    )
 
-    try {
-      const { stdout, stderr } = await nextTest(fixture, ['--version'], {
-        stderr: true,
-        stdout: true,
-        cwd: fixture,
-      })
-
-      expect(stdout).toContain('Version 1')
-      expect(stderr).toBe('')
-    } finally {
-      rmSync(fixture, { recursive: true, force: true })
-    }
+    expect(stdout).toMatchInlineSnapshot(`
+      "Listing tests:
+        [chromium] › app/page.spec.js:3:1 › home page
+      Total: 1 test in 1 file
+      "
+    `)
+    expect(stderr).toBe('')
   })
 })
