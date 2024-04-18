@@ -4,12 +4,21 @@ import { nextTestSetup } from 'e2e-utils'
 import { readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
-describe('SCSS Support', () => {
+describe.each([
+  { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
+  {
+    dependencies: { 'sass-embedded': '1.75.0' },
+    nextConfig: {
+      sassOptions: {
+        implementation: 'sass-embedded',
+      },
+    },
+  },
+])('SCSS Support  ($package)', ({ dependencies, nextConfig }) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      sass: '1.54.0',
-    },
+    dependencies,
+    nextConfig,
   })
 
   // TODO: Figure out this test for dev and Turbopack

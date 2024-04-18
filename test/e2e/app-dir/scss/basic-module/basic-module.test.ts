@@ -3,12 +3,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb } from 'next-test-utils'
 
-describe('Basic SCSS Module Support', () => {
+describe.each([
+  { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
+  {
+    dependencies: { 'sass-embedded': '1.75.0' },
+    nextConfig: {
+      sassOptions: {
+        implementation: 'sass-embedded',
+      },
+    },
+  },
+])('Basic SCSS Module Support ($package)', ({ dependencies, nextConfig }) => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      sass: '1.54.0',
-    },
+    dependencies,
+    nextConfig,
   })
 
   it('should render the module', async () => {

@@ -3,12 +3,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb } from 'next-test-utils'
 
-describe('Ordering with styled-jsx', () => {
+describe.each([
+  { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
+  {
+    dependencies: { 'sass-embedded': '1.75.0' },
+    nextConfig: {
+      sassOptions: {
+        implementation: 'sass-embedded',
+      },
+    },
+  },
+])('Ordering with styled-jsx ($package)', ({ dependencies, nextConfig }) => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      sass: '1.54.0',
-    },
+    dependencies,
+    nextConfig,
   })
 
   it('should have the correct color (css ordering)', async () => {
