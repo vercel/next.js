@@ -225,7 +225,9 @@ export function serverActionReducer(
           [''],
           currentTree,
           treePatch,
-          href
+          redirectLocation
+            ? createHrefFromUrl(redirectLocation)
+            : state.canonicalUrl
         )
 
         if (newTree === null) {
