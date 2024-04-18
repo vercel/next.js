@@ -125,6 +125,9 @@ importers:
       '@testing-library/react':
         specifier: 13.0.0
         version: 13.0.0(react-dom@18.2.0)(react@18.2.0)
+      '@types/busboy':
+        specifier: 1.5.3
+        version: 1.5.3
       '@types/cheerio':
         specifier: 0.22.16
         version: 0.22.16
@@ -6782,6 +6785,12 @@ packages:
 
   /@types/btoa-lite@1.0.0:
     resolution: {integrity: sha512-wJsiX1tosQ+J5+bY5LrSahHxr2wT+uME5UDwdN1kg4frt40euqA+wzECkmq4t5QbveHiJepfdThgQrPw6KiSlg==}
+    dev: true
+
+  /@types/busboy@1.5.3:
+    resolution: {integrity: sha512-YMBLFN/xBD8bnqywIlGyYqsNFXu6bsiY7h3Ae0kO17qEuTjsqeyYMRPSUDacIKIquws2Y6KjmxAyNx8xB3xQbw==}
+    dependencies:
+      '@types/node': 20.12.3
     dev: true
 
   /@types/bytes@3.1.1:
