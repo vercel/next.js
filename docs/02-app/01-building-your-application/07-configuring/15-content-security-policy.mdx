@@ -242,6 +242,27 @@ module.exports = {
 }
 ```
 
+## Built-in XSS protection
+
+Next.js provides built-in XSS protection by warning about navigations using untrusted `javascript:` URLs.
+For example, when you render a `Link` with user input, it could result in `<Link href="javascript:alert('Oh, no!')" />`.
+When that happens, you will see a warning from React in the console similar to "A future version of React will block javascript: URLs as a security precaution."".
+In addition, Next.js will also warn when such URLs are passed to `router.push(href)`, `router.replace(href)` and `router.prefetch(href)` with "A future version of Next.js will block `javascript:` URLs as a security precaution.".
+
+If you trust these URLs, you can silence this warning by using `router.push({ unsafeHref: { __href: href } })` instead.
+
+In a future version Next.js will block `javascript:` URLs by default. You can opt-in to this behavior by setting the experimental config `hardenedXSSProtection` to `true` in your `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    hardenedXSSProtection: true,
+  },
+}
+```
+
 ## Version History
+
+`v15.0.0` introduced warnings on client-side navigations to `javascript:` URLs and the experimental config `hardenedXSSProtection`.
 
 We recommend using `v13.4.20+` of Next.js to properly handle and apply nonces.
