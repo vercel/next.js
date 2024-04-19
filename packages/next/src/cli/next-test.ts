@@ -110,7 +110,7 @@ async function checkRequiredDeps(
 
     const playwright = spawn(
       path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
-      ['install-deps'],
+      ['install'],
       {
         cwd: baseDir,
         shell: false,
