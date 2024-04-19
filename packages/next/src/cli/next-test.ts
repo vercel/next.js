@@ -107,6 +107,25 @@ async function checkRequiredDeps(
   )
   if (deps.missing.length > 0) {
     await installDependencies(baseDir, deps.missing, true)
+
+    const playwright = spawn(
+      path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
+      ['install-deps'],
+      {
+        cwd: baseDir,
+        shell: false,
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+        },
+      }
+    )
+
+    return new Promise((resolve, reject) => {
+      playwright.on('close', (c) => resolve(c))
+      playwright.on('error', (err) => reject(err))
+    })
   }
 }
 
