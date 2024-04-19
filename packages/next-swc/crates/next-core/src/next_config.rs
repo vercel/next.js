@@ -17,7 +17,9 @@ use turbopack_binding::{
             styled_components::StyledComponentsTransformConfig,
         },
         node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
-        turbopack::module_options::{LoaderRuleItem, OptionWebpackRules},
+        turbopack::module_options::{
+            module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
+        },
     },
 };
 
@@ -423,6 +425,13 @@ pub enum LoaderItem {
     LoaderOptions(WebpackLoaderItem),
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum MdxRsOptions {
+    Boolean(bool),
+    Option(MdxTransformOptions),
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
@@ -436,7 +445,7 @@ pub struct ExperimentalConfig {
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
-    mdx_rs: Option<bool>,
+    mdx_rs: Option<MdxRsOptions>,
     /// A list of packages that should be treated as external in the RSC server
     /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages)
     pub server_components_external_packages: Option<Vec<String>>,
@@ -638,6 +647,9 @@ impl RemoveConsoleConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ResolveExtensions(Option<Vec<String>>);
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
+
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
@@ -833,8 +845,20 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn mdx_rs(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.experimental.mdx_rs.unwrap_or(false)))
+    pub async fn mdx_rs(self: Vc<Self>) -> Result<Vc<OptionalMdxTransformOptions>> {
+        let options = &self.await?.experimental.mdx_rs;
+
+        let options = match options {
+            Some(MdxRsOptions::Boolean(true)) => {
+                OptionalMdxTransformOptions(Some(MdxTransformOptions::default().cell()))
+            }
+            Some(MdxRsOptions::Option(options)) => {
+                OptionalMdxTransformOptions(Some(options.clone().cell()))
+            }
+            _ => OptionalMdxTransformOptions(None),
+        };
+
+        Ok(options.cell())
     }
 
     #[turbo_tasks::function]
