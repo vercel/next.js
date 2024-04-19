@@ -1,8 +1,7 @@
 import { Marker } from './components/marker'
 
-export function useMDXComponents(components) {
+export function useMDXComponents() {
   return {
-    ...components,
     Marker,
   }
 }

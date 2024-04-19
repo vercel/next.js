@@ -15,30 +15,33 @@ import { Callout } from 'app/(post)/components/callout'
 import { Ref, FootNotes, FootNote } from 'app/(post)/components/footnotes'
 import { Blockquote as blockquote } from 'app/(post)/components/blockquote'
 
-export function useMDXComponents(components: {
-  [component: string]: React.ComponentType
-}) {
-  return {
-    ...components,
-    a,
-    h1,
-    h2,
-    h3,
-    p,
-    ol,
-    ul,
-    li,
-    hr,
-    pre: Snippet,
-    img: Image,
-    blockquote,
-    Tweet,
-    Image,
-    Snippet,
-    Caption,
-    Callout,
-    Ref,
-    FootNotes,
-    FootNote,
-  }
+const components = {
+  a,
+  h1,
+  h2,
+  h3,
+  p,
+  ol,
+  ul,
+  li,
+  hr,
+  pre: Snippet,
+  img: Image,
+  blockquote,
+  Tweet,
+  Image,
+  Snippet,
+  Caption,
+  Callout,
+  Ref,
+  FootNotes,
+  FootNote,
+}
+
+declare global {
+  type MDXProvidedComponents = typeof components
+}
+
+export function useMDXComponents(): MDXProvidedComponents {
+  return components
 }

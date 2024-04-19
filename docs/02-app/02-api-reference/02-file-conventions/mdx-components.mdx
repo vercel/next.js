@@ -12,20 +12,20 @@ The `mdx-components.js|tsx` file is **required** to use [`@next/mdx` with App Ro
 Use the file `mdx-components.tsx` (or `.js`) in the root of your project to define MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
 ```tsx filename="mdx-components.tsx" switcher
-import type { MDXComponents } from 'mdx/types'
+const components = {}
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    ...components,
-  }
+declare global {
+  type MDXProvidedComponents = typeof components
+}
+
+export function useMDXComponents(): MDXProvidedComponents {
+  return components
 }
 ```
 
 ```js filename="mdx-components.js" switcher
 export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+  return {}
 }
 ```
 
@@ -36,20 +36,20 @@ export function useMDXComponents(components) {
 The file must export a single function, either as a default export or named `useMDXComponents`.
 
 ```tsx filename="mdx-components.tsx" switcher
-import type { MDXComponents } from 'mdx/types'
+const components = {}
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    ...components,
-  }
+declare global {
+  type MDXProvidedComponents = typeof components
+}
+
+export function useMDXComponents(): MDXProvidedComponents {
+  return components
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+export function useMDXComponents() {
+  return {}
 }
 ```
 

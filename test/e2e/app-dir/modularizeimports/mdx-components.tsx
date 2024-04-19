@@ -1,5 +1,3 @@
-export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+export function useMDXComponents() {
+  return {}
 }

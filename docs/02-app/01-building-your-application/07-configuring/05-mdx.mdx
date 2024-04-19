@@ -65,20 +65,20 @@ This allows `.md` and `.mdx` files to act as pages, routes, or imports in your a
 Create a `mdx-components.tsx` (or `.js`) file in the root of your project to define global MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
 ```tsx filename="mdx-components.tsx" switcher
-import type { MDXComponents } from 'mdx/types'
+const components = {}
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    ...components,
-  }
+declare global {
+  type MDXProvidedComponents = typeof components
+}
+
+export function useMDXComponents(): MDXProvidedComponents {
+  return components
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+export function useMDXComponents() {
+  return {}
 }
 ```
 
@@ -283,7 +283,6 @@ To style your markdown, you can provide custom components that map to the genera
 Adding styles and components in `mdx-components.tsx` will affect _all_ MDX files in your application.
 
 ```tsx filename="mdx-components.tsx" switcher
-import type { MDXComponents } from 'mdx/types'
 import Image, { ImageProps } from 'next/image'
 
 // This file allows you to provide custom React components
@@ -291,21 +290,26 @@ import Image, { ImageProps } from 'next/image'
 // React component you want, including inline styles,
 // components from other libraries, and more.
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    // Allows customizing built-in components, e.g. to add styling.
-    h1: ({ children }) => (
-      <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
-    ),
-    img: (props) => (
-      <Image
-        sizes="100vw"
-        style={{ width: '100%', height: 'auto' }}
-        {...(props as ImageProps)}
-      />
-    ),
-    ...components,
-  }
+const components = {
+  // Allows customizing built-in components, e.g. to add styling.
+  h1: ({ children }) => (
+    <h1 style={{ color: 'red', fontSize: '48px' }}>{children}</h1>
+  ),
+  img: (props) => (
+    <Image
+      sizes="100vw"
+      style={{ width: '100%', height: 'auto' }}
+      {...(props as ImageProps)}
+    />
+  ),
+}
+
+declare global {
+  type MDXProvidedComponents = typeof components
+}
+
+export function useMDXComponents(): MDXProvidedComponents {
+  return components
 }
 ```
 
@@ -317,7 +321,7 @@ import Image from 'next/image'
 // React component you want, including inline styles,
 // components from other libraries, and more.
 
-export function useMDXComponents(components) {
+export function useMDXComponents() {
   return {
     // Allows customizing built-in components, e.g. to add styling.
     h1: ({ children }) => (
@@ -330,7 +334,6 @@ export function useMDXComponents(components) {
         {...props}
       />
     ),
-    ...components,
   }
 }
 ```
