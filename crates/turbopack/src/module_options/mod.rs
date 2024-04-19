@@ -16,7 +16,6 @@ use turbopack_core::{
 };
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptOptions, SpecifiedModuleType};
-use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::transforms::{postcss::PostCssTransform, webpack::WebpackLoaders};
 use turbopack_wasm::source::WebAssemblySourceType;
 
@@ -491,16 +490,14 @@ impl ModuleOptions {
                 (None, None)
             };
 
-            let mdx_options = enable_mdx_rs
-                .unwrap_or(MdxTransformModuleOptions::default())
-                .await?;
+            let mdx_options = &*enable_mdx_rs.unwrap_or(Default::default()).await?;
 
             let mdx_transform_options = (MdxTransformOptions {
-                development: true,
-                preserve_jsx: false,
+                development: Some(true),
+                jsx: Some(false),
                 jsx_runtime,
                 jsx_import_source,
-                provider_import_source: mdx_options.provider_import_source.clone(),
+                ..(mdx_options.clone())
             })
             .cell();
 
