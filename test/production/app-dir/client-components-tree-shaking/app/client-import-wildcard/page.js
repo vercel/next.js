@@ -1,29 +1,23 @@
 import * as clientMod from './client'
 import { ClientModExportC } from './client'
 
-const map = {
-  ...clientMod,
-}
-
 export default function Page() {
-  const list = ['ClientModExportA', 'ClientModExportB', 'ClientModExportC']
-
-  const A = map[list[0]]
-  const B = map[list[1]]
-  const C = map[list[2]]
+  const A = clientMod.ClientModExportA
+  const B = clientMod.ClientModExportB
+  const C = clientMod.ClientModExportC
 
   return (
     <div>
-      <p>
+      <p id="a">
         <A />
       </p>
-      <p>
+      <p id="b">
         <B />
       </p>
-      <p>
+      <p id="c">
         <C />
       </p>
-      <p>
+      <p id="named-c">
         <ClientModExportC />
       </p>
     </div>

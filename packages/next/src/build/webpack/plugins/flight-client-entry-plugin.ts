@@ -716,8 +716,14 @@ export class FlightClientEntryPlugin {
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           const dependencyIds: string[] = []
-          if (connection.dependency?.ids?.length) {
+
+          // `ids` are the identifiers that are imported from the dependency,
+          // if it's present, it's an array of strings.
+          if (connection.dependency?.ids) {
             dependencyIds.push(...connection.dependency.ids)
+          } else {
+            // When using import *, the `ids` are not present
+            dependencyIds.push('*')
           }
           filterClientComponents(connection.resolvedModule, dependencyIds)
         }
