@@ -189,7 +189,7 @@ export default class FetchCache implements CacheHandler {
 
     // Get data from fetch cache. Also check if new tags have been
     // specified with the same cache key (fetch URL)
-    if (this.cacheEndpoint && (!data || !hasFetchKindAndMatchingTags)) {
+    if ((this.cacheEndpoint && !data) || !hasFetchKindAndMatchingTags) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
