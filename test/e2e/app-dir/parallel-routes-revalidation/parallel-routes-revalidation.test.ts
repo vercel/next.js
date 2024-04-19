@@ -191,6 +191,29 @@ createNextDescribe(
       )
     })
 
+    it('should refresh the correct page when a server action triggers a redirect', async () => {
+      const browser = await next.browser('/redirect')
+      await browser.elementByCss('button').click()
+
+      await browser.elementByCss("[href='/revalidate-modal']").click()
+
+      await check(() => browser.hasElementByCssSelector('#create-entry'), true)
+
+      await browser.elementById('clear-entries').click()
+
+      await retry(async () => {
+        // confirm there aren't any entries yet
+        expect((await browser.elementsByCss('#entries li')).length).toBe(0)
+      })
+
+      await browser.elementById('create-entry').click()
+
+      await retry(async () => {
+        // we created an entry and called revalidate, so we should have 1 entry
+        expect((await browser.elementsByCss('#entries li')).length).toBe(1)
+      })
+    })
+
     describe.each([
       { basePath: '/refreshing', label: 'regular', withSearchParams: false },
       { basePath: '/refreshing', label: 'regular', withSearchParams: true },
