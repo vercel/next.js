@@ -24,13 +24,26 @@ export function adaptForAppRouterInstance(
     },
     fastRefresh() {},
     push(href, { scroll } = {}) {
-      void pagesRouter.push(href, undefined, { scroll })
+      void pagesRouter.push(
+        // TODO: Handle untrusted hrefs
+        typeof href === 'string' ? href : href.unsafeHref.__href,
+        undefined,
+        { scroll }
+      )
     },
     replace(href, { scroll } = {}) {
-      void pagesRouter.replace(href, undefined, { scroll })
+      // TODO: Handle untrusted hrefs
+      void pagesRouter.replace(
+        typeof href === 'string' ? href : href.unsafeHref.__href,
+        undefined,
+        { scroll }
+      )
     },
     prefetch(href) {
-      void pagesRouter.prefetch(href)
+      // TODO: Handle untrusted hrefs
+      void pagesRouter.prefetch(
+        typeof href === 'string' ? href : href.unsafeHref.__href
+      )
     },
   }
 }
