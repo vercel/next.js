@@ -23,7 +23,9 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_shared::transforms::ModularizeImportPackageConfig;
+use crate::{
+    next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
+};
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -849,12 +851,26 @@ impl NextConfig {
         let options = &self.await?.experimental.mdx_rs;
 
         let options = match options {
-            Some(MdxRsOptions::Boolean(true)) => {
-                OptionalMdxTransformOptions(Some(MdxTransformOptions::default().cell()))
-            }
-            Some(MdxRsOptions::Option(options)) => {
-                OptionalMdxTransformOptions(Some(options.clone().cell()))
-            }
+            Some(MdxRsOptions::Boolean(true)) => OptionalMdxTransformOptions(Some(
+                MdxTransformOptions {
+                    provider_import_source: Some(mdx_import_source_file()),
+                    ..Default::default()
+                }
+                .cell(),
+            )),
+            Some(MdxRsOptions::Option(options)) => OptionalMdxTransformOptions(Some(
+                MdxTransformOptions {
+                    provider_import_source: Some(
+                        options
+                            .provider_import_source
+                            .as_ref()
+                            .map(|s| s.to_string())
+                            .unwrap_or(mdx_import_source_file()),
+                    ),
+                    ..options.clone()
+                }
+                .cell(),
+            )),
             _ => OptionalMdxTransformOptions(None),
         };
 
