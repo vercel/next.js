@@ -286,6 +286,7 @@ class NextCustomServer extends NextServer {
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       isNodeDebugging: !!isNodeDebugging,
+      quiet: this.options.quiet,
     })
     this.requestHandler = initResult[0]
     this.upgradeHandler = initResult[1]

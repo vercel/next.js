@@ -1,6 +1,7 @@
 import { createNextDescribe, FileRef } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 import { join } from 'path'
+import cheerio from 'cheerio'
 
 // TODO-APP: due to a current implementation limitation, we don't have proper tree
 // shaking when across the server/client boundaries (e.g. all referenced client
@@ -46,10 +47,10 @@ describe('app dir - next/font', () => {
               // layout
               expect(JSON.parse($('#root-layout').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 variable: expect.stringMatching(
-                  process.env.TURBOPACK ? /^variable_.*/ : /^__variable_.*/
+                  process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -60,10 +61,10 @@ describe('app dir - next/font', () => {
               // page
               expect(JSON.parse($('#root-page').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 variable: expect.stringMatching(
-                  process.env.TURBOPACK ? /^variable_.*/ : /^__variable_.*/
+                  process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -74,7 +75,7 @@ describe('app dir - next/font', () => {
               // Comp
               expect(JSON.parse($('#root-comp').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -92,10 +93,10 @@ describe('app dir - next/font', () => {
               // root layout
               expect(JSON.parse($('#root-layout').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 variable: expect.stringMatching(
-                  process.env.TURBOPACK ? /^variable_.*/ : /^__variable_.*/
+                  process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -107,7 +108,7 @@ describe('app dir - next/font', () => {
               // layout
               expect(JSON.parse($('#client-layout').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -119,7 +120,7 @@ describe('app dir - next/font', () => {
               // page
               expect(JSON.parse($('#client-page').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -131,7 +132,7 @@ describe('app dir - next/font', () => {
               // Comp
               expect(JSON.parse($('#client-comp').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -145,7 +146,7 @@ describe('app dir - next/font', () => {
               const $ = await next.render$('/third-party')
               expect(JSON.parse($('#third-party-page').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /^className_.*/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -153,7 +154,7 @@ describe('app dir - next/font', () => {
                   ),
                 },
                 variable: expect.stringMatching(
-                  process.env.TURBOPACK ? /^variable_.*/ : /^__variable_.*/
+                  process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
                 ),
               })
             })
@@ -291,28 +292,30 @@ describe('app dir - next/font', () => {
           if (!isDev) {
             describe('preload', () => {
               it('should preload correctly with server components', async () => {
-                const $ = await next.render$('/')
+                const result = await next.fetch('/')
+                const headers = result.headers
+
+                const html = await result.text()
+                const $ = cheerio.load(html)
 
                 // Preconnect
                 expect($('link[rel="preconnect"]').length).toBe(0)
 
+                const fontPreloadlinksInHeaders = headers
+                  .get('link')
+                  .split(', ')
+                  .filter((link) => link.match(/as=.*font/))
+                expect(fontPreloadlinksInHeaders.length).toBeGreaterThan(2)
+                for (const link of fontPreloadlinksInHeaders) {
+                  expect(link).toMatch(/<[^>]*?_next[^>]*?\.woff2>/)
+                  expect(link).toMatch(/rel=.*preload/)
+                  expect(link).toMatch(/crossorigin=""/)
+                }
+
                 const items = getAttrs($('link[as="font"]'))
 
-                for (const item of items) {
-                  expect(item.as).toBe('font')
-                  expect(item.crossorigin).toBe('')
-                  if (process.env.TURBOPACK) {
-                    expect(item.href).toMatch(
-                      /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
-                    )
-                  } else {
-                    expect(item.href).toMatch(
-                      /\/_next\/static\/media\/(.*)-s.p.woff2/
-                    )
-                  }
-                  expect(item.rel).toBe('preload')
-                  expect(item.type).toBe('font/woff2')
-                }
+                // We expect the font preloads to be in headers exclusively
+                expect(items.length).toBe(0)
               })
 
               it('should preload correctly with client components', async () => {

@@ -3,26 +3,28 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use swc_core::{
-    common::{source_map::Pos, Span, Spanned, GLOBALS},
-    ecma::ast::{Expr, Ident, Program},
-};
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        file_source::FileSource,
-        ident::AssetIdent,
-        issue::{
-            Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
-            StyledString,
-        },
-        source::Source,
+use turbopack_binding::{
+    swc::core::{
+        common::{source_map::Pos, Span, Spanned, GLOBALS},
+        ecma::ast::{Expr, Ident, Program},
     },
-    ecmascript::{
-        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-        parse::{parse, ParseResult},
-        EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    turbopack::{
+        core::{
+            file_source::FileSource,
+            ident::AssetIdent,
+            issue::{
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
+            },
+            source::Source,
+        },
+        ecmascript::{
+            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+            parse::{parse, ParseResult},
+            EcmascriptInputTransforms, EcmascriptModuleAssetType,
+        },
     },
 };
 
@@ -61,8 +63,8 @@ pub enum NextRevalidate {
     },
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Default)]
+#[turbo_tasks::value(into = "shared")]
+#[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
@@ -171,8 +173,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -219,10 +221,11 @@ pub async fn parse_segment_config_from_source(
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
-    if !(path.path.ends_with(".js")
-        || path.path.ends_with(".jsx")
-        || path.path.ends_with(".ts")
-        || path.path.ends_with(".tsx"))
+    if path.path.ends_with(".d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
     {
         return Ok(Default::default());
     }
@@ -346,11 +349,10 @@ fn parse_config_value(
                 JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
                     config.revalidate = Some(NextRevalidate::ForceCache);
                 }
-                _ => invalid_config(
-                    "`revalidate` needs to be static false, static 'force-cache' or a static \
-                     positive integer",
-                    &value,
-                ),
+                _ => {
+                    //noop; revalidate validation occurs in runtime at
+                    //https://github.com/vercel/next.js/blob/cd46c221d2b7f796f963d2b81eea1e405023db23/packages/next/src/server/lib/patch-fetch.ts#L20
+                }
             }
         }
         "fetchCache" => {
@@ -441,6 +443,7 @@ pub async fn parse_segment_config_from_loader_tree(
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
+
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()

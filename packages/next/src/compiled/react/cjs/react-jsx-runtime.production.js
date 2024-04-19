@@ -57,18 +57,30 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type,
-    key,
-    ref,
-    props,
-    // Record the component responsible for creating this element.
-    _owner: owner
-  };
+function ReactElement(type, key, _ref, self, source, owner, props) {
+  let ref;
+
+  {
+    ref = _ref;
+  }
+
+  let element;
+
+  {
+    // In prod, `ref` is a regular property. It will be removed in a
+    // future release.
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      // Built-in properties that belong on the element
+      type,
+      key,
+      ref,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: owner
+    };
+  }
 
   return element;
 }
@@ -80,7 +92,7 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  */
 
 
-function jsx$1(type, config, maybeKey) {
+function jsxProd(type, config, maybeKey) {
   let propName; // Reserved names are extracted
 
   const props = {};
@@ -103,14 +115,15 @@ function jsx$1(type, config, maybeKey) {
   }
 
   if (hasValidRef(config)) {
-    ref = config.ref;
+    {
+      ref = config.ref;
+    }
   } // Remaining properties are added to a new props object
 
 
   for (propName in config) {
     if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-    propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
-    propName !== 'ref') {
+    propName !== 'key' && (propName !== 'ref')) {
       props[propName] = config[propName];
     }
   } // Resolve default props
@@ -127,12 +140,12 @@ function jsx$1(type, config, maybeKey) {
   }
 
   return ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
-}
+} // While `jsxDEV` should never be called when running in production, we do
 
-const jsx = jsx$1; // we may want to special case jsxs internally to take advantage of static children.
+const jsx = jsxProd; // we may want to special case jsxs internally to take advantage of static children.
 // for now we can ship identical prod functions
 
-const jsxs = jsx$1;
+const jsxs = jsxProd;
 
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.jsx = jsx;

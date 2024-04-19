@@ -1,4 +1,4 @@
-name: Notify about the top 15 PRs (most reacted) in the last 90 days
+name: Notify about the top PRs (most reacted) in the last 90 days
 
 on:
   schedule:

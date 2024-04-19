@@ -33,7 +33,10 @@ use serde::Deserialize;
 use turbopack_binding::swc::core::{
     base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
-    ecma::minifier::option::terser::{TerserCompressorOptions, TerserInlineOption},
+    ecma::minifier::option::{
+        terser::{TerserCompressorOptions, TerserInlineOption},
+        MangleOptions,
+    },
 };
 
 use crate::{get_compiler, util::MapErr};
@@ -101,14 +104,18 @@ impl Task for MinifyTask {
     }
 }
 
-/// `inline: 3` breaks some codes.
+/// **NOTE** `inline: 3` breaks some codes.
 ///
-/// https://github.com/vercel/next.js/pull/57904
+/// <https://github.com/vercel/next.js/pull/57904>
 fn patch_opts(opts: &mut JsMinifyOptions) {
     opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
         inline: Some(TerserInlineOption::Num(2)),
         ..Default::default()
     });
+    opts.mangle = BoolOrDataConfig::from_obj(MangleOptions {
+        reserved: vec!["AbortSignal".into()],
+        ..Default::default()
+    })
 }
 
 #[napi]

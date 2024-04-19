@@ -57,7 +57,8 @@ let postcssInstancePromise: Promise<any>
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
-  disablePostcssPresetEnv: boolean | undefined
+  disablePostcssPresetEnv: boolean | undefined,
+  useLightningcss: boolean | undefined
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
@@ -128,7 +129,8 @@ export async function lazyPostCSS(
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
-        disablePostcssPresetEnv
+        disablePostcssPresetEnv,
+        useLightningcss
       )
 
       return {
@@ -155,7 +157,8 @@ export const css = curry(async function css(
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
-      ctx.experimental.disablePostcssPresetEnv
+      ctx.experimental.disablePostcssPresetEnv,
+      ctx.experimental.useLightningcss
     )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
@@ -263,7 +266,7 @@ export const css = curry(async function css(
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: false,
+              sideEffects: true,
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -283,7 +286,7 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: false,
+          sideEffects: true,
           test: regexCssModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
@@ -303,7 +306,7 @@ export const css = curry(async function css(
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: false,
+              sideEffects: true,
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -324,7 +327,7 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: false,
+          sideEffects: true,
           test: regexSassModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(

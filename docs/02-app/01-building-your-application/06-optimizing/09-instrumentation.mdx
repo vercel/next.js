@@ -18,7 +18,7 @@ To set up instrumentation, create `instrumentation.ts|js` file in the **root dir
 
 Then, export a `register` function in the file. This function will be called **once** when a new Next.js server instance is initiated.
 
-For example, to use Next.js with [OpenTelemetry](https://opentelemetry.io/) and [@vercel/otel](https://github.com/vercel/otel):
+For example, to use Next.js with [OpenTelemetry](https://opentelemetry.io/) and [@vercel/otel](https://vercel.com/docs/observability/otel-overview):
 
 ```ts filename="instrumentation.ts" switcher
 import { registerOTel } from '@vercel/otel'
@@ -70,7 +70,7 @@ export async function register() {
 
 ### Importing runtime-specific code
 
-Next.js calls `register` in all environments, so it's important to conditionally import any code that doesn't support specific runtimes (e.g. [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) or [Node.js](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime)). You can use the `NEXT_RUNTIME` environment variable to get the current environment:
+Next.js calls `register` in all environments, so it's important to conditionally import any code that doesn't support specific runtimes (e.g. [Edge or Node.js](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)). You can use the `NEXT_RUNTIME` environment variable to get the current environment:
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {

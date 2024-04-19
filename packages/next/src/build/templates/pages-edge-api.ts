@@ -4,6 +4,7 @@ import '../../server/web/globals'
 
 import { adapter } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
+import { wrapApiHandler } from '../../server/api-utils'
 
 // Import the userland code.
 import handler from 'VAR_USERLAND'
@@ -23,6 +24,6 @@ export default function (
     ...opts,
     IncrementalCache,
     page: 'VAR_DEFINITION_PATHNAME',
-    handler,
+    handler: wrapApiHandler(page, handler),
   })
 }

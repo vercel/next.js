@@ -24,7 +24,10 @@ use self::{
     stylesheet::build_stylesheet,
     util::build_font_family_string,
 };
-use super::{font_fallback::FontFallbacks, util::FontCssProperties};
+use super::{
+    font_fallback::FontFallbacks,
+    util::{can_use_next_font, FontCssProperties},
+};
 use crate::{
     next_app::metadata::split_extension,
     next_font::{
@@ -50,35 +53,17 @@ impl NextFontLocalReplacer {
     pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
         Self::cell(NextFontLocalReplacer { project_path })
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ImportMappingReplacement for NextFontLocalReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
-    }
-
-    /// Intercepts requests for `next/font/local/target.css` and returns a
-    /// JavaScript object with a generated className from a referenced css
-    /// module.
-    #[turbo_tasks::function]
-    async fn result(
+    async fn import_map_result(
         &self,
         context: Vc<FileSystemPath>,
-        request: Vc<Request>,
+        query: String,
     ) -> Result<Vc<ImportMapResult>> {
-        let Request::Module {
-            module: _,
-            path: _,
-            query: query_vc,
-        } = &*request.await?
-        else {
-            return Ok(ImportMapResult::NoEntry.into());
-        };
-
-        let request_hash = get_request_hash(*query_vc);
-        let options_vc = font_options_from_query_map(*query_vc);
+        let request_hash = get_request_hash(&query).await?;
+        let qstr = qstring::QString::from(query.as_str());
+        let query_vc = Vc::cell(query);
+        let options_vc = font_options_from_query_map(query_vc);
         let font_fallbacks = get_font_fallbacks(context, options_vc, request_hash);
         let properties =
             &*get_font_css_properties(options_vc, font_fallbacks, request_hash).await?;
@@ -100,7 +85,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
                 export default fontData;
             "#,
             // Pass along whichever options we received to the css handler
-            qstring::QString::from(&**query_vc.await?),
+            qstr,
             properties.font_family.await?,
             properties
                 .weight
@@ -127,16 +112,79 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
     }
 }
 
-#[turbo_tasks::value(shared)]
-pub struct NextFontLocalCssModuleReplacer {
-    project_path: Vc<FileSystemPath>,
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for NextFontLocalReplacer {
+    #[turbo_tasks::function]
+    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+        ImportMapping::Ignore.into()
+    }
+
+    /// Intercepts requests for `next/font/local/target.css` and returns a
+    /// JavaScript object with a generated className from a referenced css
+    /// module.
+    #[turbo_tasks::function]
+    async fn result(
+        self: Vc<Self>,
+        context: Vc<FileSystemPath>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ImportMapResult>> {
+        let Request::Module {
+            module: _,
+            path: _,
+            query: query_vc,
+        } = &*request.await?
+        else {
+            return Ok(ImportMapResult::NoEntry.into());
+        };
+
+        let this = &*self.await?;
+        if can_use_next_font(this.project_path, *query_vc).await? {
+            Ok(self.import_map_result(context, query_vc.await?.to_string()))
+        } else {
+            Ok(ImportMapResult::NoEntry.into())
+        }
+    }
 }
+
+#[turbo_tasks::value(shared)]
+pub struct NextFontLocalCssModuleReplacer {}
 
 #[turbo_tasks::value_impl]
 impl NextFontLocalCssModuleReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
-        Self::cell(NextFontLocalCssModuleReplacer { project_path })
+    pub fn new() -> Vc<Self> {
+        Self::cell(NextFontLocalCssModuleReplacer {})
+    }
+
+    #[turbo_tasks::function]
+    async fn import_map_result(
+        context: Vc<FileSystemPath>,
+        query: String,
+    ) -> Result<Vc<ImportMapResult>> {
+        let request_hash = get_request_hash(&query).await?;
+        let query_vc = Vc::cell(query);
+
+        let options = font_options_from_query_map(query_vc);
+        let css_virtual_path = context.join(format!(
+            "/{}.module.css",
+            get_request_id(options.font_family(), request_hash).await?
+        ));
+        let fallback = get_font_fallbacks(context, options, request_hash);
+
+        let stylesheet = build_stylesheet(
+            font_options_from_query_map(query_vc),
+            fallback,
+            get_font_css_properties(options, fallback, request_hash),
+            request_hash,
+        )
+        .await?;
+
+        let css_asset = VirtualSource::new(
+            css_virtual_path,
+            AssetContent::file(FileContent::Content(stylesheet.into()).into()),
+        );
+
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
     }
 }
 
@@ -153,7 +201,7 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
     /// the font and an optional css variable.
     #[turbo_tasks::function]
     async fn result(
-        &self,
+        self: Vc<Self>,
         context: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
@@ -167,28 +215,10 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        let options = font_options_from_query_map(*query_vc);
-        let request_hash = get_request_hash(*query_vc);
-        let css_virtual_path = context.join(format!(
-            "/{}.module.css",
-            get_request_id(options.font_family(), request_hash).await?
-        ));
-        let fallback = get_font_fallbacks(context, options, request_hash);
-
-        let stylesheet = build_stylesheet(
-            font_options_from_query_map(*query_vc),
-            fallback,
-            get_font_css_properties(options, fallback, request_hash),
-            get_request_hash(*query_vc),
-        )
-        .await?;
-
-        let css_asset = VirtualSource::new(
-            css_virtual_path,
-            AssetContent::file(FileContent::Content(stylesheet.into()).into()),
-        );
-
-        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
+        Ok(Self::import_map_result(
+            context,
+            query_vc.await?.to_string(),
+        ))
     }
 }
 
@@ -270,7 +300,7 @@ impl ImportMappingReplacement for NextFontLocalFontFileReplacer {
 async fn get_font_css_properties(
     options_vc: Vc<NextFontLocalOptions>,
     font_fallbacks: Vc<FontFallbacks>,
-    request_hash: Vc<u32>,
+    request_hash: u32,
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
 

@@ -491,7 +491,7 @@ function assignDefaults(
     warnOptionHasBeenDeprecated(
       result,
       'swcMinify',
-      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      'Disabling SWC Minifier will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
       silent
     )
   }
@@ -559,7 +559,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
     }
   }
@@ -601,16 +601,8 @@ function assignDefaults(
   }
 
   // only leverage deploymentId
-  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
-    if (!result.experimental) {
-      result.experimental = {}
-    }
-    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-  }
-
-  // can't use this one without the other
-  if (result.experimental?.useDeploymentIdServerActions) {
-    result.experimental.useDeploymentId = true
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
   // use the closest lockfile as tracing root
@@ -1022,7 +1014,7 @@ export default async function loadConfig(
         require('./config-schema') as typeof import('./config-schema')
       const state = configSchema.safeParse(userConfig)
 
-      if (!state.success) {
+      if (state.success === false) {
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
@@ -1085,6 +1077,18 @@ export default async function loadConfig(
       }
 
       userConfig.experimental.turbo.rules = rules
+    }
+
+    if (userConfig.experimental?.useLightningcss) {
+      const { loadBindings } = require('next/dist/build/swc')
+      const isLightningSupported = (await loadBindings())?.css?.lightning
+
+      if (!isLightningSupported) {
+        curLog.warn(
+          `experimental.useLightningcss is set, but the setting is disabled because next-swc/wasm does not support it yet.`
+        )
+        userConfig.experimental.useLightningcss = false
+      }
     }
 
     onLoadUserConfig?.(userConfig)

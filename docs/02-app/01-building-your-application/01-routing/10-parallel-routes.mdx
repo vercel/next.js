@@ -64,7 +64,7 @@ export default function Layout({ children, team, analytics }) {
 }
 ```
 
-However, slots are **not** [route segments](/docs/app/building-your-application/routing#route-segments) and do not affect the URL structure. For example, for `/dashboard/@analytics/views`, the URL will be `/dashboard/views` since `@analytics` is a slot.
+However, slots are **not** [route segments](/docs/app/building-your-application/routing#route-segments) and do not affect the URL structure. For example, for `/@analytics/views`, the URL will be `/views` since `@analytics` is a slot.
 
 > **Good to know**:
 >
@@ -95,7 +95,7 @@ Consider the following folder structure. The `@team` slot has a `/settings` page
   height="930"
 />
 
-When navigating to `/dashboard/settings`, the `@team` slot will render the `/settings` page while maintaining the currently active page for the `@analytics` slot.
+When navigating to `/settings`, the `@team` slot will render the `/settings` page while maintaining the currently active page for the `@analytics` slot.
 
 On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js` doesn't exist, a `404` is rendered instead.
 
@@ -111,7 +111,7 @@ Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default function Layout({ auth }: { auth: React.ReactNode }) {
-  const loginSegments = useSelectedLayoutSegment('auth')
+  const loginSegment = useSelectedLayoutSegment('auth')
   // ...
 }
 ```
@@ -122,12 +122,12 @@ export default function Layout({ auth }: { auth: React.ReactNode }) {
 import { useSelectedLayoutSegment } from 'next/navigation'
 
 export default function Layout({ auth }) {
-  const loginSegments = useSelectedLayoutSegment('auth')
+  const loginSegment = useSelectedLayoutSegment('auth')
   // ...
 }
 ```
 
-When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginSegments` will be equal to the string `"login"`.
+When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginSegment` will be equal to the string `"login"`.
 
 ## Examples
 
@@ -183,15 +183,15 @@ For example, the `@analytics` slot has two subpages: `/page-views` and `/visitor
 
 Within `@analytics`, create a [`layout`](/docs/app/building-your-application/routing/pages-and-layouts) file to share the tabs between the two pages:
 
-```tsx filename="app/dashboard/@analytics/layout.tsx" switcher
+```tsx filename="app/@analytics/layout.tsx" switcher
 import Link from 'next/link'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <nav>
-        <Link href="/dashboard/page-views">Page Views</Link>
-        <Link href="/dashboard/visitors">Visitors</Link>
+        <Link href="/page-views">Page Views</Link>
+        <Link href="/visitors">Visitors</Link>
       </nav>
       <div>{children}</div>
     </>
@@ -199,15 +199,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/dashboard/@analytics/layout.js" switcher
+```jsx filename="app/@analytics/layout.js" switcher
 import Link from 'next/link'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <nav>
-        <Link href="/dashboard/page-views">Page Views</Link>
-        <Link href="/dashboard/visitors">Visitors</Link>
+        <Link href="/page-views">Page Views</Link>
+        <Link href="/visitors">Visitors</Link>
       </nav>
       <div>{children}</div>
     </>

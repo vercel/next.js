@@ -16,7 +16,6 @@ anyhow = { workspace = true }
 async-recursion = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
-const_format = "0.2.30"
 lazy-regex = "3.0.1"
 next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
@@ -25,7 +24,6 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
-mime = { workspace = true }
 mime_guess = "2.0.4"
 indoc = { workspace = true }
 allsorts = { workspace = true }
@@ -37,6 +35,7 @@ rustc-hash = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
+  "__swc_core_next_core",
   "__feature_auto_hash_map",
   "__turbo_tasks",
   "__turbo_tasks_bytes",
@@ -45,11 +44,9 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_fs",
   "__turbo_tasks_hash",
   "__turbopack",
-  "__turbopack_build",
-  "__turbopack_cli_utils",
+  "__turbopack_nodejs",
   "__turbopack_core",
-  "__turbopack_dev",
-  "__turbopack_dev_server",
+  "__turbopack_browser",
   "__turbopack_ecmascript",
   "__turbopack_ecmascript_plugin",
   "__turbopack_ecmascript_runtime",
@@ -59,14 +56,9 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_node",
   "__turbopack_trace_utils",
 ] }
+
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-
-swc_core = { workspace = true, features = [
-  "ecma_ast",
-  "ecma_transforms",
-  "common",
-] }
 
 [build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
@@ -82,5 +74,5 @@ image-avif = ["turbopack-binding/__turbopack_image_avif"]
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
   "turbopack-binding/__turbo_tasks_fs_dynamic_embed_contents",
-  "turbopack-binding/__turbopack_dev_dynamic_embed_contents",
+  "turbopack-binding/__turbopack_browser_dynamic_embed_contents",
 ]

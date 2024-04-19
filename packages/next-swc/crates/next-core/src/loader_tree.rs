@@ -25,7 +25,6 @@ use crate::{
         get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
         MetadataWithAltItem,
     },
-    mode::NextMode,
     next_app::{
         metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
@@ -39,9 +38,10 @@ pub struct LoaderTreeBuilder {
     imports: Vec<String>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
-    mode: NextMode,
     server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
+    /// next.config.js' basePath option to construct og metadata.
+    base_path: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,7 +73,7 @@ impl LoaderTreeBuilder {
     fn new(
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
-        mode: NextMode,
+        base_path: Option<String>,
     ) -> Self {
         LoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -82,8 +82,8 @@ impl LoaderTreeBuilder {
             loader_tree_code: String::new(),
             context,
             server_component_transition,
-            mode,
             pages: Vec::new(),
+            base_path,
         }
     }
 
@@ -116,42 +116,20 @@ impl LoaderTreeBuilder {
                 .process(source, self.context, reference_ty)
                 .module();
 
-            match self.mode {
-                NextMode::Development => {
-                    let chunks_identifier =
-                        magic_identifier::mangle(&format!("chunks of {name} #{i}"));
-                    writeln!(
-                        self.loader_tree_code,
-                        "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + \
-                         '.js'],",
-                        name = StringifyJs(name)
-                    )?;
-                    self.imports.push(formatdoc!(
-                        r#"
-                            import {}, {{ chunks as {} }} from "COMPONENT_{}";
-                        "#,
-                        identifier,
-                        chunks_identifier,
-                        i
-                    ));
-                }
-                NextMode::Build => {
-                    writeln!(
-                        self.loader_tree_code,
-                        "  {name}: [() => {identifier}, {path}],",
-                        name = StringifyJs(name),
-                        path = StringifyJs(&module.ident().path().to_string().await?)
-                    )?;
+            writeln!(
+                self.loader_tree_code,
+                "  {name}: [() => {identifier}, {path}],",
+                name = StringifyJs(name),
+                path = StringifyJs(&module.ident().path().to_string().await?)
+            )?;
 
-                    self.imports.push(formatdoc!(
-                        r#"
-                        import {} from "COMPONENT_{}";
-                        "#,
-                        identifier,
-                        i
-                    ));
-                }
-            }
+            self.imports.push(formatdoc!(
+                r#"
+                    import {} from "COMPONENT_{}";
+                    "#,
+                identifier,
+                i
+            ));
 
             self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
@@ -298,6 +276,7 @@ impl LoaderTreeBuilder {
         alt_path: Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
         let i = self.unique_number();
+
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import = "import { fillMetadataSegment } from \
@@ -321,13 +300,17 @@ impl LoaderTreeBuilder {
 
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-
+        let pathname_prefix = if let Some(base_path) = &self.base_path {
+            format!("{}/{}", base_path, app_page)
+        } else {
+            app_page.to_string()
+        };
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
             "{s}  url: fillMetadataSegment({}, props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&app_page.to_string()),
+            StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
         )?;
 
@@ -461,9 +444,9 @@ impl LoaderTreeModule {
         loader_tree: Vc<LoaderTree>,
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
-        mode: NextMode,
+        base_path: Option<String>,
     ) -> Result<Self> {
-        LoaderTreeBuilder::new(context, server_component_transition, mode)
+        LoaderTreeBuilder::new(context, server_component_transition, base_path)
             .build(loader_tree)
             .await
     }

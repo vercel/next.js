@@ -34,6 +34,49 @@ function readFinalStringChunk(decoder, buffer) {
   return decoder.decode(buffer);
 }
 
+// This flips color using ANSI, then sets a color styling, then resets.
+var badgeFormat = '\x1b[0m\x1b[7m%c%s\x1b[0m%c '; // Same badge styling as DevTools.
+
+var badgeStyle = // We use a fixed background if light-dark is not supported, otherwise
+// we use a transparent background.
+'background: #e6e6e6;' + 'background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));' + 'color: #000000;' + 'color: light-dark(#000000, #ffffff);' + 'border-radius: 2px';
+var resetStyle = '';
+var pad = ' ';
+function printToConsole(methodName, args, badgeName) {
+  var offset = 0;
+
+  switch (methodName) {
+    case 'dir':
+    case 'dirxml':
+    case 'groupEnd':
+    case 'table':
+      {
+        // These methods cannot be colorized because they don't take a formatting string.
+        // eslint-disable-next-line react-internal/no-production-logging
+        console[methodName].apply(console, args);
+        return;
+      }
+
+    case 'assert':
+      {
+        // assert takes formatting options as the second argument.
+        offset = 1;
+      }
+  }
+
+  var newArgs = args.slice(0);
+
+  if (typeof newArgs[offset] === 'string') {
+    newArgs.splice(offset, 1, badgeFormat + newArgs[offset], badgeStyle, pad + badgeName + pad, resetStyle);
+  } else {
+    newArgs.splice(offset, 0, badgeFormat, badgeStyle, pad + badgeName + pad, resetStyle);
+  } // eslint-disable-next-line react-internal/no-production-logging
+
+
+  console[methodName].apply(console, newArgs);
+  return;
+}
+
 // This is the parsed shape of the wire format which is why it is
 // condensed to only the essentialy information
 var ID = 0;
@@ -343,7 +386,7 @@ function printWarning(level, format, args) {
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
-var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -460,6 +503,10 @@ function describeValueForErrorMessage(value) {
           return '[...]';
         }
 
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
         var name = objectName(value);
 
         if (name === 'Object') {
@@ -470,7 +517,15 @@ function describeValueForErrorMessage(value) {
       }
 
     case 'function':
-      return 'function';
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var _name = value.displayName || value.name;
+
+        return _name ? 'function ' + _name : 'function';
+      }
 
     default:
       // eslint-disable-next-line react-internal/safe-string-coercion
@@ -514,6 +569,12 @@ function describeElementType(type) {
   }
 
   return '';
+}
+
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
 }
 
 function describeObjectForErrorMessage(objectOrArray, expandedName) {
@@ -594,6 +655,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
     } else if (jsxPropsParents.has(objectOrArray)) {
       // Print JSX
       var _type = jsxPropsParents.get(objectOrArray);
@@ -644,9 +707,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _name = _names[_i3];
-        str += describeKeyForErrorMessage(_name) + ': ';
-        var _value3 = _object[_name];
+        var _name2 = _names[_i3];
+        str += describeKeyForErrorMessage(_name2) + ': ';
+        var _value3 = _object[_name2];
 
         var _substr3 = void 0;
 
@@ -656,7 +719,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           _substr3 = describeValueForErrorMessage(_value3);
         }
 
-        if (_name === expandedName) {
+        if (_name2 === expandedName) {
           start = str.length;
           length = _substr3.length;
           str += _substr3;
@@ -881,7 +944,7 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (value.$$typeof === REACT_LAZY_TYPE) {
           error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
+        } else if (value.$$typeof === (REACT_PROVIDER_TYPE)) {
           error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (objectName(value) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
@@ -1014,7 +1077,7 @@ function encodeFormData(reference) {
   return thenable;
 }
 
-function encodeFormAction(identifierPrefix) {
+function defaultEncodeFormAction(identifierPrefix) {
   var reference = knownServerReferences.get(this);
 
   if (!reference) {
@@ -1062,6 +1125,22 @@ function encodeFormAction(identifierPrefix) {
     encType: 'multipart/form-data',
     data: data
   };
+}
+
+function customEncodeFormAction(proxy, identifierPrefix, encodeFormAction) {
+  var reference = knownServerReferences.get(proxy);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  var boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    boundPromise = Promise.resolve([]);
+  }
+
+  return encodeFormAction(reference.id, boundPromise);
 }
 
 function isSignatureEqual(referenceId, numberOfBoundArgs) {
@@ -1125,14 +1204,17 @@ function isSignatureEqual(referenceId, numberOfBoundArgs) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
   // Expose encoder for use by SSR, as well as a special bind that can be used to
   // keep server capabilities.
   {
     // Only expose this in builds that would actually use it. Not needed on the client.
+    var $$FORM_ACTION = encodeFormAction === undefined ? defaultEncodeFormAction : function (identifierPrefix) {
+      return customEncodeFormAction(this, identifierPrefix, encodeFormAction);
+    };
     Object.defineProperties(proxy, {
       $$FORM_ACTION: {
-        value: encodeFormAction
+        value: $$FORM_ACTION
       },
       $$IS_SIGNATURE_EQUAL: {
         value: isSignatureEqual
@@ -1156,6 +1238,17 @@ function bind() {
   var reference = knownServerReferences.get(this);
 
   if (reference) {
+    {
+      var thisBind = arguments[0];
+
+      if (thisBind != null) {
+        // This doesn't warn in browser environments since it's not instrumented outside
+        // usedWithSSR. This makes this an SSR only warning which we don't generally do.
+        // TODO: Consider a DEV only instrumentation in the browser.
+        error('Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().');
+      }
+    }
+
     var args = ArraySlice.call(arguments, 1);
     var boundPromise = null;
 
@@ -1165,9 +1258,26 @@ function bind() {
       });
     } else {
       boundPromise = Promise.resolve(args);
+    } // Expose encoder for use by SSR, as well as a special bind that can be used to
+    // keep server capabilities.
+
+
+    {
+      // Only expose this in builds that would actually use it. Not needed on the client.
+      Object.defineProperties(newFn, {
+        $$FORM_ACTION: {
+          value: this.$$FORM_ACTION
+        },
+        $$IS_SIGNATURE_EQUAL: {
+          value: isSignatureEqual
+        },
+        bind: {
+          value: bind
+        }
+      });
     }
 
-    registerServerReference(newFn, {
+    knownServerReferences.set(newFn, {
       id: reference.id,
       bound: boundPromise
     });
@@ -1176,7 +1286,7 @@ function bind() {
   return newFn;
 }
 
-function createServerReference$1(id, callServer) {
+function createServerReference$1(id, callServer, encodeFormAction) {
   var proxy = function () {
     // $FlowFixMe[method-unbinding]
     var args = Array.prototype.slice.call(arguments);
@@ -1186,7 +1296,7 @@ function createServerReference$1(id, callServer) {
   registerServerReference(proxy, {
     id: id,
     bound: null
-  });
+  }, encodeFormAction);
   return proxy;
 }
 
@@ -1201,8 +1311,7 @@ var CYCLIC = 'cyclic';
 var RESOLVED_MODEL = 'resolved_model';
 var RESOLVED_MODULE = 'resolved_module';
 var INITIALIZED = 'fulfilled';
-var ERRORED = 'rejected'; // Dev-only
-// $FlowFixMe[missing-this-annot]
+var ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -1489,17 +1598,20 @@ function reportGlobalError(response, error) {
 }
 
 function createElement(type, key, props) {
-  var element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  var element;
+
+  {
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      type: type,
+      key: key,
+      ref: null,
+      props: props,
+      // Record the component responsible for creating this element.
+      _owner: null
+    };
+  }
 
   {
     // We don't really need to add any of these but keeping them for good measure.
@@ -1620,7 +1732,7 @@ function createServerReferenceProxy(response, metaData) {
     });
   };
 
-  registerServerReference(proxy, metaData);
+  registerServerReference(proxy, metaData, response._encodeFormAction);
   return proxy;
 }
 
@@ -1673,6 +1785,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(function () {});
+          }
+
           var _id = parseInt(value.slice(2), 16);
 
           var _chunk = getChunk(response, _id);
@@ -1755,6 +1872,23 @@ function parseModelString(response, parentObject, key, value) {
           return BigInt(value.slice(2));
         }
 
+      case 'E':
+        {
+          {
+            // In DEV mode we allow indirect eval to produce functions for logging.
+            // This should not compile to eval() because then it has local scope access.
+            try {
+              // eslint-disable-next-line no-eval
+              return (0, eval)(value.slice(2));
+            } catch (x) {
+              // We currently use this to express functions so we fail parsing it,
+              // let's just return a blank function as a place holder.
+              return function () {};
+            }
+          } // Fallthrough
+
+        }
+
       default:
         {
           // We assume that anything else is a reference ID.
@@ -1834,12 +1968,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -1944,6 +2079,17 @@ function resolveDebugInfo(response, id, debugInfo) {
   chunkDebugInfo.push(debugInfo);
 }
 
+function resolveConsoleEntry(response, value) {
+
+  var payload = parseModel(response, value);
+  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
+  // const stackTrace = payload[1];
+
+  var env = payload[2];
+  var args = payload.slice(3);
+  printToConsole(methodName, args, env);
+}
+
 function processFullRow(response, id, tag, buffer, chunk) {
 
   var stringDecoder = response._stringDecoder;
@@ -2001,6 +2147,17 @@ function processFullRow(response, id, tag, buffer, chunk) {
         {
           var debugInfo = JSON.parse(row);
           resolveDebugInfo(response, id, debugInfo);
+          return;
+        } // Fallthrough to share the error with Console entries.
+
+      }
+
+    case 87
+    /* "W" */
+    :
+      {
+        {
+          resolveConsoleEntry(response, row);
           return;
         }
       }
@@ -2190,7 +2347,7 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

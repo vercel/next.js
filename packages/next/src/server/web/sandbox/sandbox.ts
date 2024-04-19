@@ -15,6 +15,7 @@ const FORBIDDEN_HEADERS = [
 
 type RunnerFn = (params: {
   name: string
+  onError?: (err: unknown) => void
   onWarning?: (warn: Error) => void
   paths: string[]
   request: NodejsRequestData
@@ -31,7 +32,7 @@ type RunnerFn = (params: {
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+      require('../../../client/components/react-dev-overlay/server/middleware') as typeof import('../../../client/components/react-dev-overlay/server/middleware')
 
     return (params) =>
       fn(params)
@@ -54,6 +55,7 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
 export async function getRuntimeContext(params: {
   name: string
   onWarning?: any
+  onError?: (err: unknown) => void
   useCache: boolean
   edgeFunctionEntry: any
   distDir: string
@@ -63,6 +65,7 @@ export async function getRuntimeContext(params: {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
+    onError: params.onError ?? (() => {}),
     useCache: params.useCache !== false,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
@@ -102,8 +105,9 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   const edgeFunction: (args: {
     request: RequestData
-  }) => Promise<FetchEventResult> =
-    runtime.context._ENTRIES[`middleware_${params.name}`].default
+  }) => Promise<FetchEventResult> = (
+    await runtime.context._ENTRIES[`middleware_${params.name}`]
+  ).default
 
   const cloned = !['HEAD', 'GET'].includes(params.request.method)
     ? params.request.body?.cloneBodyStream()

@@ -10,7 +10,7 @@ use turbopack_binding::{
         diagnostics::DiagnosticExt,
         file_source::FileSource,
         issue::{
-            unsupported_module::UnsupportedModuleIssue, Issue, IssueExt, IssueSeverity,
+            unsupported_module::UnsupportedModuleIssue, Issue, IssueExt, IssueSeverity, IssueStage,
             OptionStyledString, StyledString,
         },
         reference_type::ReferenceType,
@@ -18,7 +18,7 @@ use turbopack_binding::{
             parse::Request,
             pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            ResolveResult, ResolveResultItem, ResolveResultOption,
+            ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
 };
@@ -112,6 +112,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
 pub struct InvalidImportModuleIssue {
     pub file_path: Vc<FileSystemPath>,
     pub messages: Vec<String>,
+    pub skip_context_message: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -122,8 +123,8 @@ impl Issue for InvalidImportModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("resolve".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.into()
     }
 
     #[turbo_tasks::function]
@@ -141,19 +142,20 @@ impl Issue for InvalidImportModuleIssue {
         let raw_context = &*self.file_path.await?;
 
         let mut messages = self.messages.clone();
-        messages.push("\n".to_string());
 
-        //[TODO]: how do we get the import trace?
-        messages.push(format!(
-            "The error was caused by importing '{}'",
-            raw_context.path
-        ));
+        if !self.skip_context_message {
+            //[TODO]: how do we get the import trace?
+            messages.push(format!(
+                "The error was caused by importing '{}'",
+                raw_context.path
+            ));
+        }
 
         Ok(Vc::cell(Some(
             StyledString::Line(
                 messages
                     .iter()
-                    .map(|v| StyledString::Text(v.into()))
+                    .map(|v| StyledString::Text(format!("{}\n", v)))
                     .collect::<Vec<StyledString>>(),
             )
             .cell(),
@@ -205,6 +207,8 @@ impl ResolvePlugin for InvalidImportResolvePlugin {
                 InvalidImportModuleIssue {
                     file_path: context,
                     messages: self.message.clone(),
+                    // styled-jsx specific resolve error have own message
+                    skip_context_message: self.invalid_import == "styled-jsx",
                 }
                 .cell()
                 .emit();
@@ -225,8 +229,8 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
         root,
         "client-only".to_string(),
         vec![
-            "'client-only' cannot be imported from a Client Component module. It should only be \
-             used from a Server Component."
+            "'client-only' cannot be imported from a Server Component module. It should only be \
+             used from a Client Component."
                 .to_string(),
         ],
     )
@@ -235,7 +239,6 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 /// Returns a resolve plugin if context have imports to `server-only`.
 /// Only the contexts that alises `server-only` to
 /// `next/dist/compiled/server-only/index` should use this.
-#[allow(unused)]
 pub(crate) fn get_invalid_server_only_resolve_plugin(
     root: Vc<FileSystemPath>,
 ) -> Vc<InvalidImportResolvePlugin> {
@@ -245,6 +248,25 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
              used from a Server Component."
+                .to_string(),
+        ],
+    )
+}
+
+/// Returns a resolve plugin if context have imports to `styled-jsx`.
+pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
+    root: Vc<FileSystemPath>,
+) -> Vc<InvalidImportResolvePlugin> {
+    InvalidImportResolvePlugin::new(
+        root,
+        "styled-jsx".to_string(),
+        vec![
+            "'client-only' cannot be imported from a Server Component module. It should only be \
+             used from a Client Component."
+                .to_string(),
+            "The error was caused by using 'styled-jsx'. It only works in a Client Component but \
+             none of its parents are marked with \"use client\", so they're Server Components by \
+             default."
                 .to_string(),
         ],
     )
@@ -289,8 +311,9 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let modified_path = &path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+            ResolveResult::primary(ResolveResultItem::External(
                 modified_path.to_string(),
+                ExternalType::CommonJs,
             ))
             .into(),
         )))

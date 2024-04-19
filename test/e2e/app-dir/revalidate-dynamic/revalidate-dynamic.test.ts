@@ -8,8 +8,8 @@ createNextDescribe(
   ({ next, isNextStart }) => {
     if (isNextStart) {
       it('should correctly mark a route handler that uses revalidateTag as dynamic', async () => {
-        expect(next.cliOutput).toContain('λ /api/revalidate-path')
-        expect(next.cliOutput).toContain('λ /api/revalidate-tag')
+        expect(next.cliOutput).toContain('ƒ /api/revalidate-path')
+        expect(next.cliOutput).toContain('ƒ /api/revalidate-tag')
       })
     }
 

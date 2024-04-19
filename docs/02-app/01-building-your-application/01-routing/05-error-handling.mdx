@@ -211,6 +211,10 @@ export default function GlobalError({ error, reset }) {
 }
 ```
 
+> **Good to know**:
+>
+> - `global-error.js` is only enabled in production. In development, our error overlay will show instead.
+
 ### Handling Server Errors
 
 If an error is thrown inside a Server Component, Next.js will forward an `Error` object (stripped of sensitive error information in production) to the nearest `error.js` file as the `error` prop.

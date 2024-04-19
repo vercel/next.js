@@ -87,7 +87,7 @@ pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<u32>>>> {
 pub fn teardown_heap_profiler(_guard_external: External<RefCell<Option<u32>>>) {}
 
 /// Initialize tracing subscriber to emit traces. This configures subscribers
-/// for Trace Event Format (https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
+/// for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.
 #[napi]
 pub fn init_custom_trace_subscriber(
     trace_out_file_path: Option<String>,

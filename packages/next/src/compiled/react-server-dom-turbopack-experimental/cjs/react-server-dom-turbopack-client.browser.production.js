@@ -594,12 +594,12 @@ function processReply(root, formFieldPrefix, resolve, reject) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
 
   knownServerReferences.set(proxy, reference);
 } // $FlowFixMe[method-unbinding]
 
-function createServerReference(id, callServer) {
+function createServerReference(id, callServer, encodeFormAction) {
   const proxy = function () {
     // $FlowFixMe[method-unbinding]
     const args = Array.prototype.slice.call(arguments);
@@ -624,8 +624,7 @@ const CYCLIC = 'cyclic';
 const RESOLVED_MODEL = 'resolved_model';
 const RESOLVED_MODULE = 'resolved_module';
 const INITIALIZED = 'fulfilled';
-const ERRORED = 'rejected'; // Dev-only
-// $FlowFixMe[missing-this-annot]
+const ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -913,17 +912,20 @@ function reportGlobalError(response, error) {
 }
 
 function createElement(type, key, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  let element;
+
+  {
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      type,
+      key,
+      ref: null,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: null
+    };
+  }
 
   return element;
 }
@@ -1068,6 +1070,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(() => {});
+          }
+
           const id = parseInt(value.slice(2), 16);
           const chunk = getChunk(response, id);
           return chunk;
@@ -1144,6 +1151,8 @@ function parseModelString(response, parentObject, key, value) {
           return BigInt(value.slice(2));
         }
 
+      case 'E':
+
       default:
         {
           // We assume that anything else is a reference ID.
@@ -1200,12 +1209,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   const chunks = new Map();
   const response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -1492,6 +1502,10 @@ function processFullRow(response, id, tag, buffer, chunk) {
     case 68
     /* "D" */
     :
+
+    case 87
+    /* "W" */
+    :
       {
 
         throw new Error('Failed to read a RSC payload created by a development version of React ' + 'on the server while using a production version on the client. Always use ' + 'matching versions on the server and the client.');
@@ -1706,7 +1720,8 @@ function close(response) {
 }
 
 function createResponseFromOptions(options) {
-  return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined // nonce
+  return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined, // encodeFormAction
+  undefined // nonce
   );
 }
 

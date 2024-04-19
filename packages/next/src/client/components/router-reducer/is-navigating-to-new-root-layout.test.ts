@@ -1,7 +1,7 @@
 import type { FlightRouterState } from '../../../server/app-render/types'
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
 
-describe('shouldHardNavigate', () => {
+describe('isNavigatingToNewRootLayout', () => {
   it('should return false if there is no new root layout', () => {
     const getInitialRouterStateTree = (): FlightRouterState => [
       '',
