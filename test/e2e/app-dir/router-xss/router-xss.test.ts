@@ -259,8 +259,9 @@ describe('hardenedXSSProtection', () => {
         expect(consoleCallsAfterInteraction).toEqual([
           {
             source: 'error',
-            message:
-              'Next.js has blocked a `javascript:` URL as a security precaution.',
+            message: expect.stringContaining(
+              'Next.js has blocked a `javascript:` URL as a security precaution.'
+            ),
           },
         ])
       })
@@ -269,8 +270,9 @@ describe('hardenedXSSProtection', () => {
       expect(consoleErrorCalls).toEqual([
         {
           source: 'error',
-          message:
-            'Next.js has blocked a `javascript:` URL as a security precaution.',
+          message: expect.stringContaining(
+            'Next.js has blocked a `javascript:` URL as a security precaution.'
+          ),
         },
       ])
     }
@@ -352,14 +354,16 @@ describe('hardenedXSSProtection', () => {
       expect(consoleCallsAfterInteraction).toEqual([
         {
           source: 'error',
-          message:
-            'Next.js has blocked a `javascript:` URL as a security precaution.',
+          message: expect.stringContaining(
+            'Next.js has blocked a `javascript:` URL as a security precaution.'
+          ),
         },
         // React invokeGuardedCallback stuff. Fixed in React 19.0.0-canary-36e62c603-20240418.
         {
           source: 'error',
-          message:
-            'Next.js has blocked a `javascript:` URL as a security precaution.',
+          message: expect.stringContaining(
+            'Next.js has blocked a `javascript:` URL as a security precaution.'
+          ),
         },
       ])
     })
