@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 
 use anyhow::{anyhow, Context, Result};
-use mdxjs::{compile, MdxParseOptions, Options};
+use mdxjs::{compile, Options};
 use turbo_tasks::{Value, ValueDefault, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -31,42 +31,26 @@ fn modifier() -> Vc<String> {
     Vc::cell("mdx".to_string())
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Hash, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum MdxParseConstructs {
-    Commonmark,
-    Gfm,
-}
-
 /// Subset of mdxjs::Options to allow to inherit turbopack's jsx-related configs
-/// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
-/// enable turbo tasks.
+/// into mdxjs.
 #[turbo_tasks::value(shared)]
 #[derive(PartialOrd, Ord, Hash, Debug, Clone)]
-#[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
-    pub development: Option<bool>,
-    pub jsx: Option<bool>,
+    pub development: bool,
+    pub preserve_jsx: bool,
     pub jsx_runtime: Option<String>,
     pub jsx_import_source: Option<String>,
-    /// The path to a module providing Components to mdx modules.
-    /// The provider must export a useMDXComponents, which is called to access
-    /// an object of components.
     pub provider_import_source: Option<String>,
-    /// Determines how to parse mdx contents.
-    pub mdx_type: Option<MdxParseConstructs>,
 }
 
 impl Default for MdxTransformOptions {
     fn default() -> Self {
         Self {
-            development: Some(true),
-            jsx: Some(false),
+            development: true,
+            preserve_jsx: false,
             jsx_runtime: None,
             jsx_import_source: None,
             provider_import_source: None,
-            mdx_type: Some(MdxParseConstructs::Commonmark),
         }
     }
 }
@@ -128,16 +112,10 @@ async fn into_ecmascript_module_asset(
         None
     };
 
-    let parse_options = match transform_options.mdx_type {
-        Some(MdxParseConstructs::Gfm) => MdxParseOptions::gfm(),
-        _ => MdxParseOptions::default(),
-    };
-
     let options = Options {
-        parse: parse_options,
-        development: transform_options.development.unwrap_or(false),
+        development: transform_options.development,
         provider_import_source: transform_options.provider_import_source.clone(),
-        jsx: transform_options.jsx.unwrap_or(false), // true means 'preserve' jsx syntax.
+        jsx: transform_options.preserve_jsx, // true means 'preserve' jsx syntax.
         jsx_runtime,
         jsx_import_source: transform_options
             .jsx_import_source

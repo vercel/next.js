@@ -5,7 +5,6 @@ use turbopack_core::{
     condition::ContextCondition, environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
-pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::{postcss::PostCssTransformOptions, webpack::WebpackLoaderItems},
@@ -104,6 +103,24 @@ pub struct JsxTransformOptions {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 #[serde(default)]
+pub struct MdxTransformModuleOptions {
+    /// The path to a module providing Components to mdx modules.
+    /// The provider must export a useMDXComponents, which is called to access
+    /// an object of components.
+    pub provider_import_source: Option<String>,
+}
+
+#[turbo_tasks::value_impl]
+impl MdxTransformModuleOptions {
+    #[turbo_tasks::function]
+    pub fn default() -> Vc<Self> {
+        Self::cell(Default::default())
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone)]
+#[serde(default)]
 pub struct ModuleOptionsContext {
     pub enable_jsx: Option<Vc<JsxTransformOptions>>,
     pub enable_postcss_transform: Option<Vc<PostCssTransformOptions>>,
@@ -122,7 +139,7 @@ pub struct ModuleOptionsContext {
     pub enable_raw_css: bool,
     // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
     // however we might want to unify them in the future.
-    pub enable_mdx_rs: Option<Vc<MdxTransformOptions>>,
+    pub enable_mdx_rs: Option<Vc<MdxTransformModuleOptions>>,
     pub preset_env_versions: Option<Vc<Environment>>,
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
