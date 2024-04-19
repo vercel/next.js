@@ -251,7 +251,8 @@ async function main() {
       if (testPatternRegex) {
         console.log('Running related tests:', testPatternRegex.toString())
       } else {
-        console.log('No matching related tests.')
+        console.log('No matching related tests, exiting.')
+        process.exit(0)
       }
     }
 
