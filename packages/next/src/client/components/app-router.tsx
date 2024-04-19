@@ -288,6 +288,7 @@ function Head({
 
 // TODO: Should this handle special chars?
 const isJavaScriptProtocol =
+  // eslint-disable-next-line no-useless-escape, no-control-regex
   /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i
 function trustHref(href: UntrustedHref | TrustedHref) {
   if (typeof href === 'string') {

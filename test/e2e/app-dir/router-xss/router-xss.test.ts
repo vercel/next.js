@@ -7,7 +7,7 @@ describe('default', () => {
   })
 
   it('warns on javascript URLs for client-side navigation', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/untrusted-client-side-navigation', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
     })
@@ -33,7 +33,7 @@ describe('default', () => {
         : []
     )
 
-    await browser.elementById('untrusted-client-side-navigation').click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
@@ -67,10 +67,13 @@ describe('default', () => {
   })
 
   it('warns on javascript URLs for client-side navigation with as', async () => {
-    const browser = await next.browser('/', {
-      pushErrorAsConsoleLog: true,
-      waitHydration: true,
-    })
+    const browser = await next.browser(
+      '/untrusted-client-side-navigation-with-as',
+      {
+        pushErrorAsConsoleLog: true,
+        waitHydration: true,
+      }
+    )
 
     const consoleCalls = await browser.log()
     const initialConsoleCalls = consoleCalls.slice()
@@ -86,16 +89,14 @@ describe('default', () => {
                 'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
                   'Use event handlers instead if you can. ' +
                   'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
+                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation with as\');"'
               ),
             },
           ]
         : []
     )
 
-    await browser
-      .elementById('untrusted-client-side-navigation-with-as')
-      .click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
@@ -113,6 +114,14 @@ describe('default', () => {
                   'A client-side navigation to "%s" was triggered. ' +
                   '"javascript:console.log(\'XSS untrusted client-side navigation with as\');"',
               },
+              ...(process.env.__NEXT_EXPERIMENTAL_PPR
+                ? [
+                    {
+                      source: 'log',
+                      message: expect.stringContaining('received ws message'),
+                    },
+                  ]
+                : []),
               {
                 source: 'log',
                 message: 'XSS untrusted client-side navigation with as',
@@ -129,7 +138,7 @@ describe('default', () => {
   })
 
   it('warns on javascript URLs for router.push', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/untrusted-push', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
     })
@@ -139,23 +148,9 @@ describe('default', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
-      isNextDev
-        ? [
-            {
-              source: 'error',
-              message: expect.stringContaining(
-                'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
-                  'Use event handlers instead if you can. ' +
-                  'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
-              ),
-            },
-          ]
-        : []
-    )
+    expect(consoleErrorCalls).toEqual([])
 
-    await browser.elementById('untrusted-push').click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
@@ -189,7 +184,7 @@ describe('default', () => {
   })
 
   it('does not warn if router.push is trusted', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/trusted-push', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
     })
@@ -199,23 +194,9 @@ describe('default', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
-      isNextDev
-        ? [
-            {
-              source: 'error',
-              message: expect.stringContaining(
-                'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
-                  'Use event handlers instead if you can. ' +
-                  'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
-              ),
-            },
-          ]
-        : []
-    )
+    expect(consoleErrorCalls).toEqual([])
 
-    await browser.elementById('trusted-push').click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
@@ -241,41 +222,68 @@ describe('hardenedXSSProtection', () => {
     },
   })
 
-  beforeEach(async () => {})
-
-  it('throws on javascript URLs for prefetch', async () => {
-    const browser = await next.browser('/', {
-      pushErrorAsConsoleLog: true,
-      waitHydration: true,
-    })
-
-    const consoleCalls = await browser.log()
-    const initialConsoleCalls = consoleCalls.slice()
-    const consoleErrorCalls = initialConsoleCalls.filter((call) => {
-      return call.source === 'error'
-    })
-    expect(consoleErrorCalls).toEqual(
-      isNextDev
-        ? [
-            {
-              source: 'error',
-              message: expect.stringContaining(
-                'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
-                  'Use event handlers instead if you can. ' +
-                  'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
-              ),
-            },
-          ]
-        : []
-    )
-  })
-
   it('warns on javascript URLs for client-side navigation', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/untrusted-client-side-navigation', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
     })
+
+    const consoleCalls = await browser.log()
+    const initialConsoleCalls = consoleCalls.slice()
+    const consoleErrorCalls = initialConsoleCalls.filter((call) => {
+      return call.source === 'error'
+    })
+    if (isNextDev) {
+      expect(consoleErrorCalls).toEqual(
+        isNextDev
+          ? [
+              {
+                source: 'error',
+                message: expect.stringContaining(
+                  'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
+                    'Use event handlers instead if you can. ' +
+                    'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
+                    'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
+                ),
+              },
+            ]
+          : []
+      )
+
+      await browser.elementById('trigger').click()
+
+      await retry(async () => {
+        const consoleCallsAfterInteraction = consoleCalls.slice(
+          initialConsoleCalls.length
+        )
+        expect(consoleCallsAfterInteraction).toEqual([
+          {
+            source: 'error',
+            message:
+              'Next.js has blocked a `javascript:` URL as a security precaution.',
+          },
+        ])
+      })
+    } else {
+      // prefetch happens immediately throwing and triggering a client-side exception
+      expect(consoleErrorCalls).toEqual([
+        {
+          source: 'error',
+          message:
+            'Next.js has blocked a `javascript:` URL as a security precaution.',
+        },
+      ])
+    }
+  })
+
+  it('throws on javascript URLs for client-side navigation with as', async () => {
+    const browser = await next.browser(
+      '/untrusted-client-side-navigation-with-as',
+      {
+        pushErrorAsConsoleLog: true,
+        waitHydration: true,
+      }
+    )
 
     const consoleCalls = await browser.log()
     const initialConsoleCalls = consoleCalls.slice()
@@ -291,14 +299,14 @@ describe('hardenedXSSProtection', () => {
                 'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
                   'Use event handlers instead if you can. ' +
                   'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
+                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation with as\');"'
               ),
             },
           ]
         : []
     )
 
-    await browser.elementById('untrusted-client-side-navigation').click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
@@ -310,12 +318,20 @@ describe('hardenedXSSProtection', () => {
           message:
             'Next.js has blocked a `javascript:` URL as a security precaution.',
         },
+        ...(process.env.__NEXT_EXPERIMENTAL_PPR
+          ? [
+              {
+                source: 'log',
+                message: expect.stringContaining('received ws message'),
+              },
+            ]
+          : []),
       ])
     })
   })
 
-  it('warns on javascript URLs for client-side navigation with as', async () => {
-    const browser = await next.browser('/', {
+  it('throws on javascript URLs for router.push', async () => {
+    const browser = await next.browser('/untrusted-push', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
     })
@@ -325,68 +341,9 @@ describe('hardenedXSSProtection', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
-      isNextDev
-        ? [
-            {
-              source: 'error',
-              message: expect.stringContaining(
-                'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
-                  'Use event handlers instead if you can. ' +
-                  'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
-              ),
-            },
-          ]
-        : []
-    )
+    expect(consoleErrorCalls).toEqual([])
 
-    await browser
-      .elementById('untrusted-client-side-navigation-with-as')
-      .click()
-
-    await retry(async () => {
-      const consoleCallsAfterInteraction = consoleCalls.slice(
-        initialConsoleCalls.length
-      )
-      expect(consoleCallsAfterInteraction).toEqual([
-        {
-          source: 'error',
-          message:
-            'Next.js has blocked a `javascript:` URL as a security precaution.',
-        },
-      ])
-    })
-  })
-
-  it('warns on javascript URLs for router.push', async () => {
-    const browser = await next.browser('/', {
-      pushErrorAsConsoleLog: true,
-      waitHydration: true,
-    })
-
-    const consoleCalls = await browser.log()
-    const initialConsoleCalls = consoleCalls.slice()
-    const consoleErrorCalls = initialConsoleCalls.filter((call) => {
-      return call.source === 'error'
-    })
-    expect(consoleErrorCalls).toEqual(
-      isNextDev
-        ? [
-            {
-              source: 'error',
-              message: expect.stringContaining(
-                'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
-                  'Use event handlers instead if you can. ' +
-                  'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
-              ),
-            },
-          ]
-        : []
-    )
-
-    await browser.elementById('untrusted-push').click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
@@ -409,7 +366,7 @@ describe('hardenedXSSProtection', () => {
   })
 
   it('does not throw if router.push is trusted', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/trusted-push', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
     })
@@ -419,23 +376,9 @@ describe('hardenedXSSProtection', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
-      isNextDev
-        ? [
-            {
-              source: 'error',
-              message: expect.stringContaining(
-                'Warning: A future version of React will block javascript: URLs as a security precaution. ' +
-                  'Use event handlers instead if you can. ' +
-                  'If you need to generate unsafe HTML try using dangerouslySetInnerHTML instead. ' +
-                  'React was passed %s.%s "javascript:console.log(\'XSS untrusted client-side navigation\');"'
-              ),
-            },
-          ]
-        : []
-    )
+    expect(consoleErrorCalls).toEqual([])
 
-    await browser.elementById('trusted-push').click()
+    await browser.elementById('trigger').click()
 
     await retry(async () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
