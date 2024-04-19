@@ -95,6 +95,7 @@
     "@swc/helpers": "0.5.5",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "13.0.0",
+    "@types/busboy": "1.5.3",
     "@types/cheerio": "0.22.16",
     "@types/cookie": "0.3.3",
     "@types/cross-spawn": "6.0.0",

@@ -125,6 +125,9 @@ importers:
       '@testing-library/react':
         specifier: 13.0.0
         version: 13.0.0(react-dom@18.2.0)(react@18.2.0)
+      '@types/busboy':
+        specifier: 1.5.3
+        version: 1.5.3
       '@types/cheerio':
         specifier: 0.22.16
         version: 0.22.16
@@ -744,7 +747,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -806,7 +809,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.5
@@ -927,16 +930,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1551,7 +1554,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.9
+        specifier: 14.3.0-canary.11
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -6782,6 +6785,12 @@ packages:
 
   /@types/btoa-lite@1.0.0:
     resolution: {integrity: sha512-wJsiX1tosQ+J5+bY5LrSahHxr2wT+uME5UDwdN1kg4frt40euqA+wzECkmq4t5QbveHiJepfdThgQrPw6KiSlg==}
+    dev: true
+
+  /@types/busboy@1.5.3:
+    resolution: {integrity: sha512-YMBLFN/xBD8bnqywIlGyYqsNFXu6bsiY7h3Ae0kO17qEuTjsqeyYMRPSUDacIKIquws2Y6KjmxAyNx8xB3xQbw==}
+    dependencies:
+      '@types/node': 20.12.3
     dev: true
 
   /@types/bytes@3.1.1:
