@@ -10,6 +10,8 @@ const javaScriptProtocol =
   // eslint-disable-next-line no-useless-escape, no-control-regex
   /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i
 export function isJavaScriptProtocol(href: string) {
+  // We could just use `new URL(href).protocol === 'javascript:'`
+  // But that might be more expensive than this simple regex since it also throws on invalid URLs and `URL` may not be available in every environemnt.
   return javaScriptProtocol.test(href)
 }
 export function trustHref(href: UntrustedHref | TrustedHref) {
