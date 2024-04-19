@@ -118,6 +118,13 @@ export interface PrefetchOptions {
   kind: PrefetchKind
 }
 
+export type UntrustedHref = string
+export interface TrustedHref {
+  unsafeHref: {
+    __href: string
+  }
+}
+
 export interface AppRouterInstance {
   /**
    * Navigate to the previous history entry.
@@ -140,16 +147,16 @@ export interface AppRouterInstance {
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
-  push(href: string, options?: NavigateOptions): void
+  push(href: UntrustedHref | TrustedHref, options?: NavigateOptions): void
   /**
    * Navigate to the provided href.
    * Replaces the current history entry.
    */
-  replace(href: string, options?: NavigateOptions): void
+  replace(href: UntrustedHref | TrustedHref, options?: NavigateOptions): void
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string, options?: PrefetchOptions): void
+  prefetch(href: UntrustedHref | TrustedHref, options?: PrefetchOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(

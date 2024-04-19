@@ -444,6 +444,11 @@ export interface ExperimentalConfig {
    * Enables `fetch` requests to be proxied to the experimental text proxy server
    */
   testProxy?: boolean
+
+  /**
+   * Prevents client-side navigation to URLs that use the `javascript:` protocol.
+   */
+  hardenedXSSProtection?: boolean
 }
 
 export type ExportPathMap = {
@@ -932,6 +937,7 @@ export const defaultConfig: NextConfig = {
       dynamic: 30,
       static: 300,
     },
+    hardenedXSSProtection: false,
   },
 }
 
