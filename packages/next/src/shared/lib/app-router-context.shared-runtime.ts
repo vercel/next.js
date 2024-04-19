@@ -8,6 +8,7 @@ import type {
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState } from '../../server/app-render/types'
 import React from 'react'
+import type { TrustedHref, UntrustedHref } from './xss-protection'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -116,13 +117,6 @@ export interface NavigateOptions {
 
 export interface PrefetchOptions {
   kind: PrefetchKind
-}
-
-export type UntrustedHref = string
-export interface TrustedHref {
-  unsafeHref: {
-    __href: string
-  }
 }
 
 export interface AppRouterInstance {
