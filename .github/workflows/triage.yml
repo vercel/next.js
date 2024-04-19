@@ -17,9 +17,10 @@ jobs:
     name: Nissuer
     runs-on: ubuntu-latest
     steps:
-      - uses: balazsorban44/nissuer@1.9.3
+      - uses: balazsorban44/nissuer@1.10.0
         with:
           label-area-prefix: ''
+          label-area-match: 'name'
           label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
           label-comments: |
             {

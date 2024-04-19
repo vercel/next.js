@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe, isNextStart } from 'e2e-utils'
 import { links } from './components/links'
 
 async function measure(stream: NodeJS.ReadableStream) {
@@ -304,9 +304,15 @@ createNextDescribe(
               'text/html; charset=utf-8'
             )
 
-            if (!isNextDev) {
+            if (isNextStart) {
               expect(res.headers.get('cache-control')).toEqual(
                 's-maxage=31536000, stale-while-revalidate'
+              )
+            }
+
+            if (isNextDeploy) {
+              expect(res.headers.get('cache-control')).toEqual(
+                'public, max-age=0, must-revalidate'
               )
             }
 
