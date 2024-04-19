@@ -62,7 +62,13 @@ describe('tsconfig.base.json', () => {
       const output = await fs.readFile(tsconfigFile, 'utf8')
       const parsed = JSON.parse(output)
 
-      expect(parsed.include.sort()).toMatchInlineSnapshot()
+      expect(parsed.include.sort()).toMatchInlineSnapshot(`
+        [
+          "**/*.ts",
+          "**/*.tsx",
+          ".next/types/**/*.ts",
+        ]
+      `)
     })
 
     it('should not add strictNullChecks if base provides it', async () => {
