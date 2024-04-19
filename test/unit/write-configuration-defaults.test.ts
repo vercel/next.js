@@ -8,6 +8,8 @@ import * as ts from 'typescript'
 const fixtureDir = join(__dirname, 'fixtures/config-ts')
 const tsconfigFile = join(fixtureDir, 'tsconfig.json')
 const tsconfigBaseFile = join(fixtureDir, 'tsconfig.base.json')
+const distDir = '.next'
+const nextAppTypes = `${distDir}/types/**/*.ts`
 
 describe('tsconfig.base.json', () => {
   beforeEach(async () => {
@@ -18,58 +20,79 @@ describe('tsconfig.base.json', () => {
     await fs.remove(tsconfigBaseFile)
   })
 
-  it('should support empty includes when base provides it', async () => {
-    const content = {
-      extends: './tsconfig.base.json',
-    }
+  describe('appDir', () => {
+    it('should support empty includes when base provides it', async () => {
+      const include = ['**/*.ts', '**/*.tsx', nextAppTypes]
+      const content = {
+        extends: './tsconfig.base.json',
+      }
+      const baseContent = {
+        include,
+      }
 
-    const baseContent = {
-      include: ['**/*.ts', '**/*.tsx'],
-    }
+      await fs.writeFile(tsconfigFile, JSON.stringify(content, null, 2))
+      await fs.writeFile(tsconfigBaseFile, JSON.stringify(baseContent, null, 2))
 
-    await fs.writeFile(tsconfigFile, JSON.stringify(content, null, 2))
-    await fs.writeFile(tsconfigBaseFile, JSON.stringify(baseContent, null, 2))
+      await expect(
+        writeConfigurationDefaults(ts, tsconfigFile, false, true, distDir, true)
+      ).resolves.not.toThrow()
 
-    await expect(
-      writeConfigurationDefaults(ts, tsconfigFile, false, true, '.next', true)
-    ).resolves.not.toThrow()
-  })
+      const output = await fs.readFile(tsconfigFile, 'utf8')
+      const parsed = JSON.parse(output)
 
-  it('should not add strictNullChecks if base provides it', async () => {
-    const content = {
-      extends: './tsconfig.base.json',
-      compilerOptions: {
-        plugins: [
-          {
-            name: 'next',
-          },
-        ],
-      },
-    }
+      expect(parsed.include).toBeUndefined()
+    })
 
-    const baseContent = {
-      compilerOptions: {
-        strictNullChecks: true,
-        strict: true,
-      },
-      include: ['next-env.d.ts', '**/*.ts', '**/*.tsx', '.next/types/**/*.ts'],
-      exclude: ['node_modules'],
-    }
+    it('should replace includes when base is missing appTypes', async () => {
+      const include = ['**/*.ts', '**/*.tsx']
+      const content = {
+        extends: './tsconfig.base.json',
+      }
+      const baseContent = {
+        include,
+      }
 
-    await fs.writeFile(tsconfigFile, JSON.stringify(content, null, 2))
-    await fs.writeFile(tsconfigBaseFile, JSON.stringify(baseContent, null, 2))
+      await fs.writeFile(tsconfigFile, JSON.stringify(content, null, 2))
+      await fs.writeFile(tsconfigBaseFile, JSON.stringify(baseContent, null, 2))
 
-    await writeConfigurationDefaults(
-      ts,
-      tsconfigFile,
-      false,
-      true,
-      '.next',
-      true
-    )
-    const output = await fs.readFile(tsconfigFile, 'utf8')
-    const parsed = JSON.parse(output)
+      await expect(
+        writeConfigurationDefaults(ts, tsconfigFile, false, true, distDir, true)
+      ).resolves.not.toThrow()
 
-    expect(parsed.compilerOptions.strictNullChecks).toBeUndefined()
+      const output = await fs.readFile(tsconfigFile, 'utf8')
+      const parsed = JSON.parse(output)
+
+      expect(parsed.include).toEqual(expect.arrayContaining(include))
+      expect(parsed.include).toInclude(nextAppTypes)
+    })
+
+    it('should not add strictNullChecks if base provides it', async () => {
+      const content = {
+        extends: './tsconfig.base.json',
+      }
+
+      const baseContent = {
+        compilerOptions: {
+          strictNullChecks: true,
+          strict: true,
+        },
+      }
+
+      await fs.writeFile(tsconfigFile, JSON.stringify(content, null, 2))
+      await fs.writeFile(tsconfigBaseFile, JSON.stringify(baseContent, null, 2))
+
+      await writeConfigurationDefaults(
+        ts,
+        tsconfigFile,
+        false,
+        true,
+        distDir,
+        true
+      )
+      const output = await fs.readFile(tsconfigFile, 'utf8')
+      const parsed = JSON.parse(output)
+
+      expect(parsed.compilerOptions.strictNullChecks).toBeUndefined()
+    })
   })
 })

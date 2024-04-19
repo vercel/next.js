@@ -226,10 +226,30 @@ export async function writeConfigurationDefaults(
     if (!Array.isArray(userTsConfig.include)) {
       userTsConfig.include = []
     }
-    userTsConfig.include.push(nextAppTypes)
-    suggestedActions.push(
-      cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
-    )
+    // rawConfig will resolve all extends and include paths (ex: tsconfig.json, tsconfig.base.json, etc.)
+    // if it doesn't match userTsConfig then update the userTsConfig to add the
+    // rawConfig's includes in addition to nextAppTypes
+    if (
+      rawConfig.include.length !== userTsConfig.include.length ||
+      JSON.stringify(rawConfig.include.sort()) !==
+        JSON.stringify(userTsConfig.include.sort())
+    ) {
+      userTsConfig.include.push(...rawConfig.include, nextAppTypes)
+      suggestedActions.push(
+        cyan('include') +
+          ' was set to ' +
+          bold(
+            `[${[...rawConfig.include, nextAppTypes]
+              .map((i) => `'${i}'`)
+              .join(', ')}]`
+          )
+      )
+    } else {
+      userTsConfig.include.push(nextAppTypes)
+      suggestedActions.push(
+        cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
+      )
+    }
   }
 
   // Enable the Next.js typescript plugin.
