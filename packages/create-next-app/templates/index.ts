@@ -94,6 +94,23 @@ export const installTemplate = async ({
       .replace(`"@/*":`, `"${importAlias}":`),
   );
 
+  if (experimentalTestMode) {
+    const nextConfigFile = path.join(root, "next.config.mjs");
+
+    await fs.writeFile(
+      nextConfigFile,
+      `/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    testProxy: true
+  }
+};
+
+export default nextConfig;
+`,
+    );
+  }
+
   // update import alias in any files if not using the default
   if (importAlias !== "@/*") {
     const files = await glob("**/*", {

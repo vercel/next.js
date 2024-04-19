@@ -406,7 +406,7 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.app = Boolean(experimentalTestMode)
+        program.experimentalTestMode = Boolean(experimentalTestMode)
       }
     }
 
