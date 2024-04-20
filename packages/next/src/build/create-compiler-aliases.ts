@@ -294,12 +294,21 @@ export function createRSCAliases(
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
       alias[
+        'next/dist/compiled/react$'
+      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias[
         'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
+      alias[
+        'next/dist/compiled/react-dom$'
       ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
     } else {
       // x-ref: https://github.com/facebook/react/pull/25436
       alias[
         'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+      alias[
+        'next/dist/compiled/react-dom$'
       ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
     }
   }
@@ -307,6 +316,9 @@ export function createRSCAliases(
   if (reactProductionProfiling) {
     alias[
       'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias[
+      'next/dist/compiled/react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
