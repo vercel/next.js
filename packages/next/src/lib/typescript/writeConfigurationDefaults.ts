@@ -335,8 +335,13 @@ export async function writeConfigurationDefaults(
   Log.info(
     `We detected TypeScript in your project and reconfigured your ${cyan(
       'tsconfig.json'
-    )} file for you. Strict-mode is set to ${cyan('false')} by default.`
+    )} file for you.${
+      userTsConfig.compilerOptions?.strict
+        ? ''
+        : ` Strict-mode is set to ${cyan('false')} by default.`
+    }`
   )
+
   if (suggestedActions.length) {
     Log.info(
       `The following suggested values were added to your ${cyan(

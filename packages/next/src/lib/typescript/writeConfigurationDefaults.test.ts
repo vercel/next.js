@@ -6,6 +6,16 @@ import ts from 'typescript'
 import { writeConfigurationDefaults } from './writeConfigurationDefaults'
 
 describe('writeConfigurationDefaults()', () => {
+  let consoleLogSpy: jest.SpyInstance
+
+  beforeEach(() => {
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation()
+  })
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore()
+  })
+
   it('applies suggested and mandatory defaults to existing tsconfig.json and logs them', async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
     const tsConfigPath = join(tmpDir, 'tsconfig.json')
@@ -13,7 +23,6 @@ describe('writeConfigurationDefaults()', () => {
     const hasAppDir = true
     const distDir = '.next'
     const hasPagesDir = false
-    const logSpy = jest.spyOn(console, 'log')
 
     await writeFile(tsConfigPath, JSON.stringify({ compilerOptions: {} }), {
       encoding: 'utf8',
@@ -69,7 +78,7 @@ describe('writeConfigurationDefaults()', () => {
     `)
 
     expect(
-      logSpy.mock.calls
+      consoleLogSpy.mock.calls
         .flat()
         .join('\n')
         // eslint-disable-next-line no-control-regex
@@ -119,5 +128,37 @@ describe('writeConfigurationDefaults()', () => {
       	- jsx was set to preserve (next.js implements its own optimized jsx transform)
       "
     `)
+  })
+
+  it('does not warn about disabled strict mode if strict mode was already enabled', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
+    const tsConfigPath = join(tmpDir, 'tsconfig.json')
+    const isFirstTimeSetup = false
+    const hasAppDir = true
+    const distDir = '.next'
+    const hasPagesDir = false
+
+    await writeFile(
+      tsConfigPath,
+      JSON.stringify({ compilerOptions: { strict: true } }),
+      { encoding: 'utf8' }
+    )
+
+    await writeConfigurationDefaults(
+      ts,
+      tsConfigPath,
+      isFirstTimeSetup,
+      hasAppDir,
+      distDir,
+      hasPagesDir
+    )
+
+    expect(
+      consoleLogSpy.mock.calls
+        .flat()
+        .join('\n')
+        // eslint-disable-next-line no-control-regex
+        .replace(/\x1B\[\d+m/g, '') // remove color control characters
+    ).not.toMatch('Strict-mode is set to false by default.')
   })
 })
