@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext } from 'next/dist/compiled/react'
 import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
 import type { NextRouter } from '../router'
 

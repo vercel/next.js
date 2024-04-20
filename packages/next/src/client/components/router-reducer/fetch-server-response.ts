@@ -2,7 +2,7 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
+// import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 const { createFromFetch } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies

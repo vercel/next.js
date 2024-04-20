@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'next/dist/compiled/react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,

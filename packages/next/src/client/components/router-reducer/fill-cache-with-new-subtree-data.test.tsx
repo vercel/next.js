@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightData } from '../../../server/app-render/types'

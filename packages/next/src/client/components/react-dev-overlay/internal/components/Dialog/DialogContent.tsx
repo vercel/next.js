@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 
 export type DialogContentProps = {
   children?: React.ReactNode

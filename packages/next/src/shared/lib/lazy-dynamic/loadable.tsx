@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy } from 'next/dist/compiled/react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 import { PreloadCss } from './preload-css'

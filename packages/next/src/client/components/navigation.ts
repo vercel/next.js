@@ -1,4 +1,4 @@
-import { useContext, useMemo } from 'react'
+import { useContext, useMemo } from 'next/dist/compiled/react'
 import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,

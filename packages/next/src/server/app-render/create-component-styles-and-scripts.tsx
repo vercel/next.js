@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { interopDefault } from './interop-default'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'

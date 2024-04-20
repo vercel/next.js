@@ -1,4 +1,4 @@
-import { useMemo, Fragment, useState } from 'react'
+import { useMemo, Fragment, useState } from 'next/dist/compiled/react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { CollapseIcon } from '../../icons/CollapseIcon'
 

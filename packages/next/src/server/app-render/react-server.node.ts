@@ -6,4 +6,4 @@ export {
   decodeReplyFromBusboy,
   decodeAction,
   decodeFormState,
-} from 'react-server-dom-webpack/server.node'
+} from 'next/dist/compiled/react-server-dom-webpack/server.node'

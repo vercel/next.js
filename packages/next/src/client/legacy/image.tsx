@@ -7,7 +7,7 @@ import React, {
   useContext,
   useMemo,
   useState,
-} from 'react'
+} from 'next/dist/compiled/react'
 import Head from '../../shared/lib/head'
 import {
   imageConfigDefault,

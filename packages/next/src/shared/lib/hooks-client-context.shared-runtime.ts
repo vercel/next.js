@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext } from 'react'
+import { createContext } from 'next/dist/compiled/react'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
 
 export const SearchParamsContext = createContext<URLSearchParams | null>(null)

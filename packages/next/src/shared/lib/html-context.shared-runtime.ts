@@ -5,7 +5,7 @@ import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { DeepReadonly } from './deep-readonly'
 
-import { createContext, useContext } from 'react'
+import { createContext, useContext } from 'next/dist/compiled/react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA

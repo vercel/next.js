@@ -1,5 +1,5 @@
-import type React from 'react'
-import { Children, useEffect, useLayoutEffect } from 'react'
+import type React from 'next/dist/compiled/react'
+import { Children, useEffect, useLayoutEffect } from 'next/dist/compiled/react'
 
 type State = JSX.Element[] | undefined
 

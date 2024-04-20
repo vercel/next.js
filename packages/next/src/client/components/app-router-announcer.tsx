@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef, useState } from 'next/dist/compiled/react'
+import { createPortal } from 'next/dist/compiled/react-dom'
 import type { FlightRouterState } from '../../server/app-render/types'
 
 const ANNOUNCER_TYPE = 'next-route-announcer'

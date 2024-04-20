@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { useRouter } from './router'
 
 const nextjsRouteAnnouncerStyles: React.CSSProperties = {

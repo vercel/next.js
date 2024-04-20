@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { AmpStateContext } from './amp-context.shared-runtime'
 import { isInAmpMode } from './amp-mode'
 

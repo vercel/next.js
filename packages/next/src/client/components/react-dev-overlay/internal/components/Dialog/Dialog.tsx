@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
 export type DialogProps = {

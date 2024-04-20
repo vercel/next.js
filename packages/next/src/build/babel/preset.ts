@@ -138,7 +138,7 @@ export default (
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:
-          //   import React from 'react';
+          //   import React from 'next/dist/compiled/react';
           //   var __jsx = React.createElement;
           module: 'react',
           importAs: 'React',

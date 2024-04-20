@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'

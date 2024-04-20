@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType } from 'next/dist/compiled/react'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'

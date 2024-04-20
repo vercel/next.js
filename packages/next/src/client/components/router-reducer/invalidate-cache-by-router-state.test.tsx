@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightRouterState } from '../../../server/app-render/types'

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect } from 'next/dist/compiled/react'
 import { hydrationErrorState } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
 import { isHydrationError } from '../../../is-hydration-error'

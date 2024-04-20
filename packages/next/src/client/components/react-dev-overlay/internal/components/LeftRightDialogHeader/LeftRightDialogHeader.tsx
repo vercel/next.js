@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 import { CloseIcon } from '../../icons/CloseIcon'
 
 export type LeftRightDialogHeaderProps = {

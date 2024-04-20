@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 
 import * as Bus from './bus'
 import { ShadowPortal } from '../internal/components/ShadowPortal'

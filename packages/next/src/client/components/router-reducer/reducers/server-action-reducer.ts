@@ -11,9 +11,9 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
 // // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
+// import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
-// import { encodeReply } from 'react-server-dom-webpack/client'
+// import { encodeReply } from 'next/dist/compiled/react-server-dom-webpack/client'
 const { createFromFetch, encodeReply } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies

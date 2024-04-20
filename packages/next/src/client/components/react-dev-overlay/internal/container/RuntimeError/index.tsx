@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'

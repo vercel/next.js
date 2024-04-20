@@ -1,8 +1,8 @@
 import type {
   Options as RenderToReadableStreamOptions,
   ResumeOptions,
-} from 'react-dom/server.edge'
-import type { Options as PrerenderOptions } from 'react-dom/static.edge'
+} from 'next/dist/compiled/react-dom/server.edge'
+import type { Options as PrerenderOptions } from 'next/dist/compiled/react-dom/static.edge'
 
 type RenderResult = {
   stream: ReadableStream<Uint8Array>

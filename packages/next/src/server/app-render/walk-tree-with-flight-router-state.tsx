@@ -4,7 +4,7 @@ import type {
   FlightSegmentPath,
   Segment,
 } from './types'
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import {
   canSegmentBeOverridden,
   matchSegment,

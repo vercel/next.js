@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { findHeadInCache } from './find-head-in-cache'

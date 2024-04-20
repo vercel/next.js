@@ -1,6 +1,6 @@
-import type { Dispatch } from 'react'
-import React, { use, useContext } from 'react'
-import { useRef, useEffect, useCallback } from 'react'
+import type { Dispatch } from 'next/dist/compiled/react'
+import React, { use, useContext } from 'next/dist/compiled/react'
+import { useRef, useEffect, useCallback } from 'next/dist/compiled/react'
 import {
   isThenable,
   type AppRouterState,
