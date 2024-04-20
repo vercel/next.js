@@ -24,14 +24,13 @@ pnpm add @next/bundle-analyzer
 Then, add the bundle analyzer's settings to your `next.config.js`.
 
 ```js filename="next.config.js"
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {}
 
-module.exports = withBundleAnalyzer(nextConfig)
+const withBundleAnalyzer = require('@next/bundle-analyzer')()
+
+module.exports =
+  process.env.ANALYZE === 'true' ? withBundleAnalyzer(nextConfig) : nextConfig
 ```
 
 ## Analyzing your bundles
