@@ -14,11 +14,11 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require('react');
+var React = require("next/dist/compiled/react");
 var util = require('util');
 require('crypto');
 var async_hooks = require('async_hooks');
-var ReactDOM = require('react-dom');
+var ReactDOM = require("next/dist/compiled/react-dom");
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 

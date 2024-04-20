@@ -14,8 +14,8 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactDOM = require('react-dom');
-var React = require('react');
+var ReactDOM = require("next/dist/compiled/react-dom-experimental");
+var React = require("next/dist/compiled/react-experimental");
 
 function createStringDecoder() {
   return new TextDecoder();

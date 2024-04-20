@@ -1532,6 +1532,21 @@ export async function copy_vendor_react(task_) {
   function* copy_vendor_react_impl(task, opts) {
     const channel = opts.experimental ? `experimental-builtin` : `builtin`
     const packageSuffix = opts.experimental ? `-experimental` : ``
+    function ensureVendoredReactIsUsed(source) {
+      return source
+        .replace(
+          /require\(["']scheduler["']\)/g,
+          `require("next/dist/compiled/scheduler${packageSuffix}")`
+        )
+        .replace(
+          /require\(["']react["']\)/g,
+          `require("next/dist/compiled/react${packageSuffix}")`
+        )
+        .replace(
+          /require\(["']react-dom["']\)/g,
+          `require("next/dist/compiled/react-dom${packageSuffix}")`
+        )
+    }
 
     // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
     // "The name `react` was looked up in the Haste module map" warnings.
@@ -1622,19 +1637,7 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react-dom["']\)/g,
-            `require("next/dist/compiled/react-dom${packageSuffix}")`
-          )
+        file.data = ensureVendoredReactIsUsed(source)
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
@@ -1678,22 +1681,28 @@ export async function copy_vendor_react(task_) {
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        // NOTE: We only replace module/chunk loading for server builds because the server
-        // bundles have unique constraints like a runtime bundle. For browser builds this
-        // package will be bundled alongside user code and we don't need to introduce the extra
-        // indirection
         if (
-          (file.base.startsWith('react-server-dom-webpack-client') &&
-            !file.base.startsWith('react-server-dom-webpack-client.browser')) ||
-          (file.base.startsWith('react-server-dom-webpack-server') &&
-            !file.base.startsWith('react-server-dom-webpack-server.browser'))
+          file.base.startsWith('react-server-dom-webpack-client') ||
+          file.base.startsWith('react-server-dom-webpack-server')
         ) {
-          const source = file.data.toString()
-          file.data = source.replace(
-            /__webpack_require__/g,
-            'globalThis.__next_require__'
-          )
+          let source = file.data.toString()
+          source = ensureVendoredReactIsUsed(source)
+
+          // We replace the module/chunk loading code with our own implementation in Next.js.
+          // NOTE: We only replace module/chunk loading for server builds because the server
+          // bundles have unique constraints like a runtime bundle. For browser builds this
+          // package will be bundled alongside user code and we don't need to introduce the extra
+          // indirection
+          if (
+            !file.base.startsWith('react-server-dom-webpack-client.browser') &&
+            !file.base.startsWith('react-server-dom-webpack-server.browser')
+          ) {
+            source = source.replace(
+              /__webpack_require__/g,
+              'globalThis.__next_require__'
+            )
+          }
+          file.data = source
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
@@ -1723,23 +1732,30 @@ export async function copy_vendor_react(task_) {
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
-        // We replace the module loading code with our own implementation in Next.js.
-        // NOTE: We only replace module loading for server builds because the server
-        // bundles have unique constraints like a runtime bundle. For browser builds this
-        // package will be bundled alongside user code and we don't need to introduce the extra
-        // indirection
         if (
-          (file.base.startsWith('react-server-dom-turbopack-client') &&
+          file.base.startsWith('react-server-dom-turbopack-client') ||
+          file.base.startsWith('react-server-dom-turbopack-server')
+        ) {
+          let source = file.data.toString()
+          source = ensureVendoredReactIsUsed(source)
+
+          // We replace the module loading code with our own implementation in Next.js.
+          // NOTE: We only replace module loading for server builds because the server
+          // bundles have unique constraints like a runtime bundle. For browser builds this
+          // package will be bundled alongside user code and we don't need to introduce the extra
+          // indirection
+          if (
             !file.base.startsWith(
               'react-server-dom-turbopack-client.browser'
-            )) ||
-          (file.base.startsWith('react-server-dom-turbopack-server') &&
-            !file.base.startsWith('react-server-dom-turbopack-server.browser'))
-        ) {
-          const source = file.data.toString()
+            ) &&
+            !file.base.startsWith('react-server-dom-turbopack-server.browser')
+          ) {
+            source = source
+              .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
+              .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
+          }
+
           file.data = source
-            .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
-            .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
