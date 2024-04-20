@@ -116,6 +116,7 @@ export async function capsize_metrics() {
     'dist/server/capsize-font-metrics.json'
   )
 
+  await fs.mkdir(dirname(outputPathDist), { recursive: true })
   await writeJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 
@@ -2153,6 +2154,9 @@ export async function precompile(task, opts) {
       'path_to_regexp',
       'copy_ncced',
       'copy_styled_jsx_assets',
+      'ncc_react_refresh_utils',
+      'ncc_next_font',
+      'capsize_metrics',
     ],
     opts
   )
@@ -2286,7 +2290,7 @@ export async function ncc(task, opts) {
     )
   await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
-  await task.serial(
+  await task.parallel(
     [
       'ncc_browserslist',
       'ncc_cssnano_simple_bundle',
@@ -2341,16 +2345,6 @@ export async function next_compile(task, opts) {
     ],
     opts
   )
-}
-
-export async function compile(task, opts) {
-  await task.serial(['next_compile', 'next_bundle'], opts)
-
-  await task.serial([
-    'ncc_react_refresh_utils',
-    'ncc_next_font',
-    'capsize_metrics',
-  ])
 }
 
 export async function bin(task, opts) {
@@ -2575,9 +2569,20 @@ export async function trace(task, opts) {
     .target('dist/trace')
 }
 
+export async function clear_dist(task) {
+  await task.clear('dist')
+}
+
 export async function build(task, opts) {
   await task.serial(
-    ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
+    [
+      'clear_dist',
+      'precompile',
+      'next_compile',
+      'next_bundle',
+      'generate_types',
+      'rewrite_compiled_references',
+    ],
     opts
   )
 }
@@ -2619,9 +2624,8 @@ export async function rewrite_compiled_references(task, opts) {
   }
 }
 
-export default async function (task) {
+export async function dev(task) {
   const opts = { dev: true }
-  await task.clear('dist')
   await task.start('build', opts)
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
@@ -2710,10 +2714,6 @@ export async function experimental_testmode(task, opts) {
     .source('src/experimental/testmode/**/!(*.test).+(js|ts|tsx)')
     .swc('server', {})
     .target('dist/experimental/testmode')
-}
-
-export async function release(task) {
-  await task.clear('dist').start('build')
 }
 
 export async function next_bundle_app_turbo(task, opts) {

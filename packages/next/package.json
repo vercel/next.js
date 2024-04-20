@@ -76,9 +76,8 @@
     "next": "./dist/bin/next"
   },
   "scripts": {
-    "dev": "taskr",
-    "release": "taskr release",
-    "build": "pnpm release",
+    "dev": "taskr dev",
+    "build": "taskr build",
     "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
