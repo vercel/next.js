@@ -176,9 +176,7 @@ export async function writeConfigurationDefaults(
           cyan(optionKey) +
             ' was set to ' +
             bold(check.suggested) +
-            check.reason
-            ? ` (${check.reason})`
-            : ''
+            (check.reason ? ` (${check.reason})` : '')
         )
       }
     } else if ('value' in check) {

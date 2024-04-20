@@ -82,19 +82,19 @@ describe('writeConfigurationDefaults()', () => {
       The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
 
         
-      	-  (For top-level \`await\`. Note: Next.js only polyfills for the esmodules target.)
+      	- target was set to ES2017 (For top-level \`await\`. Note: Next.js only polyfills for the esmodules target.)
         
-      	-  (undefined)
+      	- lib was set to dom,dom.iterable,esnext
         
-      	-  (undefined)
+      	- allowJs was set to true
         
-      	-  (undefined)
+      	- skipLibCheck was set to true
         
-      	-  (undefined)
+      	- strict was set to false
         
-      	-  (undefined)
+      	- noEmit was set to true
         
-      	-  (undefined)
+      	- incremental was set to true
         
       	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
         
