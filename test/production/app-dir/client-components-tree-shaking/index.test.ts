@@ -97,5 +97,11 @@ createNextDescribe(
         chunkContents.every((content) => content.includes('cjs-client:foo'))
       ).toBe(false)
     })
+
+    it('should able to resolve the client module entry with mixing rexports', async () => {
+      const $ = await next.render$('/client-reexport-index')
+
+      expect($('p').text()).toContain('client:mod-export-default')
+    })
   }
 )
