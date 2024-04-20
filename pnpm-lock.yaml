@@ -1355,6 +1355,9 @@ importers:
       source-map:
         specifier: 0.6.1
         version: 0.6.1
+      source-map-loader:
+        specifier: 5.0.0
+        version: 5.0.0(webpack@5.90.0)
       source-map08:
         specifier: npm:source-map@0.8.0-beta.0
         version: /source-map@0.8.0-beta.0
@@ -22706,6 +22709,17 @@ packages:
   /source-map-js@1.0.2:
     resolution: {integrity: sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==}
     engines: {node: '>=0.10.0'}
+
+  /source-map-loader@5.0.0(webpack@5.90.0):
+    resolution: {integrity: sha512-k2Dur7CbSLcAH73sBcIkV5xjPV4SzqO1NJ7+XaQl8if3VODDUj3FNchNGpqgJSKbvUfJuhVdv8K2Eu8/TNl2eA==}
+    engines: {node: '>= 18.12.0'}
+    peerDependencies:
+      webpack: 5.90.0
+    dependencies:
+      iconv-lite: 0.6.3
+      source-map-js: 1.0.2
+      webpack: 5.90.0(@swc/core@1.4.4)
+    dev: true
 
   /source-map-resolve@0.5.3:
     resolution: {integrity: sha512-Htz+RnsXWk5+P2slx5Jh3Q66vhQj1Cllm0zvnaY98+NFx+Dv2CF/f5O/t8x+KaNdrdIAsruNzoh/KpialbqAnw==}
