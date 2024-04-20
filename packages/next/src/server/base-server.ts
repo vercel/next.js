@@ -1945,21 +1945,40 @@ export default abstract class Server<
 
     const { routeModule } = components
 
+    const couldSupportPPR: boolean =
+      typeof routeModule !== 'undefined' &&
+      isAppPageRouteModule(routeModule) &&
+      this.renderOpts.experimental.pprEnabled
+
+    // If this is a request that's rendering an app page that support's PPR,
+    // then if we're in development mode (or using the experimental test
+    // proxy) and the query parameter is set, then we should render the
+    // skeleton. We assume that if the page _could_ support it, we should
+    // show the skeleton in development. Ideally we would check the appConfig
+    // to see if this page has it enabled or not, but that would require\
+    // plumbing the appConfig through to the server during development.
+    const isDebugPPRSkeleton = Boolean(
+      couldSupportPPR &&
+        (this.renderOpts.dev || this.experimentalTestProxy) &&
+        query.__nextppronly
+    )
+
     // This page supports PPR if it has `experimentalPPR` set to `true` in the
     // prerender manifest and this is an app page.
     const supportsPPR: boolean =
-      typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      this.renderOpts.experimental.pprEnabled &&
-      (
+      couldSupportPPR &&
+      ((
         prerenderManifest.routes[pathname] ??
         prerenderManifest.dynamicRoutes[pathname]
-      )?.experimentalPPR === true
+      )?.experimentalPPR === true ||
+        isDebugPPRSkeleton)
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    const minimalPostponed = getRequestMeta(req, 'postponed')
+    const minimalPostponed = supportsPPR
+      ? getRequestMeta(req, 'postponed')
+      : undefined
 
     // If PPR is enabled, and this is a RSC request (but not a prefetch), then
     // we can use this fact to only generate the flight data for the request
@@ -2005,9 +2024,9 @@ export default abstract class Server<
       }
     }
 
-    if (!query.amp) {
-      delete query.amp
-    }
+    // Ensure that if the `amp` query parameter is falsy that we remove it from
+    // the query object. This ensures it won't be found by the `in` operator.
+    if ('amp' in query && !query.amp) delete query.amp
 
     if (opts.supportsDynamicHTML === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
@@ -2199,6 +2218,7 @@ export default abstract class Server<
           | 'https',
       }))
 
+    // TODO: investigate, this is not safe across multiple concurrent requests
     incrementalCache?.resetRequestCache()
 
     type Renderer = (context: {
@@ -2208,16 +2228,6 @@ export default abstract class Server<
        */
       postponed: string | undefined
     }) => Promise<ResponseCacheEntry | null>
-
-    // If this is a request that's rendering an app page that support's PPR,
-    // then if we're in development mode (or using the experimental test
-    // proxy) and the query parameter is set, then we should render the
-    // skeleton.
-    const isDebugPPRSkeleton = Boolean(
-      supportsPPR &&
-        (this.renderOpts.dev || this.experimentalTestProxy) &&
-        query.__nextppronly
-    )
 
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
@@ -2702,7 +2712,8 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'PAGE' && !!cacheEntry.value.postponed
+      cacheEntry.value?.kind === 'PAGE' &&
+      typeof cacheEntry.value.postponed === 'string'
 
     if (
       isSSG &&
