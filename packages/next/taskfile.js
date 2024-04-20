@@ -2288,9 +2288,11 @@ export async function ncc(task, opts) {
       ],
       opts
     )
-  await task.parallel(['ncc_webpack_bundle_packages'], opts)
-  await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.parallel(
+    ['ncc_webpack_bundle_packages', 'ncc_babel_bundle_packages'],
+    opts
+  )
+  await task.serial(
     [
       'ncc_browserslist',
       'ncc_cssnano_simple_bundle',
