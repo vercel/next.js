@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import os from 'os'
 import fs from 'fs-extra'
 import { join } from 'path'
 import { writeConfigurationDefaults } from 'next/dist/lib/typescript/writeConfigurationDefaults'
