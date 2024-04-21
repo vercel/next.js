@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useContext } from 'react'
+import React, { useContext } from 'next/dist/compiled/react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context.shared-runtime'
 import { HeadManagerContext } from './head-manager-context.shared-runtime'

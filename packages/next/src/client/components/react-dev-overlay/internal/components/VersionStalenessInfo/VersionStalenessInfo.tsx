@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 
 export function VersionStalenessInfo(props: VersionInfo) {

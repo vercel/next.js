@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 
 export const HeadManagerContext: React.Context<{
   updateHead?: (state: any) => void

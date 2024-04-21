@@ -1,8 +1,8 @@
 'use client'
 
-import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
-import type { ScriptHTMLAttributes } from 'react'
+import ReactDOM from 'next/dist/compiled/react-dom'
+import React, { useEffect, useContext, useRef } from 'next/dist/compiled/react'
+import type { ScriptHTMLAttributes } from 'next/dist/compiled/react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'

@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import type { NextRouter } from './router/router'
 
 export const RouterContext = React.createContext<NextRouter | null>(null)

@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 import { noop as css } from '../helpers/noop-template'
 
 export function CssReset() {

@@ -1,4 +1,4 @@
-import { useReducer } from 'react'
+import { useReducer } from 'next/dist/compiled/react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'

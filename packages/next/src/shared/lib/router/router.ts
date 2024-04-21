@@ -1,5 +1,5 @@
 // tslint:disable:no-console
-import type { ComponentType } from 'react'
+import type { ComponentType } from 'next/dist/compiled/react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
 import type { ParsedUrlQuery } from 'querystring'

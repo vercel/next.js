@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useContext } from 'react'
+import React, { useContext } from 'next/dist/compiled/react'
 
 export type ServerInsertedHTMLHook = (callbacks: () => React.ReactNode) => void
 
 // Use `React.createContext` to avoid errors from the RSC checks because
 // it can't be imported directly in Server Components:
 //
-//   import { createContext } from 'react'
+//   import { createContext } from 'next/dist/compiled/react'
 //
 // More info: https://github.com/vercel/next.js/pull/40686
 export const ServerInsertedHTMLContext =

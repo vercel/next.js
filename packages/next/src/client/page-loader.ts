@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType } from 'next/dist/compiled/react'
 import type { RouteLoader } from './route-loader'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import { addBasePath } from './add-base-path'

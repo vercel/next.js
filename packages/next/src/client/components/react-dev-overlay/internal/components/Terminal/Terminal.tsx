@@ -1,5 +1,5 @@
 import Anser from 'next/dist/compiled/anser'
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './EditorLink'
 

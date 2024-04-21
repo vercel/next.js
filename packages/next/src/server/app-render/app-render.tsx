@@ -18,7 +18,7 @@ import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
-import React from 'react'
+import React from 'next/dist/compiled/react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,

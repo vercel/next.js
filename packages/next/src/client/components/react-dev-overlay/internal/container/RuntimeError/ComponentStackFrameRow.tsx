@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { HotlinkedText } from '../../components/hot-linked-text'

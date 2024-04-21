@@ -8,8 +8,8 @@ import type {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
+import React from 'next/dist/compiled/react'
+import ReactDOM from 'next/dist/compiled/react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt from '../shared/lib/mitt'
 import type { MittEmitter } from '../shared/lib/mitt'

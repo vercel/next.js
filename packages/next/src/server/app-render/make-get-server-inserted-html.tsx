@@ -1,11 +1,11 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
-import { renderToReadableStream } from 'react-dom/server.edge'
+import { renderToReadableStream } from 'next/dist/compiled/react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'

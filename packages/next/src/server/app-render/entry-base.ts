@@ -4,7 +4,7 @@ export {
   decodeReply,
   decodeAction,
   decodeFormState,
-} from 'react-server-dom-webpack/server.edge'
+} from 'next/dist/compiled/react-server-dom-webpack/server.edge'
 
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'

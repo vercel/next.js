@@ -49,7 +49,7 @@ ReactIs.isValidElementType(React.createFactory("div")); // true
 
 ```js
 import React from "react";
-import * as ReactIs from 'react-is';
+import * as ReactIs from 'next/dist/compiled/react-is';
 
 const ThemeContext = React.createContext("blue");
 
@@ -63,7 +63,7 @@ ReactIs.typeOf(<ThemeContext.Consumer />) === ReactIs.ContextConsumer; // true
 
 ```js
 import React from "react";
-import * as ReactIs from 'react-is';
+import * as ReactIs from 'next/dist/compiled/react-is';
 
 ReactIs.isElement(<div />); // true
 ReactIs.typeOf(<div />) === ReactIs.Element; // true
@@ -73,7 +73,7 @@ ReactIs.typeOf(<div />) === ReactIs.Element; // true
 
 ```js
 import React from "react";
-import * as ReactIs from 'react-is';
+import * as ReactIs from 'next/dist/compiled/react-is';
 
 ReactIs.isFragment(<></>); // true
 ReactIs.typeOf(<></>) === ReactIs.Fragment; // true
@@ -84,7 +84,7 @@ ReactIs.typeOf(<></>) === ReactIs.Fragment; // true
 ```js
 import React from "react";
 import ReactDOM from "react-dom";
-import * as ReactIs from 'react-is';
+import * as ReactIs from 'next/dist/compiled/react-is';
 
 const div = document.createElement("div");
 const portal = ReactDOM.createPortal(<div />, div);
@@ -97,7 +97,7 @@ ReactIs.typeOf(portal) === ReactIs.Portal; // true
 
 ```js
 import React from "react";
-import * as ReactIs from 'react-is';
+import * as ReactIs from 'next/dist/compiled/react-is';
 
 ReactIs.isStrictMode(<React.StrictMode />); // true
 ReactIs.typeOf(<React.StrictMode />) === ReactIs.StrictMode; // true

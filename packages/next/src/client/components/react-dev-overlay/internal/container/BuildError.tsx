@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from 'next/dist/compiled/react'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import {
   Dialog,

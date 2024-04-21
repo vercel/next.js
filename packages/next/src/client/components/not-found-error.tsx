@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'next/dist/compiled/react'
 
 const styles: Record<string, React.CSSProperties> = {
   error: {

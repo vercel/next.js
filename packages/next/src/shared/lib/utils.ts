@@ -1,5 +1,5 @@
 import type { HtmlProps } from './html-context.shared-runtime'
-import type { ComponentType } from 'react'
+import type { ComponentType } from 'next/dist/compiled/react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
