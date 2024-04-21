@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import type {
   FlightData,
   FlightRouterState,

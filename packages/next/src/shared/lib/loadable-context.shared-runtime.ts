@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'next/dist/compiled/react'
+import React from 'react'
 
 type CaptureFn = (moduleName: string) => void
 

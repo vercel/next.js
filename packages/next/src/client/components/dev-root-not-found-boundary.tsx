@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import { NotFoundBoundary } from './not-found-boundary'
 
 export function bailOnNotFound() {

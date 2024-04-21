@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import Loadable from './loadable.shared-runtime'
 
 const isServerSide = typeof window === 'undefined'

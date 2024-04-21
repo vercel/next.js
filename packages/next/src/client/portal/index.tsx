@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'next/dist/compiled/react'
-import { createPortal } from 'next/dist/compiled/react-dom'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 type PortalProps = {
   children: React.ReactNode

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'next/dist/compiled/react';
+import type { ReactElement } from 'react';
 import type { ImageResponseOptions, FigmaImageResponseProps } from './types';
 export declare class ImageResponse extends Response {
     constructor(element: ReactElement, options?: ImageResponseOptions);

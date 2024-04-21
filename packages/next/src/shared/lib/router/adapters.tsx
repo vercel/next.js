@@ -2,7 +2,7 @@ import type { AppRouterInstance } from '../app-router-context.shared-runtime'
 import type { Params } from './utils/route-matcher'
 import type { NextRouter } from './router'
 
-import React, { useMemo, useRef } from 'next/dist/compiled/react'
+import React, { useMemo, useRef } from 'react'
 import { PathnameContext } from '../hooks-client-context.shared-runtime'
 import { isDynamicRoute } from './utils'
 import { asPathToSearchParams } from './utils/as-path-to-search-params'

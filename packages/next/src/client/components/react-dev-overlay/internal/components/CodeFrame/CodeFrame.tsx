@@ -1,5 +1,5 @@
 import Anser from 'next/dist/compiled/anser'
-import * as React from 'next/dist/compiled/react'
+import * as React from 'react'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'

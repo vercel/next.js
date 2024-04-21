@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import Head from '../shared/lib/head'
 import type { NextPageContext } from '../shared/lib/utils'
 

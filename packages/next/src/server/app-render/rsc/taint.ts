@@ -4,7 +4,7 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 */
 
-import * as React from 'next/dist/compiled/react'
+import * as React from 'react'
 
 type Reference = object
 type TaintableUniqueValue = string | bigint | ArrayBufferView

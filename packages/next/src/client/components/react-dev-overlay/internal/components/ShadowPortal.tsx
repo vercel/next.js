@@ -1,5 +1,5 @@
-import * as React from 'next/dist/compiled/react'
-import { createPortal } from 'next/dist/compiled/react-dom'
+import * as React from 'react'
+import { createPortal } from 'react-dom'
 
 export function ShadowPortal({ children }: { children: React.ReactNode }) {
   let portalNode = React.useRef<HTMLElement | null>(null)

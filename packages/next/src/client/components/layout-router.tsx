@@ -18,8 +18,8 @@ import React, {
   startTransition,
   Suspense,
   useDeferredValue,
-} from 'next/dist/compiled/react'
-import ReactDOM from 'next/dist/compiled/react-dom'
+} from 'react'
+import ReactDOM from 'react-dom'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,

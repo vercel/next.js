@@ -6,7 +6,7 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
-import type { FunctionComponent } from 'next/dist/compiled/react'
+import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type {

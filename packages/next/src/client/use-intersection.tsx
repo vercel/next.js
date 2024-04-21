@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'next/dist/compiled/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   requestIdleCallback,
   cancelIdleCallback,

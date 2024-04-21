@@ -66,7 +66,7 @@ declare module 'next/dist/compiled/jest-worker' {
 }
 
 declare module 'next/dist/compiled/react-is' {
-  export * from 'next/dist/compiled/react-is'
+  export * from 'react-is'
 }
 
 declare module 'next/dist/compiled/cssnano-simple' {
@@ -350,11 +350,11 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
 }
 
 declare module 'next/dist/compiled/react' {
-  import * as m from 'next/dist/compiled/react'
+  import * as m from 'react'
   export = m
 }
 declare module 'next/dist/compiled/react-dom' {
-  import * as m from 'next/dist/compiled/react-dom'
+  import * as m from 'react-dom'
   export = m
 }
 

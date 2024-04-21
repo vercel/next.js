@@ -21,7 +21,7 @@
  */
 
 // Once postpone is in stable we should switch to importing the postpone export directly
-import React from 'next/dist/compiled/react'
+import React from 'react'
 
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { DynamicServerError } from '../../client/components/hooks-server-context'

@@ -10,7 +10,7 @@ import {
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
-import React, { startTransition } from 'next/dist/compiled/react'
+import React, { startTransition } from 'react'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 

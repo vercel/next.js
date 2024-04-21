@@ -1,5 +1,5 @@
-import React from 'next/dist/compiled/react'
-import type { ReactElement, ReactNode } from 'next/dist/compiled/react'
+import React from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -418,7 +418,7 @@ function getNextFontLinkTags(
 // Use `React.Component` to avoid errors from the RSC checks because
 // it can't be imported directly in Server Components:
 //
-//   import { Component } from 'next/dist/compiled/react'
+//   import { Component } from 'react'
 //
 // More info: https://github.com/vercel/next.js/pull/40686
 export class Head extends React.Component<HeadProps> {

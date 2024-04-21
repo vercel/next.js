@@ -450,7 +450,7 @@ declare module 'next' {
 
 declare module 'next/link' {
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
-  import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'next/dist/compiled/react'
+  import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
 
   type LinkRestProps = Omit<

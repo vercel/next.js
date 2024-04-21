@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'next/dist/compiled/react'
+import type { ReactNode } from 'react'
 import React, {
   use,
   useEffect,
@@ -9,7 +9,7 @@ import React, {
   startTransition,
   useInsertionEffect,
   useDeferredValue,
-} from 'next/dist/compiled/react'
+} from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,

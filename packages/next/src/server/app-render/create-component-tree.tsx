@@ -1,5 +1,5 @@
 import type { FlightSegmentPath, CacheNodeSeedData } from './types'
-import React, { type ReactNode } from 'next/dist/compiled/react'
+import React, { type ReactNode } from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'

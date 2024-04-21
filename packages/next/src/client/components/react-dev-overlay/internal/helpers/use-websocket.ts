@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef } from 'next/dist/compiled/react'
+import { useCallback, useContext, useEffect, useRef } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from './get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../../server/dev/hot-reloader-types'

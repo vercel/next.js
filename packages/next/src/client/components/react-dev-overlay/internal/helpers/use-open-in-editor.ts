@@ -1,4 +1,4 @@
-import { useCallback } from 'next/dist/compiled/react'
+import { useCallback } from 'react'
 
 export function useOpenInEditor({
   file,

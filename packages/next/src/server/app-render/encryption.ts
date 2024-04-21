@@ -5,12 +5,12 @@ import 'server-only'
 import {
   renderToReadableStream,
   decodeReply,
-} from 'next/dist/compiled/react-server-dom-webpack/server.edge'
+} from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   createFromReadableStream,
   encodeReply,
-} from 'next/dist/compiled/react-server-dom-webpack/client.edge'
+} from 'react-server-dom-webpack/client.edge'
 
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {

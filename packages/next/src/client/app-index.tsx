@@ -1,10 +1,10 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
-import ReactDOMClient from 'next/dist/compiled/react-dom/client'
-import React, { use } from 'next/dist/compiled/react'
+import ReactDOMClient from 'react-dom/client'
+import React, { use } from 'react'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'

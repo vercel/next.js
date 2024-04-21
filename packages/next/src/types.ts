@@ -7,7 +7,7 @@
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
 
-import type React from 'next/dist/compiled/react'
+import type React from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage, ServerResponse } from 'http'
 

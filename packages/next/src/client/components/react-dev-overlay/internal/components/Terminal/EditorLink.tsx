@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 
 type EditorLinkProps = {
