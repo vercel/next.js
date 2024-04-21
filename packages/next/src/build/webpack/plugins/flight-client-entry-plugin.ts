@@ -1053,6 +1053,7 @@ function addClientImport(
 
   if (importedIdentifiers[0] === '*') {
     // If there's collected import path with named import identifiers,
+    // or there's nothing in collected imports are empty.
     // we should include the whole module.
     if (!isFirstImport && [...clientImportsSet][0] !== '*') {
       clientComponentImports[modRequest] = new Set(['*'])
