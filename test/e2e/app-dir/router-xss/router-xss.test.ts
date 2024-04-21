@@ -228,7 +228,7 @@ describe('hardenedXSSProtection', () => {
     },
   })
 
-  it('warns on javascript URLs for client-side navigation', async () => {
+  it('throws on javascript URLs for client-side navigation', async () => {
     const browser = await next.browser('/untrusted-client-side-navigation', {
       pushErrorAsConsoleLog: true,
       waitHydration: true,
