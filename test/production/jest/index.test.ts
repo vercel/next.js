@@ -140,10 +140,6 @@ describe('next/jest', () => {
           // Runs jest and bails if jest fails
           build: 'next build && jest test/mock.test.js test/dynamic.test.js',
         },
-        resolutions: {
-          // https://github.com/dperini/nwsapi/issues/108
-          nwsapi: '2.2.7',
-        },
       },
       installCommand: 'pnpm i',
       buildCommand: `pnpm build`,
