@@ -106,6 +106,7 @@ export async function webpackBuildImpl(
   const commonWebpackOptions = {
     isServer: false,
     buildId: NextBuildContext.buildId!,
+    encryptionKey: NextBuildContext.encryptionKey!,
     config: config,
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
@@ -151,6 +152,7 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
+          edgePreviewProps: NextBuildContext.previewProps!,
           ...info,
         }),
       ])
@@ -188,7 +190,7 @@ export async function webpackBuildImpl(
       | UnwrapPromise<ReturnType<typeof runCompiler>>[0]
       | null = null
 
-    let inputFileSystem: any
+    let inputFileSystem: webpack.Compiler['inputFileSystem'] | undefined
 
     if (!compilerName || compilerName === 'server') {
       debug('starting server compiler')
@@ -245,23 +247,19 @@ export async function webpackBuildImpl(
       }
     }
 
-    inputFileSystem.purge()
+    inputFileSystem?.purge?.()
 
     result = {
-      warnings: ([] as any[])
-        .concat(
-          clientResult?.warnings,
-          serverResult?.warnings,
-          edgeServerResult?.warnings
-        )
-        .filter(nonNullable),
-      errors: ([] as any[])
-        .concat(
-          clientResult?.errors,
-          serverResult?.errors,
-          edgeServerResult?.errors
-        )
-        .filter(nonNullable),
+      warnings: [
+        ...(clientResult?.warnings ?? []),
+        ...(serverResult?.warnings ?? []),
+        ...(edgeServerResult?.warnings ?? []),
+      ].filter(nonNullable),
+      errors: [
+        ...(clientResult?.errors ?? []),
+        ...(serverResult?.errors ?? []),
+        ...(edgeServerResult?.errors ?? []),
+      ].filter(nonNullable),
       stats: [
         clientResult?.stats,
         serverResult?.stats,

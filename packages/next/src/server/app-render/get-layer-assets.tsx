@@ -3,6 +3,7 @@ import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 export function getLayerAssets({
   ctx,
@@ -41,7 +42,7 @@ export function getLayerAssets({
         const fontFilename = preloadedFontFiles[i]
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
         const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${fontFilename}`
+        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}`
         ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin)
       }
     } else {
@@ -64,10 +65,9 @@ export function getLayerAssets({
         // Because of this, we add a `?v=` query to bypass the cache during
         // development. We need to also make sure that the number is always
         // increasing.
-        const fullHref = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
-          ctx,
-          true
-        )}`
+        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
+          href
+        )}${getAssetQueryString(ctx, true)}`
 
         // `Precedence` is an opt-in signal for React to handle resource
         // loading and deduplication, etc. It's also used as the key to sort
@@ -95,10 +95,9 @@ export function getLayerAssets({
 
   const scripts = scriptTags
     ? scriptTags.map((href, index) => {
-        const fullSrc = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
-          ctx,
-          true
-        )}`
+        const fullSrc = `${ctx.assetPrefix}/_next/${encodeURIPath(
+          href
+        )}${getAssetQueryString(ctx, true)}`
 
         return <script src={fullSrc} async={true} key={`script-${index}`} />
       })

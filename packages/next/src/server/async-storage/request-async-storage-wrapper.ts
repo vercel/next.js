@@ -130,6 +130,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
         return cache.draftMode
       },
+      reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
+      assetPrefix: renderOpts?.assetPrefix || '',
     }
 
     return storage.run(store, callback, store)

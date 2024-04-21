@@ -48,6 +48,18 @@ function runRemainingActions(
         action: actionQueue.pending,
         setState,
       })
+    } else {
+      // No more actions are pending, check if a refresh is needed
+      if (actionQueue.needsRefresh) {
+        actionQueue.needsRefresh = false
+        actionQueue.dispatch(
+          {
+            type: ACTION_REFRESH,
+            origin: window.location.origin,
+          },
+          setState
+        )
+      }
     }
   }
 }
@@ -75,17 +87,6 @@ async function runAction({
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
-      // if a refresh is needed, we only want to trigger it once the action queue is empty
-      if (actionQueue.needsRefresh && actionQueue.pending === null) {
-        actionQueue.needsRefresh = false
-        actionQueue.dispatch(
-          {
-            type: ACTION_REFRESH,
-            origin: window.location.origin,
-          },
-          setState
-        )
-      }
       return
     }
 
@@ -155,8 +156,11 @@ function dispatchAction(
       action: newAction,
       setState,
     })
-  } else if (payload.type === ACTION_NAVIGATE) {
-    // Navigations take priority over any pending actions.
+  } else if (
+    payload.type === ACTION_NAVIGATE ||
+    payload.type === ACTION_RESTORE
+  ) {
+    // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
 

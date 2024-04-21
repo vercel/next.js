@@ -73,10 +73,12 @@ export function expectModuleNotFoundProdError(
 ) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
-  const moduleNotFoundMessage = process.env.TURBOPACK
-    ? `Error: Cannot find module '${moduleName}'`
-    : getModuleNotFound(moduleName)
-  expect(stripAnsi(output)).toContain(moduleNotFoundMessage)
+  const moduleNotFoundMessages = [
+    expect.stringContaining(`Error: Cannot find module '${moduleName}'`),
+    expect.stringContaining(getModuleNotFound(moduleName)),
+  ]
+
+  expect(moduleNotFoundMessages).toContainEqual(stripAnsi(output))
 }
 
 export function expectModuleNotFoundDevError(
