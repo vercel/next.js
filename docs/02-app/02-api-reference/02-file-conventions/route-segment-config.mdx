@@ -8,7 +8,7 @@ The Route Segment options allows you to configure the behavior of a [Page](/docs
 | Option                                | Type                                                                                                                      | Default                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
-| [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`                     |
+| [`dynamicParams`](#dynamicparams)     | `true \| false \| undefined`                                                                                                                 | `undefined`                     |
 | [`revalidate`](#revalidate)           | `false \| 0 \| number`                                                                                                    | `false`                    |
 | [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
 | [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
@@ -56,14 +56,15 @@ export const dynamic = 'auto'
 Control what happens when a dynamic segment is visited that was not generated with [generateStaticParams](/docs/app/api-reference/functions/generate-static-params).
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-export const dynamicParams = true // true | false,
+export const dynamicParams = true // true | false | undefined
 ```
 
 ```js filename="layout.js | page.js | route.js" switcher
-export const dynamicParams = true // true | false,
+export const dynamicParams = true // true | false | undefined
 ```
 
-- **`true`** (default): Dynamic segments not included in `generateStaticParams` are generated on demand.
+- **`undefined`** (default): Dynamic segments not included in `generateStaticParams` are generated on demand and not cached.
+- **`true`**: Dynamic segments not included in `generateStaticParams` are generated on demand and cached in [Full Route Cache](https://nextjs.org/docs/app/building-your-application/caching#full-route-cache).
 - **`false`**: Dynamic segments not included in `generateStaticParams` will return a 404.
 
 > **Good to know**:
