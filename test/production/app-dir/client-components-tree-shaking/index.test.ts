@@ -107,10 +107,15 @@ createNextDescribe(
     it('should handle mixing namespace imports and named imports from client components', async () => {
       const $ = await next.render$('/client-import-namespace')
 
-      expect($('#a').text()).toContain('client:mod-export-a')
-      expect($('#b').text()).toContain('client:mod-export-b')
-      expect($('#c').text()).toContain('client:mod-export-c')
-      expect($('#named-c').text()).toContain('client:mod-export-c')
+      // mixing namespace imports and named imports
+      expect($('#a').text()).toContain('client-mod:export-a')
+      expect($('#b').text()).toContain('client-mod:export-b')
+      expect($('#c').text()).toContain('client-mod:export-c')
+      expect($('#named-c').text()).toContain('client-mod:export-c')
+
+      // only named exports
+      expect($('#a2').text()).toContain('client-mod2:export-a')
+      expect($('#b2').text()).toContain('client-mod2:export-b')
     })
   }
 )

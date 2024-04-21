@@ -1,15 +1,22 @@
 import * as clientMod from './client-module'
 import { ClientModExportC } from './client-module'
+import * as clientMod2 from './client-module2'
 
-const map = {
+const mod1Map = {
   ...clientMod,
 }
 
-export default function Page() {
-  const A = map.ClientModExportA
-  const B = map.ClientModExportB
-  const C = map.ClientModExportC
+const mod2Map = {
+  ...clientMod2,
+}
 
+const A = mod1Map.ClientModExportA
+const B = mod1Map.ClientModExportB
+const C = mod1Map.ClientModExportC
+const A2 = mod2Map.ClientMod2ExportA
+const B2 = mod2Map.ClientMod2ExportB
+
+export default function Page() {
   return (
     <div>
       <p id="a">
@@ -23,6 +30,12 @@ export default function Page() {
       </p>
       <p id="named-c">
         <ClientModExportC />
+      </p>
+      <p id="a2">
+        <A2 />
+      </p>
+      <p id="b2">
+        <B2 />
       </p>
     </div>
   )
