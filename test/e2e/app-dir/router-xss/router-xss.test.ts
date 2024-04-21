@@ -1,6 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+function filterUnrelatedConsoleCalls(consoleCalls) {
+  return consoleCalls.filter((consoleCall) => {
+    if (
+      consoleCall.message.startsWith('received ws message') ||
+      consoleCall.message.startsWith('[Fast Refresh]')
+    ) {
+      return false
+    }
+    return true
+  })
+}
+
 describe('default', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -17,7 +29,7 @@ describe('default', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual(
       isNextDev
         ? [
             {
@@ -39,7 +51,7 @@ describe('default', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual(
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
         isNextDev
           ? [
               {
@@ -80,7 +92,7 @@ describe('default', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual(
       isNextDev
         ? [
             {
@@ -102,7 +114,7 @@ describe('default', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual(
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
         isNextDev
           ? [
               {
@@ -114,14 +126,6 @@ describe('default', () => {
                   'A client-side navigation to "%s" was triggered. ' +
                   '"javascript:console.log(\'XSS untrusted client-side navigation with as\');"',
               },
-              ...(process.env.__NEXT_EXPERIMENTAL_PPR
-                ? [
-                    {
-                      source: 'log',
-                      message: expect.stringContaining('received ws message'),
-                    },
-                  ]
-                : []),
               {
                 source: 'log',
                 message: 'XSS untrusted client-side navigation with as',
@@ -148,7 +152,7 @@ describe('default', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual([])
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual([])
 
     await browser.elementById('trigger').click()
 
@@ -156,7 +160,7 @@ describe('default', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual(
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
         isNextDev
           ? [
               {
@@ -194,7 +198,7 @@ describe('default', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual([])
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual([])
 
     await browser.elementById('trigger').click()
 
@@ -202,12 +206,14 @@ describe('default', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual([
-        {
-          source: 'log',
-          message: 'XSS trusted push',
-        },
-      ])
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
+        [
+          {
+            source: 'log',
+            message: 'XSS trusted push',
+          },
+        ]
+      )
     })
   })
 })
@@ -234,7 +240,7 @@ describe('hardenedXSSProtection', () => {
       return call.source === 'error'
     })
     if (isNextDev) {
-      expect(consoleErrorCalls).toEqual(
+      expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual(
         isNextDev
           ? [
               {
@@ -256,7 +262,9 @@ describe('hardenedXSSProtection', () => {
         const consoleCallsAfterInteraction = consoleCalls.slice(
           initialConsoleCalls.length
         )
-        expect(consoleCallsAfterInteraction).toEqual([
+        expect(
+          filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)
+        ).toEqual([
           {
             source: 'error',
             message: expect.stringContaining(
@@ -267,7 +275,7 @@ describe('hardenedXSSProtection', () => {
       })
     } else {
       // prefetch happens immediately throwing and triggering a client-side exception
-      expect(consoleErrorCalls).toEqual([
+      expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual([
         {
           source: 'error',
           message: expect.stringContaining(
@@ -292,7 +300,7 @@ describe('hardenedXSSProtection', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual(
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual(
       isNextDev
         ? [
             {
@@ -314,21 +322,15 @@ describe('hardenedXSSProtection', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual([
-        {
-          source: 'error',
-          message:
-            'Next.js has blocked a `javascript:` URL as a security precaution.',
-        },
-        ...(process.env.__NEXT_EXPERIMENTAL_PPR
-          ? [
-              {
-                source: 'log',
-                message: expect.stringContaining('received ws message'),
-              },
-            ]
-          : []),
-      ])
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
+        [
+          {
+            source: 'error',
+            message:
+              'Next.js has blocked a `javascript:` URL as a security precaution.',
+          },
+        ]
+      )
     })
   })
 
@@ -343,7 +345,7 @@ describe('hardenedXSSProtection', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual([])
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual([])
 
     await browser.elementById('trigger').click()
 
@@ -351,21 +353,23 @@ describe('hardenedXSSProtection', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual([
-        {
-          source: 'error',
-          message: expect.stringContaining(
-            'Next.js has blocked a `javascript:` URL as a security precaution.'
-          ),
-        },
-        // React invokeGuardedCallback stuff. Fixed in React 19.0.0-canary-36e62c603-20240418.
-        {
-          source: 'error',
-          message: expect.stringContaining(
-            'Next.js has blocked a `javascript:` URL as a security precaution.'
-          ),
-        },
-      ])
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
+        [
+          {
+            source: 'error',
+            message: expect.stringContaining(
+              'Next.js has blocked a `javascript:` URL as a security precaution.'
+            ),
+          },
+          // React invokeGuardedCallback stuff. Fixed in React 19.0.0-canary-36e62c603-20240418.
+          {
+            source: 'error',
+            message: expect.stringContaining(
+              'Next.js has blocked a `javascript:` URL as a security precaution.'
+            ),
+          },
+        ]
+      )
     })
   })
 
@@ -380,7 +384,7 @@ describe('hardenedXSSProtection', () => {
     const consoleErrorCalls = initialConsoleCalls.filter((call) => {
       return call.source === 'error'
     })
-    expect(consoleErrorCalls).toEqual([])
+    expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual([])
 
     await browser.elementById('trigger').click()
 
@@ -388,12 +392,14 @@ describe('hardenedXSSProtection', () => {
       const consoleCallsAfterInteraction = consoleCalls.slice(
         initialConsoleCalls.length
       )
-      expect(consoleCallsAfterInteraction).toEqual([
-        {
-          source: 'log',
-          message: 'XSS trusted push',
-        },
-      ])
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
+        [
+          {
+            source: 'log',
+            message: 'XSS trusted push',
+          },
+        ]
+      )
     })
   })
 })
