@@ -15,34 +15,6 @@ The Route Segment options allows you to configure the behavior of a [Page](/docs
 | [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
 | [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
 
-```tsx filename="layout.tsx | page.tsx | route.ts" switcher
-export const dynamic = 'auto'
-export const dynamicParams = true
-export const revalidate = false
-export const fetchCache = 'auto'
-export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
-export const maxDuration = 5
-
-export default function MyComponent() {}
-```
-
-```jsx filename="layout.js | page.js | route.js" switcher
-export const dynamic = 'auto'
-export const dynamicParams = true
-export const revalidate = false
-export const fetchCache = 'auto'
-export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
-export const maxDuration = 5
-
-export default function MyComponent() {}
-```
-
-> **Good to know**:
->
-> - The values of the config options currently need be statically analyzable. For example `revalidate = 600` is valid, but `revalidate = 60 * 10` is not.
-
 ## Options
 
 ### `dynamic`
@@ -118,7 +90,10 @@ export const revalidate = false
 - **`0`**: Ensure a layout or page is always [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) even if no dynamic functions or uncached data fetches are discovered. This option changes the default of `fetch` requests that do not set a `cache` option to `'no-store'` but leaves `fetch` requests that opt into `'force-cache'` or use a positive `revalidate` as is.
 - **`number`**: (in seconds) Set the default revalidation frequency of a layout or page to `n` seconds.
 
-> **Good to know**: The `revalidate` option is only available when using the [Node.js Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime). This means using the `revalidate` option with `runtime = 'edge'` will not work.
+> **Good to know**:
+>
+> - The revalidate value needs to be statically analyzable. For example `revalidate = 600` is valid, but `revalidate = 60 * 10` is not.
+> - The revalidate value is not available when using `runtime = 'edge'`.
 
 #### Revalidation Frequency
 
@@ -168,6 +143,8 @@ export const fetchCache = 'auto'
 
 ### `runtime`
 
+We recommend using the Node.js runtime for rendering your application, and the Edge runtime for Middleware (only supported option).
+
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const runtime = 'nodejs'
 // 'nodejs' | 'edge'
@@ -181,7 +158,7 @@ export const runtime = 'nodejs'
 - **`'nodejs'`** (default)
 - **`'edge'`**
 
-Learn more about the [Edge and Node.js runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
+Learn more about the [different runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 
 ### `preferredRegion`
 

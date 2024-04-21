@@ -52,6 +52,7 @@ export async function getRequestHandlers({
   isNodeDebugging,
   keepAliveTimeout,
   experimentalHttpsServer,
+  quiet,
 }: {
   dir: string
   port: number
@@ -62,6 +63,7 @@ export async function getRequestHandlers({
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
+  quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -74,6 +76,7 @@ export async function getRequestHandlers({
     keepAliveTimeout,
     experimentalHttpsServer,
     startServerSpan,
+    quiet,
   })
 }
 

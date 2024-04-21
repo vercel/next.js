@@ -18,6 +18,7 @@ import {
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -50,8 +51,8 @@ export async function exportAppPage(
 
   try {
     const result = await lazyRenderAppPage(
-      req,
-      res,
+      new NodeNextRequest(req),
+      new NodeNextResponse(res),
       pathname,
       query,
       renderOpts

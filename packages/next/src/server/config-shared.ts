@@ -9,7 +9,7 @@ import type {
 import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { SizeLimit } from '../../types'
+import type { SizeLimit } from '../types'
 import type { SwrDelta } from './lib/revalidate'
 
 export type NextConfigComplete = Required<NextConfig> & {
@@ -603,16 +603,6 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
 
-  /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
-   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
-   *
-   * @default ''
-   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
-   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
-   */
-  analyticsId?: string
-
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
 
@@ -844,7 +834,6 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,

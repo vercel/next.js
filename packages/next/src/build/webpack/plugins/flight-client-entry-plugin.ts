@@ -41,6 +41,8 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { isWebpackServerOnlyLayer } from '../../utils'
+import { getModuleBuildInfo } from '../loaders/get-module-build-info'
+import { getAssumedSourceType } from '../loaders/next-flight-loader'
 
 interface Options {
   dev: boolean
@@ -664,9 +666,12 @@ export class FlightClientEntryPlugin {
       if (!modRequest) return
       if (visited.has(modRequest)) {
         if (clientComponentImports[modRequest]) {
-          for (const name of importedIdentifiers) {
-            clientComponentImports[modRequest].add(name)
-          }
+          addClientImport(
+            mod,
+            modRequest,
+            clientComponentImports,
+            importedIdentifiers
+          )
         }
         return
       }
@@ -698,9 +703,13 @@ export class FlightClientEntryPlugin {
         if (!clientComponentImports[modRequest]) {
           clientComponentImports[modRequest] = new Set()
         }
-        for (const name of importedIdentifiers) {
-          clientComponentImports[modRequest].add(name)
-        }
+        addClientImport(
+          mod,
+          modRequest,
+          clientComponentImports,
+          importedIdentifiers
+        )
+
         return
       }
 
@@ -1014,5 +1023,39 @@ export class FlightClientEntryPlugin {
       ) as unknown as webpack.sources.RawSource
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
+  }
+}
+
+function addClientImport(
+  mod: webpack.NormalModule,
+  modRequest: string,
+  clientComponentImports: ClientComponentImports,
+  importedIdentifiers: string[]
+) {
+  const clientEntryType = getModuleBuildInfo(mod).rsc?.clientEntryType
+  const isCjsModule = clientEntryType === 'cjs'
+  const assumedSourceType = getAssumedSourceType(
+    mod,
+    isCjsModule ? 'commonjs' : 'auto'
+  )
+
+  const isAutoModuleSourceType = assumedSourceType === 'auto'
+  if (isAutoModuleSourceType) {
+    clientComponentImports[modRequest] = new Set(['*'])
+  } else {
+    // If it's not analyzed as named ESM exports, e.g. if it's mixing `export *` with named exports,
+    // We'll include all modules since it's not able to do tree-shaking.
+    for (const name of importedIdentifiers) {
+      // For cjs module default import, we include the whole module since
+      const isCjsDefaultImport = isCjsModule && name === 'default'
+
+      // Always include __esModule along with cjs module default export,
+      // to make sure it work with client module proxy from React.
+      if (isCjsDefaultImport) {
+        clientComponentImports[modRequest].add('__esModule')
+      }
+
+      clientComponentImports[modRequest].add(name)
+    }
   }
 }
