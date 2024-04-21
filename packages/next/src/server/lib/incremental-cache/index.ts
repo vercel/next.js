@@ -388,7 +388,7 @@ export class IncrementalCache implements IncrementalCacheType {
     const headers =
       typeof (init.headers || {}).keys === 'function'
         ? Object.fromEntries(init.headers as Headers)
-        : Object.assign(init.headers || {}, {})
+        : Object.assign({}, init.headers)
 
     if ('traceparent' in headers) delete headers['traceparent']
 
