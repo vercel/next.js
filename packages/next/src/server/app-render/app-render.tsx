@@ -1250,7 +1250,7 @@ async function renderToHTMLOrFlightImpl(
 
         try {
           const fizzStream = await renderToInitialFizzStream({
-            ReactDOMServer: require('react-dom/server.edge'),
+            ReactDOMServer: require('next/dist/compiled/react-dom/server.edge'),
             element: (
               <ReactServerEntrypoint
                 reactServerStream={errorServerStream}

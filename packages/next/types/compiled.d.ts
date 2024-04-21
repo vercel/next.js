@@ -47,9 +47,39 @@ declare module 'next/dist/compiled/superstruct' {
   export type Describe<T> = any
 }
 
-declare module 'react-server-dom-webpack/server.edge'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
+
+declare module 'next/dist/compiled/react' {
+  import * as m from 'react'
+  export = m
+}
+
+declare module 'next/dist/compiled/react/jsx-runtime' {
+  import * as m from 'react/jsx-runtime'
+  export = m
+}
+
+declare module 'next/dist/compiled/react/jsx-dev-runtime' {
+  import * as m from 'react/jsx-dev-runtime'
+  export = m
+}
+
+declare module 'next/dist/compiled/react-dom' {
+  import * as m from 'react-dom'
+  export = m
+}
+
+declare module 'next/dist/compiled/react-dom/client' {
+  import * as m from 'react-dom/client'
+  export = m
+}
+
+declare module 'next/dist/compiled/react-is' {
+  import * as m from 'react-is'
+  export = m
+}

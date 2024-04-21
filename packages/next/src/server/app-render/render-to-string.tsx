@@ -6,7 +6,7 @@ export async function renderToString({
   ReactDOMServer,
   element,
 }: {
-  ReactDOMServer: typeof import('react-dom/server.edge')
+  ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.edge')
   element: React.ReactElement
 }) {
   return getTracer().trace(AppRenderSpan.renderToString, async () => {

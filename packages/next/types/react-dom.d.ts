@@ -1,7 +1,7 @@
-declare module 'react-dom/server-rendering-stub'
-declare module 'react-dom/server.browser'
+declare module 'next/dist/compiled/react-dom/server-rendering-stub'
+declare module 'next/dist/compiled/react-dom/server.browser'
 
-declare module 'react-dom/server.edge' {
+declare module 'next/dist/compiled/react-dom/server.edge' {
   /**
    * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
    */
@@ -74,7 +74,7 @@ declare module 'react-dom/server.edge' {
   >
 }
 
-declare module 'react-dom/static.edge' {
+declare module 'next/dist/compiled/react-dom/static.edge' {
   /**
    * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
    */

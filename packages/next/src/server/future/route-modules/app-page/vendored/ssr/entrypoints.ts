@@ -2,15 +2,13 @@ import * as React from 'next/dist/compiled/react'
 import * as ReactDOM from 'next/dist/compiled/react-dom/server-rendering-stub'
 import * as ReactJsxDevRuntime from 'next/dist/compiled/react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'next/dist/compiled/react/jsx-runtime'
-
-// eslint-disable-next-line import/no-extraneous-dependencies
 import * as ReactDOMServerEdge from 'next/dist/compiled/react-dom/server.edge'
 
 function getAltProxyForBindingsDEV(
   type: 'Turbopack' | 'Webpack',
   pkg:
-    | 'react-server-dom-turbopack/client.edge'
-    | 'react-server-dom-webpack/client.edge'
+    | 'next/dist/compiled/react-server-dom-turbopack/client.edge'
+    | 'next/dist/compiled/react-server-dom-webpack/client.edge'
 ) {
   if (process.env.NODE_ENV === 'development') {
     const altType = type === 'Turbopack' ? 'Webpack' : 'Turbopack'
@@ -31,21 +29,19 @@ function getAltProxyForBindingsDEV(
 
 let ReactServerDOMTurbopackClientEdge, ReactServerDOMWebpackClientEdge
 if (process.env.TURBOPACK) {
-  // eslint-disable-next-line import/no-extraneous-dependencies
-  ReactServerDOMTurbopackClientEdge = require('react-server-dom-turbopack/client.edge')
+  ReactServerDOMTurbopackClientEdge = require('next/dist/compiled/react-server-dom-turbopack/client.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackClientEdge = getAltProxyForBindingsDEV(
       'Turbopack',
-      'react-server-dom-turbopack/client.edge'
+      'next/dist/compiled/react-server-dom-turbopack/client.edge'
     )
   }
 } else {
-  // eslint-disable-next-line import/no-extraneous-dependencies
-  ReactServerDOMWebpackClientEdge = require('react-server-dom-webpack/client.edge')
+  ReactServerDOMWebpackClientEdge = require('next/dist/compiled/react-server-dom-webpack/client.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackClientEdge = getAltProxyForBindingsDEV(
       'Webpack',
-      'react-server-dom-webpack/client.edge'
+      'next/dist/compiled/react-server-dom-webpack/client.edge'
     )
   }
 }

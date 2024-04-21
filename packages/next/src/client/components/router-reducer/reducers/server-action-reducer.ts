@@ -17,10 +17,10 @@ import {
 const { createFromFetch, encodeReply } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge')
+      require('next/dist/compiled/react-server-dom-webpack/client.edge')
     : // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client')
-) as typeof import('react-server-dom-webpack/client')
+      require('next/dist/compiled/react-server-dom-webpack/client')
+) as typeof import('next/dist/compiled/react-server-dom-webpack/client')
 
 import type {
   ReadonlyReducerState,
