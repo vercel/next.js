@@ -1,5 +1,5 @@
-import * as clientMod from './client-wildcard'
-import { ClientModExportC } from './client-wildcard'
+import * as clientMod from './client-module'
+import { ClientModExportC } from './client-module'
 
 const map = {
   ...clientMod,

@@ -104,8 +104,8 @@ createNextDescribe(
       expect($('p').text()).toContain('client:mod-export-default')
     })
 
-    it('should handle mixing wildcard imports and named imports from client components', async () => {
-      const $ = await next.render$('/client-import-wildcard')
+    it('should handle mixing namespace imports and named imports from client components', async () => {
+      const $ = await next.render$('/client-import-namespace')
 
       expect($('#a').text()).toContain('client:mod-export-a')
       expect($('#b').text()).toContain('client:mod-export-b')
