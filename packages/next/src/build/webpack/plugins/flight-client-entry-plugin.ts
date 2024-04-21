@@ -1051,21 +1051,12 @@ function addClientImport(
 
   const clientImportsSet = clientComponentImports[modRequest]
 
-  if (
-    importedIdentifiers.length === 1 &&
-    importedIdentifiers[0] === '*' &&
-    isFirstImport
-  ) {
-    // do nothing
-  } else if (
-    // If there's no existing collected import path,
-    // or there's collected import path but with few named imports,
+  if (importedIdentifiers[0] === '*') {
+    // If there's collected import path with named import identifiers,
     // we should include the whole module.
-    !isFirstImport &&
-    [...clientImportsSet][0] !== '*' &&
-    importedIdentifiers[0] === '*'
-  ) {
-    clientComponentImports[modRequest] = new Set(['*'])
+    if (!isFirstImport && [...clientImportsSet][0] !== '*') {
+      clientComponentImports[modRequest] = new Set(['*'])
+    }
   } else {
     const isAutoModuleSourceType = assumedSourceType === 'auto'
     if (isAutoModuleSourceType) {
