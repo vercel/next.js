@@ -1,3 +1,4 @@
+/* eslint-disable no-script-url */
 'use client'
 import { useRouter } from 'next/navigation'
 
