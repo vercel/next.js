@@ -1,10 +1,14 @@
-import * as clientMod from './client'
-import { ClientModExportC } from './client'
+import * as clientMod from './client-wildcard'
+import { ClientModExportC } from './client-wildcard'
+
+const map = {
+  ...clientMod,
+}
 
 export default function Page() {
-  const A = clientMod.ClientModExportA
-  const B = clientMod.ClientModExportB
-  const C = clientMod.ClientModExportC
+  const A = map.ClientModExportA
+  const B = map.ClientModExportB
+  const C = map.ClientModExportC
 
   return (
     <div>

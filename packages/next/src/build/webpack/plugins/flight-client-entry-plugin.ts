@@ -670,7 +670,8 @@ export class FlightClientEntryPlugin {
             mod,
             modRequest,
             clientComponentImports,
-            importedIdentifiers
+            importedIdentifiers,
+            false
           )
         }
         return
@@ -707,7 +708,8 @@ export class FlightClientEntryPlugin {
           mod,
           modRequest,
           clientComponentImports,
-          importedIdentifiers
+          importedIdentifiers,
+          true
         )
 
         return
@@ -715,17 +717,18 @@ export class FlightClientEntryPlugin {
 
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
-          const dependencyIds: string[] = []
+          let dependencyIds: string[] = []
+          const depModule = connection.resolvedModule
 
           // `ids` are the identifiers that are imported from the dependency,
           // if it's present, it's an array of strings.
           if (connection.dependency?.ids) {
             dependencyIds.push(...connection.dependency.ids)
           } else {
-            // When using import *, the `ids` are not present
-            dependencyIds.push('*')
+            dependencyIds = ['*']
           }
-          filterClientComponents(connection.resolvedModule, dependencyIds)
+
+          filterClientComponents(depModule, dependencyIds)
         }
       )
     }
@@ -1036,7 +1039,8 @@ function addClientImport(
   mod: webpack.NormalModule,
   modRequest: string,
   clientComponentImports: ClientComponentImports,
-  importedIdentifiers: string[]
+  importedIdentifiers: string[],
+  isFirstImport: boolean
 ) {
   const clientEntryType = getModuleBuildInfo(mod).rsc?.clientEntryType
   const isCjsModule = clientEntryType === 'cjs'
@@ -1045,23 +1049,42 @@ function addClientImport(
     isCjsModule ? 'commonjs' : 'auto'
   )
 
-  const isAutoModuleSourceType = assumedSourceType === 'auto'
-  if (isAutoModuleSourceType) {
+  const clientImportsSet = clientComponentImports[modRequest]
+
+  if (
+    importedIdentifiers.length === 1 &&
+    importedIdentifiers[0] === '*' &&
+    isFirstImport
+  ) {
+    // do nothing
+  } else if (
+    // If there's no existing collected import path,
+    // or there's collected import path but with few named imports,
+    // we should include the whole module.
+    !isFirstImport &&
+    [...clientImportsSet][0] !== '*' &&
+    importedIdentifiers[0] === '*'
+  ) {
     clientComponentImports[modRequest] = new Set(['*'])
   } else {
-    // If it's not analyzed as named ESM exports, e.g. if it's mixing `export *` with named exports,
-    // We'll include all modules since it's not able to do tree-shaking.
-    for (const name of importedIdentifiers) {
-      // For cjs module default import, we include the whole module since
-      const isCjsDefaultImport = isCjsModule && name === 'default'
+    const isAutoModuleSourceType = assumedSourceType === 'auto'
+    if (isAutoModuleSourceType) {
+      clientComponentImports[modRequest] = new Set(['*'])
+    } else {
+      // If it's not analyzed as named ESM exports, e.g. if it's mixing `export *` with named exports,
+      // We'll include all modules since it's not able to do tree-shaking.
+      for (const name of importedIdentifiers) {
+        // For cjs module default import, we include the whole module since
+        const isCjsDefaultImport = isCjsModule && name === 'default'
 
-      // Always include __esModule along with cjs module default export,
-      // to make sure it work with client module proxy from React.
-      if (isCjsDefaultImport) {
-        clientComponentImports[modRequest].add('__esModule')
+        // Always include __esModule along with cjs module default export,
+        // to make sure it work with client module proxy from React.
+        if (isCjsDefaultImport) {
+          clientComponentImports[modRequest].add('__esModule')
+        }
+
+        clientComponentImports[modRequest].add(name)
       }
-
-      clientComponentImports[modRequest].add(name)
     }
   }
 }
