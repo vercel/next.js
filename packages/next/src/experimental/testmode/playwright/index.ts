@@ -9,6 +9,10 @@ import { defaultPlaywrightConfig } from './default-config'
 
 export { defaultPlaywrightConfig }
 
+// eslint-disable-next-line import/no-extraneous-dependencies
+export * from '@playwright/test'
+
+// Export this second so it overrides the one from `@playwright/test`
 export function defineConfig(
   config: base.PlaywrightTestConfig<NextOptionsConfig>
 ): base.PlaywrightTestConfig<NextOptionsConfig> {
@@ -21,9 +25,6 @@ export function defineConfig(
     },
   })
 }
-
-// eslint-disable-next-line import/no-extraneous-dependencies
-export * from '@playwright/test'
 
 export type { NextFixture, NextOptions }
 export type { FetchHandlerResult } from '../proxy'
