@@ -16,6 +16,9 @@ type AfterCallback<T = unknown> = () => T | Promise<T>
 
 type WaitUntilFn = <T>(promise: Promise<T>) => void
 
+/**
+ * This function allows you to schedule callbacks to be executed after the current request finishes.
+ */
 export function unstable_after<T>(task: AfterTask<T>) {
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
