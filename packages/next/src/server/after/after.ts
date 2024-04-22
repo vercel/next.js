@@ -25,8 +25,8 @@ export function unstable_after<T>(task: AfterTask<T>) {
     throw new Error(
       'Invalid after() call. after() can only be called:\n' +
         '  - from within a server component\n' +
-        '  - in a route handler\n' + // TODO(after): not implemented
-        '  - in a server action\n' + // TODO(after): not implemented
+        '  - in a route handler\n' +
+        '  - in a server action\n' +
         '  - in middleware\n' // TODO(after): not implemented
     )
   }
@@ -44,7 +44,7 @@ export function createAfter({
   cacheScope,
 }: {
   waitUntil: WaitUntilFn
-  cacheScope: CacheScope
+  cacheScope?: CacheScope
 }) {
   let isStaticGeneration: boolean | undefined = undefined
   let didWarnAboutAfterInStatic = false
@@ -93,20 +93,22 @@ export function createAfter({
       while (afterCallbacks.length) {
         const afterCallback = afterCallbacks.shift()!
 
-        // catch errors in case the callback throws synchronously or does not return a promise.
-        // promise rejections will be handled by waitUntil.
-        try {
-          const ret = afterCallback()
-
-          if (isPromise(ret)) {
-            waitUntil(ret)
-          }
-        } catch (err) {
-          // TODO(after): how do we report errors here?
+        const onError = (err: unknown) => {
+          // TODO(after): how do we properly report errors here?
           console.error(
             'An error occurred in a function passed to after()',
             err
           )
+        }
+
+        // try-catch in case the callback throws synchronously or does not return a promise.
+        try {
+          const ret = afterCallback()
+          if (isPromise(ret)) {
+            waitUntil(ret.catch(onError))
+          }
+        } catch (err) {
+          onError(err)
         }
       }
     }
@@ -115,7 +117,7 @@ export function createAfter({
       wrapRequestStoreForAfterCallbacks(requestStore)
 
     requestAsyncStorage.run(readonlyRequestStore, () =>
-      cacheScope.run(runCallbacksImpl)
+      cacheScope ? cacheScope.run(runCallbacksImpl) : runCallbacksImpl()
     )
   }
 
@@ -123,7 +125,9 @@ export function createAfter({
     after: afterImpl,
     run: async <T>(requestStore: RequestStore, callback: () => T) => {
       try {
-        const res = await cacheScope.run(() => callback())
+        const res = await (cacheScope
+          ? cacheScope.run(() => callback())
+          : callback())
         if (!isStaticGeneration) {
           runCallbacks(requestStore)
         }

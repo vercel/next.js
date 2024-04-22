@@ -253,6 +253,8 @@ export class AppRouteRouteModule extends RouteModule<
     // TODO: types for renderOpts should include previewProps
     ;(requestContext as any).renderOpts = {
       previewProps: context.prerenderManifest.preview,
+      // @ts-expect-error TODO(after): fix the typing here
+      waitUntil: context.renderOpts.waitUntil,
     }
 
     // Get the context for the static generation.
