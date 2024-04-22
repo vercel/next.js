@@ -429,11 +429,11 @@ This example uses the Node.js runtime to fetch a local image on the file system 
 
 ```jsx filename="app/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
-import { resolve } from 'node:path'
+import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export async function GET() {
-  const logoData = await readFile(resolve(process.cwd(), './logo.png'))
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 
   return new ImageResponse(
