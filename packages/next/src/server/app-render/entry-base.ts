@@ -35,7 +35,7 @@ import * as React from 'react'
 import {
   patchCacheScopeSupportIntoReact,
   createCacheScope,
-} from '../after/react-cache'
+} from '../after/react-cache-scope'
 
 patchCacheScopeSupportIntoReact(React)
 
