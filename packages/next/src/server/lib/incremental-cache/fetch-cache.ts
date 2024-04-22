@@ -253,13 +253,15 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const cached: IncrementalCacheValue = await res.json()
-        const cachedParsed = zCachedFetchValue.safeParse(cached)
+        const json: IncrementalCacheValue = await res.json()
+        const parsed = zCachedFetchValue.safeParse(json)
 
-        if (!cachedParsed.success) {
-          this.debug && console.log({ cached })
+        if (!parsed.success) {
+          this.debug && console.log({ json })
           throw new Error('invalid cache value')
         }
+
+        const { data: cached } = parsed
 
         // if new tags were specified, merge those tags to the existing tags
         if (cached.kind === 'FETCH') {
