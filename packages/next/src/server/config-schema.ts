@@ -403,7 +403,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
-        hardenedXSSProtection: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
@@ -420,7 +419,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       )
       .returns(z.union([zExportMap, z.promise(zExportMap)]))
       .optional(),
-    future: z.strictObject({}).optional(),
+    future: z
+      .strictObject({
+        hardenedXSSProtection: z.boolean().optional(),
+      })
+      .optional(),
     generateBuildId: z
       .function()
       .args()

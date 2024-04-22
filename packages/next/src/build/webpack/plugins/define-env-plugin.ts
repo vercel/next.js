@@ -255,7 +255,7 @@ export function getDefineEnv({
         }
       : undefined),
     'process.env.__NEXT_HARDENED_XSS_PROTECTION':
-      config.experimental.hardenedXSSProtection ?? false,
+      config.future.hardenedXSSProtection ?? false,
   }
   return serializeDefineEnv(defineEnv)
 }

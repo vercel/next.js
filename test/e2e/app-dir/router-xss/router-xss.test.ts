@@ -225,7 +225,7 @@ describe('hardenedXSSProtection', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     nextConfig: {
-      experimental: {
+      future: {
         hardenedXSSProtection: true,
       },
     },

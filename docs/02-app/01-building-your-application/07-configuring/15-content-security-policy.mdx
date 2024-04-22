@@ -251,11 +251,11 @@ In addition, Next.js will also warn when such URLs are passed to `router.push(hr
 
 If you trust these URLs, you can silence this warning by using `router.push({ unsafeHref: { __href: href } })` instead.
 
-In a future version Next.js will block `javascript:` URLs by default. You can opt-in to this behavior by setting the experimental config `hardenedXSSProtection` to `true` in your `next.config.js`:
+In a future major version Next.js will block `javascript:` URLs by default. You can opt-in to this behavior by setting the experimental config `hardenedXSSProtection` to `true` in your `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
-  experimental: {
+  future: {
     hardenedXSSProtection: true,
   },
 }
