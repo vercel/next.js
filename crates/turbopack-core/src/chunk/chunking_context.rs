@@ -44,6 +44,7 @@ pub struct ChunkGroupResult {
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
+    fn name(self: Vc<Self>) -> Vc<String>;
     fn context_path(self: Vc<Self>) -> Vc<FileSystemPath>;
     fn output_root(self: Vc<Self>) -> Vc<FileSystemPath>;
 
