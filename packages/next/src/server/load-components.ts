@@ -9,7 +9,7 @@ import type {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from 'next/types'
+} from '../types'
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
@@ -134,8 +134,8 @@ async function loadComponentsImpl<N = any>({
   let AppMod = {}
   if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
-      Promise.resolve().then(() => requirePage('/_document', distDir, false)),
-      Promise.resolve().then(() => requirePage('/_app', distDir, false)),
+      requirePage('/_document', distDir, false),
+      requirePage('/_app', distDir, false),
     ])
   }
 
@@ -186,9 +186,7 @@ async function loadComponentsImpl<N = any>({
     })
   }
 
-  const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(page, distDir, isAppPath)
-  )
+  const ComponentMod = await requirePage(page, distDir, isAppPath)
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
