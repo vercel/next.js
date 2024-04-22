@@ -1,0 +1,41 @@
+{
+  "name": "@next/vendored",
+  "version": "14.3.0-canary.12",
+  "keywords": [
+    "react",
+    "next",
+    "next.js"
+  ],
+  "type": "module",
+  "description": "Next.js vendored packages",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-vendored"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "task-runner": "node ./dist/cli.js --file ./dist/taskfile.js"
+  },
+  "bin": {
+    "task-runner": "./dist/cli"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@taskr/esnext": "1.1.0",
+    "@vercel/ncc": "0.34.0",
+    "taskr": "1.1.0",
+    "typescript": "5.3.3"
+  },
+  "dependencies": {
+    "arg": "4.1.0",
+    "regenerator-runtime": "0.13.4",
+    "glob": "10.3.12"
+  }
+}
