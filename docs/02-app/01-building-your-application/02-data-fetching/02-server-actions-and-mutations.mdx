@@ -918,7 +918,7 @@ Defining a Server Action inside a component creates a [closure](https://develope
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
-export default function Page() {
+export default async function Page() {
   const publishVersion = await getLatestVersion();
 
   async function publish(formData: FormData) {
@@ -934,8 +934,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/page.js" switcher
-'use client'
-export default function Page() {
+export default async function Page() {
   const publishVersion = await getLatestVersion();
 
   async function publish() {
@@ -946,7 +945,7 @@ export default function Page() {
     ...
   }
 
-  return <button onClick={publish}>Publish</button>;
+  return <button formAction={publish}>Publish</button>;
 }
 ```
 
