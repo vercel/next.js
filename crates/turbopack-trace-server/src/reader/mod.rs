@@ -13,6 +13,7 @@ use std::{
 };
 
 use anyhow::Result;
+use flate2::bufread::GzDecoder;
 
 use crate::{
     reader::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat},
@@ -30,6 +31,7 @@ trait TraceFormat {
 enum TraceFile {
     Raw(File),
     Zstd(zstd::Decoder<'static, BufReader<File>>),
+    Gz(GzDecoder<BufReader<File>>),
     #[default]
     Unloaded,
 }
@@ -39,6 +41,7 @@ impl TraceFile {
         match self {
             Self::Raw(file) => file.read(buffer),
             Self::Zstd(decoder) => decoder.read(buffer),
+            Self::Gz(decoder) => decoder.read(buffer),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -47,6 +50,7 @@ impl TraceFile {
         match self {
             Self::Raw(file) => file.stream_position(),
             Self::Zstd(decoder) => decoder.get_mut().stream_position(),
+            Self::Gz(decoder) => decoder.get_mut().stream_position(),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -55,6 +59,7 @@ impl TraceFile {
         match self {
             Self::Raw(file) => file.seek(pos),
             Self::Zstd(decoder) => decoder.get_mut().seek(pos),
+            Self::Gz(decoder) => decoder.get_mut().seek(pos),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -79,8 +84,11 @@ impl TraceReader {
     }
 
     fn trace_file_from_file(&self, file: File) -> io::Result<TraceFile> {
-        Ok(if self.path.to_string_lossy().ends_with(".zst") {
+        let path = &self.path.to_string_lossy();
+        Ok(if path.ends_with(".zst") {
             TraceFile::Zstd(zstd::Decoder::new(file)?)
+        } else if path.ends_with(".gz") {
+            TraceFile::Gz(GzDecoder::new(BufReader::new(file)))
         } else {
             TraceFile::Raw(file)
         })
