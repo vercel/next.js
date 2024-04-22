@@ -34,6 +34,10 @@ describe('next test', () => {
     skipStart: true,
   })
 
+  afterAll(async () => {
+    await basicExample.destroy()
+  })
+
   describe('first time setup', () => {
     it.each([['first-time-setup-js'], ['first-time-setup-ts']])(
       'should correctly install missing dependencies and generate missing configuration file for %s',
