@@ -48,6 +48,7 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
+    SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -515,7 +516,7 @@ async fn process_content(
     content_vc: Vc<FileContent>,
     code: String,
     fs_path_vc: Vc<FileSystemPath>,
-    ident_str: &str,
+    filename: &str,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     import_context: Vc<ImportContext>,
@@ -551,7 +552,7 @@ async fn process_content(
 
             _ => None,
         },
-        filename: ident_str.to_string(),
+        filename: filename.to_string(),
         error_recovery: true,
         ..Default::default()
     };
@@ -643,7 +644,7 @@ async fn process_content(
             )),
         );
 
-        let fm = cm.new_source_file(FileName::Custom(ident_str.to_string()), code.clone());
+        let fm = cm.new_source_file(FileName::Custom(filename.to_string()), code.clone());
         let mut errors = vec![];
 
         let ss = swc_core::css::parser::parse_file(
@@ -693,7 +694,7 @@ async fn process_content(
                     .context("Must include basename preceding .")?
                     .as_str();
                 // Truncate this as u32 so it's formated as 8-character hex in the suffic below
-                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(ident_str) as u32;
+                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
 
                 Some(SwcCssModuleMode {
                     basename: basename.to_string(),
@@ -976,7 +977,7 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
                 let mut builder = SourceMapBuilder::new(None);
 
                 for src in source_map.get_sources() {
-                    builder.add_source(src);
+                    builder.add_source(&format!("/{SOURCE_MAP_ROOT_NAME}/{src}"));
                 }
 
                 for (idx, content) in source_map.get_sources_content().iter().enumerate() {
