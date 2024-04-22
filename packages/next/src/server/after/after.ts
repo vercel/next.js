@@ -16,7 +16,7 @@ type AfterCallback<T = unknown> = () => T | Promise<T>
 
 type WaitUntilFn = <T>(promise: Promise<T>) => void
 
-export function after<T>(task: AfterTask<T>) {
+export function unstable_after<T>(task: AfterTask<T>) {
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(
