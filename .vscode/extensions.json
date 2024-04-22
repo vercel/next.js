@@ -5,6 +5,7 @@
     "esbenp.prettier-vscode",
     "dbaeumer.vscode-eslint",
     "usernamehw.errorlens",
+    "tlahmann.alex-linter",
 
     // Testing
     "orta.vscode-jest",
