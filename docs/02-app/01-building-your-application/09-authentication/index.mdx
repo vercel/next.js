@@ -181,7 +181,7 @@ export async function signup(state: FormState, formData) {
 ```js filename="app/actions/auth.js" switcher
 import { SignupFormSchema } from '@/app/lib/definitions'
 
-export async function signup(formData: FormData) {
+export async function signup(state, formData) {
   // Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get('name'),
