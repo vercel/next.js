@@ -33,7 +33,7 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
-    let mdx_rs = *next_config.mdx_rs().await?;
+    let mdx_rs = next_config.mdx_rs().await?.is_some();
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
