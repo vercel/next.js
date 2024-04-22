@@ -15,26 +15,6 @@ export * from '@playwright/test'
 export type { NextFixture, NextOptions }
 export type { FetchHandlerResult } from '../proxy'
 
-export interface NextOptionsConfig {
-  nextOptions?: NextOptions
-}
-
-export function defineConfig<T extends NextOptionsConfig, W>(
-  config: base.PlaywrightTestConfig<T, W>
-): base.PlaywrightTestConfig<T, W>
-export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
-  config: base.PlaywrightTestConfig<T>
-): base.PlaywrightTestConfig<T> {
-  return base.defineConfig<T>({
-    ...defaultPlaywrightConfig,
-    ...config,
-    use: {
-      ...defaultPlaywrightConfig.use,
-      ...config.use,
-    },
-  })
-}
-
 export const test = base.test.extend<
   { next: NextFixture; nextOptions: NextOptions },
   { _nextWorker: NextWorkerFixture }
