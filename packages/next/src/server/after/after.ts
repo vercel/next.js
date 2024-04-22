@@ -8,7 +8,7 @@ import { staticGenerationAsyncStorage } from '../../client/components/static-gen
 
 import { BaseServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
-import type { CacheScope } from './react-cache'
+import type { CacheScope } from './react-cache-scope'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 
 type AfterTask<T = unknown> = Promise<T> | AfterCallback<T>
