@@ -490,15 +490,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                 });
                                 this.backend.task_execution_result(task_id, result, &*this);
                                 let stateful = this.finish_current_task_state();
-                                let cell_counters =
-                                    CELL_COUNTERS.with(|cc| take(&mut *cc.borrow_mut()));
                                 this.backend.task_execution_completed(
-                                    task_id,
-                                    duration,
-                                    instant,
-                                    cell_counters,
-                                    stateful,
-                                    &*this,
+                                    task_id, duration, instant, stateful, &*this,
                                 )
                             }
                             .instrument(span)
