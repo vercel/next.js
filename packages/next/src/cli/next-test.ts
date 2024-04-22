@@ -20,11 +20,10 @@ export interface NextTestOptions {
 }
 
 export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
-export type SUPPORTED_TEST_RUNNERS =
-  (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
+export type supportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
 
 const requiredPackagesByTestRunner: {
-  [k in SUPPORTED_TEST_RUNNERS]: MissingDependency[]
+  [k in supportedTestRunners]: MissingDependency[]
 } = {
   playwright: [
     { file: 'playwright', pkg: '@playwright/test', exportsRestrict: false },
@@ -92,7 +91,7 @@ export async function nextTest(
 
 async function checkRequiredDeps(
   baseDir: string,
-  testRunner: SUPPORTED_TEST_RUNNERS
+  testRunner: supportedTestRunners
 ) {
   const deps = await hasNecessaryDependencies(
     baseDir,
@@ -102,7 +101,7 @@ async function checkRequiredDeps(
     await installDependencies(baseDir, deps.missing, true)
 
     const playwright = spawn(
-      path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
+      path.join(baseDir, 'node_modules', '.bin', 'playwright'),
       ['install'],
       {
         cwd: baseDir,
@@ -110,7 +109,6 @@ async function checkRequiredDeps(
         stdio: 'inherit',
         env: {
           ...process.env,
-          NODE_ENV: 'test',
         },
       }
     )
@@ -167,7 +165,7 @@ async function runPlaywright(
     )
   } else {
     const playwright = spawn(
-      path.join(baseDir, 'node_modules', '@playwright', 'test', 'cli.js'),
+      path.join(baseDir, 'node_modules', '.bin', 'playwright'),
       ['test', ...testRunnerArgs],
       {
         cwd: baseDir,
@@ -175,7 +173,6 @@ async function runPlaywright(
         stdio: 'inherit',
         env: {
           ...process.env,
-          NODE_ENV: 'test',
         },
       }
     )

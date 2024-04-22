@@ -364,7 +364,7 @@ program
     'Any additional arguments or options to pass down to the test runner `test` command.'
   )
   .option(
-    '-t, --test-runner [test-runner]',
+    '--test-runner [test-runner]',
     `Any supported test runner. Options: ${bold(
       SUPPORTED_TEST_RUNNERS_LIST.join(', ')
     )}. ${italic(
