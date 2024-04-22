@@ -4,10 +4,12 @@ import { VALID_LOADERS } from '../shared/lib/image-config'
 import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
-import type { SizeLimit } from '../../types'
+import type { SizeLimit } from '../types'
 import type {
   ExportPathMap,
   TurboLoaderItem,
+  TurboRuleConfigItem,
+  TurboRuleConfigItemOptions,
   TurboRuleConfigItemOrShortcut,
 } from './config-shared'
 import type {
@@ -103,13 +105,23 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRule: zod.ZodType<TurboRuleConfigItemOrShortcut> = z.union([
-  z.array(zTurboLoaderItem),
+const zTurboRuleConfigItemOptions: zod.ZodType<TurboRuleConfigItemOptions> =
   z.object({
     loaders: z.array(zTurboLoaderItem),
-    as: z.string(),
-  }),
+    as: z.string().optional(),
+  })
+
+const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
+  z.literal(false),
+  z.record(
+    z.string(),
+    z.lazy(() => zTurboRuleConfigItem)
+  ),
+  zTurboRuleConfigItemOptions,
 ])
+
+const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut> =
+  z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -118,7 +130,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         canonicalBase: z.string().optional(),
       })
       .optional(),
-    analyticsId: z.string().optional(), // TODO: remove in the next major version
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     cacheHandler: z.string().min(1).optional(),
@@ -236,6 +247,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     experimental: z
       .strictObject({
         appDocumentPreloading: z.boolean().optional(),
+        preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -338,7 +350,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
-            rules: z.record(z.string(), zTurboRule).optional(),
+            rules: z
+              .record(z.string(), zTurboRuleConfigItemOrShortcut)
+              .optional(),
             resolveAlias: z
               .record(
                 z.string(),

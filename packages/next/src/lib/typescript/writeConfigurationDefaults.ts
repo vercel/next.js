@@ -9,7 +9,7 @@ import * as Log from '../../build/output/log'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
-    | { suggested: any }
+    | { suggested: any; reason?: string }
     | {
         parsedValue?: any
         parsedValues?: Array<any>
@@ -23,6 +23,11 @@ function getDesiredCompilerOptions(
   tsOptions?: CompilerOptions
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
+    target: {
+      suggested: 'ES2017',
+      reason:
+        'For top-level `await`. Note: Next.js only polyfills for the esmodules target.',
+    },
     // These are suggested values and will be set when not present in the
     // tsconfig.json
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
@@ -40,14 +45,11 @@ function getDesiredCompilerOptions(
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
-    esModuleInterop: {
-      value: true,
-      reason: 'requirement for SWC / babel',
-    },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
       // All of these values work:
       parsedValues: [
+        semver.gte(ts.version, '5.4.0') && (ts.ModuleKind as any).Preserve,
         ts.ModuleKind.ES2020,
         ts.ModuleKind.ESNext,
         ts.ModuleKind.CommonJS,
@@ -58,28 +60,47 @@ function getDesiredCompilerOptions(
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
-    moduleResolution: {
-      // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
-      parsedValue:
-        ts.ModuleResolutionKind.Bundler ??
-        ts.ModuleResolutionKind.NodeNext ??
-        (ts.ModuleResolutionKind as any).Node10 ??
-        ts.ModuleResolutionKind.NodeJs,
-      // All of these values work:
-      parsedValues: [
-        (ts.ModuleResolutionKind as any).Node10 ??
-          ts.ModuleResolutionKind.NodeJs,
-        // only newer TypeScript versions have this field, it
-        // will be filtered for new versions of TypeScript
-        (ts.ModuleResolutionKind as any).Node12,
-        ts.ModuleResolutionKind.Node16,
-        ts.ModuleResolutionKind.NodeNext,
-        ts.ModuleResolutionKind.Bundler,
-      ].filter((val) => typeof val !== 'undefined'),
-      value: 'node',
-      reason: 'to match webpack resolution',
-    },
-    resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
+    // TODO: Semver check not needed once Next.js repo uses 5.4.
+    ...(semver.gte(ts.version, '5.4.0') &&
+    tsOptions?.module === (ts.ModuleKind as any).Preserve
+      ? {
+          // TypeScript 5.4 introduced `Preserve`. Using `Preserve` implies
+          // - `moduleResolution` is `Bundler`
+          // - `esModuleInterop` is `true`
+          // - `resolveJsonModule` is `true`
+          // This means that if the user is using Preserve, they don't need these options
+        }
+      : {
+          esModuleInterop: {
+            value: true,
+            reason: 'requirement for SWC / babel',
+          },
+          moduleResolution: {
+            // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
+            parsedValue:
+              ts.ModuleResolutionKind.Bundler ??
+              ts.ModuleResolutionKind.NodeNext ??
+              (ts.ModuleResolutionKind as any).Node10 ??
+              ts.ModuleResolutionKind.NodeJs,
+            // All of these values work:
+            parsedValues: [
+              (ts.ModuleResolutionKind as any).Node10 ??
+                ts.ModuleResolutionKind.NodeJs,
+              // only newer TypeScript versions have this field, it
+              // will be filtered for new versions of TypeScript
+              (ts.ModuleResolutionKind as any).Node12,
+              ts.ModuleResolutionKind.Node16,
+              ts.ModuleResolutionKind.NodeNext,
+              ts.ModuleResolutionKind.Bundler,
+            ].filter((val) => typeof val !== 'undefined'),
+            value: 'node',
+            reason: 'to match webpack resolution',
+          },
+          resolveJsonModule: {
+            value: true,
+            reason: 'to match webpack resolution',
+          },
+        }),
     ...(tsOptions?.verbatimModuleSyntax === true
       ? undefined
       : {
@@ -152,7 +173,12 @@ export async function writeConfigurationDefaults(
         }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
-          cyan(optionKey) + ' was set to ' + bold(check.suggested)
+          cyan(optionKey) +
+            ' was set to ' +
+            bold(check.suggested) +
+            check.reason
+            ? ` (${check.reason})`
+            : ''
         )
       }
     } else if ('value' in check) {

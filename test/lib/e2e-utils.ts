@@ -1,6 +1,6 @@
 import path from 'path'
 import assert from 'assert'
-import { flushAllTraces, setGlobal, trace } from 'next/src/trace'
+import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
@@ -213,16 +213,12 @@ export async function createNext(
   } catch (err) {
     require('console').error('Failed to create next instance', err)
     try {
-      nextInstance.destroy()
+      await nextInstance?.destroy()
     } catch (_) {}
 
-    if (process.env.NEXT_TEST_CONTINUE_ON_ERROR) {
-      // Other test should continue to create new instance if NEXT_TEST_CONTINUE_ON_ERROR explicitly specified.
-      nextInstance = undefined
-      throw err
-    } else {
-      process.exit(1)
-    }
+    nextInstance = undefined
+    // Throw instead of process exit to ensure that Jest reports the tests as failed.
+    throw err
   } finally {
     flushAllTraces()
   }

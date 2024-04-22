@@ -15,6 +15,11 @@ createNextDescribe(
       expect($('p').text()).toBe(`Page ${page}`)
     })
 
+    it('should log any error messages when server is started without "quiet" setting', async () => {
+      await next.render(`/error`)
+      expect(next.cliOutput).toInclude('Server side error')
+    })
+
     describe('with app dir', () => {
       it('should render app with react canary', async () => {
         const $ = await next.render$(`/1`)
@@ -26,6 +31,24 @@ createNextDescribe(
         expect($('body').text()).toMatch(/pages:/)
         expect($('body').text()).not.toMatch(/canary/)
       })
+    })
+  }
+)
+
+createNextDescribe(
+  'custom server with quiet setting',
+  {
+    files: __dirname,
+    startCommand: 'node server.js',
+    env: { USE_QUIET: 'true' },
+    dependencies: {
+      'get-port': '5.1.1',
+    },
+  },
+  ({ next }) => {
+    it('should not log any error messages when server is started with "quiet" setting', async () => {
+      await next.render(`/error`)
+      expect(next.cliOutput).not.toInclude('Server side error')
     })
   }
 )

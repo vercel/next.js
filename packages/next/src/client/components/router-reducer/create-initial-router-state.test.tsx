@@ -115,7 +115,7 @@ describe('createInitialRouterState', () => {
             data: expect.any(Promise),
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,
-            lastUsedTime: null,
+            lastUsedTime: expect.any(Number),
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
           },

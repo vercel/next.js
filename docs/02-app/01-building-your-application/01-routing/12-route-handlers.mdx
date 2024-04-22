@@ -406,8 +406,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-export const runtime = 'edge'
-
 export async function POST(req: Request) {
   const { messages } = await req.json()
   const response = await openai.chat.completions.create({
@@ -429,8 +427,6 @@ import { OpenAIStream, StreamingTextResponse } from 'ai'
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
-
-export const runtime = 'edge'
 
 export async function POST(req) {
   const { messages } = await req.json()
@@ -648,16 +644,6 @@ export async function POST(request) {
 ```
 
 Notably, unlike API Routes with the Pages Router, you do not need to use `bodyParser` to use any additional configuration.
-
-### Edge and Node.js Runtimes
-
-Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) Route Handlers.
-
-You can use the `runtime` segment config option to specify the runtime:
-
-```ts
-export const runtime = 'edge' // 'nodejs' is the default
-```
 
 ### Non-UI Responses
 

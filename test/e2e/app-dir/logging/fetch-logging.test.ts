@@ -4,7 +4,7 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-const cahceReasonRe = /Cache (missed|skipped) reason: /
+const cacheReasonRegex = /Cache (missed|skipped) reason: /
 
 interface ParsedLog {
   method: string
@@ -17,13 +17,13 @@ interface ParsedLog {
 function parseLogsFromCli(cliOutput: string) {
   const logs = stripAnsi(cliOutput)
     .split('\n')
-    .filter((log) => cahceReasonRe.test(log) || log.includes('GET'))
+    .filter((log) => cacheReasonRegex.test(log) || log.includes('GET'))
 
   return logs.reduce<ParsedLog[]>((parsedLogs, log) => {
-    if (cahceReasonRe.test(log)) {
+    if (cacheReasonRegex.test(log)) {
       // cache miss/skip reason
       // Example of `log`: "│ │ Cache skipped reason: (cache: no-cache)"
-      const reasonSegment = log.split(cahceReasonRe, 3)[2].trim()
+      const reasonSegment = log.split(cacheReasonRegex, 3)[2].trim()
       const reason = reasonSegment.slice(1, -1)
       parsedLogs[parsedLogs.length - 1].cache = reason
     } else {
@@ -155,15 +155,27 @@ describe('app-dir - logging', () => {
           })
         })
 
-        it('should exlucde Middleware invoked and _rsc requests', async () => {
+        it('should log each page request only once', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/')
+          await retry(() => {
+            const logsAfterRequest = stripAnsi(
+              next.cliOutput.slice(outputIndex)
+            )
+            // Only show `GET /` once
+            expect(logsAfterRequest.split('GET /').length).toBe(2)
+          })
+        })
+
+        it('should exlucde Middleware invoked and _rsc requests', async () => {
+          const outputIndex = next.cliOutput.length
+
           const browser = await next.browser('/link')
           await browser.elementByCss('a').click()
           await browser.waitForElementByCss('h2')
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-          expect(logs).not.toContain('GET /_next/static')
-          expect(logs).not.toContain('GET /foo?_rsc')
+          expect(logs).not.toContain('/_next/static')
+          expect(logs).not.toContain('?_rsc')
         })
       }
     } else {
