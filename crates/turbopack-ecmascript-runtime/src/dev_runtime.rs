@@ -14,7 +14,7 @@ use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_cod
 
 /// Returns the code for the development ECMAScript runtime.
 #[turbo_tasks::function]
-pub async fn get_dev_runtime_code(
+pub async fn get_browser_runtime_code(
     environment: Vc<Environment>,
     chunk_base_path: Vc<Option<String>>,
     output_root: Vc<String>,

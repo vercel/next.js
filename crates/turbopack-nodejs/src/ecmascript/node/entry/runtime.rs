@@ -66,13 +66,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         match this.chunking_context.await?.runtime_type() {
             RuntimeType::Development => {
-                let runtime_code = turbopack_ecmascript_runtime::get_build_runtime_code(
+                let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
                 );
                 code.push_code(&*runtime_code.await?);
             }
             RuntimeType::Production => {
-                let runtime_code = turbopack_ecmascript_runtime::get_build_runtime_code(
+                let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
                 );
                 code.push_code(&*runtime_code.await?);
