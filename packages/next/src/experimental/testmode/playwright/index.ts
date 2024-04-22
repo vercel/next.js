@@ -1,13 +1,26 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as base from '@playwright/test'
 import type { NextFixture } from './next-fixture'
-import type { NextOptions } from './next-options'
+import type { NextOptions, NextOptionsConfig } from './next-options'
 import type { NextWorkerFixture } from './next-worker-fixture'
 import { applyNextWorkerFixture } from './next-worker-fixture'
 import { applyNextFixture } from './next-fixture'
 import { defaultPlaywrightConfig } from './default-config'
 
 export { defaultPlaywrightConfig }
+
+export function defineConfig(
+  config: base.PlaywrightTestConfig<NextOptionsConfig>
+): base.PlaywrightTestConfig<NextOptionsConfig> {
+  return base.defineConfig<NextOptionsConfig>({
+    ...defaultPlaywrightConfig,
+    ...config,
+    use: {
+      ...defaultPlaywrightConfig.use,
+      ...config.use,
+    },
+  })
+}
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
