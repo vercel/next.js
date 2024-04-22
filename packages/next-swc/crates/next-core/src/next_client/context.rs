@@ -25,8 +25,8 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                module_options_context::ModuleOptionsContext, JsxTransformOptions,
-                MdxTransformModuleOptions, ModuleRule, TypescriptTransformOptions,
+                module_options_context::ModuleOptionsContext, JsxTransformOptions, ModuleRule,
+                TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -42,7 +42,7 @@ use crate::{
     next_config::NextConfig,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
-        get_next_client_resolved_map, mdx_import_source_file,
+        get_next_client_resolved_map,
     },
     next_shared::{
         resolve::{
@@ -192,16 +192,7 @@ pub async fn get_client_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let enable_mdx_rs = if *next_config.mdx_rs().await? {
-        Some(
-            MdxTransformModuleOptions {
-                provider_import_source: Some(mdx_import_source_file()),
-            }
-            .cell(),
-        )
-    } else {
-        None
-    };
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path,
         mode,
