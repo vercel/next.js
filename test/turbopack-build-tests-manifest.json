@@ -1793,7 +1793,7 @@
         "mdx with-mdx-rs app directory should work in initial html with mdx import",
         "mdx with-mdx-rs app directory should work using browser",
         "mdx with-mdx-rs app directory should work using browser with mdx import",
-        "mdx with-mdx-rs app directory > should work with next/image",
+        "mdx with-mdx-rs app directory should work with next/image",
         "mdx with-mdx-rs pages directory should allow overriding components",
         "mdx with-mdx-rs pages directory should work in initial html",
         "mdx with-mdx-rs pages directory should work in initial html with mdx import",
