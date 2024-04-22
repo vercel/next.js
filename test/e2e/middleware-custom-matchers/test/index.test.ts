@@ -31,6 +31,16 @@ describe('Middleware custom matchers', () => {
         },
       })
       expect(res2.headers.get('x-from-middleware')).toBeFalsy()
+
+      const res3 = await fetchViaHTTP(next.url, '/')
+      expect(res3.headers.get('x-from-middleware')).toBeDefined()
+
+      const res4 = await fetchViaHTTP(next.url, '/', undefined, {
+        headers: {
+          purpose: 'prefetch',
+        },
+      })
+      expect(res4.headers.get('x-from-middleware')).toBeFalsy()
     })
 
     it('should match missing query correctly', async () => {
