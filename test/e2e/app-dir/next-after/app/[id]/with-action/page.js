@@ -1,4 +1,4 @@
-import { after } from 'next/server'
+import { unstable_after as after } from 'next/server'
 import { cache } from 'react'
 import { persistentLog } from '../../utils/log'
 import { headers } from 'next/headers'
