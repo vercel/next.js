@@ -220,6 +220,11 @@ impl NodeJsChunkingContext {
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
+    fn name(&self) -> Vc<String> {
+        Vc::cell("unknown".to_string())
+    }
+
+    #[turbo_tasks::function]
     fn context_path(&self) -> Vc<FileSystemPath> {
         self.context_path
     }

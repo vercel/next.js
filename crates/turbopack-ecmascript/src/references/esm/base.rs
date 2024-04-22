@@ -249,8 +249,9 @@ impl CodeGenerateable for EsmAssetReference {
                             .await?
                         {
                             bail!(
-                                "the chunking context does not support external modules (request: \
-                                 {})",
+                                "the chunking context ({}) does not support external modules (esm \
+                                 request: {})",
+                                chunking_context.name().await?,
                                 request
                             );
                         }
@@ -282,8 +283,9 @@ impl CodeGenerateable for EsmAssetReference {
                             .await?
                         {
                             bail!(
-                                "the chunking context does not support external modules (request: \
-                                 {})",
+                                "the chunking context ({}) does not support external modules \
+                                 (request: {})",
+                                chunking_context.name().await?,
                                 request
                             );
                         }
