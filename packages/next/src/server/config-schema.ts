@@ -420,6 +420,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       )
       .returns(z.union([zExportMap, z.promise(zExportMap)]))
       .optional(),
+    future: z.strictObject({}).optional(),
     generateBuildId: z
       .function()
       .args()
