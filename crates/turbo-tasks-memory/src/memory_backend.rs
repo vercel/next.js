@@ -15,7 +15,6 @@ use std::{
 use anyhow::{bail, Result};
 use auto_hash_map::AutoMap;
 use dashmap::{mapref::entry::Entry, DashMap};
-use nohash_hasher::NoHashHasher;
 use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
 use tracing::trace_span;
@@ -26,7 +25,7 @@ use turbo_tasks::{
     },
     event::EventListener,
     util::{IdFactory, NoMoveVec},
-    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused, ValueTypeId,
+    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
 use crate::{
@@ -316,19 +315,11 @@ impl Backend for MemoryBackend {
         task_id: TaskId,
         duration: Duration,
         instant: Instant,
-        cell_counters: AutoMap<ValueTypeId, u32, BuildHasherDefault<NoHashHasher<ValueTypeId>>, 8>,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> bool {
         let reexecute = self.with_task(task_id, |task| {
-            task.execution_completed(
-                duration,
-                instant,
-                cell_counters,
-                stateful,
-                self,
-                turbo_tasks,
-            )
+            task.execution_completed(duration, instant, stateful, self, turbo_tasks)
         });
         if !reexecute {
             self.run_gc(false, turbo_tasks);
