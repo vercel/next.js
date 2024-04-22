@@ -92,7 +92,7 @@
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.4.4",
-    "@swc/helpers": "0.5.5",
+    "@swc/helpers": "0.5.10",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "13.0.0",
     "@types/busboy": "1.5.3",
