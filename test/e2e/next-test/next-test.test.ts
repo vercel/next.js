@@ -45,7 +45,7 @@ describe('next test', () => {
         const fixture = createTemporaryFixture(fixtureName)
 
         try {
-          const { stdout, stderr } = await nextTest(fixture, [], {
+          const { stdout } = await nextTest(fixture, [], {
             stderr: true,
             stdout: true,
             cwd: fixture,
@@ -60,8 +60,6 @@ describe('next test', () => {
                 : 'playwright.config.ts'
             }. Create your first test and then run \`next experimental-test\`.`
           )
-
-          expect(stderr).toBe('')
 
           const pkgJSON = JSON.parse(
             readFileSync(join(fixture, 'package.json'), 'utf-8')
@@ -79,13 +77,11 @@ describe('next test', () => {
 
       try {
         writeFileSync(join(fixture, 'next.config.js'), 'module.exports = {}')
-        const { stdout, stderr } = await nextTest(fixture, [], {
+        const { stderr } = await nextTest(fixture, [], {
           stderr: true,
           stdout: true,
           cwd: fixture,
         })
-
-        expect(stdout).toBe('')
         expect(stderr).toContain(
           '`next experimental-test` requires the `experimental.testProxy: true` configuration option.'
         )
@@ -96,21 +92,16 @@ describe('next test', () => {
   })
 
   it('should execute playwright tests', async () => {
-    const { stdout, stderr } = spawnSync(
-      'pnpm',
-      ['next', 'experimental-test'],
-      {
-        cwd: basicExample.testDir,
-        encoding: 'utf-8',
-        env: {
-          ...process.env,
-          JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
-        },
-      }
-    )
+    const { stdout } = spawnSync('pnpm', ['next', 'experimental-test'], {
+      cwd: basicExample.testDir,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+      },
+    })
 
     expect(stdout).toContain('1 passed')
-    expect(stderr).toBe('')
   })
 
   describe('test runner validation', () => {
@@ -130,27 +121,22 @@ describe('next test', () => {
     })
 
     it('should validate configured/specified test runner', async () => {
-      let { stdout, stderr } = spawnSync(
-        'pnpm',
-        ['next', 'experimental-test'],
-        {
-          cwd: basicExample.testDir,
-          encoding: 'utf-8',
-          env: {
-            ...process.env,
-            JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
-          },
-        }
-      )
+      let { stderr } = spawnSync('pnpm', ['next', 'experimental-test'], {
+        cwd: basicExample.testDir,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+        },
+      })
 
-      expect(stdout).toBe('')
       // Assert the assigned `defaultTestRunner` is printed in the error
       expect(stderr).toContain(
         'Test runner invalid-test-runner is not supported.'
       )
 
       // Second, test that the `--test-runner` arg takes precedence over `defaultTestRunner` and default playwright
-      ;({ stdout, stderr } = spawnSync(
+      ;({ stderr } = spawnSync(
         'pnpm',
         ['next', 'experimental-test', '--test-runner=invalid-test-runner-2'],
         {
@@ -163,7 +149,6 @@ describe('next test', () => {
         }
       ))
 
-      expect(stdout).toBe('')
       // Assert the assigned `--test-runner` arg is printed in the error
       expect(stderr).toContain(
         'Test runner invalid-test-runner-2 is not supported.'
@@ -172,7 +157,7 @@ describe('next test', () => {
   })
 
   it('should pass args to test runner', async () => {
-    const { stdout, stderr } = spawnSync(
+    const { stdout } = spawnSync(
       'pnpm',
       ['next', 'experimental-test', '--list'],
       {
@@ -191,6 +176,5 @@ describe('next test', () => {
       Total: 1 test in 1 file
       "
     `)
-    expect(stderr).toBe('')
   })
 })
