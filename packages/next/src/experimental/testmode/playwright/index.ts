@@ -13,17 +13,16 @@ export { defaultPlaywrightConfig }
 export * from '@playwright/test'
 
 // Export this second so it overrides the one from `@playwright/test`
-export function defineConfig(
-  config: base.PlaywrightTestConfig<NextOptionsConfig>
-): base.PlaywrightTestConfig<NextOptionsConfig> {
-  return base.defineConfig<NextOptionsConfig>({
-    ...defaultPlaywrightConfig,
-    ...config,
-    use: {
-      ...defaultPlaywrightConfig.use,
-      ...config.use,
-    },
-  })
+export function defineConfig<T extends NextOptionsConfig, W>(
+  config: base.PlaywrightTestConfig<T, W>
+): base.PlaywrightTestConfig<T, W>
+export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
+  config: base.PlaywrightTestConfig<T>
+): base.PlaywrightTestConfig<T> {
+  return base.defineConfig<T>(
+    defaultPlaywrightConfig as base.PlaywrightTestConfig<T>,
+    config
+  )
 }
 
 export type { NextFixture, NextOptions }
