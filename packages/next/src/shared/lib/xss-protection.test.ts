@@ -6,6 +6,8 @@ test.each([
   'javascript:alert(1)',
   'ja\t\tva\t\t\tscript:alert(1)',
   'ja\t\r\nva\t\t\tscr\n\ript:alert(1)',
+  // javascript:alert(1)
+  '\u006a\u0061\u0076\u0061\u0073\u0063\u0072\u0069\u0070\u0074\u003a\u0061\u006c\u0065\u0072\u0074\u0028\u0031\u0029',
 ])(`case #%# %s is using javascript protocol`, (input) => {
   // Check if these are actually using javascript protocol
   expect(new URL(input).protocol).toBe('javascript:')
