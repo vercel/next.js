@@ -1,4 +1,8 @@
-import { devices, type PlaywrightTestConfig } from '@playwright/test'
+import {
+  defineConfig,
+  devices,
+  type PlaywrightTestConfig,
+} from '@playwright/test'
 import { deepMerge } from '../../../lib/deep-merge'
 type withNextConfigFunction = (
   config: PlaywrightTestConfig
@@ -12,9 +16,11 @@ type withNextConfigFunction = (
 export function withNext(
   configOrFunction: PlaywrightTestConfig | withNextConfigFunction = {}
 ): PlaywrightTestConfig {
-  return typeof configOrFunction === 'function'
-    ? configOrFunction(defaultPlaywrightConfig)
-    : deepMerge(defaultPlaywrightConfig, configOrFunction)
+  const config =
+    typeof configOrFunction === 'function'
+      ? configOrFunction(defaultPlaywrightConfig)
+      : deepMerge(defaultPlaywrightConfig, configOrFunction)
+  return defineConfig(config)
 }
 
 /**

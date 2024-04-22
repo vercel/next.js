@@ -31,13 +31,6 @@ const requiredPackagesByTestRunner: {
   ],
 }
 
-// Type Guard for `SUPPORTED_TEST_RUNNERS` type. Unused for now, but worth keeping for future usage.
-// function isSupportedTestRunner(
-//   testRunner: string
-// ): testRunner is SUPPORTED_TEST_RUNNERS {
-//   return testRunner in requiredPackagesByTestRunner
-// }
-
 export async function nextTest(
   directory?: string,
   testRunnerArgs: string[] = [],
