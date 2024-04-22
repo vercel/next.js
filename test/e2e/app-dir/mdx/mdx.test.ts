@@ -59,6 +59,11 @@ for (const type of [
           const $ = await next.render$('/')
           expect($('h2').text()).toBe('This is a client component')
         })
+
+        it('should work with next/image', async () => {
+          const $ = await next.render$('/image')
+          expect($('img').attr('src')).toBe('/next.svg')
+        })
       })
 
       describe('pages directory', () => {
