@@ -116,7 +116,6 @@ export async function capsize_metrics() {
     'dist/server/capsize-font-metrics.json'
   )
 
-  await fs.mkdir(dirname(outputPathDist), { recursive: true })
   await writeJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 
@@ -2154,9 +2153,6 @@ export async function precompile(task, opts) {
       'path_to_regexp',
       'copy_ncced',
       'copy_styled_jsx_assets',
-      'ncc_react_refresh_utils',
-      'ncc_next_font',
-      'capsize_metrics',
     ],
     opts
   )
@@ -2288,10 +2284,8 @@ export async function ncc(task, opts) {
       ],
       opts
     )
-  await task.parallel(
-    ['ncc_webpack_bundle_packages', 'ncc_babel_bundle_packages'],
-    opts
-  )
+  await task.parallel(['ncc_webpack_bundle_packages'], opts)
+  await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(
     [
       'ncc_browserslist',
@@ -2347,6 +2341,16 @@ export async function next_compile(task, opts) {
     ],
     opts
   )
+}
+
+export async function compile(task, opts) {
+  await task.serial(['next_compile', 'next_bundle'], opts)
+
+  await task.serial([
+    'ncc_react_refresh_utils',
+    'ncc_next_font',
+    'capsize_metrics',
+  ])
 }
 
 export async function bin(task, opts) {
@@ -2571,17 +2575,12 @@ export async function trace(task, opts) {
     .target('dist/trace')
 }
 
-export async function clear_dist(task) {
-  await task.clear('dist')
-}
-
 export async function build(task, opts) {
   await task.serial(
     [
       'clear_dist',
       'precompile',
-      'next_compile',
-      'next_bundle',
+      'compile',
       'generate_types',
       'rewrite_compiled_references',
     ],
@@ -2626,7 +2625,11 @@ export async function rewrite_compiled_references(task, opts) {
   }
 }
 
-export async function dev(task) {
+export async function clear_dist(task) {
+  await task.clear('dist')
+}
+
+export default async function dev(task) {
   const opts = { dev: true }
   await task.start('build', opts)
   await task.watch('src/bin', 'bin', opts)
