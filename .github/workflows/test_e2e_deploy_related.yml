@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    if: github.repository_owner == 'vercel'
+    if: '!github.event.pull_request.head.repo.fork'
     runs-on: ubuntu-latest
 
     env:
