@@ -80,7 +80,13 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
     let afterContext: AfterContext | undefined = undefined
     if (renderOpts && 'waitUntil' in renderOpts) {
-      const cacheScope = renderOpts?.ComponentMod.createCacheScope()
+      const cacheScope =
+        // Can be undefined in a route module.
+        (
+          renderOpts.ComponentMod as
+            | (typeof renderOpts)['ComponentMod']
+            | undefined
+        )?.createCacheScope()
       const { waitUntil } = renderOpts as LoadedRenderOpts
       const _afterContext = createAfter({ waitUntil, cacheScope })
 

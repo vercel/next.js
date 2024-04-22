@@ -1,23 +1,22 @@
 import { unstable_after as after } from 'next/server'
 import { cache } from 'react'
-import { persistentLog } from '../../utils/log'
+import { persistentLog } from '../../../utils/log'
 import { headers } from 'next/headers'
 
 const thing = cache(() => Symbol('cache me please'))
 
 export default function Index({ params }) {
-  const valueFromRender = thing()
-
   const action = async () => {
     'use server'
+    const cachedValue1 = thing()
     after(() => {
-      const valueFromAfter = thing()
+      const cachedValue2 = thing()
 
       console.log(
         [
           '[action] hello from after()',
           '  - ' +
-            (valueFromRender === valueFromAfter
+            (cachedValue2 === cachedValue1
               ? 'cache() WORKS in after()!!!'
               : "cache() doesn't work in after() :("),
           '  - ' +
