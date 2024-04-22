@@ -14520,8 +14520,8 @@
       ]
     },
     "test/production/app-dir-edge-runtime-with-wasm/index.test.ts": {
-      "passed": ["app-dir edge runtime with wasm should have built"],
-      "failed": [],
+      "passed": [],
+      "failed": ["app-dir edge runtime with wasm should have built"],
       "pending": [],
       "flakey": [],
       "runtimeError": false
