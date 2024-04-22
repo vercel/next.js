@@ -7,7 +7,6 @@ import origDebug from 'next/dist/compiled/debug'
 import type { ChildProcess } from 'child_process'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
-import { deepMerge } from '../../lib/deep-merge'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -18,6 +17,18 @@ const ORDERED_COMPILER_NAMES = [
 ] as (keyof typeof COMPILER_INDEXES)[]
 
 let pluginState: Record<any, any> = {}
+
+function deepMerge(target: any, source: any) {
+  const result = { ...target, ...source }
+  for (const key of Object.keys(result)) {
+    result[key] = Array.isArray(target[key])
+      ? (target[key] = [...target[key], ...(source[key] || [])])
+      : typeof target[key] == 'object' && typeof source[key] == 'object'
+      ? deepMerge(target[key], source[key])
+      : result[key]
+  }
+  return result
+}
 
 async function webpackBuildWithWorker(
   compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
