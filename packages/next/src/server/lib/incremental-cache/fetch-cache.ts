@@ -244,7 +244,7 @@ export default class FetchCache implements CacheHandler {
         if (cached.kind === 'FETCH') {
           cached.tags ??= []
           for (const tag of tags ?? []) {
-            if (!cached.tags.include(tag)) {
+            if (!cached.tags.includes(tag)) {
               cached.tag.push(tag)
             }
           }

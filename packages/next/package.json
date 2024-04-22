@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "14.3.0-canary.11",
+  "version": "14.3.0-canary.16",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -82,7 +82,7 @@
     "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
-    "ncc-compiled": "ncc cache clean && taskr ncc"
+    "ncc-compiled": "taskr ncc"
   },
   "taskr": {
     "requires": [
@@ -93,8 +93,8 @@
     ]
   },
   "dependencies": {
-    "@next/env": "14.3.0-canary.11",
-    "@swc/helpers": "0.5.5",
+    "@next/env": "14.3.0-canary.16",
+    "@swc/helpers": "0.5.10",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
@@ -150,10 +150,10 @@
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/polyfill-module": "14.3.0-canary.11",
-    "@next/polyfill-nomodule": "14.3.0-canary.11",
-    "@next/react-refresh-utils": "14.3.0-canary.11",
-    "@next/swc": "14.3.0-canary.11",
+    "@next/polyfill-module": "14.3.0-canary.16",
+    "@next/polyfill-nomodule": "14.3.0-canary.16",
+    "@next/react-refresh-utils": "14.3.0-canary.16",
+    "@next/swc": "14.3.0-canary.16",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
     "@taskr/clear": "1.1.0",
@@ -292,6 +292,7 @@
     "setimmediate": "1.0.5",
     "shell-quote": "1.7.3",
     "source-map": "0.6.1",
+    "source-map-loader": "5.0.0",
     "source-map08": "npm:source-map@0.8.0-beta.0",
     "stacktrace-parser": "0.1.10",
     "stream-browserify": "3.0.0",
