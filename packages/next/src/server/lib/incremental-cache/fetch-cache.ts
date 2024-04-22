@@ -1,7 +1,13 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
-import type { IncrementalCacheValue } from '../../response-cache'
+import type {
+  CachedFetchValue,
+  IncrementalCacheValue,
+} from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
+
+import { z } from 'next/dist/compiled/zod'
+import type zod from 'next/dist/compiled/zod'
 
 import {
   CACHE_ONE_YEAR,
@@ -24,6 +30,18 @@ const CACHE_STATE_HEADER = 'x-vercel-cache-state' as const
 const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
 const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
 const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
+
+const zCachedFetchValue: zod.ZodType<CachedFetchValue> = z.object({
+  kind: z.literal('FETCH'),
+  data: z.object({
+    headers: z.record(z.string()),
+    body: z.string(),
+    url: z.string(),
+    status: z.number().optional(),
+  }),
+  tags: z.array(z.string()).optional(),
+  revalidate: z.number(),
+})
 
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
@@ -236,10 +254,11 @@ export default class FetchCache implements CacheHandler {
         }
 
         const cached: IncrementalCacheValue = await res.json()
+        const cachedParsed = zCachedFetchValue.safeParse(cached)
 
-        if (!cached || cached.kind !== 'FETCH') {
+        if (!cached || !cachedParsed.success) {
           this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+          throw new Error('invalid cache value')
         }
 
         // if new tags were specified, merge those tags to the existing tags
