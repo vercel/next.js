@@ -5,7 +5,10 @@ function filterUnrelatedConsoleCalls(consoleCalls) {
   return consoleCalls.filter((consoleCall) => {
     if (
       consoleCall.message.startsWith('received ws message') ||
-      consoleCall.message.startsWith('[Fast Refresh]')
+      consoleCall.message.startsWith('[Fast Refresh]') ||
+      consoleCall.message.startsWith(
+        'Failed to load resource: the server responded with a status of 404'
+      )
     ) {
       return false
     }
@@ -255,37 +258,25 @@ describe('hardenedXSSProtection', () => {
             ]
           : []
       )
-
-      await browser.elementById('trigger').click()
-
-      await retry(async () => {
-        const consoleCallsAfterInteraction = consoleCalls.slice(
-          initialConsoleCalls.length
-        )
-        expect(
-          filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)
-        ).toEqual([
-          {
-            source: 'error',
-            message: expect.stringContaining(
-              'Next.js has blocked a `javascript:` URL as a security precaution.'
-            ),
-          },
-        ])
-      })
-    } else {
-      // prefetch happens immediately throwing and triggering a client-side exception
-      expect(filterUnrelatedConsoleCalls(consoleErrorCalls)).toEqual(
-        expect.arrayContaining([
-          {
-            source: 'error',
-            message: expect.stringContaining(
-              'Next.js has blocked a `javascript:` URL as a security precaution.'
-            ),
-          },
-        ])
-      )
     }
+
+    await browser.elementById('trigger').click()
+
+    await retry(async () => {
+      const consoleCallsAfterInteraction = consoleCalls.slice(
+        initialConsoleCalls.length
+      )
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
+        [
+          {
+            source: 'error',
+            message: expect.stringContaining(
+              'Next.js has blocked a `javascript:` URL as a security precaution.'
+            ),
+          },
+        ]
+      )
+    })
   })
 
   it('throws on javascript URLs for client-side navigation with as', async () => {
@@ -333,6 +324,8 @@ describe('hardenedXSSProtection', () => {
           },
         ]
       )
+      // UI is still mounted i.e. no error was thrown during render
+      await browser.waitForElementByCss('#trigger')
     })
   })
 
@@ -355,37 +348,18 @@ describe('hardenedXSSProtection', () => {
       const consoleCallsAfterInteraction = filterUnrelatedConsoleCalls(
         consoleCalls.slice(initialConsoleCalls.length)
       )
-      if (consoleCallsAfterInteraction.length === 1) {
-        expect(
-          filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)
-        ).toEqual([
+      expect(filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)).toEqual(
+        [
           {
             source: 'error',
             message: expect.stringContaining(
               'Next.js has blocked a `javascript:` URL as a security precaution.'
             ),
           },
-        ])
-      } else {
-        expect(
-          filterUnrelatedConsoleCalls(consoleCallsAfterInteraction)
-        ).toEqual([
-          {
-            source: 'error',
-            message: expect.stringContaining(
-              'Next.js has blocked a `javascript:` URL as a security precaution.'
-            ),
-          },
-          // React invokeGuardedCallback stuff. Fixed in React 19.0.0-canary-36e62c603-20240418.
-          // Unclear why this is not always happening
-          {
-            source: 'error',
-            message: expect.stringContaining(
-              'Next.js has blocked a `javascript:` URL as a security precaution.'
-            ),
-          },
-        ])
-      }
+        ]
+      )
+      // UI is still mounted i.e. no error was thrown during render
+      await browser.waitForElementByCss('#trigger')
     })
   })
 

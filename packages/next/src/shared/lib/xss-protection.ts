@@ -18,9 +18,8 @@ export function trustHref(href: UntrustedHref | TrustedHref) {
     // TODO: `data:`? check why we didn't do this in React.
     if (isJavaScriptProtocol(href)) {
       if (process.env.__NEXT_HARDENED_XSS_PROTECTION) {
-        throw new Error(
-          'Next.js has blocked a `javascript:` URL as a security precaution.'
-        )
+        // eslint-disable-next-line no-script-url
+        return "javascript:throw new Error('Next.js has blocked a `javascript:` URL as a security precaution.')"
       } else if (process.env.NODE_ENV !== 'production') {
         console.error(
           'A future version of Next.js will block `javascript:` URLs as a security precaution. ' +

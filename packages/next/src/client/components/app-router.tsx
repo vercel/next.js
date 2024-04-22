@@ -356,7 +356,6 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: (untrustedHref, options) => {
-        // Moving this check into the transition would trigger error boundaries
         const trustedHref = trustHref(untrustedHref)
         // Don't prefetch for bots as they don't navigate.
         // Don't prefetch during development (improves compilation performance)
@@ -380,14 +379,12 @@ function Router({
         })
       },
       replace: (untrustedHref, options = {}) => {
-        // Moving this check into the transition would trigger error boundaries
         const trustedHref = trustHref(untrustedHref)
         startTransition(() => {
           navigate(trustedHref, 'replace', options.scroll ?? true)
         })
       },
       push: (untrustedHref, options = {}) => {
-        // Moving this check into the transition would trigger error boundaries
         const trustedHref = trustHref(untrustedHref)
         startTransition(() => {
           navigate(trustedHref, 'push', options.scroll ?? true)
