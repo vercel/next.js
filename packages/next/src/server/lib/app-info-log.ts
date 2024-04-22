@@ -12,7 +12,7 @@ export function logStartInfo({
   appUrl,
   envInfo,
   expFeatureInfo,
-  maxExperimentalFeatures,
+  maxExperimentalFeatures = Infinity,
 }: {
   networkUrl: string | null
   appUrl: string | null
@@ -21,31 +21,27 @@ export function logStartInfo({
   maxExperimentalFeatures?: number
 }) {
   Log.bootstrap(
-    bold(
-      purple(
-        ` ${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
-          process.env.TURBOPACK ? ' (turbo)' : ''
-        }`
-      )
-    )
+    `${bold(
+      purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
+    )}${process.env.TURBOPACK ? ' (turbo)' : ''}`
   )
   if (appUrl) {
-    Log.bootstrap(` - Local:        ${appUrl}`)
+    Log.bootstrap(`- Local:        ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(` - Network:      ${networkUrl}`)
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
-    // only show maximum 3 flags
+    Log.bootstrap(`- Experiments (use with caution):`)
+    // only show a maximum number of flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
-      Log.bootstrap(`   · ${exp}`)
+      Log.bootstrap(`  · ${exp}`)
     }
-    /* ${expFeatureInfo.length - 3} more */
-    if (expFeatureInfo.length > 3 && maxExperimentalFeatures) {
-      Log.bootstrap(`   · ...`)
+    /* indicate if there are more than the maximum shown no. flags */
+    if (expFeatureInfo.length > maxExperimentalFeatures) {
+      Log.bootstrap(`  · ...`)
     }
   }
 

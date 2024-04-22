@@ -82,10 +82,7 @@ describe('normalizeCatchallRoutes', () => {
 
     // ensure values are correct after normalizing
     expect(appPaths).toMatchObject({
-      '/': [
-        '/page',
-        '/@slot/[...catchAll]/page', // inserted
-      ],
+      '/': ['/page'],
       '/[...catchAll]': ['/[...catchAll]/page', '/@slot/[...catchAll]/page'],
       '/bar': [
         '/bar/page',
@@ -100,6 +97,30 @@ describe('normalizeCatchallRoutes', () => {
         '/@slot/foo/[...catchAll]/page',
         '/[...catchAll]/page', //inserted
       ],
+    })
+  })
+
+  // TODO-APP: Enable this test once support for optional catch-all slots is added.
+  it.skip('should only match optional catch-all paths to the "index" of a segment', () => {
+    const appPaths = {
+      '/': ['/page'],
+      '/[[...catchAll]]': ['/@slot/[[...catchAll]]/page'],
+      '/foo': ['/foo/page'],
+      '/foo/[[...catchAll]]': ['/foo/@slot/[[...catchAll]]/page'],
+    }
+
+    // normalize appPaths against catchAlls
+    normalizeCatchAllRoutes(appPaths)
+
+    // ensure values are correct after normalizing
+    expect(appPaths).toMatchObject({
+      '/': [
+        '/page',
+        '/@slot/[[...catchAll]]/page', // inserted
+      ],
+      '/[[...catchAll]]': ['/@slot/[[...catchAll]]/page'],
+      '/foo': ['/foo/page', '/@slot/[[...catchAll]]/page'],
+      '/foo/[[...catchAll]]': ['/foo/@slot/[[...catchAll]]/page'],
     })
   })
 

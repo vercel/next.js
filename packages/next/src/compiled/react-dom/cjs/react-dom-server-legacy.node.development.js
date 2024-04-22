@@ -18,7 +18,7 @@ var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-canary-60a927d04-20240113';
+var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -73,6 +73,324 @@ function printWarning(level, format, args) {
 
     Function.prototype.apply.call(console[level], console, argsWithFormat);
   }
+}
+
+// ATTENTION
+// When adding new symbols to this file,
+// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
+
+var REACT_CONSUMER_TYPE = Symbol.for('react.consumer');
+var REACT_CONTEXT_TYPE = Symbol.for('react.context');
+var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
+var REACT_MEMO_TYPE = Symbol.for('react.memo');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SCOPE_TYPE = Symbol.for('react.scope');
+var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
+var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
+var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
+var REACT_CACHE_TYPE = Symbol.for('react.cache');
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var FAUX_ITERATOR_SYMBOL = '@@iterator';
+function getIteratorFn(maybeIterable) {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
+    return null;
+  }
+
+  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
+  if (typeof maybeIterator === 'function') {
+    return maybeIterator;
+  }
+
+  return null;
+}
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
+}
+
+// in case they error.
+
+var jsxPropsParents = new WeakMap();
+var jsxChildrenParents = new WeakMap();
+function objectName(object) {
+  // $FlowFixMe[method-unbinding]
+  var name = Object.prototype.toString.call(object);
+  return name.replace(/^\[object (.*)\]$/, function (m, p0) {
+    return p0;
+  });
+}
+
+function describeKeyForErrorMessage(key) {
+  var encodedKey = JSON.stringify(key);
+  return '"' + key + '"' === encodedKey ? key : encodedKey;
+}
+
+function describeValueForErrorMessage(value) {
+  switch (typeof value) {
+    case 'string':
+      {
+        return JSON.stringify(value.length <= 10 ? value : value.slice(0, 10) + '...');
+      }
+
+    case 'object':
+      {
+        if (isArray(value)) {
+          return '[...]';
+        }
+
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var name = objectName(value);
+
+        if (name === 'Object') {
+          return '{...}';
+        }
+
+        return name;
+      }
+
+    case 'function':
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var _name = value.displayName || value.name;
+
+        return _name ? 'function ' + _name : 'function';
+      }
+
+    default:
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      return String(value);
+  }
+}
+
+function describeElementType(type) {
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+  }
+
+  if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_FORWARD_REF_TYPE:
+        return describeElementType(type.render);
+
+      case REACT_MEMO_TYPE:
+        return describeElementType(type.type);
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            // Lazy may contain any component type so we recursively resolve it.
+            return describeElementType(init(payload));
+          } catch (x) {}
+        }
+    }
+  }
+
+  return '';
+}
+
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
+}
+
+function describeObjectForErrorMessage(objectOrArray, expandedName) {
+  var objKind = objectName(objectOrArray);
+
+  if (objKind !== 'Object' && objKind !== 'Array') {
+    return objKind;
+  }
+
+  var str = '';
+  var start = -1;
+  var length = 0;
+
+  if (isArray(objectOrArray)) {
+    if (jsxChildrenParents.has(objectOrArray)) {
+      // Print JSX Children
+      var type = jsxChildrenParents.get(objectOrArray);
+      str = '<' + describeElementType(type) + '>';
+      var array = objectOrArray;
+
+      for (var i = 0; i < array.length; i++) {
+        var value = array[i];
+        var substr = void 0;
+
+        if (typeof value === 'string') {
+          substr = value;
+        } else if (typeof value === 'object' && value !== null) {
+          substr = '{' + describeObjectForErrorMessage(value) + '}';
+        } else {
+          substr = '{' + describeValueForErrorMessage(value) + '}';
+        }
+
+        if ('' + i === expandedName) {
+          start = str.length;
+          length = substr.length;
+          str += substr;
+        } else if (substr.length < 15 && str.length + substr.length < 40) {
+          str += substr;
+        } else {
+          str += '{...}';
+        }
+      }
+
+      str += '</' + describeElementType(type) + '>';
+    } else {
+      // Print Array
+      str = '[';
+      var _array = objectOrArray;
+
+      for (var _i = 0; _i < _array.length; _i++) {
+        if (_i > 0) {
+          str += ', ';
+        }
+
+        var _value = _array[_i];
+
+        var _substr = void 0;
+
+        if (typeof _value === 'object' && _value !== null) {
+          _substr = describeObjectForErrorMessage(_value);
+        } else {
+          _substr = describeValueForErrorMessage(_value);
+        }
+
+        if ('' + _i === expandedName) {
+          start = str.length;
+          length = _substr.length;
+          str += _substr;
+        } else if (_substr.length < 10 && str.length + _substr.length < 40) {
+          str += _substr;
+        } else {
+          str += '...';
+        }
+      }
+
+      str += ']';
+    }
+  } else {
+    if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
+      str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
+    } else if (jsxPropsParents.has(objectOrArray)) {
+      // Print JSX
+      var _type = jsxPropsParents.get(objectOrArray);
+
+      str = '<' + (describeElementType(_type) || '...');
+      var object = objectOrArray;
+      var names = Object.keys(object);
+
+      for (var _i2 = 0; _i2 < names.length; _i2++) {
+        str += ' ';
+        var name = names[_i2];
+        str += describeKeyForErrorMessage(name) + '=';
+        var _value2 = object[name];
+
+        var _substr2 = void 0;
+
+        if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
+          _substr2 = describeObjectForErrorMessage(_value2);
+        } else {
+          _substr2 = describeValueForErrorMessage(_value2);
+        }
+
+        if (typeof _value2 !== 'string') {
+          _substr2 = '{' + _substr2 + '}';
+        }
+
+        if (name === expandedName) {
+          start = str.length;
+          length = _substr2.length;
+          str += _substr2;
+        } else if (_substr2.length < 10 && str.length + _substr2.length < 40) {
+          str += _substr2;
+        } else {
+          str += '...';
+        }
+      }
+
+      str += '>';
+    } else {
+      // Print Object
+      str = '{';
+      var _object = objectOrArray;
+
+      var _names = Object.keys(_object);
+
+      for (var _i3 = 0; _i3 < _names.length; _i3++) {
+        if (_i3 > 0) {
+          str += ', ';
+        }
+
+        var _name2 = _names[_i3];
+        str += describeKeyForErrorMessage(_name2) + ': ';
+        var _value3 = _object[_name2];
+
+        var _substr3 = void 0;
+
+        if (typeof _value3 === 'object' && _value3 !== null) {
+          _substr3 = describeObjectForErrorMessage(_value3);
+        } else {
+          _substr3 = describeValueForErrorMessage(_value3);
+        }
+
+        if (_name2 === expandedName) {
+          start = str.length;
+          length = _substr3.length;
+          str += _substr3;
+        } else if (_substr3.length < 10 && str.length + _substr3.length < 40) {
+          str += _substr3;
+        } else {
+          str += '...';
+        }
+      }
+
+      str += '}';
+    }
+  }
+
+  if (expandedName === undefined) {
+    return str;
+  }
+
+  if (start > -1 && length > 0) {
+    var highlight = ' '.repeat(start) + '^'.repeat(length);
+    return '\n  ' + str + '\n  ' + highlight;
+  }
+
+  return '\n  ' + str;
 }
 
 // A pure JS implementation of a string hashing function. We do not use it for
@@ -186,9 +504,6 @@ function stringToChunk(content) {
 }
 function stringToPrecomputedChunk(content) {
   return content;
-}
-function clonePrecomputedChunk(chunk) {
-  return chunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
@@ -1191,6 +1506,7 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       case 'defaultChecked':
       case 'innerHTML':
+      case 'ref':
         {
           return true;
         }
@@ -1601,19 +1917,13 @@ function sanitizeURL(url) {
   return url;
 }
 
-var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
-}
-
 // The build script is at scripts/rollup/generate-inline-fizz-runtime.js.
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
 var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
-var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'A React form was unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.getRootNode(),(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,\nd,b))}});';
+var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.ownerDocument||c,(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,d,b))}});';
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
@@ -1808,6 +2118,7 @@ function createRenderState$1(resumableState, nonce, externalRuntimeConfig, impor
     headChunks: null,
     externalRuntimeScript: externalRuntimeScript,
     bootstrapChunks: bootstrapChunks,
+    importMapChunks: importMapChunks,
     onHeaders: onHeaders,
     headers: headers,
     resets: {
@@ -1822,9 +2133,7 @@ function createRenderState$1(resumableState, nonce, externalRuntimeConfig, impor
       style: {}
     },
     charsetChunks: [],
-    preconnectChunks: [],
-    importMapChunks: importMapChunks,
-    preloadChunks: [],
+    viewportChunks: [],
     hoistableChunks: [],
     // cleared on flush
     preconnects: new Set(),
@@ -1843,7 +2152,7 @@ function createRenderState$1(resumableState, nonce, externalRuntimeConfig, impor
     },
     nonce: nonce,
     // like a module global for currently rendering boundary
-    boundaryResources: null,
+    hoistableState: null,
     stylesToHoist: false
   };
 
@@ -2221,7 +2530,7 @@ function makeFormFieldPrefix(resumableState) {
 
 
 var actionJavaScriptURL = stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
-"javascript:throw new Error('A React form was unexpectedly submitted.')"));
+"javascript:throw new Error('React form unexpectedly submitted.')"));
 var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 
 function pushAdditionalFormField(value, key) {
@@ -2383,6 +2692,7 @@ function pushAttribute(target, name, value) // not null or undefined
 
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
+    case 'ref':
       // Ignored. These are built-in to React on the client.
       return;
 
@@ -3262,7 +3572,7 @@ function pushStartTextArea(target, props) {
   return null;
 }
 
-function pushMeta(target, props, renderState, textEmbedded, insertionMode, noscriptTagInScope) {
+function pushMeta(target, props, renderState, textEmbedded, insertionMode, noscriptTagInScope, isFallback) {
   {
     if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
       return pushSelfClosing(target, props, 'meta');
@@ -3273,11 +3583,24 @@ function pushMeta(target, props, renderState, textEmbedded, insertionMode, noscr
         target.push(textSeparator);
       }
 
-      if (typeof props.charSet === 'string') {
+      if (isFallback) {
+        // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
+        // because they are likely superceded by primary content and we want to avoid needing to clean
+        // them up when the primary content is ready. They are never hydrated on the client anyway because
+        // boundaries in fallback are awaited or client render, in either case there is never hydration
+        return null;
+      } else if (typeof props.charSet === 'string') {
+        // "charset" Should really be config and not picked up from tags however since this is
+        // the only way to embed the tag today we flush it on a special queue on the Request so it
+        // can go before everything else. Like viewport this means that the tag will escape it's
+        // parent container.
         return pushSelfClosing(renderState.charsetChunks, props, 'meta');
       } else if (props.name === 'viewport') {
-        // "viewport" isn't related to preconnect but it has the right priority
-        return pushSelfClosing(renderState.preconnectChunks, props, 'meta');
+        // "viewport" is flushed on the Request so it can go earlier that Float resources that
+        // might be affected by it. This means it can escape the boundary it is rendered within.
+        // This is a pragmatic solution to viewport being incredibly sensitive to document order
+        // without requiring all hoistables to be flushed too early.
+        return pushSelfClosing(renderState.viewportChunks, props, 'meta');
       } else {
         return pushSelfClosing(renderState.hoistableChunks, props, 'meta');
       }
@@ -3285,7 +3608,7 @@ function pushMeta(target, props, renderState, textEmbedded, insertionMode, noscr
   }
 }
 
-function pushLink(target, props, resumableState, renderState, textEmbedded, insertionMode, noscriptTagInScope) {
+function pushLink(target, props, resumableState, renderState, hoistableState, textEmbedded, insertionMode, noscriptTagInScope, isFallback) {
   {
     var rel = props.rel;
     var href = props.href;
@@ -3377,8 +3700,8 @@ function pushLink(target, props, resumableState, renderState, textEmbedded, inse
 
           styleQueue.sheets.set(key, resource);
 
-          if (renderState.boundaryResources) {
-            renderState.boundaryResources.stylesheets.add(resource);
+          if (hoistableState) {
+            hoistableState.stylesheets.add(resource);
           }
         } else {
           // We need to track whether this boundary should wait on this resource or not.
@@ -3390,8 +3713,8 @@ function pushLink(target, props, resumableState, renderState, textEmbedded, inse
             var _resource = styleQueue.sheets.get(key);
 
             if (_resource) {
-              if (renderState.boundaryResources) {
-                renderState.boundaryResources.stylesheets.add(_resource);
+              if (hoistableState) {
+                hoistableState.stylesheets.add(_resource);
               }
             }
           }
@@ -3418,16 +3741,14 @@ function pushLink(target, props, resumableState, renderState, textEmbedded, inse
         target.push(textSeparator);
       }
 
-      switch (props.rel) {
-        case 'preconnect':
-        case 'dns-prefetch':
-          return pushLinkImpl(renderState.preconnectChunks, props);
-
-        case 'preload':
-          return pushLinkImpl(renderState.preloadChunks, props);
-
-        default:
-          return pushLinkImpl(renderState.hoistableChunks, props);
+      if (isFallback) {
+        // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
+        // because they are likely superceded by primary content and we want to avoid needing to clean
+        // them up when the primary content is ready. They are never hydrated on the client anyway because
+        // boundaries in fallback are awaited or client render, in either case there is never hydration
+        return null;
+      } else {
+        return pushLinkImpl(renderState.hoistableChunks, props);
       }
     }
   }
@@ -3460,7 +3781,7 @@ function pushLinkImpl(target, props) {
   return null;
 }
 
-function pushStyle(target, props, resumableState, renderState, textEmbedded, insertionMode, noscriptTagInScope) {
+function pushStyle(target, props, resumableState, renderState, hoistableState, textEmbedded, insertionMode, noscriptTagInScope) {
   {
     if (hasOwnProperty.call(props, 'children')) {
       var children = props.children;
@@ -3528,8 +3849,8 @@ function pushStyle(target, props, resumableState, renderState, textEmbedded, ins
       // it. However, it's possible when you resume that the style has already been emitted
       // and then it wouldn't be recreated in the RenderState and there's no need to track
       // it again since we should've hoisted it to the shell already.
-      if (renderState.boundaryResources) {
-        renderState.boundaryResources.styles.add(styleQueue);
+      if (hoistableState) {
+        hoistableState.styles.add(styleQueue);
       }
     }
 
@@ -3775,7 +4096,7 @@ function pushStartMenuItem(target, props) {
   return null;
 }
 
-function pushTitle(target, props, renderState, insertionMode, noscriptTagInScope) {
+function pushTitle(target, props, renderState, insertionMode, noscriptTagInScope, isFallback) {
   {
     if (hasOwnProperty.call(props, 'children')) {
       var children = props.children;
@@ -3799,8 +4120,15 @@ function pushTitle(target, props, renderState, insertionMode, noscriptTagInScope
 
   {
     if (insertionMode !== SVG_MODE && !noscriptTagInScope && props.itemProp == null) {
-      pushTitleImpl(renderState.hoistableChunks, props);
-      return null;
+      if (isFallback) {
+        // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
+        // because they are likely superceded by primary content and we want to avoid needing to clean
+        // them up when the primary content is ready. They are never hydrated on the client anyway because
+        // boundaries in fallback are awaited or client render, in either case there is never hydration
+        return null;
+      } else {
+        pushTitleImpl(renderState.hoistableChunks, props);
+      }
     } else {
       return pushTitleImpl(target, props);
     }
@@ -4064,6 +4392,7 @@ function pushStartCustomElement(target, props, tag) {
 
         case 'suppressContentEditableWarning':
         case 'suppressHydrationWarning':
+        case 'ref':
           // Ignored. These are built-in to React on the client.
           break;
 
@@ -4183,7 +4512,7 @@ function startChunkForTag(tag) {
 
   return tagStartChunk;
 }
-function pushStartInstance(target, type, props, resumableState, renderState, formatContext, textEmbedded) {
+function pushStartInstance(target, type, props, resumableState, renderState, hoistableState, formatContext, textEmbedded, isFallback) {
   {
     validateProperties$2(type, props);
     validateProperties$1(type, props);
@@ -4205,7 +4534,14 @@ function pushStartInstance(target, type, props, resumableState, renderState, for
     case 'span':
     case 'svg':
     case 'path':
+      // Fast track very common tags
+      break;
+
     case 'a':
+      {
+        break;
+      }
+
     case 'g':
     case 'p':
     case 'li':
@@ -4235,19 +4571,19 @@ function pushStartInstance(target, type, props, resumableState, renderState, for
       return pushStartMenuItem(target, props);
 
     case 'title':
-      return pushTitle(target, props, renderState, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE)) ;
+      return pushTitle(target, props, renderState, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE), isFallback) ;
 
     case 'link':
-      return pushLink(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
+      return pushLink(target, props, resumableState, renderState, hoistableState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE), isFallback);
 
     case 'script':
       return pushScript(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE)) ;
 
     case 'style':
-      return pushStyle(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
+      return pushStyle(target, props, resumableState, renderState, hoistableState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
 
     case 'meta':
-      return pushMeta(target, props, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
+      return pushMeta(target, props, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE), isFallback);
     // Newline eating tags
 
     case 'listing':
@@ -4675,7 +5011,7 @@ var completeBoundaryWithStylesData1 = stringToPrecomputedChunk('<template data-r
 var completeBoundaryData2 = stringToPrecomputedChunk('" data-sid="');
 var completeBoundaryData3a = stringToPrecomputedChunk('" data-sty="');
 var completeBoundaryDataEnd = dataElementQuotedEnd;
-function writeCompletedBoundaryInstruction(destination, resumableState, renderState, id, boundaryResources) {
+function writeCompletedBoundaryInstruction(destination, resumableState, renderState, id, hoistableState) {
   var requiresStyleInsertion;
 
   {
@@ -4695,7 +5031,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     if (requiresStyleInsertion) {
       if ((resumableState.instructions & SentCompleteBoundaryFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction | SentCompleteBoundaryFunction;
-        writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
+        writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
       } else if ((resumableState.instructions & SentStyleInsertionFunction) === NothingSent) {
         resumableState.instructions |= SentStyleInsertionFunction;
         writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
@@ -4738,12 +5074,12 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     //  - data writer emits a string literal, which is escaped as html
     //    e.g. [&#34;A&#34;, &#34;B&#34;]
     if (scriptFormat) {
-      writeChunk(destination, completeBoundaryScript3a); // boundaryResources encodes an array literal
+      writeChunk(destination, completeBoundaryScript3a); // hoistableState encodes an array literal
 
-      writeStyleResourceDependenciesInJS(destination, boundaryResources);
+      writeStyleResourceDependenciesInJS(destination, hoistableState);
     } else {
       writeChunk(destination, completeBoundaryData3a);
-      writeStyleResourceDependenciesInAttr(destination, boundaryResources);
+      writeStyleResourceDependenciesInAttr(destination, hoistableState);
     }
   } else {
     if (scriptFormat) {
@@ -4961,14 +5297,17 @@ function hasStylesToHoist(stylesheet) {
   return false;
 }
 
-function writeResourcesForBoundary(destination, boundaryResources, renderState) {
+function writeHoistablesForBoundary(destination, hoistableState, renderState) {
   // Reset these on each invocation, they are only safe to read in this function
   currentlyRenderingBoundaryHasStylesToHoist = false;
   destinationHasCapacity = true; // Flush style tags for each precedence this boundary depends on
 
-  boundaryResources.styles.forEach(flushStyleTagsLateForBoundary, destination); // Determine if this boundary has stylesheets that need to be awaited upon completion
+  hoistableState.styles.forEach(flushStyleTagsLateForBoundary, destination); // Determine if this boundary has stylesheets that need to be awaited upon completion
 
-  boundaryResources.stylesheets.forEach(hasStylesToHoist);
+  hoistableState.stylesheets.forEach(hasStylesToHoist); // We don't actually want to flush any hoistables until the boundary is complete so we omit
+  // any further writing here. This is becuase unlike Resources, Hoistable Elements act more like
+  // regular elements, each rendered element has a unique representation in the DOM. We don't want
+  // these elements to appear in the DOM early, before the boundary has actually completed
 
   if (currentlyRenderingBoundaryHasStylesToHoist) {
     renderState.stylesToHoist = true;
@@ -5122,13 +5461,13 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
 
   renderState.preconnects.forEach(flushResource, destination);
   renderState.preconnects.clear();
-  var preconnectChunks = renderState.preconnectChunks;
+  var viewportChunks = renderState.viewportChunks;
 
-  for (i = 0; i < preconnectChunks.length; i++) {
-    writeChunk(destination, preconnectChunks[i]);
+  for (i = 0; i < viewportChunks.length; i++) {
+    writeChunk(destination, viewportChunks[i]);
   }
 
-  preconnectChunks.length = 0;
+  viewportChunks.length = 0;
   renderState.fontPreloads.forEach(flushResource, destination);
   renderState.fontPreloads.clear();
   renderState.highImagePreloads.forEach(flushResource, destination);
@@ -5146,15 +5485,7 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
   renderState.scripts.forEach(flushResource, destination);
   renderState.scripts.clear();
   renderState.bulkPreloads.forEach(flushResource, destination);
-  renderState.bulkPreloads.clear(); // Write embedding preloadChunks
-
-  var preloadChunks = renderState.preloadChunks;
-
-  for (i = 0; i < preloadChunks.length; i++) {
-    writeChunk(destination, preloadChunks[i]);
-  }
-
-  preloadChunks.length = 0; // Write embedding hoistableChunks
+  renderState.bulkPreloads.clear(); // Write embedding hoistableChunks
 
   var hoistableChunks = renderState.hoistableChunks;
 
@@ -5162,14 +5493,11 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
     writeChunk(destination, hoistableChunks[i]);
   }
 
-  hoistableChunks.length = 0; // Flush closing head if necessary
+  hoistableChunks.length = 0;
 
   if (htmlChunks && headChunks === null) {
-    // We have an <html> rendered but no <head> rendered. We however inserted
-    // a <head> up above so we need to emit the </head> now. This is safe because
-    // if the main content contained the </head> it would also have provided a
-    // <head>. This means that all the content inside <html> is either <body> or
-    // invalid HTML
+    // we have an <html> but we inserted an implicit <head> tag. We need
+    // to close it since the main content won't have it
     writeChunk(destination, endChunkForTag('head'));
   }
 } // We don't bother reporting backpressure at the moment because we expect to
@@ -5182,15 +5510,15 @@ function writeHoistables(destination, resumableState, renderState) {
   // We omit charsetChunks because we have already sent the shell and if it wasn't
   // already sent it is too late now.
 
-  renderState.preconnects.forEach(flushResource, destination);
-  renderState.preconnects.clear();
-  var preconnectChunks = renderState.preconnectChunks;
+  var viewportChunks = renderState.viewportChunks;
 
-  for (i = 0; i < preconnectChunks.length; i++) {
-    writeChunk(destination, preconnectChunks[i]);
+  for (i = 0; i < viewportChunks.length; i++) {
+    writeChunk(destination, viewportChunks[i]);
   }
 
-  preconnectChunks.length = 0;
+  viewportChunks.length = 0;
+  renderState.preconnects.forEach(flushResource, destination);
+  renderState.preconnects.clear();
   renderState.fontPreloads.forEach(flushResource, destination);
   renderState.fontPreloads.clear();
   renderState.highImagePreloads.forEach(flushResource, destination);
@@ -5207,15 +5535,7 @@ function writeHoistables(destination, resumableState, renderState) {
   renderState.scripts.forEach(flushResource, destination);
   renderState.scripts.clear();
   renderState.bulkPreloads.forEach(flushResource, destination);
-  renderState.bulkPreloads.clear(); // Write embedding preloadChunks
-
-  var preloadChunks = renderState.preloadChunks;
-
-  for (i = 0; i < preloadChunks.length; i++) {
-    writeChunk(destination, preloadChunks[i]);
-  }
-
-  preloadChunks.length = 0; // Write embedding hoistableChunks
+  renderState.bulkPreloads.clear(); // Write embedding hoistableChunks
 
   var hoistableChunks = renderState.hoistableChunks;
 
@@ -5241,10 +5561,10 @@ var arrayCloseBracket = stringToPrecomputedChunk(']'); // This function writes a
 // E.g.
 //  [["JS_escaped_string1", "JS_escaped_string2"]]
 
-function writeStyleResourceDependenciesInJS(destination, boundaryResources) {
+function writeStyleResourceDependenciesInJS(destination, hoistableState) {
   writeChunk(destination, arrayFirstOpenBracket);
   var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
-  boundaryResources.stylesheets.forEach(function (resource) {
+  hoistableState.stylesheets.forEach(function (resource) {
     if (resource.state === PREAMBLE) ; else if (resource.state === LATE) {
       // We only need to emit the href because this resource flushed in an earlier
       // boundary already which encoded the attributes necessary to construct
@@ -5340,6 +5660,7 @@ function writeStyleResourceAttributeInJS(destination, name, value) // not null o
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
     case 'style':
+    case 'ref':
       // Ignored
       return;
     // Attribute renames
@@ -5411,10 +5732,10 @@ function writeStyleResourceAttributeInJS(destination, name, value) // not null o
 //  [[&quot;JSON_escaped_string1&quot;, &quot;JSON_escaped_string2&quot;]]
 
 
-function writeStyleResourceDependenciesInAttr(destination, boundaryResources) {
+function writeStyleResourceDependenciesInAttr(destination, hoistableState) {
   writeChunk(destination, arrayFirstOpenBracket);
   var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
-  boundaryResources.stylesheets.forEach(function (resource) {
+  hoistableState.stylesheets.forEach(function (resource) {
     if (resource.state === PREAMBLE) ; else if (resource.state === LATE) {
       // We only need to emit the href because this resource flushed in an earlier
       // boundary already which encoded the attributes necessary to construct
@@ -5510,6 +5831,7 @@ function writeStyleResourceAttributeInAttr(destination, name, value) // not null
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
     case 'style':
+    case 'ref':
       // Ignored
       return;
     // Attribute renames
@@ -5585,14 +5907,11 @@ var PENDING$1 = 0;
 var PRELOADED = 1;
 var PREAMBLE = 2;
 var LATE = 3;
-function createBoundaryResources() {
+function createHoistableState() {
   return {
     styles: new Set(),
     stylesheets: new Set()
   };
-}
-function setCurrentlyRenderingBoundaryResourcesTarget(renderState, boundaryResources) {
-  renderState.boundaryResources = boundaryResources;
 }
 
 function getResourceKey(href) {
@@ -6395,13 +6714,9 @@ function hoistStylesheetDependency(stylesheet) {
   this.stylesheets.add(stylesheet);
 }
 
-function hoistResources(renderState, source) {
-  var currentBoundaryResources = renderState.boundaryResources;
-
-  if (currentBoundaryResources) {
-    source.styles.forEach(hoistStyleQueueDependency, currentBoundaryResources);
-    source.stylesheets.forEach(hoistStylesheetDependency, currentBoundaryResources);
-  }
+function hoistHoistables(parentState, childState) {
+  childState.styles.forEach(hoistStyleQueueDependency, parentState);
+  childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
 } // This function is called at various times depending on whether we are rendering
 // or prerendering. In this implementation we only actually emit headers once and
 // subsequent calls are ignored. We track whether the request has a completed shell
@@ -6508,13 +6823,12 @@ function createRenderState(resumableState, generateStaticMarkup) {
     headChunks: renderState.headChunks,
     externalRuntimeScript: renderState.externalRuntimeScript,
     bootstrapChunks: renderState.bootstrapChunks,
+    importMapChunks: renderState.importMapChunks,
     onHeaders: renderState.onHeaders,
     headers: renderState.headers,
     resets: renderState.resets,
     charsetChunks: renderState.charsetChunks,
-    preconnectChunks: renderState.preconnectChunks,
-    importMapChunks: renderState.importMapChunks,
-    preloadChunks: renderState.preloadChunks,
+    viewportChunks: renderState.viewportChunks,
     hoistableChunks: renderState.hoistableChunks,
     preconnects: renderState.preconnects,
     fontPreloads: renderState.fontPreloads,
@@ -6525,7 +6839,6 @@ function createRenderState(resumableState, generateStaticMarkup) {
     scripts: renderState.scripts,
     bulkPreloads: renderState.bulkPreloads,
     preloads: renderState.preloads,
-    boundaryResources: renderState.boundaryResources,
     stylesToHoist: renderState.stylesToHoist,
     // This is an extra field for the legacy renderer
     generateStaticMarkup: generateStaticMarkup
@@ -6582,45 +6895,6 @@ function writeEndClientRenderedSuspenseBoundary(destination, renderState) {
   return writeEndClientRenderedSuspenseBoundary$1(destination);
 }
 var NotPendingTransition = NotPending;
-
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
-var REACT_PORTAL_TYPE = Symbol.for('react.portal');
-var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
-var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
-var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
-var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
-var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
-var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
-var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
-var REACT_MEMO_TYPE = Symbol.for('react.memo');
-var REACT_LAZY_TYPE = Symbol.for('react.lazy');
-var REACT_SCOPE_TYPE = Symbol.for('react.scope');
-var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
-var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
-var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
-var REACT_CACHE_TYPE = Symbol.for('react.cache');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
-var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
-var FAUX_ITERATOR_SYMBOL = '@@iterator';
-function getIteratorFn(maybeIterable) {
-  if (maybeIterable === null || typeof maybeIterable !== 'object') {
-    return null;
-  }
-
-  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
-
-  if (typeof maybeIterator === 'function') {
-    return maybeIterator;
-  }
-
-  return null;
-}
 
 function getWrappedName(outerType, innerType, wrapperName) {
   var displayName = outerType.displayName;
@@ -6693,13 +6967,23 @@ function getComponentNameFromType(type) {
     }
 
     switch (type.$$typeof) {
+      case REACT_PROVIDER_TYPE:
+        {
+          var provider = type;
+          return getContextName(provider._context) + '.Provider';
+        }
+
       case REACT_CONTEXT_TYPE:
         var context = type;
-        return getContextName(context) + '.Consumer';
 
-      case REACT_PROVIDER_TYPE:
-        var provider = type;
-        return getContextName(provider._context) + '.Provider';
+        {
+          return getContextName(context) + '.Consumer';
+        }
+
+      case REACT_CONSUMER_TYPE:
+        {
+          return null;
+        }
 
       case REACT_FORWARD_REF_TYPE:
         return getWrappedName(type, type.render, 'ForwardRef');
@@ -6725,502 +7009,10 @@ function getComponentNameFromType(type) {
             return null;
           }
         }
-
     }
   }
 
   return null;
-}
-
-// Helpers to patch console.logs to avoid logging during side-effect free
-// replaying on render function. This currently only patches the object
-// lazily which won't cover if the log function was extracted eagerly.
-// We could also eagerly patch the method.
-var disabledDepth = 0;
-var prevLog;
-var prevInfo;
-var prevWarn;
-var prevError;
-var prevGroup;
-var prevGroupCollapsed;
-var prevGroupEnd;
-
-function disabledLog() {}
-
-disabledLog.__reactDisabledLog = true;
-function disableLogs() {
-  {
-    if (disabledDepth === 0) {
-      /* eslint-disable react-internal/no-production-logging */
-      prevLog = console.log;
-      prevInfo = console.info;
-      prevWarn = console.warn;
-      prevError = console.error;
-      prevGroup = console.group;
-      prevGroupCollapsed = console.groupCollapsed;
-      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
-
-      var props = {
-        configurable: true,
-        enumerable: true,
-        value: disabledLog,
-        writable: true
-      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
-
-      Object.defineProperties(console, {
-        info: props,
-        log: props,
-        warn: props,
-        error: props,
-        group: props,
-        groupCollapsed: props,
-        groupEnd: props
-      });
-      /* eslint-enable react-internal/no-production-logging */
-    }
-
-    disabledDepth++;
-  }
-}
-function reenableLogs() {
-  {
-    disabledDepth--;
-
-    if (disabledDepth === 0) {
-      /* eslint-disable react-internal/no-production-logging */
-      var props = {
-        configurable: true,
-        enumerable: true,
-        writable: true
-      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
-
-      Object.defineProperties(console, {
-        log: assign({}, props, {
-          value: prevLog
-        }),
-        info: assign({}, props, {
-          value: prevInfo
-        }),
-        warn: assign({}, props, {
-          value: prevWarn
-        }),
-        error: assign({}, props, {
-          value: prevError
-        }),
-        group: assign({}, props, {
-          value: prevGroup
-        }),
-        groupCollapsed: assign({}, props, {
-          value: prevGroupCollapsed
-        }),
-        groupEnd: assign({}, props, {
-          value: prevGroupEnd
-        })
-      });
-      /* eslint-enable react-internal/no-production-logging */
-    }
-
-    if (disabledDepth < 0) {
-      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
-    }
-  }
-}
-
-var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
-var prefix;
-function describeBuiltInComponentFrame(name, source, ownerFn) {
-  {
-    if (prefix === undefined) {
-      // Extract the VM specific prefix used by each line.
-      try {
-        throw Error();
-      } catch (x) {
-        var match = x.stack.trim().match(/\n( *(at )?)/);
-        prefix = match && match[1] || '';
-      }
-    } // We use the prefix to ensure our stacks line up with native stack frames.
-
-
-    return '\n' + prefix + name;
-  }
-}
-var reentry = false;
-var componentFrameCache;
-
-{
-  var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
-  componentFrameCache = new PossiblyWeakMap();
-}
-/**
- * Leverages native browser/VM stack frames to get proper details (e.g.
- * filename, line + col number) for a single component in a component stack. We
- * do this by:
- *   (1) throwing and catching an error in the function - this will be our
- *       control error.
- *   (2) calling the component which will eventually throw an error that we'll
- *       catch - this will be our sample error.
- *   (3) diffing the control and sample error stacks to find the stack frame
- *       which represents our component.
- */
-
-
-function describeNativeComponentFrame(fn, construct) {
-  // If something asked for a stack inside a fake render, it should get ignored.
-  if (!fn || reentry) {
-    return '';
-  }
-
-  {
-    var frame = componentFrameCache.get(fn);
-
-    if (frame !== undefined) {
-      return frame;
-    }
-  }
-
-  reentry = true;
-  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
-
-  Error.prepareStackTrace = undefined;
-  var previousDispatcher;
-
-  {
-    previousDispatcher = ReactCurrentDispatcher$1.current; // Set the dispatcher in DEV because this might be call in the render function
-    // for warnings.
-
-    ReactCurrentDispatcher$1.current = null;
-    disableLogs();
-  }
-  /**
-   * Finding a common stack frame between sample and control errors can be
-   * tricky given the different types and levels of stack trace truncation from
-   * different JS VMs. So instead we'll attempt to control what that common
-   * frame should be through this object method:
-   * Having both the sample and control errors be in the function under the
-   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
-   * `displayName` properties of the function ensures that a stack
-   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
-   * it for both control and sample stacks.
-   */
-
-
-  var RunInRootFrame = {
-    DetermineComponentFrameRoot: function () {
-      var control;
-
-      try {
-        // This should throw.
-        if (construct) {
-          // Something should be setting the props in the constructor.
-          var Fake = function () {
-            throw Error();
-          }; // $FlowFixMe[prop-missing]
-
-
-          Object.defineProperty(Fake.prototype, 'props', {
-            set: function () {
-              // We use a throwing setter instead of frozen or non-writable props
-              // because that won't throw in a non-strict mode function.
-              throw Error();
-            }
-          });
-
-          if (typeof Reflect === 'object' && Reflect.construct) {
-            // We construct a different control for this case to include any extra
-            // frames added by the construct call.
-            try {
-              Reflect.construct(Fake, []);
-            } catch (x) {
-              control = x;
-            }
-
-            Reflect.construct(fn, [], Fake);
-          } else {
-            try {
-              Fake.call();
-            } catch (x) {
-              control = x;
-            } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-            fn.call(Fake.prototype);
-          }
-        } else {
-          try {
-            throw Error();
-          } catch (x) {
-            control = x;
-          } // TODO(luna): This will currently only throw if the function component
-          // tries to access React/ReactDOM/props. We should probably make this throw
-          // in simple components too
-
-
-          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-          // component, which we don't yet support. Attach a noop catch handler to
-          // silence the error.
-          // TODO: Implement component stacks for async client components?
-
-          if (maybePromise && typeof maybePromise.catch === 'function') {
-            maybePromise.catch(function () {});
-          }
-        }
-      } catch (sample) {
-        // This is inlined manually because closure doesn't do it for us.
-        if (sample && control && typeof sample.stack === 'string') {
-          return [sample.stack, control.stack];
-        }
-      }
-
-      return [null, null];
-    }
-  }; // $FlowFixMe[prop-missing]
-
-  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
-  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
-
-  if (namePropDescriptor && namePropDescriptor.configurable) {
-    // V8 utilizes a function's `name` property when generating a stack trace.
-    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
-    // is set to `false`.
-    // $FlowFixMe[cannot-write]
-    'name', {
-      value: 'DetermineComponentFrameRoot'
-    });
-  }
-
-  try {
-    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
-        sampleStack = _RunInRootFrame$Deter[0],
-        controlStack = _RunInRootFrame$Deter[1];
-
-    if (sampleStack && controlStack) {
-      // This extracts the first frame from the sample that isn't also in the control.
-      // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sampleStack.split('\n');
-      var controlLines = controlStack.split('\n');
-      var s = 0;
-      var c = 0;
-
-      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
-        s++;
-      }
-
-      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
-        c++;
-      } // We couldn't find our intentionally injected common root frame, attempt
-      // to find another common root frame by search from the bottom of the
-      // control stack...
-
-
-      if (s === sampleLines.length || c === controlLines.length) {
-        s = sampleLines.length - 1;
-        c = controlLines.length - 1;
-
-        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-          // We expect at least one stack frame to be shared.
-          // Typically this will be the root most one. However, stack frames may be
-          // cut off due to maximum stack limits. In this case, one maybe cut off
-          // earlier than the other. We assume that the sample is longer or the same
-          // and there for cut off earlier. So we should find the root most frame in
-          // the sample somewhere in the control.
-          c--;
-        }
-      }
-
-      for (; s >= 1 && c >= 0; s--, c--) {
-        // Next we find the first one that isn't the same which should be the
-        // frame that called our sample function and the control.
-        if (sampleLines[s] !== controlLines[c]) {
-          // In V8, the first line is describing the message but other VMs don't.
-          // If we're about to return the first line, and the control is also on the same
-          // line, that's a pretty good indicator that our sample threw at same line as
-          // the control. I.e. before we entered the sample frame. So we ignore this result.
-          // This can happen if you passed a class to function component, or non-function.
-          if (s !== 1 || c !== 1) {
-            do {
-              s--;
-              c--; // We may still have similar intermediate frames from the construct call.
-              // The next one that isn't the same should be our match though.
-
-              if (c < 0 || sampleLines[s] !== controlLines[c]) {
-                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
-                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
-                // but we have a user-provided "displayName"
-                // splice it in to make the stack more readable.
-
-
-                if (fn.displayName && _frame.includes('<anonymous>')) {
-                  _frame = _frame.replace('<anonymous>', fn.displayName);
-                }
-
-                if (true) {
-                  if (typeof fn === 'function') {
-                    componentFrameCache.set(fn, _frame);
-                  }
-                } // Return the line we found.
-
-
-                return _frame;
-              }
-            } while (s >= 1 && c >= 0);
-          }
-
-          break;
-        }
-      }
-    }
-  } finally {
-    reentry = false;
-
-    {
-      ReactCurrentDispatcher$1.current = previousDispatcher;
-      reenableLogs();
-    }
-
-    Error.prepareStackTrace = previousPrepareStackTrace;
-  } // Fallback to just using the name if we couldn't make it throw.
-
-
-  var name = fn ? fn.displayName || fn.name : '';
-  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
-
-  {
-    if (typeof fn === 'function') {
-      componentFrameCache.set(fn, syntheticFrame);
-    }
-  }
-
-  return syntheticFrame;
-}
-
-function describeClassComponentFrame(ctor, source, ownerFn) {
-  {
-    return describeNativeComponentFrame(ctor, true);
-  }
-}
-function describeFunctionComponentFrame(fn, source, ownerFn) {
-  {
-    return describeNativeComponentFrame(fn, false);
-  }
-}
-
-function shouldConstruct$1(Component) {
-  var prototype = Component.prototype;
-  return !!(prototype && prototype.isReactComponent);
-}
-
-function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
-
-  if (type == null) {
-    return '';
-  }
-
-  if (typeof type === 'function') {
-    {
-      return describeNativeComponentFrame(type, shouldConstruct$1(type));
-    }
-  }
-
-  if (typeof type === 'string') {
-    return describeBuiltInComponentFrame(type);
-  }
-
-  switch (type) {
-    case REACT_SUSPENSE_TYPE:
-      return describeBuiltInComponentFrame('Suspense');
-
-    case REACT_SUSPENSE_LIST_TYPE:
-      return describeBuiltInComponentFrame('SuspenseList');
-  }
-
-  if (typeof type === 'object') {
-    switch (type.$$typeof) {
-      case REACT_FORWARD_REF_TYPE:
-        return describeFunctionComponentFrame(type.render);
-
-      case REACT_MEMO_TYPE:
-        // Memo may contain any component type so we recursively resolve it.
-        return describeUnknownElementTypeFrameInDEV(type.type, source, ownerFn);
-
-      case REACT_LAZY_TYPE:
-        {
-          var lazyComponent = type;
-          var payload = lazyComponent._payload;
-          var init = lazyComponent._init;
-
-          try {
-            // Lazy may contain any component type so we recursively resolve it.
-            return describeUnknownElementTypeFrameInDEV(init(payload), source, ownerFn);
-          } catch (x) {}
-        }
-    }
-  }
-
-  return '';
-}
-
-var loggedTypeFailures = {};
-var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
-
-function setCurrentlyValidatingElement(element) {
-  {
-    if (element) {
-      var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
-      ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
-    } else {
-      ReactDebugCurrentFrame$1.setExtraStackFrame(null);
-    }
-  }
-}
-
-function checkPropTypes(typeSpecs, values, location, componentName, element) {
-  {
-    // $FlowFixMe[incompatible-use] This is okay but Flow doesn't know it.
-    var has = Function.call.bind(hasOwnProperty);
-
-    for (var typeSpecName in typeSpecs) {
-      if (has(typeSpecs, typeSpecName)) {
-        var error$1 = void 0; // Prop type validation may throw. In case they do, we don't want to
-        // fail the render phase where it didn't fail before. So we log it.
-        // After these have been cleaned up, we'll let them throw.
-
-        try {
-          // This is intentionally an invariant that gets caught. It's the same
-          // behavior as without this statement except with a better message.
-          if (typeof typeSpecs[typeSpecName] !== 'function') {
-            // eslint-disable-next-line react-internal/prod-error-codes
-            var err = Error((componentName || 'React class') + ': ' + location + ' type `' + typeSpecName + '` is invalid; ' + 'it must be a function, usually from the `prop-types` package, but received `' + typeof typeSpecs[typeSpecName] + '`.' + 'This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.');
-            err.name = 'Invariant Violation';
-            throw err;
-          }
-
-          error$1 = typeSpecs[typeSpecName](values, typeSpecName, componentName, location, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED');
-        } catch (ex) {
-          error$1 = ex;
-        }
-
-        if (error$1 && !(error$1 instanceof Error)) {
-          setCurrentlyValidatingElement(element);
-
-          error('%s: type specification of %s' + ' `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', location, typeSpecName, typeof error$1);
-
-          setCurrentlyValidatingElement(null);
-        }
-
-        if (error$1 instanceof Error && !(error$1.message in loggedTypeFailures)) {
-          // Only monitor this failure once because there tends to be a lot of the
-          // same error.
-          loggedTypeFailures[error$1.message] = true;
-          setCurrentlyValidatingElement(element);
-
-          error('Failed %s type: %s', location, error$1.message);
-
-          setCurrentlyValidatingElement(null);
-        }
-      }
-    }
-  }
 }
 
 var warnedAboutMissingGetChildContext;
@@ -7247,11 +7039,6 @@ function getMaskedContext(type, unmaskedContext) {
 
     for (var key in contextTypes) {
       context[key] = unmaskedContext[key];
-    }
-
-    {
-      var name = getComponentNameFromType(type) || 'Unknown';
-      checkPropTypes(contextTypes, context, 'context', name);
     }
 
     return context;
@@ -7281,11 +7068,6 @@ function processChildContext(instance, type, parentContext, childContextTypes) {
       if (!(contextKey in childContextTypes)) {
         throw new Error((getComponentNameFromType(type) || 'Unknown') + ".getChildContext(): key \"" + contextKey + "\" is not defined in childContextTypes.");
       }
-    }
-
-    {
-      var name = getComponentNameFromType(type) || 'Unknown';
-      checkPropTypes(childContextTypes, childContext, 'child context', name);
     }
 
     return assign({}, parentContext, childContext);
@@ -7473,12 +7255,7 @@ function popProvider(context) {
 
   {
     var _value = prevSnapshot.parentValue;
-
-    if (_value === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      prevSnapshot.context._currentValue2 = prevSnapshot.context._defaultValue;
-    } else {
-      prevSnapshot.context._currentValue2 = _value;
-    }
+    prevSnapshot.context._currentValue2 = _value;
 
     {
       if (context._currentRenderer2 !== undefined && context._currentRenderer2 !== null && context._currentRenderer2 !== rendererSigil) {
@@ -7537,18 +7314,19 @@ var didWarnOnInvalidCallback;
   didWarnOnInvalidCallback = new Set();
 }
 
-function warnOnInvalidCallback(callback, callerName) {
+function warnOnInvalidCallback(callback) {
   {
     if (callback === null || typeof callback === 'function') {
       return;
-    }
+    } // eslint-disable-next-line react-internal/safe-string-coercion
 
-    var key = callerName + '_' + callback;
+
+    var key = String(callback);
 
     if (!didWarnOnInvalidCallback.has(key)) {
       didWarnOnInvalidCallback.add(key);
 
-      error('%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback);
+      error('Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callback);
     }
   }
 }
@@ -7577,7 +7355,7 @@ function warnNoop(publicInstance, callerName) {
       return;
     }
 
-    error('%s(...): Can only update a mounting component. ' + 'This usually means you called %s() outside componentWillMount() on the server. ' + 'This is a no-op.\n\nPlease check the code for the %s component.', callerName, callerName, componentName);
+    error('Can only update a mounting component. ' + 'This usually means you called %s() outside componentWillMount() on the server. ' + 'This is a no-op.\n\nPlease check the code for the %s component.', callerName, componentName);
 
     didWarnAboutNoopUpdateForComponent[warningKey] = true;
   }
@@ -7598,7 +7376,7 @@ var classComponentUpdater = {
 
       {
         if (callback !== undefined && callback !== null) {
-          warnOnInvalidCallback(callback, 'setState');
+          warnOnInvalidCallback(callback);
         }
       }
     }
@@ -7610,7 +7388,7 @@ var classComponentUpdater = {
 
     {
       if (callback !== undefined && callback !== null) {
-        warnOnInvalidCallback(callback, 'setState');
+        warnOnInvalidCallback(callback);
       }
     }
   },
@@ -7623,7 +7401,7 @@ var classComponentUpdater = {
     } else {
       {
         if (callback !== undefined && callback !== null) {
-          warnOnInvalidCallback(callback, 'setState');
+          warnOnInvalidCallback(callback);
         }
       }
     }
@@ -7649,7 +7427,7 @@ function constructClassInstance(ctor, props, maskedLegacyContext) {
   {
     if ('contextType' in ctor) {
       var isValid = // Allow null for conditional declaration
-      contextType === null || contextType !== undefined && contextType.$$typeof === REACT_CONTEXT_TYPE && contextType._context === undefined; // Not a <Context.Consumer>
+      contextType === null || contextType !== undefined && contextType.$$typeof === REACT_CONTEXT_TYPE;
 
       if (!isValid && !didWarnAboutInvalidateContextType.has(ctor)) {
         didWarnAboutInvalidateContextType.add(ctor);
@@ -7659,10 +7437,7 @@ function constructClassInstance(ctor, props, maskedLegacyContext) {
           addendum = ' However, it is set to undefined. ' + 'This can be caused by a typo or by mixing up named and default imports. ' + 'This can also happen due to a circular dependency, so ' + 'try moving the createContext() call to a separate file.';
         } else if (typeof contextType !== 'object') {
           addendum = ' However, it is set to a ' + typeof contextType + '.';
-        } else if (contextType.$$typeof === REACT_PROVIDER_TYPE) {
-          addendum = ' Did you accidentally pass the Context.Provider instead?';
-        } else if (contextType._context !== undefined) {
-          // <Context.Consumer>
+        } else if (contextType.$$typeof === REACT_CONSUMER_TYPE) {
           addendum = ' Did you accidentally pass the Context.Consumer instead?';
         } else {
           addendum = ' However, it is set to an object with keys {' + Object.keys(contextType).join(', ') + '}.';
@@ -7742,9 +7517,9 @@ function checkClassInstance(instance, ctor, newProps) {
 
     if (!renderPresent) {
       if (ctor.prototype && typeof ctor.prototype.render === 'function') {
-        error('%s(...): No `render` method found on the returned component ' + 'instance: did you accidentally return an object from the constructor?', name);
+        error('No `render` method found on the %s ' + 'instance: did you accidentally return an object from the constructor?', name);
       } else {
-        error('%s(...): No `render` method found on the returned component ' + 'instance: you may have forgotten to define `render`.', name);
+        error('No `render` method found on the %s ' + 'instance: you may have forgotten to define `render`.', name);
       }
     }
 
@@ -7803,7 +7578,7 @@ function checkClassInstance(instance, ctor, newProps) {
     var hasMutatedProps = instance.props !== newProps;
 
     if (instance.props !== undefined && hasMutatedProps) {
-      error('%s(...): When calling super() in `%s`, make sure to pass ' + "up the same props that your component's constructor was passed.", name, name);
+      error('When calling super() in `%s`, make sure to pass ' + "up the same props that your component's constructor was passed.", name);
     }
 
     if (instance.defaultProps) {
@@ -8819,7 +8594,7 @@ function use(usable) {
       // This is a thenable.
       var thenable = usable;
       return unwrapThenable(thenable);
-    } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+    } else if (usable.$$typeof === REACT_CONTEXT_TYPE) {
       var context = usable;
       return readContext(context);
     }
@@ -8905,6 +8680,378 @@ var DefaultCacheDispatcher = {
   getCacheForType: getCacheForType
 };
 
+// Helpers to patch console.logs to avoid logging during side-effect free
+// replaying on render function. This currently only patches the object
+// lazily which won't cover if the log function was extracted eagerly.
+// We could also eagerly patch the method.
+var disabledDepth = 0;
+var prevLog;
+var prevInfo;
+var prevWarn;
+var prevError;
+var prevGroup;
+var prevGroupCollapsed;
+var prevGroupEnd;
+
+function disabledLog() {}
+
+disabledLog.__reactDisabledLog = true;
+function disableLogs() {
+  {
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      prevLog = console.log;
+      prevInfo = console.info;
+      prevWarn = console.warn;
+      prevError = console.error;
+      prevGroup = console.group;
+      prevGroupCollapsed = console.groupCollapsed;
+      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
+
+      var props = {
+        configurable: true,
+        enumerable: true,
+        value: disabledLog,
+        writable: true
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        info: props,
+        log: props,
+        warn: props,
+        error: props,
+        group: props,
+        groupCollapsed: props,
+        groupEnd: props
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    disabledDepth++;
+  }
+}
+function reenableLogs() {
+  {
+    disabledDepth--;
+
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      var props = {
+        configurable: true,
+        enumerable: true,
+        writable: true
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        log: assign({}, props, {
+          value: prevLog
+        }),
+        info: assign({}, props, {
+          value: prevInfo
+        }),
+        warn: assign({}, props, {
+          value: prevWarn
+        }),
+        error: assign({}, props, {
+          value: prevError
+        }),
+        group: assign({}, props, {
+          value: prevGroup
+        }),
+        groupCollapsed: assign({}, props, {
+          value: prevGroupCollapsed
+        }),
+        groupEnd: assign({}, props, {
+          value: prevGroupEnd
+        })
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    if (disabledDepth < 0) {
+      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
+    }
+  }
+}
+
+var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
+var prefix;
+function describeBuiltInComponentFrame(name, ownerFn) {
+  {
+    if (prefix === undefined) {
+      // Extract the VM specific prefix used by each line.
+      try {
+        throw Error();
+      } catch (x) {
+        var match = x.stack.trim().match(/\n( *(at )?)/);
+        prefix = match && match[1] || '';
+      }
+    } // We use the prefix to ensure our stacks line up with native stack frames.
+
+
+    return '\n' + prefix + name;
+  }
+}
+var reentry = false;
+var componentFrameCache;
+
+{
+  var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
+  componentFrameCache = new PossiblyWeakMap();
+}
+/**
+ * Leverages native browser/VM stack frames to get proper details (e.g.
+ * filename, line + col number) for a single component in a component stack. We
+ * do this by:
+ *   (1) throwing and catching an error in the function - this will be our
+ *       control error.
+ *   (2) calling the component which will eventually throw an error that we'll
+ *       catch - this will be our sample error.
+ *   (3) diffing the control and sample error stacks to find the stack frame
+ *       which represents our component.
+ */
+
+
+function describeNativeComponentFrame(fn, construct) {
+  // If something asked for a stack inside a fake render, it should get ignored.
+  if (!fn || reentry) {
+    return '';
+  }
+
+  {
+    var frame = componentFrameCache.get(fn);
+
+    if (frame !== undefined) {
+      return frame;
+    }
+  }
+
+  reentry = true;
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
+
+  Error.prepareStackTrace = undefined;
+  var previousDispatcher;
+
+  {
+    previousDispatcher = ReactCurrentDispatcher$1.current; // Set the dispatcher in DEV because this might be call in the render function
+    // for warnings.
+
+    ReactCurrentDispatcher$1.current = null;
+    disableLogs();
+  }
+  /**
+   * Finding a common stack frame between sample and control errors can be
+   * tricky given the different types and levels of stack trace truncation from
+   * different JS VMs. So instead we'll attempt to control what that common
+   * frame should be through this object method:
+   * Having both the sample and control errors be in the function under the
+   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
+   * `displayName` properties of the function ensures that a stack
+   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
+   * it for both control and sample stacks.
+   */
+
+
+  var RunInRootFrame = {
+    DetermineComponentFrameRoot: function () {
+      var control;
+
+      try {
+        // This should throw.
+        if (construct) {
+          // Something should be setting the props in the constructor.
+          var Fake = function () {
+            throw Error();
+          }; // $FlowFixMe[prop-missing]
+
+
+          Object.defineProperty(Fake.prototype, 'props', {
+            set: function () {
+              // We use a throwing setter instead of frozen or non-writable props
+              // because that won't throw in a non-strict mode function.
+              throw Error();
+            }
+          });
+
+          if (typeof Reflect === 'object' && Reflect.construct) {
+            // We construct a different control for this case to include any extra
+            // frames added by the construct call.
+            try {
+              Reflect.construct(Fake, []);
+            } catch (x) {
+              control = x;
+            }
+
+            Reflect.construct(fn, [], Fake);
+          } else {
+            try {
+              Fake.call();
+            } catch (x) {
+              control = x;
+            } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+            fn.call(Fake.prototype);
+          }
+        } else {
+          try {
+            throw Error();
+          } catch (x) {
+            control = x;
+          } // TODO(luna): This will currently only throw if the function component
+          // tries to access React/ReactDOM/props. We should probably make this throw
+          // in simple components too
+
+
+          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+          // component, which we don't yet support. Attach a noop catch handler to
+          // silence the error.
+          // TODO: Implement component stacks for async client components?
+
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(function () {});
+          }
+        }
+      } catch (sample) {
+        // This is inlined manually because closure doesn't do it for us.
+        if (sample && control && typeof sample.stack === 'string') {
+          return [sample.stack, control.stack];
+        }
+      }
+
+      return [null, null];
+    }
+  }; // $FlowFixMe[prop-missing]
+
+  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
+  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
+
+  if (namePropDescriptor && namePropDescriptor.configurable) {
+    // V8 utilizes a function's `name` property when generating a stack trace.
+    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
+    // is set to `false`.
+    // $FlowFixMe[cannot-write]
+    'name', {
+      value: 'DetermineComponentFrameRoot'
+    });
+  }
+
+  try {
+    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
+        sampleStack = _RunInRootFrame$Deter[0],
+        controlStack = _RunInRootFrame$Deter[1];
+
+    if (sampleStack && controlStack) {
+      // This extracts the first frame from the sample that isn't also in the control.
+      // Skipping one frame that we assume is the frame that calls the two.
+      var sampleLines = sampleStack.split('\n');
+      var controlLines = controlStack.split('\n');
+      var s = 0;
+      var c = 0;
+
+      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
+        s++;
+      }
+
+      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
+        c++;
+      } // We couldn't find our intentionally injected common root frame, attempt
+      // to find another common root frame by search from the bottom of the
+      // control stack...
+
+
+      if (s === sampleLines.length || c === controlLines.length) {
+        s = sampleLines.length - 1;
+        c = controlLines.length - 1;
+
+        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+          // We expect at least one stack frame to be shared.
+          // Typically this will be the root most one. However, stack frames may be
+          // cut off due to maximum stack limits. In this case, one maybe cut off
+          // earlier than the other. We assume that the sample is longer or the same
+          // and there for cut off earlier. So we should find the root most frame in
+          // the sample somewhere in the control.
+          c--;
+        }
+      }
+
+      for (; s >= 1 && c >= 0; s--, c--) {
+        // Next we find the first one that isn't the same which should be the
+        // frame that called our sample function and the control.
+        if (sampleLines[s] !== controlLines[c]) {
+          // In V8, the first line is describing the message but other VMs don't.
+          // If we're about to return the first line, and the control is also on the same
+          // line, that's a pretty good indicator that our sample threw at same line as
+          // the control. I.e. before we entered the sample frame. So we ignore this result.
+          // This can happen if you passed a class to function component, or non-function.
+          if (s !== 1 || c !== 1) {
+            do {
+              s--;
+              c--; // We may still have similar intermediate frames from the construct call.
+              // The next one that isn't the same should be our match though.
+
+              if (c < 0 || sampleLines[s] !== controlLines[c]) {
+                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
+                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
+                // but we have a user-provided "displayName"
+                // splice it in to make the stack more readable.
+
+
+                if (fn.displayName && _frame.includes('<anonymous>')) {
+                  _frame = _frame.replace('<anonymous>', fn.displayName);
+                }
+
+                if (true) {
+                  if (typeof fn === 'function') {
+                    componentFrameCache.set(fn, _frame);
+                  }
+                } // Return the line we found.
+
+
+                return _frame;
+              }
+            } while (s >= 1 && c >= 0);
+          }
+
+          break;
+        }
+      }
+    }
+  } finally {
+    reentry = false;
+
+    {
+      ReactCurrentDispatcher$1.current = previousDispatcher;
+      reenableLogs();
+    }
+
+    Error.prepareStackTrace = previousPrepareStackTrace;
+  } // Fallback to just using the name if we couldn't make it throw.
+
+
+  var name = fn ? fn.displayName || fn.name : '';
+  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
+
+  {
+    if (typeof fn === 'function') {
+      componentFrameCache.set(fn, syntheticFrame);
+    }
+  }
+
+  return syntheticFrame;
+}
+
+function describeClassComponentFrame(ctor, ownerFn) {
+  {
+    return describeNativeComponentFrame(ctor, true);
+  }
+}
+function describeFunctionComponentFrame(fn, ownerFn) {
+  {
+    return describeNativeComponentFrame(fn, false);
+  }
+}
+
 function getStackByComponentStackNode(componentStack) {
   try {
     var info = '';
@@ -8913,15 +9060,15 @@ function getStackByComponentStackNode(componentStack) {
     do {
       switch (node.tag) {
         case 0:
-          info += describeBuiltInComponentFrame(node.type, null, null);
+          info += describeBuiltInComponentFrame(node.type, null);
           break;
 
         case 1:
-          info += describeFunctionComponentFrame(node.type, null, null);
+          info += describeFunctionComponentFrame(node.type, null);
           break;
 
         case 2:
-          info += describeClassComponentFrame(node.type, null, null);
+          info += describeClassComponentFrame(node.type, null);
           break;
       } // $FlowFixMe[incompatible-type] we bail out when we get a null
 
@@ -9014,7 +9161,7 @@ function createRequest(children, resumableState, renderState, rootFormatContext,
   false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
 
   rootSegment.parentFlushed = true;
-  var rootTask = createRenderTask(request, null, children, -1, null, rootSegment, abortSet, null, rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext, null);
+  var rootTask = createRenderTask(request, null, children, -1, null, rootSegment, null, abortSet, null, rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext, null, false);
   pingedTasks.push(rootTask);
   return request;
 }
@@ -9047,13 +9194,14 @@ function createSuspenseBoundary(request, fallbackAbortableTasks) {
     byteSize: 0,
     fallbackAbortableTasks: fallbackAbortableTasks,
     errorDigest: null,
-    resources: createBoundaryResources(),
+    contentState: createHoistableState(),
+    fallbackState: createHoistableState(),
     trackedContentKeyPath: null,
     trackedFallbackNode: null
   };
 }
 
-function createRenderTask(request, thenableState, node, childIndex, blockedBoundary, blockedSegment, abortSet, keyPath, formatContext, legacyContext, context, treeContext, componentStack) {
+function createRenderTask(request, thenableState, node, childIndex, blockedBoundary, blockedSegment, hoistableState, abortSet, keyPath, formatContext, legacyContext, context, treeContext, componentStack, isFallback) {
   request.allPendingTasks++;
 
   if (blockedBoundary === null) {
@@ -9071,6 +9219,7 @@ function createRenderTask(request, thenableState, node, childIndex, blockedBound
     },
     blockedBoundary: blockedBoundary,
     blockedSegment: blockedSegment,
+    hoistableState: hoistableState,
     abortSet: abortSet,
     keyPath: keyPath,
     formatContext: formatContext,
@@ -9078,13 +9227,14 @@ function createRenderTask(request, thenableState, node, childIndex, blockedBound
     context: context,
     treeContext: treeContext,
     componentStack: componentStack,
-    thenableState: thenableState
+    thenableState: thenableState,
+    isFallback: isFallback
   };
   abortSet.add(task);
   return task;
 }
 
-function createReplayTask(request, thenableState, replay, node, childIndex, blockedBoundary, abortSet, keyPath, formatContext, legacyContext, context, treeContext, componentStack) {
+function createReplayTask(request, thenableState, replay, node, childIndex, blockedBoundary, hoistableState, abortSet, keyPath, formatContext, legacyContext, context, treeContext, componentStack, isFallback) {
   request.allPendingTasks++;
 
   if (blockedBoundary === null) {
@@ -9103,6 +9253,7 @@ function createReplayTask(request, thenableState, replay, node, childIndex, bloc
     },
     blockedBoundary: blockedBoundary,
     blockedSegment: null,
+    hoistableState: hoistableState,
     abortSet: abortSet,
     keyPath: keyPath,
     formatContext: formatContext,
@@ -9110,7 +9261,8 @@ function createReplayTask(request, thenableState, replay, node, childIndex, bloc
     context: context,
     treeContext: treeContext,
     componentStack: componentStack,
-    thenableState: thenableState
+    thenableState: thenableState,
+    isFallback: isFallback
   };
   abortSet.add(task);
   return task;
@@ -9192,19 +9344,19 @@ function encodeErrorForBoundary(boundary, digest, error, thrownInfo) {
   boundary.errorDigest = digest;
 
   {
-    // In dev we additionally encode the error message and component stack on the boundary
-    var errorMessage;
+    var message; // In dev we additionally encode the error message and component stack on the boundary
 
-    if (typeof error === 'string') {
-      errorMessage = error;
-    } else if (error && typeof error.message === 'string') {
-      errorMessage = error.message;
+    if (error instanceof Error) {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      message = String(error.message);
+    } else if (typeof error === 'object' && error !== null) {
+      message = describeObjectForErrorMessage(error);
     } else {
       // eslint-disable-next-line react-internal/safe-string-coercion
-      errorMessage = String(error);
+      message = String(error);
     }
 
-    boundary.errorMessage = errorMessage;
+    boundary.errorMessage = message;
     boundary.errorComponentStack = thrownInfo.componentStack;
   }
 }
@@ -9271,6 +9423,7 @@ function renderSuspenseBoundary(request, someTask, keyPath, props) {
   var suspenseComponentStack = task.componentStack = createBuiltInComponentStack(task, 'Suspense');
   var prevKeyPath = task.keyPath;
   var parentBoundary = task.blockedBoundary;
+  var parentHoistableState = task.hoistableState;
   var parentSegment = task.blockedSegment; // Each time we enter a suspense boundary, we split out into a new segment for
   // the fallback so that we can later replace that segment with the content.
   // This also lets us split out the main content even if it doesn't suspend,
@@ -9306,12 +9459,8 @@ function renderSuspenseBoundary(request, someTask, keyPath, props) {
   // we're writing to. If something suspends, it'll spawn new suspended task with that context.
 
   task.blockedBoundary = newBoundary;
+  task.hoistableState = newBoundary.contentState;
   task.blockedSegment = contentRootSegment;
-
-  {
-    setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, newBoundary.resources);
-  }
-
   task.keyPath = keyPath;
 
   try {
@@ -9345,11 +9494,8 @@ function renderSuspenseBoundary(request, someTask, keyPath, props) {
     // We don't need to schedule any task because we know the parent has written yet.
     // We do need to fallthrough to create the fallback though.
   } finally {
-    {
-      setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, parentBoundary ? parentBoundary.resources : null);
-    }
-
     task.blockedBoundary = parentBoundary;
+    task.hoistableState = parentHoistableState;
     task.blockedSegment = parentSegment;
     task.keyPath = prevKeyPath;
     task.componentStack = previousComponentStack;
@@ -9376,9 +9522,9 @@ function renderSuspenseBoundary(request, someTask, keyPath, props) {
   // on it yet in case we finish the main content, so we queue for later.
 
 
-  var suspendedFallbackTask = createRenderTask(request, null, fallback, -1, parentBoundary, boundarySegment, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // This stack should be the Suspense boundary stack because while the fallback is actually a child segment
+  var suspendedFallbackTask = createRenderTask(request, null, fallback, -1, parentBoundary, boundarySegment, newBoundary.fallbackState, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // This stack should be the Suspense boundary stack because while the fallback is actually a child segment
   // of the parent boundary from a component standpoint the fallback is a child of the Suspense boundary itself
-  suspenseComponentStack); // TODO: This should be queued at a separate lower priority queue so that we only work
+  suspenseComponentStack, true); // TODO: This should be queued at a separate lower priority queue so that we only work
   // on preparing fallbacks if we don't have any more main content to task on.
 
   request.pingedTasks.push(suspendedFallbackTask);
@@ -9392,6 +9538,7 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
   var prevKeyPath = task.keyPath;
   var previousReplaySet = task.replay;
   var parentBoundary = task.blockedBoundary;
+  var parentHoistableState = task.hoistableState;
   var content = props.children;
   var fallback = props.fallback;
   var fallbackAbortSet = new Set();
@@ -9403,15 +9550,12 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
   // we're writing to. If something suspends, it'll spawn new suspended task with that context.
 
   task.blockedBoundary = resumedBoundary;
+  task.hoistableState = resumedBoundary.contentState;
   task.replay = {
     nodes: childNodes,
     slots: childSlots,
     pendingTasks: 1
   };
-
-  {
-    setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, resumedBoundary.resources);
-  }
 
   try {
     // We use the safe form because we don't handle suspending here. Only error handling.
@@ -9450,11 +9594,8 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
     // We don't need to schedule any task because we know the parent has written yet.
     // We do need to fallthrough to create the fallback though.
   } finally {
-    {
-      setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, parentBoundary ? parentBoundary.resources : null);
-    }
-
     task.blockedBoundary = parentBoundary;
+    task.hoistableState = parentHoistableState;
     task.replay = previousReplaySet;
     task.keyPath = prevKeyPath;
     task.componentStack = previousComponentStack;
@@ -9468,9 +9609,9 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
     slots: fallbackSlots,
     pendingTasks: 0
   };
-  var suspendedFallbackTask = createReplayTask(request, null, fallbackReplay, fallback, -1, parentBoundary, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // This stack should be the Suspense boundary stack because while the fallback is actually a child segment
+  var suspendedFallbackTask = createReplayTask(request, null, fallbackReplay, fallback, -1, parentBoundary, resumedBoundary.fallbackState, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // This stack should be the Suspense boundary stack because while the fallback is actually a child segment
   // of the parent boundary from a component standpoint the fallback is a child of the Suspense boundary itself
-  suspenseComponentStack); // TODO: This should be queued at a separate lower priority queue so that we only work
+  suspenseComponentStack, true); // TODO: This should be queued at a separate lower priority queue so that we only work
   // on preparing fallbacks if we don't have any more main content to task on.
 
   request.pingedTasks.push(suspendedFallbackTask);
@@ -9498,7 +9639,7 @@ function renderHostElement(request, task, keyPath, type, props) {
     task.keyPath = prevKeyPath;
   } else {
     // Render
-    var _children = pushStartInstance(segment.chunks, type, props, request.resumableState, request.renderState, task.formatContext, segment.lastPushedText);
+    var _children = pushStartInstance(segment.chunks, type, props, request.resumableState, request.renderState, task.hoistableState, task.formatContext, segment.lastPushedText, task.isFallback);
 
     segment.lastPushedText = false;
     var _prevContext = task.formatContext;
@@ -9523,7 +9664,12 @@ function shouldConstruct(Component) {
   return Component.prototype && Component.prototype.isReactComponent;
 }
 
-function renderWithHooks(request, task, keyPath, prevThenableState, Component, props, secondArg) {
+function renderWithHooks(request, task, keyPath, Component, props, secondArg) {
+  // Reset the task's thenable state before continuing, so that if a later
+  // component suspends we can reuse the same task object. If the same
+  // component suspends again, the thenable state will be restored.
+  var prevThenableState = task.thenableState;
+  task.thenableState = null;
   var componentIdentity = {};
   prepareToUseHooks(request, task, keyPath, componentIdentity, prevThenableState);
   var result = Component(props, secondArg);
@@ -9550,7 +9696,7 @@ function finishClassComponent(request, task, keyPath, instance, Component, props
       var previousContext = task.legacyContext;
       var mergedContext = processChildContext(instance, Component, previousContext, childContextTypes);
       task.legacyContext = mergedContext;
-      renderNodeDestructive(request, task, null, nextChildren, -1);
+      renderNodeDestructive(request, task, nextChildren, -1);
       task.legacyContext = previousContext;
       return;
     }
@@ -9558,7 +9704,7 @@ function finishClassComponent(request, task, keyPath, instance, Component, props
 
   var prevKeyPath = task.keyPath;
   task.keyPath = keyPath;
-  renderNodeDestructive(request, task, null, nextChildren, -1);
+  renderNodeDestructive(request, task, nextChildren, -1);
   task.keyPath = prevKeyPath;
 }
 
@@ -9579,11 +9725,10 @@ var didWarnAboutGetDerivedStateOnFunctionComponent = {};
 var didWarnAboutReassigningProps = false;
 var didWarnAboutDefaultPropsOnFunctionComponent = {};
 var didWarnAboutGenerators = false;
-var didWarnAboutMaps = false;
-var hasWarnedAboutUsingContextAsConsumer = false; // This would typically be a function component but we still support module pattern
+var didWarnAboutMaps = false; // This would typically be a function component but we still support module pattern
 // components for some reason.
 
-function renderIndeterminateComponent(request, task, keyPath, prevThenableState, Component, props) {
+function renderIndeterminateComponent(request, task, keyPath, Component, props) {
   var legacyContext;
 
   {
@@ -9605,7 +9750,7 @@ function renderIndeterminateComponent(request, task, keyPath, prevThenableState,
     }
   }
 
-  var value = renderWithHooks(request, task, keyPath, prevThenableState, Component, props, legacyContext);
+  var value = renderWithHooks(request, task, keyPath, Component, props, legacyContext);
   var hasId = checkDidRenderIdHook();
   var formStateCount = getFormStateCount();
   var formStateMatchingIndex = getFormStateMatchingIndex();
@@ -9699,7 +9844,7 @@ function finishFunctionComponent(request, task, keyPath, children, hasId, formSt
     // We're now successfully past this task, and we haven't modified the
     // context stack. We don't have to pop back to the previous task every
     // again, so we can use the destructive recursive form.
-    renderNodeDestructive(request, task, null, children, -1);
+    renderNodeDestructive(request, task, children, -1);
   }
 
   task.keyPath = prevKeyPath;
@@ -9709,7 +9854,7 @@ function validateFunctionComponentInDev(Component) {
   {
     if (Component) {
       if (Component.childContextTypes) {
-        error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+        error('childContextTypes cannot be defined on a function component.\n' + '  %s.childContextTypes = ...', Component.displayName || Component.name || 'Component');
       }
     }
 
@@ -9763,10 +9908,16 @@ function resolveDefaultProps(Component, baseProps) {
   return baseProps;
 }
 
-function renderForwardRef(request, task, keyPath, prevThenableState, type, props, ref) {
+function renderForwardRef(request, task, keyPath, type, props, ref) {
   var previousComponentStack = task.componentStack;
   task.componentStack = createFunctionComponentStack(task, type.render);
-  var children = renderWithHooks(request, task, keyPath, prevThenableState, type.render, props, ref);
+  var propsWithoutRef;
+
+  {
+    propsWithoutRef = props;
+  }
+
+  var children = renderWithHooks(request, task, keyPath, type.render, propsWithoutRef, ref);
   var hasId = checkDidRenderIdHook();
   var formStateCount = getFormStateCount();
   var formStateMatchingIndex = getFormStateMatchingIndex();
@@ -9774,37 +9925,13 @@ function renderForwardRef(request, task, keyPath, prevThenableState, type, props
   task.componentStack = previousComponentStack;
 }
 
-function renderMemo(request, task, keyPath, prevThenableState, type, props, ref) {
+function renderMemo(request, task, keyPath, type, props, ref) {
   var innerType = type.type;
   var resolvedProps = resolveDefaultProps(innerType, props);
-  renderElement(request, task, keyPath, prevThenableState, innerType, resolvedProps, ref);
+  renderElement(request, task, keyPath, innerType, resolvedProps, ref);
 }
 
 function renderContextConsumer(request, task, keyPath, context, props) {
-  // The logic below for Context differs depending on PROD or DEV mode. In
-  // DEV mode, we create a separate object for Context.Consumer that acts
-  // like a proxy to Context. This proxy object adds unnecessary code in PROD
-  // so we use the old behaviour (Context.Consumer references Context) to
-  // reduce size and overhead. The separate object references context via
-  // a property called "_context", which also gives us the ability to check
-  // in DEV mode if this property exists or not and warn if it does not.
-  {
-    if (context._context === undefined) {
-      // This may be because it's a Context (rather than a Consumer).
-      // Or it may be because it's older React where they're the same thing.
-      // We only want to warn if we're sure it's a new React.
-      if (context !== context.Consumer) {
-        if (!hasWarnedAboutUsingContextAsConsumer) {
-          hasWarnedAboutUsingContextAsConsumer = true;
-
-          error('Rendering <Context> directly is not supported and will be removed in ' + 'a future major release. Did you mean to render <Context.Consumer> instead?');
-        }
-      }
-    } else {
-      context = context._context;
-    }
-  }
-
   var render = props.children;
 
   {
@@ -9817,12 +9944,11 @@ function renderContextConsumer(request, task, keyPath, context, props) {
   var newChildren = render(newValue);
   var prevKeyPath = task.keyPath;
   task.keyPath = keyPath;
-  renderNodeDestructive(request, task, null, newChildren, -1);
+  renderNodeDestructive(request, task, newChildren, -1);
   task.keyPath = prevKeyPath;
 }
 
-function renderContextProvider(request, task, keyPath, type, props) {
-  var context = type._context;
+function renderContextProvider(request, task, keyPath, context, props) {
   var value = props.value;
   var children = props.children;
   var prevSnapshot;
@@ -9834,7 +9960,7 @@ function renderContextProvider(request, task, keyPath, type, props) {
   var prevKeyPath = task.keyPath;
   task.context = pushProvider(context, value);
   task.keyPath = keyPath;
-  renderNodeDestructive(request, task, null, children, -1);
+  renderNodeDestructive(request, task, children, -1);
   task.context = popProvider(context);
   task.keyPath = prevKeyPath;
 
@@ -9845,14 +9971,14 @@ function renderContextProvider(request, task, keyPath, type, props) {
   }
 }
 
-function renderLazyComponent(request, task, keyPath, prevThenableState, lazyComponent, props, ref) {
+function renderLazyComponent(request, task, keyPath, lazyComponent, props, ref) {
   var previousComponentStack = task.componentStack;
   task.componentStack = createBuiltInComponentStack(task, 'Lazy');
   var payload = lazyComponent._payload;
   var init = lazyComponent._init;
   var Component = init(payload);
   var resolvedProps = resolveDefaultProps(Component, props);
-  renderElement(request, task, keyPath, prevThenableState, Component, resolvedProps, ref);
+  renderElement(request, task, keyPath, Component, resolvedProps, ref);
   task.componentStack = previousComponentStack;
 }
 
@@ -9864,18 +9990,18 @@ function renderOffscreen(request, task, keyPath, props) {
     // pure indirection.
     var prevKeyPath = task.keyPath;
     task.keyPath = keyPath;
-    renderNodeDestructive(request, task, null, props.children, -1);
+    renderNodeDestructive(request, task, props.children, -1);
     task.keyPath = prevKeyPath;
   }
 }
 
-function renderElement(request, task, keyPath, prevThenableState, type, props, ref) {
+function renderElement(request, task, keyPath, type, props, ref) {
   if (typeof type === 'function') {
     if (shouldConstruct(type)) {
       renderClassComponent(request, task, keyPath, type, props);
       return;
     } else {
-      renderIndeterminateComponent(request, task, keyPath, prevThenableState, type, props);
+      renderIndeterminateComponent(request, task, keyPath, type, props);
       return;
     }
   }
@@ -9903,7 +10029,7 @@ function renderElement(request, task, keyPath, prevThenableState, type, props, r
       {
         var prevKeyPath = task.keyPath;
         task.keyPath = keyPath;
-        renderNodeDestructive(request, task, null, props.children, -1);
+        renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = prevKeyPath;
         return;
       }
@@ -9921,7 +10047,7 @@ function renderElement(request, task, keyPath, prevThenableState, type, props, r
 
         var _prevKeyPath3 = task.keyPath;
         task.keyPath = keyPath;
-        renderNodeDestructive(request, task, null, props.children, -1);
+        renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = _prevKeyPath3;
         task.componentStack = preiousComponentStack;
         return;
@@ -9947,31 +10073,47 @@ function renderElement(request, task, keyPath, prevThenableState, type, props, r
     switch (type.$$typeof) {
       case REACT_FORWARD_REF_TYPE:
         {
-          renderForwardRef(request, task, keyPath, prevThenableState, type, props, ref);
+          renderForwardRef(request, task, keyPath, type, props, ref);
           return;
         }
 
       case REACT_MEMO_TYPE:
         {
-          renderMemo(request, task, keyPath, prevThenableState, type, props, ref);
+          renderMemo(request, task, keyPath, type, props, ref);
           return;
         }
 
       case REACT_PROVIDER_TYPE:
         {
-          renderContextProvider(request, task, keyPath, type, props);
-          return;
+          {
+            var context = type._context;
+            renderContextProvider(request, task, keyPath, context, props);
+            return;
+          } // Fall through
+
         }
 
       case REACT_CONTEXT_TYPE:
         {
-          renderContextConsumer(request, task, keyPath, type, props);
-          return;
+          {
+            var _context2 = type;
+
+            {
+              if (_context2._context !== undefined) {
+                _context2 = _context2._context;
+              }
+            }
+
+            renderContextConsumer(request, task, keyPath, _context2, props);
+            return;
+          }
         }
+
+      case REACT_CONSUMER_TYPE:
 
       case REACT_LAZY_TYPE:
         {
-          renderLazyComponent(request, task, keyPath, prevThenableState, type, props);
+          renderLazyComponent(request, task, keyPath, type, props);
           return;
         }
     }
@@ -10019,7 +10161,7 @@ function resumeNode(request, task, segmentId, node, childIndex) {
   }
 }
 
-function replayElement(request, task, keyPath, prevThenableState, name, keyOrIndex, childIndex, type, props, ref, replay) {
+function replayElement(request, task, keyPath, name, keyOrIndex, childIndex, type, props, ref, replay) {
   // We're replaying. Find the path to follow.
   var replayNodes = replay.nodes;
 
@@ -10048,7 +10190,7 @@ function replayElement(request, task, keyPath, prevThenableState, name, keyOrInd
       };
 
       try {
-        renderElement(request, task, keyPath, prevThenableState, type, props, ref);
+        renderElement(request, task, keyPath, type, props, ref);
 
         if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0 // TODO check remaining slots
         ) {
@@ -10120,13 +10262,28 @@ function validateIterable(iterable, iteratorFn) {
       didWarnAboutMaps = true;
     }
   }
+}
+
+function warnOnFunctionType(invalidChild) {
+  {
+    var name = invalidChild.displayName || invalidChild.name || 'Component';
+
+    error('Functions are not valid as a React child. This may happen if ' + 'you return %s instead of <%s /> from render. ' + 'Or maybe you meant to call this function rather than return it.', name, name);
+  }
+}
+
+function warnOnSymbolType(invalidChild) {
+  {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    var name = String(invalidChild);
+
+    error('Symbols are not valid as a React child.\n' + '  %s', name);
+  }
 } // This function by it self renders a node and consumes the task by mutating it
 // to update the current execution state.
 
 
-function renderNodeDestructive(request, task, // The thenable state reused from the previous attempt, if any. This is almost
-// always null, except when called by retryTask.
-prevThenableState, node, childIndex) {
+function renderNodeDestructive(request, task, node, childIndex) {
   if (task.replay !== null && typeof task.replay.slots === 'number') {
     // TODO: Figure out a cheaper place than this hot path to do this check.
     var resumeSegmentID = task.replay.slots;
@@ -10137,9 +10294,14 @@ prevThenableState, node, childIndex) {
 
 
   task.node = node;
-  task.childIndex = childIndex; // Handle object types
+  task.childIndex = childIndex;
 
-  if (typeof node === 'object' && node !== null) {
+  if (node === null) {
+    return;
+  } // Handle object types
+
+
+  if (typeof node === 'object') {
     switch (node.$$typeof) {
       case REACT_ELEMENT_TYPE:
         {
@@ -10147,17 +10309,22 @@ prevThenableState, node, childIndex) {
           var type = element.type;
           var key = element.key;
           var props = element.props;
-          var ref = element.ref;
+          var ref;
+
+          {
+            ref = element.ref;
+          }
+
           var name = getComponentNameFromType(type);
           var keyOrIndex = key == null ? childIndex === -1 ? 0 : childIndex : key;
           var keyPath = [task.keyPath, name, keyOrIndex];
 
           if (task.replay !== null) {
-            replayElement(request, task, keyPath, prevThenableState, name, keyOrIndex, childIndex, type, props, ref, task.replay); // No matches found for this node. We assume it's already emitted in the
+            replayElement(request, task, keyPath, name, keyOrIndex, childIndex, type, props, ref, task.replay); // No matches found for this node. We assume it's already emitted in the
             // prelude and skip it during the replay.
           } else {
             // We're doing a plain render.
-            renderElement(request, task, keyPath, prevThenableState, type, props, ref);
+            renderElement(request, task, keyPath, type, props, ref);
           }
 
           return;
@@ -10178,7 +10345,7 @@ prevThenableState, node, childIndex) {
 
           task.componentStack = previousComponentStack; // Now we render the resolved node
 
-          renderNodeDestructive(request, task, null, resolvedNode, childIndex);
+          renderNodeDestructive(request, task, resolvedNode, childIndex);
           return;
         }
     }
@@ -10233,13 +10400,15 @@ prevThenableState, node, childIndex) {
     var maybeUsable = node;
 
     if (typeof maybeUsable.then === 'function') {
+      // Clear any previous thenable state that was created by the unwrapping.
+      task.thenableState = null;
       var thenable = maybeUsable;
-      return renderNodeDestructive(request, task, null, unwrapThenable(thenable), childIndex);
+      return renderNodeDestructive(request, task, unwrapThenable(thenable), childIndex);
     }
 
-    if (maybeUsable.$$typeof === REACT_CONTEXT_TYPE || maybeUsable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+    if (maybeUsable.$$typeof === REACT_CONTEXT_TYPE) {
       var context = maybeUsable;
-      return renderNodeDestructive(request, task, null, readContext$1(context), childIndex);
+      return renderNodeDestructive(request, task, readContext$1(context), childIndex);
     } // $FlowFixMe[method-unbinding]
 
 
@@ -10269,7 +10438,11 @@ prevThenableState, node, childIndex) {
 
   {
     if (typeof node === 'function') {
-      error('Functions are not valid as a React child. This may happen if ' + 'you return a Component instead of <Component /> from render. ' + 'Or maybe you meant to call this function rather than return it.');
+      warnOnFunctionType(node);
+    }
+
+    if (typeof node === 'symbol') {
+      warnOnSymbolType(node);
     }
   }
 }
@@ -10420,9 +10593,9 @@ function untrackBoundary(request, boundary) {
 }
 
 function spawnNewSuspendedReplayTask(request, task, thenableState, x) {
-  var newTask = createReplayTask(request, thenableState, task.replay, task.node, task.childIndex, task.blockedBoundary, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // We pop one task off the stack because the node that suspended will be tried again,
+  var newTask = createReplayTask(request, thenableState, task.replay, task.node, task.childIndex, task.blockedBoundary, task.hoistableState, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // We pop one task off the stack because the node that suspended will be tried again,
   // which will add it back onto the stack.
-  task.componentStack !== null ? task.componentStack.parent : null);
+  task.componentStack !== null ? task.componentStack.parent : null, task.isFallback);
   var ping = newTask.ping;
   x.then(ping, ping);
 }
@@ -10437,9 +10610,9 @@ function spawnNewSuspendedRenderTask(request, task, thenableState, x) {
   segment.children.push(newSegment); // Reset lastPushedText for current Segment since the new Segment "consumed" it
 
   segment.lastPushedText = false;
-  var newTask = createRenderTask(request, thenableState, task.node, task.childIndex, task.blockedBoundary, newSegment, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // We pop one task off the stack because the node that suspended will be tried again,
+  var newTask = createRenderTask(request, thenableState, task.node, task.childIndex, task.blockedBoundary, newSegment, task.hoistableState, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // We pop one task off the stack because the node that suspended will be tried again,
   // which will add it back onto the stack.
-  task.componentStack !== null ? task.componentStack.parent : null);
+  task.componentStack !== null ? task.componentStack.parent : null, task.isFallback);
   var ping = newTask.ping;
   x.then(ping, ping);
 } // This is a non-destructive form of rendering a node. If it suspends it spawns
@@ -10463,7 +10636,7 @@ function renderNode(request, task, node, childIndex) {
   if (segment === null) {
     // Replay
     try {
-      return renderNodeDestructive(request, task, null, node, childIndex);
+      return renderNodeDestructive(request, task, node, childIndex);
     } catch (thrownValue) {
       resetHooksState();
       x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
@@ -10501,7 +10674,7 @@ function renderNode(request, task, node, childIndex) {
     var chunkLength = segment.chunks.length;
 
     try {
-      return renderNodeDestructive(request, task, null, node, childIndex);
+      return renderNodeDestructive(request, task, node, childIndex);
     } catch (thrownValue) {
       resetHooksState(); // Reset the write pointers to where we started.
 
@@ -10705,8 +10878,11 @@ function abortTask(task, request, error) {
       if (replay === null) {
         // We didn't complete the root so we have nothing to show. We can close
         // the request;
-        logRecoverableError(request, error, errorInfo);
-        fatalError(request, error);
+        {
+          logRecoverableError(request, error, errorInfo);
+          fatalError(request, error);
+        }
+
         return;
       } else {
         // If the shell aborts during a replay, that's not a fatal error. Instead
@@ -10715,7 +10891,12 @@ function abortTask(task, request, error) {
         replay.pendingTasks--;
 
         if (replay.pendingTasks === 0 && replay.nodes.length > 0) {
-          var errorDigest = logRecoverableError(request, error, errorInfo);
+          var errorDigest;
+
+          {
+            errorDigest = logRecoverableError(request, error, errorInfo);
+          }
+
           abortRemainingReplayNodes(request, null, replay.nodes, replay.slots, error, errorDigest, errorInfo);
         }
 
@@ -10735,7 +10916,11 @@ function abortTask(task, request, error) {
 
       var _errorInfo = getThrownInfo(request, task.componentStack);
 
-      var _errorDigest = logRecoverableError(request, error, _errorInfo);
+      var _errorDigest;
+
+      {
+        _errorDigest = logRecoverableError(request, error, _errorInfo);
+      }
 
       var errorMessage = error;
 
@@ -10913,11 +11098,6 @@ function finishedTask(request, boundary, segment) {
 }
 
 function retryTask(request, task) {
-  {
-    var blockedBoundary = task.blockedBoundary;
-    setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, blockedBoundary ? blockedBoundary.resources : null);
-  }
-
   var segment = task.blockedSegment;
 
   if (segment === null) {
@@ -10952,12 +11132,7 @@ function retryRenderTask(request, task, segment) {
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
-    // Reset the task's thenable state before continuing, so that if a later
-    // component suspends we can reuse the same task object. If the same
-    // component suspends again, the thenable state will be restored.
-    var prevThenableState = task.thenableState;
-    task.thenableState = null;
-    renderNodeDestructive(request, task, prevThenableState, task.node, task.childIndex);
+    renderNodeDestructive(request, task, task.node, task.childIndex);
     pushSegmentFinale(segment.chunks, request.renderState, segment.lastPushedText, segment.textEmbedded);
     task.abortSet.delete(task);
     segment.status = COMPLETED;
@@ -10992,10 +11167,6 @@ function retryRenderTask(request, task, segment) {
     return;
   } finally {
     {
-      setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, null);
-    }
-
-    {
       currentTaskInDEV = prevTaskInDEV;
     }
   }
@@ -11021,12 +11192,7 @@ function retryReplayTask(request, task) {
   try {
     // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
-    // Reset the task's thenable state before continuing, so that if a later
-    // component suspends we can reuse the same task object. If the same
-    // component suspends again, the thenable state will be restored.
-    var prevThenableState = task.thenableState;
-    task.thenableState = null;
-    renderNodeDestructive(request, task, prevThenableState, task.node, task.childIndex);
+    renderNodeDestructive(request, task, task.node, task.childIndex);
 
     if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
       throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
@@ -11073,10 +11239,6 @@ function retryReplayTask(request, task) {
 
     return;
   } finally {
-    {
-      setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, null);
-    }
-
     {
       currentTaskInDEV = prevTaskInDEV;
     }
@@ -11155,7 +11317,12 @@ function performWork(request) {
   }
 }
 
-function flushSubtree(request, destination, segment) {
+function flushPreamble(request, destination, rootSegment) {
+  var willFlushAllSegments = request.allPendingTasks === 0 && request.trackedPostpones === null;
+  writePreamble(destination, request.resumableState, request.renderState, willFlushAllSegments);
+}
+
+function flushSubtree(request, destination, segment, hoistableState) {
   segment.parentFlushed = true;
 
   switch (segment.status) {
@@ -11190,7 +11357,7 @@ function flushSubtree(request, destination, segment) {
             writeChunk(destination, chunks[chunkIdx]);
           }
 
-          r = flushSegment(request, destination, nextChild);
+          r = flushSegment(request, destination, nextChild, hoistableState);
         } // Finally just write all the remaining chunks
 
 
@@ -11212,12 +11379,12 @@ function flushSubtree(request, destination, segment) {
   }
 }
 
-function flushSegment(request, destination, segment) {
+function flushSegment(request, destination, segment, hoistableState) {
   var boundary = segment.boundary;
 
   if (boundary === null) {
     // Not a suspense boundary.
-    return flushSubtree(request, destination, segment);
+    return flushSubtree(request, destination, segment, hoistableState);
   }
 
   boundary.parentFlushed = true; // This segment is a Suspense boundary. We need to decide whether to
@@ -11228,7 +11395,7 @@ function flushSegment(request, destination, segment) {
     // We never queue the inner boundary so we'll never emit its content or partial segments.
     writeStartClientRenderedSuspenseBoundary(destination, request.renderState, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack); // Flush the fallback.
 
-    flushSubtree(request, destination, segment);
+    flushSubtree(request, destination, segment, hoistableState);
     return writeEndClientRenderedSuspenseBoundary(destination, request.renderState);
   } else if (boundary.status !== COMPLETED) {
     if (boundary.status === PENDING) {
@@ -11244,9 +11411,17 @@ function flushSegment(request, destination, segment) {
 
 
     var id = boundary.rootSegmentID;
-    writeStartPendingSuspenseBoundary(destination, request.renderState, id); // Flush the fallback.
+    writeStartPendingSuspenseBoundary(destination, request.renderState, id); // We are going to flush the fallback so we need to hoist the fallback
+    // state to the parent boundary
 
-    flushSubtree(request, destination, segment);
+    {
+      if (hoistableState) {
+        hoistHoistables(hoistableState, boundary.fallbackState);
+      }
+    } // Flush the fallback.
+
+
+    flushSubtree(request, destination, segment, hoistableState);
     return writeEndPendingSuspenseBoundary(destination);
   } else if (boundary.byteSize > request.progressiveChunkSize) {
     // This boundary is large and will be emitted separately so that we can progressively show
@@ -11258,13 +11433,19 @@ function flushSegment(request, destination, segment) {
     boundary.rootSegmentID = request.nextSegmentId++;
     request.completedBoundaries.push(boundary); // Emit a pending rendered suspense boundary wrapper.
 
-    writeStartPendingSuspenseBoundary(destination, request.renderState, boundary.rootSegmentID); // Flush the fallback.
+    writeStartPendingSuspenseBoundary(destination, request.renderState, boundary.rootSegmentID); // While we are going to flush the fallback we are going to follow it up with
+    // the completed boundary immediately so we make the choice to omit fallback
+    // boundary state from the parent since it will be replaced when the boundary
+    // flushes later in this pass or in a future flush
+    // Flush the fallback.
 
-    flushSubtree(request, destination, segment);
+    flushSubtree(request, destination, segment, hoistableState);
     return writeEndPendingSuspenseBoundary(destination);
   } else {
     {
-      hoistResources(request.renderState, boundary.resources);
+      if (hoistableState) {
+        hoistHoistables(hoistableState, boundary.contentState);
+      }
     } // We can inline this boundary's content as a complete boundary.
 
 
@@ -11276,7 +11457,7 @@ function flushSegment(request, destination, segment) {
     }
 
     var contentSegment = completedSegments[0];
-    flushSegment(request, destination, contentSegment);
+    flushSegment(request, destination, contentSegment, hoistableState);
     return writeEndCompletedSuspenseBoundary(destination, request.renderState);
   }
 }
@@ -11285,17 +11466,13 @@ function flushClientRenderedBoundary(request, destination, boundary) {
   return writeClientRenderBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.rootSegmentID, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack);
 }
 
-function flushSegmentContainer(request, destination, segment) {
+function flushSegmentContainer(request, destination, segment, hoistableState) {
   writeStartSegment(destination, request.renderState, segment.parentFormatContext, segment.id);
-  flushSegment(request, destination, segment);
+  flushSegment(request, destination, segment, hoistableState);
   return writeEndSegment(destination, segment.parentFormatContext);
 }
 
 function flushCompletedBoundary(request, destination, boundary) {
-  {
-    setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, boundary.resources);
-  }
-
   var completedSegments = boundary.completedSegments;
   var i = 0;
 
@@ -11307,17 +11484,13 @@ function flushCompletedBoundary(request, destination, boundary) {
   completedSegments.length = 0;
 
   {
-    writeResourcesForBoundary(destination, boundary.resources, request.renderState);
+    writeHoistablesForBoundary(destination, boundary.contentState, request.renderState);
   }
 
-  return writeCompletedBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.rootSegmentID, boundary.resources);
+  return writeCompletedBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.rootSegmentID, boundary.contentState);
 }
 
 function flushPartialBoundary(request, destination, boundary) {
-  {
-    setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, boundary.resources);
-  }
-
   var completedSegments = boundary.completedSegments;
   var i = 0;
 
@@ -11336,11 +11509,7 @@ function flushPartialBoundary(request, destination, boundary) {
   completedSegments.splice(0, i);
 
   {
-    // The way this is structured we only write resources for partial boundaries
-    // if there is no backpressure. Later before we complete the boundary we
-    // will write resources regardless of backpressure before we emit the
-    // completion instruction
-    return writeResourcesForBoundary(destination, boundary.resources, request.renderState);
+    return writeHoistablesForBoundary(destination, boundary.contentState, request.renderState);
   }
 }
 
@@ -11350,6 +11519,7 @@ function flushPartiallyCompletedSegment(request, destination, boundary, segment)
     return true;
   }
 
+  var hoistableState = boundary.contentState;
   var segmentID = segment.id;
 
   if (segmentID === -1) {
@@ -11361,13 +11531,13 @@ function flushPartiallyCompletedSegment(request, destination, boundary, segment)
       throw new Error('A root segment ID must have been assigned by now. This is a bug in React.');
     }
 
-    return flushSegmentContainer(request, destination, segment);
+    return flushSegmentContainer(request, destination, segment, hoistableState);
   } else if (segmentID === boundary.rootSegmentID) {
     // When we emit postponed boundaries, we might have assigned the ID already
     // but it's still the root segment so we can't inject it into the parent yet.
-    return flushSegmentContainer(request, destination, segment);
+    return flushSegmentContainer(request, destination, segment, hoistableState);
   } else {
-    flushSegmentContainer(request, destination, segment);
+    flushSegmentContainer(request, destination, segment, hoistableState);
     return writeCompletedSegmentInstruction(destination, request.resumableState, request.renderState, segmentID);
   }
 }
@@ -11388,10 +11558,10 @@ function flushCompletedQueues(request, destination) {
         return;
       } else if (request.pendingRootTasks === 0) {
         if (enableFloat) {
-          writePreamble(destination, request.resumableState, request.renderState, request.allPendingTasks === 0 && request.trackedPostpones === null);
+          flushPreamble(request, destination, completedRootSegment);
         }
 
-        flushSegment(request, destination, completedRootSegment);
+        flushSegment(request, destination, completedRootSegment, null);
         request.completedRootSegment = null;
         writeCompletedRoot(destination, request.renderState);
       } else {

@@ -21,9 +21,10 @@ pub fn get_next_shake_exports_rule(enable_mdx_rs: bool, ignore: Vec<String>) -> 
         EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextShakeExports { ignore }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 

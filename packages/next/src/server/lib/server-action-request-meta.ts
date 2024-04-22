@@ -10,6 +10,7 @@ export function getServerActionRequestMetadata(
   isURLEncodedAction: boolean
   isMultipartAction: boolean
   isFetchAction: boolean
+  isServerAction: boolean
 } {
   let actionId: string | null
   let contentType: string | null
@@ -34,14 +35,21 @@ export function getServerActionRequestMetadata(
       req.method === 'POST'
   )
 
-  return { actionId, isURLEncodedAction, isMultipartAction, isFetchAction }
+  const isServerAction = Boolean(
+    isFetchAction || isURLEncodedAction || isMultipartAction
+  )
+
+  return {
+    actionId,
+    isURLEncodedAction,
+    isMultipartAction,
+    isFetchAction,
+    isServerAction,
+  }
 }
 
 export function getIsServerAction(
   req: IncomingMessage | BaseNextRequest | NextRequest
 ): boolean {
-  const { isFetchAction, isURLEncodedAction, isMultipartAction } =
-    getServerActionRequestMetadata(req)
-
-  return Boolean(isFetchAction || isURLEncodedAction || isMultipartAction)
+  return getServerActionRequestMetadata(req).isServerAction
 }

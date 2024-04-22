@@ -29,6 +29,10 @@ if (process.env.NODE_ENV !== 'production') {
   requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 }
 
+export function clearAllModuleContexts() {
+  return sandboxContext?.clearAllModuleContexts()
+}
+
 export function clearModuleContext(target: string) {
   return sandboxContext?.clearModuleContext(target)
 }
@@ -83,6 +87,7 @@ async function initializeImpl(opts: {
   _ipcKey?: string
   bundlerService: DevBundlerService | undefined
   startServerSpan: Span | undefined
+  quiet?: boolean
 }) {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -121,6 +126,7 @@ export async function initialize(
   upgradeHandler: ReturnType<
     InstanceType<typeof NextServer>['getUpgradeHandler']
   >
+  app: NextServer
 }> {
   // if we already setup the server return as we only need to do
   // this on first worker boot

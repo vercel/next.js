@@ -11,9 +11,13 @@ createNextDescribe(
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     packageJson: {
       scripts: {
+        dev: 'node server.js',
+        build: 'next build apps/host && next build apps/guest',
+        start: 'NODE_ENV=production node server.js',
         'post-build': 'echo done',
       },
     },
+    dependencies: require('./app/package.json').dependencies,
   },
   ({ next, isNextDev }) => {
     it.each([

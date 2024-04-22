@@ -13,6 +13,13 @@ export function restoreReducer(
 ): ReducerState {
   const { url, tree } = action
   const href = createHrefFromUrl(url)
+  // This action is used to restore the router state from the history state.
+  // However, it's possible that the history state no longer contains the `FlightRouterState`.
+  // We will copy over the internal state on pushState/replaceState events, but if a history entry
+  // occurred before hydration, or if the user navigated to a hash using a regular anchor link,
+  // the history state will not contain the `FlightRouterState`.
+  // In this case, we'll continue to use the existing tree so the router doesn't get into an invalid state.
+  const treeToRestore = tree || state.tree
 
   const oldCache = state.cache
   const newCache = process.env.__NEXT_PPR
@@ -20,7 +27,7 @@ export function restoreReducer(
       // data for any segment whose dynamic data was already received. This
       // prevents an unnecessary flash back to PPR state during a
       // back/forward navigation.
-      updateCacheNodeOnPopstateRestoration(oldCache, tree)
+      updateCacheNodeOnPopstateRestoration(oldCache, treeToRestore)
     : oldCache
 
   return {
@@ -37,7 +44,7 @@ export function restoreReducer(
     cache: newCache,
     prefetchCache: state.prefetchCache,
     // Restore provided tree
-    tree: tree,
-    nextUrl: extractPathFromFlightRouterState(tree) ?? url.pathname,
+    tree: treeToRestore,
+    nextUrl: extractPathFromFlightRouterState(treeToRestore) ?? url.pathname,
   }
 }

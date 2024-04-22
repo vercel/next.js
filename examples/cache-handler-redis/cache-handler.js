@@ -19,12 +19,16 @@ IncrementalCache.onCreation(async () => {
     return evictionAge;
   }
 
-  await client.connect();
+  let redisCache;
 
-  const redisCache = await createRedisCache({
-    client,
-    useTtl,
-  });
+  if (process.env.REDIS_AVAILABLE) {
+    await client.connect();
+
+    redisCache = await createRedisCache({
+      client,
+      useTtl,
+    });
+  }
 
   const localCache = createLruCache({
     useTtl,

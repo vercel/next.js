@@ -1,7 +1,6 @@
 import { context, getOctokit } from '@actions/github'
 import { info, getInput } from '@actions/core'
 const { default: stripAnsi } = require('strip-ansi')
-const { default: nodeFetch } = require('node-fetch')
 const fs = require('fs')
 const path = require('path')
 const semver = require('semver')
@@ -24,7 +23,10 @@ async function findNextJsVersionFromBuildLogs(
   token: string,
   job: Job
 ): Promise<string> {
-  console.log('Checking logs for the job ', job.name)
+  console.log(
+    'findNextJsVersionFromBuildLogs: Checking logs for the job ',
+    job.name
+  )
 
   // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
   const jobLogRedirectResponse =
@@ -34,10 +36,18 @@ async function findNextJsVersionFromBuildLogs(
       job_id: job.id,
     })
 
+  console.log(
+    'findNextJsVersionFromBuildLogs: Trying to get logs from redirect url ',
+    jobLogRedirectResponse.url
+  )
+
   // fetch the actual logs
-  const jobLogsResponse = await nodeFetch(jobLogRedirectResponse.url, {
+  const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
     headers: {
-      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+      // [NOTE] we used to attach auth token, but seems this can cause 403
+      // redirect url is public anyway
+      //Authorization: `token ${token}`,
     },
   })
 
@@ -71,7 +81,9 @@ async function fetchJobLogsFromWorkflow(
   token: string,
   job: Job
 ): Promise<{ logs: string; job: Job }> {
-  console.log('Checking test results for the job ', job.name)
+  console.log(
+    `fetchJobLogsFromWorkflow ${job.name}: Checking test results for the job`
+  )
 
   // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
   const jobLogRedirectResponse =
@@ -81,13 +93,21 @@ async function fetchJobLogsFromWorkflow(
       job_id: job.id,
     })
 
+  console.log(
+    `fetchJobLogsFromWorkflow ${job.name}: Trying to get logs from redirect url ${jobLogRedirectResponse.url}`
+  )
+
   // fetch the actual logs
-  const jobLogsResponse = await nodeFetch(jobLogRedirectResponse.url, {
+  const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
     headers: {
       Accept: 'application/vnd.github.v3+json',
-      Authorization: `token ${token}`,
+      //Authorization: `token ${token}`,
     },
   })
+
+  console.log(
+    `fetchJobLogsFromWorkflow ${job.name}: Logs response status ${jobLogsResponse.status}`
+  )
 
   if (!jobLogsResponse.ok) {
     throw new Error(
@@ -235,7 +255,7 @@ async function getJobResults(
   const buildTimeMatch = (
     nextSwcBuildLogs.find((line) => line.includes('Time (abs ≡):')) ?? ''
   ).match(/  ([+-]?(?=\.\d|\d)(?:\d+)?(?:\.?\d*))(?:[Ee]([+-]?\d+))? s/)
-  const buildTime = buildTimeMatch.length >= 2 ? buildTimeMatch[1] : undefined
+  const buildTime = buildTimeMatch?.length >= 2 ? buildTimeMatch[1] : undefined
   const nextSwcBuildSize = (
     nextSwcBuildLogs.find(
       (line) =>
@@ -265,6 +285,8 @@ async function getJobResults(
       fetchJobLogsFromWorkflow(octokit, token, job)
     )
   )
+
+  console.log('Logs downloaded for all jobs')
 
   const testResultManifest: TestResultManifest = {
     nextjsVersion,

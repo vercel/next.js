@@ -115,7 +115,7 @@ We recommend reducing the combined complexity of these updates by breaking down 
 - `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required).
 - `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/building-your-application/routing/error-handling).
 - `pages/404.js` has been replaced with the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file.
-- `pages/api/*` currently remain inside the `pages` directory.
+- `pages/api/*` API Routes have been replaced with the [`route.js`](/docs/app/api-reference/file-conventions/route) (Route Handler) special file.
 
 ### Step 1: Creating the `app` directory
 
@@ -344,14 +344,15 @@ We recommend breaking down the migration of a page into two main steps:
 **Step 1: Create a new Client Component**
 
 - Create a new separate file inside the `app` directory (i.e. `app/home-page.tsx` or similar) that exports a Client Component. To define Client Components, add the `'use client'` directive to the top of the file (before any imports).
+  - Similar to the Pages Router, there is an [optimization step](/docs/app/building-your-application/rendering/client-components#full-page-load) to prerender Client Components to static HTML on the initial page load.
 - Move the default exported page component from `pages/index.js` to `app/home-page.tsx`.
 
 ```tsx filename="app/home-page.tsx" switcher
 'use client'
 
-// This is a Client Component. It receives data as props and
-// has access to state and effects just like Page components
-// in the `pages` directory.
+// This is a Client Component (same as components in the `pages` directory)
+// It receives data as props, has access to state and effects, and is
+// prerendered on the server during the initial page load.
 export default function HomePage({ recentPosts }) {
   return (
     <div>
@@ -469,7 +470,7 @@ export default function ExampleClientComponent() {
 In addition, the new `useRouter` hook has the following changes:
 
 - `isFallback` has been removed because `fallback` has [been replaced](#replacing-fallback).
-- The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/pages/building-your-application/routing/internationalization).
+- The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/building-your-application/routing/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
 - `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.

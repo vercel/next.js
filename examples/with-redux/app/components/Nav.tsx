@@ -1,10 +1,8 @@
 "use client";
 
-/* Core */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/* Instruments */
 import styles from "../styles/layout.module.css";
 
 export const Nav = () => {
@@ -25,6 +23,14 @@ export const Nav = () => {
         href="/verify"
       >
         Verify
+      </Link>
+      <Link
+        className={`${styles.link} ${
+          pathname === "/quotes" ? styles.active : ""
+        }`}
+        href="/quotes"
+      >
+        Quotes
       </Link>
     </nav>
   );

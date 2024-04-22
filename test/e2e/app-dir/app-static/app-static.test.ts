@@ -3,7 +3,13 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  normalizeRegEx,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
@@ -34,6 +40,74 @@ createNextDescribe(
       }
     })
 
+    it('should still cache even though the `traceparent` header was different', async () => {
+      const res = await next.fetch('/strip-header-traceparent')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#data1').text()
+      const data2 = $('#data2').text()
+      expect(data1).toBeTruthy()
+      expect(data1).toBe(data2)
+
+      const echoedHeaders = JSON.parse($('#echoedHeaders').text())
+      expect(echoedHeaders.headers.traceparent).toEqual('C')
+    })
+
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
+    })
+
+    if (isNextDeploy) {
+      describe('new tags have been specified on subsequent fetch', () => {
+        it('should not fetch from memory cache', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+
+        it('should not fetch from memory cache after revalidateTag is used', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const revalidateRes = await next.fetch(
+            '/api/revlidate-tag-node?tag=thankyounext'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+      })
+    }
+
     if (isNextStart) {
       it('should propagate unstable_cache tags correctly', async () => {
         const meta = JSON.parse(
@@ -44,6 +118,34 @@ createNextDescribe(
         expect(meta.headers['x-next-cache-tags']).toContain(
           'unstable_cache_tag1'
         )
+      })
+
+      it('should infer a fetchCache of force-no-store when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/no-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/no-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).not.toBe(initData)
+        })
+      })
+
+      it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/with-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/with-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).toBe(initData)
+        })
       })
 
       if (!process.env.CUSTOM_CACHE_HANDLER) {
@@ -209,6 +311,33 @@ createNextDescribe(
         expect(newData).not.toEqual(data)
       }
     })
+
+    if (!isDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should properly revalidate a route handler that triggers dynamic usage with force-static', async () => {
+        // wait for the revalidation period
+        let res = await next.fetch('/route-handler/no-store-force-static')
+
+        let data = await res.json()
+        // grab the initial timestamp
+        const initialTimestamp = data.now
+
+        // confirm its cached still
+        res = await next.fetch('/route-handler/no-store-force-static')
+
+        data = await res.json()
+
+        expect(data.now).toBe(initialTimestamp)
+
+        // wait for the revalidation time
+        await waitFor(3000)
+
+        // verify fresh data
+        res = await next.fetch('/route-handler/no-store-force-static')
+        data = await res.json()
+
+        expect(data.now).not.toBe(initialTimestamp)
+      })
+    }
 
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it.each([
@@ -480,6 +609,36 @@ createNextDescribe(
     })
 
     if (isNextStart) {
+      if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+        it('should have deterministic etag across revalidates', async () => {
+          const initialRes = await next.fetch(
+            '/variable-revalidate-stable/revalidate-3'
+          )
+          expect(initialRes.status).toBe(200)
+
+          // check 2 revalidate passes to ensure it's consistent
+          for (let i = 0; i < 2; i++) {
+            let startIdx = next.cliOutput.length
+
+            await retry(
+              async () => {
+                const res = await next.fetch(
+                  '/variable-revalidate-stable/revalidate-3'
+                )
+                expect(next.cliOutput.substring(startIdx)).toContain(
+                  'rendering /variable-revalidate-stable'
+                )
+                expect(initialRes.headers.get('etag')).toBe(
+                  res.headers.get('etag')
+                )
+              },
+              12_000,
+              3_000
+            )
+          }
+        })
+      }
+
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
           await glob('**/*', {
@@ -499,9 +658,9 @@ createNextDescribe(
             "(new)/custom/page.js",
             "(new)/custom/page_client-reference-manifest.js",
             "_not-found.html",
-            "_not-found.js",
             "_not-found.rsc",
-            "_not-found_client-reference-manifest.js",
+            "_not-found/page.js",
+            "_not-found/page_client-reference-manifest.js",
             "api/draft-mode/route.js",
             "api/large-data/route.js",
             "api/revalidate-path-edge/route.js",
@@ -538,6 +697,8 @@ createNextDescribe(
             "dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js",
             "dynamic-no-gen-params/[slug]/page.js",
             "dynamic-no-gen-params/[slug]/page_client-reference-manifest.js",
+            "dynamic-param-edge/[slug]/page.js",
+            "dynamic-param-edge/[slug]/page_client-reference-manifest.js",
             "fetch-no-cache/page.js",
             "fetch-no-cache/page_client-reference-manifest.js",
             "flight/[slug]/[slug2]/page.js",
@@ -550,10 +711,16 @@ createNextDescribe(
             "force-cache/page_client-reference-manifest.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
             "force-dynamic-no-prerender/[id]/page.js",
             "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
             "force-dynamic-prerender/[slug]/page.js",
             "force-dynamic-prerender/[slug]/page_client-reference-manifest.js",
+            "force-no-store-bailout/page.js",
+            "force-no-store-bailout/page_client-reference-manifest.js",
             "force-no-store/page.js",
             "force-no-store/page_client-reference-manifest.js",
             "force-static-fetch-no-store.html",
@@ -637,10 +804,16 @@ createNextDescribe(
             "response-url/page.js",
             "response-url/page_client-reference-manifest.js",
             "route-handler-edge/revalidate-360/route.js",
+            "route-handler/no-store-force-static/route.js",
+            "route-handler/no-store/route.js",
             "route-handler/post/route.js",
             "route-handler/revalidate-360-isr/route.js",
             "route-handler/revalidate-360/route.js",
             "route-handler/static-cookies/route.js",
+            "specify-new-tags/one-tag/page.js",
+            "specify-new-tags/one-tag/page_client-reference-manifest.js",
+            "specify-new-tags/two-tags/page.js",
+            "specify-new-tags/two-tags/page_client-reference-manifest.js",
             "ssg-draft-mode.html",
             "ssg-draft-mode.rsc",
             "ssg-draft-mode/[[...route]]/page.js",
@@ -665,6 +838,16 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "strip-header-traceparent.html",
+            "strip-header-traceparent.rsc",
+            "strip-header-traceparent/page.js",
+            "strip-header-traceparent/page_client-reference-manifest.js",
+            "too-many-cache-tags/page.js",
+            "too-many-cache-tags/page_client-reference-manifest.js",
+            "unstable-cache/dynamic-undefined/page.js",
+            "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
+            "unstable-cache/dynamic/page.js",
+            "unstable-cache/dynamic/page_client-reference-manifest.js",
             "variable-config-revalidate/revalidate-3.html",
             "variable-config-revalidate/revalidate-3.rsc",
             "variable-config-revalidate/revalidate-3/page.js",
@@ -681,6 +864,10 @@ createNextDescribe(
             "variable-revalidate-edge/post-method/page_client-reference-manifest.js",
             "variable-revalidate-edge/revalidate-3/page.js",
             "variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js",
+            "variable-revalidate-stable/revalidate-3.html",
+            "variable-revalidate-stable/revalidate-3.rsc",
+            "variable-revalidate-stable/revalidate-3/page.js",
+            "variable-revalidate-stable/revalidate-3/page_client-reference-manifest.js",
             "variable-revalidate/authorization.html",
             "variable-revalidate/authorization.rsc",
             "variable-revalidate/authorization/page.js",
@@ -763,7 +950,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -779,7 +966,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -799,7 +986,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 1,
@@ -815,7 +1002,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -831,7 +1018,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -847,7 +1034,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -863,7 +1050,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -879,7 +1066,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -895,7 +1082,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -911,7 +1098,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -927,7 +1114,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -943,7 +1130,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -959,7 +1146,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -975,7 +1162,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -991,7 +1178,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1007,7 +1194,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1023,7 +1210,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1039,7 +1226,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1055,7 +1242,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1071,7 +1258,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1087,7 +1274,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1103,7 +1290,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1119,7 +1306,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1135,7 +1322,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1151,7 +1338,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1167,7 +1354,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1183,7 +1370,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1199,7 +1386,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1215,7 +1402,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1231,7 +1418,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1247,7 +1434,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1263,11 +1450,31 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/route-handler/no-store-force-static": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
+              },
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/route-handler/no-store-force-static",
             },
             "/route-handler/revalidate-360-isr": {
               "dataRoute": null,
@@ -1279,7 +1486,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1299,7 +1506,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialHeaders": {
@@ -1319,7 +1526,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1335,7 +1542,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
@@ -1351,11 +1558,27 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/strip-header-traceparent": {
+              "dataRoute": "/strip-header-traceparent.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialRevalidateSeconds": 50,
+              "srcRoute": "/strip-header-traceparent",
             },
             "/variable-config-revalidate/revalidate-3": {
               "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
@@ -1367,11 +1590,27 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
               "srcRoute": "/variable-config-revalidate/revalidate-3",
+            },
+            "/variable-revalidate-stable/revalidate-3": {
+              "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate-stable/revalidate-3",
             },
             "/variable-revalidate/authorization": {
               "dataRoute": "/variable-revalidate/authorization.rsc",
@@ -1383,7 +1622,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1399,7 +1638,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1415,7 +1654,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1431,7 +1670,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1447,7 +1686,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1463,7 +1702,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 3,
@@ -1479,7 +1718,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "initialRevalidateSeconds": 10,
@@ -1500,7 +1739,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1517,7 +1756,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1534,7 +1773,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1551,7 +1790,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1568,7 +1807,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1585,7 +1824,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1602,7 +1841,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1619,7 +1858,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1636,7 +1875,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": false,
@@ -1653,7 +1892,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -1670,7 +1909,7 @@ createNextDescribe(
                 {
                   "key": "content-type",
                   "type": "header",
-                  "value": "multipart/form-data",
+                  "value": "multipart/form-data;.*",
                 },
               ],
               "fallback": null,
@@ -2167,6 +2406,7 @@ createNextDescribe(
 
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
+        const pageData2 = $('#page-data-2').text()
 
         const res2 = await fetchViaHTTP(
           next.url,
@@ -2178,6 +2418,8 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#page-data-2').text()).toBe(pageData2)
+        expect(pageData).toBe(pageData2)
         return 'success'
       }, 'success')
 
@@ -2934,7 +3176,7 @@ createNextDescribe(
           })
         }
       })
-      // Don't run these tests in dev mode since they won't be statically generated
+      // Don't run these tests in development mode since they won't be statically generated
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - with suspense boundary', async () => {
@@ -3010,6 +3252,52 @@ createNextDescribe(
       })
     })
 
+    describe('unstable_cache', () => {
+      it('should retrieve the same value on second request', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+      })
+
+      it('should bypass cache in draft mode', async () => {
+        const draftRes = await next.fetch('/api/draft-mode?status=enable')
+        const setCookie = draftRes.headers.get('set-cookie')
+        const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+        expect(cookieHeader.Cookie).toBeTruthy()
+
+        const res = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic', {
+          headers: cookieHeader,
+        })
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).not.toEqual(data2)
+      })
+
+      it('should not error when retrieving the value undefined', async () => {
+        const res = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html = await res.text()
+        const data = cheerio.load(html)('#cached-data').text()
+        const res2 = await next.fetch('/unstable-cache/dynamic-undefined')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#cached-data').text()
+
+        expect(data).toEqual(data2)
+        expect(data).toEqual('typeof cachedData: undefined')
+      })
+    })
+
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')
       const checkUrl = async () =>
@@ -3068,7 +3356,7 @@ createNextDescribe(
         })
       }
       if (!process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode', async () => {
+        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
@@ -3089,14 +3377,14 @@ createNextDescribe(
                 .length
             ).toBe(2)
             expect(next.cliOutput.substring(cliOutputStart)).toContain(
-              'Error: fetch for over 2MB of data can not be cached'
+              'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
             )
             return 'success'
           }, 'success')
         })
       }
       if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
-        it('should cache request if response data size is greater than 2MB in Dev mode', async () => {
+        it('should cache request if response data size is greater than 2MB in development mode', async () => {
           const cliOutputStart = next.cliOutput.length
           const resp1 = await next.fetch('/force-cache/large-data')
           const resp1Text = await resp1.text()
@@ -3120,10 +3408,15 @@ createNextDescribe(
           }, 'success')
 
           expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-            'Error: fetch for over 2MB of data can not be cached'
+            'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
           )
         })
       }
+    })
+
+    it('should build dynamic param with edge runtime correctly', async () => {
+      const browser = await next.browser('/dynamic-param-edge/hello')
+      expect(await browser.elementByCss('#slug').text()).toBe('hello')
     })
   }
 )

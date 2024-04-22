@@ -148,10 +148,9 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
 
     [RSC_ACTION_PROXY_ALIAS]:
-      'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+      'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
-    [RSC_ACTION_ENCRYPTION_ALIAS]:
-      'next/dist/server/app-render/action-encryption',
+    [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
 
     ...(isClient || isEdgeServer
       ? {
@@ -205,6 +204,7 @@ export function createNextApiEsmAliases() {
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
+    server: 'next/dist/api/server',
     // pages api
     document: 'next/dist/api/document',
     app: 'next/dist/api/app',
@@ -219,10 +219,14 @@ export function createNextApiEsmAliases() {
   return aliasMap
 }
 
-export function createAppRouterApiAliases() {
-  const mapping = {
+export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
+  const mapping: Record<string, string> = {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
+  }
+
+  if (isServerOnlyLayer) {
+    mapping['navigation'] = 'next/dist/api/navigation.react-server'
   }
 
   const aliasMap: Record<string, string> = {}
@@ -290,13 +294,16 @@ export function createRSCAliases(
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
+      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
+    } else {
+      // x-ref: https://github.com/facebook/react/pull/25436
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
     }
-    // Use server rendering stub for RSC and SSR
-    // x-ref: https://github.com/facebook/react/pull/25436
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
   if (reactProductionProfiling) {

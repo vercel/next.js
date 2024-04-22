@@ -9,9 +9,29 @@ Middleware allows you to run code before a request is completed. Then, based on 
 
 Middleware runs before cached content and routes are matched. See [Matching Paths](#matching-paths) for more details.
 
+## Use Cases
+
+Integrating Middleware into your application can lead to significant improvements in performance, security, and user experience. Some common scenarios where Middleware is particularly effective include:
+
+- Authentication and Authorization: Ensure user identity and check session cookies before granting access to specific pages or API routes.
+- Server-Side Redirects: Redirect users at the server level based on certain conditions (e.g., locale, user role).
+- Path Rewriting: Support A/B testing, feature rollouts, or legacy paths by dynamically rewriting paths to API routes or pages based on request properties.
+- Bot Detection: Protect your resources by detecting and blocking bot traffic.
+- Logging and Analytics: Capture and analyze request data for insights before processing by the page or API.
+- Feature Flagging: Enable or disable features dynamically for seamless feature rollouts or testing.
+
+Recognizing situations where middleware may not be the optimal approach is just as crucial. Here are some scenarios to be mindful of:
+
+- Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation, this should be done within Route Handlers or server-side utilities instead.
+- Heavy Computational Tasks: Middleware should be lightweight and respond quickly or it can cause delays in page load. Heavy computational tasks or long-running processes should be done within dedicated Route Handlers.
+- Extensive Session Management: While Middleware can manage basic session tasks, extensive session management should be managed by dedicated authentication services or within Route Handlers.
+- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should done within Route Handlers or server-side utilities.
+
 ## Convention
 
 Use the file `middleware.ts` (or `.js`) in the root of your project to define Middleware. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
+
+> **Note**: While only one `middleware.ts` file is supported per project, you can still organize your middleware logic modularly. Break out middleware functionalities into separate `.ts` or `.js` files and import them into your main `middleware.ts` file. This allows for cleaner management of route-specific middleware, aggregated in the `middleware.ts` for centralized control. By enforcing a single middleware file, it simplifies configuration, prevents potential conflicts, and optimizes performance by avoiding multiple middleware layers.
 
 ## Example
 
@@ -46,7 +66,7 @@ export const config = {
 
 ## Matching Paths
 
-Middleware will be invoked for **every route in your project**. The following is the execution order:
+Middleware will be invoked for **every route in your project**. Given this, it's crucial to use matchers to precisely target or exclude specific routes. The following is the execution order:
 
 1. `headers` from `next.config.js`
 2. `redirects` from `next.config.js`
@@ -97,7 +117,7 @@ export const config = {
 }
 ```
 
-You can also ignore prefetches (from `next/link`) that don't need to go through the Middleware using the `missing` array:
+You can also bypass Middleware for certain requests by using the `missing` or `has` arrays, or a combination of both:
 
 ```js filename="middleware.js"
 export const config = {
@@ -115,6 +135,20 @@ export const config = {
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
       ],
+    },
+
+    {
+      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      has: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+
+    {
+      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      has: [{ type: 'header', key: 'x-present' }],
+      missing: [{ type: 'header', key: 'x-missing', value: 'prefetch' }],
     },
   ],
 }
@@ -312,6 +346,106 @@ export function middleware(request) {
 ```
 
 > **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
+
+### CORS
+
+You can set CORS headers in Middleware to allow cross-origin requests, including [simple](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests) and [preflighted](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests) requests.
+
+```tsx filename="middleware.ts" switcher
+import { NextRequest, NextResponse } from 'next/server'
+
+const allowedOrigins = ['https://acme.com', 'https://my-app.org']
+
+const corsOptions = {
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export function middleware(request: NextRequest) {
+  // Check the origin from the request
+  const origin = request.headers.get('origin') ?? ''
+  const isAllowedOrigin = allowedOrigins.includes(origin)
+
+  // Handle preflighted requests
+  const isPreflight = request.method === 'OPTIONS'
+
+  if (isPreflight) {
+    const preflightHeaders = {
+      ...(isAllowedOrigin && { 'Access-Control-Allow-Origin': origin }),
+      ...corsOptions,
+    }
+    return NextResponse.json({}, { headers: preflightHeaders })
+  }
+
+  // Handle simple requests
+  const response = NextResponse.next()
+
+  if (isAllowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  }
+
+  Object.entries(corsOptions).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+
+  return response
+}
+
+export const config = {
+  matcher: '/api/:path*',
+}
+```
+
+```jsx filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+const allowedOrigins = ['https://acme.com', 'https://my-app.org']
+
+const corsOptions = {
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export function middleware(request) {
+  // Check the origin from the request
+  const origin = request.headers.get('origin') ?? ''
+  const isAllowedOrigin = allowedOrigins.includes(origin)
+
+  // Handle preflighted requests
+  const isPreflight = request.method === 'OPTIONS'
+
+  if (isPreflight) {
+    const preflightHeaders = {
+      ...(isAllowedOrigin && { 'Access-Control-Allow-Origin': origin }),
+      ...corsOptions,
+    }
+    return NextResponse.json({}, { headers: preflightHeaders })
+  }
+
+  // Handle simple requests
+  const response = NextResponse.next()
+
+  if (isAllowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  }
+
+  Object.entries(corsOptions).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+
+  return response
+}
+
+export const config = {
+  matcher: '/api/:path*',
+}
+```
+
+<AppOnly>
+
+> **Good to know:** You can configure CORS headers for individual routes in [Route Handlers](/docs/app/building-your-application/routing/route-handlers#cors).
+
+</AppOnly>
 
 ## Producing a Response
 

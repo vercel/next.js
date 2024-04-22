@@ -32,7 +32,7 @@ const appExternals = [
 function makeAppAliases(reactChannel = '') {
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
-    'react/shared-subset$': `next/dist/compiled/react${reactChannel}/react.shared-subset`,
+    'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
     'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
@@ -65,7 +65,6 @@ const sharedExternals = [
   'styled-jsx',
   'styled-jsx/style',
   '@opentelemetry/api',
-  'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
   'next/dist/compiled/@ampproject/toolbox-optimizer',
   'next/dist/compiled/edge-runtime',
   'next/dist/compiled/@edge-runtime/ponyfill',
@@ -178,6 +177,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
         'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
         'this.minimalMode': JSON.stringify(true),
         'this.renderOpts.dev': JSON.stringify(dev),
+        'renderOpts.dev': JSON.stringify(dev),
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
@@ -224,6 +224,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     },
     module: {
       rules: [
+        { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
         {
           include: /[\\/]react-server\.node/,
           layer: 'react-server',
@@ -235,10 +236,16 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             alias: {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
+              'react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
+              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
             },
           },
           layer: 'react-server',
@@ -250,10 +257,16 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             alias: {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
+              'react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
+              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
+                experimental ? '-experimental' : ''
+              }/react-dom.react-server`,
             },
           },
         },

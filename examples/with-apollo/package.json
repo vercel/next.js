@@ -1,18 +1,22 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@apollo/client": "3.1.1",
-    "deepmerge": "^4.2.2",
-    "lodash": "4.17.20",
-    "graphql": "^15.3.0",
-    "next": "latest",
-    "prop-types": "^15.6.2",
+    "@apollo/client": "^3.9.10",
+    "graphql": "^16.8.1",
+    "next": "^14.1.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.5",
+    "@types/react": "^18.2.74",
+    "@types/react-dom": "^18.2.24",
+    "typescript": "^5.4.4"
   }
 }

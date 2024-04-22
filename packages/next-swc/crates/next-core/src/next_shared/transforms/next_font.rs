@@ -1,11 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::fonts::*;
-use swc_core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith};
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-    turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use turbopack_binding::{
+    swc::core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
+    turbopack::{
+        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
+        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+    },
 };
 
 use super::module_rule_match_js_no_url;
@@ -24,9 +26,10 @@ pub fn get_next_font_transform_rule(enable_mdx_rs: bool) -> ModuleRule {
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 

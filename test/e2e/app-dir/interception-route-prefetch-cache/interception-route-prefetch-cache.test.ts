@@ -1,13 +1,10 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { Response } from 'playwright-chromium'
+import { join } from 'path'
+import { Response } from 'playwright'
 
-createNextDescribe(
-  'interception-route-prefetch-cache',
-  {
-    files: __dirname,
-  },
-  ({ next, isNextStart }) => {
+describe('interception-route-prefetch-cache', () => {
+  function runTests({ next }: ReturnType<typeof nextTestSetup>) {
     it('should render the correct interception when two distinct layouts share the same path structure', async () => {
       const browser = await next.browser('/')
 
@@ -42,7 +39,17 @@ createNextDescribe(
         /Intercepted on Bar Page/
       )
     })
+  }
 
+  describe('runtime = nodejs', () => {
+    const testSetup = nextTestSetup({
+      files: __dirname,
+    })
+    runTests(testSetup)
+
+    const { next, isNextStart } = testSetup
+
+    // this is a node runtime specific test as edge doesn't support static rendering
     if (isNextStart) {
       it('should not be a cache HIT when prefetching an interception route', async () => {
         const responses: { cacheStatus: string; pathname: string }[] = []
@@ -78,5 +85,16 @@ createNextDescribe(
         expect(interceptionPrefetchResponse.cacheStatus).toBeUndefined()
       })
     }
-  }
-)
+  })
+
+  describe('runtime = edge', () => {
+    runTests(
+      nextTestSetup({
+        files: {
+          app: new FileRef(join(__dirname, 'app')),
+          'app/layout.tsx': new FileRef(join(__dirname, 'app/layout-edge.tsx')),
+        },
+      })
+    )
+  })
+})

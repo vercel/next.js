@@ -9,11 +9,8 @@ const serverExports = {
     .userAgentFromString,
   userAgent: require('next/dist/server/web/spec-extension/user-agent')
     .userAgent,
-}
-
-if (typeof URLPattern !== 'undefined') {
-  // eslint-disable-next-line no-undef
-  serverExports.URLPattern = URLPattern
+  URLPattern: require('next/dist/server/web/spec-extension/url-pattern')
+    .URLPattern,
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces

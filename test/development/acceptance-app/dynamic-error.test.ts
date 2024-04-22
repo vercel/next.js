@@ -33,7 +33,7 @@ describe('dynamic = "error" in devmode', () => {
     await session.hasRedbox()
     console.log(await session.getRedboxDescription())
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: Page with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
+      `"Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
     )
 
     await cleanup()

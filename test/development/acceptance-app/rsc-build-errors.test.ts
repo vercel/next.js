@@ -5,7 +5,7 @@ import { sandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Error overlay - RSC build errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
     dependencies: {
       react: 'latest',
@@ -223,9 +223,25 @@ describe('Error overlay - RSC build errors', () => {
     await next.patchFile(file, uncomment)
 
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-    )
+    if (isTurbopack) {
+      // TODO: fix the issue ordering.
+      // turbopack emits the resolve issue first instead of the transform issue.
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
+        Ecmascript file had an error
+        > 1 | import 'client-only'
+            | ^^^^^^^^^^^^^^^^^^^^
+          2 |
+          3 | export default function ClientOnlyLib() {
+          4 |   return 'client-only-lib'
+
+        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\\n\\n"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+    }
 
     await cleanup()
   })
@@ -356,26 +372,36 @@ describe('Error overlay - RSC build errors', () => {
       () => session.getRedboxSource(),
       /must be a Client \n| Component/
     )
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      `
-      "./app/server-with-errors/error-file/error.js
-      Error: 
-        x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top
-        | of the file to resolve this issue.
-        | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
-        | 
-        | 
-         ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-       1 | export default function Error() {}
-         : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         \`----
+    if (process.env.TURBOPACK) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./app/server-with-errors/error-file/error.js:1:1
+        Ecmascript file had an error
+        > 1 | export default function Error() {}
+            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-      Import trace for requested module:
-      ./app/server-with-errors/error-file/error.js"
-    `
-    )
+        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components"
+      `)
+    } else {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./app/server-with-errors/error-file/error.js
+        Error: 
+          x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top
+          | of the file to resolve this issue.
+          | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+          | 
+          | 
+           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
+         1 | export default function Error() {}
+           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           \`----
+
+        Import trace for requested module:
+        ./app/server-with-errors/error-file/error.js"
+      `)
+    }
 
     await cleanup()
   })

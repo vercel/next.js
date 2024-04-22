@@ -1,7 +1,8 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-const data = []
+let data = []
 
 export async function addData(newData: string) {
   // sleep 1s
@@ -20,4 +21,9 @@ export async function redirectAction() {
   console.log('redirecting...')
   await new Promise((res) => setTimeout(res, 1000))
   redirect('/')
+}
+
+export async function clearData() {
+  data = []
+  revalidatePath('/')
 }

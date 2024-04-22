@@ -21,7 +21,7 @@ Consider the following folder structure. The `@team` slot has a `settings` page,
   height="930"
 />
 
-When navigating to `/dashboard/settings`, the `@team` slot will render the `settings` page while maintaining the currently active page for the `@analytics` slot.
+When navigating to `/settings`, the `@team` slot will render the `settings` page while maintaining the currently active page for the `@analytics` slot.
 
 On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js` doesn't exist, a `404` is rendered instead.
 
@@ -29,4 +29,11 @@ Additionally, since `children` is an implicit slot, you also need to create a `d
 
 ## Props
 
-`default.js` does not receive any props.
+### `params` (optional)
+
+An object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) from the root segment down to the slot's subpages. For example:
+
+| Example                                    | URL          | `params`                            |
+| ------------------------------------------ | ------------ | ----------------------------------- |
+| `app/[artist]/@sidebar/default.js`         | `/zack`      | `{ artist: 'zack' }`                |
+| `app/[artist]/[album]/@sidebar/default.js` | `/zack/next` | `{ artist: 'zack', album: 'next' }` |
