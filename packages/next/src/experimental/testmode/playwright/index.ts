@@ -5,8 +5,9 @@ import type { NextOptions } from './next-options'
 import type { NextWorkerFixture } from './next-worker-fixture'
 import { applyNextWorkerFixture } from './next-worker-fixture'
 import { applyNextFixture } from './next-fixture'
+import { defaultPlaywrightConfig } from './default-config'
 
-export * from './with-next'
+export { defaultPlaywrightConfig }
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
@@ -24,7 +25,7 @@ export function defineConfig<T extends NextOptionsConfig, W>(
 export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
   config: base.PlaywrightTestConfig<T>
 ): base.PlaywrightTestConfig<T> {
-  return base.defineConfig<T>(config)
+  return base.defineConfig<T>(Object.assign(defaultPlaywrightConfig, config))
 }
 
 export const test = base.test.extend<
