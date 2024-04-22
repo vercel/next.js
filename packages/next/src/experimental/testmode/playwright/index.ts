@@ -25,7 +25,14 @@ export function defineConfig<T extends NextOptionsConfig, W>(
 export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
   config: base.PlaywrightTestConfig<T>
 ): base.PlaywrightTestConfig<T> {
-  return base.defineConfig<T>(Object.assign(defaultPlaywrightConfig, config))
+  return base.defineConfig<T>({
+    ...defaultPlaywrightConfig,
+    ...config,
+    use: {
+      ...defaultPlaywrightConfig.use,
+      ...config.use,
+    },
+  })
 }
 
 export const test = base.test.extend<

@@ -20,10 +20,10 @@ export interface NextTestOptions {
 }
 
 export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
-export type supportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
+export type SupportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
 
 const requiredPackagesByTestRunner: {
-  [k in supportedTestRunners]: MissingDependency[]
+  [k in SupportedTestRunners]: MissingDependency[]
 } = {
   playwright: [
     { file: 'playwright', pkg: '@playwright/test', exportsRestrict: false },
@@ -91,7 +91,7 @@ export async function nextTest(
 
 async function checkRequiredDeps(
   baseDir: string,
-  testRunner: supportedTestRunners
+  testRunner: SupportedTestRunners
 ) {
   const deps = await hasNecessaryDependencies(
     baseDir,
