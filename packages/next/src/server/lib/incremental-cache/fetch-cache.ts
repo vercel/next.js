@@ -256,7 +256,7 @@ export default class FetchCache implements CacheHandler {
         const cached: IncrementalCacheValue = await res.json()
         const cachedParsed = zCachedFetchValue.safeParse(cached)
 
-        if (!cached || !cachedParsed.success) {
+        if (!cachedParsed.success) {
           this.debug && console.log({ cached })
           throw new Error('invalid cache value')
         }
