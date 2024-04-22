@@ -809,6 +809,11 @@ export interface NextConfig extends Record<string, any> {
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
+
+  /**
+   * Enables behavior that will become the default in a future major release.
+   */
+  future?: Record<string, never>
 }
 
 export const defaultConfig: NextConfig = {
