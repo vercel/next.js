@@ -1,6 +1,5 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "experimentalUI": true,
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
