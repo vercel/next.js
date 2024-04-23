@@ -92,6 +92,8 @@ The easiest way to generate an image is to use the [ImageResponse](/docs/app/api
 ```tsx filename="app/about/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
 
+export const runtime = 'edge'
+
 // Image metadata
 export const alt = 'About Acme'
 export const size = {
@@ -145,6 +147,8 @@ export default async function Image() {
 
 ```jsx filename="app/about/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -427,7 +431,7 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
-export async function GET() {
+export default async function Image() {
   const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
     (res) => res.arrayBuffer()
   )
@@ -457,7 +461,7 @@ import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export async function GET() {
+export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 
