@@ -6742,10 +6742,10 @@
   },
   "test/e2e/next-font/with-proxy.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "next/font/google with proxy should use a proxy agent when proxy environment variable is set"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
