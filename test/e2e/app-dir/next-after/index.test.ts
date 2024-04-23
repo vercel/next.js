@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -10,17 +10,18 @@ describe('unstable_after()', () => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
   const logFile = path.join(logFileDir, 'logs.jsonl')
 
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     env: {
       PERSISTENT_LOG_FILE: logFile,
     },
+    installCommand: 'pnpm i --offline', // TODO(after): local dev only!
   })
 
   beforeEach(() => Log.clearPersistentLog(logFile))
 
   it('runs in dynamic pages', async () => {
-    await next.render$('/123/dynamic')
+    await next.render('/123/dynamic')
     const logs = Log.readPersistentLog(logFile)
     expect(logs).toContainEqual({
       source: '[page] /[id]/dynamic',
@@ -50,11 +51,43 @@ describe('unstable_after()', () => {
       })
       return 'success'
     }, 'success')
+    // TODO: server seems to close before the response fully returns?
   })
+
+  it('is a no-op with `dynamic = "force-static"`', async () => {
+    const res = await next.fetch('/static')
+    expect(res.status).toBe(200)
+    expect(Log.readPersistentLog(logFile)).toHaveLength(0)
+  })
+
+  if (isNextDev) {
+    it('errors with `dynamic = "error"`', async () => {
+      const filePath = 'app/static/page.js'
+      const origContent = await next.readFile(filePath)
+
+      try {
+        await next.patchFile(filePath, (contents) =>
+          contents.replace(
+            `export const dynamic = 'force-static'`,
+            `export const dynamic = 'error'`
+          )
+        )
+        const browser = await next.browser('/static')
+
+        expect(await hasRedbox(browser)).toBe(true)
+        console.log(await getRedboxDescription(browser))
+        expect(await getRedboxDescription(browser)).toContain(
+          'Route /static with `dynamic = "error"` couldn\'t be rendered statically because it used `unstable_after`'
+        )
+        expect(Log.readPersistentLog(logFile)).toHaveLength(0)
+      } finally {
+        await next.patchFile(filePath, origContent)
+      }
+    })
+  }
 
   it.todo('runs after the response is sent')
   it.todo('does not allow modifying cookies')
   it.todo('errors when used in client modules')
   it.todo('errors when used in pages dir')
-  it.todo('warns in static pages')
 })

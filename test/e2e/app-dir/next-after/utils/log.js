@@ -20,6 +20,9 @@ export function clearPersistentLog(file = LOG_FILE) {
 }
 
 export function readPersistentLog(file = LOG_FILE) {
+  if (!fs.existsSync(file)) {
+    return []
+  }
   const contents = fs.readFileSync(file, 'utf-8')
   return contents
     .split('\n')
