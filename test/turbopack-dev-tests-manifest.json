@@ -13359,6 +13359,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/import-attributes/test/index.test.js": {
+    "passed": ["import-attributes dev should handle json attributes"],
+    "failed": [],
+    "pending": [
+      "production mode import-attributes prod should handle json attributes"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/index-index/test/index.test.js": {
     "passed": [
       "nested index.js development mode should 404 on /index/index/index",
@@ -14857,7 +14866,8 @@
     "passed": [
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with component correctly",
-      "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly"
+      "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly",
+      "MDX-rs Configuration MDX-rs Plugin support with mdx transform options should render an MDX page correctly"
     ],
     "failed": [],
     "pending": [],
