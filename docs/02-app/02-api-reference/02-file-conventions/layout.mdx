@@ -92,6 +92,14 @@ export default function ShopLayout({ children, params }) {
 
 ## Good to know
 
+### Root Layouts
+
+- The `app` directory **must** include a root `app/layout.js`.
+- The root layout **must** define `<html>` and `<body>` tags.
+  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+- You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
+  - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+
 ### Layouts do not receive `searchParams`
 
 Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
@@ -116,16 +124,18 @@ Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the
 
 - Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component, which is re-rendered on the client with the latest `searchParams`.
 
-### Root Layouts
+### Layouts cannot access `pathname`
 
-- The `app` directory **must** include a root `app/layout.js`.
-- The root layout **must** define `<html>` and `<body>` tags.
-  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
-- You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
-  - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+Layouts cannot access `pathname`. This is because Layouts are Server Components by default (rendered on the server) and [do not rerender during client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), which could lead to stale pathnames.
+
+Instead, you can extract the logic that depends on pathname into a child Client Component of the layout, and use Next.js APIs such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname. See the Layout [examples](/docs/app/building-your-application/routing/layouts-and-templates) section for common UI patterns.
 
 ## Version History
 
 | Version   | Changes              |
 | --------- | -------------------- |
 | `v13.0.0` | `layout` introduced. |
+
+```
+
+```
