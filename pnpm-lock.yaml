@@ -115,10 +115,10 @@ importers:
         version: 0.1.55(@swc/core@1.4.4)
       '@swc/core':
         specifier: 1.4.4
-        version: 1.4.4(@swc/helpers@0.5.5)
+        version: 1.4.4(@swc/helpers@0.5.10)
       '@swc/helpers':
-        specifier: 0.5.5
-        version: 0.5.5
+        specifier: 0.5.10
+        version: 0.5.10
       '@testing-library/jest-dom':
         specifier: 6.1.2
         version: 6.1.2(@types/jest@29.5.5)(jest@29.7.0)
@@ -540,8 +540,8 @@ importers:
         specifier: 0.2.1
         version: 0.2.1(@bazel/bazelisk@1.18.0)(typescript@5.3.3)
       turbo:
-        specifier: 1.12.5
-        version: 1.12.5
+        specifier: 1.13.3-canary.2
+        version: 1.13.3-canary.2
       typescript:
         specifier: 5.3.3
         version: 5.3.3
@@ -747,7 +747,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -809,11 +809,11 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../next-env
       '@swc/helpers':
-        specifier: 0.5.5
-        version: 0.5.5
+        specifier: 0.5.10
+        version: 0.5.10
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -930,16 +930,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1071,8 +1071,8 @@ importers:
         specifier: 0.26.4
         version: 0.26.4
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240422.2
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240422.2'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1355,6 +1355,9 @@ importers:
       source-map:
         specifier: 0.6.1
         version: 0.6.1
+      source-map-loader:
+        specifier: 5.0.0
+        version: 5.0.0(webpack@5.90.0)
       source-map08:
         specifier: npm:source-map@0.8.0-beta.0
         version: /source-map@0.8.0-beta.0
@@ -1554,7 +1557,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.11
+        specifier: 14.3.0-canary.18
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -6466,7 +6469,7 @@ packages:
       chokidar:
         optional: true
     dependencies:
-      '@swc/core': 1.4.4(@swc/helpers@0.5.5)
+      '@swc/core': 1.4.4(@swc/helpers@0.5.10)
       commander: 7.2.0
       fast-glob: 3.3.1
       slash: 3.0.0
@@ -6553,7 +6556,7 @@ packages:
     requiresBuild: true
     optional: true
 
-  /@swc/core@1.4.4(@swc/helpers@0.5.5):
+  /@swc/core@1.4.4(@swc/helpers@0.5.10):
     resolution: {integrity: sha512-P88AHGWM8xPY3Tjj5360V6vqKCS5UfsyffPJVnr7BKSr45rlG4/pjEGGmFYQjg6ztgPyrGLYz1jSyzajTqTVIA==}
     engines: {node: '>=10'}
     requiresBuild: true
@@ -6564,7 +6567,7 @@ packages:
         optional: true
     dependencies:
       '@swc/counter': 0.1.3
-      '@swc/helpers': 0.5.5
+      '@swc/helpers': 0.5.10
       '@swc/types': 0.1.5
     optionalDependencies:
       '@swc/core-darwin-arm64': 1.4.4
@@ -6587,11 +6590,17 @@ packages:
       tslib: 2.6.2
     dev: true
 
+  /@swc/helpers@0.5.10:
+    resolution: {integrity: sha512-CU+RF9FySljn7HVSkkjiB84hWkvTaI3rtLvF433+jRSBL2hMu3zX5bGhHS8C80SM++h4xy8hBSnUHFQHmRXSBw==}
+    dependencies:
+      tslib: 2.6.2
+
   /@swc/helpers@0.5.5:
     resolution: {integrity: sha512-KGYxvIOXcceOAbEk4bi/dVLEK9z8sZ0uBB3Il5b1rhfClSpcX0yfRO0KmTkqR2cnQDymwLB+25ZyMzICg/cm/A==}
     dependencies:
       '@swc/counter': 0.1.3
       tslib: 2.6.2
+    dev: false
 
   /@swc/types@0.1.5:
     resolution: {integrity: sha512-myfUej5naTBWnqOCc/MdVOLVjXUXtIA+NpDrDBKJtLLg2shUjBu3cZmB/85RyitKc55+lUUyl7oRfLOvkr2hsw==}
@@ -22707,6 +22716,17 @@ packages:
     resolution: {integrity: sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==}
     engines: {node: '>=0.10.0'}
 
+  /source-map-loader@5.0.0(webpack@5.90.0):
+    resolution: {integrity: sha512-k2Dur7CbSLcAH73sBcIkV5xjPV4SzqO1NJ7+XaQl8if3VODDUj3FNchNGpqgJSKbvUfJuhVdv8K2Eu8/TNl2eA==}
+    engines: {node: '>= 18.12.0'}
+    peerDependencies:
+      webpack: 5.90.0
+    dependencies:
+      iconv-lite: 0.6.3
+      source-map-js: 1.0.2
+      webpack: 5.90.0(@swc/core@1.4.4)
+    dev: true
+
   /source-map-resolve@0.5.3:
     resolution: {integrity: sha512-Htz+RnsXWk5+P2slx5Jh3Q66vhQj1Cllm0zvnaY98+NFx+Dv2CF/f5O/t8x+KaNdrdIAsruNzoh/KpialbqAnw==}
     deprecated: See https://github.com/lydell/source-map-resolve#deprecated
@@ -23630,7 +23650,7 @@ packages:
         optional: true
     dependencies:
       '@jridgewell/trace-mapping': 0.3.22
-      '@swc/core': 1.4.4(@swc/helpers@0.5.5)
+      '@swc/core': 1.4.4(@swc/helpers@0.5.10)
       jest-worker: 27.5.1
       schema-utils: 3.2.0
       serialize-javascript: 6.0.1
@@ -23654,7 +23674,7 @@ packages:
         optional: true
     dependencies:
       '@jridgewell/trace-mapping': 0.3.17
-      '@swc/core': 1.4.4(@swc/helpers@0.5.5)
+      '@swc/core': 1.4.4(@swc/helpers@0.5.10)
       jest-worker: 27.5.1
       schema-utils: 3.2.0
       serialize-javascript: 6.0.1
@@ -24058,64 +24078,64 @@ packages:
     engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
     dev: true
 
-  /turbo-darwin-64@1.12.5:
-    resolution: {integrity: sha512-0GZ8reftwNQgIQLHkHjHEXTc/Z1NJm+YjsrBP+qhM/7yIZ3TEy9gJhuogDt2U0xIWwFgisTyzbtU7xNaQydtoA==}
+  /turbo-darwin-64@1.13.3-canary.2:
+    resolution: {integrity: sha512-M8QDR6SKPSLEjSLWnIM//caHWBhcZNkIPdnnMkHm8R9/fpFSI5X//GBdR0qnXcgdqOdFgnxheabwYm5Bm+1KWQ==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-arm64@1.12.5:
-    resolution: {integrity: sha512-8WpOLNNzvH6kohQOjihD+gaWL+ZFNfjvBwhOF0rjEzvW+YR3Pa7KjhulrjWyeN2yMFqAPubTbZIGOz1EVXLuQA==}
+  /turbo-darwin-arm64@1.13.3-canary.2:
+    resolution: {integrity: sha512-4RpdYK+XF9Lx7/nmUzbn978t4HBCmmemAazOjmhyd0pOMn8rLVexPkByDEV84SrgofkCWdTHDwcHaOQvOLrKtw==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-64@1.12.5:
-    resolution: {integrity: sha512-INit73+bNUpwqGZCxgXCR3I+cQsdkQ3/LkfkgSOibkpg+oGqxJRzeXw3sp990d7SCoE8QOcs3iw+PtiFX/LDAA==}
+  /turbo-linux-64@1.13.3-canary.2:
+    resolution: {integrity: sha512-8gzyPtOmzACNwtWi5//ZHwcJb2i21pZVXQEiNwTycypyBtV2H0WChmqjulS7M3z5dxwHcx0Ehf9TqY4K023j2A==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm64@1.12.5:
-    resolution: {integrity: sha512-6lkRBvxtI/GQdGtaAec9LvVQUoRw6nXFp0kM+Eu+5PbZqq7yn6cMkgDJLI08zdeui36yXhone8XGI8pHg8bpUQ==}
+  /turbo-linux-arm64@1.13.3-canary.2:
+    resolution: {integrity: sha512-QzRIyO+HUMc5+hj5cVBCKpCyOiBPxzAao4zWZgz6iKMuSC6utjHLf/9AAo6NOMFgBONTYsMUArL5gDyLLOO0lw==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-64@1.12.5:
-    resolution: {integrity: sha512-gQYbOhZg5Ww0bQ/bC0w/4W6yQRwBumUUnkB+QPo15VznwxZe2a7bo6JM+9Xy9dKLa/kn+p7zTqme4OEp6M3/Yg==}
+  /turbo-windows-64@1.13.3-canary.2:
+    resolution: {integrity: sha512-s4k+yclLr/MWuwYURPZX2v6y1PP7E2aUUao6syQ68Un+36RYBgINN/VV4HucZuiXyqLuBuaDjfrnE1TX3FREOg==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-arm64@1.12.5:
-    resolution: {integrity: sha512-auvhZ9FrhnvQ4mgBlY9O68MT4dIfprYGvd2uPICba/mHUZZvVy5SGgbHJ0KbMwaJfnnFoPgLJO6M+3N2gDprKw==}
+  /turbo-windows-arm64@1.13.3-canary.2:
+    resolution: {integrity: sha512-p5qGGeb3z1Gaxq43lTFm/PyTh7xtuDCfesxGWZWESG6MyXZuZYzuEH2cSmM8jqta6EC+G+iF5sxeKUzIpsJWeQ==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo@1.12.5:
-    resolution: {integrity: sha512-FATU5EnhrYG8RvQJYFJnDd18DpccDjyvd53hggw9T9JEg9BhWtIEoeaKtBjYbpXwOVrJQMDdXcIB4f2nD3QPPg==}
+  /turbo@1.13.3-canary.2:
+    resolution: {integrity: sha512-GqkwRxoigbjvj/m1JfY7kGDupNeuADW7Hg1+rO+KqNMEUihOfq8a1kjCbwlqOfyS8PPfMHDkDPXrfhA8A1N9vg==}
     hasBin: true
     optionalDependencies:
-      turbo-darwin-64: 1.12.5
-      turbo-darwin-arm64: 1.12.5
-      turbo-linux-64: 1.12.5
-      turbo-linux-arm64: 1.12.5
-      turbo-windows-64: 1.12.5
-      turbo-windows-arm64: 1.12.5
+      turbo-darwin-64: 1.13.3-canary.2
+      turbo-darwin-arm64: 1.13.3-canary.2
+      turbo-linux-64: 1.13.3-canary.2
+      turbo-linux-arm64: 1.13.3-canary.2
+      turbo-windows-64: 1.13.3-canary.2
+      turbo-windows-arm64: 1.13.3-canary.2
     dev: true
 
   /tweetnacl@0.14.5:
@@ -25553,8 +25573,8 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240422.2':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240422.2}
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:

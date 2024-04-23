@@ -40,6 +40,22 @@ createNextDescribe(
       }
     })
 
+    it('should still cache even though the `traceparent` header was different', async () => {
+      const res = await next.fetch('/strip-header-traceparent')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#data1').text()
+      const data2 = $('#data2').text()
+      expect(data1).toBeTruthy()
+      expect(data1).toBe(data2)
+
+      const echoedHeaders = JSON.parse($('#echoedHeaders').text())
+      expect(echoedHeaders.headers.traceparent).toEqual('C')
+    })
+
     it('should warn for too many cache tags', async () => {
       const res = await next.fetch('/too-many-cache-tags')
       expect(res.status).toBe(200)
@@ -822,6 +838,10 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "strip-header-traceparent.html",
+            "strip-header-traceparent.rsc",
+            "strip-header-traceparent/page.js",
+            "strip-header-traceparent/page_client-reference-manifest.js",
             "too-many-cache-tags/page.js",
             "too-many-cache-tags/page_client-reference-manifest.js",
             "unstable-cache/dynamic-undefined/page.js",
@@ -1543,6 +1563,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/strip-header-traceparent": {
+              "dataRoute": "/strip-header-traceparent.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialRevalidateSeconds": 50,
+              "srcRoute": "/strip-header-traceparent",
             },
             "/variable-config-revalidate/revalidate-3": {
               "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
