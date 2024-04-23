@@ -405,7 +405,7 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
-export async function GET() {
+export default async function Image() {
   const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
     (res) => res.arrayBuffer()
   )
@@ -486,7 +486,7 @@ import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export async function GET() {
+export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 
