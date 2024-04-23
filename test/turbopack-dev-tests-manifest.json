@@ -3341,10 +3341,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9058,11 +9058,10 @@
       "Custom routes no-op rewrite should not error for no-op rewrite and auto export dynamic route",
       "Custom routes should load custom routes when only one type is used development mode should work with just headers",
       "Custom routes should load custom routes when only one type is used development mode should work with just redirects",
-      "Custom routes should load custom routes when only one type is used development mode should work with just rewrites"
-    ],
-    "failed": [
+      "Custom routes should load custom routes when only one type is used development mode should work with just rewrites",
       "Custom routes development mode should handle external beforeFiles rewrite correctly"
     ],
+    "failed": [],
     "pending": [
       "Custom routes production mode should add refresh header for 308 redirect",
       "Custom routes production mode should allow params in query for redirect",
