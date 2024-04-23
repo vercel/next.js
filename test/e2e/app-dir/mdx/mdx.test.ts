@@ -62,7 +62,9 @@ for (const type of [
 
         it('should work with next/image', async () => {
           const $ = await next.render$('/image')
-          expect($('img').attr('src')).toBe('/next.svg')
+          expect($('img').attr('src')).toBe(
+            '/_next/image?url=%2Ftest.jpg&w=384&q=75'
+          )
         })
       })
 
