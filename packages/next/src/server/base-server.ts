@@ -111,11 +111,7 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import {
-  CACHE_ONE_YEAR,
-  NEXT_CACHE_TAGS_HEADER,
-  NEXT_QUERY_PARAM_PREFIX,
-} from '../lib/constants'
+import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,

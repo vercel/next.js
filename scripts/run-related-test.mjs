@@ -38,7 +38,7 @@ export async function getRelatedTests(args = []) {
   const manifest = JSON.parse(
     await readFile(relatedTestsManifest, 'utf-8').catch(() => '{}')
   )
-  const tests = ['test/e2e/app-dir/interception-dynamic-segment']
+  const tests = []
   const paths = args.length ? args : await getChangedFilesFromPackages()
   for (const path of paths) {
     const relatedTestsKey = Object.keys(manifest).find((key) =>
