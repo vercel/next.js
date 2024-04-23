@@ -34,6 +34,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -408,10 +409,11 @@ function InnerLayoutRouter({
        */
       // TODO-APP: remove ''
       const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+      const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
-        context.nextUrl,
+        includeNextUrl ? context.nextUrl : null,
         buildId
       )
       childNode.lazyDataResolved = false
@@ -437,10 +439,10 @@ function InnerLayoutRouter({
       // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
       // the patch to the tree.
       childNode.lazyDataResolved = true
-    }
 
-    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(unresolvedThenable) as never
+      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+      use(unresolvedThenable) as never
+    }
   }
 
   // If we get to this point, then we know we have something we can render.

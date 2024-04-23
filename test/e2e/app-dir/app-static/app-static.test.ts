@@ -40,6 +40,22 @@ createNextDescribe(
       }
     })
 
+    it('should still cache even though the `traceparent` header was different', async () => {
+      const res = await next.fetch('/strip-header-traceparent')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#data1').text()
+      const data2 = $('#data2').text()
+      expect(data1).toBeTruthy()
+      expect(data1).toBe(data2)
+
+      const echoedHeaders = JSON.parse($('#echoedHeaders').text())
+      expect(echoedHeaders.headers.traceparent).toEqual('C')
+    })
+
     it('should warn for too many cache tags', async () => {
       const res = await next.fetch('/too-many-cache-tags')
       expect(res.status).toBe(200)
@@ -48,6 +64,49 @@ createNextDescribe(
         expect(next.cliOutput).toContain('tag-65')
       })
     })
+
+    if (isNextDeploy) {
+      describe('new tags have been specified on subsequent fetch', () => {
+        it('should not fetch from memory cache', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+
+        it('should not fetch from memory cache after revalidateTag is used', async () => {
+          const res1 = await next.fetch('/specify-new-tags/one-tag')
+          expect(res1.status).toBe(200)
+
+          const revalidateRes = await next.fetch(
+            '/api/revlidate-tag-node?tag=thankyounext'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          const res2 = await next.fetch('/specify-new-tags/two-tags')
+          expect(res2.status).toBe(200)
+
+          const html1 = await res1.text()
+          const html2 = await res2.text()
+          const $1 = cheerio.load(html1)
+          const $2 = cheerio.load(html2)
+
+          const data1 = $1('#page-data').text()
+          const data2 = $2('#page-data').text()
+          expect(data1).not.toBe(data2)
+        })
+      })
+    }
 
     if (isNextStart) {
       it('should propagate unstable_cache tags correctly', async () => {
@@ -59,6 +118,34 @@ createNextDescribe(
         expect(meta.headers['x-next-cache-tags']).toContain(
           'unstable_cache_tag1'
         )
+      })
+
+      it('should infer a fetchCache of force-no-store when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/no-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/no-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).not.toBe(initData)
+        })
+      })
+
+      it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
+        const $ = await next.render$(
+          '/force-dynamic-fetch-cache/with-fetch-cache'
+        )
+        const initData = $('#data').text()
+        await retry(async () => {
+          const $2 = await next.render$(
+            '/force-dynamic-fetch-cache/with-fetch-cache'
+          )
+          expect($2('#data').text()).toBeTruthy()
+          expect($2('#data').text()).toBe(initData)
+        })
       })
 
       if (!process.env.CUSTOM_CACHE_HANDLER) {
@@ -624,10 +711,16 @@ createNextDescribe(
             "force-cache/page_client-reference-manifest.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page.js",
+            "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
             "force-dynamic-no-prerender/[id]/page.js",
             "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
             "force-dynamic-prerender/[slug]/page.js",
             "force-dynamic-prerender/[slug]/page_client-reference-manifest.js",
+            "force-no-store-bailout/page.js",
+            "force-no-store-bailout/page_client-reference-manifest.js",
             "force-no-store/page.js",
             "force-no-store/page_client-reference-manifest.js",
             "force-static-fetch-no-store.html",
@@ -717,6 +810,10 @@ createNextDescribe(
             "route-handler/revalidate-360-isr/route.js",
             "route-handler/revalidate-360/route.js",
             "route-handler/static-cookies/route.js",
+            "specify-new-tags/one-tag/page.js",
+            "specify-new-tags/one-tag/page_client-reference-manifest.js",
+            "specify-new-tags/two-tags/page.js",
+            "specify-new-tags/two-tags/page_client-reference-manifest.js",
             "ssg-draft-mode.html",
             "ssg-draft-mode.rsc",
             "ssg-draft-mode/[[...route]]/page.js",
@@ -741,6 +838,10 @@ createNextDescribe(
             "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
             "static-to-dynamic-error/[id]/page.js",
             "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
+            "strip-header-traceparent.html",
+            "strip-header-traceparent.rsc",
+            "strip-header-traceparent/page.js",
+            "strip-header-traceparent/page_client-reference-manifest.js",
             "too-many-cache-tags/page.js",
             "too-many-cache-tags/page_client-reference-manifest.js",
             "unstable-cache/dynamic-undefined/page.js",
@@ -1462,6 +1563,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/strip-header-traceparent": {
+              "dataRoute": "/strip-header-traceparent.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data;.*",
+                },
+              ],
+              "initialRevalidateSeconds": 50,
+              "srcRoute": "/strip-header-traceparent",
             },
             "/variable-config-revalidate/revalidate-3": {
               "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
