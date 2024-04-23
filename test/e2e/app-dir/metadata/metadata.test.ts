@@ -231,7 +231,7 @@ createNextDescribe(
         // Manifest link should have crossOrigin attribute
         await matchDom('link', 'rel="manifest"', {
           href: '/api/manifest',
-          crossOrigin: isNextDeploy ? 'use-credentials' : undefined,
+          crossOrigin: isNextDeploy ? 'use-credentials' : null,
         })
 
         await matchDom('meta', 'name="theme-color"', {
@@ -266,7 +266,7 @@ createNextDescribe(
         // Manifest link should have crossOrigin attribute
         await matchDom('link', 'rel="manifest"', {
           href: '/api/manifest',
-          crossOrigin: isNextDeploy ? 'use-credentials' : undefined,
+          crossOrigin: isNextDeploy ? 'use-credentials' : null,
         })
       })
 
