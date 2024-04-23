@@ -25,7 +25,7 @@ export default function Index({ params }) {
         ].join('\n')
       )
 
-      persistentLog({ source: '[id]/with-action action', value: params.id })
+      persistentLog({ source: '[action] /[id]/with-action', value: params.id })
     })
   }
 

@@ -4,7 +4,7 @@ import { persistentLog } from '../../utils/log'
 export async function GET() {
   const data = { message: 'Hello, world!' }
   after(() => {
-    persistentLog({ source: 'route handler' })
+    persistentLog({ source: '[route handler] /route' })
   })
 
   return Response.json({ data })
