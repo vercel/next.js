@@ -18,12 +18,12 @@ if (!taskNames.length) {
 const taskfilePath = path.join(process.cwd(), filePath)
 const {
   tasks,
-  Task: CustomTask,
+  Task: CustomTask = Task,
   ...exportedTasks
 } = (await import(taskfilePath)) as TaskFile
-const task = new Task({
+
+const task = new CustomTask({
   tasks: { ...tasks, ...exportedTasks },
-  Task: CustomTask,
 })
 
 await task.parallel(taskNames)

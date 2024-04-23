@@ -2,13 +2,8 @@ import { dirname, join, relative } from 'node:path'
 import { glob } from 'glob'
 import fs from 'node:fs/promises'
 
-type Tasks = {
-  [name: string]: TaskFn
-}
-
-type TaskOptions<T extends Task> = {
-  tasks: Tasks
-  Task?: (new (runner: TaskOptions<T>) => T) | undefined
+type TaskOptions<T extends Task = Task> = {
+  tasks: Tasks<T>
 }
 
 type QueueFn = (files: TFile[]) => Promise<void> | void
@@ -18,16 +13,27 @@ export type TFile = {
   data: Buffer
 }
 
-export type TaskFn = (task: Task) => Promise<void> | void
+export type TaskFn<T extends Task = Task> = (task: T) => Promise<void> | void
 
-export type TaskFile<T extends Task = Task> = Partial<TaskOptions<T>> & Tasks
+export type Tasks<T extends Task = Task> = {
+  [name: string]: TaskFn<T>
+}
+
+export type TaskFile<T extends Task = Task> = Partial<TaskOptions> &
+  Tasks<T> & {
+    Task?: (new (options: TaskOptions) => T) | undefined
+  }
 
 export class Task {
   private glob?: Promise<string[]>
   private pattern?: string
   private queue: QueueFn[] = []
 
-  constructor(private options: TaskOptions<Task>) {}
+  constructor(protected options: TaskOptions) {}
+
+  new() {
+    return new Task(this.options)
+  }
 
   async exec(taskFn: TaskFn): Promise<void> {
     await taskFn(this)
@@ -40,9 +46,7 @@ export class Task {
       throw new Error(`A task for "${taskName}" was not defined`)
     }
 
-    const TaskClass = this.options.Task || Task
-
-    return new TaskClass(this.options).exec(taskFn)
+    return this.new().exec(taskFn)
   }
 
   async parallel(taskNames: string[]): Promise<void> {

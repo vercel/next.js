@@ -9,11 +9,22 @@ type NccTaskOptions = {
 } & NccOptions
 
 export class Task extends CoreTask {
+  new() {
+    return new Task(this.options)
+  }
+
   async clear(path: string) {
     await fs.rm(path, { recursive: true, force: true })
   }
 
   ncc(options: NccTaskOptions) {
+    const { packageName } = options
+
+    if (options.externals && packageName) {
+      options.externals = { ...options.externals }
+      delete options.externals[packageName]
+    }
+
     this.use(async (files) => {
       const file = files[0]!
       const output = await ncc(file.path, {
@@ -25,7 +36,7 @@ export class Task extends CoreTask {
       })
 
       for (const [name, asset] of Object.entries(output.assets)) {
-        // We'll add package.json later
+        // We'll add a package.json later
         if (name === 'package.json') continue
 
         files.push({
@@ -34,10 +45,10 @@ export class Task extends CoreTask {
         })
       }
 
-      if (options && options.packageName) {
+      if (packageName) {
         await addMissingFiles(
           file.path,
-          options.packageName,
+          packageName,
           files,
           options.packageJsonName
         )

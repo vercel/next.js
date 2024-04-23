@@ -1,12 +1,12 @@
 {
   "name": "@next/vendored",
   "version": "14.3.0-canary.12",
+  "license": "MIT",
   "keywords": [
     "react",
     "next",
     "next.js"
   ],
-  "type": "module",
   "description": "Next.js vendored packages",
   "repository": {
     "type": "git",
@@ -14,7 +14,7 @@
     "directory": "packages/next-vendored"
   },
   "author": "Next.js Team <support@vercel.com>",
-  "license": "MIT",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
@@ -24,13 +24,11 @@
   "bin": {
     "task-runner": "./dist/cli"
   },
-  "files": [
-    "dist"
-  ],
   "devDependencies": {
     "typescript": "5.3.3"
   },
   "dependencies": {
+    "@napi-rs/triples": "1.2.0",
     "@vercel/ncc": "0.34.0",
     "arg": "4.1.0",
     "glob": "10.3.12",
