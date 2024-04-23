@@ -174,10 +174,6 @@ module.exports = (actionInfo) => {
                   '@next/swc-linux-x64-gnu': nextSwcVersion,
                 })
               } else {
-                if (nextSwcPkg) {
-                  // packageJson.dependencies['@next/swc'] =
-                  //   nextSwcPkg.packedPackageTarPath
-                }
               }
             }
 
