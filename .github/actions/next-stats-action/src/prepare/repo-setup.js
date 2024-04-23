@@ -4,7 +4,12 @@ const { existsSync } = require('fs')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
 const execa = require('execa')
-const { Span } = require('next/dist/trace')
+
+const mockSpan = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  traceFn: (fn) => fn(mockTrace()),
+  traceChild: () => mockTrace(),
+})
 
 module.exports = (actionInfo) => {
   return {
@@ -63,7 +68,7 @@ module.exports = (actionInfo) => {
     async linkPackages({ repoDir, nextSwcVersion, parentSpan }) {
       if (!parentSpan) {
         // Not all callers provide a parent span
-        parentSpan = new Span({ name: 'dummy' })
+        parentSpan = mockSpan()
       }
       /** @type {Map<string, string>} */
       const pkgPaths = new Map()
