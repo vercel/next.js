@@ -51,6 +51,12 @@ createNextDescribe(
         )
       })
 
+      it('should not have entire prerender-manifest for edge', async () => {
+        expect(
+          await next.readFile('.next/prerender-manifest.js')
+        ).not.toContain('initialRevalidate')
+      })
+
       if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
         it('should have correct size in build output', async () => {
           expect(next.cliOutput).toMatch(
