@@ -213,12 +213,18 @@ async fn build_internal(
         .cloned()
         .map(|r| async move {
             Ok(match &*r.await? {
-                EntryRequest::Relative(p) => {
-                    Request::relative(Value::new(p.clone().into()), Default::default(), false)
-                }
-                EntryRequest::Module(m, p) => {
-                    Request::module(m.clone(), Value::new(p.clone().into()), Default::default())
-                }
+                EntryRequest::Relative(p) => Request::relative(
+                    Value::new(p.clone().into()),
+                    Default::default(),
+                    Default::default(),
+                    false,
+                ),
+                EntryRequest::Module(m, p) => Request::module(
+                    m.clone(),
+                    Value::new(p.clone().into()),
+                    Default::default(),
+                    Default::default(),
+                ),
             })
         })
         .try_join()

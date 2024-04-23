@@ -1541,6 +1541,7 @@ async fn resolve_internal_inline(
                 path,
                 query,
                 force_in_lookup_dir,
+                fragment,
             } => {
                 let mut results = Vec::new();
                 let matches = read_matches(
@@ -1563,6 +1564,7 @@ async fn resolve_internal_inline(
                                     options_value,
                                     options,
                                     *query,
+                                    *fragment,
                                 )
                                 .await?,
                             );
@@ -1582,7 +1584,25 @@ async fn resolve_internal_inline(
                 path,
                 query,
                 force_in_lookup_dir,
+                fragment,
             } => {
+                if !fragment.await?.is_empty() {
+                    if let Ok(result) = resolve_relative_request(
+                        lookup_path,
+                        request,
+                        options,
+                        options_value,
+                        path,
+                        *query,
+                        *force_in_lookup_dir,
+                        *fragment,
+                    )
+                    .await
+                    {
+                        return Ok(result);
+                    }
+                }
+                // Resolve without fragment
                 resolve_relative_request(
                     lookup_path,
                     request,
@@ -1591,6 +1611,7 @@ async fn resolve_internal_inline(
                     path,
                     *query,
                     *force_in_lookup_dir,
+                    Vc::cell(String::new()),
                 )
                 .await?
             }
@@ -1598,6 +1619,7 @@ async fn resolve_internal_inline(
                 module,
                 path,
                 query,
+                fragment,
             } => {
                 resolve_module_request(
                     lookup_path,
@@ -1607,13 +1629,18 @@ async fn resolve_internal_inline(
                     module,
                     path,
                     *query,
+                    *fragment,
                 )
                 .await?
             }
-            Request::ServerRelative { path, query } => {
+            Request::ServerRelative {
+                path,
+                query,
+                fragment,
+            } => {
                 let mut new_pat = path.clone();
                 new_pat.push_front(".".to_string().into());
-                let relative = Request::relative(Value::new(new_pat), *query, true);
+                let relative = Request::relative(Value::new(new_pat), *query, *fragment, true);
 
                 if !has_alias {
                     ResolvingIssue {
@@ -1640,7 +1667,11 @@ async fn resolve_internal_inline(
                 )
                 .await?
             }
-            Request::Windows { path: _, query: _ } => {
+            Request::Windows {
+                path: _,
+                query: _,
+                fragment: _,
+            } => {
                 if !has_alias {
                     ResolvingIssue {
                         severity: IssueSeverity::Error.cell(),
@@ -1684,6 +1715,8 @@ async fn resolve_internal_inline(
             Request::Uri {
                 protocol,
                 remainder,
+                query: _,
+                fragment: _,
             } => {
                 let uri = format!("{}{}", protocol, remainder);
                 ResolveResult::primary_with_key(
@@ -1818,6 +1851,7 @@ async fn resolve_relative_request(
     path_pattern: &Pattern,
     query: Vc<String>,
     force_in_lookup_dir: bool,
+    fragment: Vc<String>,
 ) -> Result<Vc<ResolveResult>> {
     // Check alias field for aliases first
     let lookup_path_ref = &*lookup_path.await?;
@@ -1832,6 +1866,7 @@ async fn resolve_relative_request(
             Some(request)
         },
         query,
+        fragment,
     )
     .await?
     {
@@ -1839,6 +1874,17 @@ async fn resolve_relative_request(
     }
 
     let mut new_path = path_pattern.clone();
+
+    let fragment_val = fragment.await?;
+
+    if !fragment_val.is_empty() {
+        new_path.push(Pattern::Alternatives(
+            once(Pattern::Constant("".to_string()))
+                .chain(once(Pattern::Constant(format!("#{fragment_val}"))))
+                .collect(),
+        ));
+    }
+
     if !options_value.fully_specified {
         // Add the extensions as alternatives to the path
         // read_matches keeps the order of alternatives intact
@@ -1852,6 +1898,7 @@ async fn resolve_relative_request(
                 )
                 .collect(),
         ));
+
         new_path.normalize();
     };
 
@@ -1866,13 +1913,37 @@ async fn resolve_relative_request(
 
     for m in matches.iter() {
         if let PatternMatch::File(matched_pattern, path) = m {
-            let mut matches_without_extension = false;
+            let mut pushed = false;
             if !options_value.fully_specified {
                 for ext in options_value.extensions.iter() {
                     let Some(matched_pattern) = matched_pattern.strip_suffix(ext) else {
                         continue;
                     };
-                    if path_pattern.is_match(matched_pattern) {
+
+                    if !fragment_val.is_empty() {
+                        // If the fragment is not empty, we need to strip it from the matched
+                        // pattern
+                        if let Some(matched_pattern) = matched_pattern
+                            .strip_suffix(&**fragment_val)
+                            .and_then(|s| s.strip_suffix('#'))
+                        {
+                            results.push(
+                                resolved(
+                                    RequestKey::new(matched_pattern.to_string()),
+                                    *path,
+                                    lookup_path,
+                                    request,
+                                    options_value,
+                                    options,
+                                    query,
+                                    Vc::cell(String::new()),
+                                )
+                                .await?,
+                            );
+                            pushed = true;
+                        }
+                    }
+                    if !pushed && path_pattern.is_match(matched_pattern) {
                         results.push(
                             resolved(
                                 RequestKey::new(matched_pattern.to_string()),
@@ -1882,14 +1953,38 @@ async fn resolve_relative_request(
                                 options_value,
                                 options,
                                 query,
+                                fragment,
                             )
                             .await?,
                         );
-                        matches_without_extension = true;
+                        pushed = true;
                     }
                 }
             }
-            if !matches_without_extension || path_pattern.is_match(matched_pattern) {
+            if !fragment_val.is_empty() {
+                // If the fragment is not empty, we need to strip it from the matched pattern
+                if let Some(matched_pattern) = matched_pattern
+                    .strip_suffix(&**fragment_val)
+                    .and_then(|s| s.strip_suffix('#'))
+                {
+                    results.push(
+                        resolved(
+                            RequestKey::new(matched_pattern.to_string()),
+                            *path,
+                            lookup_path,
+                            request,
+                            options_value,
+                            options,
+                            query,
+                            Vc::cell(String::new()),
+                        )
+                        .await?,
+                    );
+                    pushed = true;
+                }
+            }
+
+            if !pushed || path_pattern.is_match(matched_pattern) {
                 results.push(
                     resolved(
                         RequestKey::new(matched_pattern.clone()),
@@ -1899,6 +1994,7 @@ async fn resolve_relative_request(
                         options_value,
                         options,
                         query,
+                        fragment,
                     )
                     .await?,
                 );
@@ -1922,6 +2018,7 @@ async fn apply_in_package(
     options_value: &ResolveOptions,
     get_request: impl Fn(&FileSystemPath) -> Option<String>,
     query: Vc<String>,
+    fragment: Vc<String>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     // Check alias field for module aliases first
     for in_package in options_value.in_package.iter() {
@@ -1987,7 +2084,8 @@ async fn apply_in_package(
                 resolve_internal(
                     package_path,
                     Request::parse(Value::new(Pattern::Constant(value.to_string())))
-                        .with_query(query),
+                        .with_query(query)
+                        .with_fragment(fragment),
                     options,
                 )
                 .with_replaced_request_key(value.to_string(), Value::new(request_key))
@@ -2023,6 +2121,7 @@ async fn resolve_module_request(
     module: &str,
     path: &Pattern,
     query: Vc<String>,
+    fragment: Vc<String>,
 ) -> Result<Vc<ResolveResult>> {
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
@@ -2034,6 +2133,7 @@ async fn resolve_module_request(
             full_pattern.into_string()
         },
         query,
+        fragment,
     )
     .await?
     {
@@ -2068,6 +2168,7 @@ async fn resolve_module_request(
                     Value::new(path.clone()),
                     package_path,
                     query,
+                    fragment,
                     options,
                 ));
             }
@@ -2081,6 +2182,7 @@ async fn resolve_module_request(
                         options_value,
                         options,
                         query,
+                        fragment,
                     )
                     .await?;
                     results.push(resolved)
@@ -2103,7 +2205,7 @@ async fn resolve_module_request(
             "/".to_string().into(),
             path.clone(),
         ]);
-        let relative = Request::relative(Value::new(pattern), query, true);
+        let relative = Request::relative(Value::new(pattern), query, fragment, true);
         let relative_result =
             resolve_internal_boxed(lookup_path, relative.resolve().await?, options).await?;
         let relative_result = relative_result.with_replaced_request_key(
@@ -2122,6 +2224,7 @@ async fn resolve_into_package(
     path: Value<Pattern>,
     package_path: Vc<FileSystemPath>,
     query: Vc<String>,
+    fragment: Vc<String>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let path = path.into_value();
@@ -2186,7 +2289,7 @@ async fn resolve_into_package(
         let mut new_pat = path.clone();
         new_pat.push_front(".".to_string().into());
 
-        let relative = Request::relative(Value::new(new_pat), query, true);
+        let relative = Request::relative(Value::new(new_pat), query, fragment, true);
         results
             .push(resolve_internal_inline(package_path, relative.resolve().await?, options).await?);
     }
@@ -2270,6 +2373,7 @@ async fn resolved(
     options_value: &ResolveOptions,
     options: Vc<ResolveOptions>,
     query: Vc<String>,
+    fragment: Vc<String>,
 ) -> Result<Vc<ResolveResult>> {
     let RealPathResult { path, symlinks } = &*fs_path.realpath_with_links().await?;
 
@@ -2281,6 +2385,7 @@ async fn resolved(
         options_value,
         |package_path| package_path.get_relative_path_to(path_ref),
         query,
+        fragment,
     )
     .await?
     {

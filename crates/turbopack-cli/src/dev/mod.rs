@@ -268,12 +268,18 @@ async fn source(
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
-            EntryRequest::Relative(p) => {
-                Request::relative(Value::new(p.clone().into()), Default::default(), false)
-            }
-            EntryRequest::Module(m, p) => {
-                Request::module(m.clone(), Value::new(p.clone().into()), Default::default())
-            }
+            EntryRequest::Relative(p) => Request::relative(
+                Value::new(p.clone().into()),
+                Default::default(),
+                Default::default(),
+                false,
+            ),
+            EntryRequest::Module(m, p) => Request::module(
+                m.clone(),
+                Value::new(p.clone().into()),
+                Default::default(),
+                Default::default(),
+            ),
         })
         .collect();
 
