@@ -5,7 +5,10 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetContent,
-        chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId as TurbopackModuleId},
+        chunk::{
+            ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext,
+            ModuleId as TurbopackModuleId,
+        },
         output::OutputAsset,
         virtual_output::VirtualOutputAsset,
     },
@@ -66,11 +69,11 @@ impl ClientReferenceManifest {
                     .to_string()
                     .await?;
 
-                let client_module_id = ecmascript_client_reference
+                let client_chunk_item = ecmascript_client_reference
                     .client_module
-                    .as_chunk_item(Vc::upcast(client_chunking_context))
-                    .id()
-                    .await?;
+                    .as_chunk_item(Vc::upcast(client_chunking_context));
+
+                let client_module_id = client_chunk_item.id().await?;
 
                 let client_chunks_paths = if let Some(client_chunks) = client_references_chunks
                     .client_component_client_chunks
@@ -101,17 +104,16 @@ impl ClientReferenceManifest {
                         name: "*".into(),
                         id: (&*client_module_id).into(),
                         chunks: client_chunks_paths,
-                        // TODO(WEB-434)
-                        r#async: false,
+                        r#async: *client_chunk_item.is_self_async().await?,
                     },
                 );
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
-                    let ssr_module_id = ecmascript_client_reference
+                    let ssr_chunk_item = ecmascript_client_reference
                         .ssr_module
-                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
-                        .id()
-                        .await?;
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context));
+
+                    let ssr_module_id = ssr_chunk_item.id().await?;
 
                     let ssr_chunks_paths = if runtime == NextRuntime::Edge {
                         // the chunks get added to the middleware-manifest.json instead
@@ -140,6 +142,7 @@ impl ClientReferenceManifest {
                     } else {
                         Vec::new()
                     };
+
                     let mut ssr_manifest_node = ManifestNode::default();
                     ssr_manifest_node.module_exports.insert(
                         "*".into(),
@@ -147,8 +150,7 @@ impl ClientReferenceManifest {
                             name: "*".into(),
                             id: (&*ssr_module_id).into(),
                             chunks: ssr_chunks_paths,
-                            // TODO(WEB-434)
-                            r#async: false,
+                            r#async: *ssr_chunk_item.is_self_async().await?,
                         },
                     );
 

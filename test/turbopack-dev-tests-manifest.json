@@ -6118,7 +6118,9 @@
       "esm-externals should return the correct SSR HTML for /ssr",
       "esm-externals should return the correct SSR HTML for /static"
     ],
-    "failed": [],
+    "failed": [
+      "esm-externals app url /client should return the correct SSR HTML"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false

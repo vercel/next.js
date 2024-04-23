@@ -178,9 +178,9 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
-        // TODO(sokra) esmExternals support
-        false,
+        *next_config.import_externals().await?,
     );
+
     let ty = ty.into_value();
 
     let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
