@@ -80,7 +80,7 @@ async function createNextInstall({
                       !item.includes('pnpm-lock.yaml') &&
                       !item.includes('.DS_Store') &&
                       // Exclude Rust compilation files
-                      !/next-swc[\\/]target/.test(item)
+                      !/packages[\\/]next-swc/.test(item)
                     )
                   },
                 }
@@ -88,44 +88,29 @@ async function createNextInstall({
             )
         }
 
-        await rootSpan
-          .traceChild('ensure swc binary')
-          .traceAsyncFn(async () => {
-            // ensure swc binary is present in the native folder if
-            // not already built
-            for (const folder of await fs.readdir(
-              path.join(origRepoDir, 'node_modules/@next')
-            )) {
-              if (folder.startsWith('swc-')) {
-                const swcPkgPath = path.join(
-                  origRepoDir,
-                  'node_modules/@next',
-                  folder
-                )
-                const outputPath = path.join(
-                  tmpRepoDir,
-                  'packages/next-swc/native'
-                )
-                await fs.copy(swcPkgPath, outputPath, {
-                  filter: (item) => {
-                    return (
-                      item === swcPkgPath ||
-                      (item.endsWith('.node') &&
-                        !fs.pathExistsSync(
-                          path.join(outputPath, path.basename(item))
-                        ))
-                    )
-                  },
-                })
-              }
-            }
-          })
+        const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
 
-        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
-          linkPackages({
-            repoDir: tmpRepoDir,
-          })
-        )
+        const hasNativeBinary = fs
+          .readdirSync(nativePath)
+          .some((item) => item.endsWith('.node'))
+
+        if (hasNativeBinary) {
+          process.env.NEXT_TEST_NATIVE_DIR = nativePath
+        } else {
+          const swcDirectory = fs
+            .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
+            .find((directory) => directory.startsWith('swc-'))
+          process.env.NEXT_TEST_NATIVE_DIR = swcDirectory
+        }
+
+        pkgPaths = await rootSpan
+          .traceChild('linkPackages')
+          .traceAsyncFn((span) =>
+            linkPackages({
+              repoDir: tmpRepoDir,
+              parentSpan: span,
+            })
+          )
       }
       const combinedDependencies = {
         next: pkgPaths.get('next'),
@@ -170,7 +155,7 @@ async function createNextInstall({
         })
       } else {
         await rootSpan
-          .traceChild('run generic install command')
+          .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
       }
 

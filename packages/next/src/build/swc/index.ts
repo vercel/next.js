@@ -1329,12 +1329,24 @@ function loadNative(importPath?: string) {
   let bindings: any
   let attempts: any[] = []
 
+  const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
   for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('next-swc build: local built @next/swc')
-      break
-    } catch (e) {}
+    if (NEXT_TEST_NATIVE_DIR) {
+      try {
+        // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
+        bindings = require(`${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`)
+        console.log(
+          'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
+        )
+        break
+      } catch (e) {}
+    } else {
+      try {
+        bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
+        console.log('next-swc build: local built @next/swc')
+        break
+      } catch (e) {}
+    }
   }
 
   if (!bindings) {
