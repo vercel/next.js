@@ -301,6 +301,23 @@ createNextDescribe(
       expect(prefetchResponse).toContain('Loading Prefetch Auto')
     })
 
+    it('should not re-render error component when triggering a prefetch action', async () => {
+      const browser = await next.browser('/with-error')
+
+      const initialRandom = await browser
+        .elementByCss('button')
+        .click()
+        .waitForElementByCss('#random-number')
+        .text()
+
+      await browser.eval('window.next.router.prefetch("/")')
+
+      // confirm the error component was not re-rendered
+      expect(await browser.elementById('random-number').text()).toBe(
+        initialRandom
+      )
+    })
+
     describe('dynamic rendering', () => {
       describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
         it('should not re-render layout when navigating between sub-pages', async () => {
@@ -355,6 +372,43 @@ createNextDescribe(
             /{"foo":"true"}/
           )
         })
+      })
+
+      it('should not re-fetch cached data when navigating back to a route group', async () => {
+        const browser = await next.browser('/prefetch-auto-route-groups')
+        // once the page has loaded, we expect a data fetch
+        expect(await browser.elementById('count').text()).toBe('1')
+
+        // once navigating to a sub-page, we expect another data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups/sub/foo']")
+          .click()
+
+        // navigating back to the route group page shouldn't trigger any data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups']")
+          .click()
+
+        // confirm that the dashboard page is still rendering the stale fetch count, as it should be cached
+        expect(await browser.elementById('count').text()).toBe('1')
+
+        // navigating to a new sub-page, we expect another data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups/sub/bar']")
+          .click()
+
+        // finally, going back to the route group page shouldn't trigger any data fetch
+        await browser
+          .elementByCss("[href='/prefetch-auto-route-groups']")
+          .click()
+
+        // confirm that the dashboard page is still rendering the stale fetch count, as it should be cached
+        expect(await browser.elementById('count').text()).toBe('1')
+
+        await browser.refresh()
+        // reloading the page, we should now get an accurate total number of fetches
+        // the initial fetch, 2 sub-page fetches, and a final fetch when reloading the page
+        expect(await browser.elementById('count').text()).toBe('4')
       })
     })
   }

@@ -1,30 +1,8 @@
-export const DOMAttributeNames: Record<string, string> = {
-  acceptCharset: 'accept-charset',
-  className: 'class',
-  htmlFor: 'for',
-  httpEquiv: 'http-equiv',
-  noModule: 'noModule',
-}
+import { setAttributesFromProps } from './set-attributes-from-props'
 
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el: HTMLElement = document.createElement(type)
-  for (const p in props) {
-    if (!props.hasOwnProperty(p)) continue
-    if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
-
-    // we don't render undefined props to the DOM
-    if (props[p] === undefined) continue
-
-    const attr = DOMAttributeNames[p] || p.toLowerCase()
-    if (
-      type === 'script' &&
-      (attr === 'async' || attr === 'defer' || attr === 'noModule')
-    ) {
-      ;(el as HTMLScriptElement)[attr] = !!props[p]
-    } else {
-      el.setAttribute(attr, props[p])
-    }
-  }
+  setAttributesFromProps(el, props)
 
   const { children, dangerouslySetInnerHTML } = props
   if (dangerouslySetInnerHTML) {

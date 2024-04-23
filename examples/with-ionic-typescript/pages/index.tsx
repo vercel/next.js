@@ -1,10 +1,10 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Home() {
   return (
     <ion-grid>
       <ion-row>
-        {new Array(8).fill('').map((k, i) => (
+        {new Array(8).fill("").map((k, i) => (
           <ion-col key={i} size="3">
             <ion-card>
               <Image
@@ -28,5 +28,5 @@ export default function Home() {
         ))}
       </ion-row>
     </ion-grid>
-  )
+  );
 }

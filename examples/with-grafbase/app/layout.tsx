@@ -1,15 +1,15 @@
-import './globals.css'
-import Link from 'next/link'
-import { graphql } from '../gql'
-import { grafbase } from '../lib/grafbase'
-import type { Metadata } from 'next'
+import "./globals.css";
+import Link from "next/link";
+import { graphql } from "../gql";
+import { grafbase } from "../lib/grafbase";
+import type { Metadata } from "next";
 
-export const revalidate = 0
+export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: 'Grafbase + Next.js',
-  description: 'Grafbase + Next.js',
-}
+  title: "Grafbase + Next.js",
+  description: "Grafbase + Next.js",
+};
 
 const GetAllPostsDocument = graphql(/* GraphQL */ `
   query GetAllPosts($first: Int!) {
@@ -23,16 +23,16 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
       }
     }
   }
-`)
+`);
 
 export default async function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   const { postCollection } = await grafbase.request(GetAllPostsDocument, {
     first: 50,
-  })
+  });
 
   return (
     <html lang="en">
@@ -61,7 +61,7 @@ export default async function RootLayout({
                       {edge.node.title}
                     </Link>
                   </li>
-                ) : null
+                ) : null,
               )}
               <li>
                 <Link
@@ -81,5 +81,5 @@ export default async function RootLayout({
         </div>
       </body>
     </html>
-  )
+  );
 }

@@ -21,13 +21,13 @@ export default (context, _render) => {
       context.appPort,
       '/use-flush-effect/styled-jsx'
     )
-    const stylesOccurrence = html.match(/color:(\s)*blue/g) || []
+    const stylesOccurrence = html.match(/color:(\s)*(?:blue|#00f)/g) || []
     expect(stylesOccurrence.length).toBe(1)
 
     await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
       await check(
         () => browser.waitForElementByCss('#__jsx-900f996af369fc74').text(),
-        /blue/
+        /(?:blue|#00f)/
       )
       await check(
         () => browser.waitForElementByCss('#__jsx-8b0811664c4e575e').text(),

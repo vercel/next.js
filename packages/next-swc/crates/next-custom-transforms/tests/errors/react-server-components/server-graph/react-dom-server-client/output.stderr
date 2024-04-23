@@ -1,0 +1,16 @@
+
+  x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+   ,-[input.js:8:1]
+ 8 | 
+ 9 | import 'react-dom/server'
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+
+  x You're importing a component that imports react-dom/client. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | \nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n
+    ,-[input.js:10:1]
+ 10 | 
+ 11 | import 'react-dom/client'
+    : ^^^^^^^^^^^^^^^^^^^^^^^^^
+    `----

@@ -23,7 +23,7 @@ To manually set up Vitest, install `vitest` and the following packages as dev de
 ```bash filename="Terminal"
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react
 # or
-yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @vitejs/plugin-react
+yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react
 # or
 pnpm install -D vitest @vitejs/plugin-react jsdom @testing-library/react
 # or
@@ -56,7 +56,7 @@ export default defineConfig({
 })
 ```
 
-For more information on configuring Vitest, please refer to the [Vitest Cofiguration](https://vitest.dev/config/#configuration) docs.
+For more information on configuring Vitest, please refer to the [Vitest Configuration](https://vitest.dev/config/#configuration) docs.
 
 Then, add a `test` script to your `package.json`:
 
@@ -92,7 +92,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import Link from 'next/link'
 
 export default function Page() {
@@ -193,6 +193,8 @@ npm run test
 yarn test
 # or
 pnpm test
+# or
+bun test
 ```
 
 ## Additional Resources

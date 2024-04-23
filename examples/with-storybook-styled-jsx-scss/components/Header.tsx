@@ -1,12 +1,12 @@
-import React from 'react'
+import React from "react";
 
-import { Button } from './Button'
+import { Button } from "./Button";
 
 export interface HeaderProps {
-  user?: {}
-  onLogin: () => void
-  onLogout: () => void
-  onCreateAccount: () => void
+  user?: {};
+  onLogin: () => void;
+  onLogout: () => void;
+  onCreateAccount: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
     <style jsx>{`
       .wrapper {
-        font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial,
+        font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial,
           sans-serif;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1);
         padding: 15px 20px;
@@ -86,4 +86,4 @@ export const Header: React.FC<HeaderProps> = ({
       }
     `}</style>
   </>
-)
+);

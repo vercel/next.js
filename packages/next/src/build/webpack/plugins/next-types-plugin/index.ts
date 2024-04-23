@@ -213,7 +213,12 @@ async function collectNamedSlots(layoutPath: string) {
   const items = await fs.readdir(layoutDir, { withFileTypes: true })
   const slots = []
   for (const item of items) {
-    if (item.isDirectory() && item.name.startsWith('@')) {
+    if (
+      item.isDirectory() &&
+      item.name.startsWith('@') &&
+      // `@children slots are matched to the children prop, and should not be handled separately for type-checking
+      item.name !== '@children'
+    ) {
       slots.push(item.name.slice(1))
     }
   }
@@ -436,8 +441,8 @@ declare namespace __next_route_internal_types__ {
 }
 
 declare module 'next' {
-  export { default } from 'next/types/index.js'
-  export * from 'next/types/index.js'
+  export { default } from 'next/types.js'
+  export * from 'next/types.js'
 
   export type Route<T extends string = string> =
     __next_route_internal_types__.RouteImpl<T>

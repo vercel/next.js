@@ -1,21 +1,23 @@
-'use client'
+"use client";
 
-import { useFormStatus } from 'react-dom'
-import { saveData } from './action'
-import { useRef } from 'react'
+import { useFormStatus } from "react-dom";
+import { saveData } from "./action";
+import { useRef } from "react";
 
 function Submit() {
-  const { pending } = useFormStatus()
-  return <button disabled={pending}>{pending ? 'Submitting' : 'Submit'}</button>
+  const { pending } = useFormStatus();
+  return (
+    <button disabled={pending}>{pending ? "Submitting" : "Submit"}</button>
+  );
 }
 
 export default function UploadForm() {
-  const formRef = useRef<HTMLFormElement | null>(null)
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   async function formAction(formData: FormData) {
-    await saveData(formData)
-    formRef.current?.reset()
-    alert('Save success!')
+    await saveData(formData);
+    formRef.current?.reset();
+    alert("Save success!");
   }
 
   return (
@@ -34,5 +36,5 @@ export default function UploadForm() {
       <br />
       <Submit />
     </form>
-  )
+  );
 }

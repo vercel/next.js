@@ -1,0 +1,48 @@
+
+  x You're importing a component that needs findDOMNode. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
+   :          ^^^^^^^^^^^
+   `----
+
+  x You're importing a component that needs flushSync. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
+   :                       ^^^^^^^^^
+   `----
+
+  x You're importing a component that needs unstable_batchedUpdates. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by
+  | default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
+   :                                  ^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+
+  x You're importing a component that needs useFormStatus. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
+   ,-[input.js:2:1]
+ 2 | 
+ 3 | import { useFormStatus, useFormState } from 'react-dom'
+   :          ^^^^^^^^^^^^^
+   `----
+
+  x You're importing a component that needs useFormState. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
+   ,-[input.js:2:1]
+ 2 | 
+ 3 | import { useFormStatus, useFormState } from 'react-dom'
+   :                         ^^^^^^^^^^^^
+   `----

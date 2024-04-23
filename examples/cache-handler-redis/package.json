@@ -6,17 +6,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "^14",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@neshca/cache-handler": "latest",
-    "@neshca/json-replacer-reviver": "latest",
-    "@types/node": "^20.9.1",
-    "@types/react": "^18.2.37",
-    "@types/react-dom": "^18.2.15",
+    "@neshca/cache-handler": "^0.6",
+    "@neshca/json-replacer-reviver": "^1",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "redis": "latest",
-    "typescript": "^5.2.2"
+    "typescript": "^5.3.3"
   }
 }

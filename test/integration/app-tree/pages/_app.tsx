@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { createContext } from 'react'
+// eslint-disable-next-line react/no-deprecated
 import { render } from 'react-dom'
 import App, { AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'

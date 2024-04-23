@@ -184,7 +184,7 @@ async function run(): Promise<void> {
         if (validation.valid) {
           return true
         }
-        return 'Invalid project name: ' + validation.problems![0]
+        return 'Invalid project name: ' + validation.problems[0]
       },
     })
 
@@ -207,15 +207,17 @@ async function run(): Promise<void> {
   const resolvedProjectPath = path.resolve(projectPath)
   const projectName = path.basename(resolvedProjectPath)
 
-  const { valid, problems } = validateNpmName(projectName)
-  if (!valid) {
+  const validation = validateNpmName(projectName)
+  if (!validation.valid) {
     console.error(
       `Could not create a project called ${red(
         `"${projectName}"`
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach((p) => console.error(`    ${red(bold('*'))} ${p}`))
+    validation.problems.forEach((p) =>
+      console.error(`    ${red(bold('*'))} ${p}`)
+    )
     process.exit(1)
   }
 
@@ -379,12 +381,15 @@ async function run(): Promise<void> {
       }
     }
 
+    const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
+      !importAliasPattern.test(program.importAlias)
     ) {
       if (ciInfo.isCI) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
+        program.importAlias = defaults.importAlias
+      } else if (process.argv.includes('--no-import-alias')) {
         program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
@@ -410,7 +415,7 @@ async function run(): Promise<void> {
             message: `What ${styledImportAlias} would you like configured?`,
             initial: getPrefOrDefault('importAlias'),
             validate: (value) =>
-              /.+\/\*/.test(value)
+              importAliasPattern.test(value)
                 ? true
                 : 'Import alias must follow the pattern <prefix>/*',
           })

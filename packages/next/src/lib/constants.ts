@@ -1,4 +1,4 @@
-import type { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../types'
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 
@@ -8,6 +8,7 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SUFFIX = '.rsc'
+export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
@@ -18,6 +19,9 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+// if these change make sure we update the related
+// documentation as well
+export const NEXT_CACHE_TAG_MAX_ITEMS = 64
 export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
@@ -40,7 +44,7 @@ export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
-export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
+export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'
@@ -130,6 +134,10 @@ const WEBPACK_LAYERS_NAMES = {
    */
   middleware: 'middleware',
   /**
+   * The layer for the instrumentation hooks.
+   */
+  instrument: 'instrument',
+  /**
    * The layer for assets on the edge.
    */
   edgeAsset: 'edge-asset',
@@ -153,14 +161,19 @@ export type WebpackLayerName =
 const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
-    server: [
+    serverOnly: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
+      WEBPACK_LAYERS_NAMES.instrument,
+    ],
+    clientOnly: [
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
     ],
     nonClientServerTarget: [
-      // plus middleware and pages api
+      // middleware and pages api
       WEBPACK_LAYERS_NAMES.middleware,
       WEBPACK_LAYERS_NAMES.api,
     ],
@@ -172,6 +185,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,
+      WEBPACK_LAYERS_NAMES.instrument,
     ],
   },
 }

@@ -1,4 +1,4 @@
-import type { Request } from 'playwright-core'
+import type { Request } from 'playwright'
 
 import { createNextDescribe } from 'e2e-utils'
 import type { BrowserInterface } from '../../../lib/browsers/base'
@@ -35,7 +35,7 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      it.skip('should skip test in dev mode', () => {})
+      it.skip('should skip test in development mode', () => {})
     } else {
       it('should avoid double-fetching when optimistic navigation fails', async () => {
         const browser = await next.browser('/foo')

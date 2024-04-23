@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../../render-result'
 import type { RenderOpts } from '../../../app-render/types'
@@ -12,6 +11,7 @@ import {
   type RouteModuleHandleContext,
 } from '../route-module'
 import * as vendoredContexts from './vendored/contexts/entrypoints'
+import type { BaseNextRequest, BaseNextResponse } from '../../../base-http'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -52,8 +52,8 @@ export class AppPageRouteModule extends RouteModule<
   AppPageUserlandModule
 > {
   public render(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
     return renderToHTMLOrFlight(

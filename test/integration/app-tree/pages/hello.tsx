@@ -1,4 +1,5 @@
 import React from 'react'
+// eslint-disable-next-line react/no-deprecated
 import { render } from 'react-dom'
 import { renderToString } from 'react-dom/server'
 import { NextPage } from 'next'

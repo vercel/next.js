@@ -1,4 +1,4 @@
-import { PREVIEW_PLASMIC } from '../../plasmic-init'
+import { PREVIEW_PLASMIC } from "../../plasmic-init";
 
 export default async function preview(req, res) {
   // Check the secret and next parameters
@@ -7,22 +7,22 @@ export default async function preview(req, res) {
     req.query.secret !== process.env.PLASMIC_PREVIEW_SECRET ||
     !req.query.slug
   ) {
-    return res.status(401).json({ message: 'Invalid token' })
+    return res.status(401).json({ message: "Invalid token" });
   }
 
   // Check if the page with the given `slug` exists
-  const pages = await PREVIEW_PLASMIC.fetchPages()
-  const pageMeta = pages.find((p) => p.path === req.query.slug)
+  const pages = await PREVIEW_PLASMIC.fetchPages();
+  const pageMeta = pages.find((p) => p.path === req.query.slug);
 
   // If the slug doesn't exist prevent preview mode from being enabled
   if (!pageMeta) {
-    return res.status(401).json({ message: 'Invalid slug' })
+    return res.status(401).json({ message: "Invalid slug" });
   }
 
   // Enable Draft Mode by setting the cookie
-  res.setDraftMode({ enable: true })
+  res.setDraftMode({ enable: true });
 
   // Redirect to the path from the fetched post
   // We don't redirect to req.query.slug as that might lead to open redirect vulnerabilities
-  res.redirect(pageMeta.path)
+  res.redirect(pageMeta.path);
 }

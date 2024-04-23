@@ -33,20 +33,25 @@ function runTests() {
 }
 
 describe('route cancel via CSS', () => {
-  beforeAll(async () => {
-    await runNextCommand(['build', appDir])
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await runNextCommand(['build', appDir])
 
-    app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
-    })
+        app = nextServer({
+          dir: appDir,
+          dev: false,
+          quiet: true,
+        })
 
-    server = await startApp(app)
-    appPort = server.address().port
-  })
+        server = await startApp(app)
+        appPort = server.address().port
+      })
 
-  afterAll(() => stopApp(server))
+      afterAll(() => stopApp(server))
 
-  runTests()
+      runTests()
+    }
+  )
 })

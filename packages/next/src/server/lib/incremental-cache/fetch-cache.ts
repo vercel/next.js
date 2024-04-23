@@ -28,6 +28,21 @@ export default class FetchCache implements CacheHandler {
   private cacheEndpoint?: string
   private debug: boolean
 
+  private hasMatchingTags(arr1: string[], arr2: string[]) {
+    if (arr1.length !== arr2.length) return false
+
+    const set1 = new Set(arr1)
+    const set2 = new Set(arr2)
+
+    if (set1.size !== set2.size) return false
+
+    for (let tag of set1) {
+      if (!set2.has(tag)) return false
+    }
+
+    return true
+  }
+
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
   }) {
@@ -106,6 +121,10 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
+  public resetRequestCache(): void {
+    memoryCache?.reset()
+  }
+
   public async revalidateTag(tag: string) {
     if (this.debug) {
       console.log('revalidateTag', tag)
@@ -120,7 +139,9 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
+        `${
+          this.cacheEndpoint
+        }/v1/suspense-cache/revalidate?tags=${encodeURIComponent(tag)}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -157,16 +178,18 @@ export default class FetchCache implements CacheHandler {
       return null
     }
 
+    // memory cache is cleared at the end of each request
+    // so that revalidate events are pulled from upstream
+    // on successive requests
     let data = memoryCache?.get(key)
 
-    // memory cache data is only leveraged for up to 2 seconds
-    // so that revalidation events can be pulled from source
-    if (Date.now() - (data?.lastModified || 0) > 2000) {
-      data = undefined
-    }
+    const hasFetchKindAndMatchingTags =
+      data?.value?.kind === 'FETCH' &&
+      this.hasMatchingTags(tags ?? [], data.value.tags ?? [])
 
-    // get data from fetch cache
-    if (!data && this.cacheEndpoint) {
+    // Get data from fetch cache. Also check if new tags have been
+    // specified with the same cache key (fetch URL)
+    if (this.cacheEndpoint && (!data || !hasFetchKindAndMatchingTags)) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
@@ -215,6 +238,16 @@ export default class FetchCache implements CacheHandler {
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
           throw new Error(`invalid cache value`)
+        }
+
+        // if new tags were specified, merge those tags to the existing tags
+        if (cached.kind === 'FETCH') {
+          cached.tags ??= []
+          for (const tag of tags ?? []) {
+            if (!cached.tags.includes(tag)) {
+              cached.tag.push(tag)
+            }
+          }
         }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)

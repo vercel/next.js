@@ -58,7 +58,8 @@ export class RedirectErrorBoundary extends React.Component<
     throw error
   }
 
-  render() {
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  render(): React.ReactNode {
     const { redirect, redirectType } = this.state
     if (redirect !== null && redirectType !== null) {
       return (

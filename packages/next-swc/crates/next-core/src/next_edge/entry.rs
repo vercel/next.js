@@ -24,11 +24,7 @@ pub async fn wrap_edge_entry(
     let source = formatdoc!(
         r#"
             self._ENTRIES ||= {{}}
-            self._ENTRIES[{}] = new Proxy(Promise.resolve(require('MODULE')), {{
-              get(modProm, name) {{
-                return (...args) => modProm.then(mod => (0, mod[name])(...args))
-              }}
-            }})
+            self._ENTRIES[{}] = import('MODULE')
         "#,
         StringifyJs(&format_args!("middleware_{}", pathname))
     );

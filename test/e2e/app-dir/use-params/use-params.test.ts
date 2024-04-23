@@ -41,5 +41,19 @@ createNextDescribe(
       expect(await browser.elementByCss('#param-id').text()).toBe('a')
       expect(await browser.elementByCss('#param-id2').text()).toBe('b')
     })
+
+    it('should work on pages router', async () => {
+      const browser = await next.browser('/pages-dir/foobar')
+      expect(await browser.elementById('params').text()).toBe('"foobar"')
+    })
+
+    it("shouldn't rerender host component when prefetching", async () => {
+      const browser = await next.browser('/rerenders/foobar')
+      const initialRandom = await browser.elementById('random').text()
+      const link = await browser.elementByCss('a')
+      await link.hover()
+      const newRandom = await browser.elementById('random').text()
+      expect(initialRandom).toBe(newRandom)
+    })
   }
 )

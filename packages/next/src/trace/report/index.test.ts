@@ -46,9 +46,9 @@ describe('Trace Reporter', () => {
       setGlobal('telemetry', telemetryMock)
       // This should be ignored.
       reporter.report(TRACE_EVENT)
-      expect(recordMock).toBeCalledTimes(0)
+      expect(recordMock).toHaveBeenCalledTimes(0)
       reporter.report(WEBPACK_INVALIDATED_EVENT)
-      expect(recordMock).toBeCalledTimes(1)
+      expect(recordMock).toHaveBeenCalledTimes(1)
       expect(recordMock).toHaveBeenCalledWith({
         eventName: 'WEBPACK_INVALIDATED',
         payload: {

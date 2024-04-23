@@ -4,7 +4,7 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: 'Source Code Pro', Courier New, monospace;
+  font-family: "Source Code Pro", Courier New, monospace;
 }
 
 a {
@@ -14,7 +14,7 @@ a {
 
 input,
 button {
-  font-family: 'Source Code Pro', Arial, sans-serif;
+  font-family: "Source Code Pro", Arial, sans-serif;
 }
 
 a:hover,

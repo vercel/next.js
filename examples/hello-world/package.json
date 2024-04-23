@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start"
   },
@@ -11,9 +11,9 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/node": "20.8.10",
-    "@types/react": "18.2.33",
-    "@types/react-dom": "18.2.14",
-    "typescript": "^5.2.2"
+    "@types/node": "20.10.8",
+    "@types/react": "18.2.47",
+    "@types/react-dom": "18.2.18",
+    "typescript": "^5.3.3"
   }
 }

@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import type { BrowserInterface } from 'test/lib/browsers/base'
+import type { BrowserInterface } from 'next-webdriver'
 
 createNextDescribe(
   'app a11y features',

@@ -1,12 +1,12 @@
-import React, { ReactNode } from 'react'
-import Header from './Header'
+import React, { ReactNode } from "react";
+import Header from "./Header";
 
 type Props = {
-  children: ReactNode
-}
+  children: ReactNode;
+};
 
 const Layout: React.FC<Props> = (props) => (
-  <div style={{ paddingBottom: '30px' }}>
+  <div style={{ paddingBottom: "30px" }}>
     <Header />
     <div className="layout">{props.children}</div>
     <style jsx global>{`
@@ -24,9 +24,9 @@ const Layout: React.FC<Props> = (props) => (
         margin: 0;
         padding: 0;
         font-size: 16px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-          Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-          'Segoe UI Symbol';
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol";
         background: rgba(0, 0, 0, 0);
       }
 
@@ -46,6 +46,6 @@ const Layout: React.FC<Props> = (props) => (
       }
     `}</style>
   </div>
-)
+);
 
-export default Layout
+export default Layout;

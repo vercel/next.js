@@ -9,6 +9,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import { remove } from 'fs-extra'
@@ -54,7 +55,7 @@ describe('Edge runtime configurable guards', () => {
   })
 
   describe('Multiple functions with different configurations', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       context.middleware.write(`
         import { NextResponse } from 'next/server'
 
@@ -76,6 +77,7 @@ describe('Edge runtime configurable guards', () => {
           unstable_allowDynamic: '/lib/**'
         }
       `)
+      await waitFor(500)
     })
 
     it('warns in dev for allowed code', async () => {
@@ -83,21 +85,24 @@ describe('Edge runtime configurable guards', () => {
       const res = await fetchViaHTTP(context.appPort, middlewareUrl)
       await waitFor(500)
       expect(res.status).toBe(200)
-      expect(context.logs.output).toContain(
-        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
-      )
+      await retry(async () => {
+        expect(context.logs.output).toContain(
+          `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+        )
+      })
     })
 
     it('warns in dev for unallowed code', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, routeUrl)
-      await waitFor(500)
       expect(res.status).toBe(200)
-      expect(context.logs.output).toContain(
-        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
-      )
+      await retry(async () => {
+        expect(context.logs.output).toContain(
+          `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+        )
+      })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('fails to build because of unallowed code', async () => {
@@ -301,7 +306,7 @@ describe('Edge runtime configurable guards', () => {
     },
   ])('$title with allowed, unused dynamic code', ({ init, url }) => {
     beforeEach(() => init())
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('build and does not warn at runtime', async () => {
@@ -312,6 +317,7 @@ describe('Edge runtime configurable guards', () => {
           })
           expect(output.stderr).not.toContain(`Build failed`)
           expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          context.appPort = await findPort()
           context.app = await nextStart(
             context.appDir,
             context.appPort,
@@ -385,7 +391,7 @@ describe('Edge runtime configurable guards', () => {
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('fails to build because of dynamic code evaluation', async () => {
@@ -443,7 +449,7 @@ describe('Edge runtime configurable guards', () => {
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         // eslint-disable-next-line jest/no-identical-title
@@ -453,6 +459,7 @@ describe('Edge runtime configurable guards', () => {
             stderr: true,
           })
           expect(output.stderr).not.toContain(`Build failed`)
+          context.appPort = await findPort()
           context.app = await nextStart(
             context.appDir,
             context.appPort,

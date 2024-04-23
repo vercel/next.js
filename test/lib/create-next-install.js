@@ -9,11 +9,14 @@ const { linkPackages } =
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 
-async function installDependencies(cwd) {
+async function installDependencies(cwd, tmpDir) {
   const args = [
     'install',
     '--strict-peer-dependencies=false',
     '--no-frozen-lockfile',
+    // For the testing installation, use a separate cache directory
+    // to avoid local testing grows pnpm's default cache indefinitely with test packages.
+    `--config.cacheDir=${tmpDir}`,
   ]
 
   if (PREFER_OFFLINE) {
@@ -36,10 +39,11 @@ async function createNextInstall({
   dirSuffix = '',
   keepRepoDir = false,
 }) {
+  const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
+
   return await parentSpan
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
-      const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
@@ -62,6 +66,28 @@ async function createNextInstall({
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
+        for (const item of ['package.json', 'packages']) {
+          await rootSpan
+            .traceChild(`copy ${item} to temp dir`)
+            .traceAsyncFn(() =>
+              fs.copy(
+                path.join(origRepoDir, item),
+                path.join(tmpRepoDir, item),
+                {
+                  filter: (item) => {
+                    return (
+                      !item.includes('node_modules') &&
+                      !item.includes('pnpm-lock.yaml') &&
+                      !item.includes('.DS_Store') &&
+                      // Exclude Rust compilation files
+                      !/next-swc[\\/]target/.test(item)
+                    )
+                  },
+                }
+              )
+            )
+        }
+
         await rootSpan
           .traceChild('ensure swc binary')
           .traceAsyncFn(async () => {
@@ -77,7 +103,7 @@ async function createNextInstall({
                   folder
                 )
                 const outputPath = path.join(
-                  origRepoDir,
+                  tmpRepoDir,
                   'packages/next-swc/native'
                 )
                 await fs.copy(swcPkgPath, outputPath, {
@@ -95,33 +121,9 @@ async function createNextInstall({
             }
           })
 
-        for (const item of ['package.json', 'packages']) {
-          await rootSpan
-            .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(() =>
-              fs.copy(
-                path.join(origRepoDir, item),
-                path.join(tmpRepoDir, item),
-                {
-                  filter: (item) => {
-                    return (
-                      !item.includes('node_modules') &&
-                      !item.includes('pnpm-lock.yaml') &&
-                      !item.includes('.DS_Store') &&
-                      // Exclude Rust compilation files
-                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                      !/next-swc[\\/]target/.test(item)
-                    )
-                  },
-                }
-              )
-            )
-        }
-
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
           linkPackages({
             repoDir: tmpRepoDir,
-            nextSwcVersion: null,
           })
         )
       }
@@ -169,7 +171,7 @@ async function createNextInstall({
       } else {
         await rootSpan
           .traceChild('run generic install command')
-          .traceAsyncFn(() => installDependencies(installDir))
+          .traceAsyncFn(() => installDependencies(installDir, tmpDir))
       }
 
       if (!keepRepoDir && tmpRepoDir) {

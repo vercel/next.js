@@ -5,4 +5,4 @@
 // export { LeftHalf, RightHalf };
 
 // Flag as module for TypeScript
-export {}
+export {};

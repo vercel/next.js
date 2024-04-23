@@ -1,3 +1,9 @@
+import { ClientComponent } from './client-component'
+
 export default function Page() {
-  return 'main catchall'
+  return (
+    <div>
+      main catchall <ClientComponent />
+    </div>
+  )
 }

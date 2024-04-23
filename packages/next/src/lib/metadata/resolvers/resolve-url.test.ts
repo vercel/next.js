@@ -1,4 +1,4 @@
-import { resolveUrl } from './resolve-url'
+import { resolveUrl, resolveAbsoluteUrlWithPathname } from './resolve-url'
 
 // required to be resolved as URL with resolveUrl()
 describe('metadata: resolveUrl', () => {
@@ -40,5 +40,69 @@ describe('metadata: resolveUrl', () => {
     expect(resolveUrl(new URL('https://bar.com/ghi'), metadataBase)).toEqual(
       new URL('https://bar.com/ghi')
     )
+  })
+})
+
+describe('resolveAbsoluteUrlWithPathname', () => {
+  describe('trailingSlash is false', () => {
+    const metadataBase = new URL('https://example.com/')
+    const opts = {
+      trailingSlash: false,
+      pathname: '/',
+    }
+    const resolver = (url: string | URL) =>
+      resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
+    it('should resolve absolute internal url', () => {
+      expect(resolver('https://example.com/foo')).toBe(
+        'https://example.com/foo'
+      )
+    })
+  })
+
+  describe('trailingSlash is true', () => {
+    const metadataBase = new URL('https://example.com/')
+    const opts = {
+      trailingSlash: true,
+      pathname: '/',
+    }
+    const resolver = (url: string | URL) =>
+      resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
+    it('should add trailing slash to relative url', () => {
+      expect(resolver('/foo')).toBe('https://example.com/foo/')
+    })
+
+    it('should add trailing slash to absolute internal url', () => {
+      expect(resolver('https://example.com/foo')).toBe(
+        'https://example.com/foo/'
+      )
+      expect(resolver(new URL('https://example.com/foo'))).toBe(
+        'https://example.com/foo/'
+      )
+    })
+
+    it('should not add trailing slash to external url', () => {
+      expect(resolver('https://external.org/foo')).toBe(
+        'https://external.org/foo'
+      )
+      expect(resolver(new URL('https://external.org/foo'))).toBe(
+        'https://external.org/foo'
+      )
+    })
+
+    it('should not add trailing slash to absolute internal url with query', () => {
+      expect(resolver('https://example.com/foo?bar')).toBe(
+        'https://example.com/foo?bar'
+      )
+      expect(resolver(new URL('https://example.com/foo?bar'))).toBe(
+        'https://example.com/foo?bar'
+      )
+    })
+
+    it('should not add trailing slash to relative url with query', () => {
+      expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
+      expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
+        'https://example.com/foo?bar'
+      )
+    })
   })
 })

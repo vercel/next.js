@@ -1,20 +1,20 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handleEditorStateChange(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
-  if (req.method !== 'POST') {
+  if (req.method !== "POST") {
     return res
-      .setHeader('Allow', ['POST'])
+      .setHeader("Allow", ["POST"])
       .status(405)
-      .end(`Method ${req.method} Not Allowed`)
+      .end(`Method ${req.method} Not Allowed`);
   }
 
-  const editorState = JSON.parse(req.body)
-  console.log('TODO: Save editorState on the server', editorState)
+  const editorState = JSON.parse(req.body);
+  console.log("TODO: Save editorState on the server", editorState);
 
   res.json({
-    status: 'ok',
-  })
+    status: "ok",
+  });
 }

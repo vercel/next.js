@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function NavigationPage() {
   return (
@@ -9,5 +9,5 @@ export default function NavigationPage() {
       </p>
       <Link href="/">Return to home</Link>
     </div>
-  )
+  );
 }

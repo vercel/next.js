@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/nextjs'
+import * as Sentry from "@sentry/nextjs";
 
 const Test5 = () => (
   <>
@@ -6,25 +6,25 @@ const Test5 = () => (
     <button
       onClick={() => {
         const transaction = Sentry.startTransaction({
-          name: 'Testing performance',
-        })
+          name: "Testing performance",
+        });
         Sentry.configureScope((scope) => {
-          scope.setSpan(transaction)
-        })
+          scope.setSpan(transaction);
+        });
 
         try {
           // Some operation the button does, but fails
-          throw new Error('Client Test 5')
+          throw new Error("Client Test 5");
         } catch (error) {
-          Sentry.captureException(error)
+          Sentry.captureException(error);
         } finally {
-          transaction.finish()
+          transaction.finish();
         }
       }}
     >
       Click me to create a transaction and throw an Error
     </button>
   </>
-)
+);
 
-export default Test5
+export default Test5;

@@ -1,14 +1,16 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_swc::server_actions::{server_actions, Config};
-use swc_core::{
-    common::FileName,
-    ecma::{ast::Program, visit::VisitMutWith},
-};
+use next_custom_transforms::transforms::server_actions::{server_actions, Config};
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-    turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use turbopack_binding::{
+    swc::core::{
+        common::FileName,
+        ecma::{ast::Program, visit::VisitMutWith},
+    },
+    turbopack::{
+        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
+        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+    },
 };
 
 use super::module_rule_match_js_no_url;
@@ -28,9 +30,10 @@ pub fn get_server_actions_transform_rule(
         EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 

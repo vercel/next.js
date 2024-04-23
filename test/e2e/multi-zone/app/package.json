@@ -2,11 +2,6 @@
   "name": "with-zones",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "dev": "node server.js",
-    "build": "yarn next build apps/first && yarn next build apps/second",
-    "start": "NODE_ENV=production node server.js"
-  },
   "dependencies": {
     "@types/react": "18.0.28",
     "next": "canary",
