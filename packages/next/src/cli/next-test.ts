@@ -186,10 +186,10 @@ async function runPlaywright(
 function defaultPlaywrightConfig(typescript: boolean) {
   const comment = `/*
  * Specify any additional Playwright config options here.
- * They will be deep merged with Next.js' default Playwright config.
- * You can access the default config by using a function: \`withNext((config) => {})\`
+ * They will be merged with Next.js' default Playwright config.
+ * You can access the default config by importing \`defaultPlaywrightConfig\` from \`'next/experimental/testmode/playwright'\`.
  */`
   return typescript
-    ? `import { withNext } from 'next/experimental/testmode/playwright';\n\n${comment}\nexport default withNext();`
-    : `const { withNext } = require('next/experimental/testmode/playwright');\n\n${comment}\nmodule.exports = withNext();`
+    ? `import { defineConfig } from 'next/experimental/testmode/playwright';\n\n${comment}\nexport default defineConfig({});`
+    : `const { defineConfig } = require('next/experimental/testmode/playwright');\n\n${comment}\nmodule.exports = defineConfig({});`
 }
