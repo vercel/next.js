@@ -64,7 +64,9 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
       <link
         rel="manifest"
         href={metadata.manifest.toString()}
-        crossOrigin="use-credentials"
+        crossOrigin={
+          process.env.VERCEL_ENV === 'preview' ? 'use-credentials' : undefined
+        }
       />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
