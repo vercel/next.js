@@ -234,21 +234,16 @@ export function Links() {
 
   return (
     <nav>
-      <ul>
-        <li>
-          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link
-            className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/about"
-          >
-            About
-          </Link>
-        </li>
-      </ul>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
     </nav>
   )
 }
@@ -265,28 +260,23 @@ export function Links() {
 
   return (
     <nav>
-      <ul>
-        <li>
-          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link
-            className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/about"
-          >
-            About
-          </Link>
-        </li>
-      </ul>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
     </nav>
   )
 }
 ```
 
 ```tsx filename="app/layout.tsx" switcher
-import { NavLinks } from './components/nav-links'
+import { NavLinks } from '@/app/ui/nav-links'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -301,14 +291,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { NavLinks } from './components/nav-links'
+import { NavLinks } from '@/app/ui/nav-links'
 
 export default function Layout({ children }) {
   return (
-    </>
+    <html lang="en">
+      <body>
         <NavLinks />
         <main>{children}</main>
-     </>
+      </body>
+    </html>
   )
 }
 ```
