@@ -80,7 +80,8 @@ export async function sendRenderResult({
       etagPayload = payload.split('\n').sort().join('\n')
     } else if (type === 'html' && payload.includes('__next_f')) {
       const { parse } =
-        require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+        // eslint-disable-next-line import/no-extraneous-dependencies
+        require('@next/vendored/node-html-parser') as typeof import('@next/vendored/node-html-parser')
 
       try {
         // Parse the HTML

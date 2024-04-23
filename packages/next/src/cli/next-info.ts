@@ -374,7 +374,7 @@ async function printVerboseInfo() {
 
           const {
             platformArchTriples,
-          } = require('next/dist/compiled/@napi-rs/triples')
+          } = require('@next/vendored/@napi-rs/triples')
           const triples = platformArchTriples[currentPlatform]?.[os.arch()]
 
           if (!triples || triples.length === 0) {

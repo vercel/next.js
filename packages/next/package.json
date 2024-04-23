@@ -94,6 +94,7 @@
   },
   "dependencies": {
     "@next/env": "14.3.0-canary.18",
+    "@next/vendored": "workspace:*",
     "@swc/helpers": "0.5.10",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
@@ -149,7 +150,6 @@
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
-    "@napi-rs/triples": "1.2.0",
     "@next/polyfill-module": "14.3.0-canary.18",
     "@next/polyfill-nomodule": "14.3.0-canary.18",
     "@next/react-refresh-utils": "14.3.0-canary.18",
@@ -259,7 +259,6 @@
     "nanoid": "3.1.32",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
-    "node-html-parser": "5.3.3",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
     "p-limit": "3.1.0",

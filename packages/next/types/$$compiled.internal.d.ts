@@ -1,6 +1,7 @@
+/// <reference types="@next/vendored/modules" />
+
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
-declare module 'next/dist/compiled/@napi-rs/triples'
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
@@ -51,10 +52,6 @@ declare module 'next/dist/compiled/commander' {
   import commander from 'commander'
   export * from 'commander'
   export default commander
-}
-
-declare module 'next/dist/compiled/node-html-parser' {
-  export * from 'node-html-parser'
 }
 
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
