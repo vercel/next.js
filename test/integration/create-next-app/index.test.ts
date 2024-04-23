@@ -1,6 +1,11 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { run, useTempDir } from './utils'
+import {
+  run,
+  useTempDir,
+  projectFilesShouldExist,
+  projectFilesShouldNotExist,
+} from './utils'
 
 describe('create-next-app', () => {
   it('should not create if the target directory is not empty', async () => {
@@ -71,6 +76,34 @@ describe('create-next-app', () => {
       if (!expectedErrorMessage.test(err.message)) {
         throw err
       }
+    })
+  })
+  it('should not install dependencies if --skip-install', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'empty-dir'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--skip-install',
+        ],
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['.gitignore', 'package.json'],
+      })
+      projectFilesShouldNotExist({ cwd, projectName, files: ['node_modules'] })
     })
   })
 })

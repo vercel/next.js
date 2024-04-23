@@ -541,7 +541,6 @@ async function ReactServerError({
       <body></body>
     </html>,
     null,
-    null,
   ]
   return (
     <AppRouter
@@ -591,7 +590,8 @@ async function renderToHTMLOrFlightImpl(
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  baseCtx: AppRenderBaseContext
+  baseCtx: AppRenderBaseContext,
+  requestEndedState: { ended?: boolean }
 ) {
   const isNotFoundPath = pagePath === '/404'
 
@@ -632,6 +632,8 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
+      requestEndedState.ended = true
+
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
         if (metrics) {
@@ -1449,14 +1451,23 @@ export const renderToHTMLOrFlight: AppPageRender = (
         {
           urlPathname: pathname,
           renderOpts,
+          requestEndedState: { ended: false },
         },
         (staticGenerationStore) =>
-          renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {
-            requestStore,
-            staticGenerationStore,
-            componentMod: renderOpts.ComponentMod,
+          renderToHTMLOrFlightImpl(
+            req,
+            res,
+            pagePath,
+            query,
             renderOpts,
-          })
+            {
+              requestStore,
+              staticGenerationStore,
+              componentMod: renderOpts.ComponentMod,
+              renderOpts,
+            },
+            staticGenerationStore.requestEndedState || {}
+          )
       )
   )
 }

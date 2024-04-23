@@ -1014,7 +1014,7 @@ export default async function loadConfig(
         require('./config-schema') as typeof import('./config-schema')
       const state = configSchema.safeParse(userConfig)
 
-      if (!state.success) {
+      if (state.success === false) {
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 

@@ -1,5 +1,5 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import type { SizeLimit } from '../../../types'
+import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
@@ -353,6 +353,11 @@ type ServerModuleMap = Record<
   | undefined
 >
 
+type ServerActionsConfig = {
+  bodySizeLimit?: SizeLimit
+  allowedOrigins?: string[]
+}
+
 export async function handleAction({
   req,
   res,
@@ -371,10 +376,7 @@ export async function handleAction({
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActions?: {
-    bodySizeLimit?: SizeLimit
-    allowedOrigins?: string[]
-  }
+  serverActions?: ServerActionsConfig
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -552,10 +554,11 @@ export async function handleAction({
       ) {
         // Use react-server-dom-webpack/server.edge
         const { decodeReply, decodeAction, decodeFormState } = ComponentMod
-
         if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
+
+        // TODO: add body limit
 
         if (isMultipartAction) {
           // TODO-APP: Add streaming support
@@ -619,20 +622,52 @@ export async function handleAction({
           decodeFormState,
         } = require(`./react-server.node`)
 
+        const { Transform } =
+          require('node:stream') as typeof import('node:stream')
+
+        const defaultBodySizeLimit = '1 MB'
+        const bodySizeLimit =
+          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+        const bodySizeLimitBytes =
+          bodySizeLimit !== defaultBodySizeLimit
+            ? (
+                require('next/dist/compiled/bytes') as typeof import('bytes')
+              ).parse(bodySizeLimit)
+            : 1024 * 1024 // 1 MB
+
+        let size = 0
+        const body = req.body.pipe(
+          new Transform({
+            transform(chunk, encoding, callback) {
+              size += Buffer.byteLength(chunk, encoding)
+              if (size > bodySizeLimitBytes) {
+                const { ApiError } = require('../api-utils')
+
+                callback(
+                  new ApiError(
+                    413,
+                    `Body exceeded ${bodySizeLimit} limit.
+                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                  )
+                )
+                return
+              }
+
+              callback(null, chunk)
+            },
+          })
+        )
+
         if (isMultipartAction) {
           if (isFetchAction) {
-            const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
-            const limit = require('next/dist/compiled/bytes').parse(
-              readableLimit
-            )
-            const busboy = require('busboy')
-            const bb = busboy({
+            const busboy = (require('busboy') as typeof import('busboy'))({
               headers: req.headers,
-              limits: { fieldSize: limit },
+              limits: { fieldSize: bodySizeLimitBytes },
             })
-            req.body.pipe(bb)
 
-            bound = await decodeReplyFromBusboy(bb, serverModuleMap)
+            body.pipe(busboy)
+
+            bound = await decodeReplyFromBusboy(busboy, serverModuleMap)
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
@@ -640,7 +675,19 @@ export async function handleAction({
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: req.stream(),
+              body: new ReadableStream({
+                start: (controller) => {
+                  body.on('data', (chunk) => {
+                    controller.enqueue(new Uint8Array(chunk))
+                  })
+                  body.on('end', () => {
+                    controller.close()
+                  })
+                  body.on('error', (err) => {
+                    controller.error(err)
+                  })
+                },
+              }),
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -667,25 +714,12 @@ export async function handleAction({
             }
           }
 
-          const chunks = []
-
+          const chunks: Buffer[] = []
           for await (const chunk of req.body) {
             chunks.push(Buffer.from(chunk))
           }
 
           const actionData = Buffer.concat(chunks).toString('utf-8')
-
-          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
-          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
-
-          if (actionData.length > limit) {
-            const { ApiError } = require('../api-utils')
-            throw new ApiError(
-              413,
-              `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-            )
-          }
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)

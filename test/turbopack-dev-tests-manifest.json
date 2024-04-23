@@ -1964,6 +1964,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/internal-traces/internal-traces.test.ts": {
+    "passed": [
+      "internal traces should not write long internal traces to stdio"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/jsconfig-path-reloading/index.test.ts": {
     "passed": [
       "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
@@ -2486,6 +2495,8 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
+      "app dir - basepath should only make a single RSC call to the current page (/base/refresh)",
+      "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
       "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
@@ -3000,6 +3011,7 @@
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
+      "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
@@ -3081,6 +3093,7 @@
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
+      "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
@@ -3328,10 +3341,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3493,6 +3506,8 @@
   },
   "test/e2e/app-dir/dynamic-css/index.test.ts": {
     "passed": [
+      "app dir - dynamic css should not throw with accessing to ALS in preload css",
+      "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
       "app dir - dynamic css should only apply corresponding css for page loaded that /another",
       "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
       "app dir - dynamic css should preload css of dynamic component during SSR"
@@ -4265,17 +4280,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/not-found/multi-root-layout/index.test.ts": {
-    "passed": [
-      "not-found-multi-root-layout should render main not-found",
-      "not-found-multi-root-layout should render root not-found for uncaught routes",
-      "not-found-multi-root-layout should render sub not-found"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": ["pages-to-app-routing should work using browser"],
     "failed": [],
@@ -4333,6 +4337,7 @@
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
@@ -4451,6 +4456,8 @@
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/dynamic/foobar)",
+      "parallel-routes-revalidation should not trigger the intercepted route when lazy-fetching missing data",
+      "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
     "failed": [],
@@ -5407,6 +5414,30 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/async-modules-app/index.test.ts": {
+    "passed": ["Async modules app router server component async module"],
+    "failed": [],
+    "pending": ["Async modules app router client component async module"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/async-modules/index.test.ts": {
+    "passed": [
+      "Async modules can render async 404 pages",
+      "Async modules csr async page modules",
+      "Async modules ssr async page modules",
+      "Async modules works on async api routes",
+      "Async modules works with getServerSideProps",
+      "Async modules works with getStaticProps"
+    ],
+    "failed": [],
+    "pending": [
+      "Async modules can render async AMP pages",
+      "Async modules can render async error page"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -6711,10 +6742,10 @@
   },
   "test/e2e/next-font/with-proxy.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "next/font/google with proxy should use a proxy agent when proxy environment variable is set"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7932,31 +7963,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/async-modules/test/index.test.js": {
-    "passed": [
-      "Async modules development mode can render async 404 pages",
-      "Async modules development mode csr async page modules",
-      "Async modules development mode ssr async page modules",
-      "Async modules development mode works on async api routes",
-      "Async modules development mode works with getServerSideProps",
-      "Async modules development mode works with getStaticProps"
-    ],
-    "failed": [],
-    "pending": [
-      "Async modules development mode can render async AMP pages",
-      "Async modules development mode can render async error page",
-      "Async modules production mode can render async 404 pages",
-      "Async modules production mode can render async AMP pages",
-      "Async modules production mode can render async error page",
-      "Async modules production mode csr async page modules",
-      "Async modules production mode ssr async page modules",
-      "Async modules production mode works on async api routes",
-      "Async modules production mode works with getServerSideProps",
-      "Async modules production mode works with getStaticProps"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/auto-export-error-bail/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -9052,11 +9058,10 @@
       "Custom routes no-op rewrite should not error for no-op rewrite and auto export dynamic route",
       "Custom routes should load custom routes when only one type is used development mode should work with just headers",
       "Custom routes should load custom routes when only one type is used development mode should work with just redirects",
-      "Custom routes should load custom routes when only one type is used development mode should work with just rewrites"
-    ],
-    "failed": [
+      "Custom routes should load custom routes when only one type is used development mode should work with just rewrites",
       "Custom routes development mode should handle external beforeFiles rewrite correctly"
     ],
+    "failed": [],
     "pending": [
       "Custom routes production mode should add refresh header for 308 redirect",
       "Custom routes production mode should allow params in query for redirect",

@@ -873,6 +873,43 @@ createNextDescribe(
         await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
 
+      it('should intercept on routes that contain hyphenated/special dynamic params', async () => {
+        const browser = await next.browser(
+          '/interception-route-special-params/some-random-param'
+        )
+
+        await browser
+          .elementByCss(
+            "[href='/interception-route-special-params/some-random-param/some-page']"
+          )
+          .click()
+
+        const interceptionText =
+          'Hello from [this-is-my-route]/@intercept/some-page. Param: some-random-param'
+        const pageText =
+          'Hello from [this-is-my-route]/some-page. Param: some-random-param'
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            interceptionText
+          )
+
+          expect(await browser.elementByCss('body').text()).not.toContain(
+            pageText
+          )
+        })
+
+        await browser.refresh()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(pageText)
+
+          expect(await browser.elementByCss('body').text()).not.toContain(
+            interceptionText
+          )
+        })
+      })
+
       if (isNextStart) {
         it('should not have /default paths in the prerender manifest', async () => {
           const prerenderManifest = JSON.parse(
