@@ -695,8 +695,7 @@ import path from 'path'
         "{
           "extends": "./tsconfig.base.json",
           "compilerOptions": {
-            "target": "ES2017",
-            "strictNullChecks": true
+            "target": "ES2017"
           }
         }
         "
@@ -764,8 +763,7 @@ import path from 'path'
           "extends": "./tsconfig.base.json",
           "compilerOptions": {
             "target": "ES2017",
-            "incremental": true,
-            "strictNullChecks": true
+            "incremental": true
           }
         }
         "

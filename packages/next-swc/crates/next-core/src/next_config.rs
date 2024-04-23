@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
@@ -197,7 +197,19 @@ pub enum OutputType {
     Export,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RouteHas {
     Header {
