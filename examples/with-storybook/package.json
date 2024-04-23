@@ -8,6 +8,11 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
+  "dependencies": {
+    "next": "14.2.2",
+    "react": "^18",
+    "react-dom": "^18"
+  },
   "devDependencies": {
     "@chromatic-com/storybook": "^1.3.3",
     "@storybook/addon-essentials": "^8.0.9",

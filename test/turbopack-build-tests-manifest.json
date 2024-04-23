@@ -2232,7 +2232,8 @@
         "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
         "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
         "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
-        "parallel-routes-and-interception route intercepting should render an intercepted route from a slot"
+        "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
+        "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes"
       ],
       "pending": [],
       "flakey": [],
@@ -2266,10 +2267,10 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
