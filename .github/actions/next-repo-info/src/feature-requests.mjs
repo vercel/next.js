@@ -1,11 +1,22 @@
 // @ts-check
+import { context, getOctokit } from '@actions/github'
 import { info, setFailed } from '@actions/core'
 import { WebClient } from '@slack/web-api'
-import HTMLParser from 'node-html-parser'
 
 import { formattedDate, ninetyDaysAgo } from '../lib/util.mjs'
 
 /**
+ * @typedef Search
+ * @property {Node[]} nodes
+ *
+ * @typedef Node
+ * @property {number} number
+ * @property {string} title
+ * @property {string} url
+ * @property {number} upvoteCount
+ *
+ * @typedef {{ data: { search: Search} }} GraphQLResponse
+ *
  * @typedef Item
  * @property {string} title
  * @property {number} number
@@ -50,53 +61,48 @@ function generateBlocks(items) {
 
 async function run() {
   try {
+    if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
     if (!process.env.SLACK_TOKEN) throw new TypeError('SLACK_TOKEN not set')
 
+    const octoClient = getOctokit(process.env.GITHUB_TOKEN)
     const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
-    const params = new URLSearchParams({
-      discussions_q: `is:open sort:top created:>=${ninetyDaysAgo()} category:Ideas`,
-    })
-    const html = await (
-      await fetch(
-        `https://github.com/vercel/next.js/discussions/categories/ideas?${params}`
-      )
-    ).text()
-    const root = HTMLParser.parse(html)
+    const { owner, repo } = context.repo
 
-    /** @type {Item[]} */
-    const items = [
-      ...root.querySelectorAll('[aria-labelledby="discussions-list"] li'),
-    ]
-      .slice(0, 15)
-      .map((item) => {
-        const link = item.querySelector('h3 a')?.getAttribute('href') ?? ''
-        return {
-          title: item.querySelector('h3')?.innerText ?? '',
-          number: parseInt(link.split('/').at(-1) ?? '', 10),
-          html_url: `https://github.com${link}`,
-          created_at: formattedDate(
-            item.querySelector('relative-time')?.getAttribute('datetime') ?? ''
-          ),
-          reactions: parseInt(
-            item.querySelector('button')?.innerText.split('\n')[0] ?? '',
-            10
-          ),
+    /** @type {GraphQLResponse} */
+    const { data } = await octoClient.graphql(`{
+      search(
+        type: DISCUSSION
+        first: 15
+        query: "repo:${owner}/${repo} is:open category:Ideas sort:top created:>=${ninetyDaysAgo()}"
+      ) {
+        nodes {
+          ... on Discussion {
+            number
+            title
+            url
+            upvoteCount
+          }
         }
-      })
+      }
+    }`)
 
-    if (items.length > 0) {
-      await slackClient.chat.postMessage({
-        blocks: generateBlocks(items),
-        channel: '#team-next-js',
-        icon_emoji: ':github:',
-        username: 'GitHub Notifier',
-      })
+    const items = data.search.nodes.map((node) => ({
+      title: node.title,
+      number: node.number,
+      html_url: node.url,
+      created_at: new Date().toISOString(),
+      reactions: node.upvoteCount,
+    }))
 
-      info(`Posted to Slack!`)
-    } else {
-      info(`No popular issues`)
-    }
+    await slackClient.chat.postMessage({
+      blocks: generateBlocks(items),
+      channel: '#team-next-js',
+      icon_emoji: ':github:',
+      username: 'GitHub Notifier',
+    })
+
+    info(`Posted to Slack!`)
   } catch (error) {
     setFailed(error)
   }
