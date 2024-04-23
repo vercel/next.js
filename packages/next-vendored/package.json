@@ -28,14 +28,13 @@
     "dist"
   ],
   "devDependencies": {
-    "@taskr/esnext": "1.1.0",
-    "@vercel/ncc": "0.34.0",
-    "taskr": "1.1.0",
     "typescript": "5.3.3"
   },
   "dependencies": {
+    "@vercel/ncc": "0.34.0",
     "arg": "4.1.0",
-    "regenerator-runtime": "0.13.4",
-    "glob": "10.3.12"
+    "glob": "10.3.12",
+    "node-html-parser": "5.3.3",
+    "regenerator-runtime": "0.13.4"
   }
 }

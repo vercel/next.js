@@ -11,6 +11,13 @@ type TaskOptions<T extends Task> = {
   Task?: (new (runner: TaskOptions<T>) => T) | undefined
 }
 
+type QueueFn = (files: TFile[]) => Promise<void> | void
+
+export type TFile = {
+  path: string
+  data: Buffer
+}
+
 export type TaskFn = (task: Task) => Promise<void> | void
 
 export type TaskFile<T extends Task = Task> = Partial<TaskOptions<T>> & Tasks
@@ -18,6 +25,7 @@ export type TaskFile<T extends Task = Task> = Partial<TaskOptions<T>> & Tasks
 export class Task {
   private glob?: Promise<string[]>
   private pattern?: string
+  private queue: QueueFn[] = []
 
   constructor(private options: TaskOptions<Task>) {}
 
@@ -53,22 +61,46 @@ export class Task {
     return this
   }
 
-  async target(dir: string): Promise<void> {
-    const files = await this.glob
-
-    if (!files) {
+  async files(): Promise<TFile[]> {
+    const filePaths = await this.glob
+    if (!filePaths) {
       throw new Error(`No files were found for the source ${this.pattern}`)
     }
 
-    const relDir = this.pattern!.replace(/[/\\]\*.*$/, '')
+    const files = await Promise.all(
+      filePaths.map(async (filePath) => {
+        const data = await fs.readFile(filePath)
+        return { path: filePath, data }
+      })
+    )
+    return files
+  }
+
+  async use(fn: QueueFn) {
+    this.queue.push(fn)
+  }
+
+  async target(dir: string): Promise<void> {
+    const files = await this.files()
+    const pattern = this.pattern!
+    let relDir = pattern.replace(/[/\\]\*.*$/, '')
+
+    if (relDir.length === pattern.length) {
+      relDir = dirname(pattern)
+    }
+
+    for (const fn of this.queue) {
+      await fn(files)
+    }
+    this.queue = []
 
     await Promise.all(
-      files.map(async (filePath) => {
-        const relPath = relative(relDir, filePath)
+      files.map(async ({ path, data }) => {
+        const relPath = relative(relDir, path)
         const outPath = join(dir, relPath)
 
         await fs.mkdir(dirname(outPath), { recursive: true })
-        await fs.writeFile(outPath, await fs.readFile(filePath))
+        await fs.writeFile(outPath, data)
       })
     )
   }
