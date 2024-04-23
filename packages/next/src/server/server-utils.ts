@@ -16,7 +16,10 @@ import {
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../lib/constants'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
@@ -32,15 +35,41 @@ export function normalizeVercelUrl(
     delete (_parsedUrl as any).search
 
     for (const key of Object.keys(_parsedUrl.query)) {
+      const isNextQueryPrefix =
+        key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+
+      const isNextInterceptionMarkerPrefix =
+        key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
+
       if (
-        (key !== NEXT_QUERY_PARAM_PREFIX &&
-          key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
+        isNextQueryPrefix ||
+        isNextInterceptionMarkerPrefix ||
         (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
       ) {
         delete _parsedUrl.query[key]
       }
     }
     req.url = formatUrl(_parsedUrl)
+  }
+}
+
+/**
+ * Normalizes `nxtP` and `nxtI` query param values to remove the prefix.
+ * This function does not mutate the input key; it calls the provided function
+ * with the normalized key.
+ */
+export function normalizeNextQueryParam(
+  key: string,
+  onKeyNormalized: (normalizedKey: string) => void
+) {
+  const prefixes = [NEXT_QUERY_PARAM_PREFIX, NEXT_INTERCEPTION_MARKER_PREFIX]
+  for (const prefix of prefixes) {
+    if (key !== prefix && key.startsWith(prefix)) {
+      const normalizedKey = key.substring(prefix.length)
+      onKeyNormalized(normalizedKey)
+    }
   }
 }
 
