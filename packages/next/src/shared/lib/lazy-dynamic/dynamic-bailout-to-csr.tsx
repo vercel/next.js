@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactElement } from 'next/dist/compiled/react'
+import type { ReactElement } from 'react'
 import { BailoutToCSRError } from './bailout-to-csr'
 
 interface BailoutToCSRProps {

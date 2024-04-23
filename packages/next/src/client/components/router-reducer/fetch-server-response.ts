@@ -2,12 +2,14 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
+// import { createFromFetch } from 'react-server-dom-webpack/client'
 const { createFromFetch } = (
   !!process.env.NEXT_RUNTIME
-    ? require('next/dist/compiled/react-server-dom-webpack/client.edge')
-    : require('next/dist/compiled/react-server-dom-webpack/client')
-) as typeof import('next/dist/compiled/react-server-dom-webpack/client')
+    ? // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge')
+    : // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client')
+) as typeof import('react-server-dom-webpack/client')
 
 import type {
   FlightRouterState,

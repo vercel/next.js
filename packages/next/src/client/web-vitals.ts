@@ -1,4 +1,4 @@
-import { useEffect } from 'next/dist/compiled/react'
+import { useEffect } from 'react'
 import {
   onLCP,
   onFID,

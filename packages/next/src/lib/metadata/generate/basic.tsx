@@ -5,7 +5,7 @@ import type {
 } from '../types/metadata-interface'
 import type { ViewportLayout } from '../types/extra-types'
 
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
 import { ViewportMetaKeys } from '../constants'
 

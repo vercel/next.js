@@ -1,5 +1,5 @@
 import allyTrap from './maintain--tab-focus'
-import * as React from 'next/dist/compiled/react'
+import * as React from 'react'
 import { lock, unlock } from './body-locker'
 
 export type OverlayProps = {

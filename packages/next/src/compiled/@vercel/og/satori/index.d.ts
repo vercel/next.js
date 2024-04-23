@@ -1,4 +1,4 @@
-import { ReactNode } from 'next/dist/compiled/react';
+import { ReactNode } from 'react';
 type Yoga = any;
 
 declare const code: {

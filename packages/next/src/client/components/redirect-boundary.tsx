@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect } from 'next/dist/compiled/react'
+import React, { useEffect } from 'react'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
 import {

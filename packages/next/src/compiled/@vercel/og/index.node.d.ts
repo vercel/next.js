@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import type { ReactElement } from 'next/dist/compiled/react';
+import type { ReactElement } from 'react';
 import type { ImageResponseNodeOptions, ImageResponseOptions, FigmaImageResponseProps } from './types';
 import { Readable } from 'stream';
 export declare class ImageResponse extends Response {

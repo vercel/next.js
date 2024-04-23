@@ -1,4 +1,4 @@
-import * as React from 'next/dist/compiled/react'
+import * as React from 'react'
 
 export function useOnClickOutside(
   el: Node | null,

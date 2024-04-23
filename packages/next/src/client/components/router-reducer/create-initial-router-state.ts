@@ -1,4 +1,4 @@
-import type { ReactNode } from 'next/dist/compiled/react'
+import type { ReactNode } from 'react'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,

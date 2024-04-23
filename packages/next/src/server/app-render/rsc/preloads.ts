@@ -4,7 +4,7 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 */
 
-import ReactDOM from 'next/dist/compiled/react-dom'
+import ReactDOM from 'react-dom'
 
 export function preloadStyle(href: string, crossOrigin?: string | undefined) {
   const opts: any = { as: 'style' }

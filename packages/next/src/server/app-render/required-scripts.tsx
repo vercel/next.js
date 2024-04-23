@@ -1,7 +1,7 @@
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { BuildManifest } from '../get-page-files'
 
-import ReactDOM from 'next/dist/compiled/react-dom'
+import ReactDOM from 'react-dom'
 
 export function getRequiredScripts(
   buildManifest: BuildManifest,

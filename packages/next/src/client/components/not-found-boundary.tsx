@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useContext } from 'next/dist/compiled/react'
+import React, { useContext } from 'react'
 import { usePathname } from './navigation'
 import { isNotFoundError } from './not-found'
 import { warnOnce } from '../../shared/lib/utils/warn-once'

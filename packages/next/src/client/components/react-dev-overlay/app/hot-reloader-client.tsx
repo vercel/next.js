@@ -1,5 +1,5 @@
-import type { ReactNode } from 'next/dist/compiled/react'
-import { useCallback, useEffect, startTransition, useMemo } from 'next/dist/compiled/react'
+import type { ReactNode } from 'react'
+import { useCallback, useEffect, startTransition, useMemo } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'

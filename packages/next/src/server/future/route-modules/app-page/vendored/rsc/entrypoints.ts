@@ -1,15 +1,15 @@
-import * as React from 'next/dist/compiled/react'
-import * as ReactDOM from 'next/dist/compiled/react-dom'
-import * as ReactJsxDevRuntime from 'next/dist/compiled/react/jsx-dev-runtime'
-import * as ReactJsxRuntime from 'next/dist/compiled/react/jsx-runtime'
+import * as React from 'react'
+import * as ReactDOM from 'react-dom'
+import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
+import * as ReactJsxRuntime from 'react/jsx-runtime'
 
 function getAltProxyForBindingsDEV(
   type: 'Turbopack' | 'Webpack',
   pkg:
-    | 'next/dist/compiled/react-server-dom-turbopack/server.edge'
-    | 'next/dist/compiled/react-server-dom-turbopack/server.node'
-    | 'next/dist/compiled/react-server-dom-webpack/server.edge'
-    | 'next/dist/compiled/react-server-dom-webpack/server.node'
+    | 'react-server-dom-turbopack/server.edge'
+    | 'react-server-dom-turbopack/server.node'
+    | 'react-server-dom-webpack/server.edge'
+    | 'react-server-dom-webpack/server.node'
 ) {
   if (process.env.NODE_ENV === 'development') {
     const altType = type === 'Turbopack' ? 'Webpack' : 'Turbopack'
@@ -33,33 +33,36 @@ let ReactServerDOMTurbopackServerNode, ReactServerDOMWebpackServerNode
 
 if (process.env.TURBOPACK) {
   // eslint-disable-next-line import/no-extraneous-dependencies
-  ReactServerDOMTurbopackServerEdge = require('next/dist/compiled/react-server-dom-turbopack/server.edge')
+  ReactServerDOMTurbopackServerEdge = require('react-server-dom-turbopack/server.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackServerEdge = getAltProxyForBindingsDEV(
       'Turbopack',
-      'next/dist/compiled/react-server-dom-turbopack/server.edge'
+      'react-server-dom-turbopack/server.edge'
     )
   }
-  ReactServerDOMTurbopackServerNode = require('next/dist/compiled/react-server-dom-turbopack/server.node')
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMTurbopackServerNode = require('react-server-dom-turbopack/server.node')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackServerNode = getAltProxyForBindingsDEV(
       'Turbopack',
-      'next/dist/compiled/react-server-dom-turbopack/server.node'
+      'react-server-dom-turbopack/server.node'
     )
   }
 } else {
-  ReactServerDOMWebpackServerEdge = require('next/dist/compiled/react-server-dom-webpack/server.edge')
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMWebpackServerEdge = require('react-server-dom-webpack/server.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackServerEdge = getAltProxyForBindingsDEV(
       'Webpack',
-      'next/dist/compiled/react-server-dom-webpack/server.edge'
+      'react-server-dom-webpack/server.edge'
     )
   }
-  ReactServerDOMWebpackServerNode = require('next/dist/compiled/react-server-dom-webpack/server.node')
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMWebpackServerNode = require('react-server-dom-webpack/server.node')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackServerNode = getAltProxyForBindingsDEV(
       'Webpack',
-      'next/dist/compiled/react-server-dom-webpack/server.node'
+      'react-server-dom-webpack/server.node'
     )
   }
 }

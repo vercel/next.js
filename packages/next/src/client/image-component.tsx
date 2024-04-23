@@ -9,8 +9,8 @@ import React, {
   useState,
   forwardRef,
   version,
-} from 'next/dist/compiled/react'
-import ReactDOM from 'next/dist/compiled/react-dom'
+} from 'react'
+import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
 import { getImgProps } from '../shared/lib/get-img-props'
 import type {

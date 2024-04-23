@@ -1,4 +1,4 @@
-import * as React from 'next/dist/compiled/react'
+import * as React from 'react'
 import { ACTION_UNHANDLED_ERROR, type OverlayState } from '../shared'
 
 import { ShadowPortal } from '../internal/components/ShadowPortal'

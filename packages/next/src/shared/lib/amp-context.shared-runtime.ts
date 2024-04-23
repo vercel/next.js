@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 
 export const AmpStateContext: React.Context<any> = React.createContext({})
 

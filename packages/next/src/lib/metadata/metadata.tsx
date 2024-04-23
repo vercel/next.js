@@ -2,7 +2,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,

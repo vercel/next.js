@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import type { FlightData } from '../../../server/app-render/types'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'

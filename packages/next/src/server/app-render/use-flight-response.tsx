@@ -33,10 +33,12 @@ export function useFlightStream<T>(
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
   if (process.env.TURBOPACK) {
     createFromReadableStream =
-      require('next/dist/compiled/react-server-dom-turbopack/client.edge').createFromReadableStream
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-turbopack/client.edge').createFromReadableStream
   } else {
     createFromReadableStream =
-      require('next/dist/compiled/react-server-dom-webpack/client.edge').createFromReadableStream
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge').createFromReadableStream
   }
 
   const newResponse = createFromReadableStream(flightStream, {

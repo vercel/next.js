@@ -1,4 +1,4 @@
-import React from 'next/dist/compiled/react'
+import React from 'react'
 import { clearCacheNodeDataForSegmentPath } from './clear-cache-node-data-for-segment-path'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
