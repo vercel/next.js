@@ -14,4 +14,15 @@ function resolveAsArrayOrUndefined<T>(
   return resolveArray(value) as any
 }
 
-export { resolveAsArrayOrUndefined, resolveArray }
+function getOrigin(url: string | URL): string {
+  if (typeof url === 'string') {
+    try {
+      url = new URL(url)
+    } catch {
+      url = new URL('http://n')
+    }
+  }
+  return url.origin
+}
+
+export { resolveAsArrayOrUndefined, resolveArray, getOrigin }

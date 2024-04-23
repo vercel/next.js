@@ -8,6 +8,7 @@ import type { ViewportLayout } from '../types/extra-types'
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
 import { ViewportMetaKeys } from '../constants'
+import { getOrigin } from './utils'
 
 // convert viewport object to string for viewport meta tag
 function resolveViewportLayout(viewport: Viewport) {
@@ -45,6 +46,11 @@ export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
 }
 
 export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
+  const { metadataBase } = metadata
+  const manifestOrigin = metadata.manifest
+    ? getOrigin(metadata.manifest)
+    : undefined
+
   return MetaFilter([
     <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (
@@ -64,8 +70,14 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
       <link
         rel="manifest"
         href={metadata.manifest.toString()}
+        // If it's same origin, and it's a preview deployment,
+        // including credentials for manifest request.
         crossOrigin={
-          process.env.VERCEL_ENV === 'preview' ? 'use-credentials' : undefined
+          metadataBase &&
+          metadataBase.origin === manifestOrigin &&
+          process.env.VERCEL_ENV === 'preview'
+            ? 'use-credentials'
+            : undefined
         }
       />
     ) : null,

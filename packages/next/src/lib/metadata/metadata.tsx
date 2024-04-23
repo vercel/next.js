@@ -120,7 +120,7 @@ export function createMetadataComponents({
 
     const elements = MetaFilter([
       ViewportMeta({ viewport: viewport }),
-      BasicMeta({ metadata }),
+      BasicMeta({ metadata, metadataBase: resolvedMetadata.metadataBase }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),
       FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
