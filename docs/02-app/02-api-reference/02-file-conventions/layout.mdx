@@ -128,7 +128,7 @@ Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the
 
 Layouts cannot access `pathname`. This is because Layouts are Server Components by default (rendered on the server) and [do not rerender during client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), which could lead to stale pathnames.
 
-Instead, you can extract the logic that depends on pathname into a child Client Component of the layout, and use Next.js APIs such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname. See the Layout [examples](/docs/app/building-your-application/routing/layouts-and-templates) section for common UI patterns.
+Instead, you can extract the logic that depends on pathname into a Client Component and use Next.js APIs such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname. See the Layout [examples](/docs/app/building-your-application/routing/layouts-and-templates) section for common UI patterns.
 
 ## Version History
 
