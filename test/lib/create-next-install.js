@@ -79,7 +79,6 @@ async function createNextInstall({
                       !item.includes('node_modules') &&
                       !item.includes('pnpm-lock.yaml') &&
                       !item.includes('.DS_Store') &&
-                      !item.includes('next-swc') &&
                       // Exclude Rust compilation files
                       !/packages[\\/]next-swc/.test(item)
                     )
