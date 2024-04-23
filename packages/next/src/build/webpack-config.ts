@@ -819,7 +819,7 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
-  const pageExtensionsRegex = new RegExp(`\.(${pageExtensions.join('|')})$`)
+  const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
