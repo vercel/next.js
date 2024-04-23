@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactDOM = require("next/dist/compiled/react-dom");
+var ReactDOM = require('react-dom');
 
 // -----------------------------------------------------------------------------
 const enableBinaryFlight = false;

@@ -11,7 +11,7 @@
 'use strict';
 
 var util = require('util');
-var ReactDOM = require("next/dist/compiled/react-dom-experimental");
+var ReactDOM = require('react-dom');
 
 function createStringDecoder() {
   return new util.TextDecoder();

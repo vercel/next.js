@@ -13,8 +13,8 @@
 var util = require('util');
 require('crypto');
 var async_hooks = require('async_hooks');
-var ReactDOM = require("next/dist/compiled/react-dom-experimental");
-var React = require("next/dist/compiled/react-experimental");
+var ReactDOM = require('react-dom');
+var React = require('react');
 
 // -----------------------------------------------------------------------------
 const enablePostpone = true;
