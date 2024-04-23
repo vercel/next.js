@@ -145,6 +145,7 @@ impl Module for TsConfigModuleAsset {
                         name,
                         Value::new("".to_string().into()),
                         Vc::<String>::default(),
+                        Vc::<String>::default(),
                     ),
                 )));
             }
