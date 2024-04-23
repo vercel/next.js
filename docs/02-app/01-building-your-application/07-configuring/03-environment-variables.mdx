@@ -17,7 +17,7 @@ Next.js comes with built-in support for environment variables, which allows you 
 - [Use `.env.local` to load environment variables](#loading-environment-variables)
 - [Bundle environment variables for the browser by prefixing with `NEXT_PUBLIC_`](#bundling-environment-variables-for-the-browser)
 
-## Loading Environment Variables
+## Loading Environment Variables in your application code
 
 Next.js has built-in support for loading environment variables from `.env.local` into `process.env`.
 
@@ -81,6 +81,52 @@ export async function GET() {
 ```
 
 </AppOnly>
+
+### Loading Environment Variables with `@next/env`
+
+If you need to load environment variables outside the Next.js runtime, such as in a root config file for an ORM or Test Runner, you can use the `@next/env` package.
+
+This package is used internally by Next.js to load environment variables from `.env*` files, and can be used in your own code to load environment variables:
+
+```bash
+npm install @next/env
+```
+
+```tsx filename="envConfig.ts" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+```jsx filename="envConfig.js" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Then, you can import the configuration where needed. For example:
+
+```tsx filename="orm.config.ts" switcher
+import 'envConfig.js'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+})
+```
+
+```jsx filename="orm.config.js" switcher
+import 'envConfig.js'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+})
+```
 
 ### Referencing Other Variables
 
