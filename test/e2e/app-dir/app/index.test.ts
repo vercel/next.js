@@ -53,7 +53,7 @@ createNextDescribe(
 
       it('should not have entire prerender-manifest for edge', async () => {
         expect(
-          await next.readFile('.next/server/prerender-manifest.js')
+          await next.readFile('.next/prerender-manifest.js')
         ).not.toContain('initialRevalidate')
       })
 
