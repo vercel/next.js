@@ -1105,6 +1105,7 @@
         "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
         "app dir - basic should not have loader generated function for edge runtime",
+        "app dir - basic should not have entire prerender-manifest for edge",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
         "app dir - basic should not serve when layout is provided but no folder index",
