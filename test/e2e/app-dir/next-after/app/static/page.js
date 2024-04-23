@@ -5,7 +5,7 @@ import { headers } from 'next/headers'
 
 const thing = cache(() => Symbol('cache me please'))
 
-export default function Index({ params }) {
+export default function Index() {
   const valueFromRender = thing()
 
   after(async () => {
@@ -24,7 +24,7 @@ export default function Index({ params }) {
       ].join('\n')
     )
 
-    persistentLog({ source: '[id] page', value: params.id })
+    persistentLog({ source: '[page] /static' })
   })
 
   return <div>Page with after()</div>
