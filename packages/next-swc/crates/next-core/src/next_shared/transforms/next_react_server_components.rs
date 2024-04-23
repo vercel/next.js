@@ -37,7 +37,7 @@ pub async fn get_next_react_server_components_transform_rule(
     is_react_server_layer: bool,
     app_dir: Option<Vc<FileSystemPath>>,
 ) -> Result<ModuleRule> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(
             is_react_server_layer,

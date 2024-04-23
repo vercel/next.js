@@ -768,6 +768,20 @@ module.exports = withMDX({
 })
 ```
 
+`mdxRs` also accepts an object to configure how to transform mdx files.
+
+```js filename="next.config.js"
+module.exports = withMDX({
+  experimental: {
+    mdxRs: {
+      jsxRuntime?: string            // Custom jsx runtime
+      jsxImportSource?: string       // Custom jsx import source,
+      mdxType?: 'gfm' | 'commonmark' // Configure what kind of mdx syntax will be used to parse & transform
+    },
+  },
+})
+```
+
 ## Helpful Links
 
 - [MDX](https://mdxjs.com)

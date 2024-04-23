@@ -317,7 +317,16 @@ export interface ExperimentalConfig {
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
-  mdxRs?: boolean
+  mdxRs?:
+    | boolean
+    | {
+        development?: boolean
+        jsx?: boolean
+        jsxRuntime?: string
+        jsxImportSource?: string
+        providerImportSource?: string
+        mdxType?: 'gfm' | 'commonmark'
+      }
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.

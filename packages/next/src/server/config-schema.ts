@@ -344,7 +344,20 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             ])
           )
           .optional(),
-        mdxRs: z.boolean().optional(),
+        // This is partial set of mdx-rs transform options we support, aligned
+        // with next_core::next_config::MdxRsOptions. Ensure both types are kept in sync.
+        mdxRs: z
+          .union([
+            z.boolean(),
+            z.object({
+              development: z.boolean().optional(),
+              jsxRuntime: z.string().optional(),
+              jsxImportSource: z.string().optional(),
+              providerImportSource: z.string().optional(),
+              mdxType: z.enum(['gfm', 'commonmark']).optional(),
+            }),
+          ])
+          .optional(),
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
         turbo: z
