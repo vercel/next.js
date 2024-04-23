@@ -160,6 +160,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             module: _,
             path: _,
             query,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());
@@ -291,6 +292,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());
@@ -341,6 +343,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());
