@@ -6,7 +6,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { renderToReadableStream } from 'react-dom/server.edge'
-import { streamToString } from '../stream-utils/node-web-streams-helper'
+import { streamToString } from '../stream-utils'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 

@@ -31,7 +31,7 @@ import type {
   SizeLimit,
 } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
+import type { ReactReadableStream } from './stream-utils'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesModule } from './future/route-modules/pages/module'
@@ -80,10 +80,7 @@ import { getRequestMeta } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type PagesRenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
-import {
-  streamToString,
-  renderToInitialFizzStream,
-} from './stream-utils/node-web-streams-helper'
+import { streamToString, renderToInitialFizzStream } from './stream-utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'

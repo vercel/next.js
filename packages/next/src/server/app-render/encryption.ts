@@ -12,7 +12,7 @@ import {
   encodeReply,
 } from 'react-server-dom-webpack/client.edge'
 
-import { streamToString } from '../stream-utils/node-web-streams-helper'
+import { streamToString } from '../stream-utils'
 import {
   arrayBufferToString,
   decrypt,

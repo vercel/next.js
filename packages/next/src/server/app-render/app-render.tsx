@@ -33,7 +33,7 @@ import {
   continueStaticPrerender,
   continueDynamicHTMLResume,
   continueDynamicDataResume,
-} from '../stream-utils/node-web-streams-helper'
+} from '../stream-utils'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {

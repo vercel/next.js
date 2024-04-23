@@ -1,4 +1,4 @@
-import { streamToString } from '../stream-utils/node-web-streams-helper'
+import { streamToString } from '../stream-utils'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 
