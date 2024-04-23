@@ -5,7 +5,7 @@ declare module '@vercel/ncc' {
     minify?: boolean
     assetBuilds?: boolean
     cache?: boolean
-    externals?: string[] | Record<string, string>
+    externals?: Record<string, string>
   }
 
   export default function ncc(
