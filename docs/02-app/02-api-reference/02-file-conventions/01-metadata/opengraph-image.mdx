@@ -425,7 +425,7 @@ export async function GET() {
 
 #### Using Node.js runtime with local assets
 
-This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file. To ensure that the image is available in production builds, you can either copy the file along with the build output or place it in the `public` directory of your project, which will automatically be copied.
+This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
 
 ```jsx filename="app/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
@@ -433,7 +433,7 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export async function GET() {
-  const logoData = await readFile(join(process.cwd(), 'public', 'logo.png'))
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 
   return new ImageResponse(
