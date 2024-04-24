@@ -7,7 +7,7 @@ export function printAndExit(message: string, code = 1) {
     console.error(message)
   }
 
-  process.exit(code)
+  return process.exit(code)
 }
 
 export const getDebugPort = () => {
