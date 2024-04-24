@@ -8,7 +8,7 @@
   "tasks": {
     "dev": {
       "name": "dev",
-      "command": "pnpm dev",
+      "command": "pnpm update next && pnpm dev",
       "runAtStart": true
     }
   }
