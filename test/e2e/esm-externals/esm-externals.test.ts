@@ -27,6 +27,7 @@ describe('esm-externals', () => {
 
       it(`should return the correct SSR HTML for ${url}`, async () => {
         const res = await next.fetch(url)
+        expect(res.status).toBe(200)
         const html = await res.text()
         expect(normalize(html)).toMatch(expectedHtml)
       })
@@ -58,6 +59,7 @@ describe('esm-externals', () => {
 
       it(`should return the correct SSR HTML for ${url}`, async () => {
         const res = await next.fetch(url)
+        expect(res.status).toBe(200)
         const html = await res.text()
         expect(normalize(html)).toMatch(expectedHtml)
       })
