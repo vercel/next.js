@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next'
-import fs from 'fs'
-// named import also works
-import { join } from 'path'
+import fs from 'node:fs'
+import { join } from 'node:path'
 
 const foo = fs.readFileSync(join(__dirname, 'foo.txt'), 'utf8')
 
