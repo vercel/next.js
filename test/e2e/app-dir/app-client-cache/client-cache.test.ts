@@ -15,9 +15,55 @@ createNextDescribe(
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
-      // since the router behavior is different in development mode (no viewport prefetching + liberal revalidation)
-      // we only check the production behavior
-      it('should skip dev', () => {})
+      // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is reused for 30s
+      it('should renew the 30s cache once the data is revalidated', async () => {
+        let browser = (await next.browser(
+          '/',
+          browserConfigWithFixedTime
+        )) as BrowserInterface
+
+        // navigate to prefetch-auto page
+        await browser.elementByCss('[href="/1"]').click()
+
+        let initialNumber = await browser.elementById('random-number').text()
+
+        // Navigate back to the index, and then back to the prefetch-auto page
+        await browser.elementByCss('[href="/"]').click()
+        await browser.eval(fastForwardTo, 5 * 1000)
+        await browser.elementByCss('[href="/1"]').click()
+
+        let newNumber = await browser.elementById('random-number').text()
+
+        // the number should be the same, as we navigated within 30s.
+        expect(newNumber).toBe(initialNumber)
+
+        // Fast forward to expire the cache
+        await browser.eval(fastForwardTo, 30 * 1000)
+
+        // Navigate back to the index, and then back to the prefetch-auto page
+        await browser.elementByCss('[href="/"]').click()
+        await browser.elementByCss('[href="/1"]').click()
+
+        newNumber = await browser.elementById('random-number').text()
+
+        // ~35s have passed, so the cache should be expired and the number should be different
+        expect(newNumber).not.toBe(initialNumber)
+
+        // once the number is updated, we should have a renewed 30s cache for this entry
+        // store this new number so we can check that it stays the same
+        initialNumber = newNumber
+
+        await browser.eval(fastForwardTo, 5 * 1000)
+
+        // Navigate back to the index, and then back to the prefetch-auto page
+        await browser.elementByCss('[href="/"]').click()
+        await browser.elementByCss('[href="/1"]').click()
+
+        newNumber = await browser.elementById('random-number').text()
+
+        // the number should be the same, as we navigated within 30s (part 2).
+        expect(newNumber).toBe(initialNumber)
+      })
     } else {
       describe('prefetch={true}', () => {
         let browser: BrowserInterface

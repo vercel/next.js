@@ -8,9 +8,13 @@ describe('Skipped in Turbopack', () => {
     },
     ({ next }) => {
       it('should build successfully', async () => {
-        // Ensure that MUI is working
         const $ = await next.render$('/')
         expect(await $('#client-mod').text()).toContain('client:default')
+      })
+
+      it('should handle mixed imports from barrel optimized lib correctly', async () => {
+        const $ = await next.render$('/mixed-barrel-imports')
+        expect(await $('#component').attr('style')).toContain('color:blue')
       })
     }
   )
