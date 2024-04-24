@@ -1,10 +1,9 @@
 /* eslint-env jest */
-import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb } from 'next-test-utils'
 
 const sassOptions = {
-  includePaths: [path.join(__dirname, 'styles')],
+  includePaths: ['./styles'],
 }
 
 describe.each([
