@@ -1,11 +1,5 @@
-var l, s
-if (process.env.NODE_ENV === 'production') {
-  l = require('next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.min.js')
-  s = require('next/dist/compiled/react-dom/cjs/react-dom-server.browser.production.min.js')
-} else {
-  l = require('next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js')
-  s = require('next/dist/compiled/react-dom/cjs/react-dom-server.browser.development.js')
-}
+const l = require('next/dist/compiled/react-dom-experimental/server.browser')
+const s = require('next/dist/compiled/react-dom-experimental/server.browser')
 
 exports.version = l.version
 exports.renderToString = l.renderToString

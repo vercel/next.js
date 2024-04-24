@@ -5,12 +5,7 @@ function error() {
   throw new Error(ERROR_MESSAGE)
 }
 
-var b
-if (process.env.NODE_ENV === 'production') {
-  b = require('next/dist/compiled/react-dom/cjs/react-dom-server.edge.production.min.js')
-} else {
-  b = require('next/dist/compiled/react-dom/cjs/react-dom-server.edge.development.js')
-}
+const b = require('next/dist/compiled/react-dom/server.edge')
 
 exports.version = b.version
 exports.renderToReadableStream = b.renderToReadableStream
