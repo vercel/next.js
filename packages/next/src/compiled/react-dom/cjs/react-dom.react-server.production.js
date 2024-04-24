@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom.react-server.production.min.js
+ * react-dom.react-server.production.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -8,157 +8,146 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-'use strict';
-
+"use strict";
+if (
+  !require("next/dist/compiled/react")
+    .__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+)
+  throw Error(
+    'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
+  );
 function noop() {}
-
-const DefaultDispatcher = {
-  prefetchDNS: noop,
-  preconnect: noop,
-  preload: noop,
-  preloadModule: noop,
-  preinitScript: noop,
-  preinitStyle: noop,
-  preinitModuleScript: noop
+var Internals = {
+  d: {
+    f: noop,
+    r: function () {
+      throw Error(
+        "Invalid form element. requestFormReset must be passed a form that was rendered by React."
+      );
+    },
+    D: noop,
+    C: noop,
+    L: noop,
+    m: noop,
+    X: noop,
+    S: noop,
+    M: noop
+  },
+  p: 0,
+  findDOMNode: null
 };
-const Internals = {
-  usingClientEntryPoint: false,
-  Events: null,
-  ReactDOMCurrentDispatcher: {
-    current: DefaultDispatcher
-  }
-};
-
-function getCrossOriginString(input) {
-  if (typeof input === 'string') {
-    return input === 'use-credentials' ? input : '';
-  }
-
-  return undefined;
-}
 function getCrossOriginStringAs(as, input) {
-  if (as === 'font') {
-    return '';
+  if ("font" === as) return "";
+  if ("string" === typeof input)
+    return "use-credentials" === input ? input : "";
+}
+exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
+  Internals;
+exports.preconnect = function (href, options) {
+  "string" === typeof href &&
+    (options
+      ? ((options = options.crossOrigin),
+        (options =
+          "string" === typeof options
+            ? "use-credentials" === options
+              ? options
+              : ""
+            : void 0))
+      : (options = null),
+    Internals.d.C(href, options));
+};
+exports.prefetchDNS = function (href) {
+  "string" === typeof href && Internals.d.D(href);
+};
+exports.preinit = function (href, options) {
+  if ("string" === typeof href && options && "string" === typeof options.as) {
+    var as = options.as,
+      crossOrigin = getCrossOriginStringAs(as, options.crossOrigin),
+      integrity =
+        "string" === typeof options.integrity ? options.integrity : void 0,
+      fetchPriority =
+        "string" === typeof options.fetchPriority
+          ? options.fetchPriority
+          : void 0;
+    "style" === as
+      ? Internals.d.S(
+          href,
+          "string" === typeof options.precedence ? options.precedence : void 0,
+          {
+            crossOrigin: crossOrigin,
+            integrity: integrity,
+            fetchPriority: fetchPriority
+          }
+        )
+      : "script" === as &&
+        Internals.d.X(href, {
+          crossOrigin: crossOrigin,
+          integrity: integrity,
+          fetchPriority: fetchPriority,
+          nonce: "string" === typeof options.nonce ? options.nonce : void 0
+        });
   }
-
-  if (typeof input === 'string') {
-    return input === 'use-credentials' ? input : '';
-  }
-
-  return undefined;
-}
-
-const ReactDOMCurrentDispatcher = Internals.ReactDOMCurrentDispatcher;
-function prefetchDNS(href) {
-
-  if (typeof href === 'string') {
-    ReactDOMCurrentDispatcher.current.prefetchDNS(href);
-  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-function preconnect(href, options) {
-
-  if (typeof href === 'string') {
-    const crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
-    ReactDOMCurrentDispatcher.current.preconnect(href, crossOrigin);
-  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-function preload(href, options) {
-
-  if (typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
-  typeof options === 'object' && options !== null && typeof options.as === 'string') {
-    const as = options.as;
-    const crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    ReactDOMCurrentDispatcher.current.preload(href, as, {
-      crossOrigin,
-      integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
-      nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
-      type: typeof options.type === 'string' ? options.type : undefined,
-      fetchPriority: typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined,
-      referrerPolicy: typeof options.referrerPolicy === 'string' ? options.referrerPolicy : undefined,
-      imageSrcSet: typeof options.imageSrcSet === 'string' ? options.imageSrcSet : undefined,
-      imageSizes: typeof options.imageSizes === 'string' ? options.imageSizes : undefined
-    });
-  } // We don't error because preload needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-function preloadModule(href, options) {
-
-  if (typeof href === 'string') {
-    if (options) {
-      const crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-      ReactDOMCurrentDispatcher.current.preloadModule(href, {
-        as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
-        crossOrigin,
-        integrity: typeof options.integrity === 'string' ? options.integrity : undefined
-      });
-    } else {
-      ReactDOMCurrentDispatcher.current.preloadModule(href);
-    }
-  } // We don't error because preload needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-function preinit(href, options) {
-
-  if (typeof href === 'string' && options && typeof options.as === 'string') {
-    const as = options.as;
-    const crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    const integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
-    const fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
-
-    if (as === 'style') {
-      ReactDOMCurrentDispatcher.current.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
-        crossOrigin,
-        integrity,
-        fetchPriority
-      });
-    } else if (as === 'script') {
-      ReactDOMCurrentDispatcher.current.preinitScript(href, {
-        crossOrigin,
-        integrity,
-        fetchPriority,
-        nonce: typeof options.nonce === 'string' ? options.nonce : undefined
-      });
-    }
-  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-function preinitModule(href, options) {
-
-  if (typeof href === 'string') {
-    if (typeof options === 'object' && options !== null) {
-      if (options.as == null || options.as === 'script') {
-        const crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-        ReactDOMCurrentDispatcher.current.preinitModuleScript(href, {
-          crossOrigin,
-          integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
-          nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+};
+exports.preinitModule = function (href, options) {
+  if ("string" === typeof href)
+    if ("object" === typeof options && null !== options) {
+      if (null == options.as || "script" === options.as) {
+        var crossOrigin = getCrossOriginStringAs(
+          options.as,
+          options.crossOrigin
+        );
+        Internals.d.M(href, {
+          crossOrigin: crossOrigin,
+          integrity:
+            "string" === typeof options.integrity ? options.integrity : void 0,
+          nonce: "string" === typeof options.nonce ? options.nonce : void 0
         });
       }
-    } else if (options == null) {
-      ReactDOMCurrentDispatcher.current.preinitModuleScript(href);
-    }
-  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
-  // and the runtime may not be capable of responding. The function is optimistic and not critical
-  // so we favor silent bailout over warning or erroring.
-
-}
-
-exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
-exports.preconnect = preconnect;
-exports.prefetchDNS = prefetchDNS;
-exports.preinit = preinit;
-exports.preinitModule = preinitModule;
-exports.preload = preload;
-exports.preloadModule = preloadModule;
+    } else null == options && Internals.d.M(href);
+};
+exports.preload = function (href, options) {
+  if (
+    "string" === typeof href &&
+    "object" === typeof options &&
+    null !== options &&
+    "string" === typeof options.as
+  ) {
+    var as = options.as,
+      crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
+    Internals.d.L(href, as, {
+      crossOrigin: crossOrigin,
+      integrity:
+        "string" === typeof options.integrity ? options.integrity : void 0,
+      nonce: "string" === typeof options.nonce ? options.nonce : void 0,
+      type: "string" === typeof options.type ? options.type : void 0,
+      fetchPriority:
+        "string" === typeof options.fetchPriority
+          ? options.fetchPriority
+          : void 0,
+      referrerPolicy:
+        "string" === typeof options.referrerPolicy
+          ? options.referrerPolicy
+          : void 0,
+      imageSrcSet:
+        "string" === typeof options.imageSrcSet ? options.imageSrcSet : void 0,
+      imageSizes:
+        "string" === typeof options.imageSizes ? options.imageSizes : void 0,
+      media: "string" === typeof options.media ? options.media : void 0
+    });
+  }
+};
+exports.preloadModule = function (href, options) {
+  if ("string" === typeof href)
+    if (options) {
+      var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
+      Internals.d.m(href, {
+        as:
+          "string" === typeof options.as && "script" !== options.as
+            ? options.as
+            : void 0,
+        crossOrigin: crossOrigin,
+        integrity:
+          "string" === typeof options.integrity ? options.integrity : void 0
+      });
+    } else Internals.d.m(href);
+};
