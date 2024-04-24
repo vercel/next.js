@@ -7,6 +7,12 @@ describe('next-config-ts-cjs', () => {
 
   it('should handle ESM modules in CommonJS project', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('foobarbaz')
+    const text = $('p').text()
+    expect(text).toContain('cjs')
+    expect(text).toContain('mjs')
+    expect(text).toContain('cts')
+    expect(text).toContain('mts')
+    expect(text).toContain('ts')
+    expect(text).toContain('commonjs')
   })
 })

@@ -4,4 +4,4 @@ export default {
   env: {
     foo: 'foo',
   },
-} as NextConfig
+} satisfies NextConfig

@@ -1,1 +1,0 @@
-exports.baz = 'baz'
