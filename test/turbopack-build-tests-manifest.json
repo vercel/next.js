@@ -1105,6 +1105,7 @@
         "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
         "app dir - basic should not have loader generated function for edge runtime",
+        "app dir - basic should not have entire prerender-manifest for edge",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
         "app dir - basic should not serve when layout is provided but no folder index",
@@ -11411,6 +11412,15 @@
       "passed": ["import-assertion dev should handle json assertions"],
       "failed": [
         "production mode import-assertion prod should handle json assertions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/import-attributes/test/index.test.js": {
+      "passed": ["import-attributes dev should handle json attributes"],
+      "failed": [
+        "production mode import-attributes prod should handle json attributes"
       ],
       "pending": [],
       "flakey": [],
