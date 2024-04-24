@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'SCSS Support loader handling Data Urls ($package)',
+  'SCSS Support loader handling Data Urls ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

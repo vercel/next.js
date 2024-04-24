@@ -16,7 +16,7 @@ describe.skip('SCSS Support loader handling', () => {
       },
     },
   ])(
-    'CSS URL via `file-loader` and asset prefix (1) ($package)',
+    'CSS URL via `file-loader` and asset prefix (1) ($dependencies)',
     ({ dependencies, nextConfig }) => {
       const { next } = nextTestSetup({
         files: __dirname,

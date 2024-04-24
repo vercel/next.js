@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Catch-all Route CSS Module Usage ($package)',
+  'Catch-all Route CSS Module Usage ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

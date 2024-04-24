@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Valid CSS Module Usage from within node_modules ($package)',
+  'Valid CSS Module Usage from within node_modules ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

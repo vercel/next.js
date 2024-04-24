@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Dynamic Route CSS Module Usage ($package)',
+  'Dynamic Route CSS Module Usage ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'SCSS Support loader handling Preprocessor loader order ($package)',
+  'SCSS Support loader handling Preprocessor loader order ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'SCSS Support loader handling ($package)',
+  'SCSS Support loader handling ($dependencies)',
   ({ dependencies, nextConfig }) => {
     describe('CSS URL via `file-loader`', () => {
       const { next } = nextTestSetup({

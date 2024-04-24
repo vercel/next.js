@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Good Nested CSS Import from node_modules ($package)',
+  'Good Nested CSS Import from node_modules ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

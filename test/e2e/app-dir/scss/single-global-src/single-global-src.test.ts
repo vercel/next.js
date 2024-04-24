@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Basic Global Support with src/ dir ($package)',
+  'Basic Global Support with src/ dir ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

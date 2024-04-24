@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Can hot reload CSS Module without losing state ($package)',
+  'Can hot reload CSS Module without losing state ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,

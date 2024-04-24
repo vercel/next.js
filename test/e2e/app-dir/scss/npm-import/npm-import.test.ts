@@ -13,7 +13,7 @@ describe.each([
     },
   },
 ])(
-  'Good CSS Import from node_modules ($package)',
+  'Good CSS Import from node_modules ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

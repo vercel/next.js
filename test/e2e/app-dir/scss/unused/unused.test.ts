@@ -13,7 +13,7 @@ describe.each([
     },
   },
 ])('unused scss', ({ dependencies, nextConfig }) => {
-  describe('Body is not hidden when unused in Development ($package)', () => {
+  describe('Body is not hidden when unused in Development ($dependencies)', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
       dependencies,

@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Nested @import() Global Support ($package)',
+  'Nested @import() Global Support ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

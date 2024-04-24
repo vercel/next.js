@@ -13,17 +13,20 @@ describe.each([
       },
     },
   },
-])('Ordering with styled-jsx ($package)', ({ dependencies, nextConfig }) => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies,
-    nextConfig,
-  })
+])(
+  'Ordering with styled-jsx ($dependencies)',
+  ({ dependencies, nextConfig }) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      nextConfig,
+    })
 
-  it('should have the correct color (css ordering)', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('.my-text').getComputedCss('color')).toBe(
-      colorToRgb('green')
-    )
-  })
-})
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await next.browser('/')
+      expect(
+        await browser.elementByCss('.my-text').getComputedCss('color')
+      ).toBe(colorToRgb('green'))
+    })
+  }
+)

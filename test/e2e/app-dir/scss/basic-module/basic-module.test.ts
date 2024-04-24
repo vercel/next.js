@@ -13,17 +13,20 @@ describe.each([
       },
     },
   },
-])('Basic SCSS Module Support ($package)', ({ dependencies, nextConfig }) => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies,
-    nextConfig,
-  })
+])(
+  'Basic SCSS Module Support ($dependencies)',
+  ({ dependencies, nextConfig }) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      nextConfig,
+    })
 
-  it('should render the module', async () => {
-    const browser = await next.browser('/')
-    expect(
-      await browser.elementByCss('#verify-red').getComputedCss('color')
-    ).toBe(colorToRgb('red'))
-  })
-})
+    it('should render the module', async () => {
+      const browser = await next.browser('/')
+      expect(
+        await browser.elementByCss('#verify-red').getComputedCss('color')
+      ).toBe(colorToRgb('red'))
+    })
+  }
+)

@@ -15,7 +15,7 @@ describe('SCSS Support loader handling', () => {
       },
     },
   ])(
-    'CSS URL via file-loader sass partial ($package)',
+    'CSS URL via file-loader sass partial ($dependencies)',
     ({ dependencies, nextConfig }) => {
       const { next } = nextTestSetup({
         files: __dirname,

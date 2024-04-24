@@ -19,7 +19,7 @@ describe.each([
       },
     },
   },
-])('SCSS Support  ($package)', ({ dependencies, nextConfig }) => {
+])('SCSS Support  ($dependencies)', ({ dependencies, nextConfig }) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies,

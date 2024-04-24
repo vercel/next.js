@@ -25,7 +25,7 @@ describe.each([
     },
   },
 ])(
-  'Good CSS Import from node_modules with tilde ($package)',
+  'Good CSS Import from node_modules with tilde ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

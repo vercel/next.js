@@ -13,7 +13,7 @@ describe.each([
       },
     },
   },
-])('Multi Global Support ($package)', ({ dependencies, nextConfig }) => {
+])('Multi Global Support ($dependencies)', ({ dependencies, nextConfig }) => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies,

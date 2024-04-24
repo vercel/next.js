@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'CSS Module Composes Usage (External) ($package)',
+  'CSS Module Composes Usage (External) ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

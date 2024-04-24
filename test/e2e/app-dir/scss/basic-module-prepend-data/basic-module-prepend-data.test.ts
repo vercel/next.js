@@ -21,7 +21,7 @@ describe.each([
     },
   },
 ])(
-  'Basic Module Prepend Data Support ($package)',
+  'Basic Module Prepend Data Support ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

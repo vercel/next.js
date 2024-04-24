@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  '3rd Party CSS Module Support ($package)',
+  '3rd Party CSS Module Support ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

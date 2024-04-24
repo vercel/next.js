@@ -19,7 +19,7 @@ describe.each([
     },
   },
 ])(
-  'Basic Module Include Paths Support ($package)',
+  'Basic Module Include Paths Support ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

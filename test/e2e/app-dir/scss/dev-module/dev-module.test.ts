@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  'Has CSS Module in computed styles in Development ($package)',
+  'Has CSS Module in computed styles in Development ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

@@ -14,7 +14,7 @@ describe.each([
     },
   },
 ])(
-  '(SCSS) Multi Global Support (reversed) ($package)',
+  '(SCSS) Multi Global Support (reversed) ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

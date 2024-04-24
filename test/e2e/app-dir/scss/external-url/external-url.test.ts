@@ -13,7 +13,7 @@ describe.each([
     },
   },
 ])(
-  'SCSS Support loader handling External imports ($package)',
+  'SCSS Support loader handling External imports ($dependencies)',
   ({ dependencies, nextConfig }) => {
     const { next } = nextTestSetup({
       files: __dirname,

@@ -13,17 +13,20 @@ describe.each([
       },
     },
   },
-])('Basic Global Support scss ($package)', ({ dependencies, nextConfig }) => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies,
-    nextConfig,
-  })
+])(
+  'Basic Global Support scss ($dependencies)',
+  ({ dependencies, nextConfig }) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      nextConfig,
+    })
 
-  it('should render the page', async () => {
-    const browser = await next.browser('/')
-    expect(
-      await browser.elementByCss('.red-text').getComputedCss('color')
-    ).toBe(colorToRgb('red'))
-  })
-})
+    it('should render the page', async () => {
+      const browser = await next.browser('/')
+      expect(
+        await browser.elementByCss('.red-text').getComputedCss('color')
+      ).toBe(colorToRgb('red'))
+    })
+  }
+)
