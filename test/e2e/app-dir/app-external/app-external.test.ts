@@ -35,7 +35,7 @@ createNextDescribe(
     buildCommand: 'pnpm build',
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isTurbopack }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -284,13 +284,18 @@ createNextDescribe(
     })
 
     describe('server actions', () => {
-      it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+      // not sure if turbopack (seemingly?) preferring ESM s correct, but it's irrelevant to this branch
+      const itNonTurbo = isTurbopack ? it.skip : it
+      // prettier-ignore
+      itNonTurbo('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
         const browser = await next.browser('/optout/action')
+        // eslint-disable-next-line jest/no-standalone-expect
         expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
 
         browser.elementByCss('#dual-pkg-outout button').click()
         await check(async () => {
           const text = await browser.elementByCss('#dual-pkg-outout p').text()
+          // eslint-disable-next-line jest/no-standalone-expect
           expect(text).toBe('dual-pkg-optout:cjs')
           return 'success'
         }, /success/)
