@@ -70,7 +70,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils } from './server-utils'
+import { getUtils, normalizeNextQueryParam } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -102,7 +102,7 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
-import { getTracer, SpanKind } from './lib/trace/tracer'
+import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
@@ -111,11 +111,7 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import {
-  CACHE_ONE_YEAR,
-  NEXT_CACHE_TAGS_HEADER,
-  NEXT_QUERY_PARAM_PREFIX,
-} from '../lib/constants'
+import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
@@ -1096,18 +1092,13 @@ export default abstract class Server<
           for (const key of Object.keys(parsedUrl.query)) {
             const value = parsedUrl.query[key]
 
-            if (
-              key !== NEXT_QUERY_PARAM_PREFIX &&
-              key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-            ) {
-              const normalizedKey = key.substring(
-                NEXT_QUERY_PARAM_PREFIX.length
-              )
-              parsedUrl.query[normalizedKey] = value
+            normalizeNextQueryParam(key, (normalizedKey) => {
+              if (!parsedUrl) return // typeguard
 
+              parsedUrl.query[normalizedKey] = value
               routeParamKeys.add(normalizedKey)
               delete parsedUrl.query[key]
-            }
+            })
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1396,7 +1387,11 @@ export default abstract class Server<
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (this.minimalMode || this.renderOpts.dev || (err as any).bubble) {
+      if (
+        this.minimalMode ||
+        this.renderOpts.dev ||
+        (isBubbledError(err) && err.bubble)
+      ) {
         throw err
       }
       this.logError(getProperError(err))

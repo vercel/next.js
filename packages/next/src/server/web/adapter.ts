@@ -12,13 +12,13 @@ import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
-import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
+import { normalizeNextQueryParam } from '../server-utils'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -108,18 +108,14 @@ export async function adapter(
   for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
-    if (
-      key !== NEXT_QUERY_PARAM_PREFIX &&
-      key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-    ) {
-      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+    normalizeNextQueryParam(key, (normalizedKey) => {
       requestUrl.searchParams.delete(normalizedKey)
 
       for (const val of value) {
         requestUrl.searchParams.append(normalizedKey, val)
       }
       requestUrl.searchParams.delete(key)
-    }
+    })
   }
 
   // Ensure users only see page requests, never data requests.

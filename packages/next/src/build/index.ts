@@ -352,7 +352,10 @@ async function writeEdgePartialPrerenderManifest(
   // Use env vars in JS bundle and inject the actual vars to edge manifest.
   const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
     {
-      ...manifest,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      version: manifest.version,
       preview: {
         previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
         previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',

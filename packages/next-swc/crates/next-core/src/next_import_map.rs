@@ -783,7 +783,7 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if *next_config.mdx_rs().await? {
+    if next_config.mdx_rs().await?.is_some() {
         insert_alias_to_alternatives(
             import_map,
             mdx_import_source_file(),
