@@ -82,6 +82,54 @@ export async function GET() {
 
 </AppOnly>
 
+### Loading Environment Variables with `@next/env`
+
+If you need to load environment variables outside of the Next.js runtime, such as in a root config file for an ORM or test runner, you can use the `@next/env` package.
+
+This package is used internally by Next.js to load environment variables from `.env*` files.
+
+To use it, install the package and use the `loadEnvConfig` function to load the environment variables:
+
+```bash
+npm install @next/env
+```
+
+```tsx filename="envConfig.ts" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+```jsx filename="envConfig.js" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Then, you can import the configuration where needed. For example:
+
+```tsx filename="orm.config.ts" switcher
+import './envConfig.ts'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+})
+```
+
+```jsx filename="orm.config.js" switcher
+import './envConfig.js'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL,
+  },
+})
+```
+
 ### Referencing Other Variables
 
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:

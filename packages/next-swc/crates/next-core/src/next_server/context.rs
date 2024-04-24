@@ -27,8 +27,7 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                JsxTransformOptions, MdxTransformModuleOptions, ModuleOptionsContext, ModuleRule,
-                TypescriptTransformOptions,
+                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
             transition::Transition,
@@ -46,7 +45,7 @@ use crate::{
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
     next_config::NextConfig,
-    next_import_map::{get_next_server_import_map, mdx_import_source_file},
+    next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
@@ -325,9 +324,11 @@ pub async fn get_server_module_options_context(
     let mut foreign_next_server_rules =
         get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
             .await?;
-    let internal_custom_rules =
-        get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
-            .await?;
+    let internal_custom_rules = get_next_server_internal_transforms_rules(
+        ty.into_value(),
+        next_config.mdx_rs().await?.is_some(),
+    )
+    .await?;
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
@@ -375,16 +376,7 @@ pub async fn get_server_module_options_context(
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let enable_mdx_rs = if *next_config.mdx_rs().await? {
-        Some(
-            MdxTransformModuleOptions {
-                provider_import_source: Some(mdx_import_source_file()),
-            }
-            .cell(),
-        )
-    } else {
-        None
-    };
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.
     // This matches to the behavior of existing webpack config, if issuer layer is

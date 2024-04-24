@@ -540,8 +540,8 @@ importers:
         specifier: 0.2.1
         version: 0.2.1(@bazel/bazelisk@1.18.0)(typescript@5.3.3)
       turbo:
-        specifier: 1.13.3-canary.3
-        version: 1.13.3-canary.3
+        specifier: 1.13.3-canary.2
+        version: 1.13.3-canary.2
       typescript:
         specifier: 5.3.3
         version: 5.3.3
@@ -747,7 +747,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -793,8 +793,8 @@ importers:
   packages/font:
     dependencies:
       next:
-        specifier: '*'
-        version: 14.2.1(@babel/core@7.22.5)(@opentelemetry/api@1.4.1)(@playwright/test@1.19.2)(react-dom@18.2.0)(react@18.2.0)(sass@1.54.0)
+        specifier: 14.3.0-canary.15
+        version: 14.3.0-canary.15(@babel/core@7.22.5)(@opentelemetry/api@1.4.1)(@playwright/test@1.19.2)(react-dom@18.2.0)(react@18.2.0)(sass@1.54.0)
     devDependencies:
       '@types/fontkit':
         specifier: 2.0.0
@@ -809,7 +809,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.10
@@ -930,16 +930,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1071,8 +1071,8 @@ importers:
         specifier: 0.26.4
         version: 0.26.4
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240423.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240423.1'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1355,6 +1355,9 @@ importers:
       source-map:
         specifier: 0.6.1
         version: 0.6.1
+      source-map-loader:
+        specifier: 5.0.0
+        version: 5.0.0(webpack@5.90.0)
       source-map08:
         specifier: npm:source-map@0.8.0-beta.0
         version: /source-map@0.8.0-beta.0
@@ -1554,7 +1557,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.15
+        specifier: 14.3.0-canary.21
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5358,12 +5361,12 @@ packages:
     resolution: {integrity: sha512-HAPjR3bnCsdXBsATpDIP5WCrw0JcACwhhrwIAQhiR46n+jm+a2F8kBsfseAuWtSyQ+H3Yebt2k43B5dy+04yMA==}
     dev: true
 
-  /@next/env@14.2.1:
-    resolution: {integrity: sha512-qsHJle3GU3CmVx7pUoXcghX4sRN+vINkbLdH611T8ZlsP//grzqVW87BSUgOZeSAD4q7ZdZicdwNe/20U2janA==}
+  /@next/env@14.3.0-canary.15:
+    resolution: {integrity: sha512-xyc25uYzcUiWCKU4mVgPzBtbDoMeGZBmuQAb1/hBf7NoNhGLGA6octz6CnvVv4RlsvSxc+LPH1OImb9wTc7PfQ==}
     dev: false
 
-  /@next/swc-darwin-arm64@14.2.1:
-    resolution: {integrity: sha512-kGjnjcIJehEcd3rT/3NAATJQndAEELk0J9GmGMXHSC75TMnvpOhONcjNHbjtcWE5HUQnIHy5JVkatrnYm1QhVw==}
+  /@next/swc-darwin-arm64@14.3.0-canary.15:
+    resolution: {integrity: sha512-b1wJvkhMRxXB/oOyeFEKjcwnlDFffskmPf90gjsesNjfLW2MgEbojeynzzlaBJn0rlyB5vbJaWGb9ecE0i/Xgg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
@@ -5371,8 +5374,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-darwin-x64@14.2.1:
-    resolution: {integrity: sha512-dAdWndgdQi7BK2WSXrx4lae7mYcOYjbHJUhvOUnJjMNYrmYhxbbvJ2xElZpxNxdfA6zkqagIB9He2tQk+l16ew==}
+  /@next/swc-darwin-x64@14.3.0-canary.15:
+    resolution: {integrity: sha512-aT/icOdU2DCbDSJ+rEnmmn4t3ZrmWdaYmwyOePXqg3HZznjTPqQvTxOn35i6DTWbK7wbwmu0tTYOvgdrdy9mOg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
@@ -5380,8 +5383,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-linux-arm64-gnu@14.2.1:
-    resolution: {integrity: sha512-2ZctfnyFOGvTkoD6L+DtQtO3BfFz4CapoHnyLTXkOxbZkVRgg3TQBUjTD/xKrO1QWeydeo8AWfZRg8539qNKrg==}
+  /@next/swc-linux-arm64-gnu@14.3.0-canary.15:
+    resolution: {integrity: sha512-y/QCgSsJUzIxn0JFVpkRxHA2aB1wKFeW1CzefzxhPLyDqvjrHiAjDJGEK8RTNM0PptDr87m4iZfCY8ReB2o84A==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
@@ -5389,8 +5392,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-linux-arm64-musl@14.2.1:
-    resolution: {integrity: sha512-jazZXctiaanemy4r+TPIpFP36t1mMwWCKMsmrTRVChRqE6putyAxZA4PDujx0SnfvZHosjdkx9xIq9BzBB5tWg==}
+  /@next/swc-linux-arm64-musl@14.3.0-canary.15:
+    resolution: {integrity: sha512-/yiAB7Kim8XvJzSRunqBAu/QlUDmxpVJ2z3EqYKZEmYEG42GFNYf3z/jDhV9DEpeJ4Xny+XrIUZTnCJW7js3jg==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
@@ -5398,8 +5401,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-linux-x64-gnu@14.2.1:
-    resolution: {integrity: sha512-VjCHWCjsAzQAAo8lkBOLEIkBZFdfW+Z18qcQ056kL4KpUYc8o59JhLDCBlhg+hINQRgzQ2UPGma2AURGOH0+Qg==}
+  /@next/swc-linux-x64-gnu@14.3.0-canary.15:
+    resolution: {integrity: sha512-vjQMxpmDVnI0mI/2oJm2K+yj6gXK3dz55jvGFwhHCqHhXgG/ly23W2PahvURX05IeAQHs9EV7Mx+jkjo2oDbFw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
@@ -5407,8 +5410,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-linux-x64-musl@14.2.1:
-    resolution: {integrity: sha512-7HZKYKvAp4nAHiHIbY04finRqjeYvkITOGOurP1aLMexIFG/1+oCnqhGogBdc4lao/lkMW1c+AkwWSzSlLasqw==}
+  /@next/swc-linux-x64-musl@14.3.0-canary.15:
+    resolution: {integrity: sha512-Dx9lhM9iQnLUCRjlSrWFNWyixBPDD+klbc0o27PtAzylV05LPotWk3duwe5eI/mDePReWEap69N/k272S3PP0A==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
@@ -5416,8 +5419,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-win32-arm64-msvc@14.2.1:
-    resolution: {integrity: sha512-YGHklaJ/Cj/F0Xd8jxgj2p8po4JTCi6H7Z3Yics3xJhm9CPIqtl8erlpK1CLv+HInDqEWfXilqatF8YsLxxA2Q==}
+  /@next/swc-win32-arm64-msvc@14.3.0-canary.15:
+    resolution: {integrity: sha512-6cG7lMuFx9Y+c989/m/x8agBqZEpeJ+apyUvQsoArj3VWV6WqtL6H0/FbFqZ+0j7lFt10jJ8US0y9hwfkJoyUw==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [win32]
@@ -5425,8 +5428,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-win32-ia32-msvc@14.2.1:
-    resolution: {integrity: sha512-o+ISKOlvU/L43ZhtAAfCjwIfcwuZstiHVXq/BDsZwGqQE0h/81td95MPHliWCnFoikzWcYqh+hz54ZB2FIT8RA==}
+  /@next/swc-win32-ia32-msvc@14.3.0-canary.15:
+    resolution: {integrity: sha512-s+H66uaJxLpZyh9PQCTvmvdfVM0zxoHVuaTRGs4ljwTnEokF12uIFVljfbNKAEUJ9fFchFze1z94mkS2oE+n6Q==}
     engines: {node: '>= 10'}
     cpu: [ia32]
     os: [win32]
@@ -5434,8 +5437,8 @@ packages:
     dev: false
     optional: true
 
-  /@next/swc-win32-x64-msvc@14.2.1:
-    resolution: {integrity: sha512-GmRoTiLcvCLifujlisknv4zu9/C4i9r0ktsA8E51EMqJL4bD4CpO7lDYr7SrUxCR0tS4RVcrqKmCak24T0ohaw==}
+  /@next/swc-win32-x64-msvc@14.3.0-canary.15:
+    resolution: {integrity: sha512-8Cubxk1DAADyJoevyP292vdGyMcGhBfwb3PWD6B20olmKOyudnrIsc0Kle+cqp6mCbsADZb/mlE500ZOm3Kimg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
@@ -18055,8 +18058,8 @@ packages:
     resolution: {integrity: sha1-yobR/ogoFpsBICCOPchCS524NCw=}
     dev: true
 
-  /next@14.2.1(@babel/core@7.22.5)(@opentelemetry/api@1.4.1)(@playwright/test@1.19.2)(react-dom@18.2.0)(react@18.2.0)(sass@1.54.0):
-    resolution: {integrity: sha512-SF3TJnKdH43PMkCcErLPv+x/DY1YCklslk3ZmwaVoyUfDgHKexuKlf9sEfBQ69w+ue8jQ3msLb+hSj1T19hGag==}
+  /next@14.3.0-canary.15(@babel/core@7.22.5)(@opentelemetry/api@1.4.1)(@playwright/test@1.19.2)(react-dom@18.2.0)(react@18.2.0)(sass@1.54.0):
+    resolution: {integrity: sha512-vQ376NxcS/zYLJKIZRRfyis9nK+Y23KUqD8Hg93kbrgVWhJW0fZIcKf14ATm8AZg2uxDt4/vj7gVOt1QrWtMIQ==}
     engines: {node: '>=18.17.0'}
     hasBin: true
     peerDependencies:
@@ -18073,7 +18076,7 @@ packages:
       sass:
         optional: true
     dependencies:
-      '@next/env': 14.2.1
+      '@next/env': 14.3.0-canary.15
       '@opentelemetry/api': 1.4.1
       '@playwright/test': 1.19.2
       '@swc/helpers': 0.5.5
@@ -18086,15 +18089,15 @@ packages:
       sass: 1.54.0
       styled-jsx: 5.1.1(@babel/core@7.22.5)(react@18.2.0)
     optionalDependencies:
-      '@next/swc-darwin-arm64': 14.2.1
-      '@next/swc-darwin-x64': 14.2.1
-      '@next/swc-linux-arm64-gnu': 14.2.1
-      '@next/swc-linux-arm64-musl': 14.2.1
-      '@next/swc-linux-x64-gnu': 14.2.1
-      '@next/swc-linux-x64-musl': 14.2.1
-      '@next/swc-win32-arm64-msvc': 14.2.1
-      '@next/swc-win32-ia32-msvc': 14.2.1
-      '@next/swc-win32-x64-msvc': 14.2.1
+      '@next/swc-darwin-arm64': 14.3.0-canary.15
+      '@next/swc-darwin-x64': 14.3.0-canary.15
+      '@next/swc-linux-arm64-gnu': 14.3.0-canary.15
+      '@next/swc-linux-arm64-musl': 14.3.0-canary.15
+      '@next/swc-linux-x64-gnu': 14.3.0-canary.15
+      '@next/swc-linux-x64-musl': 14.3.0-canary.15
+      '@next/swc-win32-arm64-msvc': 14.3.0-canary.15
+      '@next/swc-win32-ia32-msvc': 14.3.0-canary.15
+      '@next/swc-win32-x64-msvc': 14.3.0-canary.15
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
@@ -22714,6 +22717,17 @@ packages:
     resolution: {integrity: sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==}
     engines: {node: '>=0.10.0'}
 
+  /source-map-loader@5.0.0(webpack@5.90.0):
+    resolution: {integrity: sha512-k2Dur7CbSLcAH73sBcIkV5xjPV4SzqO1NJ7+XaQl8if3VODDUj3FNchNGpqgJSKbvUfJuhVdv8K2Eu8/TNl2eA==}
+    engines: {node: '>= 18.12.0'}
+    peerDependencies:
+      webpack: 5.90.0
+    dependencies:
+      iconv-lite: 0.6.3
+      source-map-js: 1.0.2
+      webpack: 5.90.0(@swc/core@1.4.4)
+    dev: true
+
   /source-map-resolve@0.5.3:
     resolution: {integrity: sha512-Htz+RnsXWk5+P2slx5Jh3Q66vhQj1Cllm0zvnaY98+NFx+Dv2CF/f5O/t8x+KaNdrdIAsruNzoh/KpialbqAnw==}
     deprecated: See https://github.com/lydell/source-map-resolve#deprecated
@@ -24065,64 +24079,64 @@ packages:
     engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
     dev: true
 
-  /turbo-darwin-64@1.13.3-canary.3:
-    resolution: {integrity: sha512-yD6Jc6vDPVGAffJDsVgkYuICMOgKoEOM90TKVxGn4EW1GUAMzBlp/wvmSlBVcVp9JQ3skfnPo28sYBmE14Pgug==}
+  /turbo-darwin-64@1.13.3-canary.2:
+    resolution: {integrity: sha512-M8QDR6SKPSLEjSLWnIM//caHWBhcZNkIPdnnMkHm8R9/fpFSI5X//GBdR0qnXcgdqOdFgnxheabwYm5Bm+1KWQ==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-arm64@1.13.3-canary.3:
-    resolution: {integrity: sha512-J/2E1HU/DCSghdJylTtZ5QEFy64vLDKC5rkzpIBwf22Q7Hpx6XsgLYDskbn5V/Vmar37/PvbL1gVN6EdfZaIbQ==}
+  /turbo-darwin-arm64@1.13.3-canary.2:
+    resolution: {integrity: sha512-4RpdYK+XF9Lx7/nmUzbn978t4HBCmmemAazOjmhyd0pOMn8rLVexPkByDEV84SrgofkCWdTHDwcHaOQvOLrKtw==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-64@1.13.3-canary.3:
-    resolution: {integrity: sha512-QM38SWZjAksrDAYjmWr+Fnj2iFy3a9Q2src8vgA+jV1+swhk5G5Ja8BXVS4dOLzk0bfVSLzUfpAyKihFikfH1A==}
+  /turbo-linux-64@1.13.3-canary.2:
+    resolution: {integrity: sha512-8gzyPtOmzACNwtWi5//ZHwcJb2i21pZVXQEiNwTycypyBtV2H0WChmqjulS7M3z5dxwHcx0Ehf9TqY4K023j2A==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm64@1.13.3-canary.3:
-    resolution: {integrity: sha512-czJJR3d7REiHwMs539WEZ3zxc+zQhg9KptQX9whMiKdvFnDM1Bb5bwTEDqLXVPZAvIiLrYt0GUgQK+PofkXUzg==}
+  /turbo-linux-arm64@1.13.3-canary.2:
+    resolution: {integrity: sha512-QzRIyO+HUMc5+hj5cVBCKpCyOiBPxzAao4zWZgz6iKMuSC6utjHLf/9AAo6NOMFgBONTYsMUArL5gDyLLOO0lw==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-64@1.13.3-canary.3:
-    resolution: {integrity: sha512-5qp+nvLQaIFj5W5rBKEhWMKUKDCnmAGezGbea8xkic2tBurS6gSDXfkN5K6ClGZiqebrULRKc+lwyroZm2K2nw==}
+  /turbo-windows-64@1.13.3-canary.2:
+    resolution: {integrity: sha512-s4k+yclLr/MWuwYURPZX2v6y1PP7E2aUUao6syQ68Un+36RYBgINN/VV4HucZuiXyqLuBuaDjfrnE1TX3FREOg==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-arm64@1.13.3-canary.3:
-    resolution: {integrity: sha512-H0IMsfPdh8BJHpcnNpa9eYTNSicTkvssBP8JXzdaizamz7ObRfg+4s84xwDJsmPsilVybJmCTCnZt9hjpEg/vw==}
+  /turbo-windows-arm64@1.13.3-canary.2:
+    resolution: {integrity: sha512-p5qGGeb3z1Gaxq43lTFm/PyTh7xtuDCfesxGWZWESG6MyXZuZYzuEH2cSmM8jqta6EC+G+iF5sxeKUzIpsJWeQ==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo@1.13.3-canary.3:
-    resolution: {integrity: sha512-HI35/4Ovf184DBFS6P87W3Pp0sWOEtbqrZawFI9FYG416Df8JCo3eSINPkmWTtErOMUeaGwav2wLxN1smgpcuw==}
+  /turbo@1.13.3-canary.2:
+    resolution: {integrity: sha512-GqkwRxoigbjvj/m1JfY7kGDupNeuADW7Hg1+rO+KqNMEUihOfq8a1kjCbwlqOfyS8PPfMHDkDPXrfhA8A1N9vg==}
     hasBin: true
     optionalDependencies:
-      turbo-darwin-64: 1.13.3-canary.3
-      turbo-darwin-arm64: 1.13.3-canary.3
-      turbo-linux-64: 1.13.3-canary.3
-      turbo-linux-arm64: 1.13.3-canary.3
-      turbo-windows-64: 1.13.3-canary.3
-      turbo-windows-arm64: 1.13.3-canary.3
+      turbo-darwin-64: 1.13.3-canary.2
+      turbo-darwin-arm64: 1.13.3-canary.2
+      turbo-linux-64: 1.13.3-canary.2
+      turbo-linux-arm64: 1.13.3-canary.2
+      turbo-windows-64: 1.13.3-canary.2
+      turbo-windows-arm64: 1.13.3-canary.2
     dev: true
 
   /tweetnacl@0.14.5:
@@ -25560,8 +25574,8 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240417.1}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240423.1':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240423.1}
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
