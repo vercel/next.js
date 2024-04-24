@@ -311,24 +311,6 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn can_be_in_same_chunk(
-        &self,
-        asset_a: Vc<Box<dyn Module>>,
-        asset_b: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<bool>> {
-        let parent_dir = asset_a.ident().path().parent().await?;
-
-        let path = asset_b.ident().path().await?;
-        if let Some(rel_path) = parent_dir.get_path_to(&path) {
-            if !rel_path.starts_with("node_modules/") && !rel_path.contains("/node_modules/") {
-                return Ok(Vc::cell(true));
-            }
-        }
-
-        Ok(Vc::cell(false))
-    }
-
-    #[turbo_tasks::function]
     async fn asset_path(
         &self,
         content_hash: String,
