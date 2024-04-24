@@ -1,13 +1,14 @@
+import type { Options as SWCOptions } from '@swc/core'
 import { readFile, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { transform, transformSync } from './swc'
-import type { Options as SWCOptions } from '@swc/core'
 
 const originalJsHandler = require.extensions['.js']
 const transformableExtensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 function registerSWCTransform(swcOptions: SWCOptions, isESM: boolean) {
   if (isESM) {
+    // TODO: ERR_REQUIRE_ESM try modifying require() of ES Module to dynamic import
     delete (require.extensions as any)['.js']
     transformableExtensions.push('.js')
   }
@@ -28,7 +29,7 @@ function registerSWCTransform(swcOptions: SWCOptions, isESM: boolean) {
 
 function resolveSWCOptions(cwd: string, tsConfig: any): SWCOptions {
   const resolvedBaseUrl = join(cwd, tsConfig.compilerOptions?.baseUrl ?? '.')
-  const resolvedSWCOptions: SWCOptions = {
+  return {
     jsc: {
       target: 'es5',
       parser: {
@@ -41,9 +42,7 @@ function resolveSWCOptions(cwd: string, tsConfig: any): SWCOptions {
       type: 'commonjs',
     },
     isModule: 'unknown',
-  }
-
-  return resolvedSWCOptions
+  } satisfies SWCOptions
 }
 
 async function validateModuleType(
@@ -104,6 +103,6 @@ export async function transpileConfig({
   } finally {
     transformableExtensions.forEach((ext) => delete require.extensions[ext])
     require.extensions['.js'] = originalJsHandler
-    // await unlink(tempConfigPath).catch(() => {})
+    await unlink(tempConfigPath).catch(() => {})
   }
 }
