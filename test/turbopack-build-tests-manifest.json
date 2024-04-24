@@ -11339,9 +11339,20 @@
       "runtimeError": false
     },
     "test/integration/import-assertion/test/index.test.js": {
-      "passed": ["import-assertion dev should handle json assertions"],
+      "passed": [],
       "failed": [
+        "import-assertion dev should handle json assertions",
         "production mode import-assertion prod should handle json assertions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/import-attributes/test/index.test.js": {
+      "passed": [],
+      "failed": [
+        "import-attributes dev should handle json attributes",
+        "production mode import-attributes prod should handle json attributes"
       ],
       "pending": [],
       "flakey": [],

@@ -4,7 +4,7 @@ import { renderViaHTTP, runDevSuite, runProdSuite } from 'next-test-utils'
 const appDir = join(__dirname, '../')
 
 function basic(context) {
-  it('should handle json assertions', async () => {
+  it('should handle json attributes', async () => {
     const esHtml = await renderViaHTTP(context.appPort, '/es')
     const tsHtml = await renderViaHTTP(context.appPort, '/ts')
     // checking json value `foo` is not suffecient, since parse error
@@ -14,5 +14,5 @@ function basic(context) {
   })
 }
 
-runDevSuite('import-assertion', appDir, { runTests: basic })
-runProdSuite('import-assertion', appDir, { runTests: basic })
+runDevSuite('import-attributes', appDir, { runTests: basic })
+runProdSuite('import-attributes', appDir, { runTests: basic })
