@@ -20,13 +20,13 @@ impl Xxh3Hash64Hasher {
         Self(xxh3::Hash64::with_seed(0))
     }
 
-    /// Uses the DeterministicHash trait to to hash the input in a
+    /// Uses the DeterministicHash trait to hash the input in a
     /// cross-platform way.
     pub fn write_value<T: DeterministicHash>(&mut self, input: T) {
         input.deterministic_hash(self);
     }
 
-    /// Uses the DeterministicHash trait to to hash the input in a
+    /// Uses the DeterministicHash trait to hash the input in a
     /// cross-platform way.
     pub fn write_ref<T: DeterministicHash>(&mut self, input: &T) {
         input.deterministic_hash(self);

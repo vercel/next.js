@@ -1,6 +1,6 @@
 //! The module implements a datastructure that aggregates a "forest" into less
 //! nodes. For any node one can ask for a single aggregated version of all
-//! children on that node. Changes the the forest will propagate up the
+//! children on that node. Changes the forest will propagate up the
 //! aggregation tree to keep it up to date. So asking of an aggregated
 //! information is cheap and one can even wait for aggregated info to change.
 //!

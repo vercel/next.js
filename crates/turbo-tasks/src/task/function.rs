@@ -12,7 +12,7 @@
 //! work, but they are described in this blog post:
 //! https://blog.logrocket.com/rust-bevy-entity-component-system/
 //!
-//! However, there are is an additional complication in our case: async methods
+//! However, there is an additional complication in our case: async methods
 //! that accept a reference to the receiver as their first argument.
 //!
 //! This complication handled through our own version of the `async_trait`
