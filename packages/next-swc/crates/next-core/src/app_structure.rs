@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
+use async_recursion::async_recursion;
 use indexmap::{
     indexmap,
     map::{Entry, OccupiedEntry},
     IndexMap,
 };
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
@@ -25,7 +27,7 @@ use crate::{
             match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
             GlobalMetadataFileMatch, MetadataFileMatch,
         },
-        AppPage, AppPath, PageType,
+        AppPage, AppPath, PageSegment, PageType,
     },
     next_config::NextConfig,
     next_import_map::get_next_package,
@@ -709,6 +711,85 @@ fn directory_tree_to_entrypoints(
     )
 }
 
+#[turbo_tasks::value]
+struct DuplicateParallelRouteIssue {
+    app_dir: Vc<FileSystemPath>,
+    page: AppPage,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for DuplicateParallelRouteIssue {
+    #[turbo_tasks::function]
+    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(this.app_dir.join(this.page.to_string()))
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::ProcessModule.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn title(self: Vc<Self>) -> Vc<StyledString> {
+        StyledString::Text(
+            "You cannot have two parallel pages that resolve to the same path.".to_string(),
+        )
+        .cell()
+    }
+}
+
+#[async_recursion]
+async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option<AppPage>> {
+    let loader_tree = loader_tree.await?;
+
+    if loader_tree.page.iter().any(|v| {
+        matches!(
+            v,
+            PageSegment::CatchAll(..)
+                | PageSegment::OptionalCatchAll(..)
+                | PageSegment::Parallel(..)
+        )
+    }) {
+        return Ok(None);
+    }
+
+    if loader_tree.components.await?.page.is_some() {
+        return Ok(Some(loader_tree.page.clone()));
+    }
+
+    if let Some(children) = loader_tree.parallel_routes.get("children") {
+        return page_path_except_parallel(*children).await;
+    }
+
+    Ok(None)
+}
+
+async fn check_duplicate(
+    duplicate: &mut FxHashMap<AppPath, AppPage>,
+    loader_tree_vc: Vc<LoaderTree>,
+    app_dir: Vc<FileSystemPath>,
+) -> Result<()> {
+    let loader_tree = loader_tree_vc.await?;
+
+    let page_path = page_path_except_parallel(loader_tree_vc).await?;
+
+    if let Some(page_path) = page_path {
+        if let Some(prev) = duplicate.insert(AppPath::from(page_path.clone()), page_path.clone()) {
+            if prev != page_path {
+                DuplicateParallelRouteIssue {
+                    app_dir,
+                    page: loader_tree.page.clone(),
+                }
+                .cell()
+                .emit();
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// creates the loader tree for a specific route (pathname / [AppPath])
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
@@ -802,6 +883,8 @@ async fn directory_tree_to_loader_tree(
         }
     }
 
+    let mut duplicate = FxHashMap::default();
+
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
 
@@ -839,6 +922,10 @@ async fn directory_tree_to_loader_tree(
             // skip groups which don't have a page match.
             if is_group_route(subdir_name) && !*subtree.has_page().await? {
                 continue;
+            }
+
+            if *subtree.has_page().await? {
+                check_duplicate(&mut duplicate, subtree, app_dir).await?;
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
