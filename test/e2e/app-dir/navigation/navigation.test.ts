@@ -846,8 +846,8 @@ createNextDescribe(
           .click()
 
         await retry(async () => {
-          // dev + PPR doesn't trigger the loading boundary as it's not prefetched
-          if (!(isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR)) {
+          // dev doesn't trigger the loading boundary as it's not prefetched
+          if (!isNextDev) {
             expect(await browser.eval(`window.shownLoading`)).toBe(true)
           }
 
