@@ -9,7 +9,10 @@
     "dev": {
       "name": "dev",
       "command": "pnpm update next && pnpm dev",
-      "runAtStart": true
+      "runAtStart": true,
+      "restartOn": {
+        "fork": true
+      }
     }
   }
 }
