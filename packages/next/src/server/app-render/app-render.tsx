@@ -971,6 +971,33 @@ async function renderToHTMLOrFlightImpl(
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
 
+        // FIXME: this is a poor-mans way of handling the interplay
+        if (process.env.NEXT_RUNTIME !== 'edge') {
+          if (!(stream instanceof ReadableStream)) {
+            const node = stream
+            const web = new ReadableStream<Uint8Array>({
+              start: async (controller) => {
+                node.on('data', (chunk) => {
+                  controller.enqueue(chunk)
+                })
+                node.on('end', () => {
+                  controller.close()
+                })
+                node.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
+            stream = web
+          }
+        }
+
+        // FIXME: shouldn't need this when when the rest supports ReadableStream | Readable
+        if (!(stream instanceof ReadableStream)) {
+          throw new Error("Invariant: stream wasn't a ReadableStream")
+        }
+
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
           /**
@@ -1092,6 +1119,12 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } = await resumeRenderer.render(
                   resumeChildren
                 )
+
+                // FIXME: shouldn't need this when chainStreams supports ReadableStream | Readable
+                if (!(resumeStream instanceof ReadableStream)) {
+                  throw new Error("Invariant: stream wasn't a ReadableStream")
+                }
+
                 // First we write everything from the prerender, then we write everything from the aborted resume render
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
