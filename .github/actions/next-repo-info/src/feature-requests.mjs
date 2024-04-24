@@ -15,7 +15,7 @@ import { formattedDate, ninetyDaysAgo } from '../lib/util.mjs'
  * @property {string} url
  * @property {number} upvoteCount
  *
- * @typedef {{ data: { search: Search} }} GraphQLResponse
+ * @typedef {{ search: Search }} GraphQLResponse
  *
  * @typedef Item
  * @property {string} title
@@ -70,7 +70,7 @@ async function run() {
     const { owner, repo } = context.repo
 
     /** @type {GraphQLResponse} */
-    const { data } = await octoClient.graphql(`{
+    const { search } = await octoClient.graphql(`{
       search(
         type: DISCUSSION
         first: 15
@@ -87,7 +87,7 @@ async function run() {
       }
     }`)
 
-    const items = data.search.nodes.map((node) => ({
+    const items = search.nodes.map((node) => ({
       title: node.title,
       number: node.number,
       html_url: node.url,
@@ -95,14 +95,12 @@ async function run() {
       reactions: node.upvoteCount,
     }))
 
-    console.log(items)
-
-    // await slackClient.chat.postMessage({
-    //   blocks: generateBlocks(items),
-    //   channel: '#team-next-js',
-    //   icon_emoji: ':github:',
-    //   username: 'GitHub Notifier',
-    // })
+    await slackClient.chat.postMessage({
+      blocks: generateBlocks(items),
+      channel: '#team-next-js',
+      icon_emoji: ':github:',
+      username: 'GitHub Notifier',
+    })
 
     info(`Posted to Slack!`)
   } catch (error) {
