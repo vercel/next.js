@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
     "jsx": "preserve",
+    "lib": ["ESNext"],
     "allowImportingTsExtensions": true,
-    "module": "ES6",
     "allowJs": true,
-    "moduleResolution": "Bundler",
     "noEmit": true
   }
 }
