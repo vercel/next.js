@@ -4,7 +4,6 @@ on:
   schedule:
     - cron: '0 13 * * 1' # Every Monday at 1PM UTC (9AM EST)
   workflow_dispatch:
-  pull_request:
 
 jobs:
   run:
