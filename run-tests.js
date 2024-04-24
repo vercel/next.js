@@ -529,7 +529,8 @@ ${ENDGROUP}`)
           ...process.env,
           ...env,
         },
-        shell: true,
+        // See: https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
+        shell: process.platform === 'win32',
       })
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
