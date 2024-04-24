@@ -1,6 +1,6 @@
 /**
  * @license React
- * scheduler-unstable_post_task.production.min.js
+ * scheduler-unstable_post_task.production.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -8,195 +8,138 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-'use strict';
-
-// TODO: Use symbols?
-const ImmediatePriority = 1;
-const UserBlockingPriority = 2;
-const NormalPriority = 3;
-const LowPriority = 4;
-const IdlePriority = 5;
-
-const perf = window.performance;
-const setTimeout = window.setTimeout; // Use experimental Chrome Scheduler postTask API.
-
-const scheduler = global.scheduler;
-const getCurrentTime = perf.now.bind(perf);
-const unstable_now = getCurrentTime; // Scheduler periodically yields in case there is other work on the main
-// thread, like user events. By default, it yields multiple times per frame.
-// It does not attempt to align with frame boundaries, since most tasks don't
-// need to be frame aligned; for those that do, use requestAnimationFrame.
-
-const yieldInterval = 5;
-let deadline = 0;
-let currentPriorityLevel_DEPRECATED = NormalPriority; // Always yield at the end of the frame.
-
-function unstable_shouldYield() {
-  return getCurrentTime() >= deadline;
-}
-function unstable_requestPaint() {// Since we yield every frame regardless, `requestPaint` has no effect.
-}
-function unstable_scheduleCallback(priorityLevel, callback, options) {
-  let postTaskPriority;
-
-  switch (priorityLevel) {
-    case ImmediatePriority:
-    case UserBlockingPriority:
-      postTaskPriority = 'user-blocking';
-      break;
-
-    case LowPriority:
-    case NormalPriority:
-      postTaskPriority = 'user-visible';
-      break;
-
-    case IdlePriority:
-      postTaskPriority = 'background';
-      break;
-
-    default:
-      postTaskPriority = 'user-visible';
-      break;
-  }
-
-  const controller = new TaskController({
-    priority: postTaskPriority
-  });
-  const postTaskOptions = {
-    delay: typeof options === 'object' && options !== null ? options.delay : 0,
-    signal: controller.signal
-  };
-  const node = {
-    _controller: controller
-  };
-  scheduler.postTask(runTask.bind(null, priorityLevel, postTaskPriority, node, callback), postTaskOptions).catch(handleAbortError);
-  return node;
-}
-
+"use strict";
+var perf = window.performance,
+  setTimeout = window.setTimeout,
+  scheduler = global.scheduler,
+  getCurrentTime = perf.now.bind(perf),
+  deadline = 0,
+  currentPriorityLevel_DEPRECATED = 3;
 function runTask(priorityLevel, postTaskPriority, node, callback) {
-  deadline = getCurrentTime() + yieldInterval;
-
+  deadline = getCurrentTime() + 5;
   try {
     currentPriorityLevel_DEPRECATED = priorityLevel;
-    const didTimeout_DEPRECATED = false;
-    const result = callback(didTimeout_DEPRECATED);
-
-    if (typeof result === 'function') {
-      // Assume this is a continuation
-      const continuation = result;
-      const continuationOptions = {
-        signal: node._controller.signal
-      };
-      const nextTask = runTask.bind(null, priorityLevel, postTaskPriority, node, continuation);
-
-      if (scheduler.yield !== undefined) {
-        scheduler.yield(continuationOptions).then(nextTask).catch(handleAbortError);
-      } else {
-        scheduler.postTask(nextTask, continuationOptions).catch(handleAbortError);
-      }
+    var result = callback(!1);
+    if ("function" === typeof result) {
+      var continuationOptions = { signal: node._controller.signal },
+        nextTask = runTask.bind(
+          null,
+          priorityLevel,
+          postTaskPriority,
+          node,
+          result
+        );
+      void 0 !== scheduler.yield
+        ? scheduler
+            .yield(continuationOptions)
+            .then(nextTask)
+            .catch(handleAbortError)
+        : scheduler
+            .postTask(nextTask, continuationOptions)
+            .catch(handleAbortError);
     }
   } catch (error) {
-    // We're inside a `postTask` promise. If we don't handle this error, then it
-    // will trigger an "Unhandled promise rejection" error. We don't want that,
-    // but we do want the default error reporting behavior that normal
-    // (non-Promise) tasks get for unhandled errors.
-    //
-    // So we'll re-throw the error inside a regular browser task.
-    setTimeout(() => {
+    setTimeout(function () {
       throw error;
     });
   } finally {
-    currentPriorityLevel_DEPRECATED = NormalPriority;
+    currentPriorityLevel_DEPRECATED = 3;
   }
 }
-
-function handleAbortError(error) {// Abort errors are an implementation detail. We don't expose the
-  // TaskController to the user, nor do we expose the promise that is returned
-  // from `postTask`. So we should suppress them, since there's no way for the
-  // user to handle them.
-}
-
-function unstable_cancelCallback(node) {
-  const controller = node._controller;
-  controller.abort();
-}
-function unstable_runWithPriority(priorityLevel, callback) {
-  const previousPriorityLevel = currentPriorityLevel_DEPRECATED;
-  currentPriorityLevel_DEPRECATED = priorityLevel;
-
-  try {
-    return callback();
-  } finally {
-    currentPriorityLevel_DEPRECATED = previousPriorityLevel;
-  }
-}
-function unstable_getCurrentPriorityLevel() {
+function handleAbortError() {}
+exports.unstable_IdlePriority = 5;
+exports.unstable_ImmediatePriority = 1;
+exports.unstable_LowPriority = 4;
+exports.unstable_NormalPriority = 3;
+exports.unstable_Profiling = null;
+exports.unstable_UserBlockingPriority = 2;
+exports.unstable_cancelCallback = function (node) {
+  node._controller.abort();
+};
+exports.unstable_continueExecution = function () {};
+exports.unstable_forceFrameRate = function () {};
+exports.unstable_getCurrentPriorityLevel = function () {
   return currentPriorityLevel_DEPRECATED;
-}
-function unstable_next(callback) {
-  let priorityLevel;
-
+};
+exports.unstable_getFirstCallbackNode = function () {
+  return null;
+};
+exports.unstable_next = function (callback) {
   switch (currentPriorityLevel_DEPRECATED) {
-    case ImmediatePriority:
-    case UserBlockingPriority:
-    case NormalPriority:
-      // Shift down to normal priority
-      priorityLevel = NormalPriority;
+    case 1:
+    case 2:
+    case 3:
+      var priorityLevel = 3;
       break;
-
     default:
-      // Anything lower than normal priority should remain at the current level.
       priorityLevel = currentPriorityLevel_DEPRECATED;
-      break;
   }
-
-  const previousPriorityLevel = currentPriorityLevel_DEPRECATED;
+  var previousPriorityLevel = currentPriorityLevel_DEPRECATED;
   currentPriorityLevel_DEPRECATED = priorityLevel;
-
   try {
     return callback();
   } finally {
     currentPriorityLevel_DEPRECATED = previousPriorityLevel;
   }
-}
-function unstable_wrapCallback(callback) {
-  const parentPriorityLevel = currentPriorityLevel_DEPRECATED;
-  return () => {
-    const previousPriorityLevel = currentPriorityLevel_DEPRECATED;
+};
+exports.unstable_now = getCurrentTime;
+exports.unstable_pauseExecution = function () {};
+exports.unstable_requestPaint = function () {};
+exports.unstable_runWithPriority = function (priorityLevel, callback) {
+  var previousPriorityLevel = currentPriorityLevel_DEPRECATED;
+  currentPriorityLevel_DEPRECATED = priorityLevel;
+  try {
+    return callback();
+  } finally {
+    currentPriorityLevel_DEPRECATED = previousPriorityLevel;
+  }
+};
+exports.unstable_scheduleCallback = function (
+  priorityLevel,
+  callback,
+  options
+) {
+  switch (priorityLevel) {
+    case 1:
+    case 2:
+      var postTaskPriority = "user-blocking";
+      break;
+    case 4:
+    case 3:
+      postTaskPriority = "user-visible";
+      break;
+    case 5:
+      postTaskPriority = "background";
+      break;
+    default:
+      postTaskPriority = "user-visible";
+  }
+  var controller = new TaskController({ priority: postTaskPriority });
+  options = {
+    delay: "object" === typeof options && null !== options ? options.delay : 0,
+    signal: controller.signal
+  };
+  controller = { _controller: controller };
+  scheduler
+    .postTask(
+      runTask.bind(null, priorityLevel, postTaskPriority, controller, callback),
+      options
+    )
+    .catch(handleAbortError);
+  return controller;
+};
+exports.unstable_shouldYield = function () {
+  return getCurrentTime() >= deadline;
+};
+exports.unstable_wrapCallback = function (callback) {
+  var parentPriorityLevel = currentPriorityLevel_DEPRECATED;
+  return function () {
+    var previousPriorityLevel = currentPriorityLevel_DEPRECATED;
     currentPriorityLevel_DEPRECATED = parentPriorityLevel;
-
     try {
       return callback();
     } finally {
       currentPriorityLevel_DEPRECATED = previousPriorityLevel;
     }
   };
-}
-function unstable_forceFrameRate() {}
-function unstable_pauseExecution() {}
-function unstable_continueExecution() {}
-function unstable_getFirstCallbackNode() {
-  return null;
-} // Currently no profiling build
-
-const unstable_Profiling = null;
-
-exports.unstable_IdlePriority = IdlePriority;
-exports.unstable_ImmediatePriority = ImmediatePriority;
-exports.unstable_LowPriority = LowPriority;
-exports.unstable_NormalPriority = NormalPriority;
-exports.unstable_Profiling = unstable_Profiling;
-exports.unstable_UserBlockingPriority = UserBlockingPriority;
-exports.unstable_cancelCallback = unstable_cancelCallback;
-exports.unstable_continueExecution = unstable_continueExecution;
-exports.unstable_forceFrameRate = unstable_forceFrameRate;
-exports.unstable_getCurrentPriorityLevel = unstable_getCurrentPriorityLevel;
-exports.unstable_getFirstCallbackNode = unstable_getFirstCallbackNode;
-exports.unstable_next = unstable_next;
-exports.unstable_now = unstable_now;
-exports.unstable_pauseExecution = unstable_pauseExecution;
-exports.unstable_requestPaint = unstable_requestPaint;
-exports.unstable_runWithPriority = unstable_runWithPriority;
-exports.unstable_scheduleCallback = unstable_scheduleCallback;
-exports.unstable_shouldYield = unstable_shouldYield;
-exports.unstable_wrapCallback = unstable_wrapCallback;
+};

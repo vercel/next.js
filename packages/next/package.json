@@ -282,7 +282,7 @@
     "punycode": "2.1.1",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
-    "react-is": "18.2.0",
+    "react-is": "19.0.0-beta-94eed63c49-20240425",
     "react-refresh": "0.12.0",
     "regenerator-runtime": "0.13.4",
     "sass-loader": "12.4.0",
