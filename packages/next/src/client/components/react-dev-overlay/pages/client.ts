@@ -22,8 +22,7 @@ patchConsoleError()
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
 
-function onUnhandledError(ev: ErrorEvent) {
-  const error = ev?.error
+function handleError(error: unknown) {
   if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
     // A non-error was thrown, we don't have anything to show. :-(
     return
@@ -63,6 +62,19 @@ function onUnhandledError(ev: ErrorEvent) {
   }
 }
 
+let origConsoleError = console.error
+function nextJsHandleConsoleError(...args: any[]) {
+  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  handleError(error)
+  origConsoleError.apply(window.console, args)
+}
+
+function onUnhandledError(event: ErrorEvent) {
+  const error = event?.error
+  handleError(error)
+}
+
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
   const reason = ev?.reason
   if (
@@ -96,6 +108,7 @@ export function register() {
 
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
+  window.console.error = nextJsHandleConsoleError
 }
 
 export function unregister() {
@@ -113,6 +126,7 @@ export function unregister() {
 
   window.removeEventListener('error', onUnhandledError)
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
+  window.console.error = origConsoleError
 }
 
 export function onBuildOk() {
