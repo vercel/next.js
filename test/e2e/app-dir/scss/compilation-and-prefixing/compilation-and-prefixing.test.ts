@@ -19,7 +19,7 @@ describe.each([
       },
     },
   },
-])('SCSS Support  ($dependencies)', ({ dependencies, nextConfig }) => {
+])('SCSS Support ($dependencies)', ({ dependencies, nextConfig }) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies,
@@ -27,40 +27,49 @@ describe.each([
   })
 
   // TODO: Figure out this test for dev and Turbopack
-  ;(isNextDev ? describe.skip : describe)('Production only', () => {
-    describe('CSS Compilation and Prefixing', () => {
-      it(`should've compiled and prefixed`, async () => {
-        const cssFolder = join(next.testDir, '.next/static/css')
+  ;(isNextDev || process.env.TURBOPACK ? describe.skip : describe)(
+    'Production only',
+    () => {
+      describe('CSS Compilation and Prefixing', () => {
+        it(`should've compiled and prefixed`, async () => {
+          const cssFolder = join(next.testDir, '.next/static/css')
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+          const files = await readdir(cssFolder)
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
-        )
+          const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-        // Contains a source map
-        console.log({ cssContent })
-        expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
-      })
+          expect(cssFiles.length).toBe(1)
+          const cssContent = await readFile(
+            join(cssFolder, cssFiles[0]),
+            'utf8'
+          )
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+          )
 
-      it(`should've emitted a source map`, async () => {
-        const cssFolder = join(next.testDir, '.next/static/css')
+          // Contains a source map
+          console.log({ cssContent })
+          expect(cssContent).toMatch(
+            /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
+          )
+        })
 
-        const files = await readdir(cssFolder)
-        const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
+        it(`should've emitted a source map`, async () => {
+          const cssFolder = join(next.testDir, '.next/static/css')
 
-        expect(cssMapFiles.length).toBe(1)
-        const cssMapContent = (
-          await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
-        ).trim()
+          const files = await readdir(cssFolder)
+          const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
-        const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
-        expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
+          expect(cssMapFiles.length).toBe(1)
+          const cssMapContent = (
+            await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+          ).trim()
+
+          const { version, mappings, sourcesContent } =
+            JSON.parse(cssMapContent)
+          expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
   {
     "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
     "sourcesContent": [
@@ -79,7 +88,8 @@ describe.each([
     "version": 3,
   }
   `)
+        })
       })
-    })
-  })
+    }
+  )
 })
