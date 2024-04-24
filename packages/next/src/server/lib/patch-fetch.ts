@@ -259,14 +259,29 @@ function createPatchedFetcher(
       },
       async () => {
         // If this is an internal fetch, we should not do any special treatment.
-        if (isInternal) return originFetch(input, init)
+        if (isInternal) {
+          return originFetch(input, init)
+        }
 
         const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || staticGenerationStore.isDraftMode) {
+        if (!staticGenerationStore) {
+          return originFetch(input, init)
+        }
+
+        // We should also fallback to the original fetch implementation if we
+        // are in draft mode, it does not constitute a static generation.
+        if (staticGenerationStore.isDraftMode) {
+          return originFetch(input, init)
+        }
+
+        // If the current scope is within an unstable cache callback, then
+        // we shouldn't do any special treatment of fetch because the
+        // surrounding callback will already be cached.
+        if (staticGenerationStore.isUnstableCacheCallback) {
           return originFetch(input, init)
         }
 
