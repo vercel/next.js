@@ -70,7 +70,7 @@ async function run() {
     const { owner, repo } = context.repo
 
     /** @type {GraphQLResponse} */
-    const { data } = await octoClient.graphql(`{
+    const res = await octoClient.graphql(`{
       search(
         type: DISCUSSION
         first: 15
@@ -87,20 +87,22 @@ async function run() {
       }
     }`)
 
-    const items = data.search.nodes.map((node) => ({
-      title: node.title,
-      number: node.number,
-      html_url: node.url,
-      created_at: new Date().toISOString(),
-      reactions: node.upvoteCount,
-    }))
+    info(JSON.stringify(res, null, 2))
 
-    await slackClient.chat.postMessage({
-      blocks: generateBlocks(items),
-      channel: '#team-next-js',
-      icon_emoji: ':github:',
-      username: 'GitHub Notifier',
-    })
+    // const items = data.search.nodes.map((node) => ({
+    //   title: node.title,
+    //   number: node.number,
+    //   html_url: node.url,
+    //   created_at: new Date().toISOString(),
+    //   reactions: node.upvoteCount,
+    // }))
+
+    // await slackClient.chat.postMessage({
+    //   blocks: generateBlocks(items),
+    //   channel: '#team-next-js',
+    //   icon_emoji: ':github:',
+    //   username: 'GitHub Notifier',
+    // })
 
     info(`Posted to Slack!`)
   } catch (error) {
