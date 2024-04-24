@@ -52,11 +52,7 @@ export const getParsedDebugAddress = (): DebugAddress => {
   // We expect to find the debug port in one of these options. The first one
   // found will be used.
   const address =
-    values.inspect ??
-    values['inspect-brk'] ??
-    values['inspect_brk'] ??
-    values['inspect-port'] ??
-    values['inspect_port']
+    values.inspect ?? values['inspect-brk'] ?? values['inspect_brk']
 
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
@@ -122,8 +118,6 @@ export function getParsedNodeOptionsWithoutInspect() {
   delete values.inspect
   delete values['inspect-brk']
   delete values['inspect_brk']
-  delete values['inspect-port']
-  delete values['inspect_port']
 
   return values
 }
@@ -164,7 +158,6 @@ export function getNodeDebugType() {
 
   if (values.inspect) return 'inspect'
   if (values['inspect-brk'] || values['inspect_brk']) return 'inspect-brk'
-  if (values['inspect-port'] || values['inspect_port']) return 'inspect-port'
 }
 
 /**
