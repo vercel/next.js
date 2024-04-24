@@ -1105,6 +1105,7 @@
         "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
         "app dir - basic should not have loader generated function for edge runtime",
+        "app dir - basic should not have entire prerender-manifest for edge",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
         "app dir - basic should not serve when layout is provided but no folder index",
@@ -1793,6 +1794,7 @@
         "mdx with-mdx-rs app directory should work in initial html with mdx import",
         "mdx with-mdx-rs app directory should work using browser",
         "mdx with-mdx-rs app directory should work using browser with mdx import",
+        "mdx with-mdx-rs app directory should work with next/image",
         "mdx with-mdx-rs pages directory should allow overriding components",
         "mdx with-mdx-rs pages directory should work in initial html",
         "mdx with-mdx-rs pages directory should work in initial html with mdx import",
@@ -2231,7 +2233,8 @@
         "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
         "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
         "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
-        "parallel-routes-and-interception route intercepting should render an intercepted route from a slot"
+        "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
+        "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes"
       ],
       "pending": [],
       "flakey": [],
@@ -2265,10 +2268,10 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

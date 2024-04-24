@@ -31,7 +31,7 @@ jobs:
               "resolved": ".github/comments/resolved.md"
             }
           reproduction-comment: '.github/comments/invalid-link.md'
-          reproduction-hosts: 'github.com,codesandbox.io'
+          reproduction-hosts: 'github.com,codesandbox.io,stackblitz.com'
           reproduction-blocklist: 'github.com/vercel/next.js.*,github.com/\\w*/?$,github.com$'
           reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
           reproduction-invalid-label: 'invalid link'
