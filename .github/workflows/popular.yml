@@ -14,11 +14,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: corepack enable
-        # - name: 'Issues: Send notification to Slack'
-        #   run: node ./.github/actions/next-repo-info/dist/issues/index.mjs
-        #   continue-on-error: true
-        # - name: 'PRs: Send notification to Slack'
-        #   run: node ./.github/actions/next-repo-info/dist/prs/index.mjs
+      - name: 'Issues: Send notification to Slack'
+        run: node ./.github/actions/next-repo-info/dist/issues/index.mjs
+        continue-on-error: true
+      - name: 'PRs: Send notification to Slack'
+        run: node ./.github/actions/next-repo-info/dist/prs/index.mjs
         continue-on-error: true
       - name: 'Feature requests: Send notification to Slack'
         run: node ./.github/actions/next-repo-info/dist/feature-requests/index.mjs

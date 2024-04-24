@@ -14,6 +14,7 @@ import { formattedDate, ninetyDaysAgo } from '../lib/util.mjs'
  * @property {string} title
  * @property {string} url
  * @property {number} upvoteCount
+ * @property {string} createdAt
  *
  * @typedef {{ search: Search }} GraphQLResponse
  *
@@ -82,6 +83,7 @@ async function run() {
             title
             url
             upvoteCount
+            createdAt
           }
         }
       }
@@ -91,7 +93,7 @@ async function run() {
       title: node.title,
       number: node.number,
       html_url: node.url,
-      created_at: new Date().toISOString(),
+      created_at: formattedDate(node.createdAt),
       reactions: node.upvoteCount,
     }))
 
