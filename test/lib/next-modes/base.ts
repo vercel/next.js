@@ -218,6 +218,7 @@ export class NextInstance {
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
+              keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
             })
             this.testDir = installDir
           }
