@@ -11418,8 +11418,9 @@
       "runtimeError": false
     },
     "test/integration/import-attributes/test/index.test.js": {
-      "passed": ["import-attributes dev should handle json attributes"],
+      "passed": [],
       "failed": [
+        "import-attributes dev should handle json attributes",
         "production mode import-attributes prod should handle json attributes"
       ],
       "pending": [],
