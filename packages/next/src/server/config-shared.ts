@@ -1,5 +1,6 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { defineConfig } from '../experimental/testmode/playwright'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type {
@@ -465,6 +466,8 @@ export type ExportPathMap = {
   }
 }
 
+export type NextTestConfig = Parameters<typeof defineConfig>[0]
+
 /**
  * Next.js can be configured through a `next.config.js` file in the root of your project directory.
  *
@@ -818,6 +821,11 @@ export interface NextConfig extends Record<string, any> {
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
+
+  /**
+   * Configures Playwright for testing
+   */
+  test?: NextTestConfig
 }
 
 export const defaultConfig: NextConfig = {
@@ -940,6 +948,22 @@ export const defaultConfig: NextConfig = {
     staleTimes: {
       dynamic: 30,
       static: 300,
+    },
+  },
+  test: {
+    testDir: './app',
+    testMatch: '*.spec.ts',
+    fullyParallel: true,
+    timeout: 30_000,
+    expect: {
+      timeout: 5_000,
+    },
+    use: {
+      baseURL: 'http://localhost:3000',
+      trace: 'retain-on-failure',
+      screenshot: 'only-on-failure',
+      timezoneId: 'GMT',
+      locale: 'en-US',
     },
   },
 }
