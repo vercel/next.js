@@ -529,6 +529,7 @@ ${ENDGROUP}`)
           ...process.env,
           ...env,
         },
+        shell: true,
       })
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
