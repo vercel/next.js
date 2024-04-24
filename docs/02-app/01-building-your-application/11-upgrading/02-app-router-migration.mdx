@@ -100,7 +100,7 @@ See the [Font Optimization](/docs/app/building-your-application/optimizing/fonts
 
 > **🎥 Watch:** Learn how to incrementally adopt the App Router → [YouTube (16 minutes)](https://www.youtube.com/watch?v=YQMSietiFm0).
 
-Moving to the App Router may be the first time using React features that Next.js builds on top of such as Server Components, Suspense, and more. When combined with new Next.js features such as [special files](/docs/app/building-your-application/routing#file-conventions) and [layouts](/docs/app/building-your-application/routing/layout-and-templates#layouts), migration means new concepts, mental models, and behavioral changes to learn.
+Moving to the App Router may be the first time using React features that Next.js builds on top of such as Server Components, Suspense, and more. When combined with new Next.js features such as [special files](/docs/app/building-your-application/routing#file-conventions) and [layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts), migration means new concepts, mental models, and behavioral changes to learn.
 
 We recommend reducing the combined complexity of these updates by breaking down your migration into smaller steps. The `app` directory is intentionally designed to work simultaneously with the `pages` directory to allow for incremental page-by-page migration.
 
@@ -192,7 +192,7 @@ If you are using any React Context providers, they will need to be moved to a [C
 
 #### Migrating the `getLayout()` pattern to Layouts (Optional)
 
-Next.js recommended adding a [property to Page components](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern#per-page-layouts) to achieve per-page layouts in the `pages` directory. This pattern can be replaced with native support for [nested layouts](/docs/app/building-your-application/routing/layout-and-templates#layouts) in the `app` directory.
+Next.js recommended adding a [property to Page components](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern#per-page-layouts) to achieve per-page layouts in the `pages` directory. This pattern can be replaced with native support for [nested layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts) in the `app` directory.
 
 <details>
   <summary>See before and after example</summary>
@@ -731,7 +731,7 @@ export default function Post({ post }) {
 
 In the `app` directory, `getStaticPaths` is replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/building-your-application/routing/pages-and-layouts). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/building-your-application/routing/layouts-and-templates). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
 
 ```jsx filename="app/posts/[id]/page.js"
 // `app` directory
