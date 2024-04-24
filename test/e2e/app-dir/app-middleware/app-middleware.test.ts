@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import path from 'path'
 import cheerio from 'cheerio'
-import { check, withQuery } from 'next-test-utils'
+import { check, retry, withQuery } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 import type { Response } from 'node-fetch'
 
@@ -132,6 +132,41 @@ createNextDescribe(
           .split(';')
           .find((c) => c.startsWith('__prerender_bypass'))
         expect(bypassCookie).toBeDefined()
+      })
+    })
+
+    it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
+      const browser = await next.browser('/rsc-cookies')
+
+      const initialRandom1 = await browser.elementById('rsc-cookie-1').text()
+      const initialRandom2 = await browser.elementById('rsc-cookie-2').text()
+
+      // cookies were set in middleware, assert they are present and match the Math.random() pattern
+      expect(initialRandom1).toMatch(/Cookie 1: \d+\.\d+/)
+      expect(initialRandom2).toMatch(/Cookie 2: \d+\.\d+/)
+
+      await browser.refresh()
+
+      const refreshedRandom1 = await browser.elementById('rsc-cookie-1').text()
+      const refreshedRandom2 = await browser.elementById('rsc-cookie-2').text()
+
+      // the cookies should be refreshed and have new values
+      expect(refreshedRandom1).toMatch(/Cookie 1: \d+\.\d+/)
+      expect(refreshedRandom2).toMatch(/Cookie 2: \d+\.\d+/)
+      expect(refreshedRandom1).not.toBe(initialRandom1)
+      expect(refreshedRandom2).not.toBe(initialRandom2)
+
+      // navigate to delete cookies route
+      await browser.elementByCss('[href="/rsc-cookies-delete"]').click()
+      await retry(async () => {
+        // only the first cookie should be deleted
+        expect(await browser.elementById('rsc-cookie-1').text()).toBe(
+          'Cookie 1:'
+        )
+
+        expect(await browser.elementById('rsc-cookie-2').text()).toMatch(
+          /Cookie 2: \d+\.\d+/
+        )
       })
     })
   }
