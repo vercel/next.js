@@ -40,18 +40,22 @@ describe('esm-externals', () => {
 
   // App dir
   {
-    // TODO App Dir doesn't use esmExternals: true correctly for webpack and Turbopack
+    // TODO: App Dir doesn't use esmExternals: true correctly for webpack
     // so we only verify that the page doesn't crash, but ignore the actual content
     // const expectedHtml = /Hello World\+World\+World/
-    const expectedHtml = /Hello Wrong\+Wrong\+Alternative/
+    const expectedHtml = isTurbopack
+      ? /Hello World\+World\+World/
+      : /Hello Wrong\+Wrong\+Alternative/
+
     // const expectedText = /Hello World\+World\+World/
     const urls = ['/server', '/client']
 
     for (const url of urls) {
       const expectedText =
-        url === '/server'
+        url === '/server' && !isTurbopack
           ? /Hello Wrong\+Wrong\+Alternative/
           : /Hello World\+World\+World/
+
       it(`should return the correct SSR HTML for ${url}`, async () => {
         const res = await next.fetch(url)
         const html = await res.text()
