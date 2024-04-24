@@ -8,7 +8,7 @@ Issues are opened with one of these labels:
 
 - `bug` - issue with Next.js itself
 - `documentation` - feedback for improvement or an issue with the Next.js documentation
-- `example bug` - an issue with one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
+- `examples` - an issue with one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
 
 ## Bug reports
 

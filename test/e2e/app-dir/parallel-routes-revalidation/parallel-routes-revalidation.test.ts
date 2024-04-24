@@ -158,6 +158,62 @@ createNextDescribe(
       })
     })
 
+    it('should not trigger the intercepted route when lazy-fetching missing data', async () => {
+      const browser = await next.browser('/')
+
+      // trigger the interception page
+      await browser.elementByCss("[href='/detail-page']").click()
+
+      // we should see the intercepted page
+      expect(await browser.elementById('detail-title').text()).toBe(
+        'Detail Page (Intercepted)'
+      )
+
+      // refresh the page
+      await browser.refresh()
+
+      // we should see the detail page
+      expect(await browser.elementById('detail-title').text()).toBe(
+        'Detail Page (Non-Intercepted)'
+      )
+
+      // go back to the previous page
+      await browser.back()
+
+      // reload the page, which will cause the router to no longer have cache nodes
+      await browser.refresh()
+
+      // go forward, this will trigger a lazy fetch for the missing data, and should restore the detail page
+      await browser.forward()
+
+      expect(await browser.elementById('detail-title').text()).toBe(
+        'Detail Page (Non-Intercepted)'
+      )
+    })
+
+    it('should refresh the correct page when a server action triggers a redirect', async () => {
+      const browser = await next.browser('/redirect')
+      await browser.elementByCss('button').click()
+
+      await browser.elementByCss("[href='/revalidate-modal']").click()
+
+      await check(() => browser.hasElementByCssSelector('#create-entry'), true)
+
+      await browser.elementById('clear-entries').click()
+
+      await retry(async () => {
+        // confirm there aren't any entries yet
+        expect((await browser.elementsByCss('#entries li')).length).toBe(0)
+      })
+
+      await browser.elementById('create-entry').click()
+
+      await retry(async () => {
+        // we created an entry and called revalidate, so we should have 1 entry
+        expect((await browser.elementsByCss('#entries li')).length).toBe(1)
+      })
+    })
+
     describe.each([
       { basePath: '/refreshing', label: 'regular', withSearchParams: false },
       { basePath: '/refreshing', label: 'regular', withSearchParams: true },

@@ -159,7 +159,7 @@ To prevent unnecessary calls to your authentication provider's API or database, 
 ```ts filename="app/actions/auth.ts" switcher
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
 
-export async function signup(state: FormState, formData: FormData) {
+export async function signup(state: FormState, formData) {
   // Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get('name'),
@@ -181,7 +181,7 @@ export async function signup(state: FormState, formData: FormData) {
 ```js filename="app/actions/auth.js" switcher
 import { SignupFormSchema } from '@/app/lib/definitions'
 
-export async function signup(formData: FormData) {
+export async function signup(state, formData) {
   // Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get('name'),
@@ -682,7 +682,7 @@ export async function createSession(userId: string) {
 import 'server-only'
 import { cookies } from 'next/headers'
 
-export async function createSession(userId: string) {
+export async function createSession(userId) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const session = await encrypt({ userId, expiresAt })
 
@@ -1656,6 +1656,7 @@ Now that you've learned about authentication in Next.js, here are Next.js-compat
 - [NextAuth.js](https://authjs.dev/getting-started/installation?framework=next.js)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
+- [WorkOS](https://workos.com/docs/user-management)
 
 ### Session Management Libraries
 

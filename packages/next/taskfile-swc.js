@@ -125,7 +125,7 @@ module.exports = function (task) {
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
-        inlineSourcesContent: false,
+        inlineSourcesContent: true,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,
