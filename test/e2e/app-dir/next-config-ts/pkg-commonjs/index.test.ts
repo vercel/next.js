@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('next-config-ts-cjs', () => {
+describe('next-config-ts-pkg-commonjs', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
