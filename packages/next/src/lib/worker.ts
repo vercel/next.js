@@ -1,7 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import {
-  getFormattedNodeOptionsWithoutInspect,
   getParsedNodeOptionsWithoutInspect,
   formatNodeOptions,
 } from '../server/lib/utils'
