@@ -72,7 +72,8 @@ const externals = {
   chokidar: 'chokidar',
   'jest-worker': 'jest-worker',
 
-  'terser-webpack-plugin': 'terser-webpack-plugin',
+  'terser-webpack-plugin':
+    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
