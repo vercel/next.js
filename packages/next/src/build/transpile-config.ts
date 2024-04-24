@@ -1,4 +1,5 @@
 import type { Options as SWCOptions } from '@swc/core'
+import { readFileSync } from 'fs'
 import { readFile, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { transform, transformSync } from './swc'
@@ -8,9 +9,16 @@ const transformableExtensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 function registerSWCTransform(swcOptions: SWCOptions, isESM: boolean) {
   if (isESM) {
-    // TODO: ERR_REQUIRE_ESM try modifying require() of ES Module to dynamic import
-    delete (require.extensions as any)['.js']
-    transformableExtensions.push('.js')
+    require.extensions['.js'] = function (m: any, originalFileName) {
+      try {
+        return originalJsHandler(m, originalFileName)
+      } catch (error) {
+        // TODO: Find a way to remove readFileSync
+        const str = readFileSync(originalFileName, 'utf8')
+        const { code } = transformSync(str, swcOptions)
+        m._compile(code, originalFileName)
+      }
+    }
   }
 
   for (const ext of transformableExtensions) {
