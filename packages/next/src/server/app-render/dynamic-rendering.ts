@@ -76,38 +76,44 @@ export function markCurrentScopeAsDynamic(
   store: StaticGenerationStore,
   expression: string
 ): void {
-  const pathname = getPathname(store.urlPathname)
   if (store.isUnstableCacheCallback) {
     // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
     // creates a cache boundary. This is subtly different from reading a dynamic data source which is
     // forbidden inside a cache scope.
     return
-  } else if (store.dynamicShouldError) {
+  }
+
+  const pathname = getPathname(store.urlPathname)
+  if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
-  } else if (
-    // We are in a prerender (PPR enabled, during build)
-    store.prerenderState
-  ) {
+  }
+
+  // We are in a prerender (PPR enabled, during build)
+  if (store.prerenderState) {
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
     postponeWithTracking(store.prerenderState, expression, pathname)
-  } else {
-    store.revalidate = 0
-
-    if (store.isStaticGeneration) {
-      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
-      const err = new DynamicServerError(
-        `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
-
-      throw err
-    }
   }
+
+  store.revalidate = 0
+
+  // If we aren't in static generation, we don't need to throw dynamic usage
+  // error because we're already rendering dynamically.
+  if (!store.isStaticGeneration) {
+    return
+  }
+
+  // We aren't prerendering but we are generating a static page. We need to bail out of static generation
+  const err = new DynamicServerError(
+    `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+  )
+  store.dynamicUsageDescription = expression
+  store.dynamicUsageStack = err.stack
+
+  throw err
 }
 
 /**
@@ -128,11 +134,15 @@ export function trackDynamicDataAccessed(
     throw new Error(
       `Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
     )
-  } else if (store.dynamicShouldError) {
+  }
+
+  if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
-  } else if (
+  }
+
+  if (
     // We are in a prerender (PPR enabled, during build)
     store.prerenderState
   ) {
@@ -140,20 +150,24 @@ export function trackDynamicDataAccessed(
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
     postponeWithTracking(store.prerenderState, expression, pathname)
-  } else {
-    store.revalidate = 0
-
-    if (store.isStaticGeneration) {
-      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
-      const err = new DynamicServerError(
-        `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
-
-      throw err
-    }
   }
+
+  store.revalidate = 0
+
+  // If we aren't in static generation, we don't need to throw dynamic usage
+  // error because we're already rendering dynamically.
+  if (!store.isStaticGeneration) {
+    return
+  }
+
+  // We aren't prerendering but we are generating a static page. We need to bail out of static generation
+  const err = new DynamicServerError(
+    `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+  )
+  store.dynamicUsageDescription = expression
+  store.dynamicUsageStack = err.stack
+
+  throw err
 }
 
 /**
