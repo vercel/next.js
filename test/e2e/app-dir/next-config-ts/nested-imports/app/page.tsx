@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>{process.env.foobar}</p>
+  return <p>{process.env.foobarbaz}</p>
 }

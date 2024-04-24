@@ -1,1 +1,3 @@
-export const bar = 'bar'
+import { baz } from './baz'
+
+export const barbaz = 'bar' + baz

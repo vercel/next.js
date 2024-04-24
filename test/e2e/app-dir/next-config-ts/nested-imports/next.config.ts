@@ -1,9 +1,9 @@
 import type { NextConfig } from 'next'
-import { foobar } from './foo'
+import { foobarbaz } from './foo'
 
 const nextConfig: NextConfig = {
   env: {
-    foobar,
+    foobarbaz,
   },
 }
 

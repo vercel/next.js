@@ -7,6 +7,6 @@ describe('nested-imports', () => {
 
   it('should handle nested imports', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('foobar')
+    expect($('p').text()).toBe('foobarbaz')
   })
 })
