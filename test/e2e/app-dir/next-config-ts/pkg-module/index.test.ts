@@ -1,8 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('next-config-ts-cjs', () => {
+describe('next-config-ts-pkg-module', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    packageJson: { type: 'module' },
   })
 
   it('should handle ESM modules in CommonJS project', async () => {
@@ -13,6 +14,6 @@ describe('next-config-ts-cjs', () => {
     expect(text).toContain('cts')
     expect(text).toContain('mts')
     expect(text).toContain('ts')
-    // expect(text).toContain('module')
+    expect(text).toContain('esm')
   })
 })

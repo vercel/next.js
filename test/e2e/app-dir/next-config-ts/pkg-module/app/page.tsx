@@ -7,7 +7,7 @@ export default function Page() {
         process.env.cts,
         process.env.mts,
         process.env.ts,
-        process.env.commonjs,
+        process.env.esm,
       ])}
     </p>
   )

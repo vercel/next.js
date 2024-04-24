@@ -4,6 +4,7 @@ import { mjs } from './fixtures/mjs.mjs'
 import { cts } from './fixtures/cts.cts'
 import { mts } from './fixtures/mts.mts'
 import { ts } from './fixtures/ts'
+import { esm } from './fixtures/esm'
 
 const nextConfig: NextConfig = {
   env: {
@@ -12,6 +13,7 @@ const nextConfig: NextConfig = {
     cts,
     mts,
     ts,
+    esm,
   },
 }
 
