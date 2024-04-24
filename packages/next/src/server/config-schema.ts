@@ -18,6 +18,7 @@ import type {
   RouteHas,
   Redirect,
 } from '../lib/load-custom-routes'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -416,6 +417,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
+        defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
       })
       .optional(),
     exportPathMap: z

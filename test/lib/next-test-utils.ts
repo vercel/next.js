@@ -453,6 +453,20 @@ export function nextLint(
   return runNextCommand(['lint', dir, ...args], opts)
 }
 
+export function nextTest(
+  dir: string,
+  args: string[] = [],
+  opts: NextOptions = {}
+) {
+  return runNextCommand(['experimental-test', dir, ...args], {
+    ...opts,
+    env: {
+      JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+      ...opts.env,
+    },
+  })
+}
+
 export function nextStart(
   dir: string,
   port: string | number,
