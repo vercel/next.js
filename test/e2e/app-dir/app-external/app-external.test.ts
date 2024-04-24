@@ -35,7 +35,8 @@ createNextDescribe(
     buildCommand: 'pnpm build',
     skipDeployment: true,
   },
-  ({ next, isTurbopack }) => {
+  ({ next }) => {
+    const isTurbopack = Boolean(process.env.TURBOPACK)
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)

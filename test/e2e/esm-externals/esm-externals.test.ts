@@ -5,7 +5,8 @@ function normalize(str: string) {
 }
 
 describe('esm-externals', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const isTurbopack = Boolean(process.env.TURBOPACK)
+  const { next } = nextTestSetup({
     files: __dirname,
   })
   // Pages
