@@ -57,13 +57,71 @@ const parseNodeArgs = (args: string[]) => {
 }
 
 /**
+ * Tokenizes the arguments string into an array of strings, supporting quoted
+ * values and escaped characters.
+ *
+ * @param input The arguments string to be tokenized.
+ * @returns An array of strings with the tokenized arguments.
+ */
+export const tokenizeArgs = (input: string): string[] => {
+  let args: string[] = []
+  let isInString = false
+  let willStartNewArg = true
+
+  for (let i = 0; i < input.length; i++) {
+    let char = input[i]
+
+    // Skip any escaped characters in strings.
+    if (char === '\\' && isInString) {
+      // Ensure we don't have an escape character at the end.
+      if (input.length === i + 1) {
+        throw new Error('Invalid escape character at the end.')
+      }
+
+      // Skip the next character.
+      char = input[++i]
+    }
+    // If we find a space outside of a string, we should start a new argument.
+    else if (char === ' ' && !isInString) {
+      willStartNewArg = true
+      continue
+    }
+
+    // If we find a quote, we should toggle the string flag.
+    else if (char === '"') {
+      isInString = !isInString
+      continue
+    }
+
+    // If we're starting a new argument, we should add it to the array.
+    if (willStartNewArg) {
+      args.push(char)
+      willStartNewArg = false
+    }
+    // Otherwise, add it to the last argument.
+    else {
+      args[args.length - 1] += char
+    }
+  }
+
+  if (isInString) {
+    throw new Error('Unterminated string')
+  }
+
+  return args
+}
+
+/**
  * Get the node options from the environment variable `NODE_OPTIONS` and returns
  * them as an array of strings.
  *
  * @returns An array of strings with the node options.
  */
-const getNodeOptionsArgs = () =>
-  process.env.NODE_OPTIONS?.split(' ').map((arg) => arg.trim()) ?? []
+const getNodeOptionsArgs = () => {
+  if (!process.env.NODE_OPTIONS) return []
+
+  return tokenizeArgs(process.env.NODE_OPTIONS)
+}
 
 /**
  * The debug address is in the form of `[host:]port`. The host is optional.

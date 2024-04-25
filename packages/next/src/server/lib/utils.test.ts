@@ -2,12 +2,41 @@ import {
   getFormattedNodeOptionsWithoutInspect,
   getParsedDebugAddress,
   formatNodeOptions,
+  tokenizeArgs,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
 
 afterAll(() => {
   process.env.NODE_OPTIONS = originalNodeOptions
+})
+
+describe('tokenizeArgs', () => {
+  it('splits arguments by spaces', () => {
+    const result = tokenizeArgs('--spaces "thing with spaces" --normal 1234')
+
+    expect(result).toEqual([
+      '--spaces',
+      'thing with spaces',
+      '--normal',
+      '1234',
+    ])
+  })
+
+  it('supports quoted values', () => {
+    const result = tokenizeArgs(
+      '--spaces "thing with spaces" --spacesAndQuotes "thing with \\"spaces\\"" --normal 1234'
+    )
+
+    expect(result).toEqual([
+      '--spaces',
+      'thing with spaces',
+      '--spacesAndQuotes',
+      'thing with "spaces"',
+      '--normal',
+      '1234',
+    ])
+  })
 })
 
 describe('formatNodeOptions', () => {
@@ -60,6 +89,16 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
 
     expect(result).toBe(
       '--other --additional --spaces="/some/path with spaces"'
+    )
+  })
+
+  it('handles options with quotes', () => {
+    process.env.NODE_OPTIONS =
+      '--require "./file with spaces to-require-with-node-require-option.js"'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe(
+      '--require="./file with spaces to-require-with-node-require-option.js"'
     )
   })
 
