@@ -11,6 +11,7 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SwrDelta } from './lib/revalidate'
+import type { SupportedTestRunners } from '../cli/next-test'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -450,9 +451,14 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
-   * Enables `fetch` requests to be proxied to the experimental text proxy server
+   * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
+
+  /**
+   * Set a default test runner to be used by `next experimental-test`.
+   */
+  defaultTestRunner?: SupportedTestRunners
 }
 
 export type ExportPathMap = {
