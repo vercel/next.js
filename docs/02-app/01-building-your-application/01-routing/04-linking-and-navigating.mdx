@@ -66,7 +66,7 @@ export default function PostList({ posts }) {
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
 
-```tsx filename="app/components/links.tsx" switcher
+```tsx filename="@/app/ui/nav-links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -77,27 +77,22 @@ export function Links() {
 
   return (
     <nav>
-      <ul>
-        <li>
-          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link
-            className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/about"
-          >
-            About
-          </Link>
-        </li>
-      </ul>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
     </nav>
   )
 }
 ```
 
-```jsx filename="app/components/links.js" switcher
+```jsx filename="@/app/ui/nav-links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -108,21 +103,16 @@ export function Links() {
 
   return (
     <nav>
-      <ul>
-        <li>
-          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link
-            className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/about"
-          >
-            About
-          </Link>
-        </li>
-      </ul>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
     </nav>
   )
 }
@@ -143,7 +133,7 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 
 > **Good to know**:
 >
-> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages-and-layouts#pages) if it is not visible in the viewport upon navigation.
+> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages) if it is not visible in the viewport upon navigation.
 
 #### Disabling scroll restoration
 

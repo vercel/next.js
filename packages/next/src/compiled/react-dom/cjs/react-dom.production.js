@@ -13,11 +13,22 @@
 var React = require("next/dist/compiled/react");
 var Scheduler = require("next/dist/compiled/scheduler");
 
+function noop$3() {}
+
+const DefaultDispatcher = {
+  prefetchDNS: noop$3,
+  preconnect: noop$3,
+  preload: noop$3,
+  preloadModule: noop$3,
+  preinitScript: noop$3,
+  preinitStyle: noop$3,
+  preinitModuleScript: noop$3
+};
 const Internals = {
   usingClientEntryPoint: false,
   Events: null,
-  Dispatcher: {
-    current: null
+  ReactDOMCurrentDispatcher: {
+    current: DefaultDispatcher
   }
 };
 
@@ -38,8 +49,6 @@ function formatProdErrorMessage(code) {
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
 }
 
-const assign = Object.assign;
-
 // -----------------------------------------------------------------------------
 // Killswitch
 //
@@ -55,7 +64,6 @@ const assign = Object.assign;
 // TODO: Finish rolling out in www
 
 const enableClientRenderFallbackOnTextMismatch = true;
-const enableFormActions = true;
 const enableAsyncActions = true; // Need to remove didTimeout argument from Scheduler before landing
 // Slated for removal in the future (significant effort)
 //
@@ -79,6 +87,13 @@ const enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature 
 const alwaysThrottleRetries = true;
 const syncLaneExpirationMs = 250;
 const transitionLaneExpirationMs = 5000; // -----------------------------------------------------------------------------
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to false for easier skimming.
+// -----------------------------------------------------------------------------
+
+const __NEXT_MAJOR__ = false; // Removes legacy style context
+const enableBigIntSupport = __NEXT_MAJOR__;
 // React DOM Chopping Block
 //
 // Similar to main Chopping Block but only flags related to React DOM. These are
@@ -96,6 +111,8 @@ const disableCommentsAsDOMContainers = true;
 const enableSchedulingProfiler = false; // Helps identify side effects in render-phase lifecycle hooks and setState
 
 const enableProfilerTimer = false; // Record durations for commit and passive effects phases.
+
+const assign = Object.assign;
 
 const ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -221,11 +238,11 @@ const hostTransitionProviderCursor = createCursor(null); // TODO: This should in
 
 const HostTransitionContext = {
   $$typeof: REACT_CONTEXT_TYPE,
+  Provider: null,
+  Consumer: null,
   _currentValue: null,
   _currentValue2: null,
-  _threadCount: 0,
-  Provider: null,
-  Consumer: null
+  _threadCount: 0
 };
 
 function requiredContext(c) {
@@ -1581,7 +1598,7 @@ function getInstanceFromNode(node) {
   if (inst) {
     const tag = inst.tag;
 
-    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostRoot) {
+    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || tag === HostHoistable || tag === HostSingleton || tag === HostRoot) {
       return inst;
     } else {
       return null;
@@ -1598,7 +1615,7 @@ function getInstanceFromNode(node) {
 function getNodeFromInstance(inst) {
   const tag = inst.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
+  if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton || tag === HostText) {
     // In Fiber this, is just the state node right now. We assume it will be
     // a host component or host text.
     return inst.stateNode;
@@ -2292,6 +2309,14 @@ function toString(value) {
 }
 function getToStringValue(value) {
   switch (typeof value) {
+    case 'bigint':
+      {
+        // bigint is assigned as empty string
+        return '';
+      }
+
+    // fallthrough for BigInt support
+
     case 'boolean':
     case 'number':
     case 'string':
@@ -3009,7 +3034,7 @@ function isCustomElement(tagName, props) {
     // These are reserved SVG and MathML elements.
     // We don't mind this list too much because we expect it to never grow.
     // The alternative is to track the namespace in a few places which is convoluted.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts
     case 'annotation-xml':
     case 'color-profile':
     case 'font-face':
@@ -3404,7 +3429,7 @@ function findCurrentHostFiberImpl(node) {
   // Next we'll drill down this component to find the first HostComponent/Text.
   const tag = node.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
+  if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton || tag === HostText) {
     return node;
   }
 
@@ -4005,14 +4030,10 @@ function tryToClaimNextHydratableTextInstance(fiber) {
   if (!isHydrating) {
     return;
   }
-
-  const text = fiber.pendingProps;
-  const isHydratable = isHydratableText(text);
-
   const initialInstance = nextHydratableInstance;
   const nextInstance = nextHydratableInstance;
 
-  if (!nextInstance || !isHydratable) {
+  if (!nextInstance) {
     // We exclude non hydrabable text because we know there are no matching hydratables.
     // We either throw or insert depending on the render mode.
     if (shouldClientRenderOnMismatch(fiber)) {
@@ -4286,10 +4307,6 @@ function popHydrationState(fiber) {
   }
 
   return true;
-}
-
-function hasUnhydratedTailNodes() {
-  return isHydrating && nextHydratableInstance !== null;
 }
 
 function warnIfUnhydratedTailNodes(fiber) {
@@ -5751,21 +5768,17 @@ function unwrapThenable(thenable) {
 }
 
 function convertStringRefToCallbackRef(returnFiber, current, element, mixedRef) {
+
+  const stringRef = '' + mixedRef;
   const owner = element._owner;
 
   if (!owner) {
-    if (typeof mixedRef !== 'string') {
-      throw Error(formatProdErrorMessage(284));
-    }
-
-    throw Error(formatProdErrorMessage(290, mixedRef));
+    throw Error(formatProdErrorMessage(290, stringRef));
   }
 
   if (owner.tag !== ClassComponent) {
     throw Error(formatProdErrorMessage(309));
-  } // At this point, we know the ref isn't an object or function but it could
-
-  const stringRef = '' + mixedRef;
+  }
 
   const inst = owner.stateNode;
 
@@ -5805,9 +5818,7 @@ function coerceRef(returnFiber, current, workInProgress, element) {
 
   let coercedRef;
 
-  if (mixedRef !== null && typeof mixedRef !== 'function' && typeof mixedRef !== 'object') {
-    // Assume this is a string ref. If it's not, then this will throw an error
-    // to the user.
+  if ((typeof mixedRef === 'string' || typeof mixedRef === 'number' || typeof mixedRef === 'boolean')) {
     coercedRef = convertStringRefToCallbackRef(returnFiber, current, element, mixedRef);
   } else {
     coercedRef = mixedRef;
@@ -5869,7 +5880,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     return null;
   }
 
-  function mapRemainingChildren(returnFiber, currentFirstChild) {
+  function mapRemainingChildren(currentFirstChild) {
     // Add the remaining children to a temporary map so that we can find them by
     // keys quickly. Implicit (null) keys get added to this set with their index
     // instead.
@@ -6018,11 +6029,12 @@ function createChildReconciler(shouldTrackSideEffects) {
   }
 
   function createChild(returnFiber, newChild, lanes, debugInfo) {
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
       // Text nodes don't have keys. If the previous node is implicitly keyed
       // we can continue to replace it without aborting even if it is not a text
       // node.
-      const created = createFiberFromText('' + newChild, returnFiber.mode, lanes);
+      const created = createFiberFromText( // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, returnFiber.mode, lanes);
       created.return = returnFiber;
 
       return created;
@@ -6072,7 +6084,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         const context = newChild;
-        return createChild(returnFiber, readContextDuringReconcilation(returnFiber, context, lanes), lanes);
+        return createChild(returnFiber, readContextDuringReconciliation(returnFiber, context, lanes), lanes);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -6085,7 +6097,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     // Update the fiber if the keys match, otherwise return null.
     const key = oldFiber !== null ? oldFiber.key : null;
 
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
       // Text nodes don't have keys. If the previous node is implicitly keyed
       // we can continue to replace it without aborting even if it is not a text
       // node.
@@ -6093,7 +6105,8 @@ function createChildReconciler(shouldTrackSideEffects) {
         return null;
       }
 
-      return updateTextNode(returnFiber, oldFiber, '' + newChild, lanes);
+      return updateTextNode(returnFiber, oldFiber, // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, lanes);
     }
 
     if (typeof newChild === 'object' && newChild !== null) {
@@ -6142,7 +6155,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         const context = newChild;
-        return updateSlot(returnFiber, oldFiber, readContextDuringReconcilation(returnFiber, context, lanes), lanes);
+        return updateSlot(returnFiber, oldFiber, readContextDuringReconciliation(returnFiber, context, lanes), lanes);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -6152,11 +6165,12 @@ function createChildReconciler(shouldTrackSideEffects) {
   }
 
   function updateFromMap(existingChildren, returnFiber, newIdx, newChild, lanes, debugInfo) {
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
       // Text nodes don't have keys, so we neither have to check the old nor
       // new node for the key. If both are text nodes, they match.
       const matchedFiber = existingChildren.get(newIdx) || null;
-      return updateTextNode(returnFiber, matchedFiber, '' + newChild, lanes);
+      return updateTextNode(returnFiber, matchedFiber, // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, lanes);
     }
 
     if (typeof newChild === 'object' && newChild !== null) {
@@ -6194,7 +6208,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         const context = newChild;
-        return updateFromMap(existingChildren, returnFiber, newIdx, readContextDuringReconcilation(returnFiber, context, lanes), lanes);
+        return updateFromMap(existingChildren, returnFiber, newIdx, readContextDuringReconciliation(returnFiber, context, lanes), lanes);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -6302,7 +6316,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     } // Add all children to a key map for quick lookups.
 
 
-    const existingChildren = mapRemainingChildren(returnFiber, oldFiber); // Keep scanning and use the map to restore deleted items as moves.
+    const existingChildren = mapRemainingChildren(oldFiber); // Keep scanning and use the map to restore deleted items as moves.
 
     for (; newIdx < newChildren.length; newIdx++) {
       const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx], lanes);
@@ -6457,7 +6471,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     } // Add all children to a key map for quick lookups.
 
 
-    const existingChildren = mapRemainingChildren(returnFiber, oldFiber); // Keep scanning and use the map to restore deleted items as moves.
+    const existingChildren = mapRemainingChildren(oldFiber); // Keep scanning and use the map to restore deleted items as moves.
 
     for (; !step.done; newIdx++, step = newChildren.next()) {
       const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, step.value, lanes);
@@ -6670,14 +6684,15 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         const context = newChild;
-        return reconcileChildFibersImpl(returnFiber, currentFirstChild, readContextDuringReconcilation(returnFiber, context, lanes), lanes);
+        return reconcileChildFibersImpl(returnFiber, currentFirstChild, readContextDuringReconciliation(returnFiber, context, lanes), lanes);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
     }
 
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
-      return placeSingleChild(reconcileSingleTextNode(returnFiber, currentFirstChild, '' + newChild, lanes));
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
+      return placeSingleChild(reconcileSingleTextNode(returnFiber, currentFirstChild, // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, lanes));
     }
 
 
@@ -8008,7 +8023,7 @@ function rerenderOptimistic(passthrough, reducer) {
 // previous state as an argument. We store pending actions on a queue.
 
 
-function dispatchFormState(fiber, actionQueue, setState, payload) {
+function dispatchFormState(fiber, actionQueue, setPendingState, setState, payload) {
   if (isRenderPhaseUpdate(fiber)) {
     throw Error(formatProdErrorMessage(485));
   }
@@ -8024,7 +8039,7 @@ function dispatchFormState(fiber, actionQueue, setState, payload) {
 
     };
     newLast.next = actionQueue.pending = newLast;
-    runFormStateAction(actionQueue, setState, payload);
+    runFormStateAction(actionQueue, setPendingState, setState, payload);
   } else {
     // There's already an action running. Add to the queue.
     const first = last.next;
@@ -8036,7 +8051,7 @@ function dispatchFormState(fiber, actionQueue, setState, payload) {
   }
 }
 
-function runFormStateAction(actionQueue, setState, payload) {
+function runFormStateAction(actionQueue, setPendingState, setState, payload) {
   const action = actionQueue.action;
   const prevState = actionQueue.state; // This is a fork of startTransition
 
@@ -8045,6 +8060,10 @@ function runFormStateAction(actionQueue, setState, payload) {
     _callbacks: new Set()
   };
   ReactCurrentBatchConfig$3.transition = currentTransition;
+  // This will be reverted automatically when all actions are finished.
+
+
+  setPendingState(true);
 
   try {
     const returnValue = action(prevState, payload);
@@ -8057,14 +8076,14 @@ function runFormStateAction(actionQueue, setState, payload) {
 
       thenable.then(nextState => {
         actionQueue.state = nextState;
-        finishRunningFormStateAction(actionQueue, setState);
-      }, () => finishRunningFormStateAction(actionQueue, setState));
+        finishRunningFormStateAction(actionQueue, setPendingState, setState);
+      }, () => finishRunningFormStateAction(actionQueue, setPendingState, setState));
       setState(thenable);
     } else {
       setState(returnValue);
       const nextState = returnValue;
       actionQueue.state = nextState;
-      finishRunningFormStateAction(actionQueue, setState);
+      finishRunningFormStateAction(actionQueue, setPendingState, setState);
     }
   } catch (error) {
     // This is a trick to get the `useFormState` hook to rethrow the error.
@@ -8078,13 +8097,13 @@ function runFormStateAction(actionQueue, setState, payload) {
 
     };
     setState(rejectedThenable);
-    finishRunningFormStateAction(actionQueue, setState);
+    finishRunningFormStateAction(actionQueue, setPendingState, setState);
   } finally {
     ReactCurrentBatchConfig$3.transition = prevTransition;
   }
 }
 
-function finishRunningFormStateAction(actionQueue, setState) {
+function finishRunningFormStateAction(actionQueue, setPendingState, setState) {
   // The action finished running. Pop it from the queue and run the next pending
   // action, if there are any.
   const last = actionQueue.pending;
@@ -8100,7 +8119,7 @@ function finishRunningFormStateAction(actionQueue, setState) {
       const next = first.next;
       last.next = next; // Run the next action.
 
-      runFormStateAction(actionQueue, setState, next.payload);
+      runFormStateAction(actionQueue, setPendingState, setState, next.payload);
     }
   }
 }
@@ -8142,7 +8161,11 @@ function mountFormState(action, initialStateProp, permalink) {
   };
   stateHook.queue = stateQueue;
   const setState = dispatchSetState.bind(null, currentlyRenderingFiber$1, stateQueue);
-  stateQueue.dispatch = setState; // Action queue hook. This is used to queue pending actions. The queue is
+  stateQueue.dispatch = setState; // Pending state. This is used to store the pending state of the action.
+  // Tracked optimistically, like a transition pending state.
+
+  const pendingStateHook = mountStateImpl(false);
+  const setPendingState = dispatchOptimisticSetState.bind(null, currentlyRenderingFiber$1, false, pendingStateHook.queue); // Action queue hook. This is used to queue pending actions. The queue is
   // shared between all instances of the hook. Similar to a regular state queue,
   // but different because the actions are run sequentially, and they run in
   // an event instead of during render.
@@ -8156,13 +8179,13 @@ function mountFormState(action, initialStateProp, permalink) {
     pending: null
   };
   actionQueueHook.queue = actionQueue;
-  const dispatch = dispatchFormState.bind(null, currentlyRenderingFiber$1, actionQueue, setState);
+  const dispatch = dispatchFormState.bind(null, currentlyRenderingFiber$1, actionQueue, setPendingState, setState);
   actionQueue.dispatch = dispatch; // Stash the action function on the memoized state of the hook. We'll use this
   // to detect when the action function changes so we can update it in
   // an effect.
 
   actionQueueHook.memoizedState = action;
-  return [initialState, dispatch];
+  return [initialState, dispatch, false];
 }
 
 function updateFormState(action, initialState, permalink) {
@@ -8173,7 +8196,10 @@ function updateFormState(action, initialState, permalink) {
 
 function updateFormStateImpl(stateHook, currentStateHook, action, initialState, permalink) {
   const _updateReducerImpl = updateReducerImpl(stateHook, currentStateHook, formStateReducer),
-        actionResult = _updateReducerImpl[0]; // This will suspend until the action finishes.
+        actionResult = _updateReducerImpl[0];
+
+  const _updateState = updateState(),
+        isPending = _updateState[0]; // This will suspend until the action finishes.
 
 
   const state = typeof actionResult === 'object' && actionResult !== null && // $FlowFixMe[method-unbinding]
@@ -8189,7 +8215,7 @@ function updateFormStateImpl(stateHook, currentStateHook, action, initialState, 
     pushEffect(HasEffect | Passive, formStateActionEffect.bind(null, actionQueue, action), createEffectInstance(), null);
   }
 
-  return [state, dispatch];
+  return [state, dispatch, isPending];
 }
 
 function formStateActionEffect(actionQueue, action) {
@@ -8210,16 +8236,19 @@ function rerenderFormState(action, initialState, permalink) {
   if (currentStateHook !== null) {
     // This is an update. Process the update queue.
     return updateFormStateImpl(stateHook, currentStateHook, action);
-  } // This is a mount. No updates to process.
+  }
 
+  updateWorkInProgressHook(); // State
+  // This is a mount. No updates to process.
 
   const state = stateHook.memoizedState;
   const actionQueueHook = updateWorkInProgressHook();
   const actionQueue = actionQueueHook.queue;
   const dispatch = actionQueue.dispatch; // This may have changed during the rerender.
 
-  actionQueueHook.memoizedState = action;
-  return [state, dispatch];
+  actionQueueHook.memoizedState = action; // For mount, pending is always false.
+
+  return [state, dispatch, false];
 }
 
 function pushEffect(tag, create, inst, deps) {
@@ -8637,8 +8666,8 @@ function mountTransition() {
 }
 
 function updateTransition() {
-  const _updateState = updateState(),
-        booleanOrThenable = _updateState[0];
+  const _updateState2 = updateState(),
+        booleanOrThenable = _updateState2[0];
 
   const hook = updateWorkInProgressHook();
   const start = hook.memoizedState;
@@ -8925,8 +8954,8 @@ const ContextOnlyDispatcher = {
   useContext: throwInvalidHookError,
   useEffect: throwInvalidHookError,
   useImperativeHandle: throwInvalidHookError,
-  useInsertionEffect: throwInvalidHookError,
   useLayoutEffect: throwInvalidHookError,
+  useInsertionEffect: throwInvalidHookError,
   useMemo: throwInvalidHookError,
   useReducer: throwInvalidHookError,
   useRef: throwInvalidHookError,
@@ -8945,6 +8974,7 @@ const ContextOnlyDispatcher = {
 {
   ContextOnlyDispatcher.useHostTransitionStatus = throwInvalidHookError;
   ContextOnlyDispatcher.useFormState = throwInvalidHookError;
+  ContextOnlyDispatcher.useActionState = throwInvalidHookError;
 }
 
 {
@@ -8978,6 +9008,7 @@ const HooksDispatcherOnMount = {
 {
   HooksDispatcherOnMount.useHostTransitionStatus = useHostTransitionStatus;
   HooksDispatcherOnMount.useFormState = mountFormState;
+  HooksDispatcherOnMount.useActionState = mountFormState;
 }
 
 {
@@ -9011,6 +9042,7 @@ const HooksDispatcherOnUpdate = {
 {
   HooksDispatcherOnUpdate.useHostTransitionStatus = useHostTransitionStatus;
   HooksDispatcherOnUpdate.useFormState = updateFormState;
+  HooksDispatcherOnUpdate.useActionState = updateFormState;
 }
 
 {
@@ -9044,6 +9076,7 @@ const HooksDispatcherOnRerender = {
 {
   HooksDispatcherOnRerender.useHostTransitionStatus = useHostTransitionStatus;
   HooksDispatcherOnRerender.useFormState = rerenderFormState;
+  HooksDispatcherOnRerender.useActionState = rerenderFormState;
 }
 
 {
@@ -10417,14 +10450,23 @@ function updateProfiler(current, workInProgress, renderLanes) {
 }
 
 function markRef(current, workInProgress) {
-  // TODO: This is also where we should check the type of the ref and error if
-  // an invalid one is passed, instead of during child reconcilation.
+  // TODO: Check props.ref instead of fiber.ref when enableRefAsProp is on.
   const ref = workInProgress.ref;
 
-  if (current === null && ref !== null || current !== null && current.ref !== ref) {
-    // Schedule a Ref effect
-    workInProgress.flags |= Ref;
-    workInProgress.flags |= RefStatic;
+  if (ref === null) {
+    if (current !== null && current.ref !== null) {
+      // Schedule a Ref effect
+      workInProgress.flags |= Ref | RefStatic;
+    }
+  } else {
+    if (typeof ref !== 'function' && typeof ref !== 'object') {
+      throw Error(formatProdErrorMessage(284));
+    }
+
+    if (current === null || current.ref !== ref) {
+      // Schedule a Ref effect
+      workInProgress.flags |= Ref | RefStatic;
+    }
   }
 }
 
@@ -12057,7 +12099,7 @@ function attemptEarlyBailoutIfNoScheduledUpdate(current, workInProgress, renderL
   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
 }
 
-function beginWork$1(current, workInProgress, renderLanes) {
+function beginWork(current, workInProgress, renderLanes) {
 
   if (current !== null) {
     const oldProps = current.memoizedProps;
@@ -12467,7 +12509,7 @@ function readContext(context) {
 
   return readContextForConsumer(currentlyRenderingFiber, context);
 }
-function readContextDuringReconcilation(consumer, context, renderLanes) {
+function readContextDuringReconciliation(consumer, context, renderLanes) {
   if (currentlyRenderingFiber === null) {
     prepareToReadContext(consumer, renderLanes);
   }
@@ -12973,13 +13015,6 @@ function bubbleProperties(completedWork) {
 }
 
 function completeDehydratedSuspenseBoundary(current, workInProgress, nextState) {
-  if (hasUnhydratedTailNodes() && (workInProgress.mode & ConcurrentMode) !== NoMode && (workInProgress.flags & DidCapture) === NoFlags$1) {
-    warnIfUnhydratedTailNodes();
-    resetHydrationState();
-    workInProgress.flags |= ForceClientRender | DidCapture;
-    return false;
-  }
-
   const wasHydrated = popHydrationState(workInProgress);
 
   if (nextState !== null && nextState.dehydrated !== null) {
@@ -13329,7 +13364,6 @@ function completeWork(current, workInProgress, renderLanes) {
 
     case SuspenseComponent:
       {
-        popSuspenseHandler(workInProgress);
         const nextState = workInProgress.memoizedState; // Special path for dehydrated boundaries. We may eventually move this
         // to its own fiber type so that we can add other kinds of hydration
         // boundaries that aren't associated with a Suspense tree. In anticipation
@@ -13341,17 +13375,21 @@ function completeWork(current, workInProgress, renderLanes) {
 
           if (!fallthroughToNormalSuspensePath) {
             if (workInProgress.flags & ForceClientRender) {
-              // Special case. There were remaining unhydrated nodes. We treat
+              popSuspenseHandler(workInProgress); // Special case. There were remaining unhydrated nodes. We treat
               // this as a mismatch. Revert to client rendering.
+
               return workInProgress;
             } else {
-              // Did not finish hydrating, either because this is the initial
+              popSuspenseHandler(workInProgress); // Did not finish hydrating, either because this is the initial
               // render or because something suspended.
+
               return null;
             }
           } // Continue with the normal Suspense path.
 
         }
+
+        popSuspenseHandler(workInProgress);
 
         if ((workInProgress.flags & DidCapture) !== NoFlags$1) {
           // Something suspended. Re-render with the fallback children.
@@ -13954,98 +13992,6 @@ function unwindInterruptedWork(current, interruptedWork, renderLanes) {
       }
 
       break;
-  }
-}
-
-function invokeGuardedCallbackImpl(name, func, context) {
-  {
-    // $FlowFixMe[method-unbinding]
-    const funcArgs = Array.prototype.slice.call(arguments, 3);
-
-    try {
-      // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
-      func.apply(context, funcArgs);
-    } catch (error) {
-      this.onError(error);
-    }
-  }
-}
-
-let hasError = false;
-let caughtError = null; // Used by event system to capture/rethrow the first error.
-
-let hasRethrowError = false;
-let rethrowError = null;
-const reporter = {
-  onError(error) {
-    hasError = true;
-    caughtError = error;
-  }
-
-};
-/**
- * Call a function while guarding against errors that happens within it.
- * Returns an error if it throws, otherwise null.
- *
- * In production, this is implemented using a try-catch. The reason we don't
- * use a try-catch directly is so that we can swap out a different
- * implementation in DEV mode.
- *
- * @param {String} name of the guard to use for logging or debugging
- * @param {Function} func The function to invoke
- * @param {*} context The context to use when calling the function
- * @param {...*} args Arguments for function
- */
-
-function invokeGuardedCallback(name, func, context, a, b, c, d, e, f) {
-  hasError = false;
-  caughtError = null;
-  invokeGuardedCallbackImpl.apply(reporter, arguments);
-}
-/**
- * Same as invokeGuardedCallback, but instead of returning an error, it stores
- * it in a global so it can be rethrown by `rethrowCaughtError` later.
- * TODO: See if caughtError and rethrowError can be unified.
- *
- * @param {String} name of the guard to use for logging or debugging
- * @param {Function} func The function to invoke
- * @param {*} context The context to use when calling the function
- * @param {...*} args Arguments for function
- */
-
-function invokeGuardedCallbackAndCatchFirstError(name, func, context, a, b, c, d, e, f) {
-  invokeGuardedCallback.apply(this, arguments);
-
-  if (hasError) {
-    const error = clearCaughtError();
-
-    if (!hasRethrowError) {
-      hasRethrowError = true;
-      rethrowError = error;
-    }
-  }
-}
-/**
- * During execution of guarded functions we will capture the first error which
- * we will rethrow to be handled by the top level error handler.
- */
-
-function rethrowCaughtError() {
-  if (hasRethrowError) {
-    const error = rethrowError;
-    hasRethrowError = false;
-    rethrowError = null;
-    throw error;
-  }
-}
-function clearCaughtError() {
-  if (hasError) {
-    const error = caughtError;
-    hasError = false;
-    caughtError = null;
-    return error;
-  } else {
-    throw Error(formatProdErrorMessage(198));
   }
 }
 
@@ -16897,7 +16843,7 @@ function getRenderTargetTime() {
 }
 let hasUncaughtError = false;
 let firstUncaughtError = null;
-let legacyErrorBoundariesThatAlreadyFailed = null; // Only used when enableProfilerNestedUpdateScheduledHook is true;
+let legacyErrorBoundariesThatAlreadyFailed = null;
 let rootDoesHavePassiveEffects = false;
 let rootWithPendingPassiveEffects = null;
 let pendingPassiveEffectsLanes = NoLanes;
@@ -19101,11 +19047,6 @@ function throwIfInfiniteUpdateLoopDetected() {
     throw Error(formatProdErrorMessage(185));
   }
 }
-let beginWork;
-
-{
-  beginWork = beginWork$1;
-}
 
 function scheduleCallback(priorityLevel, callback) {
   {
@@ -19506,7 +19447,7 @@ function createFiberFromPortal(portal, mode, lanes) {
     implementation: portal.implementation
   };
   return fiber;
-} // Used for stashing WIP properties to replay failed work in DEV.
+}
 
 function FiberRootNode(containerInfo, // $FlowFixMe[missing-local-annot]
 tag, hydrate, identifierPrefix, onRecoverableError, formState) {
@@ -19584,7 +19525,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
+var ReactVersion = '18.3.0-canary-c3048aab4-20240326';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -21035,79 +20976,77 @@ function retryIfBlockedOn(unblocked) {
         queuedExplicitHydrationTargets.shift();
       }
     }
-  }
+  } // Check the document if there are any queued form actions.
+  // If there's no ownerDocument, then this is the document.
 
-  {
-    // Check the document if there are any queued form actions.
-    // If there's no ownerDocument, then this is the document.
-    const root = unblocked.ownerDocument || unblocked;
-    const formReplayingQueue = root.$$reactFormReplay;
 
-    if (formReplayingQueue != null) {
-      for (let i = 0; i < formReplayingQueue.length; i += 3) {
-        const form = formReplayingQueue[i];
-        const submitterOrAction = formReplayingQueue[i + 1];
-        const formProps = getFiberCurrentPropsFromNode(form);
+  const root = unblocked.ownerDocument || unblocked;
+  const formReplayingQueue = root.$$reactFormReplay;
 
-        if (typeof submitterOrAction === 'function') {
-          // This action has already resolved. We're just waiting to dispatch it.
-          if (!formProps) {
-            // This was not part of this React instance. It might have been recently
-            // unblocking us from dispatching our events. So let's make sure we schedule
-            // a retry.
-            scheduleReplayQueueIfNeeded(formReplayingQueue);
-          }
+  if (formReplayingQueue != null) {
+    for (let i = 0; i < formReplayingQueue.length; i += 3) {
+      const form = formReplayingQueue[i];
+      const submitterOrAction = formReplayingQueue[i + 1];
+      const formProps = getFiberCurrentPropsFromNode(form);
 
-          continue;
+      if (typeof submitterOrAction === 'function') {
+        // This action has already resolved. We're just waiting to dispatch it.
+        if (!formProps) {
+          // This was not part of this React instance. It might have been recently
+          // unblocking us from dispatching our events. So let's make sure we schedule
+          // a retry.
+          scheduleReplayQueueIfNeeded(formReplayingQueue);
         }
 
-        let target = form;
-
-        if (formProps) {
-          // This form belongs to this React instance but the submitter might
-          // not be done yet.
-          let action = null;
-          const submitter = submitterOrAction;
-
-          if (submitter && submitter.hasAttribute('formAction')) {
-            // The submitter is the one that is responsible for the action.
-            target = submitter;
-            const submitterProps = getFiberCurrentPropsFromNode(submitter);
-
-            if (submitterProps) {
-              // The submitter is part of this instance.
-              action = submitterProps.formAction;
-            } else {
-              const blockedOn = findInstanceBlockingTarget(target);
-
-              if (blockedOn !== null) {
-                // The submitter is not hydrated yet. We'll wait for it.
-                continue;
-              } // The submitter must have been a part of a different React instance.
-              // Except the form isn't. We don't dispatch actions in this scenario.
-
-            }
-          } else {
-            action = formProps.action;
-          }
-
-          if (typeof action === 'function') {
-            formReplayingQueue[i + 1] = action;
-          } else {
-            // Something went wrong so let's just delete this action.
-            formReplayingQueue.splice(i, 3);
-            i -= 3;
-          } // Schedule a replay in case this unblocked something.
-
-
-          scheduleReplayQueueIfNeeded(formReplayingQueue);
-          continue;
-        } // Something above this target is still blocked so we can't continue yet.
-        // We're not sure if this target is actually part of this React instance
-        // yet. It could be a different React as a child but at least some parent is.
-        // We must continue for any further queued actions.
-
+        continue;
       }
+
+      let target = form;
+
+      if (formProps) {
+        // This form belongs to this React instance but the submitter might
+        // not be done yet.
+        let action = null;
+        const submitter = submitterOrAction;
+
+        if (submitter && submitter.hasAttribute('formAction')) {
+          // The submitter is the one that is responsible for the action.
+          target = submitter;
+          const submitterProps = getFiberCurrentPropsFromNode(submitter);
+
+          if (submitterProps) {
+            // The submitter is part of this instance.
+            action = submitterProps.formAction;
+          } else {
+            const blockedOn = findInstanceBlockingTarget(target);
+
+            if (blockedOn !== null) {
+              // The submitter is not hydrated yet. We'll wait for it.
+              continue;
+            } // The submitter must have been a part of a different React instance.
+            // Except the form isn't. We don't dispatch actions in this scenario.
+
+          }
+        } else {
+          action = formProps.action;
+        }
+
+        if (typeof action === 'function') {
+          formReplayingQueue[i + 1] = action;
+        } else {
+          // Something went wrong so let's just delete this action.
+          formReplayingQueue.splice(i, 3);
+          i -= 3;
+        } // Schedule a replay in case this unblocked something.
+
+
+        scheduleReplayQueueIfNeeded(formReplayingQueue);
+        continue;
+      } // Something above this target is still blocked so we can't continue yet.
+      // We're not sure if this target is actually part of this React instance
+      // yet. It could be a different React as a child but at least some parent is.
+      // We must continue for any further queued actions.
+
     }
   }
 }
@@ -23148,10 +23087,7 @@ function extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nat
     extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
     extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
     extractEvents$5(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-
-    {
-      extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-    }
+    extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
   }
 } // List of events that need to be individually attached to media elements.
 
@@ -23161,11 +23097,21 @@ const mediaEventTypes = ['abort', 'canplay', 'canplaythrough', 'durationchange',
 // because these events do not consistently bubble in the DOM.
 
 const nonDelegatedEvents = new Set(['cancel', 'close', 'invalid', 'load', 'scroll', 'scrollend', 'toggle'].concat(mediaEventTypes));
+let hasError = false;
+let caughtError = null;
 
 function executeDispatch(event, listener, currentTarget) {
-  const type = event.type || 'unknown-event';
   event.currentTarget = currentTarget;
-  invokeGuardedCallbackAndCatchFirstError(type, listener, undefined, event);
+
+  try {
+    listener(event);
+  } catch (error) {
+    if (!hasError) {
+      hasError = true;
+      caughtError = error;
+    }
+  }
+
   event.currentTarget = null;
 }
 
@@ -23214,7 +23160,12 @@ function processDispatchQueue(dispatchQueue, eventSystemFlags) {
   } // This would be a good time to rethrow if any of the event handlers threw.
 
 
-  rethrowCaughtError();
+  if (hasError) {
+    const error = caughtError;
+    hasError = false;
+    caughtError = null;
+    throw error;
+  }
 }
 
 function dispatchEventsForPlugins(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer) {
@@ -23386,7 +23337,7 @@ function dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativ
 
             const parentTag = parentNode.tag;
 
-            if (parentTag === HostComponent || parentTag === HostText || (parentTag === HostHoistable ) || parentTag === HostSingleton) {
+            if (parentTag === HostComponent || parentTag === HostText || parentTag === HostHoistable || parentTag === HostSingleton) {
               node = ancestorInst = parentNode;
               continue mainLoop;
             }
@@ -23423,7 +23374,7 @@ function accumulateSinglePhaseListeners(targetFiber, reactName, nativeEventType,
           stateNode = _instance.stateNode,
           tag = _instance.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
       lastHostComponent = stateNode; // createEventHandle listeners
 
 
@@ -23465,7 +23416,7 @@ function accumulateTwoPhaseListeners(targetFiber, reactName) {
           stateNode = _instance2.stateNode,
           tag = _instance2.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
       const currentTarget = stateNode;
       const captureListener = getListener(instance, captureName);
 
@@ -23573,7 +23524,7 @@ function accumulateEnterLeaveListenersForEvent(dispatchQueue, event, target, com
       break;
     }
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
       const currentTarget = stateNode;
 
       if (inCapturePhase) {
@@ -23684,11 +23635,12 @@ function setProp(domElement, tag, key, value, props, prevValue) {
           if (canSetTextContent) {
             setTextContent(domElement, value);
           }
-        } else if (typeof value === 'number') {
+        } else if (typeof value === 'number' || enableBigIntSupport ) {
 
           const canSetTextContent = tag !== 'body';
 
           if (canSetTextContent) {
+            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
             setTextContent(domElement, '' + value);
           }
         }
@@ -23743,42 +23695,40 @@ function setProp(domElement, tag, key, value, props, prevValue) {
     case 'formAction':
       {
 
-        {
-          if (typeof value === 'function') {
-            // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-            // because we'll preventDefault, but it can happen if a form is manually submitted or
-            // if someone calls stopPropagation before React gets the event.
-            // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-            // error message but the URL will be logged.
-            domElement.setAttribute(key, // eslint-disable-next-line no-script-url
-            "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
-            break;
-          } else if (typeof prevValue === 'function') {
-            // When we're switching off a Server Action that was originally hydrated.
-            // The server control these fields during SSR that are now trailing.
-            // The regular diffing doesn't apply since we compare against the previous props.
-            // Instead, we need to force them to be set to whatever they should be now.
-            // This would be a lot cleaner if we did this whole fork in the per-tag approach.
-            if (key === 'formAction') {
-              if (tag !== 'input') {
-                // Setting the name here isn't completely safe for inputs if this is switching
-                // to become a radio button. In that case we let the tag based override take
-                // control.
-                setProp(domElement, tag, 'name', props.name, props, null);
-              }
-
-              setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
-              setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
-              setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
-            } else {
-              setProp(domElement, tag, 'encType', props.encType, props, null);
-              setProp(domElement, tag, 'method', props.method, props, null);
-              setProp(domElement, tag, 'target', props.target, props, null);
+        if (typeof value === 'function') {
+          // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+          // because we'll preventDefault, but it can happen if a form is manually submitted or
+          // if someone calls stopPropagation before React gets the event.
+          // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+          // error message but the URL will be logged.
+          domElement.setAttribute(key, // eslint-disable-next-line no-script-url
+          "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
+          break;
+        } else if (typeof prevValue === 'function') {
+          // When we're switching off a Server Action that was originally hydrated.
+          // The server control these fields during SSR that are now trailing.
+          // The regular diffing doesn't apply since we compare against the previous props.
+          // Instead, we need to force them to be set to whatever they should be now.
+          // This would be a lot cleaner if we did this whole fork in the per-tag approach.
+          if (key === 'formAction') {
+            if (tag !== 'input') {
+              // Setting the name here isn't completely safe for inputs if this is switching
+              // to become a radio button. In that case we let the tag based override take
+              // control.
+              setProp(domElement, tag, 'name', props.name, props, null);
             }
+
+            setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
+            setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
+            setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
+          } else {
+            setProp(domElement, tag, 'encType', props.encType, props, null);
+            setProp(domElement, tag, 'method', props.method, props, null);
+            setProp(domElement, tag, 'target', props.target, props, null);
           }
         }
 
-        if (value == null || !enableFormActions  || typeof value === 'symbol' || typeof value === 'boolean') {
+        if (value == null || typeof value === 'symbol' || typeof value === 'boolean') {
           domElement.removeAttribute(key);
           break;
         } // `setAttribute` with objects becomes only `[object]` in IE8/9,
@@ -23915,6 +23865,14 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         break;
       }
     // Boolean
+
+    case 'inert':
+      {
+        setValueForAttribute(domElement, key, value);
+        break;
+      }
+
+    // fallthrough for new boolean props without the flag on
 
     case 'allowFullScreen':
     case 'async':
@@ -24096,7 +24054,8 @@ function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
       {
         if (typeof value === 'string') {
           setTextContent(domElement, value);
-        } else if (typeof value === 'number') {
+        } else if (typeof value === 'number' || enableBigIntSupport ) {
+          // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
           setTextContent(domElement, '' + value);
         }
 
@@ -25055,7 +25014,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
   // TODO: Warn if there is more than a single textNode as a child.
   // TODO: Should we use domElement.firstChild.nodeValue to compare?
 
-  if (typeof children === 'string' || typeof children === 'number') {
+  if (typeof children === 'string' || typeof children === 'number' || enableBigIntSupport ) {
+    // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
     if (domElement.textContent !== '' + children) {
       if (props.suppressHydrationWarning !== true) {
         checkForUnmatchedText(domElement.textContent, children, isConcurrentMode);
@@ -25106,6 +25066,8 @@ function restoreControlledState(domElement, tag, props) {
       return;
   }
 }
+
+const ReactDOMCurrentDispatcher$1 = Internals.ReactDOMCurrentDispatcher; // Unused
 
 const SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
 const SUSPENSE_START_DATA = '$';
@@ -25362,7 +25324,7 @@ function finalizeInitialChildren(domElement, type, props, hostContext) {
   }
 }
 function shouldSetTextContent(type, props) {
-  return type === 'textarea' || type === 'noscript' || typeof props.children === 'string' || typeof props.children === 'number' || typeof props.dangerouslySetInnerHTML === 'object' && props.dangerouslySetInnerHTML !== null && props.dangerouslySetInnerHTML.__html != null;
+  return type === 'textarea' || type === 'noscript' || typeof props.children === 'string' || typeof props.children === 'number' || enableBigIntSupport  || typeof props.dangerouslySetInnerHTML === 'object' && props.dangerouslySetInnerHTML !== null && props.dangerouslySetInnerHTML.__html != null;
 }
 function createTextInstance(text, rootContainerInstance, hostContext, internalInstanceHandle) {
 
@@ -25665,9 +25627,6 @@ function clearContainerSparingly(container) {
 
   return;
 } // Making this so we can eventually move all of the instance caching to the commit phase.
-function isHydratableText(text) {
-  return text !== '';
-}
 function canHydrateInstance(instance, type, props, inRootOrSingleton) {
   while (instance.nodeType === ELEMENT_NODE) {
     const element = instance;
@@ -26139,12 +26098,10 @@ function getCurrentResourceRoot() {
 
 function getDocumentFromRoot(root) {
   return root.ownerDocument || root;
-} // We want this to be the default dispatcher on ReactDOMSharedInternals but we don't want to mutate
-// internals in Module scope. Instead we export it and Internals will import it. There is already a cycle
-// from Internals -> ReactDOM -> HostConfig -> Internals so this doesn't introduce a new one.
+}
 
-
-const ReactDOMClientDispatcher = {
+const previousDispatcher = ReactDOMCurrentDispatcher$1.current;
+ReactDOMCurrentDispatcher$1.current = {
   prefetchDNS: prefetchDNS$1,
   preconnect: preconnect$1,
   preload: preload$1,
@@ -26159,14 +26116,16 @@ const ReactDOMClientDispatcher = {
 // This is notable because nowhere else in ReactDOM do we actually reference the global document or window
 // because we may be rendering inside an iframe.
 
-function getDocumentForImperativeFloatMethods() {
-  return document;
+const globalDocument = typeof document === 'undefined' ? null : document;
+
+function getGlobalDocument() {
+  return globalDocument;
 }
 
 function preconnectAs(rel, href, crossOrigin) {
-  const ownerDocument = getDocumentForImperativeFloatMethods();
+  const ownerDocument = getGlobalDocument();
 
-  if (typeof href === 'string' && href) {
+  if (ownerDocument && typeof href === 'string' && href) {
     const limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
     let key = "link[rel=\"" + rel + "\"][href=\"" + limitedEscapedHref + "\"]";
 
@@ -26193,20 +26152,20 @@ function preconnectAs(rel, href, crossOrigin) {
 }
 
 function prefetchDNS$1(href) {
-
+  previousDispatcher.prefetchDNS(href);
   preconnectAs('dns-prefetch', href, null);
 }
 
 function preconnect$1(href, crossOrigin) {
-
+  previousDispatcher.preconnect(href, crossOrigin);
   preconnectAs('preconnect', href, crossOrigin);
 }
 
 function preload$1(href, as, options) {
+  previousDispatcher.preload(href, as, options);
+  const ownerDocument = getGlobalDocument();
 
-  const ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (href && as && ownerDocument) {
+  if (ownerDocument && href && as) {
     let preloadSelector = "link[rel=\"preload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"]";
 
     if (as === 'image') {
@@ -26270,10 +26229,10 @@ function preload$1(href, as, options) {
 }
 
 function preloadModule$1(href, options) {
+  previousDispatcher.preloadModule(href, options);
+  const ownerDocument = getGlobalDocument();
 
-  const ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (href) {
+  if (ownerDocument && href) {
     const as = options && typeof options.as === 'string' ? options.as : 'script';
     const preloadSelector = "link[rel=\"modulepreload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"][href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
     // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
@@ -26327,10 +26286,10 @@ function preloadModule$1(href, options) {
 }
 
 function preinitStyle(href, precedence, options) {
+  previousDispatcher.preinitStyle(href, precedence, options);
+  const ownerDocument = getGlobalDocument();
 
-  const ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (href) {
+  if (ownerDocument && href) {
     const styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
     const key = getStyleKey(href);
     precedence = precedence || 'default'; // Check if this resource already exists
@@ -26396,10 +26355,10 @@ function preinitStyle(href, precedence, options) {
 }
 
 function preinitScript(src, options) {
+  previousDispatcher.preinitScript(src, options);
+  const ownerDocument = getGlobalDocument();
 
-  const ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (src) {
+  if (ownerDocument && src) {
     const scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
     const key = getScriptKey(src); // Check if this resource already exists
 
@@ -26447,10 +26406,10 @@ function preinitScript(src, options) {
 }
 
 function preinitModuleScript(src, options) {
+  previousDispatcher.preinitModuleScript(src, options);
+  const ownerDocument = getGlobalDocument();
 
-  const ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (src) {
+  if (ownerDocument && src) {
     const scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
     const key = getScriptKey(src); // Check if this resource already exists
 
@@ -27360,12 +27319,6 @@ function insertStylesheetIntoRoot(root, resource, map) {
 
 const NotPendingTransition = NotPending;
 
-const Dispatcher$1 = Internals.Dispatcher;
-
-if (typeof document !== 'undefined') {
-  // Set the default dispatcher to the client dispatcher
-  Dispatcher$1.current = ReactDOMClientDispatcher;
-}
 /* global reportError */
 
 const defaultOnRecoverableError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
@@ -27440,7 +27393,6 @@ function createRoot$1(container, options) {
 
   const root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks);
   markContainerAsRoot(root.current, container);
-  Dispatcher$1.current = ReactDOMClientDispatcher;
   const rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
   listenToAllSupportedEvents(rootContainerElement); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
@@ -27499,8 +27451,7 @@ function hydrateRoot$1(container, initialChildren, options) {
   }
 
   const root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState);
-  markContainerAsRoot(root.current, container);
-  Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
+  markContainerAsRoot(root.current, container); // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
   listenToAllSupportedEvents(container); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
@@ -27687,13 +27638,11 @@ function getCrossOriginStringAs(as, input) {
   return undefined;
 }
 
-const Dispatcher = Internals.Dispatcher;
+const ReactDOMCurrentDispatcher = Internals.ReactDOMCurrentDispatcher;
 function prefetchDNS(href) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
-    dispatcher.prefetchDNS(href);
+  if (typeof href === 'string') {
+    ReactDOMCurrentDispatcher.current.prefetchDNS(href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -27701,11 +27650,9 @@ function prefetchDNS(href) {
 }
 function preconnect(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     const crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
-    dispatcher.preconnect(href, crossOrigin);
+    ReactDOMCurrentDispatcher.current.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -27713,13 +27660,11 @@ function preconnect(href, options) {
 }
 function preload(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  if (typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     const as = options.as;
     const crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    dispatcher.preload(href, as, {
+    ReactDOMCurrentDispatcher.current.preload(href, as, {
       crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
       nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
@@ -27736,18 +27681,16 @@ function preload(href, options) {
 }
 function preloadModule(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (options) {
       const crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-      dispatcher.preloadModule(href, {
+      ReactDOMCurrentDispatcher.current.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin,
         integrity: typeof options.integrity === 'string' ? options.integrity : undefined
       });
     } else {
-      dispatcher.preloadModule(href);
+      ReactDOMCurrentDispatcher.current.preloadModule(href);
     }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -27756,22 +27699,20 @@ function preloadModule(href, options) {
 }
 function preinit(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+  if (typeof href === 'string' && options && typeof options.as === 'string') {
     const as = options.as;
     const crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     const integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     const fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
     if (as === 'style') {
-      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+      ReactDOMCurrentDispatcher.current.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
         crossOrigin,
         integrity,
         fetchPriority
       });
     } else if (as === 'script') {
-      dispatcher.preinitScript(href, {
+      ReactDOMCurrentDispatcher.current.preinitScript(href, {
         crossOrigin,
         integrity,
         fetchPriority,
@@ -27785,20 +27726,18 @@ function preinit(href, options) {
 }
 function preinitModule(href, options) {
 
-  const dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (typeof options === 'object' && options !== null) {
       if (options.as == null || options.as === 'script') {
         const crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-        dispatcher.preinitModuleScript(href, {
+        ReactDOMCurrentDispatcher.current.preinitModuleScript(href, {
           crossOrigin,
           integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
           nonce: typeof options.nonce === 'string' ? options.nonce : undefined
         });
       }
     } else if (options == null) {
-      dispatcher.preinitModuleScript(href);
+      ReactDOMCurrentDispatcher.current.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical

@@ -17,7 +17,11 @@ import os from 'os'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
+import {
+  RESTART_EXIT_CODE,
+  getFormattedDebugAddress,
+  getNodeDebugType,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -211,10 +215,10 @@ export async function startServer(
     }
   })
 
-  const nodeDebugType = checkNodeDebugType()
-
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
+      const nodeDebugType = getNodeDebugType()
+
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -236,9 +240,9 @@ export async function startServer(
       }://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
-        const debugPort = getDebugPort()
+        const formattedDebugAddress = getFormattedDebugAddress()
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at port ${debugPort}.`
+          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
         )
       }
 

@@ -552,7 +552,37 @@ describe('CLI Usage', () => {
         await check(() => errOutput, /Debugger listening on/)
         expect(errOutput).not.toContain('address already in use')
         expect(output).toContain(
-          'the --inspect option was detected, the Next.js router server should be inspected at port'
+          'the --inspect option was detected, the Next.js router server should be inspected at'
+        )
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test("NODE_OPTIONS='--inspect=host:port'", async () => {
+      const port = await findPort()
+      const inspectPort = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: `--inspect=0.0.0.0:${inspectPort}` },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => errOutput, /Debugger listening on/)
+        expect(errOutput).not.toContain('address already in use')
+        expect(output).toContain(
+          'the --inspect option was detected, the Next.js router server should be inspected at'
         )
       } finally {
         await killApp(app)
