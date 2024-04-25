@@ -1,1 +1,0 @@
-exports.bar = 'bar'
