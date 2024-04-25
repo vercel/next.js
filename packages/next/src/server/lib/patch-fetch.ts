@@ -694,14 +694,18 @@ function createPatchedFetcher(
             // If enabled, we should bail out of static generation.
             trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
-            // PPR is not enabled, or React postpone is not available, we
-            // should set the revalidate to 0.
-            staticGenerationStore.revalidate = 0
+            // If partial prerendering is not enabled, then we should throw an
+            // error to indicate that this fetch is dynamic.
+            if (!staticGenerationStore.prerenderState) {
+              // PPR is not enabled, or React postpone is not available, we
+              // should set the revalidate to 0.
+              staticGenerationStore.revalidate = 0
 
-            const err = new DynamicServerError(dynamicUsageReason)
-            staticGenerationStore.dynamicUsageErr = err
-            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-            throw err
+              const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
+              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              throw err
+            }
           }
 
           const hasNextConfig = 'next' in init
@@ -726,10 +730,15 @@ function createPatchedFetcher(
               // If enabled, we should bail out of static generation.
               trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
-              const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageErr = err
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-              throw err
+              // If partial prerendering is not enabled, then we should throw an
+              // error to indicate that this fetch is dynamic.
+              if (!staticGenerationStore.prerenderState) {
+                const err = new DynamicServerError(dynamicUsageReason)
+                staticGenerationStore.dynamicUsageErr = err
+                staticGenerationStore.dynamicUsageDescription =
+                  dynamicUsageReason
+                throw err
+              }
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {

@@ -1,12 +1,10 @@
 import globOrig from 'glob'
 import cheerio from 'cheerio'
-import http from 'node:http'
 import { promisify } from 'node:util'
 import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 import {
   check,
-  findPort,
   fetchViaHTTP,
   normalizeRegEx,
   retry,
@@ -834,7 +832,6 @@ describe('app-dir static/dynamic handling', () => {
           "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
           "unstable-cache/dynamic/page.js",
           "unstable-cache/dynamic/page_client-reference-manifest.js",
-          "unstable-cache/fetch/route.js",
           "variable-config-revalidate/revalidate-3.html",
           "variable-config-revalidate/revalidate-3.rsc",
           "variable-config-revalidate/revalidate-3/page.js",
@@ -3213,79 +3210,6 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   describe('unstable_cache', () => {
-    if (isNextStart) {
-      describe('fetch', () => {
-        let server: http.Server | null = null
-        afterEach(async () => {
-          if (!server) return
-
-          await server.close()
-          server = null
-        })
-
-        it('should not cache inner fetch calls', async () => {
-          let generations: string[] = []
-          server = http.createServer(async (key, res) => {
-            const random = Math.floor(Math.random() * 100).toString()
-            generations.push(random)
-            res.end(random)
-          })
-          const port = await findPort()
-          server.listen(port)
-          const address = `http://localhost:${port}/`
-
-          const first = await next
-            .fetch('/unstable-cache/fetch', {
-              headers: {
-                'X-Test-Data-Server': address,
-              },
-            })
-            .then((res) => res.json())
-
-          expect(generations).toHaveLength(1)
-          expect(first).toEqual(
-            expect.objectContaining({
-              data: generations[0],
-            })
-          )
-
-          const second = await next
-            .fetch('/unstable-cache/fetch', {
-              headers: {
-                'X-Test-Data-Server': address,
-              },
-            })
-            .then((res) => res.json())
-
-          expect(generations).toHaveLength(1)
-          expect(first).toEqual(second)
-
-          // Revalidate the cache for the unstable_cache, but explicitly not
-          // the inner fetch call. We expect it to not cache either.
-          await next.fetch('/unstable-cache/fetch?tag=unstable-cache-fetch', {
-            method: 'DELETE',
-          })
-
-          const third = await next
-            .fetch('/unstable-cache/fetch', {
-              headers: {
-                'X-Test-Data-Server': address,
-              },
-            })
-            .then((res) => res.json())
-
-          expect(generations).toHaveLength(2)
-          expect(generations[1]).not.toEqual(generations[0])
-          expect(third).toEqual(
-            expect.objectContaining({
-              data: generations[1],
-            })
-          )
-          expect(third).not.toEqual(first)
-        })
-      })
-    }
-
     it('should retrieve the same value on second request', async () => {
       const res = await next.fetch('/unstable-cache/dynamic')
       const html = await res.text()
