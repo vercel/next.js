@@ -112,7 +112,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
       if (typeof body !== 'string') {
         const [one, two] = this.transformStream.readable.tee()
         body = one
-        this.waitForStreamEnd(two).then(() => this.closeEmitter.emit())
+        two.getReader().closed.then(() => this.closeEmitter.emit())
       } else {
         setTimeout(() => this.closeEmitter.emit())
       }
@@ -123,11 +123,6 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
       status: this.statusCode,
       statusText: this.statusMessage,
     })
-  }
-
-  private async waitForStreamEnd(stream: ReadableStream) {
-    const reader = stream.getReader()
-    while (!(await reader.read()).done) {}
   }
 
   public onClose(callback: () => void) {
