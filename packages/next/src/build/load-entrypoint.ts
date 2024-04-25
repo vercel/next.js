@@ -95,7 +95,7 @@ export async function loadEntrypoint(
       'g'
     ),
     (match) => {
-      const key = JSON.parse(match)
+      const key = JSON.parse(match.replace(/'/g, `"`))
 
       if (!(key in replacements)) {
         throw new Error(`Invariant: Unexpected template variable ${key}`)
