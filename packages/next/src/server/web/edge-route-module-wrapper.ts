@@ -104,8 +104,11 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
-        // App Route's cannot be postponed.
-        experimental: { ppr: false },
+        experimental: {
+          ppr: false, // App Route's cannot be postponed.
+          // @ts-expect-error TODO(after): not sure what to do about this
+          after: undefined,
+        },
       },
     }
 

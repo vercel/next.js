@@ -19,7 +19,6 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { normalizeNextQueryParam } from '../server-utils'
-import type { RenderOpts } from '../render'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -229,13 +228,13 @@ export async function adapter(
                 onUpdateCookies: (cookies) => {
                   cookiesFromResponse = cookies
                 },
-                // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
                 previewProps: prerenderManifest?.preview || {
                   previewModeId: 'development-id',
                   previewModeEncryptionKey: '',
                   previewModeSigningKey: '',
                 },
                 waitUntil: event.waitUntil.bind(event),
+                // @ts-expect-error TODO(after): not sure what to do about this
                 experimental: params.request.nextConfig?.experimental,
               },
             },

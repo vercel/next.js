@@ -1373,8 +1373,10 @@ export async function buildAppStaticPaths({
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
-        // building static paths should never postpone
-        experimental: { ppr: false },
+        experimental: {
+          ppr: false, // building static paths should never postpone
+          after: false,
+        },
       },
     },
     async () => {
