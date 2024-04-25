@@ -2,7 +2,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-describe('app-dir action useFormState', () => {
+describe('app-dir action useActionState', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
