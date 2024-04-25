@@ -618,6 +618,27 @@ function Router({
     return getSelectedParams(tree)
   }, [tree])
 
+  const layoutRouterContext = useMemo(() => {
+    return {
+      childNodes: cache.parallelRoutes,
+      tree,
+      // Root node always has `url`
+      // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+      url: canonicalUrl,
+      loading: cache.loading,
+    }
+  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading])
+
+  const globalLayoutRouterContext = useMemo(() => {
+    return {
+      buildId,
+      changeByServerResponse,
+      tree,
+      focusAndScrollRef,
+      nextUrl,
+    }
+  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+
   let head
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
@@ -668,25 +689,10 @@ function Router({
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
             <GlobalLayoutRouterContext.Provider
-              value={{
-                buildId,
-                changeByServerResponse,
-                tree,
-                focusAndScrollRef,
-                nextUrl,
-              }}
+              value={globalLayoutRouterContext}
             >
               <AppRouterContext.Provider value={appRouter}>
-                <LayoutRouterContext.Provider
-                  value={{
-                    childNodes: cache.parallelRoutes,
-                    tree,
-                    // Root node always has `url`
-                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                    url: canonicalUrl,
-                    loading: cache.loading,
-                  }}
-                >
+                <LayoutRouterContext.Provider value={layoutRouterContext}>
                   {content}
                 </LayoutRouterContext.Provider>
               </AppRouterContext.Provider>

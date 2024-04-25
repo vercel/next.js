@@ -1,4 +1,4 @@
-const ASSET_PREFIX = 'asset-prefix'
+const ASSET_PREFIX = 'custom-asset-prefix'
 
 module.exports = {
   assetPrefix: ASSET_PREFIX,
@@ -11,7 +11,7 @@ module.exports = {
       beforeFiles: [
         {
           source: `/:locale/${ASSET_PREFIX}/_next/:path*`,
-          destination: '/_next/:path*',
+          destination: `/${ASSET_PREFIX}/_next/:path*`,
           locale: false,
         },
       ],

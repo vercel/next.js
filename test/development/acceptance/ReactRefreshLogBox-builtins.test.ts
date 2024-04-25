@@ -45,28 +45,31 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(
-      process.env.TURBOPACK
-        ? `
-    "./node_modules/my-package/index.js:1:13
-    Module not found: Can't resolve 'dns'
-    > 1 | const dns = require('dns')
-        |             ^^^^^^^^^^^^^^
-      2 | module.exports = dns
+    if (process.env.TURBOPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./node_modules/my-package/index.js:1:13
+        Module not found: Can't resolve 'dns'
+        > 1 | const dns = require('dns')
+            |             ^^^^^^^^^^^^^^
+          2 | module.exports = dns
 
-    https://nextjs.org/docs/messages/module-not-found"
-  `
-        : `
-  "./node_modules/my-package/index.js:1:1
-  Module not found: Can't resolve 'dns'
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./node_modules/my-package/index.js:1:1
+        Module not found: Can't resolve 'dns'
+        > 1 | const dns = require('dns')
+            | ^
+          2 | module.exports = dns
 
-  https://nextjs.org/docs/messages/module-not-found
+        https://nextjs.org/docs/messages/module-not-found
 
-  Import trace for requested module:
-  ./index.js
-  ./pages/index.js"
-`
-    )
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
+    }
 
     await cleanup()
   })

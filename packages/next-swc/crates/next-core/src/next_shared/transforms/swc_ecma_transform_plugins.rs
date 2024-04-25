@@ -13,7 +13,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
-                let enable_mdx_rs = *next_config.mdx_rs().await?;
+                let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
                 get_swc_ecma_transform_rule_impl(project_path, plugin_configs, enable_mdx_rs).await
             }
 

@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 describe('next/jest newLinkBehavior', () => {
   let next: NextInstance
@@ -19,12 +19,10 @@ describe('next/jest newLinkBehavior', () => {
           import Page from '../pages/index'
 
           it('Link', () => {
-            act(() => {
-              render(<Page />)
+            render(<Page />)
 
-              const link = screen.getByRole('link', { name: 'Hello World!' })
-              expect(link.getAttribute('href')).toBe('https://example.com')
-            })
+            const link = screen.getByRole('link', { name: 'Hello World!' })
+            expect(link.getAttribute('href')).toBe('https://example.com')
           })
         `,
         'jest.config.js': `
@@ -36,8 +34,9 @@ describe('next/jest newLinkBehavior', () => {
         `,
       },
       dependencies: {
-        jest: '27.4.7',
-        '@testing-library/react': '12.1.2',
+        jest: '29.7.0',
+        'jest-environment-jsdom': '29.7.0',
+        '@testing-library/react': '15.0.2',
       },
       packageJson: {
         scripts: {

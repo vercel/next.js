@@ -1,27 +1,24 @@
 import dynamic from 'next/dynamic';
-const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hello')
-, {
+const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
         modules: [
-            "some-file.js -> " + "../components/hello"
+            "src/some-file.js -> " + "../components/hello"
         ]
     },
-    loading: ()=><p >...</p>
+    loading: ()=><p>...</p>
 });
-const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello')
-, {
+const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
         modules: [
-            "some-file.js -> " + "../components/hello"
+            "src/some-file.js -> " + "../components/hello"
         ]
     },
     ssr: false
 });
-const DynamicClientOnlyComponentWithSuspense = dynamic(()=>import('../components/hello')
-, {
+const DynamicClientOnlyComponentWithSuspense = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
         modules: [
-            "some-file.js -> " + "../components/hello"
+            "src/some-file.js -> " + "../components/hello"
         ]
     },
     ssr: false,

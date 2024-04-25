@@ -1,4 +1,4 @@
-use core::result::Result::Ok;
+use std::iter::once;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -25,9 +25,8 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                module_options_context::ModuleOptionsContext, JsxTransformOptions,
-                MdxTransformModuleOptions, ModuleRule, TypescriptTransformOptions,
-                WebpackLoadersOptions,
+                module_options_context::ModuleOptionsContext, JsxTransformOptions, ModuleRule,
+                TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -36,15 +35,14 @@ use turbopack_binding::{
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
-    babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
     mode::NextMode,
-    next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
+    next_build::get_postcss_package_mapping,
     next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
     next_config::NextConfig,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
-        get_next_client_resolved_map, mdx_import_source_file,
+        get_next_client_resolved_map,
     },
     next_shared::{
         resolve::{
@@ -57,8 +55,8 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
+        webpack_rules::webpack_loader_options,
     },
-    sass::maybe_add_sass_loader,
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
@@ -149,9 +147,10 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path, project_path, *mode.await?);
+    let custom_conditions = vec![mode.await?.condition().to_string()];
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec![mode.await?.node_env().to_string()],
+        custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
         resolved_map: Some(next_client_resolved_map),
@@ -193,16 +192,7 @@ pub async fn get_client_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let enable_mdx_rs = if *next_config.mdx_rs().await? {
-        Some(
-            MdxTransformModuleOptions {
-                provider_import_source: Some(mdx_import_source_file()),
-            }
-            .cell(),
-        )
-    } else {
-        None
-    };
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path,
         mode,
@@ -215,33 +205,22 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let foreign_webpack_rules = maybe_add_sass_loader(
-        next_config.sass_config(),
-        *next_config.webpack_rules().await?,
+    let conditions = vec!["browser".to_string(), mode.await?.condition().to_string()];
+    let foreign_enable_webpack_loaders = webpack_loader_options(
+        project_path,
+        next_config,
+        true,
+        conditions
+            .iter()
+            .cloned()
+            .chain(once("foreign".to_string()))
+            .collect(),
     )
     .await?;
-    let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
-        WebpackLoadersOptions {
-            rules,
-            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
-                "loader-runner".to_owned(),
-            ))),
-        }
-        .cell()
-    });
 
     // Now creates a webpack rules that applies to all codes.
-    let webpack_rules = *foreign_webpack_rules.clone();
-    let webpack_rules = *maybe_add_babel_loader(project_path, webpack_rules).await?;
-    let enable_webpack_loaders = webpack_rules.map(|rules| {
-        WebpackLoadersOptions {
-            rules,
-            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
-                "loader-runner".to_owned(),
-            ))),
-        }
-        .cell()
-    });
+    let enable_webpack_loaders =
+        webpack_loader_options(project_path, next_config, false, conditions).await?;
 
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
@@ -282,12 +261,13 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         enable_postcss_transform,
+        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
 
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
-        enable_webpack_loaders: foreign_webpack_loaders,
+        enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.

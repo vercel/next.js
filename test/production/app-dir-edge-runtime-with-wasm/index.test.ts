@@ -1,6 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 const files = {
@@ -43,10 +43,6 @@ describe('app-dir edge runtime with wasm', () => {
   beforeAll(async () => {
     next = await createNext({
       files,
-      dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
-      },
     })
   })
   afterAll(() => next.destroy())

@@ -1,6 +1,7 @@
-import type { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../types'
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
+export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
@@ -8,6 +9,7 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SUFFIX = '.rsc'
+export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
@@ -18,6 +20,9 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+// if these change make sure we update the related
+// documentation as well
+export const NEXT_CACHE_TAG_MAX_ITEMS = 64
 export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
@@ -167,7 +172,6 @@ const WEBPACK_LAYERS = {
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
-      WEBPACK_LAYERS_NAMES.shared,
     ],
     nonClientServerTarget: [
       // middleware and pages api

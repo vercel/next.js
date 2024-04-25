@@ -2,6 +2,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -18,7 +19,7 @@ const encoder = new TextEncoder()
  */
 export function useFlightStream<T>(
   flightStream: BinaryStreamOf<T>,
-  clientReferenceManifest: ClientReferenceManifest,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce?: string
 ): Promise<T> {
   const response = flightResponses.get(flightStream)

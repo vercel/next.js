@@ -150,8 +150,7 @@ export function createWebpackAliases({
     [RSC_ACTION_PROXY_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
-    [RSC_ACTION_ENCRYPTION_ALIAS]:
-      'next/dist/server/app-render/action-encryption',
+    [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
 
     ...(isClient || isEdgeServer
       ? {
@@ -260,9 +259,9 @@ export function createRSCAliases(
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    // TODO: restore optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
@@ -296,12 +295,15 @@ export function createRSCAliases(
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
+    } else {
+      // x-ref: https://github.com/facebook/react/pull/25436
+      alias[
+        'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
     }
-    // Use server rendering stub for RSC and SSR
-    // x-ref: https://github.com/facebook/react/pull/25436
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
   if (reactProductionProfiling) {

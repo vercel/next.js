@@ -13,7 +13,6 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
-import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -71,9 +70,9 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
+  quiet?: boolean
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
@@ -106,6 +105,9 @@ export async function initialize(opts: {
   let devBundlerService: DevBundlerService | undefined
 
   if (opts.dev) {
+    const { Telemetry } =
+      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
+
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
@@ -579,7 +581,7 @@ export async function initialize(opts: {
   }
 
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
-  if (opts.experimentalTestProxy) {
+  if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const {
       wrapRequestHandlerWorker,
@@ -599,10 +601,11 @@ export async function initialize(opts: {
     server: opts.server,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: developmentBundler?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
+    experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
+    quiet: opts.quiet,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 

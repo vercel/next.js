@@ -8,7 +8,13 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
-import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
+import type {
+  TurboRuleConfigItem,
+  NextConfigComplete,
+  TurboLoaderItem,
+  TurboRuleConfigItemOrShortcut,
+  TurboRuleConfigItemOptions,
+} from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
@@ -221,8 +227,11 @@ export async function loadBindings(
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
     const isWebContainer = process.versions.webcontainer
+    // Normal execution relies on the param `useWasmBinary` flag to load, but
+    // in certain cases where there isn't a native binary we always load wasm fallback first.
     const shouldLoadWasmFallbackFirst =
-      (!disableWasmFallback && unsupportedPlatform && useWasmBinary) ||
+      (!disableWasmFallback && useWasmBinary) ||
+      unsupportedPlatform ||
       isWebContainer
 
     if (!unsupportedPlatform && useWasmBinary) {
@@ -1147,10 +1156,31 @@ function bindingToApi(binding: any, _wasm: boolean) {
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurboRule>
+    turbopackRules: Record<string, TurboRuleConfigItemOrShortcut>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
-      const loaderItems = Array.isArray(rule) ? rule : rule.loaders
+      if (Array.isArray(rule)) {
+        checkLoaderItems(rule, glob)
+      } else {
+        checkConfigItem(rule, glob)
+      }
+    }
+
+    function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+      if (!rule) return
+      if ('loaders' in rule) {
+        checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
+      } else {
+        for (const key in rule) {
+          const inner = rule[key]
+          if (typeof inner === 'object' && inner) {
+            checkConfigItem(inner, glob)
+          }
+        }
+      }
+    }
+
+    function checkLoaderItems(loaderItems: TurboLoaderItem[], glob: string) {
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&
@@ -1193,7 +1223,7 @@ async function loadWasm(importPath = '') {
         // the import path must be exact when not in node_modules
         pkgPath = path.join(importPath, pkg, 'wasm.js')
       }
-      let bindings = await import(pkgPath)
+      let bindings = await import(pathToFileURL(pkgPath).toString())
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
@@ -1302,12 +1332,24 @@ function loadNative(importPath?: string) {
   let bindings: any
   let attempts: any[] = []
 
+  const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
   for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('next-swc build: local built @next/swc')
-      break
-    } catch (e) {}
+    if (NEXT_TEST_NATIVE_DIR) {
+      try {
+        // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
+        bindings = require(`${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`)
+        console.log(
+          'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
+        )
+        break
+      } catch (e) {}
+    } else {
+      try {
+        bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
+        console.log('next-swc build: local built @next/swc')
+        break
+      } catch (e) {}
+    }
   }
 
   if (!bindings) {
@@ -1470,10 +1512,7 @@ function getMdxOptions(options: any = {}) {
     ...options,
     development: options.development ?? false,
     jsx: options.jsx ?? false,
-    parse: options.parse ?? {
-      gfmStrikethroughSingleTilde: true,
-      mathTextSingleDollar: true,
-    },
+    mdxType: options.mdxType ?? 'commonMark',
   }
 }
 

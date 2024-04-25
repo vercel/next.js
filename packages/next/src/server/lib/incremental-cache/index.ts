@@ -6,10 +6,11 @@ import type {
   IncrementalCache as IncrementalCacheType,
   IncrementalCacheKindHint,
 } from '../../response-cache'
+import type { Revalidate } from '../revalidate'
+import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
-import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 import {
@@ -18,10 +19,8 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
-
-function toRoute(pathname: string): string {
-  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
-}
+import { toRoute } from '../to-route'
+import { SharedRevalidateTimings } from './shared-revalidate-timings'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -65,20 +64,27 @@ export class CacheHandler {
 }
 
 export class IncrementalCache implements IncrementalCacheType {
-  dev?: boolean
-  disableForTestmode?: boolean
-  cacheHandler?: CacheHandler
-  hasCustomCacheHandler: boolean
-  prerenderManifest: PrerenderManifest
-  requestHeaders: Record<string, undefined | string | string[]>
-  requestProtocol?: 'http' | 'https'
-  allowedRevalidateHeaderKeys?: string[]
-  minimalMode?: boolean
-  fetchCacheKeyPrefix?: string
-  revalidatedTags?: string[]
-  isOnDemandRevalidate?: boolean
-  private locks = new Map<string, Promise<void>>()
-  private unlocks = new Map<string, () => Promise<void>>()
+  readonly dev?: boolean
+  readonly disableForTestmode?: boolean
+  readonly cacheHandler?: CacheHandler
+  readonly hasCustomCacheHandler: boolean
+  readonly prerenderManifest: DeepReadonly<PrerenderManifest>
+  readonly requestHeaders: Record<string, undefined | string | string[]>
+  readonly requestProtocol?: 'http' | 'https'
+  readonly allowedRevalidateHeaderKeys?: string[]
+  readonly minimalMode?: boolean
+  readonly fetchCacheKeyPrefix?: string
+  readonly revalidatedTags?: string[]
+  readonly isOnDemandRevalidate?: boolean
+
+  private readonly locks = new Map<string, Promise<void>>()
+  private readonly unlocks = new Map<string, () => Promise<void>>()
+
+  /**
+   * The revalidate timings for routes. This will source the timings from the
+   * prerender manifest until the in-memory cache is updated with new timings.
+   */
+  private readonly revalidateTimings: SharedRevalidateTimings
 
   constructor({
     fs,
@@ -110,7 +116,7 @@ export class IncrementalCache implements IncrementalCacheType {
     allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
-    getPrerenderManifest: () => PrerenderManifest
+    getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
     experimental: { ppr: boolean }
@@ -152,6 +158,7 @@ export class IncrementalCache implements IncrementalCacheType {
     this.requestProtocol = requestProtocol
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
+    this.revalidateTimings = new SharedRevalidateTimings(this.prerenderManifest)
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
 
@@ -193,18 +200,16 @@ export class IncrementalCache implements IncrementalCacheType {
     pathname: string,
     fromTime: number,
     dev?: boolean
-  ): number | false {
+  ): Revalidate {
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
     if (dev) return new Date().getTime() - 1000
 
     // if an entry isn't present in routes we fallback to a default
-    // of revalidating after 1 second
-    const { initialRevalidateSeconds } = this.prerenderManifest.routes[
-      toRoute(pathname)
-    ] || {
-      initialRevalidateSeconds: 1,
-    }
+    // of revalidating after 1 second.
+    const initialRevalidateSeconds =
+      this.revalidateTimings.get(toRoute(pathname)) ?? 1
+
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
         ? initialRevalidateSeconds * 1000 + fromTime
@@ -380,14 +385,19 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
+    const headers =
+      typeof (init.headers || {}).keys === 'function'
+        ? Object.fromEntries(init.headers as Headers)
+        : Object.assign({}, init.headers)
+
+    if ('traceparent' in headers) delete headers['traceparent']
+
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
       this.fetchCacheKeyPrefix || '',
       url,
       init.method,
-      typeof (init.headers || {}).keys === 'function'
-        ? Object.fromEntries(init.headers as Headers)
-        : init.headers,
+      headers,
       init.mode,
       init.redirect,
       init.credentials,
@@ -485,11 +495,10 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
-    const curRevalidate =
-      this.prerenderManifest.routes[toRoute(cacheKey)]?.initialRevalidateSeconds
+    const curRevalidate = this.revalidateTimings.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
-    let revalidateAfter: false | number
+    let revalidateAfter: Revalidate
 
     if (cacheData?.lastModified === -1) {
       isStale = -1
@@ -584,22 +593,12 @@ export class IncrementalCache implements IncrementalCacheType {
     pathname = this._getPathname(pathname, ctx.fetchCache)
 
     try {
-      // we use the prerender manifest memory instance
-      // to store revalidate timings for calculating
-      // revalidateAfter values so we update this on set
+      // Set the value for the revalidate seconds so if it changes we can
+      // update the cache with the new value.
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
-        this.prerenderManifest.routes[pathname] = {
-          experimentalPPR: undefined,
-          dataRoute: path.posix.join(
-            '/_next/data',
-            `${normalizePagePath(pathname)}.json`
-          ),
-          srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
-          initialRevalidateSeconds: ctx.revalidate,
-          // Pages routes do not have a prefetch data route.
-          prefetchDataRoute: undefined,
-        }
+        this.revalidateTimings.set(pathname, ctx.revalidate)
       }
+
       await this.cacheHandler?.set(pathname, data, ctx)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)

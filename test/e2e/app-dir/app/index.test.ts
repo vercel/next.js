@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
@@ -49,6 +49,12 @@ createNextDescribe(
         expect(await next.readFile('.next/server/middleware.js')).not.toContain(
           '_middlewareConfig'
         )
+      })
+
+      it('should not have entire prerender-manifest for edge', async () => {
+        expect(
+          await next.readFile('.next/prerender-manifest.js')
+        ).not.toContain('initialRevalidate')
       })
 
       if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
@@ -1681,6 +1687,28 @@ createNextDescribe(
         expect($('link[href="/style3.css"]').length).toBe(1)
         expect($('link[href="/style1a.css"]').length).toBe(1)
         expect($('link[href="/style1b.css"]').length).toBe(1)
+      })
+
+      it('should pass `nonce`', async () => {
+        const html = await next.render('/script-nonce')
+        const $ = cheerio.load(html)
+        const scripts = $('script, link[rel="preload"][as="script"]')
+
+        scripts.each((_, element) => {
+          expect(element.attribs.nonce).toBeTruthy()
+        })
+
+        if (!isDev) {
+          const browser = await next.browser('/script-nonce')
+
+          await retry(async () => {
+            await browser.elementByCss('#get-order').click()
+            const order = JSON.parse(
+              await browser.elementByCss('#order').text()
+            )
+            expect(order?.length).toBe(2)
+          })
+        }
       })
     })
 

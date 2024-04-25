@@ -9,8 +9,9 @@ import type {
 import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { SizeLimit } from '../../types'
+import type { SizeLimit } from '../types'
 import type { SwrDelta } from './lib/revalidate'
+import type { SupportedTestRunners } from '../cli/next-test'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -96,12 +97,19 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRule =
+export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
-  | {
-      loaders: TurboLoaderItem[]
-      as: string
-    }
+  | TurboRuleConfigItem
+
+export type TurboRuleConfigItemOptions = {
+  loaders: TurboLoaderItem[]
+  as?: string
+}
+
+export type TurboRuleConfigItem =
+  | TurboRuleConfigItemOptions
+  | { [condition: string]: TurboRuleConfigItem }
+  | false
 
 export interface ExperimentalTurboOptions {
   /**
@@ -133,7 +141,7 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRule>
+  rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
    * Use swc_css instead of lightningcss for turbopakc
@@ -178,9 +186,20 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   appDocumentPreloading?: boolean
+  preloadEntriesOnStart?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  /**
+   * This config can be used to override the cache behavior for the client router.
+   * These values indicate the time, in seconds, that the cache should be considered
+   * reusable. When the `prefetch` Link prop is left unspecified, this will use the `dynamic` value.
+   * When the `prefetch` Link prop is set to `true`, this will use the `static` value.
+   */
+  staleTimes?: {
+    dynamic?: number
+    static?: number
+  }
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -197,10 +216,12 @@ export interface ExperimentalConfig {
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * This will enable a plugin that attempts to keep CSS entries below a certain amount
-   * by merging smaller chunks into larger ones
+   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * between CSS files to keep ordering of them.
+   * An alternative is 'strict', which will try to keep correct ordering as
+   * much as possible, even when this leads to many requests.
    */
-  mergeCssChunks?: boolean
+  cssChunking?: 'strict' | 'loose'
   /**
    * @deprecated use config.cacheHandler instead
    */
@@ -297,7 +318,16 @@ export interface ExperimentalConfig {
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
-  mdxRs?: boolean
+  mdxRs?:
+    | boolean
+    | {
+        development?: boolean
+        jsx?: boolean
+        jsxRuntime?: string
+        jsxImportSource?: string
+        providerImportSource?: string
+        mdxType?: 'gfm' | 'commonmark'
+      }
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
@@ -419,6 +449,16 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+
+  /**
+   * Enables `fetch` requests to be proxied to the experimental test proxy server
+   */
+  testProxy?: boolean
+
+  /**
+   * Set a default test runner to be used by `next experimental-test`.
+   */
+  defaultTestRunner?: SupportedTestRunners
 }
 
 export type ExportPathMap = {
@@ -577,16 +617,6 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
-
-  /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
-   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
-   *
-   * @default ''
-   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
-   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
-   */
-  analyticsId?: string
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
@@ -819,7 +849,6 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -858,6 +887,7 @@ export const defaultConfig: NextConfig = {
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     appDocumentPreloading: undefined,
+    preloadEntriesOnStart: undefined,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
@@ -913,7 +943,10 @@ export const defaultConfig: NextConfig = {
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
-    mergeCssChunks: true,
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
   },
 }
 

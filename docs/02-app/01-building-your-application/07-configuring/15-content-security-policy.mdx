@@ -51,7 +51,6 @@ export function middleware(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
   // Replace newline characters and spaces
@@ -96,7 +95,6 @@ export function middleware(request) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
   // Replace newline characters and spaces
@@ -224,7 +222,6 @@ const cspHeader = `
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
 

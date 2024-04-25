@@ -11,7 +11,7 @@ export interface BaseNextRequestConfig {
   trailingSlash?: boolean | undefined
 }
 
-export type FetchMetrics = Array<{
+export type FetchMetric = {
   url: string
   idx: number
   end: number
@@ -20,11 +20,14 @@ export type FetchMetrics = Array<{
   status: number
   cacheReason: string
   cacheStatus: 'hit' | 'miss' | 'skip'
-}>
+}
+
+export type FetchMetrics = Array<FetchMetric>
 
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
+  public abstract fetchMetrics?: FetchMetric[]
 
   constructor(public method: string, public url: string, public body: Body) {}
 
@@ -78,7 +81,7 @@ export abstract class BaseNextResponse<Destination = any> {
 
   // Utils implemented using the abstract methods above
 
-  redirect(destination: string, statusCode: number) {
+  public redirect(destination: string, statusCode: number) {
     this.setHeader('Location', destination)
     this.statusCode = statusCode
 
@@ -87,6 +90,7 @@ export abstract class BaseNextResponse<Destination = any> {
     if (statusCode === RedirectStatusCode.PermanentRedirect) {
       this.setHeader('Refresh', `0;url=${destination}`)
     }
+
     return this
   }
 }

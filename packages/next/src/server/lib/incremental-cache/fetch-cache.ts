@@ -1,6 +1,14 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type {
+  CachedFetchValue,
+  IncrementalCacheValue,
+} from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
+
+import { z } from 'next/dist/compiled/zod'
+import type zod from 'next/dist/compiled/zod'
+
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_SOFT_TAGS_HEADER,
@@ -23,10 +31,37 @@ const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
 const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
 const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
 
+const zCachedFetchValue: zod.ZodType<CachedFetchValue> = z.object({
+  kind: z.literal('FETCH'),
+  data: z.object({
+    headers: z.record(z.string()),
+    body: z.string(),
+    url: z.string(),
+    status: z.number().optional(),
+  }),
+  tags: z.array(z.string()).optional(),
+  revalidate: z.number(),
+})
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
+
+  private hasMatchingTags(arr1: string[], arr2: string[]) {
+    if (arr1.length !== arr2.length) return false
+
+    const set1 = new Set(arr1)
+    const set2 = new Set(arr2)
+
+    if (set1.size !== set2.size) return false
+
+    for (let tag of set1) {
+      if (!set2.has(tag)) return false
+    }
+
+    return true
+  }
 
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
@@ -168,8 +203,13 @@ export default class FetchCache implements CacheHandler {
     // on successive requests
     let data = memoryCache?.get(key)
 
-    // get data from fetch cache
-    if (!data && this.cacheEndpoint) {
+    const hasFetchKindAndMatchingTags =
+      data?.value?.kind === 'FETCH' &&
+      this.hasMatchingTags(tags ?? [], data.value.tags ?? [])
+
+    // Get data from fetch cache. Also check if new tags have been
+    // specified with the same cache key (fetch URL)
+    if (this.cacheEndpoint && (!data || !hasFetchKindAndMatchingTags)) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
@@ -213,11 +253,24 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const cached = await res.json()
+        const json: IncrementalCacheValue = await res.json()
+        const parsed = zCachedFetchValue.safeParse(json)
 
-        if (!cached || cached.kind !== 'FETCH') {
-          this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+        if (!parsed.success) {
+          this.debug && console.log({ json })
+          throw new Error('invalid cache value')
+        }
+
+        const { data: cached } = parsed
+
+        // if new tags were specified, merge those tags to the existing tags
+        if (cached.kind === 'FETCH') {
+          cached.tags ??= []
+          for (const tag of tags ?? []) {
+            if (!cached.tags.includes(tag)) {
+              cached.tags.push(tag)
+            }
+          }
         }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)

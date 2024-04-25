@@ -6,5 +6,10 @@ module.exports = {
   amp: {
     canonicalBase: 'http://localhost:1234',
   },
+  experimental: {
+    amp: {
+      validator: require.resolve('../../lib/amp-validator-wasm.js'),
+    },
+  },
   // edit here
 }

@@ -1566,7 +1566,7 @@ export async function copy_vendor_react(task_) {
       })
       .target(`src/compiled/scheduler${packageSuffix}`)
     yield task
-      .source(join(schedulerDir, 'cjs/**/*.js'))
+      .source(join(schedulerDir, 'cjs/**/*.{js,map}'))
       .target(`src/compiled/scheduler${packageSuffix}/cjs`)
     yield task
       .source(join(schedulerDir, 'LICENSE'))
@@ -1592,7 +1592,7 @@ export async function copy_vendor_react(task_) {
       .source(join(reactDir, 'LICENSE'))
       .target(`src/compiled/react${packageSuffix}`)
     yield task
-      .source(join(reactDir, 'cjs/**/*.js'))
+      .source(join(reactDir, 'cjs/**/*.{js,map}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
@@ -1617,7 +1617,7 @@ export async function copy_vendor_react(task_) {
       .source(join(reactDomDir, 'LICENSE'))
       .target(`src/compiled/react-dom${packageSuffix}`)
     yield task
-      .source(join(reactDomDir, 'cjs/**/*.js'))
+      .source(join(reactDomDir, 'cjs/**/*.{js,map}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
@@ -1672,7 +1672,9 @@ export async function copy_vendor_react(task_) {
       .source(join(reactServerDomWebpackDir, 'LICENSE'))
       .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
     yield task
-      .source(join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.js}'))
+      .source(
+        join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.{js,map}}')
+      )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         // We replace the module/chunk loading code with our own implementation in Next.js.
@@ -1713,7 +1715,10 @@ export async function copy_vendor_react(task_) {
       .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
     yield task
       .source(
-        join(reactServerDomTurbopackDir, '{package.json,*.js,cjs/**/*.js}')
+        join(
+          reactServerDomTurbopackDir,
+          '{package.json,*.js,cjs/**/*.{js,map}}'
+        )
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
@@ -2566,13 +2571,47 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'generate_types'], opts)
+  await task.serial(
+    ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
+    opts
+  )
 }
 
 export async function generate_types(task, opts) {
   await execa.command('pnpm run types', {
     stdio: 'inherit',
   })
+}
+
+/**
+ * TypeScript will emit references to the compiled types used to type the implementation.
+ * The declarations however don't need such detailed types.
+ * We rewrite the references to reference a more lightweight solution instead.
+ * @param {import('taskr').Task} task
+ */
+export async function rewrite_compiled_references(task, opts) {
+  const declarationDirectory = join(__dirname, 'dist')
+  const declarationFiles = glob.sync('**/*.d.ts', { cwd: declarationDirectory })
+
+  for (const declarationFile of declarationFiles) {
+    const content = await fs.readFile(
+      join(declarationDirectory, declarationFile),
+      'utf8'
+    )
+    // Rewrite
+    // /// <reference path="../../../../types/$$compiled.internal.d.ts" />
+    // to
+    // /// <reference path="../../../../types/compiled.d.ts" />
+    if (content.indexOf('/types/$$compiled.internal.d.ts" />') !== -1) {
+      await fs.writeFile(
+        join(declarationDirectory, declarationFile),
+        content.replace(
+          /\/types\/\$\$compiled\.internal\.d\.ts" \/>/g,
+          '/types/compiled.d.ts" />'
+        )
+      )
+    }
+  }
 }
 
 export default async function (task) {

@@ -4,7 +4,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
 
@@ -31,6 +31,16 @@ describe('Middleware custom matchers', () => {
         },
       })
       expect(res2.headers.get('x-from-middleware')).toBeFalsy()
+
+      const res3 = await fetchViaHTTP(next.url, '/')
+      expect(res3.headers.get('x-from-middleware')).toBeDefined()
+
+      const res4 = await fetchViaHTTP(next.url, '/', undefined, {
+        headers: {
+          purpose: 'prefetch',
+        },
+      })
+      expect(res4.headers.get('x-from-middleware')).toBeFalsy()
     })
 
     it('should match missing query correctly', async () => {

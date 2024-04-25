@@ -82,10 +82,12 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
+    case 'ci':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
+    case 'di':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')

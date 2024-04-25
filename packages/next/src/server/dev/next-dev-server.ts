@@ -5,7 +5,6 @@ import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
@@ -43,7 +42,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { Telemetry } from '../../telemetry/storage'
 import { type Span, setGlobal, trace } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
-import { getNodeOptionsWithoutInspect } from '../lib/utils'
+import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
@@ -134,7 +133,7 @@ export default class DevServer extends Server {
           // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
           // the number of workers Next.js tries to launch. The only worker users are interested in debugging
           // is the main Next.js one
-          NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
         },
       },
     }) as Worker & {
@@ -362,8 +361,8 @@ export default class DevServer extends Server {
   }
 
   async runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
+    request: NodeNextRequest
+    response: NodeNextResponse
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
     middlewareList: MiddlewareRoutingItem[]
@@ -421,8 +420,8 @@ export default class DevServer extends Server {
   }
 
   async runEdgeFunction(params: {
-    req: BaseNextRequest
-    res: BaseNextResponse
+    req: NodeNextRequest
+    res: NodeNextResponse
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
@@ -451,8 +450,8 @@ export default class DevServer extends Server {
   }
 
   public async handleRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
+    req: NodeNextRequest,
+    res: NodeNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     const span = trace('handle-request', undefined, { url: req.url })
