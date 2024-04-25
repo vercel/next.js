@@ -6,13 +6,13 @@ export function middleware(
   /** @type {import ('next/server').NextRequest} */ request
 ) {
   const url = new URL(request.url)
-  if (url.pathname.includes('/redirect-source')) {
+  if (url.pathname.startsWith('/middleware/redirect-source')) {
     const requestId = url.searchParams.get('requestId')
     after(() => {
       cliLog({
         source: '[middleware] /middleware/redirect',
         requestId,
-        cookies: { testCookie: cookies().get('testCookie').value },
+        cookies: { testCookie: cookies().get('testCookie')?.value },
       })
     })
     return NextResponse.redirect(new URL('/middleware/redirect', request.url))
