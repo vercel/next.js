@@ -1,10 +1,12 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import { Readable } from 'stream'
 import type { FetchMetrics } from './index'
 
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
 import { DetachedPromise } from '../../lib/detached-promise'
 import type { NextRequestHint } from '../web/adapter'
+import EventEmitter from 'events'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
@@ -36,6 +38,7 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
 export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
+  private ee = new EventEmitter()
 
   public statusCode: number | undefined
   public statusMessage: string | undefined
@@ -87,7 +90,6 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   private readonly sendPromise = new DetachedPromise<void>()
-  private closeEmitter = createOneShotEmitter()
 
   private _sent = false
   public send() {
@@ -105,57 +107,25 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
     let body = this.textBody ?? this.transformStream.readable
 
-    // TODO(after): this is VERY sketchy... but how else do we wait for the request to close?
-
-    if (this.closeEmitter.hasSubscribers()) {
-      // only tee() the stream if we have an someone listening for `onClose`.
-      if (typeof body !== 'string') {
-        const [one, two] = this.transformStream.readable.tee()
-        body = one
-        two.getReader().closed.then(() => this.closeEmitter.emit())
-      } else {
-        setTimeout(() => this.closeEmitter.emit())
-      }
-    }
-
-    return new Response(body, {
+    // @ts-ignore
+    const readable = Readable.from(body).on('close', () => {
+      this.ee.emit('close')
+    })
+    const readableStream = Readable.toWeb(readable)
+    // @ts-ignore
+    const response = new Response(readableStream, {
       headers: this.headers,
       status: this.statusCode,
       statusText: this.statusMessage,
     })
+
+    return response
   }
 
   public onClose(callback: () => void) {
     if (this.sent) {
-      throw new Error('Cannot call onClose on an request that is already sent')
+      throw new Error('Cannot call onClose on a response that is already sent')
     }
-    this.closeEmitter.subscribe(callback)
-  }
-}
-
-function createOneShotEmitter() {
-  let ctrl: DetachedPromise<void> | undefined = undefined
-  let done = false
-  return {
-    hasSubscribers() {
-      return !!ctrl
-    },
-    subscribe(callback: () => void) {
-      if (done) {
-        throw new Error(
-          'Cannot subscribe to an OneShotEmitter that already fired'
-        )
-      }
-      if (!ctrl) {
-        ctrl = new DetachedPromise<void>()
-      }
-      ctrl.promise.then(callback)
-    },
-    emit() {
-      if (ctrl) {
-        ctrl.resolve()
-        done = true
-      }
-    },
+    this.ee.on('close', callback)
   }
 }
