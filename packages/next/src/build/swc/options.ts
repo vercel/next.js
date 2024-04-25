@@ -445,6 +445,11 @@ export function getLoaderSWCOptions({
       isPageFile,
       env: {
         targets: {
+          // Workaround acorn issues
+          include: [
+            'transform-private-methods',
+            'transform-private-property-in-object',
+          ],
           // Targets the current version of Node.js
           node: process.versions.node,
         },
