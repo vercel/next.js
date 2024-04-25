@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('nested-imports', () => {
+describe('next-config-ts-nested-imports', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
