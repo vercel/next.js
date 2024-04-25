@@ -19,9 +19,9 @@ describe('app-dir action handling', () => {
     nextTestSetup({
       files: __dirname,
       dependencies: {
-        react: 'latest',
+        react: '19.0.0-beta-94eed63c49-20240425',
         nanoid: 'latest',
-        'react-dom': 'latest',
+        'react-dom': '19.0.0-beta-94eed63c49-20240425',
         'server-only': 'latest',
       },
     })

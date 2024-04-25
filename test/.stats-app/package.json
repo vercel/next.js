@@ -3,9 +3,9 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "next": "19.0.0-beta-94eed63c49-20240425",
+    "react": "19.0.0-beta-94eed63c49-20240425",
+    "react-dom": "19.0.0-beta-94eed63c49-20240425"
   },
   "engines": {
     "node": ">=18.17.0",

@@ -6,8 +6,8 @@ describe('app-dir action handling - next export', () => {
     skipStart: true,
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-beta-94eed63c49-20240425',
+      'react-dom': '19.0.0-beta-94eed63c49-20240425',
       'server-only': 'latest',
     },
   })

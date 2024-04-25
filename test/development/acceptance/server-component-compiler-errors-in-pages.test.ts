@@ -28,8 +28,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
   const { next } = nextTestSetup({
     files: {},
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-beta-94eed63c49-20240425',
+      'react-dom': '19.0.0-beta-94eed63c49-20240425',
     },
     skipStart: true,
   })
