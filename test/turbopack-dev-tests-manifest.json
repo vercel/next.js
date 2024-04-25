@@ -6822,6 +6822,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-test/next-test.test.ts": {
+    "passed": [
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-js",
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-ts",
+      "next test first time setup should fail if next.js config is missing experimental#testProxy",
+      "next test should execute playwright tests",
+      "next test should pass args to test runner",
+      "next test test runner validation should validate configured/specified test runner"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/no-eslint-warn-with-no-eslint-config/index.test.ts": {
     "passed": [
       "no-eslint-warn-with-no-eslint-config should not have eslint warnings when no eslint config",
