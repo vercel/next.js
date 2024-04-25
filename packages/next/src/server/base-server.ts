@@ -1697,6 +1697,10 @@ export default abstract class Server<
     staticPaths?: string[]
     fallbackMode?: 'static' | 'blocking' | false
   }> {
+    console.log(
+      'this.getPrerenderManifest().dynamicRoutes:',
+      this.getPrerenderManifest().dynamicRoutes
+    )
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
@@ -1841,12 +1845,14 @@ export default abstract class Server<
         isAppPath,
         requestHeaders: req.headers,
       })
-
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
       hasFallback = typeof fallbackMode !== 'undefined'
 
-      if (this.nextConfig.output === 'export') {
+      if (
+        this.nextConfig.output === 'export' &&
+        !resolvedUrlPathname.includes('sitemap')
+      ) {
         const page = components.page
 
         if (fallbackMode !== 'static') {
