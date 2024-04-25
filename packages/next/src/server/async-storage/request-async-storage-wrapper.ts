@@ -101,9 +101,26 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       },
       get cookies() {
         if (!cache.cookies) {
+          // if middleware is setting cookie(s), then include those in
+          // the initial cached cookies so they can be read in render
+          let combinedCookies
+          if (
+            'x-middleware-set-cookie' in req.headers &&
+            typeof req.headers['x-middleware-set-cookie'] === 'string'
+          ) {
+            combinedCookies = `${req.headers.cookie}; ${req.headers['x-middleware-set-cookie']}`
+          }
+
           // Seal the cookies object that'll freeze out any methods that could
           // mutate the underlying data.
-          cache.cookies = getCookies(req.headers)
+          cache.cookies = getCookies(
+            combinedCookies
+              ? {
+                  ...req.headers,
+                  cookie: combinedCookies,
+                }
+              : req.headers
+          )
         }
 
         return cache.cookies
