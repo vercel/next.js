@@ -30,7 +30,6 @@ function generateStats(
 // Webpack 4 does not have this close method so in order to be backwards compatible we check if it exists
 function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
   return new Promise<void>((resolve, reject) => {
-    // @ts-ignore Close only exists on the compiler in webpack 5
     return compiler.close((err: any) => (err ? reject(err) : resolve()))
   })
 }

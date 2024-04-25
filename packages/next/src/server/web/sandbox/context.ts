@@ -429,19 +429,17 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       context.AsyncLocalStorage = AsyncLocalStorage
 
-      // @ts-ignore the timeouts have weird types in the edge runtime
+      // @ts-expect-error the timeouts have weird types in the edge runtime
       context.setInterval = (...args: Parameters<typeof setInterval>) =>
         intervalsManager.add(args)
 
-      // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearInterval = (interval: number) =>
         intervalsManager.remove(interval)
 
-      // @ts-ignore the timeouts have weird types in the edge runtime
+      // @ts-expect-error the timeouts have weird types in the edge runtime
       context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
         timeoutsManager.add(args)
 
-      // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearTimeout = (timeout: number) =>
         timeoutsManager.remove(timeout)
 

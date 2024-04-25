@@ -139,7 +139,7 @@ class Container extends React.Component<{
             ),
           asPath,
           {
-            // @ts-ignore
+            // @ts-expect-error
             // WARNING: `_h` is an internal option for handing Next.js
             // client-side hydration. Your app should _never_ use this property.
             // It may change at any time without notice.

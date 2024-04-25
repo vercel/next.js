@@ -989,7 +989,7 @@ export default class Router implements BaseRouter {
       Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
-        // @ts-ignore internal value not exposed on types
+        // @ts-expect-error internal value not exposed on types
         _h: 0,
       }),
       forcedScroll

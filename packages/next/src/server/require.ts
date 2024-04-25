@@ -122,7 +122,7 @@ export async function requirePage(
   try {
     process.env.__NEXT_PRIVATE_RUNTIME_TYPE = isAppPath ? 'app' : 'pages'
     const mod = process.env.NEXT_MINIMAL
-      ? // @ts-ignore
+      ? // @ts-expect-error
         __non_webpack_require__(pagePath)
       : require(pagePath)
     return mod

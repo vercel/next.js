@@ -714,7 +714,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
       fallbackCompiler.watch(
-        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        // @ts-expect-error webpack supports an array of watchOptions when using a multiCompiler
         fallbackConfig.watchOptions,
         // Errors are handled separately
         (_err: any) => {
@@ -759,7 +759,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       config.entry = async (...args) => {
         const outputPath = this.multiCompiler?.outputPath || ''
         const entries = getEntries(outputPath)
-        // @ts-ignore entry is always a function
+        // @ts-expect-error entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
         const isNodeServerCompilation = config.name === COMPILER_NAMES.server
@@ -1060,7 +1060,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
 
     // Enable building of client compilation before server compilation in development
-    // @ts-ignore webpack 5
+    // @ts-expect-error webpack 5
     this.activeWebpackConfigs.parallelism = 1
 
     this.multiCompiler = webpack(
@@ -1431,7 +1431,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.watcher = await new Promise((resolve) => {
       const watcher = this.multiCompiler?.watch(
-        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        // @ts-expect-error webpack supports an array of watchOptions when using a multiCompiler
         this.activeWebpackConfigs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err: any) => {

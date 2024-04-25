@@ -9,9 +9,9 @@ const state: {
   waitUntilResolve: () => void
   waitUntilPromise: Promise<void> | null
 } =
-  // @ts-ignore
+  // @ts-expect-error
   globalThis[GLOBAL_KEY] ||
-  // @ts-ignore
+  // @ts-expect-error
   (globalThis[GLOBAL_KEY] = {
     waitUntilCounter: 0,
     waitUntilResolve: undefined,

@@ -207,7 +207,7 @@ async function createForwardedActionResponse(
       duplex: 'half',
       headers: forwardedHeaders,
       next: {
-        // @ts-ignore
+        // @ts-expect-error
         internal: 1,
       },
     })
@@ -293,7 +293,7 @@ async function createRedirectRenderResult(
         method: 'GET',
         headers: forwardedHeaders,
         next: {
-          // @ts-ignore
+          // @ts-expect-error
           internal: 1,
         },
       })

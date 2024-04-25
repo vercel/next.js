@@ -44,7 +44,7 @@ export async function createComponentStylesAndScripts({
           <link
             rel="stylesheet"
             href={fullHref}
-            // @ts-ignore
+            // @ts-expect-error
             precedence={precedence}
             crossOrigin={ctx.renderOpts.crossOrigin}
             key={index}

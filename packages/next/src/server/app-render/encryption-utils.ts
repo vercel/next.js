@@ -127,7 +127,7 @@ export function setReferenceManifestsSingleton({
     }
   }
 }) {
-  // @ts-ignore
+  // @ts-expect-error
   globalThis[SERVER_ACTION_MANIFESTS_SINGLETON] = {
     clientReferenceManifest,
     serverActionsManifest,

@@ -38,7 +38,7 @@ export class DropClientPage implements webpack.WebpackPluginInstance {
               return
             }
 
-            // @ts-ignore buildInfo exists on Module
+            // @ts-expect-error buildInfo exists on Module
             entryModule.buildInfo.NEXT_ampFirst = true
           }
 

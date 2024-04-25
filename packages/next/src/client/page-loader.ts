@@ -97,7 +97,7 @@ export default class PageLoader {
       } else {
         if (!this.promisedMiddlewareMatchers) {
           // TODO: Decide what should happen when fetching fails instead of asserting
-          // @ts-ignore
+          // @ts-expect-error
           this.promisedMiddlewareMatchers = fetch(
             `${this.assetPrefix}/_next/static/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
             { credentials: 'same-origin' }

@@ -328,7 +328,6 @@ function Script(props: ScriptProps): JSX.Element | null {
           />
         )
       } else {
-        // @ts-ignore
         ReactDOM.preload(
           src,
           restProps.integrity
@@ -349,7 +348,6 @@ function Script(props: ScriptProps): JSX.Element | null {
       }
     } else if (strategy === 'afterInteractive') {
       if (src) {
-        // @ts-ignore
         ReactDOM.preload(
           src,
           restProps.integrity

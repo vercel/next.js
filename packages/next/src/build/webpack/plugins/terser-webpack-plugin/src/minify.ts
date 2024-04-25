@@ -26,7 +26,6 @@ export async function minify(options: any) {
 
   // Let terser generate a SourceMap
   if (inputSourceMap) {
-    // @ts-ignore
     opts.sourceMap = { asObject: true }
   }
 

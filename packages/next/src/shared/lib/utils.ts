@@ -377,7 +377,7 @@ export async function loadGetInitialProps<
 
   if (!App.getInitialProps) {
     if (ctx.ctx && ctx.Component) {
-      // @ts-ignore pageProps default
+      // @ts-expect-error pageProps default
       return {
         pageProps: await loadGetInitialProps(ctx.Component, ctx.ctx),
       }

@@ -203,11 +203,9 @@ export async function loadBindings(
   // see https://github.com/napi-rs/napi-rs/issues/1630
   // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
   if (process.stdout._handle != null) {
-    // @ts-ignore
     process.stdout._handle.setBlocking?.(true)
   }
   if (process.stderr._handle != null) {
-    // @ts-ignore
     process.stderr._handle.setBlocking?.(true)
   }
 

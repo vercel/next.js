@@ -3,7 +3,6 @@ import path from 'path'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const ErrorLoader: webpack.LoaderDefinitionFunction = function () {
-  // @ts-ignore exists
   const options = this.getOptions() || ({} as any)
 
   const { reason = 'An unknown error has occurred' } = options

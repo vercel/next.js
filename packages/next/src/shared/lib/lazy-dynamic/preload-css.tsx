@@ -34,7 +34,7 @@ export function PreloadCss({ moduleIds }: { moduleIds: string[] | undefined }) {
         return (
           <link
             key={file}
-            // @ts-ignore
+            // @ts-expect-error
             precedence={'dynamic'}
             rel="stylesheet"
             href={`${requestStore.assetPrefix}/_next/${encodeURI(file)}`}

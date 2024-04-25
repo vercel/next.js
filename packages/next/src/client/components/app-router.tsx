@@ -429,7 +429,7 @@ function Router({
     useEffect(() => {
       // Add `window.nd` for debugging purposes.
       // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
-      // @ts-ignore this is for debugging
+      // @ts-expect-error this is for debugging
       window.nd = {
         router: appRouter,
         cache,

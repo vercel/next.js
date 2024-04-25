@@ -244,7 +244,7 @@ function mergeMetadata({
       case 'referrer':
       case 'formatDetection':
       case 'manifest':
-        // @ts-ignore TODO: support inferring
+        // @ts-expect-error TODO: support inferring
         target[key] = source[key] || null
         break
       case 'other':
@@ -299,7 +299,7 @@ function mergeViewport({
         break
       default:
         if (typeof source[key] !== 'undefined') {
-          // @ts-ignore viewport properties
+          // @ts-expect-error viewport properties
           target[key] = source[key]
         }
         break

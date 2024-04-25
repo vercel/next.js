@@ -846,7 +846,7 @@ export default async function getBaseWebpackConfig(
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
-    // @ts-ignore
+    // @ts-expect-error
     externals:
       isClient || isEdgeServer
         ? // make sure importing "next" is handled gracefully for client
@@ -1075,7 +1075,6 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
-          // @ts-ignore No typings yet
           const {
             TerserPlugin,
           } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
@@ -2168,7 +2167,7 @@ export default async function getBaseWebpackConfig(
     serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
-  // @ts-ignore Cache exists
+  // @ts-expect-error Cache exists
   webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
     isDevFallback ? '-fallback' : ''
   }`
@@ -2441,7 +2440,6 @@ export default async function getBaseWebpackConfig(
 
       return entry
     }
-    // @ts-ignore webpack 5 typings needed
     webpackConfig.entry = updatedEntry
   }
 

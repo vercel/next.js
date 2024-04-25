@@ -1,7 +1,6 @@
-// @ts-ignore
 import { ModuleFilenameHelpers } from 'next/dist/compiled/webpack/webpack'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-// @ts-ignore
+// @ts-expect-error
 import { RawSource, SourceMapSource } from 'next/dist/compiled/webpack-sources3'
 import { ECacheKey } from './interface'
 import type { Compilation, Compiler } from 'webpack'
@@ -51,9 +50,9 @@ export class LightningCssMinifyPlugin {
       compilation.hooks.statsPrinter.tap(PLUGIN_NAME, (statsPrinter) => {
         statsPrinter.hooks.print
           .for('asset.info.minimized')
-          // @ts-ignore
+          // @ts-expect-error
           .tap(PLUGIN_NAME, (minimized, { green, formatFlag }) => {
-            // @ts-ignore
+            // @ts-expect-error
             return minimized ? green(formatFlag('minimized')) : undefined
           })
       })
@@ -114,7 +113,6 @@ export class LightningCssMinifyPlugin {
 
         compilation.updateAsset(
           asset.name,
-          // @ts-ignore
           sourcemap
             ? new SourceMapSource(
                 codeString,

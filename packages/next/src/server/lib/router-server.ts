@@ -75,7 +75,7 @@ export async function initialize(opts: {
   quiet?: boolean
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
   if (!process.env.NODE_ENV) {
-    // @ts-ignore not readonly
+    // @ts-expect-error not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 

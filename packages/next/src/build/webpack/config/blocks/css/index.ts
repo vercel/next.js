@@ -63,7 +63,7 @@ export async function lazyPostCSS(
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
       const postcss = require('postcss')
-      // @ts-ignore backwards compat
+      // @ts-expect-error backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
           let transformer = initializer(...args)
@@ -91,7 +91,6 @@ export async function lazyPostCSS(
         return creator
       }
 
-      // @ts-ignore backwards compat
       postcss.vendor = {
         /**
          * Returns the vendor prefix extracted from an input string.
@@ -595,7 +594,7 @@ export const css = curry(async function css(
       require('../../../plugins/mini-css-extract-plugin').default
     fns.push(
       plugin(
-        // @ts-ignore webpack 5 compat
+        // @ts-expect-error webpack 5 compat
         new MiniCssExtractPlugin({
           filename: ctx.isProduction
             ? 'static/css/[contenthash].css'
