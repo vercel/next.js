@@ -18,8 +18,6 @@ import isAnimated from 'next/dist/compiled/is-animated'
 import type { RequestInit } from 'node-fetch'
 
 const largeSize = 1080 // defaults defined in server/config.ts
-const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
-const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version`
 const animatedWarnText =
   'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
 
@@ -148,26 +146,6 @@ export function runTests(ctx) {
   afterAll(async () => {
     slowImageServer.stop()
   })
-
-  if (!isDev && ctx.isSharp && ctx.nextConfigImages) {
-    it('should handle custom sharp usage', async () => {
-      const res = await fetchViaHTTP(ctx.appPort, '/api/custom-sharp')
-
-      expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ success: true })
-      const traceFile = await fs.readJson(
-        join(
-          ctx.appDir,
-          '.next',
-          'server',
-          'pages',
-          'api',
-          'custom-sharp.js.nft.json'
-        )
-      )
-      expect(traceFile.files.some((file) => file.includes('sharp/'))).toBe(true)
-    })
-  }
 
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
@@ -407,26 +385,24 @@ export function runTests(ctx) {
     await expectWidth(res, ctx.w)
   })
 
-  if (!ctx.isOutdatedSharp) {
-    it('should downlevel avif format to jpeg for old Safari', async () => {
-      const accept =
-        'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
-      const query = { w: ctx.w, q: 74, url: '/test.avif' }
-      const opts = { headers: { accept } }
-      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('Content-Type')).toContain('image/jpeg')
-      expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
-      )
-      expect(res.headers.get('Vary')).toBe('Accept')
-      expect(res.headers.get('etag')).toBeTruthy()
-      expect(res.headers.get('Content-Disposition')).toBe(
-        `${contentDispositionType}; filename="test.jpeg"`
-      )
-      await expectWidth(res, ctx.w)
-    })
-  }
+  it('should downlevel avif format to jpeg for old Safari', async () => {
+    const accept =
+      'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
+    const query = { w: ctx.w, q: 74, url: '/test.avif' }
+    const opts = { headers: { accept } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jpeg')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.jpeg"`
+    )
+    await expectWidth(res, ctx.w)
+  })
 
   it('should fail when url is missing', async () => {
     const query = { w: ctx.w, q: 100 }
@@ -677,9 +653,7 @@ export function runTests(ctx) {
       expect(res.headers.get('Content-Disposition')).toBe(
         `${contentDispositionType}; filename="test.avif"`
       )
-      // TODO: upgrade "image-size" package to support AVIF
-      // See https://github.com/image-size/image-size/issues/348
-      //await expectWidth(res, ctx.w)
+      await expectWidth(res, ctx.w)
     })
 
     it('should compress avif smaller than webp at q=100', async () => {
@@ -1152,34 +1126,6 @@ export function runTests(ctx) {
     await expectWidth(res, 400)
   })
 
-  if (!ctx.isSharp) {
-    // this checks for specific color type output by squoosh
-    // which differs in sharp
-    it('should not change the color type of a png', async () => {
-      // https://github.com/vercel/next.js/issues/22929
-      // A grayscaled PNG with transparent pixels.
-      const query = { url: '/grayscale.png', w: largeSize, q: 80 }
-      const opts = { headers: { accept: 'image/png' } }
-      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('Content-Type')).toBe('image/png')
-      expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
-      )
-      expect(res.headers.get('Vary')).toBe('Accept')
-      expect(res.headers.get('Content-Disposition')).toBe(
-        `${contentDispositionType}; filename="grayscale.png"`
-      )
-
-      const png = await res.buffer()
-
-      // Read the color type byte (offset 9 + magic number 16).
-      // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
-      const colorType = png.readUIntBE(25, 1)
-      expect(colorType).toBe(4)
-    })
-  }
-
   it('should set cache-control to immutable for static images', async () => {
     if (!ctx.isDev) {
       const filename = 'test'
@@ -1287,34 +1233,96 @@ export function runTests(ctx) {
       expect(xCache).toEqual(['MISS', 'MISS', 'MISS'])
     })
   }
-
-  if (ctx.isDev || ctx.isSharp) {
-    it('should not have sharp missing warning', () => {
-      expect(ctx.nextOutput).not.toContain(sharpMissingText)
-    })
-  } else {
-    it('should have sharp missing warning', () => {
-      expect(ctx.nextOutput).toContain(sharpMissingText)
-    })
-  }
-
-  if (ctx.isSharp && ctx.isOutdatedSharp && avifEnabled) {
-    it('should have sharp outdated warning', () => {
-      expect(ctx.nextOutput).toContain(sharpOutdatedText)
-    })
-  } else {
-    it('should not have sharp outdated warning', () => {
-      expect(ctx.nextOutput).not.toContain(sharpOutdatedText)
-    })
-  }
 }
 
 export const setupTests = (ctx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
 
-  // only run one server config with outdated sharp
-  if (!ctx.isOutdatedSharp) {
-    describe('dev support w/o next.config.js', () => {
+  describe('dev support w/o next.config.js', () => {
+    if (ctx.nextConfigImages) {
+      // skip this test because it requires next.config.js
+      return
+    }
+    const size = 384 // defaults defined in server/config.ts
+    const curCtx = {
+      ...ctx,
+      w: size,
+      isDev: true,
+    }
+
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        experimental: {
+          outputFileTracingRoot: join(__dirname, '../../../..'),
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      curCtx.nextOutput = ''
+      curCtx.appPort = await findPort()
+      curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
+        onStderr(msg) {
+          curCtx.nextOutput += msg
+        },
+        cwd: curCtx.appDir,
+      })
+      await cleanImagesDir(ctx)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      if (curCtx.app) await killApp(curCtx.app)
+    })
+
+    runTests(curCtx)
+  })
+
+  describe('dev support with next.config.js', () => {
+    const size = 400
+    const curCtx = {
+      ...ctx,
+      w: size,
+      isDev: true,
+      nextConfigImages: {
+        domains: [
+          'localhost',
+          '127.0.0.1',
+          'example.com',
+          'assets.vercel.com',
+          'image-optimization-test.vercel.app',
+        ],
+        formats: ['image/avif', 'image/webp'],
+        deviceSizes: [largeSize],
+        imageSizes: [size],
+        ...ctx.nextConfigImages,
+      },
+    }
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: curCtx.nextConfigImages,
+        experimental: {
+          outputFileTracingRoot: join(__dirname, '../../../..'),
+        },
+      })
+      curCtx.nextOutput = ''
+      nextConfig.replace('{ /* replaceme */ }', json)
+      await cleanImagesDir(ctx)
+      curCtx.appPort = await findPort()
+      curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
+        onStderr(msg) {
+          curCtx.nextOutput += msg
+        },
+        cwd: curCtx.appDir,
+      })
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      if (curCtx.app) await killApp(curCtx.app)
+    })
+
+    runTests(curCtx)
+  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'Production Mode Server support w/o next.config.js',
+    () => {
       if (ctx.nextConfigImages) {
         // skip this test because it requires next.config.js
         return
@@ -1323,9 +1331,8 @@ export const setupTests = (ctx) => {
       const curCtx = {
         ...ctx,
         w: size,
-        isDev: true,
+        isDev: false,
       }
-
       beforeAll(async () => {
         const json = JSON.stringify({
           experimental: {
@@ -1334,67 +1341,12 @@ export const setupTests = (ctx) => {
         })
         nextConfig.replace('{ /* replaceme */ }', json)
         curCtx.nextOutput = ''
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
-          onStderr(msg) {
-            curCtx.nextOutput += msg
-          },
-          env: {
-            NEXT_SHARP_PATH: curCtx.isSharp
-              ? join(curCtx.appDir, 'node_modules', 'sharp')
-              : '',
-          },
-          cwd: curCtx.appDir,
-        })
-        await cleanImagesDir(ctx)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        if (curCtx.app) await killApp(curCtx.app)
-      })
-
-      runTests(curCtx)
-    })
-
-    describe('dev support with next.config.js', () => {
-      const size = 400
-      const curCtx = {
-        ...ctx,
-        w: size,
-        isDev: true,
-        nextConfigImages: {
-          domains: [
-            'localhost',
-            '127.0.0.1',
-            'example.com',
-            'assets.vercel.com',
-            'image-optimization-test.vercel.app',
-          ],
-          formats: ['image/avif', 'image/webp'],
-          deviceSizes: [largeSize],
-          imageSizes: [size],
-          ...ctx.nextConfigImages,
-        },
-      }
-      beforeAll(async () => {
-        const json = JSON.stringify({
-          images: curCtx.nextConfigImages,
-          experimental: {
-            outputFileTracingRoot: join(__dirname, '../../../..'),
-          },
-        })
-        curCtx.nextOutput = ''
-        nextConfig.replace('{ /* replaceme */ }', json)
+        await nextBuild(curCtx.appDir)
         await cleanImagesDir(ctx)
         curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
+        curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
           onStderr(msg) {
             curCtx.nextOutput += msg
-          },
-          env: {
-            NEXT_SHARP_PATH: curCtx.isSharp
-              ? join(curCtx.appDir, 'node_modules', 'sharp')
-              : '',
           },
           cwd: curCtx.appDir,
         })
@@ -1405,53 +1357,8 @@ export const setupTests = (ctx) => {
       })
 
       runTests(curCtx)
-    })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'Production Mode Server support w/o next.config.js',
-      () => {
-        if (ctx.nextConfigImages) {
-          // skip this test because it requires next.config.js
-          return
-        }
-        const size = 384 // defaults defined in server/config.ts
-        const curCtx = {
-          ...ctx,
-          w: size,
-          isDev: false,
-        }
-        beforeAll(async () => {
-          const json = JSON.stringify({
-            experimental: {
-              outputFileTracingRoot: join(__dirname, '../../../..'),
-            },
-          })
-          nextConfig.replace('{ /* replaceme */ }', json)
-          curCtx.nextOutput = ''
-          await nextBuild(curCtx.appDir)
-          await cleanImagesDir(ctx)
-          curCtx.appPort = await findPort()
-          curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
-            onStderr(msg) {
-              curCtx.nextOutput += msg
-            },
-            env: {
-              NEXT_SHARP_PATH: curCtx.isSharp
-                ? join(curCtx.appDir, 'node_modules', 'sharp')
-                : '',
-            },
-            cwd: curCtx.appDir,
-          })
-        })
-        afterAll(async () => {
-          nextConfig.restore()
-          if (curCtx.app) await killApp(curCtx.app)
-        })
-
-        runTests(curCtx)
-      }
-    )
-  }
-
+    }
+  )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'Production Mode Server support with next.config.js',
     () => {
@@ -1482,20 +1389,6 @@ export const setupTests = (ctx) => {
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
-
-        if (curCtx.isSharp) {
-          await fs.writeFile(
-            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js'),
-            `
-            import sharp from 'sharp'
-            export default function handler(req, res) {
-              console.log(sharp)
-              res.json({ success: true })
-            }
-          `
-          )
-        }
-
         await nextBuild(curCtx.appDir)
         await cleanImagesDir(ctx)
         curCtx.appPort = await findPort()
@@ -1503,21 +1396,11 @@ export const setupTests = (ctx) => {
           onStderr(msg) {
             curCtx.nextOutput += msg
           },
-          env: {
-            NEXT_SHARP_PATH: curCtx.isSharp
-              ? join(curCtx.appDir, 'node_modules', 'sharp')
-              : '',
-          },
           cwd: curCtx.appDir,
         })
       })
       afterAll(async () => {
         nextConfig.restore()
-        if (curCtx.isSharp) {
-          await fs.remove(
-            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js')
-          )
-        }
         if (curCtx.app) await killApp(curCtx.app)
       })
 
