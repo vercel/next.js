@@ -571,9 +571,7 @@ pub async fn load_next_js_template(
 
     // Update the relative imports to be absolute. This will update any relative
     // imports to be relative to the root of the `next` package.
-    let regex = lazy_regex::regex!(
-        "(?:from '(\\..*)'|from \"(\\..*)\"|import '(\\..*)'|import \"(\\..*)\")"
-    );
+    let regex = lazy_regex::regex!("(?:from '(\\..*)'|import '(\\..*)')");
 
     let mut count = 0;
     let mut content = replace_all(regex, &content, |caps| {
