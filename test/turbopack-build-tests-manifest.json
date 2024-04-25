@@ -11417,15 +11417,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/integration/import-attributes/test/index.test.js": {
-      "passed": ["import-attributes dev should handle json attributes"],
-      "failed": [
-        "production mode import-attributes prod should handle json attributes"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/integration/index-index/test/index.test.js": {
       "passed": [
         "nested index.js production mode should 404 on /index/index/index",
