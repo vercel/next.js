@@ -59,6 +59,7 @@ const parseNodeArgs = (args: string[]) => {
 /**
  * Tokenizes the arguments string into an array of strings, supporting quoted
  * values and escaped characters.
+ * Converted from: https://github.com/nodejs/node/blob/c29d53c5cfc63c5a876084e788d70c9e87bed880/src/node_options.cc#L1401
  *
  * @param input The arguments string to be tokenized.
  * @returns An array of strings with the tokenized arguments.
