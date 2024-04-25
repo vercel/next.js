@@ -329,6 +329,11 @@ export function createNextDescribe(
   options: Parameters<typeof createNext>[0] & {
     skipDeployment?: boolean
     dir?: string
+    /**
+     * If set to `true`, the Next.js instance won't be cleaned up
+     * between multiple tests in the same suite.
+     */
+    DO_NOT_USE_skipTestsIsolation?: boolean
   },
   fn: (context: {
     isNextDev: boolean
