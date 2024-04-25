@@ -186,6 +186,7 @@ import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import uploadTrace from '../trace/upload-trace'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -703,11 +704,13 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate',
+  traceUploadUrl: string | undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
 
+  let loadedConfig: NextConfigComplete | undefined
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
@@ -741,6 +744,7 @@ export default async function build(
             turborepoAccessTraceResult
           )
         )
+      loadedConfig = config
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
@@ -3442,5 +3446,15 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
+
+    if (traceUploadUrl && loadedConfig) {
+      uploadTrace({
+        traceUploadUrl,
+        mode: 'build',
+        projectDir: dir,
+        distDir: loadedConfig.distDir,
+        sync: true,
+      })
+    }
   }
 }

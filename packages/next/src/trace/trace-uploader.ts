@@ -12,7 +12,7 @@ import { Telemetry } from '../telemetry/storage'
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
 // it'll up uploaded to the trace server.
-const EVENT_FILTER = new Set([
+const DEV_EVENT_ALLOW = new Set([
   'client-hmr-latency',
   'hot-reloader',
   'webpack-invalid-client',
@@ -22,6 +22,35 @@ const EVENT_FILTER = new Set([
   'compile-path',
   'memory-usage',
   'server-restart-close-to-memory-threshold',
+])
+
+const BUILD_EVENT_ALLOW = new Set([
+  'next-build',
+  'webpack-compilation',
+  'run-webpack-compiler',
+  'create-entrypoints',
+  'server',
+  'next-trace-entrypoint-plugin',
+  'make',
+  'add-entry',
+  'seal',
+  'chunk-graph',
+  'optimize-modules',
+  'optimize-chunks',
+  'optimize',
+  'optimize-tree',
+  'optimize-chunk-modules',
+  'module-hash',
+  'emit',
+  'client',
+  'static-check',
+  'check-page',
+  'node-file-trace-build',
+  'static-generation',
+  'next-export',
+  'export-page',
+  'verify-typescript-setup',
+  'verify-and-lint',
 ])
 
 const {
@@ -107,7 +136,9 @@ interface TraceMetadata {
         // Always include root spans
         event.parentId === undefined ||
         shouldUploadFullTrace ||
-        EVENT_FILTER.has(event.name)
+        (mode === 'dev'
+          ? DEV_EVENT_ALLOW.has(event.name)
+          : BUILD_EVENT_ALLOW.has(event.name))
       ) {
         let trace = traces.get(event.traceId)
         if (trace === undefined) {
