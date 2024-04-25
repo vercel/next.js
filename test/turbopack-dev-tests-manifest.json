@@ -1161,7 +1161,6 @@
       "Error overlay - RSC build errors should error when PureComponent from react is used in server component",
       "Error overlay - RSC build errors should error when createContext from react is used in server component",
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
-      "Error overlay - RSC build errors should error when findDOMNode from react-dom is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
       "Error overlay - RSC build errors should error when page component export is not valid",
       "Error overlay - RSC build errors should error when page component export is not valid on initial load",
