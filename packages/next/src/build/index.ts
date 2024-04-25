@@ -2822,6 +2822,10 @@ export default async function build(
                   // normalize header values as initialHeaders
                   // must be Record<string, string>
                   for (const key of headerKeys) {
+                    // set-cookie is already handled - the middleware cookie setting case
+                    // isn't needed for the prerender manifest since it can't read cookies
+                    if (key === 'x-middleware-set-cookie') continue
+
                     let value = exportHeaders[key]
 
                     if (Array.isArray(value)) {

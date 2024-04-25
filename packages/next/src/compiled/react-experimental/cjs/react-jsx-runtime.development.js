@@ -103,12 +103,12 @@ var enableRenderableContext = false;
 // Alias __NEXT_MAJOR__ to true for easier skimming.
 // -----------------------------------------------------------------------------
 
-var __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+var __NEXT_MAJOR__ = true; // Removes legacy style context
 // as a normal prop instead of stripping it from the props object.
 // Passes `ref` as a normal prop instead of stripping it from the props object
 // during element creation.
 
-var enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+var enableRefAsProp = __NEXT_MAJOR__;
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
@@ -761,11 +761,9 @@ var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 var specialPropKeyWarningShown;
-var didWarnAboutStringRefs;
 var didWarnAboutElementRef;
 
 {
-  didWarnAboutStringRefs = {};
   didWarnAboutElementRef = {};
 }
 
@@ -797,27 +795,13 @@ function hasValidKey(config) {
   return config.key !== undefined;
 }
 
-function warnIfStringRefCannotBeAutoConverted(config, self) {
-  {
-    if (typeof config.ref === 'string' && ReactCurrentOwner.current && self && ReactCurrentOwner.current.stateNode !== self) {
-      var componentName = getComponentNameFromType(ReactCurrentOwner.current.type);
-
-      if (!didWarnAboutStringRefs[componentName]) {
-        error('Component "%s" contains the string ref "%s". ' + 'Support for string refs will be removed in a future major release. ' + 'This case cannot be automatically converted to an arrow function. ' + 'We ask you to manually fix this case by using useRef() or createRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-string-ref', getComponentNameFromType(ReactCurrentOwner.current.type), config.ref);
-
-        didWarnAboutStringRefs[componentName] = true;
-      }
-    }
-  }
-}
-
 function defineKeyPropWarningGetter(props, displayName) {
   {
     var warnAboutAccessingKey = function () {
       if (!specialPropKeyWarningShown) {
         specialPropKeyWarningShown = true;
 
-        error('%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://reactjs.org/link/special-props)', displayName);
+        error('%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://react.dev/link/special-props)', displayName);
       }
     };
 
@@ -1090,10 +1074,7 @@ function jsxDEV(type, config, maybeKey, isStaticChildren, source, self) {
       key = '' + config.key;
     }
 
-    if (hasValidRef(config)) {
-
-      warnIfStringRefCannotBeAutoConverted(config, self);
-    } // Remaining properties are added to a new props object
+    if (hasValidRef(config)) ; // Remaining properties are added to a new props object
 
 
     for (propName in config) {
@@ -1246,7 +1227,7 @@ function validateExplicitKey(element, parentType) {
 
     setCurrentlyValidatingElement(element);
 
-    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://reactjs.org/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
+    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
 
     setCurrentlyValidatingElement(null);
   }

@@ -19,7 +19,12 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
 window.console.error = (...args) => {
-  if (isNextRouterError(args[0])) {
+  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+  if (
+    process.env.NODE_ENV !== 'production'
+      ? isNextRouterError(args[1])
+      : isNextRouterError(args[0])
+  ) {
     return
   }
   origConsoleError.apply(window.console, args)
