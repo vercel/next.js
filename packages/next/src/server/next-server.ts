@@ -1580,6 +1580,7 @@ export default class NextNodeServer extends BaseServer<
           basePath: this.nextConfig.basePath,
           i18n: this.nextConfig.i18n,
           trailingSlash: this.nextConfig.trailingSlash,
+          experimental: this.nextConfig.experimental,
         },
         url: url,
         page,

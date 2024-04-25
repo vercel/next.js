@@ -19,6 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { normalizeNextQueryParam } from '../server-utils'
+import type { RenderOpts } from '../render'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -235,6 +236,7 @@ export async function adapter(
                   previewModeSigningKey: '',
                 },
                 waitUntil: event.waitUntil.bind(event),
+                experimental: params.request.nextConfig?.experimental,
               },
             },
             () => params.handler(request, event)

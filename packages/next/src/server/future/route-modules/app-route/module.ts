@@ -255,6 +255,7 @@ export class AppRouteRouteModule extends RouteModule<
       previewProps: context.prerenderManifest.preview,
       // @ts-expect-error TODO(after): fix the typing here
       waitUntil: context.renderOpts.waitUntil,
+      experimental: context.renderOpts.experimental,
     }
 
     // Get the context for the static generation.

@@ -559,6 +559,7 @@ export default abstract class Server<
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
         swrDelta: this.nextConfig.experimental.swrDelta,
+        after: this.nextConfig.experimental.after === true,
       },
     }
 
@@ -2332,7 +2333,10 @@ export default abstract class Server<
             prerenderManifest,
             renderOpts: {
               // App Route's cannot postpone, so don't enable it.
-              experimental: { ppr: false },
+              experimental: {
+                ppr: false,
+                after: renderOpts.experimental.after,
+              },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,

@@ -162,6 +162,7 @@ export interface RenderOptsPartial {
     ppr: boolean
     missingSuspenseWithCSRBailout: boolean
     swrDelta: SwrDelta | undefined
+    after: boolean
   }
   postponed?: string
   /**

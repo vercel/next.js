@@ -459,6 +459,11 @@ export interface ExperimentalConfig {
    * Set a default test runner to be used by `next experimental-test`.
    */
   defaultTestRunner?: SupportedTestRunners
+
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
 }
 
 export type ExportPathMap = {
@@ -947,6 +952,7 @@ export const defaultConfig: NextConfig = {
       dynamic: 30,
       static: 300,
     },
+    after: false,
   },
 }
 

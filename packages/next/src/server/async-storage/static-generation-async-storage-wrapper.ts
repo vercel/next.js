@@ -16,7 +16,11 @@ export type StaticGenerationContext = {
     fetchCache?: StaticGenerationStore['fetchCache']
     isServerAction?: boolean
     pendingWaitUntil?: Promise<any>
-    experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
+    experimental: {
+      ppr: boolean
+      missingSuspenseWithCSRBailout?: boolean
+      after: boolean
+    }
 
     /**
      * Fetch metrics attached in patch-fetch.ts
