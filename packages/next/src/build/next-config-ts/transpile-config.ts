@@ -1,18 +1,22 @@
+import type { CompilerOptions } from 'typescript'
 import type { Options as SWCOptions } from '@swc/core'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { transform } from '../swc'
 
-function resolveSWCOptions(cwd: string, tsConfig: any): SWCOptions {
-  const resolvedBaseUrl = join(cwd, tsConfig.compilerOptions?.baseUrl ?? '.')
+function resolveSWCOptions(
+  cwd: string,
+  compilerOptions: CompilerOptions
+): SWCOptions {
+  const resolvedBaseUrl = join(cwd, compilerOptions.baseUrl ?? '.')
   return {
     jsc: {
       target: 'es5',
       parser: {
         syntax: 'typescript',
       },
-      paths: tsConfig.compilerOptions?.paths,
+      paths: compilerOptions.paths,
       baseUrl: resolvedBaseUrl,
     },
     module: {
@@ -22,6 +26,30 @@ function resolveSWCOptions(cwd: string, tsConfig: any): SWCOptions {
   } satisfies SWCOptions
 }
 
+// since tsconfig allows JS comments (jsonc), strip them for JSON.parse
+function stripComments(str: string) {
+  return str.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) =>
+    g ? '' : m
+  )
+}
+
+async function lazilyGetTSConfig(cwd: string) {
+  let tsConfig: { compilerOptions: CompilerOptions }
+  try {
+    tsConfig = JSON.parse(
+      stripComments(await readFile(join(cwd, 'tsconfig.json'), 'utf8'))
+    )
+  } catch (error) {
+    // ignore if tsconfig.json does not exist
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
+    tsConfig = { compilerOptions: {} }
+  }
+
+  return tsConfig
+}
+
 export async function transpileConfig({
   nextConfigPath,
   cwd,
@@ -29,24 +57,27 @@ export async function transpileConfig({
   nextConfigPath: string
   cwd: string
 }) {
-  // TODO: reduce cost
-  let tsConfig: any
+  let hasRequire = false
   try {
-    tsConfig = JSON.parse(await readFile(join(cwd, 'tsconfig.json'), 'utf8'))
-  } catch {
-    tsConfig = {}
-  }
+    const { compilerOptions } = await lazilyGetTSConfig(cwd)
+    const swcOptions = resolveSWCOptions(cwd, compilerOptions)
 
-  const swcOptions = resolveSWCOptions(cwd, tsConfig)
-  registerHook(swcOptions)
+    const nextConfigString = await readFile(nextConfigPath, 'utf8')
+    const { code } = await transform(nextConfigString, swcOptions)
 
-  try {
-    const nextConfigStr = await readFile(nextConfigPath, 'utf8')
-    const { code } = await transform(nextConfigStr, swcOptions)
+    // register require hook only if require exists
+    if (code.includes('require(')) {
+      registerHook(swcOptions)
+      hasRequire = true
+    }
+
+    // filename / extension don't matter
     return requireFromString(code, join(cwd, 'next.config.compiled.js'))
   } catch (error) {
     throw error
   } finally {
-    deregisterHook()
+    if (hasRequire) {
+      deregisterHook()
+    }
   }
 }
