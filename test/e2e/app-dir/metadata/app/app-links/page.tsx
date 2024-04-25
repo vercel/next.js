@@ -4,6 +4,9 @@ export default function Page() {
 
 export const metadata = {
   appLinks: {
+    facebook: {
+      id: 'facebook_id',
+    },
     ios: {
       url: 'https://example.com/ios',
       app_store_id: 'app_store_id',
