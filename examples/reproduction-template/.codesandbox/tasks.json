@@ -11,7 +11,7 @@
       "command": "pnpm update next && pnpm dev",
       "runAtStart": true,
       "restartOn": {
-        "fork": true
+        "clone": true
       }
     }
   }
