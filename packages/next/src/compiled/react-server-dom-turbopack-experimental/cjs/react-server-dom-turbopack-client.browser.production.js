@@ -145,7 +145,7 @@ function preloadModule(metadata) {
 function requireModule(metadata) {
   let moduleExports = __turbopack_require__(metadata[ID]);
 
-  if (resolvedModuleData.async || isAsyncImport(metadata)) {
+  if (isAsyncImport(metadata)) {
     if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
       // This Promise should've been instrumented by preloadModule.
       moduleExports = moduleExports.value;
