@@ -1647,20 +1647,19 @@ export default abstract class Server<
   }
 
   private getWaitUntil(res: ServerResponse) {
-    const hasBuiltinWaitUntil =
+    let useBuiltinWaitUntil =
       process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
 
-    // TODO(after): this is a bit ugly
-    if (!hasBuiltinWaitUntil) {
-      const nodeWaitUntil = createNodeWaitUntil()
-      if (!isNodeNextResponse(res)) {
-        throw new Error('Invariant: Expected response to be a NodeNextResponse')
-      }
-      res.originalResponse.on('close', () => nodeWaitUntil.finish())
-      return nodeWaitUntil.waitUntil
+    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
+
+    if (!waitUntil) {
+      // TODO(after): this is a bit ugly
+      const standaloneWaitUntil = createNodeWaitUntil()
+      res.onClose(() => standaloneWaitUntil.finish())
+      waitUntil = standaloneWaitUntil.waitUntil
     }
 
-    return getBuiltinWaitUntil()
+    return waitUntil
   }
 
   private async renderImpl(

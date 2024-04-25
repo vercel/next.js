@@ -87,6 +87,8 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   private readonly sendPromise = new DetachedPromise<void>()
+  private readonly finishPromise = new DetachedPromise<void>()
+
   private _sent = false
   public send() {
     this.sendPromise.resolve()
@@ -101,10 +103,29 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     // If we haven't called `send` yet, wait for it to be called.
     if (!this.sent) await this.sendPromise.promise
 
-    return new Response(this.textBody ?? this.transformStream.readable, {
+    // TODO(after): this is VERY sketchy... but how else do we wait for the request to close?
+    let body = this.textBody ?? this.transformStream.readable
+    if (typeof body !== 'string') {
+      const [one, two] = this.transformStream.readable.tee()
+      body = one
+      this.waitForStreamEnd(two).then(() => this.finishPromise.resolve())
+    } else {
+      setTimeout(() => this.finishPromise.resolve())
+    }
+
+    return new Response(body, {
       headers: this.headers,
       status: this.statusCode,
       statusText: this.statusMessage,
     })
+  }
+
+  private async waitForStreamEnd(stream: ReadableStream) {
+    const reader = stream.getReader()
+    while (!(await reader.read()).done) {}
+  }
+
+  public onClose(callback: () => void) {
+    this.finishPromise.promise.then(callback)
   }
 }
