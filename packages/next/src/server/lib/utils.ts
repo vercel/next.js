@@ -199,7 +199,9 @@ export function formatNodeOptions(
       }
 
       if (value) {
-        return `--${key}=${value.includes(' ') ? `"${value}"` : value}`
+        return `--${key}=${
+          value.includes(' ') && !value.startsWith('"') ? `"${value}"` : value
+        }`
       }
 
       return null
