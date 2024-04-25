@@ -262,6 +262,7 @@ describe('Error overlay - RSC build errors', () => {
     'useSyncExternalStore',
     'useTransition',
     'useOptimistic',
+    'useActionState',
   ]
   for (const api of invalidReactServerApis) {
     it(`should error when ${api} from react is used in server component`, async () => {

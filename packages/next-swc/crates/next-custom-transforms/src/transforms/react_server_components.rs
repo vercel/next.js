@@ -506,6 +506,7 @@ impl ReactServerComponentValidator {
                         "useSyncExternalStore",
                         "useTransition",
                         "useOptimistic",
+                        "useActionState",
                     ],
                 ),
                 (

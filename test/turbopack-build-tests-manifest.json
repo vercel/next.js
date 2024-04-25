@@ -95,10 +95,10 @@
     "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
       "passed": [],
       "failed": [
-        "app-dir action useFormState should send the action to the provided permalink with form state when JS disabled",
-        "app-dir action useFormState should support hydrating the app from progressively enhanced form request",
-        "app-dir action useFormState should support submitting form state with JS",
-        "app-dir action useFormState should support submitting form state without JS"
+        "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
+        "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
+        "app-dir action useActionState should support submitting form state with JS",
+        "app-dir action useActionState should support submitting form state without JS"
       ],
       "pending": [],
       "flakey": [],
