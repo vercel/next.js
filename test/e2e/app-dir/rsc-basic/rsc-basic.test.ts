@@ -460,7 +460,8 @@ describe('app dir - rsc basics', () => {
       ? '-experimental-'
       : '-canary-'
 
-  it('should not use bundled react for pages with app', async () => {
+  // TODO: (React 19) During Beta, bundled and installed version match.
+  it.skip('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
     const promises = ssrPaths.map(async (pathname) => {
       const resPages$ = await next.render$(pathname)
