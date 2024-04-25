@@ -15,7 +15,6 @@ describe('unstable_after()', () => {
     env: {
       PERSISTENT_LOG_FILE: logFile,
     },
-    installCommand: 'pnpm i --offline', // TODO(after): local dev only!
   })
 
   beforeEach(() => Log.clearPersistentLog(logFile))
@@ -86,6 +85,28 @@ describe('unstable_after()', () => {
     })
   }
 
+  it('runs in middleware', async () => {
+    const requestId = `${Date.now()}`
+    const res = await next.fetch(
+      `/middleware/redirect-source?requestId=${requestId}`,
+      {
+        redirect: 'follow',
+        headers: {
+          cookie: 'testCookie=testValue',
+        },
+      }
+    )
+
+    expect(res.status).toBe(200)
+    const cliLogs = Log.readCliLogs(next.cliOutput)
+    expect(cliLogs).toContainEqual({
+      source: '[middleware] /middleware/redirect',
+      requestId,
+      cookies: { testCookie: 'testValue' },
+    })
+  })
+
+  it.todo('runs in getMetadata()')
   it.todo('runs after the response is sent')
   it.todo('does not allow modifying cookies')
   it.todo('errors when used in client modules')
