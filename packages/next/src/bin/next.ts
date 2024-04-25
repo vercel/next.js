@@ -10,6 +10,7 @@ import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { myParseInt } from '../server/lib/utils'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test.js'
 
 if (
   semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
@@ -264,9 +265,11 @@ program
     '--no-inline-config',
     'Prevents comments from changing config or rules.'
   )
-  .option(
-    '--report-unused-disable-directives',
-    'Adds reported errors for unused eslint-disable directives.'
+  .addOption(
+    new Option(
+      '--report-unused-disable-directives-severity <level>',
+      'Specify severity level for unused eslint-disable directives.'
+    ).choices(['error', 'off', 'warn'])
   )
   .option('--no-cache', 'Disables caching.')
   .option('--cache-location, <cacheLocation>', 'Specify a location for cache.')
@@ -344,6 +347,36 @@ program
       mod.nextTelemetry(options, arg)
     )
   )
-  .usage('[options]')
+
+program
+  .command('experimental-test')
+  .description(
+    `Execute \`next/experimental/testmode\` tests using a specified test runner. The test runner defaults to 'playwright' if the \`experimental.defaultTestRunner\` configuration option or the \`--test-runner\` option are not set.`
+  )
+  .argument(
+    '[directory]',
+    `A Next.js project directory to execute the test runner on. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .argument(
+    '[test-runner-args...]',
+    'Any additional arguments or options to pass down to the test runner `test` command.'
+  )
+  .option(
+    '--test-runner [test-runner]',
+    `Any supported test runner. Options: ${bold(
+      SUPPORTED_TEST_RUNNERS_LIST.join(', ')
+    )}. ${italic(
+      "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
+    )}`
+  )
+  .allowUnknownOption()
+  .action((directory, testRunnerArgs, options) => {
+    return import('../cli/next-test.js').then((mod) => {
+      mod.nextTest(directory, testRunnerArgs, options)
+    })
+  })
+  .usage('[directory] [options]')
 
 program.parse(process.argv)

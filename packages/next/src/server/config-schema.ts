@@ -4,10 +4,12 @@ import { VALID_LOADERS } from '../shared/lib/image-config'
 import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
-import type { SizeLimit } from '../../types'
+import type { SizeLimit } from '../types'
 import type {
   ExportPathMap,
   TurboLoaderItem,
+  TurboRuleConfigItem,
+  TurboRuleConfigItemOptions,
   TurboRuleConfigItemOrShortcut,
 } from './config-shared'
 import type {
@@ -16,6 +18,7 @@ import type {
   RouteHas,
   Redirect,
 } from '../lib/load-custom-routes'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -103,13 +106,23 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRule: zod.ZodType<TurboRuleConfigItemOrShortcut> = z.union([
-  z.array(zTurboLoaderItem),
+const zTurboRuleConfigItemOptions: zod.ZodType<TurboRuleConfigItemOptions> =
   z.object({
     loaders: z.array(zTurboLoaderItem),
-    as: z.string(),
-  }),
+    as: z.string().optional(),
+  })
+
+const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
+  z.literal(false),
+  z.record(
+    z.string(),
+    z.lazy(() => zTurboRuleConfigItem)
+  ),
+  zTurboRuleConfigItemOptions,
 ])
+
+const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut> =
+  z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -118,7 +131,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         canonicalBase: z.string().optional(),
       })
       .optional(),
-    analyticsId: z.string().optional(), // TODO: remove in the next major version
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     cacheHandler: z.string().min(1).optional(),
@@ -333,13 +345,28 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             ])
           )
           .optional(),
-        mdxRs: z.boolean().optional(),
+        // This is partial set of mdx-rs transform options we support, aligned
+        // with next_core::next_config::MdxRsOptions. Ensure both types are kept in sync.
+        mdxRs: z
+          .union([
+            z.boolean(),
+            z.object({
+              development: z.boolean().optional(),
+              jsxRuntime: z.string().optional(),
+              jsxImportSource: z.string().optional(),
+              providerImportSource: z.string().optional(),
+              mdxType: z.enum(['gfm', 'commonmark']).optional(),
+            }),
+          ])
+          .optional(),
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
-            rules: z.record(z.string(), zTurboRule).optional(),
+            rules: z
+              .record(z.string(), zTurboRuleConfigItemOrShortcut)
+              .optional(),
             resolveAlias: z
               .record(
                 z.string(),
@@ -390,6 +417,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
+        defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
       })
       .optional(),
     exportPathMap: z

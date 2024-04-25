@@ -120,7 +120,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isAppBuiltinNotFoundPage,
-  serializePageInfos,
+  collectRoutesUsingEdgeRuntime,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -185,6 +185,7 @@ import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -337,17 +338,41 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
 
 async function writePrerenderManifest(
   distDir: string,
-  manifest: Readonly<PrerenderManifest>
+  manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeEdgePartialPrerenderManifest(distDir, manifest)
+}
+
+async function writeEdgePartialPrerenderManifest(
+  distDir: string,
+  manifest: DeepReadonly<Partial<PrerenderManifest>>
+): Promise<void> {
+  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
+  // Use env vars in JS bundle and inject the actual vars to edge manifest.
+  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
+    {
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      version: manifest.version,
+      preview: {
+        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
+        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
+        previewModeEncryptionKey:
+          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+      },
+    }
   await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(
+      JSON.stringify(edgePartialPrerenderManifest)
+    )}`
   )
 }
 
 async function writeClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
+  prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
     buildId,
     distDir,
@@ -1220,17 +1245,7 @@ export default async function build(
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
-      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
-      const partialManifest: Partial<PrerenderManifest> = {
-        preview: previewProps,
-      }
-
-      await writeFileUtf8(
-        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-        `self.__PRERENDER_MANIFEST=${JSON.stringify(
-          JSON.stringify(partialManifest)
-        )}`
-      )
+      await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
@@ -1638,7 +1653,7 @@ export default async function build(
                   config,
                   distDir,
                   // Serialize Map as this is sent to the worker.
-                  pageInfos: serializePageInfos(new Map()),
+                  edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
                   staticPages: [],
                   hasSsrAmpPages: false,
                   buildTraceContext,
@@ -2375,7 +2390,7 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageInfos,
+          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
@@ -2971,12 +2986,13 @@ export default async function build(
                 if (i18n) {
                   if (additionalSsgFile) return
 
+                  const localeExt = page === '/' ? path.extname(file) : ''
+                  const relativeDestNoPages = relativeDest.slice(
+                    'pages/'.length
+                  )
+
                   for (const locale of i18n.locales) {
                     const curPath = `/${locale}${page === '/' ? '' : page}`
-                    const localeExt = page === '/' ? path.extname(file) : ''
-                    const relativeDestNoPages = relativeDest.slice(
-                      'pages/'.length
-                    )
 
                     if (isSsg && ssgNotFoundPaths.includes(curPath)) {
                       continue
@@ -3308,7 +3324,7 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        const prerenderManifest: Readonly<PrerenderManifest> = {
+        const prerenderManifest: DeepReadonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
@@ -3344,13 +3360,6 @@ export default async function build(
         }
         return Promise.reject(err)
       })
-
-      // TODO: remove in the next major version
-      if (config.analyticsId) {
-        Log.warn(
-          `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-        )
-      }
 
       if (Boolean(config.experimental.nextScriptWorkers)) {
         await nextBuildSpan

@@ -70,5 +70,52 @@ createNextDescribe(
         )
       ).toBe(false)
     })
+
+    it('should only include the imported identifier of CJS module in browser bundle', async () => {
+      const clientChunksDir = join(
+        next.testDir,
+        '.next',
+        'static',
+        'chunks',
+        'app',
+        'cjs-dep'
+      )
+
+      const chunkContents = fs
+        .readdirSync(clientChunksDir, {
+          withFileTypes: true,
+        })
+        .filter((dirent) => dirent.isFile())
+        .map((chunkDirent) =>
+          fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
+        )
+
+      expect(
+        chunkContents.some((content) => content.includes('cjs-client:default'))
+      ).toBe(true)
+      expect(
+        chunkContents.every((content) => content.includes('cjs-client:foo'))
+      ).toBe(false)
+    })
+
+    it('should able to resolve the client module entry with mixing rexports', async () => {
+      const $ = await next.render$('/client-reexport-index')
+
+      expect($('p').text()).toContain('client:mod-export-default')
+    })
+
+    it('should handle mixing namespace imports and named imports from client components', async () => {
+      const $ = await next.render$('/client-import-namespace')
+
+      // mixing namespace imports and named imports
+      expect($('#a').text()).toContain('client-mod:export-a')
+      expect($('#b').text()).toContain('client-mod:export-b')
+      expect($('#c').text()).toContain('client-mod:export-c')
+      expect($('#named-c').text()).toContain('client-mod:export-c')
+
+      // only named exports
+      expect($('#a2').text()).toContain('client-mod2:export-a')
+      expect($('#b2').text()).toContain('client-mod2:export-b')
+    })
   }
 )

@@ -1,5 +1,5 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime, SizeLimit } from '../../../types'
+import type { ServerRuntime, SizeLimit } from '../../types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
@@ -7,6 +7,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -126,14 +127,14 @@ export interface RenderOptsPartial {
   buildId: string
   basePath: string
   trailingSlash: boolean
-  clientReferenceManifest?: ClientReferenceManifest
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
-  nextFontManifest?: NextFontManifest
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean

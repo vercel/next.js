@@ -163,7 +163,13 @@ function trackFetchMetric(
   staticGenerationStore: StaticGenerationStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
-  if (!staticGenerationStore) return
+  if (
+    !staticGenerationStore ||
+    staticGenerationStore.requestEndedState?.ended ||
+    process.env.NODE_ENV !== 'development'
+  ) {
+    return
+  }
   staticGenerationStore.fetchMetrics ??= []
 
   const dedupeFields = ['url', 'status', 'method'] as const
@@ -181,6 +187,25 @@ function trackFetchMetric(
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
   })
+
+  // only store top 10 metrics to avoid storing too many
+  if (staticGenerationStore.fetchMetrics.length > 10) {
+    // sort slowest first as these should be highlighted
+    staticGenerationStore.fetchMetrics.sort((a, b) => {
+      const aDur = a.end - a.start
+      const bDur = b.end - b.start
+
+      if (aDur < bDur) {
+        return 1
+      } else if (aDur > bDur) {
+        return -1
+      }
+      return 0
+    })
+    // now grab top 10
+    staticGenerationStore.fetchMetrics =
+      staticGenerationStore.fetchMetrics.slice(0, 10)
+  }
 }
 
 interface PatchableModule {
@@ -310,7 +335,13 @@ function createPatchedFetcher(
           _cache === 'no-cache' ||
           _cache === 'no-store' ||
           fetchCacheMode === 'force-no-store' ||
-          fetchCacheMode === 'only-no-store'
+          fetchCacheMode === 'only-no-store' ||
+          // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
+          // we shouldn't consider caching the fetch. This is because the `dynamic` cache
+          // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
+          // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
+          // other configurations.
+          (!fetchCacheMode && staticGenerationStore.forceDynamic)
         ) {
           curRevalidate = 0
         }
@@ -662,6 +693,7 @@ function createPatchedFetcher(
             const err = new DynamicServerError(dynamicUsageReason)
             staticGenerationStore.dynamicUsageErr = err
             staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+            throw err
           }
 
           const hasNextConfig = 'next' in init
@@ -689,6 +721,7 @@ function createPatchedFetcher(
               const err = new DynamicServerError(dynamicUsageReason)
               staticGenerationStore.dynamicUsageErr = err
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              throw err
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {

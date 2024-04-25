@@ -32,6 +32,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import type ws from 'next/dist/compiled/ws'
+import isInternal from '../../shared/lib/is-internal'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -41,7 +42,7 @@ export async function getTurbopackJsConfig(
   return jsConfig ?? { compilerOptions: {} }
 }
 
-class ModuleBuildError extends Error {}
+export class ModuleBuildError extends Error {}
 
 /**
  * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
@@ -115,7 +116,12 @@ export function formatIssue(issue: Issue) {
   }
   message += '\n'
 
-  if (source?.range && source.source.content) {
+  if (
+    source?.range &&
+    source.source.content &&
+    // ignore Next.js/React internals, as these can often be huge bundled files.
+    !isInternal(filePath)
+  ) {
     const { start, end } = source.range
     const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
 
