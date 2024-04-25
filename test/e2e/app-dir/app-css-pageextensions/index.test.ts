@@ -1,8 +1,7 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'app dir - css with pageextensions',
-  {
+describe('app dir - css with pageextensions', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: {
@@ -11,19 +10,22 @@ createNextDescribe(
       'react-dom': 'latest',
       sass: 'latest',
     },
-  },
-  ({ next }) => {
-    describe('css support with pageextensions', () => {
-      describe('page in app directory with pageextention, css should work', () => {
-        it('should support global css inside layout', async () => {
-          const browser = await next.browser('/css-pageextensions')
-          expect(
-            await browser.eval(
-              `window.getComputedStyle(document.querySelector('h1')).color`
-            )
-          ).toBe('rgb(255, 0, 0)')
-        })
+  })
+
+  if (skipped) {
+    return
+  }
+
+  describe('css support with pageextensions', () => {
+    describe('page in app directory with pageextention, css should work', () => {
+      it('should support global css inside layout', async () => {
+        const browser = await next.browser('/css-pageextensions')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
       })
     })
-  }
-)
+  })
+})
