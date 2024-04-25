@@ -1,12 +1,27 @@
 import {
   getFormattedNodeOptionsWithoutInspect,
   getParsedDebugAddress,
+  formatNodeOptions,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
 
 afterAll(() => {
   process.env.NODE_OPTIONS = originalNodeOptions
+})
+
+describe('formatNodeOptions', () => {
+  it('wraps values with spaces in quotes', () => {
+    const result = formatNodeOptions({
+      spaces: 'thing with spaces',
+      spacesAndQuotes: 'thing with "spaces"',
+      normal: '1234',
+    })
+
+    expect(result).toBe(
+      '--spaces="thing with spaces" --spacesAndQuotes="thing with \\"spaces\\"" --normal=1234'
+    )
+  })
 })
 
 describe('getParsedDebugAddress', () => {
@@ -36,6 +51,16 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
     const result = getFormattedNodeOptionsWithoutInspect()
 
     expect(result).toBe('--other')
+  })
+
+  it('handles options with spaces', () => {
+    process.env.NODE_OPTIONS =
+      '--other --inspect --additional --spaces "/some/path with spaces"'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe(
+      '--other --additional --spaces="/some/path with spaces"'
+    )
   })
 
   it('removes --inspect option with parameters', () => {

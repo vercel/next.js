@@ -11,82 +11,12 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
-// Copied from https://github.com/mccormicka/string-argv/blob/77e154e/index.ts
-/**
- * The MIT License (MIT)
-
-  Copyright 2014 Anthony McCormick
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-  SOFTWARE.
- */
-function parseArgsStringToArgv(
-  value: string,
-  env?: string,
-  file?: string
-): string[] {
-  // ([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*) Matches nested quotes until the first space outside of quotes
-
-  // [^\s'"]+ or Match if not a space ' or "
-
-  // (['"])([^\5]*?)\5 or Match "quoted text" without quotes
-  // `\3` and `\5` are a backreference to the quote style (' or ") captured
-  const myRegexp =
-    /([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*)|[^\s'"]+|(['"])([^\5]*?)\5/gi
-  const myString = value
-  const myArray: string[] = []
-  if (env) {
-    myArray.push(env)
-  }
-  if (file) {
-    myArray.push(file)
-  }
-  let match: RegExpExecArray | null
-  do {
-    // Each call to exec returns the next regex match as an array
-    match = myRegexp.exec(myString)
-    if (match !== null) {
-      // Index 1 in the array is the captured group if it exists
-      // Index 0 is the matched text, which we use if no captured group exists
-      myArray.push(firstString(match[1], match[6], match[0])!)
-    }
-  } while (match !== null)
-
-  return myArray
-}
-
-// Accepts any number of arguments, and returns the first one that is a string
-// (even an empty string)
-function firstString(...args: Array<any>): string | undefined {
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i]
-    if (typeof arg === 'string') {
-      return arg
-    }
-  }
-}
-
 const parseNodeArgs = (args: string[]) => {
   const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
 
   // For the `NODE_OPTIONS`, we support arguments with values without the `=`
   // sign. We need to parse them manually.
-  let found = null
+  let orphan = null
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
 
@@ -94,24 +24,33 @@ const parseNodeArgs = (args: string[]) => {
       break
     }
 
-    // If we haven't found a possibly orphaned option, we need to look for one.
-    if (!found) {
-      if (token.kind === 'option' && typeof token.value === 'undefined') {
-        found = token
-      }
-
+    // When we encounter an option, if it's value is undefined, we should check
+    // to see if the following tokens are positional parameters. If they are,
+    // then the option is orphaned, and we can assign it.
+    if (token.kind === 'option') {
+      orphan = typeof token.value === 'undefined' ? token : null
       continue
     }
 
-    // If the next token isn't a positional value, then it's truly orphaned.
-    if (token.kind !== 'positional' || !token.value) {
-      found = null
+    // If the token isn't a positional one, then we can't assign it to the found
+    // orphaned option.
+    if (token.kind !== 'positional') {
+      orphan = null
       continue
     }
 
-    // We found an orphaned option. Let's add it to the values.
-    values[found.name] = token.value
-    found = null
+    // If we don't have an orphan, then we can skip this token.
+    if (!orphan) {
+      continue
+    }
+
+    // If the token is a positional one, and it has a value, so add it to the
+    // values object. If it already exists, append it with a space.
+    if (orphan.name in values && typeof values[orphan.name] === 'string') {
+      values[orphan.name] += ` ${token.value}`
+    } else {
+      values[orphan.name] = token.value
+    }
   }
 
   return values
@@ -124,7 +63,7 @@ const parseNodeArgs = (args: string[]) => {
  * @returns An array of strings with the node options.
  */
 const getNodeOptionsArgs = () =>
-  parseArgsStringToArgv(process.env.NODE_OPTIONS || '')
+  process.env.NODE_OPTIONS?.split(' ').map((arg) => arg.trim()) ?? []
 
 /**
  * The debug address is in the form of `[host:]port`. The host is optional.
@@ -200,7 +139,11 @@ export function formatNodeOptions(
 
       if (value) {
         return `--${key}=${
-          value.includes(' ') && !value.startsWith('"') ? `"${value}"` : value
+          // Values with spaces need to be quoted. We use JSON.stringify to
+          // also escape any nested quotes.
+          value.includes(' ') && !value.startsWith('"')
+            ? JSON.stringify(value)
+            : value
         }`
       }
 
