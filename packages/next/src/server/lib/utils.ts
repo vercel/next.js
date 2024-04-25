@@ -11,6 +11,76 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
+// Copied from https://github.com/mccormicka/string-argv/blob/77e154e/index.ts
+/**
+ * The MIT License (MIT)
+
+  Copyright 2014 Anthony McCormick
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+ */
+function parseArgsStringToArgv(
+  value: string,
+  env?: string,
+  file?: string
+): string[] {
+  // ([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*) Matches nested quotes until the first space outside of quotes
+
+  // [^\s'"]+ or Match if not a space ' or "
+
+  // (['"])([^\5]*?)\5 or Match "quoted text" without quotes
+  // `\3` and `\5` are a backreference to the quote style (' or ") captured
+  const myRegexp =
+    /([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*)|[^\s'"]+|(['"])([^\5]*?)\5/gi
+  const myString = value
+  const myArray: string[] = []
+  if (env) {
+    myArray.push(env)
+  }
+  if (file) {
+    myArray.push(file)
+  }
+  let match: RegExpExecArray | null
+  do {
+    // Each call to exec returns the next regex match as an array
+    match = myRegexp.exec(myString)
+    if (match !== null) {
+      // Index 1 in the array is the captured group if it exists
+      // Index 0 is the matched text, which we use if no captured group exists
+      myArray.push(firstString(match[1], match[6], match[0])!)
+    }
+  } while (match !== null)
+
+  return myArray
+}
+
+// Accepts any number of arguments, and returns the first one that is a string
+// (even an empty string)
+function firstString(...args: Array<any>): string | undefined {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (typeof arg === 'string') {
+      return arg
+    }
+  }
+}
+
 const parseNodeArgs = (args: string[]) => {
   const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
 
@@ -54,7 +124,7 @@ const parseNodeArgs = (args: string[]) => {
  * @returns An array of strings with the node options.
  */
 const getNodeOptionsArgs = () =>
-  process.env.NODE_OPTIONS?.split(' ').map((arg) => arg.trim()) ?? []
+  parseArgsStringToArgv(process.env.NODE_OPTIONS || '')
 
 /**
  * The debug address is in the form of `[host:]port`. The host is optional.
@@ -129,7 +199,7 @@ export function formatNodeOptions(
       }
 
       if (value) {
-        return `--${key}=${value}`
+        return `--${key}=${value.includes(' ') ? `"${value}"` : value}`
       }
 
       return null
