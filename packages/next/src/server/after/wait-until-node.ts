@@ -1,5 +1,5 @@
 /** A polyfill of waitUntil for non-serverless environments */
-export function createNodeWaitUntil() {
+export function createStandaloneWaitUntil() {
   const promises = new Set<Promise<unknown>>()
 
   const waitUntil = (promise: Promise<unknown>) => {
