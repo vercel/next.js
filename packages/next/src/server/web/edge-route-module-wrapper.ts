@@ -104,6 +104,10 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
+        experimental: {
+          // @ts-expect-error TODO(after): not sure what to do about this
+          after: undefined,
+        },
       },
     }
 

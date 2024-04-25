@@ -1391,6 +1391,9 @@ export async function buildAppStaticPaths({
         incrementalCache,
         supportsDynamicHTML: true,
         isRevalidate: false,
+        experimental: {
+          after: false,
+        },
       },
     },
     async () => {

@@ -227,13 +227,13 @@ export async function adapter(
                 onUpdateCookies: (cookies) => {
                   cookiesFromResponse = cookies
                 },
-                // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
                 previewProps: prerenderManifest?.preview || {
                   previewModeId: 'development-id',
                   previewModeEncryptionKey: '',
                   previewModeSigningKey: '',
                 },
                 waitUntil: event.waitUntil.bind(event),
+                // @ts-expect-error TODO(after): not sure what to do about this
                 experimental: params.request.nextConfig?.experimental,
               },
             },
