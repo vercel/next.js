@@ -87,7 +87,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   private readonly sendPromise = new DetachedPromise<void>()
-  private readonly finishPromise = new DetachedPromise<void>()
+  private closeEmitter = createOneShotEmitter()
 
   private _sent = false
   public send() {
@@ -103,14 +103,19 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     // If we haven't called `send` yet, wait for it to be called.
     if (!this.sent) await this.sendPromise.promise
 
-    // TODO(after): this is VERY sketchy... but how else do we wait for the request to close?
     let body = this.textBody ?? this.transformStream.readable
-    if (typeof body !== 'string') {
-      const [one, two] = this.transformStream.readable.tee()
-      body = one
-      this.waitForStreamEnd(two).then(() => this.finishPromise.resolve())
-    } else {
-      setTimeout(() => this.finishPromise.resolve())
+
+    // TODO(after): this is VERY sketchy... but how else do we wait for the request to close?
+
+    if (this.closeEmitter.hasSubscribers()) {
+      // only tee() the stream if we have an someone listening for `onClose`.
+      if (typeof body !== 'string') {
+        const [one, two] = this.transformStream.readable.tee()
+        body = one
+        this.waitForStreamEnd(two).then(() => this.closeEmitter.emit())
+      } else {
+        setTimeout(() => this.closeEmitter.emit())
+      }
     }
 
     return new Response(body, {
@@ -126,6 +131,36 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   public onClose(callback: () => void) {
-    this.finishPromise.promise.then(callback)
+    if (this.sent) {
+      throw new Error('Cannot call onClose on an request that is already sent')
+    }
+    this.closeEmitter.subscribe(callback)
+  }
+}
+
+function createOneShotEmitter() {
+  let ctrl: DetachedPromise<void> | undefined = undefined
+  let done = false
+  return {
+    hasSubscribers() {
+      return !!ctrl
+    },
+    subscribe(callback: () => void) {
+      if (done) {
+        throw new Error(
+          'Cannot subscribe to an OneShotEmitter that already fired'
+        )
+      }
+      if (!ctrl) {
+        ctrl = new DetachedPromise<void>()
+      }
+      ctrl.promise.then(callback)
+    },
+    emit() {
+      if (ctrl) {
+        ctrl.resolve()
+        done = true
+      }
+    },
   }
 }
