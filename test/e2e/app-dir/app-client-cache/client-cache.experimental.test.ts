@@ -12,6 +12,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       env: {
         NEXT_TELEMETRY_DEBUG: '1',
       },
+      DO_NOT_USE_skipTestsIsolation: true,
     })
 
     if (isNextDev) {
@@ -249,6 +250,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       env: {
         NEXT_TELEMETRY_DEBUG: '1',
       },
+      DO_NOT_USE_skipTestsIsolation: true,
     })
 
     if (isNextDev) {
@@ -367,6 +369,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       env: {
         NEXT_TELEMETRY_DEBUG: '1',
       },
+      DO_NOT_USE_skipTestsIsolation: true,
     })
 
     // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is fresh on each navigation

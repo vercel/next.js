@@ -6,7 +6,11 @@ import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 describe('app-fetch-deduping', () => {
   if (isNextStart) {
     describe('during static generation', () => {
-      const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+        DO_NOT_USE_skipTestsIsolation: true,
+      })
       let externalServerPort: number
       let externalServer: http.Server
       let requests = []
@@ -51,7 +55,10 @@ describe('app-fetch-deduping', () => {
     })
   } else if (isNextDev) {
     describe('during next dev', () => {
-      const { next } = nextTestSetup({ files: __dirname })
+      const { next } = nextTestSetup({
+        files: __dirname,
+        DO_NOT_USE_skipTestsIsolation: true,
+      })
       function invocation(cliOutput: string): number {
         return cliOutput.match(/Route Handler invoked/g).length
       }

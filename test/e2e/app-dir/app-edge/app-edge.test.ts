@@ -6,6 +6,7 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next }) => {
     it('should handle edge only routes', async () => {

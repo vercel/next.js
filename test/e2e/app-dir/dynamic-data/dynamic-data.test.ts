@@ -9,6 +9,7 @@ createNextDescribe(
     files: __dirname + '/fixtures/main',
     skipStart: true,
     skipDeployment: true,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next, isNextDev }) => {
     beforeAll(async () => {
@@ -178,6 +179,7 @@ createNextDescribe(
   {
     files: __dirname + '/fixtures/require-static',
     skipStart: true,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next, isNextDev, isNextDeploy }) => {
     if (isNextDeploy) {
@@ -254,6 +256,7 @@ createNextDescribe(
   {
     files: __dirname + '/fixtures/cache-scoped',
     skipStart: true,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next, isNextDev, isNextDeploy }) => {
     if (isNextDeploy) {

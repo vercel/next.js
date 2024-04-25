@@ -17,6 +17,7 @@ if (!(globalThis as any).isNextStart) {
     {
       files: __dirname,
       skipStart: true,
+      DO_NOT_USE_skipTestsIsolation: true,
     },
     ({ next }) => {
       beforeAll(async () => {

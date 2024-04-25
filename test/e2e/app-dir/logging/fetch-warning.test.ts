@@ -6,6 +6,7 @@ createNextDescribe(
   {
     skipDeployment: true,
     files: __dirname,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next }) => {
     beforeAll(async () => {
