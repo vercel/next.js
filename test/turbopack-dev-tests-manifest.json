@@ -1964,6 +1964,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/internal-traces/internal-traces.test.ts": {
+    "passed": [
+      "internal traces should not write long internal traces to stdio"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/jsconfig-path-reloading/index.test.ts": {
     "passed": [
       "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
@@ -2502,7 +2511,10 @@
   },
   "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
     "passed": [
-      "app dir client cache semantics (experimental staleTimes) dynamic: 0 should skip dev",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0 should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0 without a loading boundary should get fresh data on every subsequent navigation",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0, static: 0 should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0, static: 0 without a loading boundary should get fresh data on every subsequent navigation",
       "app dir client cache semantics (experimental staleTimes) static: 180 should skip dev"
     ],
     "failed": [],
@@ -2511,7 +2523,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
-    "passed": ["app dir client cache semantics should skip dev"],
+    "passed": [
+      "app dir client cache semantics should renew the 30s cache once the data is revalidated"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3002,6 +3016,7 @@
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
+      "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
@@ -3083,6 +3098,7 @@
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
+      "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
@@ -3330,10 +3346,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3782,6 +3798,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/interception-dynamic-segment-middleware/interception-dynamic-segment-middleware.test.ts": {
+    "passed": [
+      "interception-dynamic-segment-middleware should work when interception route is paired with a dynamic segment & middleware"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/interception-dynamic-segment/interception-dynamic-segment.test.ts": {
     "passed": [
       "interception-dynamic-segment should work when interception route is paired with a dynamic segment"
@@ -3915,6 +3940,7 @@
       "mdx with-mdx-rs app directory should work in initial html with mdx import",
       "mdx with-mdx-rs app directory should work using browser",
       "mdx with-mdx-rs app directory should work using browser with mdx import",
+      "mdx with-mdx-rs app directory should work with next/image",
       "mdx with-mdx-rs pages directory should allow overriding components",
       "mdx with-mdx-rs pages directory should work in initial html",
       "mdx with-mdx-rs pages directory should work in initial html with mdx import",
@@ -4326,6 +4352,7 @@
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
@@ -4444,6 +4471,8 @@
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
       "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/dynamic/foobar)",
+      "parallel-routes-revalidation should not trigger the intercepted route when lazy-fetching missing data",
+      "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
     "failed": [],
@@ -6728,10 +6757,10 @@
   },
   "test/e2e/next-font/with-proxy.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "next/font/google with proxy should use a proxy agent when proxy environment variable is set"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6790,6 +6819,20 @@
       "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through children is modified by Partytown to execute on a worker thread",
       "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-test/next-test.test.ts": {
+    "passed": [
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-js",
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-ts",
+      "next test first time setup should fail if next.js config is missing experimental#testProxy",
+      "next test should execute playwright tests",
+      "next test should pass args to test runner",
+      "next test test runner validation should validate configured/specified test runner"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8428,7 +8471,8 @@
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
       "create-next-app should not create if the target directory is not empty",
-      "create-next-app should not create if the target directory is not writable"
+      "create-next-app should not create if the target directory is not writable",
+      "create-next-app should not install dependencies if --skip-install"
     ],
     "failed": [],
     "pending": [],
@@ -8962,6 +9006,7 @@
       "Custom routes development mode should handle chained redirects successfully",
       "Custom routes development mode should handle chained rewrites successfully",
       "Custom routes development mode should handle encoded value in the pathname correctly",
+      "Custom routes development mode should handle external beforeFiles rewrite correctly",
       "Custom routes development mode should handle has query encoding correctly",
       "Custom routes development mode should handle named regex parameters with multi-match successfully",
       "Custom routes development mode should handle one-to-one rewrite successfully",
@@ -9046,9 +9091,7 @@
       "Custom routes should load custom routes when only one type is used development mode should work with just redirects",
       "Custom routes should load custom routes when only one type is used development mode should work with just rewrites"
     ],
-    "failed": [
-      "Custom routes development mode should handle external beforeFiles rewrite correctly"
-    ],
+    "failed": [],
     "pending": [
       "Custom routes production mode should add refresh header for 308 redirect",
       "Custom routes production mode should allow params in query for redirect",
@@ -14843,7 +14886,8 @@
     "passed": [
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with component correctly",
-      "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly"
+      "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly",
+      "MDX-rs Configuration MDX-rs Plugin support with mdx transform options should render an MDX page correctly"
     ],
     "failed": [],
     "pending": [],

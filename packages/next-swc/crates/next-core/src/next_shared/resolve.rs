@@ -78,6 +78,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
             module,
             path,
             query: _,
+            fragment: _,
         } = &*request.await?
         {
             // Warn if the package is known not to be supported by Turbopack at the moment.
@@ -419,6 +420,7 @@ impl ResolvePlugin for ModuleFeatureReportResolvePlugin {
             module,
             path,
             query: _,
+            fragment: _,
         } = &*request.await?
         {
             let feature_module = FEATURE_MODULES.get(module.as_str());

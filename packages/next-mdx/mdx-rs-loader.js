@@ -20,6 +20,38 @@ const own = {}.hasOwnProperty
 const marker = {}
 const cache = new WeakMap()
 
+/*
+ * From next.config.js's mdxRs option, construct an actual option object that mdxRs compiler accepts.
+ */
+function coereceMdxTransformOptions(options = {}) {
+  const { mdxType, ...restOptions } = options
+
+  let parse = undefined
+  switch (mdxType) {
+    case 'gfm':
+      parse = {
+        constructs: {
+          gfmAutolinkLiteral: true,
+          gfmFootnoteDefinition: true,
+          gfmLabelStartFootnote: true,
+          gfmStrikethrough: true,
+          gfmTable: true,
+          gfmTaskListItem: true,
+        },
+      }
+      break
+    case 'commonMark':
+    default:
+      parse = { gfmStrikethroughSingleTilde: true, mathTextSingleDollar: true }
+      break
+  }
+
+  return {
+    ...restOptions,
+    parse,
+  }
+}
+
 /**
  * A webpack loader for mdx-rs. This is largely based on existing @mdx-js/loader,
  * replaces internal compilation logic to use mdx-rs instead.
@@ -41,7 +73,10 @@ function loader(value, bindings, callback) {
   let process = map.get(hash)
 
   if (!process) {
-    process = createFormatAwareProcessors(bindings, config).compile
+    process = createFormatAwareProcessors(
+      bindings,
+      coereceMdxTransformOptions(config)
+    ).compile
     map.set(hash, process)
   }
 

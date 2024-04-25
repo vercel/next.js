@@ -819,6 +819,7 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
+  const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
@@ -839,6 +840,8 @@ export default async function getBaseWebpackConfig(
       return excludePath.includes('node_modules')
     },
   }
+
+  const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1326,7 +1329,7 @@ export default async function getBaseWebpackConfig(
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
                   and: [
-                    codeCondition.test,
+                    aliasCodeConditionTest,
                     {
                       not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
@@ -1388,7 +1391,7 @@ export default async function getBaseWebpackConfig(
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
                       and: [
-                        codeCondition.test,
+                        aliasCodeConditionTest,
                         {
                           not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                         },
@@ -1405,7 +1408,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    test: codeCondition.test,
+                    test: aliasCodeConditionTest,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
@@ -1418,7 +1421,7 @@ export default async function getBaseWebpackConfig(
                 ],
               },
               {
-                test: codeCondition.test,
+                test: aliasCodeConditionTest,
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
