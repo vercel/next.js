@@ -1,13 +1,9 @@
 import type { WaitUntilFn } from './shared'
 
-export function getBuiltinWaitUntil(): WaitUntilFn {
+export function getBuiltinWaitUntil(): WaitUntilFn | undefined {
   const _globalThis = globalThis as GlobalThisWithRequestContext
   const ctx = _globalThis[INTERNAL_REQUEST_CONTEXT_SYMBOL]
-  const waitUntilImpl = ctx?.get()?.waitUntil
-  if (!waitUntilImpl) {
-    throw new Error(`Could not access waitUntil from '@vercel/request-context'`)
-  }
-  return waitUntilImpl
+  return ctx?.get()?.waitUntil
 }
 
 const INTERNAL_REQUEST_CONTEXT_SYMBOL = Symbol.for('@vercel/request-context')
