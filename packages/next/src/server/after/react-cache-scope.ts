@@ -72,7 +72,7 @@ export function patchCacheScopeSupportIntoReact(React: typeof import('react')) {
   const ReactCurrentCache = getReactCurrentCacheRef(React)
   if (ReactCurrentCache.current) {
     patchReactCache(ReactCurrentCache.current)
-  } else {
+  } else if (!ReactCurrentCache[HAS_CACHE_SCOPE]) {
     let current: (typeof ReactCurrentCache)['current'] = null
     Object.defineProperty(ReactCurrentCache, 'current', {
       get: () => current,
@@ -87,6 +87,7 @@ export function patchCacheScopeSupportIntoReact(React: typeof import('react')) {
         current = maybeDispatcher
       },
     })
+    ReactCurrentCache[HAS_CACHE_SCOPE] = true
   }
 }
 
@@ -118,6 +119,7 @@ type ReactServerInternalProperties =
 type ReactServerSharedInternalsOld = {
   __SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: {
     ReactCurrentCache: {
+      [HAS_CACHE_SCOPE]?: boolean
       current: CacheDispatcher | null
     }
   }
@@ -126,6 +128,7 @@ type ReactServerSharedInternalsOld = {
 type ReactServerSharedInternalsNew = {
   __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
     C: {
+      [HAS_CACHE_SCOPE]?: boolean
       current: CacheDispatcher | null
     }
   }

@@ -234,6 +234,7 @@ export async function adapter(
                   previewModeSigningKey: '',
                 },
                 waitUntil: event.waitUntil.bind(event),
+                experimental: params.request.nextConfig?.experimental,
               },
             },
             () => params.handler(request, event)

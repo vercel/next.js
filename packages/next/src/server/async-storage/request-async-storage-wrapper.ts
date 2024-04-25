@@ -20,7 +20,11 @@ import {
 import type { ResponseCookies } from '../web/spec-extension/cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
-import { createAfter, type AfterContext } from '../after/after'
+import {
+  createAfterContext,
+  createDisabledAfterContext,
+  type AfterContext,
+} from '../after/after'
 import type { LoadedRenderOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -47,10 +51,26 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
+type WrapperRenderOpts = RenderOpts &
+  Partial<Pick<LoadedRenderOpts, 'waitUntil'>> &
+  RenderOptsForRouteHandlerPartial &
+  RenderOptsForWebServerPartial
+
+type RenderOptsForRouteHandlerPartial = Partial<
+  Pick<
+    RenderOpts,
+    'ComponentMod' // undefined in a route handler
+  >
+>
+
+type RenderOptsForWebServerPartial = {
+  experimental?: Partial<Pick<RenderOpts['experimental'], 'after'>> // can be undefined in middleware
+}
+
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest | NextRequest
   res?: ServerResponse | BaseNextResponse
-  renderOpts?: RenderOpts
+  renderOpts?: WrapperRenderOpts
 }
 
 export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
@@ -78,25 +98,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       previewProps = (renderOpts as any).previewProps
     }
 
-    let afterContext: AfterContext | undefined = undefined
-    if (renderOpts && 'waitUntil' in renderOpts) {
-      const cacheScope =
-        // Can be undefined in a route module.
-        (
-          renderOpts.ComponentMod as
-            | (typeof renderOpts)['ComponentMod']
-            | undefined
-        )?.createCacheScope()
-      const { waitUntil } = renderOpts as LoadedRenderOpts
-      const _afterContext = createAfter({ waitUntil, cacheScope })
-
-      const originalCallback = callback
-      callback = (requestStore) =>
-        _afterContext.run(requestStore, () =>
-          originalCallback(requestStore)
-        ) as Result // TODO(after): check if non-promise cases can happen here
-      afterContext = _afterContext
-    }
+    const [_callback, afterContext] = wrapCallbackForAfter(renderOpts, callback)
+    callback = _callback
 
     function defaultOnUpdateCookies(cookies: string[]) {
       if (res) {
@@ -176,4 +179,31 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
     }
     return storage.run(store, callback, store)
   },
+}
+
+function wrapCallbackForAfter<Result>(
+  renderOpts: WrapperRenderOpts | undefined,
+  callback: (store: RequestStore) => Result
+): [typeof callback, AfterContext] {
+  const isAfterEnabled = renderOpts?.experimental?.after
+  if (!(renderOpts && isAfterEnabled)) {
+    const afterContext = createDisabledAfterContext()
+    return [callback, afterContext]
+  }
+
+  const waitUntil =
+    renderOpts.waitUntil ??
+    function missingWaitUntil() {
+      // Error lazily, only when after() is actually called.
+      throw new Error('Invariant: missing waitUntil implementation')
+    }
+
+  const cacheScope = renderOpts.ComponentMod?.createCacheScope()
+
+  const afterContext = createAfterContext({ waitUntil, cacheScope })
+
+  const wrappedCallback: typeof callback = (requestStore) =>
+    afterContext.run(requestStore, () => callback(requestStore)) as Result // TODO(after): check if non-promise cases can happen here
+
+  return [wrappedCallback, afterContext]
 }

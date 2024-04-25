@@ -456,6 +456,11 @@ export interface ExperimentalConfig {
    * Allow NODE_ENV=development even for `next build`.
    */
   allowDevelopmentBuild?: true
+
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
 }
 
 export type ExportPathMap = {
@@ -968,6 +973,7 @@ export const defaultConfig: NextConfig = {
       static: 300,
     },
     allowDevelopmentBuild: undefined,
+    after: false,
   },
   bundlePagesRouterDependencies: false,
 }

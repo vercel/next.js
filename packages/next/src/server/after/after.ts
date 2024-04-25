@@ -21,6 +21,27 @@ type WaitUntilFn = <T>(promise: Promise<T>) => void
  * This function allows you to schedule callbacks to be executed after the current request finishes.
  */
 export function unstable_after<T>(task: AfterTask<T>) {
+  const requestStore = requestAsyncStorage.getStore()
+  if (!requestStore) {
+    throw new Error(
+      'Invalid unstable_after() call. unstable_after() can only be called:\n' +
+        '  - from within a server component\n' +
+        '  - in a route handler\n' +
+        '  - in a server action\n' +
+        '  - in middleware\n'
+    )
+  }
+
+  const { afterContext } = requestStore
+  if (!afterContext) {
+    throw new Error('Invariant: No afterContext in requestStore')
+  }
+  if (!afterContext.enabled) {
+    throw new Error(
+      'unstable_after() must be explicitly enabled by setting `experimental.after: true` in your next.config.js.'
+    )
+  }
+
   const callingExpression = 'unstable_after'
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
@@ -33,27 +54,14 @@ export function unstable_after<T>(task: AfterTask<T>) {
     }
   }
 
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      'Invalid unstable_after() call. unstable_after() can only be called:\n' +
-        '  - from within a server component\n' +
-        '  - in a route handler\n' +
-        '  - in a server action\n' +
-        '  - in middleware\n' // TODO(after): not implemented
-    )
-  }
-  const { afterContext } = requestStore
-  if (!afterContext) {
-    throw new Error('Invariant: No afterContext in requestStore')
-  }
-
   return afterContext.after(task)
 }
 
-export type AfterContext = ReturnType<typeof createAfter>
+export type AfterContext =
+  | ReturnType<typeof createAfterContext>
+  | ReturnType<typeof createDisabledAfterContext>
 
-export function createAfter({
+export function createAfterContext({
   waitUntil,
   cacheScope,
 }: {
@@ -115,6 +123,7 @@ export function createAfter({
   }
 
   return {
+    enabled: true as const,
     after: afterImpl,
     run: async <T>(requestStore: RequestStore, callback: () => T) => {
       try {
@@ -129,6 +138,10 @@ export function createAfter({
       }
     },
   }
+}
+
+export function createDisabledAfterContext() {
+  return { enabled: false as const }
 }
 
 /** Disable mutations of `requestStore` within `after()` and disallow nested after calls.  */
@@ -150,6 +163,7 @@ function wrapRequestStoreForAfterCallbacks(
     // make cookie writes go nowhere
     mutableCookies: new ResponseCookies(new Headers()),
     afterContext: {
+      enabled: true,
       after: () => {
         throw new Error('Cannot call after() from within after()')
       },
