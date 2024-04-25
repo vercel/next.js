@@ -62,7 +62,7 @@ function resolveClientReference(bundlerConfig, metadata) {
       name = metadata[NAME];
     }
 
-    if (isAsyncImport(metadata)) {
+    if (resolvedModuleData.async || isAsyncImport(metadata)) {
       return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1
       /* async */
       ];
@@ -150,7 +150,7 @@ function preloadModule(metadata) {
 function requireModule(metadata) {
   let moduleExports = __webpack_require__(metadata[ID]);
 
-  if (isAsyncImport(metadata)) {
+  if (resolvedModuleData.async || isAsyncImport(metadata)) {
     if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
       // This Promise should've been instrumented by preloadModule.
       moduleExports = moduleExports.value;

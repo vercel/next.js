@@ -78,13 +78,12 @@ export async function resolveExternal(
   let isEsm: boolean = false
 
   const preferEsmOptions =
-    esmExternals &&
-    isEsmRequested &&
-    // For package that marked as externals that should be not bundled,
-    // we don't resolve them as ESM since it could be resolved as async module,
-    // such as `import(external package)` in the bundle, valued as a `Promise`.
-    !containsImportInPackages(request, optOutBundlingPackages)
-      ? [true, false]
+    esmExternals && isEsmRequested
+      ? // For package that marked as externals that should be not bundled,
+        // we don't resolve them as ESM since it could be resolved as async module,
+        // such as `import(external package)` in the bundle, valued as a `Promise`.
+        // && !containsImportInPackages(request, optOutBundlingPackages)
+        [true, false]
       : [false]
 
   for (const preferEsm of preferEsmOptions) {
@@ -277,18 +276,18 @@ export function makeExternalHandler({
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
     // Otherwise keep continue the process to resolve the externals.
-    if (layer === WEBPACK_LAYERS.serverSideRendering) {
-      const isRelative = request.startsWith('.')
-      const fullRequest = isRelative
-        ? normalizePathSep(path.join(context, request))
-        : request
+    // if (layer === WEBPACK_LAYERS.serverSideRendering) {
+    //   const isRelative = request.startsWith('.')
+    //   const fullRequest = isRelative
+    //     ? normalizePathSep(path.join(context, request))
+    //     : request
 
-      // Check if it's opt out bundling package first
-      if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
-        return fullRequest
-      }
-      return resolveNextExternal(fullRequest)
-    }
+    //   // Check if it's opt out bundling package first
+    //   if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
+    //     return fullRequest
+    //   }
+    //   return resolveNextExternal(fullRequest)
+    // }
 
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
     const resolveResult = await resolveExternal(
