@@ -164,6 +164,7 @@ export function getRender({
     const result = await extendedRes.toResponse()
 
     if (event?.waitUntil) {
+      // TODO(after): can we replace this?
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)
