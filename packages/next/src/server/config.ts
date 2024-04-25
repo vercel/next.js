@@ -989,6 +989,9 @@ export default async function loadConfig(
           nextConfigPath: path,
           cwd: dir,
         })
+        curLog.warn(
+          `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
+        )
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -1009,6 +1012,9 @@ export default async function loadConfig(
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
+      if ((err as NodeJS.ErrnoException).code === 'NEXT_CONFIG_TS_ESM') {
+        curLog.error(`Please use next.config.mts for Native ES Modules.`)
+      }
       throw err
     }
 
