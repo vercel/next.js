@@ -278,13 +278,6 @@ function createPatchedFetcher(
           return originFetch(input, init)
         }
 
-        // If the current scope is within an unstable cache callback, then
-        // we shouldn't do any special treatment of fetch because the
-        // surrounding callback will already be cached.
-        if (staticGenerationStore.isUnstableCacheCallback) {
-          return originFetch(input, init)
-        }
-
         const isRequestInput =
           input &&
           typeof input === 'object' &&
