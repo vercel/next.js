@@ -284,7 +284,6 @@ describe('Error overlay - RSC build errors', () => {
   }
 
   const invalidReactDomServerApis = [
-    'findDOMNode',
     'flushSync',
     'unstable_batchedUpdates',
     'useFormStatus',

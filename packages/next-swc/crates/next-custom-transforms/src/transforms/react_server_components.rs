@@ -511,7 +511,6 @@ impl ReactServerComponentValidator {
                 (
                     "react-dom",
                     vec![
-                        "findDOMNode",
                         "flushSync",
                         "unstable_batchedUpdates",
                         "useFormStatus",
