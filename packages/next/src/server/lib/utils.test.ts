@@ -1,9 +1,26 @@
-import { getFormattedNodeOptionsWithoutInspect } from './utils'
+import {
+  getFormattedNodeOptionsWithoutInspect,
+  getParsedDebugAddress,
+} from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
 
 afterAll(() => {
   process.env.NODE_OPTIONS = originalNodeOptions
+})
+
+describe('getParsedDebugAddress', () => {
+  it('supports the flag with an equal sign', () => {
+    process.env.NODE_OPTIONS = '--inspect=1234'
+    const result = getParsedDebugAddress()
+    expect(result).toEqual({ host: undefined, port: 1234 })
+  })
+
+  it('supports the flag without an equal sign', () => {
+    process.env.NODE_OPTIONS = '--inspect 1234'
+    const result = getParsedDebugAddress()
+    expect(result).toEqual({ host: undefined, port: 1234 })
+  })
 })
 
 describe('getFormattedNodeOptionsWithoutInspect', () => {

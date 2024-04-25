@@ -11,6 +11,42 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
+const parseNodeArgs = (args: string[]) => {
+  const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
+
+  // For the `NODE_OPTIONS`, we support arguments with values without the `=`
+  // sign. We need to parse them manually.
+  let found = null
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]
+
+    if (token.kind === 'option-terminator') {
+      break
+    }
+
+    // If we haven't found a possibly orphaned option, we need to look for one.
+    if (!found) {
+      if (token.kind === 'option' && typeof token.value === 'undefined') {
+        found = token
+      }
+
+      continue
+    }
+
+    // If the next token isn't a positional value, then it's truly orphaned.
+    if (token.kind !== 'positional' || !token.value) {
+      found = null
+      continue
+    }
+
+    // We found an orphaned option. Let's add it to the values.
+    values[found.name] = token.value
+    found = null
+  }
+
+  return values
+}
+
 /**
  * Get the node options from the environment variable `NODE_OPTIONS` and returns
  * them as an array of strings.
@@ -47,12 +83,12 @@ export const getParsedDebugAddress = (): DebugAddress => {
   const args = getNodeOptionsArgs()
   if (args.length === 0) return { host: undefined, port: 9229 }
 
-  const { values } = parseArgs({ args, strict: false })
+  const parsed = parseNodeArgs(args)
 
   // We expect to find the debug port in one of these options. The first one
   // found will be used.
   const address =
-    values.inspect ?? values['inspect-brk'] ?? values['inspect_brk']
+    parsed.inspect ?? parsed['inspect-brk'] ?? parsed['inspect_brk']
 
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
@@ -112,14 +148,14 @@ export function getParsedNodeOptionsWithoutInspect() {
   const args = getNodeOptionsArgs()
   if (args.length === 0) return {}
 
-  const { values } = parseArgs({ args, strict: false })
+  const parsed = parseNodeArgs(args)
 
   // Remove inspect options.
-  delete values.inspect
-  delete values['inspect-brk']
-  delete values['inspect_brk']
+  delete parsed.inspect
+  delete parsed['inspect-brk']
+  delete parsed['inspect_brk']
 
-  return values
+  return parsed
 }
 
 /**
@@ -154,10 +190,10 @@ export function getNodeDebugType() {
   const args = [...process.execArgv, ...getNodeOptionsArgs()]
   if (args.length === 0) return
 
-  const { values } = parseArgs({ args, strict: false })
+  const parsed = parseNodeArgs(args)
 
-  if (values.inspect) return 'inspect'
-  if (values['inspect-brk'] || values['inspect_brk']) return 'inspect-brk'
+  if (parsed.inspect) return 'inspect'
+  if (parsed['inspect-brk'] || parsed['inspect_brk']) return 'inspect-brk'
 }
 
 /**
@@ -170,9 +206,9 @@ export function getMaxOldSpaceSize() {
   const args = getNodeOptionsArgs()
   if (args.length === 0) return
 
-  const { values } = parseArgs({ args, strict: false })
+  const parsed = parseNodeArgs(args)
 
-  const size = values['max-old-space-size'] || values['max_old_space_size']
+  const size = parsed['max-old-space-size'] || parsed['max_old_space_size']
   if (!size || typeof size !== 'string') return
 
   return parseInt(size, 10)
