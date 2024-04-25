@@ -1136,7 +1136,7 @@ export default async function loadConfig(
       throw new Error(
         `Configuring Next.js via '${basename(
           unsupportedConfig
-        )}' is not supported. Please replace the file with 'next.config.js', 'next.config.mjs', or 'next.config.ts'.`
+        )}' is not supported. The allowed file extensions are: '.js', '.mjs', '.ts', and '.mts'.`
       )
     }
   }
