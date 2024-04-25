@@ -85,6 +85,38 @@ describe('unstable_after()', () => {
     })
   }
 
+  describe('interrupted RSC renders', () => {
+    // TODO(after): if we don't want after() to run if a redirect/notFound/error occurred,
+    // we need a way to know that it happened... somehow
+
+    it.failing('does not run callbacks if redirect() was called', async () => {
+      await next.browser('/interrupted/calls-redirect')
+      expect(Log.readPersistentLog(logFile)).not.toContainEqual({
+        source: '[page] /interrupted/calls-redirect',
+      })
+      expect(Log.readPersistentLog(logFile)).toContainEqual({
+        source: '[page] /interrupted/redirect-target',
+      })
+    })
+
+    it.failing('does not run callbacks if notFound() was called', async () => {
+      await next.browser('/interrupted/calls-not-found')
+      expect(Log.readPersistentLog(logFile)).not.toContainEqual({
+        source: '[page] /interrupted/calls-not-found',
+      })
+    })
+
+    it.failing(
+      'does not run callbacks if a user error was thrown in the RSC render',
+      async () => {
+        await next.browser('/interrupted/throws-error')
+        expect(Log.readPersistentLog(logFile)).not.toContainEqual({
+          source: '[page] /interrupted/throws-error',
+        })
+      }
+    )
+  })
+
   it('runs in middleware', async () => {
     const requestId = `${Date.now()}`
     const res = await next.fetch(
