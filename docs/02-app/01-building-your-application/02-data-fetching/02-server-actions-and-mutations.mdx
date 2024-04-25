@@ -917,25 +917,7 @@ export function addItem() {
 Defining a Server Action inside a component creates a [closure](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures) where the action has access to the outer function's scope. For example, the `publish` action has access to the `publishVersion` variable:
 
 ```tsx filename="app/page.tsx" switcher
-'use client'
-export default function Page() {
-  const publishVersion = await getLatestVersion();
-
-  async function publish(formData: FormData) {
-    "use server";
-    if (publishVersion !== await getLatestVersion()) {
-      throw new Error('The version has changed since pressing publish');
-    }
-    ...
-  }
-
-  return <button onClick={publish}>Publish</button>;
-}
-```
-
-```jsx filename="app/page.js" switcher
-'use client'
-export default function Page() {
+export default async function Page() {
   const publishVersion = await getLatestVersion();
 
   async function publish() {
@@ -946,7 +928,31 @@ export default function Page() {
     ...
   }
 
-  return <button onClick={publish}>Publish</button>;
+  return (
+    <form>
+      <button formAction={publish}>Publish</button>
+    </form>
+  );
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const publishVersion = await getLatestVersion();
+
+  async function publish() {
+    "use server";
+    if (publishVersion !== await getLatestVersion()) {
+      throw new Error('The version has changed since pressing publish');
+    }
+    ...
+  }
+
+  return (
+    <form>
+      <button formAction={publish}>Publish</button>
+    </form>
+  );
 }
 ```
 
