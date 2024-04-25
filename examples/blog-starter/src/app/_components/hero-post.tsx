@@ -30,8 +30,7 @@ export function HeroPost({
         <div>
           <h3 className="mb-4 text-4xl lg:text-5xl leading-tight">
             <Link
-              as={`/posts/${slug}`}
-              href="/posts/[slug]"
+              href={`/posts/${slug}`}
               className="hover:underline"
             >
               {title}
