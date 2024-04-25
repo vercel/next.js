@@ -1012,19 +1012,12 @@ export default async function loadConfig(
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
-      if ((err as NodeJS.ErrnoException).code === 'NEXT_CONFIG_TS_ESM') {
-        curLog.error(`Please use next.config.mts for Native ES Modules.`)
-      }
       throw err
     }
 
     const userConfig = await normalizeConfig(
       phase,
-      // SWC transform wraps the module in a default export when-
-      // `module.importInterop: 'none'` or `module.noInterop: true` is not set.
-      userConfigModule.default?.default ??
-        userConfigModule.default ??
-        userConfigModule
+      userConfigModule.default || userConfigModule
     )
 
     if (!process.env.NEXT_MINIMAL) {
@@ -1136,7 +1129,7 @@ export default async function loadConfig(
       throw new Error(
         `Configuring Next.js via '${basename(
           unsupportedConfig
-        )}' is not supported. The allowed file extensions are: '.js', '.mjs', '.ts', and '.mts'.`
+        )}' is not supported. Please replace the file with 'next.config.js', 'next.config.mjs', or 'next.config.ts'.`
       )
     }
   }

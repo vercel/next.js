@@ -1,28 +1,27 @@
 import type { Options as SWCOptions } from '@swc/core'
+import Module from 'module'
 import { readFileSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { join } from 'path'
-import { readFile, unlink, writeFile } from 'fs/promises'
 import { transform, transformSync } from './swc'
 
 const oldJSHook = require.extensions['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
-function registerHook(swcOptions: SWCOptions, shouldHandleESM: boolean) {
-  if (shouldHandleESM) {
-    require.extensions['.js'] = function (mod: any, oldFilename) {
-      try {
-        oldJSHook(mod, oldFilename)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ERR_REQUIRE_ESM') {
-          throw error
-        }
-
-        // calling oldJSHook throws ERR_REQUIRE_ESM, so run _compile manually
-        // TODO: investigate if we can remove readFileSync
-        const content = readFileSync(oldFilename, 'utf8')
-        const { code } = transformSync(content, swcOptions)
-        mod._compile(code, oldFilename)
+function registerHook(swcOptions: SWCOptions) {
+  require.extensions['.js'] = function (mod: any, oldFilename) {
+    try {
+      return oldJSHook(mod, oldFilename)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ERR_REQUIRE_ESM') {
+        throw error
       }
+
+      // calling oldJSHook throws ERR_REQUIRE_ESM, so run _compile manually
+      // TODO: investigate if we can remove readFileSync
+      const content = readFileSync(oldFilename, 'utf8')
+      const { code } = transformSync(content, swcOptions)
+      mod._compile(code, oldFilename)
     }
   }
 
@@ -59,15 +58,13 @@ function resolveSWCOptions(cwd: string, tsConfig: any): SWCOptions {
   } satisfies SWCOptions
 }
 
-async function isESMProject(cwd: string) {
-  // TODO: reduce cost
-  let pkgJson: any
-  try {
-    pkgJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
-  } catch {
-    pkgJson = {}
-  }
-  return pkgJson.type === 'module'
+function requireFromString(code: string, cwd: string) {
+  const filename = join(cwd, 'next.config.compiled.js')
+  const paths = (Module as any)._nodeModulePaths(cwd)
+  const m = new Module(filename, module.parent!) as any
+  m.paths = paths
+  m._compile(code, filename)
+  return m.exports
 }
 
 export async function transpileConfig({
@@ -77,14 +74,6 @@ export async function transpileConfig({
   nextConfigPath: string
   cwd: string
 }) {
-  const shouldHandleESM =
-    nextConfigPath.endsWith('.mts') || (await isESMProject(cwd))
-  // We are going to convert nextConfig as CJS format to use require hook
-  const tempConfigPath = join(
-    cwd,
-    `next.config.${shouldHandleESM ? 'cjs' : 'js'}`
-  )
-
   // TODO: reduce cost
   let tsConfig: any
   try {
@@ -94,22 +83,15 @@ export async function transpileConfig({
   }
 
   const swcOptions = resolveSWCOptions(cwd, tsConfig)
-  registerHook(swcOptions, shouldHandleESM)
+  registerHook(swcOptions)
 
   try {
     const nextConfigStr = await readFile(nextConfigPath, 'utf8')
     const { code } = await transform(nextConfigStr, swcOptions)
-
-    // TODO: reduce cost of writing on disk, e.g. import(data:text/javascript,...)
-    await writeFile(tempConfigPath, code, 'utf8')
-    return await import(tempConfigPath)
-  } catch (error: any) {
-    if (error.code === 'ERR_REQUIRE_ESM') {
-      error.code = 'NEXT_CONFIG_TS_ESM'
-    }
+    return requireFromString(code, cwd)
+  } catch (error) {
     throw error
   } finally {
-    await unlink(tempConfigPath).catch(() => {})
     require.extensions['.js'] = oldJSHook
     extensions.forEach((ext) => delete require.extensions[ext])
   }
