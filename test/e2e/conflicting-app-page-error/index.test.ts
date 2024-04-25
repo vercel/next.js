@@ -13,6 +13,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     skipStart: true,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next, isNextDev, isNextStart }) => {
     if (isNextStart) {

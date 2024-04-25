@@ -5,6 +5,7 @@ createNextDescribe(
   'parallel-routes-revalidation',
   {
     files: __dirname,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next }) => {
     it('should submit the action and revalidate the page data', async () => {

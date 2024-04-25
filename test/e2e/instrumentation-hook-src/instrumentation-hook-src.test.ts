@@ -11,6 +11,7 @@ describe('instrumentation-hook-rsc', () => {
         },
       },
       skipDeployment: true,
+      DO_NOT_USE_skipTestsIsolation: true,
     },
     ({ next, isNextDev }) => {
       it('should run the instrumentation hook', async () => {

@@ -5,6 +5,7 @@ createNextDescribe(
   'app dir - draft mode',
   {
     files: __dirname,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next, isNextDev }) => {
     async function runTests({ basePath = '/' }: { basePath: string }) {

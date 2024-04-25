@@ -82,6 +82,7 @@ createNextDescribe(
   'ppr-full',
   {
     files: __dirname,
+    DO_NOT_USE_skipTestsIsolation: true,
   },
   ({ next, isNextDev, isNextDeploy }) => {
     describe('Test Setup', () => {

@@ -47,6 +47,7 @@ describe('app-dir - logging', () => {
   const { next, isNextDev } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
+    DO_NOT_USE_skipTestsIsolation: true,
   })
   function runTests({
     withFetchesLogging,
