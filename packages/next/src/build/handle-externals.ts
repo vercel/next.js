@@ -57,7 +57,7 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  optOutBundlingPackages: string[],
+  _optOutBundlingPackages: string[],
   getResolve: (
     options: any
   ) => (
@@ -276,18 +276,18 @@ export function makeExternalHandler({
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
     // Otherwise keep continue the process to resolve the externals.
-    // if (layer === WEBPACK_LAYERS.serverSideRendering) {
-    //   const isRelative = request.startsWith('.')
-    //   const fullRequest = isRelative
-    //     ? normalizePathSep(path.join(context, request))
-    //     : request
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
+      const isRelative = request.startsWith('.')
+      const fullRequest = isRelative
+        ? normalizePathSep(path.join(context, request))
+        : request
 
-    //   // Check if it's opt out bundling package first
-    //   if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
-    //     return fullRequest
-    //   }
-    //   return resolveNextExternal(fullRequest)
-    // }
+      // Check if it's opt out bundling package first
+      if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
+        return fullRequest
+      }
+      return resolveNextExternal(fullRequest)
+    }
 
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
     const resolveResult = await resolveExternal(
