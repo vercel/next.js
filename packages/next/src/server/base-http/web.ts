@@ -105,15 +105,16 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     // If we haven't called `send` yet, wait for it to be called.
     if (!this.sent) await this.sendPromise.promise
 
-    let body = this.textBody ?? this.transformStream.readable
+    const body = this.textBody ?? this.transformStream.readable
 
+    let bodyInit: BodyInit = body
     if (this.listeners > 0) {
-      body = trackBodyConsumed(body, () => {
+      bodyInit = trackBodyConsumed(body, () => {
         this.target.dispatchEvent(new Event('close'))
       })
     }
 
-    return new Response(body, {
+    return new Response(bodyInit, {
       headers: this.headers,
       status: this.statusCode,
       statusText: this.statusMessage,
@@ -133,20 +134,21 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 }
 
-function trackBodyConsumed(body: string | ReadableStream, onEnd: () => void) {
+function trackBodyConsumed(
+  body: string | ReadableStream,
+  onEnd: () => void
+): BodyInit {
   // monitor when the consumer finishes reading the response body.
   // that's as close as we can get to `res.on('close')` using web APIs.
 
   if (typeof body === 'string') {
-    // TODO(after): how much overhead does this introduce?
-    return new ReadableStream({
-      pull(controller) {
-        const encoder = new TextEncoder()
-        controller.enqueue(encoder.encode(body))
-        controller.close()
-        return onEnd()
-      },
-    })
+    const generator = async function* generate() {
+      const encoder = new TextEncoder()
+      yield encoder.encode(body)
+      onEnd()
+    }
+    // @ts-expect-error BodyInit typings doesn't seem to include AsyncIterables even though it's supported in practice
+    return generator()
   } else {
     const closePassThrough = new TransformStream({
       flush: () => {
