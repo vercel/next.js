@@ -19,16 +19,11 @@ const errorHandlers: Array<ErrorHandler> = []
 const rejectionHandlers: Array<ErrorHandler> = []
 
 if (typeof window !== 'undefined') {
-  // These event handlers must be added outside of the hook because there is no
-  // guarantee that the hook will be alive in a mounted component in time to
-  // when the errors occur.
-  window.addEventListener('error', (ev: WindowEventMap['error']): void => {
-    if (isNextRouterError(ev.error)) {
-      ev.preventDefault()
-      return
+  function handleError(error: unknown) {
+    if (isNextRouterError(error)) {
+      return false
     }
 
-    const error = ev?.error
     if (
       !error ||
       !(error instanceof Error) ||
@@ -60,18 +55,39 @@ if (typeof window !== 'undefined') {
         '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
     }
 
-    const e = error
     // Only queue one hydration every time
     if (isCausedByHydrationFailure) {
       if (!hasHydrationError) {
-        errorQueue.push(e)
+        errorQueue.push(error)
       }
       hasHydrationError = true
     }
     for (const handler of errorHandlers) {
-      handler(e)
+      handler(error)
     }
-  })
+  }
+  // These event handlers must be added outside of the hook because there is no
+  // guarantee that the hook will be alive in a mounted component in time to
+  // when the errors occur.
+  // uncaught errors go through reportError
+  window.addEventListener(
+    'error',
+    (event: WindowEventMap['error']): void | boolean => {
+      if (handleError(event.error) === false) {
+        event.preventDefault()
+        return false
+      }
+    }
+  )
+  // caught errors go through console.error
+  const origConsoleError = window.console.error
+  window.console.error = (...args) => {
+    // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+    const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+    if (handleError(error) !== false) {
+      origConsoleError.apply(window.console, args)
+    }
+  }
   window.addEventListener(
     'unhandledrejection',
     (ev: WindowEventMap['unhandledrejection']): void => {

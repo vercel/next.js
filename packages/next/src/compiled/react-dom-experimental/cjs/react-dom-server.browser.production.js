@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-c3048aab4-20240326';
 
 // Do not require this module directly! Use normal `invariant` calls with
 // template literal strings. The messages will be replaced with error codes
@@ -267,9 +267,6 @@ function closeWithError(destination, error) {
 
 const assign = Object.assign;
 
-// -----------------------------------------------------------------------------
-const enableFloat = true; // Enables unstable_useMemoCache hook, intended as a compilation target for
-
 // $FlowFixMe[method-unbinding]
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -404,7 +401,7 @@ function escapeHtml(string) {
 
 
 function escapeTextForBrowser(text) {
-  if (typeof text === 'boolean' || typeof text === 'number') {
+  if (typeof text === 'boolean' || typeof text === 'number' || typeof text === 'bigint') {
     // this shortcircuit helps perf for types that we know will never have
     // special characters, especially given that this function is used often
     // for numeric dom ids.
@@ -434,7 +431,31 @@ function hyphenateStyleName(name) {
   return name.replace(uppercasePattern, '-$1').toLowerCase().replace(msPattern, '-ms-');
 }
 
+// and any newline or tab are filtered out as if they're not part of the URL.
+// https://url.spec.whatwg.org/#url-parsing
+// Tab or newline are defined as \r\n\t:
+// https://infra.spec.whatwg.org/#ascii-tab-or-newline
+// A C0 control is a code point in the range \u0000 NULL to \u001F
+// INFORMATION SEPARATOR ONE, inclusive:
+// https://infra.spec.whatwg.org/#c0-control-or-space
+
+/* eslint-disable max-len */
+
+const isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
+
 function sanitizeURL(url) {
+  // We should never have symbols here because they get filtered out elsewhere.
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  const stringifiedURL = '' + url;
+
+  {
+    if (isJavaScriptProtocol.test(stringifiedURL)) {
+      // Return a different javascript: url that doesn't cause any side-effects and just
+      // throws if ever visited.
+      // eslint-disable-next-line no-script-url
+      return "javascript:throw new Error('React has blocked a javascript: URL as a security precaution.')";
+    }
+  }
 
   return url;
 }
@@ -461,19 +482,17 @@ const NotPending = sharedNotPendingObject;
 
 const ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
-const ReactDOMServerDispatcher = {
+const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
+const previousDispatcher = ReactDOMCurrentDispatcher.current;
+ReactDOMCurrentDispatcher.current = {
   prefetchDNS,
   preconnect,
   preload,
   preloadModule,
-  preinitStyle,
   preinitScript,
+  preinitStyle,
   preinitModuleScript
-};
-function prepareHostDispatcher() {
-  ReactDOMCurrentDispatcher.current = ReactDOMServerDispatcher;
-} // We make every property of the descriptor optional because it is not a contract that
+}; // We make every property of the descriptor optional because it is not a contract that
 const ScriptStreamingFormat = 0;
 const DataStreamingFormat = 1;
 const NothingSent
@@ -551,9 +570,10 @@ const importMapScriptEnd = stringToPrecomputedChunk('</script>'); // Since we st
 // It should also be noted that this maximum is a soft maximum. we have not reached the limit we will
 // allow one more header to be captured which means in practice if the limit is approached it will be exceeded
 
-const DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000; // Allows us to keep track of what we've already written so we can refer back to it.
+const DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000;
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
+
 
 function createRenderState(resumableState, nonce, externalRuntimeConfig, importMap, onHeaders, maxHeadersLength) {
   const inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
@@ -569,7 +589,6 @@ function createRenderState(resumableState, nonce, externalRuntimeConfig, importM
   }
 
   {
-
     if (externalRuntimeConfig !== undefined) {
       if (typeof externalRuntimeConfig === 'string') {
         externalRuntimeScript = {
@@ -1060,10 +1079,29 @@ function pushAdditionalFormField(value, key) {
 }
 
 function pushAdditionalFormFields(target, formData) {
-  if (formData !== null) {
+  if (formData != null) {
     // $FlowFixMe[prop-missing]: FormData has forEach.
     formData.forEach(pushAdditionalFormField, target);
   }
+}
+
+function getCustomFormFields(resumableState, formAction) {
+  const customAction = formAction.$$FORM_ACTION;
+
+  if (typeof customAction === 'function') {
+    const prefix = makeFormFieldPrefix(resumableState);
+
+    try {
+      return formAction.$$FORM_ACTION(prefix);
+    } catch (x) {
+      if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+        // Rethrow suspense.
+        throw x;
+      } // If we fail to encode the form action for progressive enhancement for some reason,
+    }
+  }
+
+  return null;
 }
 
 function pushFormActionAttribute(target, resumableState, renderState, formAction, formEncType, formMethod, formTarget, name) {
@@ -1071,13 +1109,11 @@ function pushFormActionAttribute(target, resumableState, renderState, formAction
 
   if (typeof formAction === 'function') {
 
-    const customAction = formAction.$$FORM_ACTION;
+    const customFields = getCustomFormFields(resumableState, formAction);
 
-    if (typeof customAction === 'function') {
+    if (customFields !== null) {
       // This action has a custom progressive enhancement form that can submit the form
       // back to the server if it's invoked before hydration. Such as a Server Action.
-      const prefix = makeFormFieldPrefix(resumableState);
-      const customFields = formAction.$$FORM_ACTION(prefix);
       name = customFields.name;
       formAction = customFields.action || '';
       formEncType = customFields.encType;
@@ -1335,6 +1371,20 @@ function pushAttribute(target, name, value) // not null or undefined
     case 'xmlSpace':
       pushStringAttribute(target, 'xml:space', value);
       return;
+
+    case 'inert':
+      {
+        {
+
+
+          if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+            target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
+          }
+
+          return;
+        }
+      }
+    // fallthrough for new boolean props without the flag on
 
     default:
       if ( // shouldIgnoreAttribute
@@ -1656,13 +1706,11 @@ function pushStartForm(target, props, resumableState, renderState) {
 
   if (typeof formAction === 'function') {
 
-    const customAction = formAction.$$FORM_ACTION;
+    const customFields = getCustomFormFields(resumableState, formAction);
 
-    if (typeof customAction === 'function') {
+    if (customFields !== null) {
       // This action has a custom progressive enhancement form that can submit the form
       // back to the server if it's invoked before hydration. Such as a Server Action.
-      const prefix = makeFormFieldPrefix(resumableState);
-      const customFields = formAction.$$FORM_ACTION(prefix);
       formAction = customFields.action || '';
       formEncType = customFields.encType;
       formMethod = customFields.method;
@@ -1967,162 +2015,158 @@ function pushStartTextArea(target, props) {
 }
 
 function pushMeta(target, props, renderState, textEmbedded, insertionMode, noscriptTagInScope, isFallback) {
-  {
-    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
-      return pushSelfClosing(target, props, 'meta');
-    } else {
-      if (textEmbedded) {
-        // This link follows text but we aren't writing a tag. while not as efficient as possible we need
-        // to be safe and assume text will follow by inserting a textSeparator
-        target.push(textSeparator);
-      }
+  if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
+    return pushSelfClosing(target, props, 'meta');
+  } else {
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    }
 
-      if (isFallback) {
-        // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
-        // because they are likely superceded by primary content and we want to avoid needing to clean
-        // them up when the primary content is ready. They are never hydrated on the client anyway because
-        // boundaries in fallback are awaited or client render, in either case there is never hydration
-        return null;
-      } else if (typeof props.charSet === 'string') {
-        // "charset" Should really be config and not picked up from tags however since this is
-        // the only way to embed the tag today we flush it on a special queue on the Request so it
-        // can go before everything else. Like viewport this means that the tag will escape it's
-        // parent container.
-        return pushSelfClosing(renderState.charsetChunks, props, 'meta');
-      } else if (props.name === 'viewport') {
-        // "viewport" is flushed on the Request so it can go earlier that Float resources that
-        // might be affected by it. This means it can escape the boundary it is rendered within.
-        // This is a pragmatic solution to viewport being incredibly sensitive to document order
-        // without requiring all hoistables to be flushed too early.
-        return pushSelfClosing(renderState.viewportChunks, props, 'meta');
-      } else {
-        return pushSelfClosing(renderState.hoistableChunks, props, 'meta');
-      }
+    if (isFallback) {
+      // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
+      // because they are likely superceded by primary content and we want to avoid needing to clean
+      // them up when the primary content is ready. They are never hydrated on the client anyway because
+      // boundaries in fallback are awaited or client render, in either case there is never hydration
+      return null;
+    } else if (typeof props.charSet === 'string') {
+      // "charset" Should really be config and not picked up from tags however since this is
+      // the only way to embed the tag today we flush it on a special queue on the Request so it
+      // can go before everything else. Like viewport this means that the tag will escape it's
+      // parent container.
+      return pushSelfClosing(renderState.charsetChunks, props, 'meta');
+    } else if (props.name === 'viewport') {
+      // "viewport" is flushed on the Request so it can go earlier that Float resources that
+      // might be affected by it. This means it can escape the boundary it is rendered within.
+      // This is a pragmatic solution to viewport being incredibly sensitive to document order
+      // without requiring all hoistables to be flushed too early.
+      return pushSelfClosing(renderState.viewportChunks, props, 'meta');
+    } else {
+      return pushSelfClosing(renderState.hoistableChunks, props, 'meta');
     }
   }
 }
 
 function pushLink(target, props, resumableState, renderState, hoistableState, textEmbedded, insertionMode, noscriptTagInScope, isFallback) {
-  {
-    const rel = props.rel;
-    const href = props.href;
-    const precedence = props.precedence;
+  const rel = props.rel;
+  const href = props.href;
+  const precedence = props.precedence;
 
-    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
+  if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
 
-      pushLinkImpl(target, props);
-      return null;
-    }
+    pushLinkImpl(target, props);
+    return null;
+  }
 
-    if (props.rel === 'stylesheet') {
-      // This <link> may hoistable as a Stylesheet Resource, otherwise it will emit in place
-      const key = getResourceKey(href);
+  if (props.rel === 'stylesheet') {
+    // This <link> may hoistable as a Stylesheet Resource, otherwise it will emit in place
+    const key = getResourceKey(href);
 
-      if (typeof precedence !== 'string' || props.disabled != null || props.onLoad || props.onError) {
+    if (typeof precedence !== 'string' || props.disabled != null || props.onLoad || props.onError) {
 
-        return pushLinkImpl(target, props);
-      } else {
-        // This stylesheet refers to a Resource and we create a new one if necessary
-        let styleQueue = renderState.styles.get(precedence);
-        const hasKey = resumableState.styleResources.hasOwnProperty(key);
-        const resourceState = hasKey ? resumableState.styleResources[key] : undefined;
-
-        if (resourceState !== EXISTS) {
-          // We are going to create this resource now so it is marked as Exists
-          resumableState.styleResources[key] = EXISTS; // If this is the first time we've encountered this precedence we need
-          // to create a StyleQueue
-
-          if (!styleQueue) {
-            styleQueue = {
-              precedence: stringToChunk(escapeTextForBrowser(precedence)),
-              rules: [],
-              hrefs: [],
-              sheets: new Map()
-            };
-            renderState.styles.set(precedence, styleQueue);
-          }
-
-          const resource = {
-            state: PENDING$1,
-            props: stylesheetPropsFromRawProps(props)
-          };
-
-          if (resourceState) {
-            // When resourceState is truty it is a Preload state. We cast it for clarity
-            const preloadState = resourceState;
-
-            if (preloadState.length === 2) {
-              adoptPreloadCredentials(resource.props, preloadState);
-            }
-
-            const preloadResource = renderState.preloads.stylesheets.get(key);
-
-            if (preloadResource && preloadResource.length > 0) {
-              // The Preload for this resource was created in this render pass and has not flushed yet so
-              // we need to clear it to avoid it flushing.
-              preloadResource.length = 0;
-            } else {
-              // Either the preload resource from this render already flushed in this render pass
-              // or the preload flushed in a prior pass (prerender). In either case we need to mark
-              // this resource as already having been preloaded.
-              resource.state = PRELOADED;
-            }
-          } // We add the newly created resource to our StyleQueue and if necessary
-          // track the resource with the currently rendering boundary
-
-
-          styleQueue.sheets.set(key, resource);
-
-          if (hoistableState) {
-            hoistableState.stylesheets.add(resource);
-          }
-        } else {
-          // We need to track whether this boundary should wait on this resource or not.
-          // Typically this resource should always exist since we either had it or just created
-          // it. However, it's possible when you resume that the style has already been emitted
-          // and then it wouldn't be recreated in the RenderState and there's no need to track
-          // it again since we should've hoisted it to the shell already.
-          if (styleQueue) {
-            const resource = styleQueue.sheets.get(key);
-
-            if (resource) {
-              if (hoistableState) {
-                hoistableState.stylesheets.add(resource);
-              }
-            }
-          }
-        }
-
-        if (textEmbedded) {
-          // This link follows text but we aren't writing a tag. while not as efficient as possible we need
-          // to be safe and assume text will follow by inserting a textSeparator
-          target.push(textSeparator);
-        }
-
-        return null;
-      }
-    } else if (props.onLoad || props.onError) {
-      // When using load handlers we cannot hoist and need to emit links in place
       return pushLinkImpl(target, props);
     } else {
-      // We can hoist this link so we may need to emit a text separator.
-      // @TODO refactor text separators so we don't have to defensively add
-      // them when we don't end up emitting a tag as a result of pushStartInstance
+      // This stylesheet refers to a Resource and we create a new one if necessary
+      let styleQueue = renderState.styles.get(precedence);
+      const hasKey = resumableState.styleResources.hasOwnProperty(key);
+      const resourceState = hasKey ? resumableState.styleResources[key] : undefined;
+
+      if (resourceState !== EXISTS) {
+        // We are going to create this resource now so it is marked as Exists
+        resumableState.styleResources[key] = EXISTS; // If this is the first time we've encountered this precedence we need
+        // to create a StyleQueue
+
+        if (!styleQueue) {
+          styleQueue = {
+            precedence: stringToChunk(escapeTextForBrowser(precedence)),
+            rules: [],
+            hrefs: [],
+            sheets: new Map()
+          };
+          renderState.styles.set(precedence, styleQueue);
+        }
+
+        const resource = {
+          state: PENDING$1,
+          props: stylesheetPropsFromRawProps(props)
+        };
+
+        if (resourceState) {
+          // When resourceState is truty it is a Preload state. We cast it for clarity
+          const preloadState = resourceState;
+
+          if (preloadState.length === 2) {
+            adoptPreloadCredentials(resource.props, preloadState);
+          }
+
+          const preloadResource = renderState.preloads.stylesheets.get(key);
+
+          if (preloadResource && preloadResource.length > 0) {
+            // The Preload for this resource was created in this render pass and has not flushed yet so
+            // we need to clear it to avoid it flushing.
+            preloadResource.length = 0;
+          } else {
+            // Either the preload resource from this render already flushed in this render pass
+            // or the preload flushed in a prior pass (prerender). In either case we need to mark
+            // this resource as already having been preloaded.
+            resource.state = PRELOADED;
+          }
+        } // We add the newly created resource to our StyleQueue and if necessary
+        // track the resource with the currently rendering boundary
+
+
+        styleQueue.sheets.set(key, resource);
+
+        if (hoistableState) {
+          hoistableState.stylesheets.add(resource);
+        }
+      } else {
+        // We need to track whether this boundary should wait on this resource or not.
+        // Typically this resource should always exist since we either had it or just created
+        // it. However, it's possible when you resume that the style has already been emitted
+        // and then it wouldn't be recreated in the RenderState and there's no need to track
+        // it again since we should've hoisted it to the shell already.
+        if (styleQueue) {
+          const resource = styleQueue.sheets.get(key);
+
+          if (resource) {
+            if (hoistableState) {
+              hoistableState.stylesheets.add(resource);
+            }
+          }
+        }
+      }
+
       if (textEmbedded) {
         // This link follows text but we aren't writing a tag. while not as efficient as possible we need
         // to be safe and assume text will follow by inserting a textSeparator
         target.push(textSeparator);
       }
 
-      if (isFallback) {
-        // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
-        // because they are likely superceded by primary content and we want to avoid needing to clean
-        // them up when the primary content is ready. They are never hydrated on the client anyway because
-        // boundaries in fallback are awaited or client render, in either case there is never hydration
-        return null;
-      } else {
-        return pushLinkImpl(renderState.hoistableChunks, props);
-      }
+      return null;
+    }
+  } else if (props.onLoad || props.onError) {
+    // When using load handlers we cannot hoist and need to emit links in place
+    return pushLinkImpl(target, props);
+  } else {
+    // We can hoist this link so we may need to emit a text separator.
+    // @TODO refactor text separators so we don't have to defensively add
+    // them when we don't end up emitting a tag as a result of pushStartInstance
+    if (textEmbedded) {
+      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+      // to be safe and assume text will follow by inserting a textSeparator
+      target.push(textSeparator);
+    }
+
+    if (isFallback) {
+      // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
+      // because they are likely superceded by primary content and we want to avoid needing to clean
+      // them up when the primary content is ready. They are never hydrated on the client anyway because
+      // boundaries in fallback are awaited or client render, in either case there is never hydration
+      return null;
+    } else {
+      return pushLinkImpl(renderState.hoistableChunks, props);
     }
   }
 }
@@ -2156,58 +2200,56 @@ function pushLinkImpl(target, props) {
 
 function pushStyle(target, props, resumableState, renderState, hoistableState, textEmbedded, insertionMode, noscriptTagInScope) {
 
-  {
-    const precedence = props.precedence;
-    const href = props.href;
+  const precedence = props.precedence;
+  const href = props.href;
 
-    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
-      // This style tag is not able to be turned into a Style Resource
-      return pushStyleImpl(target, props);
+  if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
+    // This style tag is not able to be turned into a Style Resource
+    return pushStyleImpl(target, props);
+  }
+
+  const key = getResourceKey(href);
+  let styleQueue = renderState.styles.get(precedence);
+  const hasKey = resumableState.styleResources.hasOwnProperty(key);
+  const resourceState = hasKey ? resumableState.styleResources[key] : undefined;
+
+  if (resourceState !== EXISTS) {
+    // We are going to create this resource now so it is marked as Exists
+    resumableState.styleResources[key] = EXISTS;
+
+    if (!styleQueue) {
+      // This is the first time we've encountered this precedence we need
+      // to create a StyleQueue.
+      styleQueue = {
+        precedence: stringToChunk(escapeTextForBrowser(precedence)),
+        rules: [],
+        hrefs: [stringToChunk(escapeTextForBrowser(href))],
+        sheets: new Map()
+      };
+      renderState.styles.set(precedence, styleQueue);
+    } else {
+      // We have seen this precedence before and need to track this href
+      styleQueue.hrefs.push(stringToChunk(escapeTextForBrowser(href)));
     }
 
-    const key = getResourceKey(href);
-    let styleQueue = renderState.styles.get(precedence);
-    const hasKey = resumableState.styleResources.hasOwnProperty(key);
-    const resourceState = hasKey ? resumableState.styleResources[key] : undefined;
+    pushStyleContents(styleQueue.rules, props);
+  }
 
-    if (resourceState !== EXISTS) {
-      // We are going to create this resource now so it is marked as Exists
-      resumableState.styleResources[key] = EXISTS;
-
-      if (!styleQueue) {
-        // This is the first time we've encountered this precedence we need
-        // to create a StyleQueue.
-        styleQueue = {
-          precedence: stringToChunk(escapeTextForBrowser(precedence)),
-          rules: [],
-          hrefs: [stringToChunk(escapeTextForBrowser(href))],
-          sheets: new Map()
-        };
-        renderState.styles.set(precedence, styleQueue);
-      } else {
-        // We have seen this precedence before and need to track this href
-        styleQueue.hrefs.push(stringToChunk(escapeTextForBrowser(href)));
-      }
-
-      pushStyleContents(styleQueue.rules, props);
+  if (styleQueue) {
+    // We need to track whether this boundary should wait on this resource or not.
+    // Typically this resource should always exist since we either had it or just created
+    // it. However, it's possible when you resume that the style has already been emitted
+    // and then it wouldn't be recreated in the RenderState and there's no need to track
+    // it again since we should've hoisted it to the shell already.
+    if (hoistableState) {
+      hoistableState.styles.add(styleQueue);
     }
+  }
 
-    if (styleQueue) {
-      // We need to track whether this boundary should wait on this resource or not.
-      // Typically this resource should always exist since we either had it or just created
-      // it. However, it's possible when you resume that the style has already been emitted
-      // and then it wouldn't be recreated in the RenderState and there's no need to track
-      // it again since we should've hoisted it to the shell already.
-      if (hoistableState) {
-        hoistableState.styles.add(styleQueue);
-      }
-    }
-
-    if (textEmbedded) {
-      // This link follows text but we aren't writing a tag. while not as efficient as possible we need
-      // to be safe and assume text will follow by inserting a textSeparator
-      target.push(textSeparator);
-    }
+  if (textEmbedded) {
+    // This link follows text but we aren't writing a tag. while not as efficient as possible we need
+    // to be safe and assume text will follow by inserting a textSeparator
+    target.push(textSeparator);
   }
 }
 
@@ -2447,20 +2489,18 @@ function pushStartMenuItem(target, props) {
 
 function pushTitle(target, props, renderState, insertionMode, noscriptTagInScope, isFallback) {
 
-  {
-    if (insertionMode !== SVG_MODE && !noscriptTagInScope && props.itemProp == null) {
-      if (isFallback) {
-        // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
-        // because they are likely superceded by primary content and we want to avoid needing to clean
-        // them up when the primary content is ready. They are never hydrated on the client anyway because
-        // boundaries in fallback are awaited or client render, in either case there is never hydration
-        return null;
-      } else {
-        pushTitleImpl(renderState.hoistableChunks, props);
-      }
+  if (insertionMode !== SVG_MODE && !noscriptTagInScope && props.itemProp == null) {
+    if (isFallback) {
+      // Hoistable Elements for fallbacks are simply omitted. we don't want to emit them early
+      // because they are likely superceded by primary content and we want to avoid needing to clean
+      // them up when the primary content is ready. They are never hydrated on the client anyway because
+      // boundaries in fallback are awaited or client render, in either case there is never hydration
+      return null;
     } else {
-      return pushTitleImpl(target, props);
+      pushTitleImpl(renderState.hoistableChunks, props);
     }
+  } else {
+    return pushTitleImpl(target, props);
   }
 }
 
@@ -2507,97 +2547,91 @@ function pushTitleImpl(target, props) {
 }
 
 function pushStartHead(target, props, renderState, insertionMode) {
-  {
-    if (insertionMode < HTML_MODE && renderState.headChunks === null) {
-      // This <head> is the Document.head and should be part of the preamble
-      renderState.headChunks = [];
-      return pushStartGenericElement(renderState.headChunks, props, 'head');
-    } else {
-      // This <head> is deep and is likely just an error. we emit it inline though.
-      // Validation should warn that this tag is the the wrong spot.
-      return pushStartGenericElement(target, props, 'head');
-    }
+  if (insertionMode < HTML_MODE && renderState.headChunks === null) {
+    // This <head> is the Document.head and should be part of the preamble
+    renderState.headChunks = [];
+    return pushStartGenericElement(renderState.headChunks, props, 'head');
+  } else {
+    // This <head> is deep and is likely just an error. we emit it inline though.
+    // Validation should warn that this tag is the the wrong spot.
+    return pushStartGenericElement(target, props, 'head');
   }
 }
 
 function pushStartHtml(target, props, renderState, insertionMode) {
-  {
-    if (insertionMode === ROOT_HTML_MODE && renderState.htmlChunks === null) {
-      // This <html> is the Document.documentElement and should be part of the preamble
-      renderState.htmlChunks = [doctypeChunk];
-      return pushStartGenericElement(renderState.htmlChunks, props, 'html');
-    } else {
-      // This <html> is deep and is likely just an error. we emit it inline though.
-      // Validation should warn that this tag is the the wrong spot.
-      return pushStartGenericElement(target, props, 'html');
-    }
+  if (insertionMode === ROOT_HTML_MODE && renderState.htmlChunks === null) {
+    // This <html> is the Document.documentElement and should be part of the preamble
+    renderState.htmlChunks = [doctypeChunk];
+    return pushStartGenericElement(renderState.htmlChunks, props, 'html');
+  } else {
+    // This <html> is deep and is likely just an error. we emit it inline though.
+    // Validation should warn that this tag is the the wrong spot.
+    return pushStartGenericElement(target, props, 'html');
   }
 }
 
 function pushScript(target, props, resumableState, renderState, textEmbedded, insertionMode, noscriptTagInScope) {
-  {
-    const asyncProp = props.async;
+  const asyncProp = props.async;
 
-    if (typeof props.src !== 'string' || !props.src || !(asyncProp && typeof asyncProp !== 'function' && typeof asyncProp !== 'symbol') || props.onLoad || props.onError || insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
-      // This script will not be a resource, we bailout early and emit it in place.
-      return pushScriptImpl(target, props);
-    }
+  if (typeof props.src !== 'string' || !props.src || !(asyncProp && typeof asyncProp !== 'function' && typeof asyncProp !== 'symbol') || props.onLoad || props.onError || insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
+    // This script will not be a resource, we bailout early and emit it in place.
+    return pushScriptImpl(target, props);
+  }
 
-    const src = props.src;
-    const key = getResourceKey(src); // We can make this <script> into a ScriptResource
+  const src = props.src;
+  const key = getResourceKey(src); // We can make this <script> into a ScriptResource
 
-    let resources, preloads;
+  let resources, preloads;
 
-    if (props.type === 'module') {
-      resources = resumableState.moduleScriptResources;
-      preloads = renderState.preloads.moduleScripts;
-    } else {
-      resources = resumableState.scriptResources;
-      preloads = renderState.preloads.scripts;
-    }
+  if (props.type === 'module') {
+    resources = resumableState.moduleScriptResources;
+    preloads = renderState.preloads.moduleScripts;
+  } else {
+    resources = resumableState.scriptResources;
+    preloads = renderState.preloads.scripts;
+  }
 
-    const hasKey = resources.hasOwnProperty(key);
-    const resourceState = hasKey ? resources[key] : undefined;
+  const hasKey = resources.hasOwnProperty(key);
+  const resourceState = hasKey ? resources[key] : undefined;
 
-    if (resourceState !== EXISTS) {
-      // We are going to create this resource now so it is marked as Exists
-      resources[key] = EXISTS;
-      let scriptProps = props;
+  if (resourceState !== EXISTS) {
+    // We are going to create this resource now so it is marked as Exists
+    resources[key] = EXISTS;
+    let scriptProps = props;
 
-      if (resourceState) {
-        // When resourceState is truty it is a Preload state. We cast it for clarity
-        const preloadState = resourceState;
+    if (resourceState) {
+      // When resourceState is truty it is a Preload state. We cast it for clarity
+      const preloadState = resourceState;
 
-        if (preloadState.length === 2) {
-          scriptProps = assign({}, props);
-          adoptPreloadCredentials(scriptProps, preloadState);
-        }
-
-        const preloadResource = preloads.get(key);
-
-        if (preloadResource) {
-          // the preload resource exists was created in this render. Now that we have
-          // a script resource which will emit earlier than a preload would if it
-          // hasn't already flushed we prevent it from flushing by zeroing the length
-          preloadResource.length = 0;
-        }
+      if (preloadState.length === 2) {
+        scriptProps = assign({}, props);
+        adoptPreloadCredentials(scriptProps, preloadState);
       }
 
-      const resource = []; // Add to the script flushing queue
+      const preloadResource = preloads.get(key);
 
-      renderState.scripts.add(resource); // encode the tag as Chunks
-
-      pushScriptImpl(resource, scriptProps);
+      if (preloadResource) {
+        // the preload resource exists was created in this render. Now that we have
+        // a script resource which will emit earlier than a preload would if it
+        // hasn't already flushed we prevent it from flushing by zeroing the length
+        preloadResource.length = 0;
+      }
     }
 
-    if (textEmbedded) {
-      // This script follows text but we aren't writing a tag. while not as efficient as possible we need
-      // to be safe and assume text will follow by inserting a textSeparator
-      target.push(textSeparator);
-    }
+    const resource = []; // Add to the script flushing queue
 
-    return null;
+    renderState.scripts.add(resource); // encode the tag as Chunks
+
+    pushScriptImpl(resource, scriptProps);
   }
+
+  if (textEmbedded) {
+    // This script follows text but we aren't writing a tag. while not as efficient as possible we need
+    // to be safe and assume text will follow by inserting a textSeparator
+    target.push(textSeparator);
+  }
+
+  return null;
 }
 
 function pushScriptImpl(target, props) {
@@ -2890,13 +2924,13 @@ function pushStartInstance(target, type, props, resumableState, renderState, hoi
       return pushStartMenuItem(target, props);
 
     case 'title':
-      return pushTitle(target, props, renderState, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE), isFallback) ;
+      return pushTitle(target, props, renderState, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE), isFallback);
 
     case 'link':
       return pushLink(target, props, resumableState, renderState, hoistableState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE), isFallback);
 
     case 'script':
-      return pushScript(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE)) ;
+      return pushScript(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
 
     case 'style':
       return pushStyle(target, props, resumableState, renderState, hoistableState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
@@ -2913,7 +2947,7 @@ function pushStartInstance(target, type, props, resumableState, renderState, hoi
 
     case 'img':
       {
-        return pushImg(target, props, resumableState, renderState, !!(formatContext.tagScope & PICTURE_SCOPE)) ;
+        return pushImg(target, props, resumableState, renderState, !!(formatContext.tagScope & PICTURE_SCOPE));
       }
     // Omitted close tags
 
@@ -2932,7 +2966,7 @@ function pushStartInstance(target, type, props, resumableState, renderState, hoi
         return pushSelfClosing(target, props, type);
       }
     // These are reserved SVG and MathML elements, that are never custom elements.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts
 
     case 'annotation-xml':
     case 'color-profile':
@@ -2982,15 +3016,15 @@ function endChunkForTag(tag) {
 
 function pushEndInstance(target, type, props, resumableState, formatContext) {
   switch (type) {
-    // When float is on we expect title and script tags to always be pushed in
-    // a unit and never return children. when we end up pushing the end tag we
-    // want to ensure there is no extra closing tag pushed
+    // We expect title and script tags to always be pushed in a unit and never
+    // return children. when we end up pushing the end tag we want to ensure
+    // there is no extra closing tag pushed
     case 'title':
     case 'style':
-    case 'script':
-    // Omitted close tags
+    case 'script': // Omitted close tags
     // TODO: Instead of repeating this switch we could try to pass a flag from above.
     // That would require returning a tuple. Which might be ok if it gets inlined.
+    // fallthrough
 
     case 'area':
     case 'base':
@@ -3317,17 +3351,12 @@ const completeBoundaryData2 = stringToPrecomputedChunk('" data-sid="');
 const completeBoundaryData3a = stringToPrecomputedChunk('" data-sty="');
 const completeBoundaryDataEnd = dataElementQuotedEnd;
 function writeCompletedBoundaryInstruction(destination, resumableState, renderState, id, hoistableState) {
-  let requiresStyleInsertion;
+  const requiresStyleInsertion = renderState.stylesToHoist; // If necessary stylesheets will be flushed with this instruction.
+  // Any style tags not yet hoisted in the Document will also be hoisted.
+  // We reset this state since after this instruction executes all styles
+  // up to this point will have been hoisted
 
-  {
-    requiresStyleInsertion = renderState.stylesToHoist; // If necessary stylesheets will be flushed with this instruction.
-    // Any style tags not yet hoisted in the Document will also be hoisted.
-    // We reset this state since after this instruction executes all styles
-    // up to this point will have been hoisted
-
-    renderState.stylesToHoist = false;
-  }
-
+  renderState.stylesToHoist = false;
   const scriptFormat = resumableState.streamingFormat === ScriptStreamingFormat;
 
   if (scriptFormat) {
@@ -4184,7 +4213,6 @@ function getImageResourceKey(href, imageSrcSet, imageSizes) {
 }
 
 function prefetchDNS(href) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4193,6 +4221,7 @@ function prefetchDNS(href) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.prefetchDNS(href);
     return;
   }
 
@@ -4241,7 +4270,6 @@ function prefetchDNS(href) {
 }
 
 function preconnect(href, crossOrigin) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4250,6 +4278,7 @@ function preconnect(href, crossOrigin) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preconnect(href, crossOrigin);
     return;
   }
 
@@ -4299,7 +4328,6 @@ function preconnect(href, crossOrigin) {
 }
 
 function preload(href, as, options) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4308,6 +4336,7 @@ function preload(href, as, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preload(href, as, options);
     return;
   }
 
@@ -4500,7 +4529,6 @@ function preload(href, as, options) {
 }
 
 function preloadModule(href, options) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4509,6 +4537,7 @@ function preloadModule(href, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preloadModule(href, options);
     return;
   }
 
@@ -4567,7 +4596,6 @@ function preloadModule(href, options) {
 }
 
 function preinitStyle(href, precedence, options) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4576,6 +4604,7 @@ function preinitStyle(href, precedence, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitStyle(href, precedence, options);
     return;
   }
 
@@ -4645,7 +4674,6 @@ function preinitStyle(href, precedence, options) {
 }
 
 function preinitScript(src, options) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4654,6 +4682,7 @@ function preinitScript(src, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitScript(src, options);
     return;
   }
 
@@ -4706,7 +4735,6 @@ function preinitScript(src, options) {
 }
 
 function preinitModuleScript(src, options) {
-
   const request = resolveRequest();
 
   if (!request) {
@@ -4715,6 +4743,7 @@ function preinitModuleScript(src, options) {
     // the resources for this call in either case we opt to do nothing. We can consider making this a warning
     // but there may be times where calling a function outside of render is intentional (i.e. to warm up data
     // fetching) and we don't want to warn in those cases.
+    previousDispatcher.preinitModuleScript(src, options);
     return;
   }
 
@@ -4772,7 +4801,6 @@ function preinitModuleScript(src, options) {
 
 
 function preloadBootstrapScriptOrModule(resumableState, renderState, href, props) {
-
   const key = getResourceKey(href);
   // used to preinit the resource. If a script can be preinited then it shouldn't
   // be a bootstrap script/module and if it is a bootstrap script/module then it
@@ -5168,44 +5196,6 @@ function getComponentNameFromType(type) {
 
 const emptyContextObject = {};
 
-function getMaskedContext(type, unmaskedContext) {
-  {
-    const contextTypes = type.contextTypes;
-
-    if (!contextTypes) {
-      return emptyContextObject;
-    }
-
-    const context = {};
-
-    for (const key in contextTypes) {
-      context[key] = unmaskedContext[key];
-    }
-
-    return context;
-  }
-}
-function processChildContext(instance, type, parentContext, childContextTypes) {
-  {
-    // TODO (bvaughn) Replace this behavior with an invariant() in the future.
-    // It has only been added in Fiber to match the (unintentional) behavior in Stack.
-    if (typeof instance.getChildContext !== 'function') {
-
-      return parentContext;
-    }
-
-    const childContext = instance.getChildContext();
-
-    for (const contextKey in childContext) {
-      if (!(contextKey in childContextTypes)) {
-        throw Error(formatProdErrorMessage(108, getComponentNameFromType(type) || 'Unknown', contextKey));
-      }
-    }
-
-    return assign({}, parentContext, childContext);
-  }
-}
-
 // Forming a reverse tree.
 // The structure of a context snapshot is an implementation of this file.
 // Currently, it's implemented as tracking the current active node.
@@ -5436,8 +5426,6 @@ function constructClassInstance(ctor, props, maskedLegacyContext) {
 
   if (typeof contextType === 'object' && contextType !== null) {
     context = readContext$1(contextType);
-  } else {
-    context = maskedLegacyContext;
   }
 
   const instance = new ctor(props, context);
@@ -5516,7 +5504,7 @@ function mountClassInstance(instance, ctor, newProps, maskedLegacyContext) {
   if (typeof contextType === 'object' && contextType !== null) {
     instance.context = readContext$1(contextType);
   } else {
-    instance.context = maskedLegacyContext;
+    instance.context = emptyContextObject;
   }
 
   const getDerivedStateFromProps = ctor.getDerivedStateFromProps;
@@ -6289,7 +6277,7 @@ function useFormState(action, initialState, permalink) {
       };
     }
 
-    return [state, dispatch];
+    return [state, dispatch, false];
   } else {
     // This is not a server action, so the implementation is much simpler.
     // Bind the state to the first argument of the action.
@@ -6299,7 +6287,7 @@ function useFormState(action, initialState, permalink) {
       boundAction(payload);
     };
 
-    return [initialState, dispatch];
+    return [initialState, dispatch, false];
   }
 }
 
@@ -6407,6 +6395,7 @@ const HooksDispatcher = {
 {
   HooksDispatcher.useOptimistic = useOptimistic;
   HooksDispatcher.useFormState = useFormState;
+  HooksDispatcher.useActionState = useFormState;
 }
 
 let currentResumableState = null;
@@ -6740,7 +6729,6 @@ function defaultErrorHandler(error) {
 function noop() {}
 
 function createRequest(children, resumableState, renderState, rootFormatContext, progressiveChunkSize, onError, onAllReady, onShellReady, onShellError, onFatalError, onPostpone, formState) {
-  prepareHostDispatcher();
   const pingedTasks = [];
   const abortSet = new Set();
   const request = {
@@ -6790,7 +6778,6 @@ function createPrerenderRequest(children, resumableState, renderState, rootForma
   return request;
 }
 function resumeRequest(children, postponedState, renderState, onError, onAllReady, onShellReady, onShellError, onFatalError, onPostpone) {
-  prepareHostDispatcher();
   const pingedTasks = [];
   const abortSet = new Set();
   const request = {
@@ -7332,19 +7319,6 @@ function renderWithHooks(request, task, keyPath, Component, props, secondArg) {
 function finishClassComponent(request, task, keyPath, instance, Component, props) {
   const nextChildren = instance.render();
 
-  {
-    const childContextTypes = Component.childContextTypes;
-
-    if (childContextTypes !== null && childContextTypes !== undefined) {
-      const previousContext = task.legacyContext;
-      const mergedContext = processChildContext(instance, Component, previousContext, childContextTypes);
-      task.legacyContext = mergedContext;
-      renderNodeDestructive(request, task, nextChildren, -1);
-      task.legacyContext = previousContext;
-      return;
-    }
-  }
-
   const prevKeyPath = task.keyPath;
   task.keyPath = keyPath;
   renderNodeDestructive(request, task, nextChildren, -1);
@@ -7354,20 +7328,16 @@ function finishClassComponent(request, task, keyPath, instance, Component, props
 function renderClassComponent(request, task, keyPath, Component, props) {
   const previousComponentStack = task.componentStack;
   task.componentStack = createClassComponentStack(task, Component);
-  const maskedContext = getMaskedContext(Component, task.legacyContext) ;
-  const instance = constructClassInstance(Component, props, maskedContext);
+  const maskedContext = undefined;
+  const instance = constructClassInstance(Component, props);
   mountClassInstance(instance, Component, props, maskedContext);
-  finishClassComponent(request, task, keyPath, instance, Component);
+  finishClassComponent(request, task, keyPath, instance);
   task.componentStack = previousComponentStack;
 }
 // components for some reason.
 
 function renderIndeterminateComponent(request, task, keyPath, Component, props) {
   let legacyContext;
-
-  {
-    legacyContext = getMaskedContext(Component, task.legacyContext);
-  }
 
   const previousComponentStack = task.componentStack;
   task.componentStack = createFunctionComponentStack(task, Component);
@@ -7377,13 +7347,7 @@ function renderIndeterminateComponent(request, task, keyPath, Component, props) 
   const formStateCount = getFormStateCount();
   const formStateMatchingIndex = getFormStateMatchingIndex();
 
-  if ( // Run these checks in production only if the flag is off.
-  // Eventually we'll delete this branch altogether.
-  typeof value === 'object' && value !== null && typeof value.render === 'function' && value.$$typeof === undefined) {
-
-    mountClassInstance(value, Component, props, legacyContext);
-    finishClassComponent(request, task, keyPath, value, Component);
-  } else {
+  {
 
     finishFunctionComponent(request, task, keyPath, value, hasId, formStateCount, formStateMatchingIndex);
   }
@@ -7926,7 +7890,7 @@ function renderNodeDestructive(request, task, node, childIndex) {
     return;
   }
 
-  if (typeof node === 'number') {
+  if (typeof node === 'number' || typeof node === 'bigint') {
     const segment = task.blockedSegment;
 
     if (segment === null) ; else {
@@ -9046,13 +9010,10 @@ function flushSegment(request, destination, segment, hoistableState) {
 
 
     const id = boundary.rootSegmentID;
-    writeStartPendingSuspenseBoundary(destination, request.renderState, id); // We are going to flush the fallback so we need to hoist the fallback
-    // state to the parent boundary
+    writeStartPendingSuspenseBoundary(destination, request.renderState, id);
 
-    {
-      if (hoistableState) {
-        hoistHoistables(hoistableState, boundary.fallbackState);
-      }
+    if (hoistableState) {
+      hoistHoistables(hoistableState, boundary.fallbackState);
     } // Flush the fallback.
 
 
@@ -9077,10 +9038,8 @@ function flushSegment(request, destination, segment, hoistableState) {
     flushSubtree(request, destination, segment, hoistableState);
     return writeEndPendingSuspenseBoundary(destination);
   } else {
-    {
-      if (hoistableState) {
-        hoistHoistables(hoistableState, boundary.contentState);
-      }
+    if (hoistableState) {
+      hoistHoistables(hoistableState, boundary.contentState);
     } // We can inline this boundary's content as a complete boundary.
 
 
@@ -9117,11 +9076,7 @@ function flushCompletedBoundary(request, destination, boundary) {
   }
 
   completedSegments.length = 0;
-
-  {
-    writeHoistablesForBoundary(destination, boundary.contentState, request.renderState);
-  }
-
+  writeHoistablesForBoundary(destination, boundary.contentState, request.renderState);
   return writeCompletedBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.rootSegmentID, boundary.contentState);
 }
 
@@ -9142,10 +9097,7 @@ function flushPartialBoundary(request, destination, boundary) {
   }
 
   completedSegments.splice(0, i);
-
-  {
-    return writeHoistablesForBoundary(destination, boundary.contentState, request.renderState);
-  }
+  return writeHoistablesForBoundary(destination, boundary.contentState, request.renderState);
 }
 
 function flushPartiallyCompletedSegment(request, destination, boundary, segment) {
@@ -9193,10 +9145,7 @@ function flushCompletedQueues(request, destination) {
         // We postponed the root, so we write nothing.
         return;
       } else if (request.pendingRootTasks === 0) {
-        if (enableFloat) {
-          flushPreamble(request, destination, completedRootSegment);
-        }
-
+        flushPreamble(request, destination, completedRootSegment);
         flushSegment(request, destination, completedRootSegment, null);
         request.completedRootSegment = null;
         writeCompletedRoot(destination, request.renderState);
@@ -9206,12 +9155,9 @@ function flushCompletedQueues(request, destination) {
       }
     }
 
-    if (enableFloat) {
-      writeHoistables(destination, request.resumableState, request.renderState);
-    } // We emit client rendering instructions for already emitted boundaries first.
+    writeHoistables(destination, request.resumableState, request.renderState); // We emit client rendering instructions for already emitted boundaries first.
     // This is so that we can signal to the client to start client rendering them as
     // soon as possible.
-
 
     const clientRenderedBoundaries = request.clientRenderedBoundaries;
 
@@ -9286,14 +9232,11 @@ function flushCompletedQueues(request, destination) {
     if (request.allPendingTasks === 0 && request.pingedTasks.length === 0 && request.clientRenderedBoundaries.length === 0 && request.completedBoundaries.length === 0 // We don't need to check any partially completed segments because
     // either they have pending task or they're complete.
     ) {
-        request.flushScheduled = false;
+        request.flushScheduled = false; // We write the trailing tags but only if don't have any data to resume.
+        // If we need to resume we'll write the postamble in the resume instead.
 
-        {
-          // We write the trailing tags but only if don't have any data to resume.
-          // If we need to resume we'll write the postamble in the resume instead.
-          if (request.trackedPostpones === null) {
-            writePostamble(destination, request.resumableState);
-          }
+        if (request.trackedPostpones === null) {
+          writePostamble(destination, request.resumableState);
         }
 
         completeWriting(destination);

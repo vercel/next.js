@@ -1,73 +1,65 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-createNextDescribe(
-  'parallel-route-not-found',
-  {
+describe('parallel-route-not-found', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it('should behave correctly without any errors', async () => {
-      const browser = await next.browser('/en')
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
+  })
 
-        return 'success'
-      }, 'success')
+  it('should behave correctly without any errors', async () => {
+    const browser = await next.browser('/en')
+    await check(() => {
+      if (
+        next.cliOutput.includes('TypeError') ||
+        next.cliOutput.includes('Warning')
+      ) {
+        return 'has-errors'
+      }
 
-      expect(await browser.elementByCss('body').text()).not.toContain(
-        'Interception Modal'
-      )
-      expect(await browser.elementByCss('body').text()).toContain('Locale: en')
+      return 'success'
+    }, 'success')
 
-      await browser.elementByCss("[href='/en/show']").click()
+    expect(await browser.elementByCss('body').text()).not.toContain(
+      'Interception Modal'
+    )
+    expect(await browser.elementByCss('body').text()).toContain('Locale: en')
 
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
+    await browser.elementByCss("[href='/en/show']").click()
 
-        return 'success'
-      }, 'success')
+    await check(() => {
+      if (
+        next.cliOutput.includes('TypeError') ||
+        next.cliOutput.includes('Warning')
+      ) {
+        return 'has-errors'
+      }
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Interception Modal/
-      )
-      await check(() => browser.elementByCss('body').text(), /Locale: en/)
+      return 'success'
+    }, 'success')
 
-      await browser.refresh()
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Regular Modal Page/
-      )
-      await check(() => browser.elementByCss('body').text(), /Locale: en/)
-    })
+    await check(() => browser.elementByCss('body').text(), /Interception Modal/)
+    await check(() => browser.elementByCss('body').text(), /Locale: en/)
 
-    it('should handle the not found case correctly without any errors', async () => {
-      const browser = await next.browser('/de/show')
-      await check(() => {
-        if (
-          next.cliOutput.includes('TypeError') ||
-          next.cliOutput.includes('Warning')
-        ) {
-          return 'has-errors'
-        }
+    await browser.refresh()
+    await check(() => browser.elementByCss('body').text(), /Regular Modal Page/)
+    await check(() => browser.elementByCss('body').text(), /Locale: en/)
+  })
 
-        return 'success'
-      }, 'success')
+  it('should handle the not found case correctly without any errors', async () => {
+    const browser = await next.browser('/de/show')
+    await check(() => {
+      if (
+        next.cliOutput.includes('TypeError') ||
+        next.cliOutput.includes('Warning')
+      ) {
+        return 'has-errors'
+      }
 
-      expect(await browser.elementByCss('body').text()).toContain(
-        'Custom Not Found'
-      )
-    })
-  }
-)
+      return 'success'
+    }, 'success')
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'Custom Not Found'
+    )
+  })
+})
