@@ -40,12 +40,10 @@ const clientGlobs = [
           path.join(nextAppDir, '.next/server/middleware-manifest.json')
         )
         const manifest = JSON.parse(manifestJson)
-        console.log({ manifest, functions: manifest.functions })
         const manifestFileEntry = path.relative(
           path.join(nextAppDir, '.next'),
           path.join(nextAppDir, fileName)
         )
-        console.log({ manifestFileEntry })
 
         const functionEntry = Object.values(manifest.functions).find(
           (entry) => {
