@@ -7,39 +7,48 @@ import { writeConfigurationDefaults } from './writeConfigurationDefaults'
 
 describe('writeConfigurationDefaults()', () => {
   let consoleLogSpy: jest.SpyInstance
+  let distDir: string
+  let hasAppDir: boolean
+  let tmpDir: string
+  let tsConfigPath: string
+  let isFirstTimeSetup: boolean
+  let hasPagesDir: boolean
 
-  beforeEach(() => {
+  beforeEach(async () => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation()
+    distDir = '.next'
+    tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
+    tsConfigPath = join(tmpDir, 'tsconfig.json')
+    isFirstTimeSetup = false
   })
 
   afterEach(() => {
     consoleLogSpy.mockRestore()
   })
 
-  it('applies suggested and mandatory defaults to existing tsconfig.json and logs them', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
-    const tsConfigPath = join(tmpDir, 'tsconfig.json')
-    const isFirstTimeSetup = false
-    const hasAppDir = true
-    const distDir = '.next'
-    const hasPagesDir = false
-
-    await writeFile(tsConfigPath, JSON.stringify({ compilerOptions: {} }), {
-      encoding: 'utf8',
+  describe('appDir', () => {
+    beforeEach(() => {
+      hasAppDir = true
+      hasPagesDir = false
     })
 
-    await writeConfigurationDefaults(
-      ts,
-      tsConfigPath,
-      isFirstTimeSetup,
-      hasAppDir,
-      distDir,
-      hasPagesDir
-    )
+    it('applies suggested and mandatory defaults to existing tsconfig.json and logs them', async () => {
+      await writeFile(tsConfigPath, JSON.stringify({ compilerOptions: {} }), {
+        encoding: 'utf8',
+      })
 
-    const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
+      await writeConfigurationDefaults(
+        ts,
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir
+      )
 
-    expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
+      const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
+
+      expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
       {
         "compilerOptions": {
           "allowJs": true,
@@ -77,13 +86,13 @@ describe('writeConfigurationDefaults()', () => {
       }
     `)
 
-    expect(
-      consoleLogSpy.mock.calls
-        .flat()
-        .join('\n')
-        // eslint-disable-next-line no-control-regex
-        .replace(/\x1B\[\d+m/g, '') // remove color control characters
-    ).toMatchInlineSnapshot(`
+      expect(
+        consoleLogSpy.mock.calls
+          .flat()
+          .join('\n')
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1B\[\d+m/g, '') // remove color control characters
+      ).toMatchInlineSnapshot(`
       "
         
       We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
@@ -128,37 +137,121 @@ describe('writeConfigurationDefaults()', () => {
       	- jsx was set to preserve (next.js implements its own optimized jsx transform)
       "
     `)
-  })
+    })
 
-  it('does not warn about disabled strict mode if strict mode was already enabled', async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), 'nextjs-test-'))
-    const tsConfigPath = join(tmpDir, 'tsconfig.json')
-    const isFirstTimeSetup = false
-    const hasAppDir = true
-    const distDir = '.next'
-    const hasPagesDir = false
+    it('does not warn about disabled strict mode if strict mode was already enabled', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { strict: true } }),
+        { encoding: 'utf8' }
+      )
 
-    await writeFile(
-      tsConfigPath,
-      JSON.stringify({ compilerOptions: { strict: true } }),
-      { encoding: 'utf8' }
-    )
+      await writeConfigurationDefaults(
+        ts,
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir
+      )
 
-    await writeConfigurationDefaults(
-      ts,
-      tsConfigPath,
-      isFirstTimeSetup,
-      hasAppDir,
-      distDir,
-      hasPagesDir
-    )
+      expect(
+        consoleLogSpy.mock.calls
+          .flat()
+          .join('\n')
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1B\[\d+m/g, '') // remove color control characters
+      ).not.toMatch('Strict-mode is set to false by default.')
+    })
 
-    expect(
-      consoleLogSpy.mock.calls
-        .flat()
-        .join('\n')
-        // eslint-disable-next-line no-control-regex
-        .replace(/\x1B\[\d+m/g, '') // remove color control characters
-    ).not.toMatch('Strict-mode is set to false by default.')
+    describe('with tsconfig extends', () => {
+      let tsConfigBasePath: string
+      let nextAppTypes: string
+
+      beforeEach(() => {
+        tsConfigBasePath = join(tmpDir, 'tsconfig.base.json')
+        nextAppTypes = `${distDir}/types/**/*.ts`
+      })
+
+      it('should support empty includes when base provides it', async () => {
+        const include = ['**/*.ts', '**/*.tsx', nextAppTypes]
+        const content = { extends: './tsconfig.base.json' }
+        const baseContent = { include }
+
+        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
+        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
+
+        await expect(
+          writeConfigurationDefaults(
+            ts,
+            tsConfigPath,
+            isFirstTimeSetup,
+            hasAppDir,
+            distDir,
+            hasPagesDir
+          )
+        ).resolves.not.toThrow()
+
+        const output = await readFile(tsConfigPath, 'utf-8')
+        const parsed = JSON.parse(output)
+
+        expect(parsed.include).toBeUndefined()
+      })
+
+      it('should replace includes when base is missing appTypes', async () => {
+        const include = ['**/*.ts', '**/*.tsx']
+        const content = { extends: './tsconfig.base.json' }
+        const baseContent = { include }
+
+        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
+        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
+
+        await expect(
+          writeConfigurationDefaults(
+            ts,
+            tsConfigPath,
+            isFirstTimeSetup,
+            hasAppDir,
+            distDir,
+            hasPagesDir
+          )
+        ).resolves.not.toThrow()
+
+        const output = await readFile(tsConfigPath, 'utf8')
+        const parsed = JSON.parse(output)
+
+        expect(parsed.include.sort()).toMatchInlineSnapshot(`
+          [
+            "**/*.ts",
+            "**/*.tsx",
+            ".next/types/**/*.ts",
+          ]
+        `)
+      })
+
+      it('should not add strictNullChecks if base provides it', async () => {
+        const content = { extends: './tsconfig.base.json' }
+
+        const baseContent = {
+          compilerOptions: { strictNullChecks: true, strict: true },
+        }
+
+        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
+        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
+
+        await writeConfigurationDefaults(
+          ts,
+          tsConfigPath,
+          isFirstTimeSetup,
+          hasAppDir,
+          distDir,
+          hasPagesDir
+        )
+        const output = await readFile(tsConfigPath, 'utf8')
+        const parsed = JSON.parse(output)
+
+        expect(parsed.compilerOptions.strictNullChecks).toBeUndefined()
+      })
+    })
   })
 })
