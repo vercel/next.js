@@ -74,7 +74,19 @@ export function createAfterContext({
   const keepAliveLock = createKeepAliveLock(waitUntil)
   const afterCallbacks: AfterCallback[] = []
 
+  // `onClose` has some overhead in WebNextResponse, so we don't want to call it unless necessary.
+  // we also have to avoid calling it if we're in static generation (because it doesn't exist there).
+  //   (the ordering is a bit convoluted -- in static generation, calling after() will cause a bailout and fail anyway,
+  //    but we can't know that at the point where we call `onClose`.)
+  // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
+  const firstAfterCalled = new DetachedPromise<void>()
+  const onCloseLazy: typeof onClose = (callback) => {
+    firstAfterCalled.promise.then(() => onClose(callback))
+  }
+
   const afterImpl = (task: AfterTask) => {
+    firstAfterCalled.resolve()
+
     if (isPromise(task)) {
       task.catch(() => {}) // avoid unhandled rejection crashes
       waitUntil(task)
@@ -134,10 +146,9 @@ export function createAfterContext({
           ? cacheScope.run(() => callback())
           : callback())
 
-        // NOTE: if the callback returns a stream, there may still be components that'll execute later,
-        // which means that more callbacks can be added.
-        // TODO: can we call onClose lazily?
-        onClose(() => runCallbacks(requestStore))
+        // NOTE: if the callback is doing streaming rendering, there may still be components that'll execute later,
+        // which means that more `after()` callbacks can be added after this point.
+        onCloseLazy(() => runCallbacks(requestStore))
         return res
       } finally {
         // if something failed, make sure the request doesn't stay open forever.
