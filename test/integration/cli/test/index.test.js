@@ -591,7 +591,8 @@ describe('CLI Usage', () => {
       }
     })
 
-    test("NODE_OPTIONS='--require=file with spaces to--require.js'", async () => {
+    // Checks to make sure that files that look like arguments are not incorrectly parsed out. In this case the file name has `--require` in it.
+    test("NODE_OPTIONS='--require=file with spaces to --require.js'", async () => {
       const port = await findPort()
       let output = ''
       let errOutput = ''
@@ -607,7 +608,7 @@ describe('CLI Usage', () => {
             errOutput += stripAnsi(msg)
           },
           env: {
-            NODE_OPTIONS: '--require "./file with spaces to--require.js"',
+            NODE_OPTIONS: '--require "./file with spaces to --require.js"',
           },
         }
       )
