@@ -259,14 +259,22 @@ function createPatchedFetcher(
       },
       async () => {
         // If this is an internal fetch, we should not do any special treatment.
-        if (isInternal) return originFetch(input, init)
+        if (isInternal) {
+          return originFetch(input, init)
+        }
 
         const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || staticGenerationStore.isDraftMode) {
+        if (!staticGenerationStore) {
+          return originFetch(input, init)
+        }
+
+        // We should also fallback to the original fetch implementation if we
+        // are in draft mode, it does not constitute a static generation.
+        if (staticGenerationStore.isDraftMode) {
           return originFetch(input, init)
         }
 
@@ -686,14 +694,18 @@ function createPatchedFetcher(
             // If enabled, we should bail out of static generation.
             trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
-            // PPR is not enabled, or React postpone is not available, we
-            // should set the revalidate to 0.
-            staticGenerationStore.revalidate = 0
+            // If partial prerendering is not enabled, then we should throw an
+            // error to indicate that this fetch is dynamic.
+            if (!staticGenerationStore.prerenderState) {
+              // PPR is not enabled, or React postpone is not available, we
+              // should set the revalidate to 0.
+              staticGenerationStore.revalidate = 0
 
-            const err = new DynamicServerError(dynamicUsageReason)
-            staticGenerationStore.dynamicUsageErr = err
-            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-            throw err
+              const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
+              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              throw err
+            }
           }
 
           const hasNextConfig = 'next' in init
@@ -718,10 +730,15 @@ function createPatchedFetcher(
               // If enabled, we should bail out of static generation.
               trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
-              const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageErr = err
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-              throw err
+              // If partial prerendering is not enabled, then we should throw an
+              // error to indicate that this fetch is dynamic.
+              if (!staticGenerationStore.prerenderState) {
+                const err = new DynamicServerError(dynamicUsageReason)
+                staticGenerationStore.dynamicUsageErr = err
+                staticGenerationStore.dynamicUsageDescription =
+                  dynamicUsageReason
+                throw err
+              }
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {
