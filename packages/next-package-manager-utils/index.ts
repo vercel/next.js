@@ -1,0 +1,156 @@
+import { execSync } from 'node:child_process'
+import { statSync } from 'node:fs'
+import { join } from 'node:path'
+import { lookup } from 'node:dns/promises'
+
+interface PackageManager {
+  readonly name: 'npm' | 'pnpm' | 'yarn' | 'bun'
+  readonly lockfile: string
+  readonly registry: string
+}
+
+// Define separately so it can be returned from `getPackageManager` without having to scan the `PackageManagers` list.
+const npm: PackageManager = Object.freeze({
+  name: 'npm',
+  lockfile: 'package-lock.json',
+  registry: 'registry.npmjs.org',
+})
+
+const PackageManagers: readonly PackageManager[] = Object.freeze([
+  npm,
+  Object.freeze({
+    name: 'pnpm',
+    lockfile: 'pnpm-lock.yaml',
+    registry: 'registry.npmjs.org',
+  }),
+  Object.freeze({
+    name: 'yarn',
+    lockfile: 'yarn.lock',
+    registry: 'registry.yarnokg.com',
+  }),
+  Object.freeze({
+    name: 'bun',
+    lockfile: 'bun.lockb',
+    registry: 'registry.npmjs.org',
+  }),
+])
+
+const detectedPackageManagerCache: Map<string, PackageManager> = new Map()
+
+/**
+ * Use this method to determine the package manager a project is using.
+ * By default this function will use lockfile and user agent detection,
+ * as well as utilize an internal cache. You can disable any of these
+ * operations through the `options` argument. Furthermore, you can enable
+ * executable detection via the options as well.
+ *
+ * @param baseDir The project directory
+ * @param options Options controlling how the package manager should be detected
+ * @returns
+ */
+export function getPackageManager(
+  baseDir: string,
+  {
+    lockfileDetection = true,
+    userAgentDetection = true,
+    executableDetection = false,
+    skipCache = false,
+  } = {}
+): PackageManager {
+  if (!skipCache) {
+    const detectedPackageManager = detectedPackageManagerCache.get(baseDir)
+    if (detectedPackageManager) return detectedPackageManager
+  }
+  try {
+    if (lockfileDetection) {
+      for (const packageManager of PackageManagers) {
+        const stat = statSync(join(baseDir, packageManager.lockfile), {
+          throwIfNoEntry: false,
+        })
+        if (stat?.isFile()) {
+          if (!skipCache)
+            detectedPackageManagerCache.set(baseDir, packageManager)
+          return packageManager
+        }
+      }
+    }
+
+    if (userAgentDetection) {
+      const userAgent = process.env.npm_config_user_agent
+      for (const packageManager of PackageManagers) {
+        if (userAgent?.startsWith(packageManager.name)) {
+          if (!skipCache)
+            detectedPackageManagerCache.set(baseDir, packageManager)
+          return packageManager
+        }
+      }
+    }
+
+    if (executableDetection) {
+      for (const packageManager of PackageManagers) {
+        if (packageManager.name === 'npm') continue // Skip `npm` as it is most likely always installed and executable
+        try {
+          execSync(`${packageManager.name} --version`, {
+            cwd: baseDir,
+            stdio: 'ignore',
+          })
+          if (!skipCache)
+            detectedPackageManagerCache.set(baseDir, packageManager)
+          return packageManager
+        } catch {} // Ignore any errors thrown from executing the specified package manager
+      }
+    }
+  } catch {
+    // Ignore any errors and let the `finally` block return default (npm)
+  } finally {
+    if (!skipCache) detectedPackageManagerCache.set(baseDir, npm)
+    return npm
+  }
+}
+
+function getProxy(baseDir: string) {
+  if (process.env.https_proxy) return process.env.https_proxy
+
+  try {
+    const httpsProxy = execSync('npm config get https-proxy', {
+      cwd: baseDir,
+      encoding: 'utf8',
+    }).trim()
+    return httpsProxy !== 'null' ? httpsProxy : undefined
+  } catch {
+    return
+  }
+}
+
+/**
+ * This function will determine if the current system is online and has access
+ * to a specified or detected package manager registry. If the `packageManager`
+ * option is not specified, this function will call `getPackageManager()` to
+ * determine which registry to check. If the default registry check fails, it
+ * will also attempt to check a configured proxy via the `process.env.https_proxy`
+ * variable or the `https-proxy` npm config value.
+ *
+ * @param baseDir The project directory
+ * @param packageManager A package manager to use for the registry check. Will call `getPackageManager()` if not specified.
+ * @returns
+ */
+export async function isOnline(
+  baseDir: string,
+  packageManager?: PackageManager
+): Promise<boolean> {
+  try {
+    packageManager ??= getPackageManager(baseDir)
+    await lookup(packageManager.registry)
+    return true
+  } catch {
+    const proxy = getProxy(baseDir)
+    if (!proxy) return false
+    try {
+      const { hostname } = new URL(proxy)
+      await lookup(hostname)
+      return true
+    } catch {
+      return false
+    }
+  }
+}

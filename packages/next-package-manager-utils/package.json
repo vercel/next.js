@@ -1,6 +1,6 @@
 {
   "name": "@next/package-manager-utils",
-  "version": "14.2.1-canary.2",
+  "version": "14.3.0-canary.26",
   "description": "A set of utils for handling package managers. Used by Next.js CLI and create-next-app",
   "repository": {
     "type": "git",
@@ -13,7 +13,9 @@
     "dist"
   ],
   "scripts": {},
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/node": "20.12.3"
+  },
   "engines": {
     "node": ">=18.17.0"
   }

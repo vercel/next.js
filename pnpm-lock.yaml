@@ -1502,6 +1502,12 @@ importers:
         specifier: ^0.7.0
         version: 0.7.3
 
+  packages/next-package-manager-utils:
+    devDependencies:
+      '@types/node':
+        specifier: 20.12.3
+        version: 20.12.3
+
   packages/next-plugin-storybook: {}
 
   packages/next-polyfill-module:
