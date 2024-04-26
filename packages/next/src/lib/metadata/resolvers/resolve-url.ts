@@ -9,6 +9,18 @@ function createLocalMetadataBase() {
   return new URL(`http://localhost:${process.env.PORT || 3000}`)
 }
 
+function getPreviewDeploymentUrl(): URL | undefined {
+  const origin = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
+  if (!origin) return undefined
+  return new URL(`https://${origin}`)
+}
+
+function getProductionDeploymentUrl(): URL | undefined {
+  const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  if (!origin) return undefined
+  return new URL(`https://${origin}`)
+}
+
 // For deployment url for metadata routes, prefer to use the deployment url if possible
 // as these routes are unique to the deployments url.
 export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
@@ -17,8 +29,8 @@ export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
 } {
   const isMetadataBaseMissing = !metadataBase
   const defaultMetadataBase = createLocalMetadataBase()
-  const deploymentUrl =
-    process.env.VERCEL_URL && new URL(`https://${process.env.VERCEL_URL}`)
+  const previewDeploymentUrl = getPreviewDeploymentUrl()
+  const productionDeploymentUrl = getProductionDeploymentUrl()
 
   let fallbackMetadataBase
   if (process.env.NODE_ENV === 'development') {
@@ -26,10 +38,10 @@ export function getSocialImageFallbackMetadataBase(metadataBase: URL | null): {
   } else {
     fallbackMetadataBase =
       process.env.NODE_ENV === 'production' &&
-      deploymentUrl &&
+      previewDeploymentUrl &&
       process.env.VERCEL_ENV === 'preview'
-        ? deploymentUrl
-        : metadataBase || deploymentUrl || defaultMetadataBase
+        ? previewDeploymentUrl
+        : metadataBase || productionDeploymentUrl || defaultMetadataBase
   }
 
   return {
