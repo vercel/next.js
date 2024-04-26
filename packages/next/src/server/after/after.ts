@@ -72,31 +72,33 @@ export function createAfterContext({
   cacheScope?: CacheScope
 }) {
   const keepAliveLock = createKeepAliveLock(waitUntil)
+
   const afterCallbacks: AfterCallback[] = []
+  const addCallback = (callback: AfterCallback) => {
+    if (afterCallbacks.length === 0) {
+      firstCallbackAdded.resolve()
+    }
+    afterCallbacks.push(callback)
+  }
 
   // `onClose` has some overhead in WebNextResponse, so we don't want to call it unless necessary.
   // we also have to avoid calling it if we're in static generation (because it doesn't exist there).
   //   (the ordering is a bit convoluted -- in static generation, calling after() will cause a bailout and fail anyway,
   //    but we can't know that at the point where we call `onClose`.)
   // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
-  const firstAfterCalled = new DetachedPromise<void>()
+  const firstCallbackAdded = new DetachedPromise<void>()
   const onCloseLazy: typeof onClose = (callback) => {
-    firstAfterCalled.promise.then(() => onClose(callback))
+    firstCallbackAdded.promise.then(() => onClose(callback))
   }
 
   const afterImpl = (task: AfterTask) => {
-    firstAfterCalled.resolve()
-
     if (isPromise(task)) {
       task.catch(() => {}) // avoid unhandled rejection crashes
       waitUntil(task)
     } else if (typeof task === 'function') {
       keepAliveLock.acquire()
-
       // TODO(after): will this trace correctly?
-      afterCallbacks.push(() =>
-        getTracer().trace(BaseServerSpan.after, () => task())
-      )
+      addCallback(() => getTracer().trace(BaseServerSpan.after, () => task()))
     } else {
       throw new Error('after() must receive a promise or a function')
     }
