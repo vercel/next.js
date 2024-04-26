@@ -37,6 +37,8 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
 export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
+
+  private listeners = 0
   private target = new EventTarget()
 
   public statusCode: number | undefined
@@ -106,14 +108,10 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
     let body = this.textBody ?? this.transformStream.readable
 
-    const closePassThrough = new TransformStream({
-      flush: () => {
+    if (this.listeners > 0) {
+      body = trackBodyConsumed(body, () => {
         this.target.dispatchEvent(new Event('close'))
-      },
-    })
-
-    if (typeof body !== 'string') {
-      body = body.pipeThrough(closePassThrough)
+      })
     }
 
     return new Response(body, {
@@ -128,5 +126,34 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
       throw new Error('Cannot call onClose on a response that is already sent')
     }
     this.target.addEventListener('close', callback)
+    this.listeners++
+    return () => {
+      this.target.removeEventListener('close', callback)
+      this.listeners--
+    }
+  }
+}
+
+function trackBodyConsumed(body: string | ReadableStream, onEnd: () => void) {
+  // monitor when the consumer finishes reading the response body.
+  // that's as close as we can get to `res.on('close')` using web APIs.
+
+  if (typeof body === 'string') {
+    // TODO(after): how much overhead does this introduce?
+    return new ReadableStream({
+      pull(controller) {
+        const encoder = new TextEncoder()
+        controller.enqueue(encoder.encode(body))
+        controller.close()
+        return onEnd()
+      },
+    })
+  } else {
+    const closePassThrough = new TransformStream({
+      flush: () => {
+        return onEnd()
+      },
+    })
+    return body.pipeThrough(closePassThrough)
   }
 }
