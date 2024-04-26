@@ -420,7 +420,7 @@ Consider a login form where users can input their credentials:
 
 ```tsx filename="pages/login.tsx" switcher
 import { FormEvent } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -457,7 +457,7 @@ export default function LoginPage() {
 
 ```jsx filename="pages/login.jsx" switcher
 import { FormEvent } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
