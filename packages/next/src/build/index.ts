@@ -1658,6 +1658,7 @@ export default async function build(
                   hasSsrAmpPages: false,
                   buildTraceContext,
                   outputFileTracingRoot,
+                  isFlyingShuttle: !!config.experimental.flyingShuttle,
                 })
                 .catch((err) => {
                   console.error(err)
@@ -2396,6 +2397,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isFlyingShuttle: !!config.experimental.flyingShuttle,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
