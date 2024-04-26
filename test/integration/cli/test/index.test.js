@@ -559,31 +559,65 @@ describe('CLI Usage', () => {
       }
     })
 
-    test("NODE_OPTIONS='--inspect=host:port'", async () => {
+    test("NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'", async () => {
       const port = await findPort()
-      const inspectPort = await findPort()
       let output = ''
       let errOutput = ''
       const app = await runNextCommandDev(
         [dirBasic, '--port', port],
         undefined,
         {
+          cwd: dirBasic,
           onStdout(msg) {
             output += stripAnsi(msg)
           },
           onStderr(msg) {
             errOutput += stripAnsi(msg)
           },
-          env: { NODE_OPTIONS: `--inspect=0.0.0.0:${inspectPort}` },
+          env: {
+            NODE_OPTIONS:
+              '--require "./file with spaces to-require-with-node-require-option.js"',
+          },
         }
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
-        await check(() => errOutput, /Debugger listening on/)
-        expect(errOutput).not.toContain('address already in use')
         expect(output).toContain(
-          'the --inspect option was detected, the Next.js router server should be inspected at'
+          'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
         )
+        expect(errOutput).toBe('')
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    // Checks to make sure that files that look like arguments are not incorrectly parsed out. In this case the file name has `--require` in it.
+    test("NODE_OPTIONS='--require=file with spaces to --require.js'", async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          cwd: dirBasic,
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+          env: {
+            NODE_OPTIONS: '--require "./file with spaces to --require.js"',
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        expect(output).toContain(
+          'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
+        )
+        expect(errOutput).toBe('')
       } finally {
         await killApp(app)
       }
