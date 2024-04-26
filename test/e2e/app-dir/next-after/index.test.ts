@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { createProxyServer } from 'next/experimental/testmode/proxy'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -10,7 +11,7 @@ describe('unstable_after()', () => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
   const logFile = path.join(logFileDir, 'logs.jsonl')
 
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     env: {
       PERSISTENT_LOG_FILE: logFile,
@@ -138,9 +139,102 @@ describe('unstable_after()', () => {
     })
   })
 
+  if (!isNextDeploy) {
+    it.failing(
+      'only runs callbacks after the response is fully sent',
+      async () => {
+        const pageStartedFetching = promiseWithResolvers<void>()
+        const shouldSendResponse = promiseWithResolvers<void>()
+        const abort = (error: Error) => {
+          pageStartedFetching.reject(error)
+          shouldSendResponse.reject(error)
+        }
+
+        const proxyServer = await createProxyServer({
+          async onFetch(_, request) {
+            if (request.url === 'https://example.test/delayed-request') {
+              pageStartedFetching.resolve()
+              await shouldSendResponse.promise
+              return new Response('')
+            }
+          },
+        })
+
+        try {
+          const pendingReq = next.fetch('/delay', {
+            headers: { 'Next-Test-Proxy-Port': String(proxyServer.port) },
+          })
+
+          pendingReq.then(
+            async (res) => {
+              if (res.status !== 200) {
+                const msg = `Got non-200 response (${res.status}), aborting`
+                console.error(msg + '\n', await res.text())
+                abort(new Error(msg))
+              }
+            },
+            (err) => {
+              abort(err)
+            }
+          )
+
+          await Promise.race([
+            pageStartedFetching.promise,
+            timeoutPromise(
+              10_000,
+              'Timeout while waiting for the page to call fetch'
+            ),
+          ])
+
+          // we blocked the request from completing, so there should be no logs yet,
+          // because after() shouldn't run callbacks until the request is finished.
+          expect(Log.readPersistentLog(logFile)).not.toContainEqual({
+            source: '[page] /delay (Page)',
+          })
+          expect(Log.readPersistentLog(logFile)).not.toContainEqual({
+            source: '[page] /delay (Inner)',
+          })
+
+          shouldSendResponse.resolve()
+          await pendingReq.then((res) => res.text())
+
+          // the request is finished, so after() should run, and the logs should appear now.
+          await check(() => {
+            expect(Log.readPersistentLog(logFile)).toContainEqual({
+              source: '[page] /delay (Page)',
+            })
+            expect(Log.readPersistentLog(logFile)).toContainEqual({
+              source: '[page] /delay (Inner)',
+            })
+            return true
+          }, true)
+        } finally {
+          proxyServer.close()
+        }
+      }
+    )
+  }
+
   it.todo('runs in getMetadata()')
-  it.todo('runs after the response is sent')
   it.todo('does not allow modifying cookies')
   it.todo('errors when used in client modules')
   it.todo('errors when used in pages dir')
 })
+
+function promiseWithResolvers<T>() {
+  let resolve: (value: T) => void = undefined!
+  let reject: (error: unknown) => void = undefined!
+  const promise = new Promise((_resolve, _reject) => {
+    resolve = _resolve
+    reject = _reject
+  })
+  return { promise, resolve, reject }
+}
+
+function timeoutPromise(duration: number, message = 'Timeout') {
+  return new Promise<never>((_, reject) =>
+    AbortSignal.timeout(duration).addEventListener('abort', () =>
+      reject(new Error(message))
+    )
+  )
+}
