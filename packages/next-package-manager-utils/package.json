@@ -18,5 +18,9 @@
   },
   "engines": {
     "node": ">=18.17.0"
+  },
+  "dependencies": {
+    "execa": "8.0.1",
+    "picocolors": "1.0.0"
   }
 }

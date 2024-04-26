@@ -1,39 +1,91 @@
 import { execSync } from 'node:child_process'
+import { execa } from 'execa'
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { lookup } from 'node:dns/promises'
+import { yellow } from 'picocolors'
 
 interface PackageManager {
   readonly name: 'npm' | 'pnpm' | 'yarn' | 'bun'
   readonly lockfile: string
   readonly registry: string
+  readonly install: {
+    readonly allDeps: string
+    readonly addDep: string
+    readonly args: {
+      readonly exact: string
+      readonly dev: string
+      // needs to be optional because yarn doesn't have a flag for this
+      readonly prod?: string
+      readonly offline: string
+    }
+  }
 }
 
 // Define separately so it can be returned from `getPackageManager` without having to scan the `PackageManagers` list.
-const npm: PackageManager = Object.freeze({
+const npm: PackageManager = {
   name: 'npm',
   lockfile: 'package-lock.json',
   registry: 'registry.npmjs.org',
-})
+  install: {
+    allDeps: 'install',
+    addDep: 'install',
+    args: {
+      exact: '--save-exact',
+      dev: '--save-dev',
+      prod: '--save',
+      offline: '--offline',
+    },
+  },
+}
 
-const PackageManagers: readonly PackageManager[] = Object.freeze([
+const PackageManagers: readonly PackageManager[] = [
   npm,
-  Object.freeze({
+  {
     name: 'pnpm',
     lockfile: 'pnpm-lock.yaml',
     registry: 'registry.npmjs.org',
-  }),
-  Object.freeze({
+    install: {
+      allDeps: 'install',
+      addDep: 'add',
+      args: {
+        exact: '--save-exact',
+        dev: '--save-dev',
+        prod: '--save-prod',
+        offline: '--offline',
+      },
+    },
+  },
+  {
     name: 'yarn',
     lockfile: 'yarn.lock',
     registry: 'registry.yarnokg.com',
-  }),
-  Object.freeze({
+    install: {
+      allDeps: 'install',
+      addDep: 'add',
+      args: {
+        exact: '--exact',
+        dev: '--dev',
+        offline: '--offline',
+      },
+    },
+  },
+  {
     name: 'bun',
     lockfile: 'bun.lockb',
     registry: 'registry.npmjs.org',
-  }),
-])
+    install: {
+      allDeps: 'install',
+      addDep: 'install',
+      args: {
+        exact: '--save-exact',
+        dev: '--save-dev',
+        prod: '--save',
+        offline: '--offline',
+      },
+    },
+  },
+]
 
 const detectedPackageManagerCache: Map<string, PackageManager> = new Map()
 
@@ -134,7 +186,7 @@ function getProxy(baseDir: string) {
  * @param packageManager A package manager to use for the registry check. Will call `getPackageManager()` if not specified.
  * @returns
  */
-export async function isOnline(
+export async function getOnline(
   baseDir: string,
   packageManager?: PackageManager
 ): Promise<boolean> {
@@ -153,4 +205,60 @@ export async function isOnline(
       return false
     }
   }
+}
+
+export async function install(
+  baseDir: string,
+  {
+    dependencies = [],
+    packageManager,
+    isOnline,
+    dev,
+  }: {
+    dependencies: string[]
+    packageManager: PackageManager
+    isOnline: boolean
+    dev: boolean
+  }
+) {
+  packageManager ??= getPackageManager(baseDir)
+  isOnline ??= await getOnline(baseDir, packageManager)
+  let args: string[] = []
+
+  if (dependencies.length > 0) {
+    args.push(packageManager.install.addDep)
+    args.push(packageManager.install.args.exact)
+
+    if (dev) args.push(packageManager.install.args.dev)
+    else if (packageManager.install.args.prod)
+      args.push(packageManager.install.args.prod)
+
+    args.push(...dependencies)
+  } else {
+    args.push(packageManager.install.allDeps)
+
+    if (!isOnline) {
+      args.push(packageManager.install.args.offline)
+      console.log(yellow('You appear to be offline.'))
+      if (packageManager.name !== 'npm') {
+        console.log(
+          yellow(`Falling back to the local ${packageManager.name} cache.`)
+        )
+      }
+      console.log()
+    }
+  }
+
+  return execa(packageManager.name, args, {
+    cwd: baseDir,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      ADBLOCK: '1',
+      // we set NODE_ENV to development as pnpm skips dev
+      // dependencies when production
+      NODE_ENV: 'development',
+      DISABLE_OPENCOLLECTIVE: '1',
+    },
+  })
 }
