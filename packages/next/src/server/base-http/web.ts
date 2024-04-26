@@ -1,12 +1,11 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import { Readable } from 'stream'
+import { PerformanceObserver } from 'perf_hooks'
 import type { FetchMetrics } from './index'
 
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
 import { DetachedPromise } from '../../lib/detached-promise'
 import type { NextRequestHint } from '../web/adapter'
-import EventEmitter from 'events'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
@@ -38,7 +37,7 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
 export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
-  private ee = new EventEmitter()
+  private target = new EventTarget()
 
   public statusCode: number | undefined
   public statusMessage: string | undefined
@@ -107,25 +106,27 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
     let body = this.textBody ?? this.transformStream.readable
 
-    // @ts-ignore
-    const readable = Readable.from(body).on('close', () => {
-      this.ee.emit('close')
+    const closePassThrough = new TransformStream({
+      flush: () => {
+        this.target.dispatchEvent(new Event('close'))
+      },
     })
-    const readableStream = Readable.toWeb(readable)
-    // @ts-ignore
-    const response = new Response(readableStream, {
+
+    if (typeof body !== 'string') {
+      body = body.pipeThrough(closePassThrough)
+    }
+
+    return new Response(body, {
       headers: this.headers,
       status: this.statusCode,
       statusText: this.statusMessage,
     })
-
-    return response
   }
 
   public onClose(callback: () => void) {
     if (this.sent) {
       throw new Error('Cannot call onClose on a response that is already sent')
     }
-    this.ee.on('close', callback)
+    this.target.addEventListener('close', callback)
   }
 }
