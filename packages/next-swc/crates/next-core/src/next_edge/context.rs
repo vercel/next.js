@@ -108,15 +108,8 @@ pub async fn get_edge_resolve_options_context(
             .map(ToString::to_string),
     );
 
-    match ty {
-        ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
-        ServerContextType::AppRoute { .. }
-        | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => {}
+    if ty.supports_react_server() {
+        custom_conditions.push("react-server".to_string());
     };
 
     let resolve_options_context = ResolveOptionsContext {
