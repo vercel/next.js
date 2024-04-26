@@ -238,7 +238,7 @@ export default class FetchCache implements CacheHandler {
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+          throw new Error('invalid cache value')
         }
 
         // if new tags were specified, merge those tags to the existing tags
