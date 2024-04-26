@@ -105,7 +105,6 @@ impl ServerContextType {
             ServerContextType::AppRSC { .. }
                 | ServerContextType::AppRoute { .. }
                 | ServerContextType::PagesApi { .. }
-                | ServerContextType::Middleware
         )
     }
 }
