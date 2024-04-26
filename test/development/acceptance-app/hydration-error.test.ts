@@ -251,16 +251,16 @@ describe('Error overlay for hydration errors', () => {
 
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-      "...
-        <NotFoundErrorBoundary>
-          <RedirectBoundary>
-            <RedirectErrorBoundary>
-              <InnerLayoutRouter>
-                <Mismatch>
-                  <div>
-                    <div>
-                      "only""
-      `)
+              "...
+                <NotFoundErrorBoundary>
+                  <RedirectBoundary>
+                    <RedirectErrorBoundary>
+                      <InnerLayoutRouter>
+                        <Mismatch>
+                          <div>
+                            <div>
+                              "only""
+            `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "<Mismatch>
@@ -421,9 +421,13 @@ describe('Error overlay for hydration errors', () => {
 
             export default function Page() {
               return (
-                <p>
-                  <div>Nested div under p tag</div>
-                </p>
+                <div>
+                  <div>
+                    <p>
+                      <div>Nested div under p tag</div>
+                    </p>
+                  </div>
+                </div>
               )
             }
           `,
@@ -451,7 +455,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <Page>
+          <div>
             <p>
             ^^^
               <div>
@@ -460,10 +464,12 @@ describe('Error overlay for hydration errors', () => {
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "<Page>
-          <p>
-          ^^^
+          <div>
             <div>
-            ^^^^^"
+              <p>
+              ^^^
+                <div>
+                ^^^^^"
       `)
     }
 
@@ -570,7 +576,7 @@ describe('Error overlay for hydration errors', () => {
 
     const warning = await session.getRedboxDescriptionWarning()
     expect(warning).toContain(
-      'In HTML, <script> cannot be a child of <html>.\nThis will cause a hydration error.'
+      'Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.'
     )
 
     await cleanup()

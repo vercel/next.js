@@ -6,7 +6,7 @@ import type {
   GetStaticPathsResult,
   PageConfig,
   ServerRuntime,
-} from 'next/types'
+} from '../types'
 import type { BuildManifest } from '../server/get-page-files'
 import type {
   Redirect,
@@ -360,14 +360,21 @@ export interface PageInfo {
 
 export type PageInfos = Map<string, PageInfo>
 
-export type SerializedPageInfos = [string, PageInfo][]
-
-export function serializePageInfos(input: PageInfos): SerializedPageInfos {
-  return Array.from(input.entries())
+export interface RoutesUsingEdgeRuntime {
+  [route: string]: 0
 }
 
-export function deserializePageInfos(input: SerializedPageInfos): PageInfos {
-  return new Map(input)
+export function collectRoutesUsingEdgeRuntime(
+  input: PageInfos
+): RoutesUsingEdgeRuntime {
+  const routesUsingEdgeRuntime: RoutesUsingEdgeRuntime = {}
+  for (const [route, info] of input.entries()) {
+    if (isEdgeRuntime(info.runtime)) {
+      routesUsingEdgeRuntime[route] = 0
+    }
+  }
+
+  return routesUsingEdgeRuntime
 }
 
 export async function printTreeView(
@@ -773,7 +780,6 @@ export function printCustomRoutes({
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
     print(underline(type))
-    print()
 
     /*
         ┌ source
@@ -815,9 +821,10 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    print(routesStr, '\n')
+    print(`${routesStr}\n`)
   }
 
+  print()
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }

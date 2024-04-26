@@ -146,6 +146,13 @@ const program = new Commander.Command(packageJson.name)
   Explicitly tell the CLI to reset any stored preferences
 `
   )
+  .option(
+    '--skip-install',
+    `
+
+  Explicitly tell the CLI to skip installing packages
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -381,9 +388,10 @@ async function run(): Promise<void> {
       }
     }
 
+    const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
+      !importAliasPattern.test(program.importAlias)
     ) {
       if (ciInfo.isCI) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
@@ -414,7 +422,7 @@ async function run(): Promise<void> {
             message: `What ${styledImportAlias} would you like configured?`,
             initial: getPrefOrDefault('importAlias'),
             validate: (value) =>
-              /.+\/\*/.test(value)
+              importAliasPattern.test(value)
                 ? true
                 : 'Import alias must follow the pattern <prefix>/*',
           })
@@ -437,6 +445,7 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      skipInstall: program.skipInstall,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -465,6 +474,7 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      skipInstall: program.skipInstall,
     })
   }
   conf.set('preferences', preferences)

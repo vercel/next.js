@@ -18,6 +18,20 @@ import type { FetchMetric } from '../base-http'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+type Fetcher = typeof fetch
+
+type PatchedFetcher = Fetcher & {
+  readonly __nextPatched: true
+  readonly __nextGetStaticStore: () => StaticGenerationAsyncStorage
+  readonly _nextOriginalFetch: Fetcher
+}
+
+function isPatchedFetch(
+  fetch: Fetcher | PatchedFetcher
+): fetch is PatchedFetcher {
+  return '__nextPatched' in fetch && fetch.__nextPatched === true
+}
+
 export function validateRevalidate(
   revalidateVal: unknown,
   pathname: string
@@ -149,7 +163,13 @@ function trackFetchMetric(
   staticGenerationStore: StaticGenerationStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
-  if (!staticGenerationStore) return
+  if (
+    !staticGenerationStore ||
+    staticGenerationStore.requestEndedState?.ended ||
+    process.env.NODE_ENV !== 'development'
+  ) {
+    return
+  }
   staticGenerationStore.fetchMetrics ??= []
 
   const dedupeFields = ['url', 'status', 'method'] as const
@@ -167,6 +187,25 @@ function trackFetchMetric(
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
   })
+
+  // only store top 10 metrics to avoid storing too many
+  if (staticGenerationStore.fetchMetrics.length > 10) {
+    // sort slowest first as these should be highlighted
+    staticGenerationStore.fetchMetrics.sort((a, b) => {
+      const aDur = a.end - a.start
+      const bDur = b.end - b.start
+
+      if (aDur < bDur) {
+        return 1
+      } else if (aDur > bDur) {
+        return -1
+      }
+      return 0
+    })
+    // now grab top 10
+    staticGenerationStore.fetchMetrics =
+      staticGenerationStore.fetchMetrics.slice(0, 10)
+  }
 }
 
 interface PatchableModule {
@@ -174,22 +213,16 @@ interface PatchableModule {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
-// we patch fetch to collect cache information used for
-// determining if a page is static or not
-export function patchFetch({
-  serverHooks,
-  staticGenerationAsyncStorage,
-}: PatchableModule) {
-  if (!(globalThis as any)._nextOriginalFetch) {
-    ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
-  }
-
-  if ((globalThis.fetch as any).__nextPatched) return
-
-  const { DynamicServerError } = serverHooks
-  const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
-
-  globalThis.fetch = async (
+function createPatchedFetcher(
+  originFetch: Fetcher,
+  {
+    serverHooks: { DynamicServerError },
+    staticGenerationAsyncStorage,
+  }: PatchableModule
+): PatchedFetcher {
+  // Create the patched fetch function. We don't set the type here, as it's
+  // verified as the return value of this function.
+  const patched = async (
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) => {
@@ -211,7 +244,7 @@ export function patchFetch({
     const isInternal = (init?.next as any)?.internal === true
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
 
-    return await getTracer().trace(
+    return getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
         hideSpan,
@@ -225,9 +258,26 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore: StaticGenerationStore =
-          staticGenerationAsyncStorage.getStore() ||
-          (fetch as any).__nextGetStaticStore?.()
+        // If this is an internal fetch, we should not do any special treatment.
+        if (isInternal) {
+          return originFetch(input, init)
+        }
+
+        const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+        // If the staticGenerationStore is not available, we can't do any
+        // special treatment of fetch, therefore fallback to the original
+        // fetch implementation.
+        if (!staticGenerationStore) {
+          return originFetch(input, init)
+        }
+
+        // We should also fallback to the original fetch implementation if we
+        // are in draft mode, it does not constitute a static generation.
+        if (staticGenerationStore.isDraftMode) {
+          return originFetch(input, init)
+        }
+
         const isRequestInput =
           input &&
           typeof input === 'object' &&
@@ -237,17 +287,6 @@ export function patchFetch({
           // If request input is present but init is not, retrieve from input first.
           const value = (init as any)?.[field]
           return value || (isRequestInput ? (input as any)[field] : null)
-        }
-
-        // If the staticGenerationStore is not available, we can't do any
-        // special treatment of fetch, therefore fallback to the original
-        // fetch implementation.
-        if (
-          !staticGenerationStore ||
-          isInternal ||
-          staticGenerationStore.isDraftMode
-        ) {
-          return originFetch(input, init)
         }
 
         let revalidate: number | undefined | false = undefined
@@ -304,7 +343,13 @@ export function patchFetch({
           _cache === 'no-cache' ||
           _cache === 'no-store' ||
           fetchCacheMode === 'force-no-store' ||
-          fetchCacheMode === 'only-no-store'
+          fetchCacheMode === 'only-no-store' ||
+          // If no explicit fetch cache mode is set, but dynamic = `force-dynamic` is set,
+          // we shouldn't consider caching the fetch. This is because the `dynamic` cache
+          // is considered a "top-level" cache mode, whereas something like `fetchCache` is more
+          // fine-grained. Top-level modes are responsible for setting reasonable defaults for the
+          // other configurations.
+          (!fetchCacheMode && staticGenerationStore.forceDynamic)
         ) {
           curRevalidate = 0
         }
@@ -558,6 +603,7 @@ export function patchFetch({
 
         let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
+        let isForegroundRevalidate = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           handleUnlock = await staticGenerationStore.incrementalCache.lock(
@@ -585,12 +631,21 @@ export function patchFetch({
           if (entry?.value && entry.value.kind === 'FETCH') {
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
-            if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
+            if (staticGenerationStore.isRevalidate && entry.isStale) {
+              isForegroundRevalidate = true
+            } else {
               if (entry.isStale) {
                 staticGenerationStore.pendingRevalidates ??= {}
                 if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
                   staticGenerationStore.pendingRevalidates[cacheKey] =
-                    doOriginalFetch(true).catch(console.error)
+                    doOriginalFetch(true)
+                      .catch(console.error)
+                      .finally(() => {
+                        staticGenerationStore.pendingRevalidates ??= {}
+                        delete staticGenerationStore.pendingRevalidates[
+                          cacheKey || ''
+                        ]
+                      })
                 }
               }
               const resData = entry.value.data
@@ -639,13 +694,18 @@ export function patchFetch({
             // If enabled, we should bail out of static generation.
             trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
-            // PPR is not enabled, or React postpone is not available, we
-            // should set the revalidate to 0.
-            staticGenerationStore.revalidate = 0
+            // If partial prerendering is not enabled, then we should throw an
+            // error to indicate that this fetch is dynamic.
+            if (!staticGenerationStore.prerenderState) {
+              // PPR is not enabled, or React postpone is not available, we
+              // should set the revalidate to 0.
+              staticGenerationStore.revalidate = 0
 
-            const err = new DynamicServerError(dynamicUsageReason)
-            staticGenerationStore.dynamicUsageErr = err
-            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
+              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              throw err
+            }
           }
 
           const hasNextConfig = 'next' in init
@@ -670,9 +730,15 @@ export function patchFetch({
               // If enabled, we should bail out of static generation.
               trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
-              const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageErr = err
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              // If partial prerendering is not enabled, then we should throw an
+              // error to indicate that this fetch is dynamic.
+              if (!staticGenerationStore.prerenderState) {
+                const err = new DynamicServerError(dynamicUsageReason)
+                staticGenerationStore.dynamicUsageErr = err
+                staticGenerationStore.dynamicUsageDescription =
+                  dynamicUsageReason
+                throw err
+              }
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {
@@ -682,12 +748,51 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
+        // if we are revalidating the whole page via time or on-demand and
+        // the fetch cache entry is stale we should still de-dupe the
+        // origin hit if it's a cache-able entry
+        if (cacheKey && isForegroundRevalidate) {
+          staticGenerationStore.pendingRevalidates ??= {}
+          const pendingRevalidate =
+            staticGenerationStore.pendingRevalidates[cacheKey]
+
+          if (pendingRevalidate) {
+            const res: Response = await pendingRevalidate
+            return res.clone()
+          }
+          return (staticGenerationStore.pendingRevalidates[cacheKey] =
+            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
+              staticGenerationStore.pendingRevalidates ??= {}
+              delete staticGenerationStore.pendingRevalidates[cacheKey || '']
+              await handleUnlock()
+            }))
+        } else {
+          return doOriginalFetch(false, cacheReasonOverride).finally(
+            handleUnlock
+          )
+        }
       }
     )
   }
-  ;(globalThis.fetch as any).__nextGetStaticStore = () => {
-    return staticGenerationAsyncStorage
-  }
-  ;(globalThis.fetch as any).__nextPatched = true
+
+  // Attach the necessary properties to the patched fetch function.
+  patched.__nextPatched = true as const
+  patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
+  patched._nextOriginalFetch = originFetch
+
+  return patched
+}
+
+// we patch fetch to collect cache information used for
+// determining if a page is static or not
+export function patchFetch(options: PatchableModule) {
+  // If we've already patched fetch, we should not patch it again.
+  if (isPatchedFetch(globalThis.fetch)) return
+
+  // Grab the original fetch function. We'll attach this so we can use it in
+  // the patched fetch function.
+  const original = globalThis.fetch
+
+  // Set the global fetch to the patched fetch.
+  globalThis.fetch = createPatchedFetcher(original, options)
 }

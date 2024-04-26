@@ -86,6 +86,14 @@ export default function Counter() {
           redirect internal with domain
         </button>
       </form>
+      <form>
+        <button
+          id="redirect-pages"
+          formAction={() => redirectAction('/pages-dir')}
+        >
+          redirect to a pages route
+        </button>
+      </form>
       <form action={getHeaders}>
         <button type="submit" id="get-header">
           submit

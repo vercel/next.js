@@ -187,7 +187,8 @@ export default function (next: NextInstance, render, fetch, ctx) {
 
     test('header helper renders boolean attributes correctly children', async () => {
       const html = await render('/head')
-      expect(html).toContain('<script src="/test-async.js" async="">')
+      expect(html).toContain('<script src="/test-async-true.js" async="">')
+      expect(html).toContain('<script src="/test-async-false.js">')
       expect(html).toContain('<script src="/test-defer.js" defer="">')
     })
 

@@ -4,7 +4,6 @@ import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
-import semver from 'next/dist/compiled/semver'
 
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
@@ -269,28 +268,12 @@ export async function loadProjectInfo({
   }
 }
 
-function getOpenTelemetryVersion(): string | null {
-  try {
-    return require('@opentelemetry/api/package.json')?.version ?? null
-  } catch {
-    return null
-  }
-}
-
 export function hasExternalOtelApiPackage(): boolean {
-  const opentelemetryVersion = getOpenTelemetryVersion()
-  if (!opentelemetryVersion) {
-    return false
-  }
-
-  // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
-  // https://github.com/vercel/next.js/issues/48118
-  if (semver.gte(opentelemetryVersion, '0.19.0')) {
+  try {
+    require('@opentelemetry/api')
     return true
-  } else {
-    throw new Error(
-      `Installed "@opentelemetry/api" with version ${opentelemetryVersion} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
-    )
+  } catch {
+    return false
   }
 }
 
@@ -300,6 +283,7 @@ export default async function getBaseWebpackConfig(
   dir: string,
   {
     buildId,
+    encryptionKey,
     config,
     compilerType,
     dev = false,
@@ -319,8 +303,10 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
+    edgePreviewProps,
   }: {
     buildId: string
+    encryptionKey: string
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
@@ -338,6 +324,7 @@ export default async function getBaseWebpackConfig(
     jsConfig: any
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
+    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -706,6 +693,7 @@ export default async function getBaseWebpackConfig(
     },
     mangle: {
       safari10: true,
+      reserved: ['AbortSignal'],
       ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
         ? {
             toplevel: true,
@@ -831,6 +819,7 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
+  const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
@@ -851,6 +840,8 @@ export default async function getBaseWebpackConfig(
       return excludePath.includes('node_modules')
     },
   }
+
+  const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1338,7 +1329,7 @@ export default async function getBaseWebpackConfig(
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
                   and: [
-                    codeCondition.test,
+                    aliasCodeConditionTest,
                     {
                       not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
@@ -1395,15 +1386,14 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: asyncStoragesRegex,
                     issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
                       and: [
-                        codeCondition.test,
+                        aliasCodeConditionTest,
                         {
-                          not: [optOutBundlingPackageRegex],
+                          not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                         },
                       ],
                     },
@@ -1418,7 +1408,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    test: codeCondition.test,
+                    test: aliasCodeConditionTest,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
@@ -1431,7 +1421,7 @@ export default async function getBaseWebpackConfig(
                 ],
               },
               {
-                test: codeCondition.test,
+                test: aliasCodeConditionTest,
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
@@ -1511,6 +1501,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
+                    exclude: asyncStoragesRegex,
                     use: appSSRLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
@@ -1751,6 +1742,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
+          appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
@@ -1770,6 +1762,8 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            flyingShuttle: !!config.experimental.flyingShuttle,
+            compilerType,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -1819,13 +1813,13 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
+          edgeEnvironments: edgePreviewProps || {},
         }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
@@ -1867,6 +1861,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
+              encryptionKey,
             })),
       hasAppDir &&
         !isClient &&
@@ -1889,7 +1884,8 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      isClient &&
+      !dev &&
+        isClient &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&

@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type {
   ActionResult,
   DynamicParamTypesShort,
@@ -16,6 +15,8 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import React from 'react'
 
@@ -107,6 +108,7 @@ import {
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
+import { isNodeNextRequest } from '../base-http/helpers'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -133,16 +135,16 @@ export type AppRenderContext = AppRenderBaseContext & {
   isPrefetch: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
-  providedFlightRouterState?: FlightRouterState
+  flightRouterState?: FlightRouterState
   requestId: string
   defaultRevalidate: Revalidate
   pagePath: string
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
   flightDataRendererErrorHandler: ErrorHandler
   serverComponentsErrorHandler: ErrorHandler
   isNotFoundPath: boolean
-  res: ServerResponse
+  res: BaseNextResponse
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -158,7 +160,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  * so we need to read it from the router state.
  */
 function findDynamicParamFromRouterState(
-  providedFlightRouterState: FlightRouterState | undefined,
+  flightRouterState: FlightRouterState | undefined,
   segment: string
 ): {
   param: string
@@ -166,11 +168,11 @@ function findDynamicParamFromRouterState(
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null {
-  if (!providedFlightRouterState) {
+  if (!flightRouterState) {
     return null
   }
 
-  const treeSegment = providedFlightRouterState[0]
+  const treeSegment = flightRouterState[0]
 
   if (canSegmentBeOverridden(segment, treeSegment)) {
     if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
@@ -185,9 +187,7 @@ function findDynamicParamFromRouterState(
     }
   }
 
-  for (const parallelRouterState of Object.values(
-    providedFlightRouterState[1]
-  )) {
+  for (const parallelRouterState of Object.values(flightRouterState[1])) {
     const maybeDynamicParam = findDynamicParamFromRouterState(
       parallelRouterState,
       segment
@@ -207,7 +207,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  providedFlightRouterState: FlightRouterState | undefined
+  flightRouterState: FlightRouterState | undefined
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -234,18 +234,27 @@ function makeGetDynamicParamFromSegment(
     }
 
     if (!value) {
-      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
-      if (segmentParam.type === 'optional-catchall') {
+      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
+      if (
+        segmentParam.type === 'optional-catchall' ||
+        segmentParam.type === 'catchall'
+      ) {
+        // If we weren't able to match the segment to a URL param, and we have a catch-all route,
+        // provide all of the known params (in array format) to the route
+        // It should be safe to assume the order of these params is consistent with the order of the segments.
+        // However, if not, we could re-parse the `pagePath` with `getRouteRegex` and iterate over the positional order.
+        value = Object.values(params).map((i) => encodeURIComponent(i))
+        const hasValues = value.length > 0
         const type = dynamicParamTypes[segmentParam.type]
         return {
           param: key,
-          value: null,
+          value: hasValues ? value : null,
           type: type,
           // This value always has to be a string.
-          treeSegment: [key, '', type],
+          treeSegment: [key, hasValues ? value.join('/') : '', type],
         }
       }
-      return findDynamicParamFromRouterState(providedFlightRouterState, segment)
+      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -285,7 +294,7 @@ async function generateFlight(
     staticGenerationStore: { urlPathname },
     query,
     requestId,
-    providedFlightRouterState,
+    flightRouterState,
   } = ctx
 
   if (!options?.skipFlight) {
@@ -304,7 +313,7 @@ async function generateFlight(
         createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
-        flightRouterState: providedFlightRouterState,
+        flightRouterState,
         isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
@@ -459,9 +468,10 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         couldBeIntercepted={couldBeIntercepted}
         initialHead={
           <>
-            {ctx.res.statusCode > 400 && (
-              <meta name="robots" content="noindex" />
-            )}
+            {typeof ctx.res.statusCode === 'number' &&
+              ctx.res.statusCode > 400 && (
+                <meta name="robots" content="noindex" />
+              )}
             {/* Adding requestId as react key to make metadata remount for each render */}
             <MetadataTree key={ctx.requestId} />
           </>
@@ -515,7 +525,9 @@ async function ReactServerError({
     <>
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={requestId} />
-      {res.statusCode >= 400 && <meta name="robots" content="noindex" />}
+      {typeof res.statusCode === 'number' && res.statusCode >= 400 && (
+        <meta name="robots" content="noindex" />
+      )}
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
@@ -582,12 +594,13 @@ function ReactServerEntrypoint<T>({
 export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
 
 async function renderToHTMLOrFlightImpl(
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  baseCtx: AppRenderBaseContext
+  baseCtx: AppRenderBaseContext,
+  requestEndedState: { ended?: boolean }
 ) {
   const isNotFoundPath = pagePath === '/404'
 
@@ -621,8 +634,15 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
-  if (typeof req.on === 'function') {
-    req.on('end', () => {
+  if (
+    // The type check here ensures that `req` is correctly typed, and the
+    // environment variable check provides dead code elimination.
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    isNodeNextRequest(req)
+  ) {
+    req.originalRequest.on('end', () => {
+      requestEndedState.ended = true
+
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
         if (metrics) {
@@ -752,11 +772,9 @@ async function renderToHTMLOrFlightImpl(
       // extract dynamic params.
       isInterceptionRouteAppPath(pagePath))
 
-  let providedFlightRouterState = shouldProvideFlightRouterState
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  const parsedFlightRouterState = parseAndValidateFlightRouterState(
+    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+  )
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -777,7 +795,9 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    providedFlightRouterState
+    // `FlightRouterState` is unconditionally provided here because this method uses it
+    // to extract dynamic params as a fallback if they're not present in the path.
+    parsedFlightRouterState
   )
 
   const ctx: AppRenderContext = {
@@ -787,7 +807,9 @@ async function renderToHTMLOrFlightImpl(
     isPrefetch: isPrefetchRSCRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
-    providedFlightRouterState,
+    flightRouterState: shouldProvideFlightRouterState
+      ? parsedFlightRouterState
+      : undefined,
     requestId,
     defaultRevalidate: false,
     pagePath,
@@ -1412,8 +1434,8 @@ async function renderToHTMLOrFlightImpl(
 }
 
 export type AppPageRender = (
-  req: IncomingMessage,
-  res: ServerResponse,
+  req: BaseNextRequest,
+  res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
@@ -1438,14 +1460,23 @@ export const renderToHTMLOrFlight: AppPageRender = (
         {
           urlPathname: pathname,
           renderOpts,
+          requestEndedState: { ended: false },
         },
         (staticGenerationStore) =>
-          renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {
-            requestStore,
-            staticGenerationStore,
-            componentMod: renderOpts.ComponentMod,
+          renderToHTMLOrFlightImpl(
+            req,
+            res,
+            pagePath,
+            query,
             renderOpts,
-          })
+            {
+              requestStore,
+              staticGenerationStore,
+              componentMod: renderOpts.ComponentMod,
+              renderOpts,
+            },
+            staticGenerationStore.requestEndedState || {}
+          )
       )
   )
 }

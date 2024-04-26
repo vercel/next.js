@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 export function runTest({ next }) {
   it('should allow navigation on not-found', async () => {
@@ -125,12 +125,10 @@ export function runTest({ next }) {
   })
 }
 
-createNextDescribe(
-  'app dir - not found navigation',
-  {
+describe('app dir - not found navigation', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    runTest({ next })
-  }
-)
+  })
+
+  runTest({ next })
+})

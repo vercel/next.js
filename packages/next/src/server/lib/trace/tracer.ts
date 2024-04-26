@@ -1,3 +1,4 @@
+import type { FetchEventResult } from '../../web/types'
 import type { SpanTypes } from './constants'
 import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
@@ -36,10 +37,22 @@ const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
 }
 
-type BubbledError = Error & { bubble?: boolean }
+export class BubbledError extends Error {
+  constructor(
+    public readonly bubble?: boolean,
+    public readonly result?: FetchEventResult
+  ) {
+    super()
+  }
+}
+
+export function isBubbledError(error: unknown): error is BubbledError {
+  if (typeof error !== 'object' || error === null) return false
+  return error instanceof BubbledError
+}
 
 const closeSpanWithError = (span: Span, error?: Error) => {
-  if ((error as BubbledError | undefined)?.bubble === true) {
+  if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
     if (error) {
@@ -248,7 +261,7 @@ class NextTracerImpl implements NextTracer {
     let isRootSpan = false
 
     if (!spanContext) {
-      spanContext = ROOT_CONTEXT
+      spanContext = context?.active() ?? ROOT_CONTEXT
       isRootSpan = true
     } else if (trace.getSpanContext(spanContext)?.isRemote) {
       isRootSpan = true
@@ -268,7 +281,7 @@ class NextTracerImpl implements NextTracer {
         options,
         (span: Span) => {
           const startTime =
-            'performance' in globalThis
+            'performance' in globalThis && 'measure' in performance
               ? globalThis.performance.now()
               : undefined
 
@@ -307,7 +320,7 @@ class NextTracerImpl implements NextTracer {
           }
           try {
             if (fn.length > 1) {
-              return fn(span, (err?: Error) => closeSpanWithError(span, err))
+              return fn(span, (err) => closeSpanWithError(span, err))
             }
 
             const result = fn(span)

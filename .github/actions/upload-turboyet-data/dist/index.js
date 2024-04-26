@@ -1181,16 +1181,45 @@ const path = __nccwpck_require__(17)
 
 const { createClient } = __nccwpck_require__(381)
 
+async function collectExamplesResult(manifestFile) {
+  const file = path.join(process.cwd(), manifestFile)
+  const contents = await fs.readFile(file, 'utf-8')
+  const results = JSON.parse(contents)
+
+  let failingCount = 0
+  let passingCount = 0
+
+  const currentDate = new Date()
+  const isoString = currentDate.toISOString()
+  const timestamp = isoString.slice(0, 19).replace('T', ' ')
+
+  for (const isPassing of Object.values(results)) {
+    if (isPassing) {
+      passingCount += 1
+    } else {
+      failingCount += 1
+    }
+  }
+  const status = `${process.env.GITHUB_SHA}\t${timestamp}\t${passingCount}/${
+    passingCount + failingCount
+  }`
+
+  return {
+    status,
+    // Uses JSON.stringify to create minified JSON, otherwise whitespace is preserved.
+    data: JSON.stringify(results),
+  }
+}
+
 async function collectResults(manifestFile) {
   const file = path.join(process.cwd(), manifestFile)
+  const contents = await fs.readFile(file, 'utf-8')
+  const results = JSON.parse(contents)
 
   let passingTests = ''
   let failingTests = ''
   let passCount = 0
   let failCount = 0
-
-  const contents = await fs.readFile(file, 'utf-8')
-  const results = JSON.parse(contents)
 
   const currentDate = new Date()
   const isoString = currentDate.toISOString()
@@ -1288,9 +1317,11 @@ async function main() {
     const developmentResult = await collectResults(
       'test/turbopack-dev-tests-manifest.json'
     )
-
     const productionResult = await collectResults(
       'test/turbopack-build-tests-manifest.json'
+    )
+    const developmentExamplesResult = await collectExamplesResult(
+      'test/turbopack-dev-examples-manifest.json'
     )
 
     const kv = createClient({
@@ -1304,8 +1335,12 @@ async function main() {
     console.log('TEST RESULT PRODUCTION')
     console.log(productionResult.testRun)
 
+    console.log('EXAMPLES RESULT')
+    console.log(developmentExamplesResult.status)
+
     await kv.rpush('test-runs', developmentResult.testRun)
     await kv.rpush('test-runs-production', productionResult.testRun)
+    await kv.rpush('examples-runs', developmentExamplesResult.status)
     console.log('SUCCESSFULLY SAVED RUNS')
 
     await kv.set('passing-tests', developmentResult.passingTests)
@@ -1315,6 +1350,9 @@ async function main() {
     await kv.set('failing-tests', developmentResult.failingTests)
     await kv.set('failing-tests-production', productionResult.failingTests)
     console.log('SUCCESSFULLY SAVED FAILING')
+
+    await kv.set('examples-data', developmentExamplesResult.data)
+    console.log('SUCCESSFULLY SAVED EXAMPLES')
   } catch (error) {
     console.log(error)
   }

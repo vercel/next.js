@@ -1,7 +1,7 @@
 // @ts-check
 
 // @ts-ignore
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 const { i18n } = require('./next.config')
@@ -47,36 +47,34 @@ const urls = [
   })),
 ]
 
-createNextDescribe(
-  'i18n-hybrid',
-  {
+describe('i18n-hybrid', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it.each(urls.filter((url) => !url.expected))(
-      'does not resolve $pathname',
-      async (url) => {
-        const res = await next.fetch(url.pathname, {
-          redirect: 'manual',
-        })
+  })
 
-        expect(res.status).toBe(404)
-      }
-    )
+  it.each(urls.filter((url) => !url.expected))(
+    'does not resolve $pathname',
+    async (url) => {
+      const res = await next.fetch(url.pathname, {
+        redirect: 'manual',
+      })
 
-    it.each(urls.filter((url) => url.expected))(
-      'does resolve $pathname',
-      async (url) => {
-        const res = await next.fetch(url.pathname, {
-          redirect: 'manual',
-        })
+      expect(res.status).toBe(404)
+    }
+  )
 
-        expect(res.status).toBe(200)
+  it.each(urls.filter((url) => url.expected))(
+    'does resolve $pathname',
+    async (url) => {
+      const res = await next.fetch(url.pathname, {
+        redirect: 'manual',
+      })
 
-        const $ = cheerio.load(await res.text())
-        const debug = JSON.parse($('#debug').text())
-        expect(debug).toEqual(url.expected)
-      }
-    )
-  }
-)
+      expect(res.status).toBe(200)
+
+      const $ = cheerio.load(await res.text())
+      const debug = JSON.parse($('#debug').text())
+      expect(debug).toEqual(url.expected)
+    }
+  )
+})

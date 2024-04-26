@@ -1,6 +1,13 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use serde::Deserialize;
 use turbo_tasks::Vc;
-use turbopack_binding::turbo::tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
+use turbopack_binding::{
+    turbo::tasks_hash::hash_xxh3_hash64,
+    turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
+};
+
+use super::issue::NextFontIssue;
 
 /// CSS properties and values for a given font variation. These are rendered as
 /// values in both the returned JavaScript object and in the referenced css
@@ -71,4 +78,46 @@ pub async fn get_request_id(font_family: Vc<String>, request_hash: u32) -> Resul
         font_family.await?.to_lowercase().replace(' ', "_"),
         request_hash
     )))
+}
+
+#[derive(Debug, Deserialize)]
+struct HasPath {
+    path: String,
+}
+
+pub(crate) async fn can_use_next_font(
+    project_path: Vc<FileSystemPath>,
+    query: Vc<String>,
+) -> Result<bool> {
+    let query_map = qstring::QString::from(&**query.await?);
+    let request: HasPath = parse_json_with_source_context(
+        query_map
+            .to_pairs()
+            .first()
+            .context("expected one entry")?
+            .0,
+    )?;
+
+    let document_re = lazy_regex::regex!("^(src/)?_document\\.[^/]+$");
+    let path = project_path.join(request.path.clone());
+    let can_use = !document_re.is_match(&request.path);
+    if !can_use {
+        NextFontIssue {
+            path,
+            title: StyledString::Line(vec![
+                StyledString::Code("next/font:".to_string()),
+                StyledString::Text(" error:".to_string()),
+            ])
+            .cell(),
+            description: StyledString::Line(vec![
+                StyledString::Text("Cannot be used within ".to_string()),
+                StyledString::Code(request.path),
+            ])
+            .cell(),
+            severity: IssueSeverity::Error.into(),
+        }
+        .cell()
+        .emit();
+    }
+    Ok(can_use)
 }
