@@ -163,7 +163,6 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     this._res.end(this.textBody)
   }
 
-  // TODO(after): this doesn't actually wait for the stream to finish...
   public onClose(callback: () => void) {
     this.originalResponse.on('close', callback)
   }
