@@ -33,8 +33,7 @@ function makeAppAliases(reactChannel = '') {
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
-    'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
+    'react-dom$': `next/dist/compiled/react-dom${reactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,

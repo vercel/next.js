@@ -296,11 +296,6 @@ export function createRSCAliases(
       alias[
         'react-dom$'
       ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
-    } else {
-      // x-ref: https://github.com/facebook/react/pull/25436
-      alias[
-        'react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
     }
   }
 
