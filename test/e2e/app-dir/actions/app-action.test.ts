@@ -598,6 +598,40 @@ describe('app-dir action handling', () => {
     }
   )
 
+  it.each(['node', 'edge'])(
+    'should not error when a forwarded action triggers a redirect (%s)',
+    async (runtime) => {
+      let redirectResponseCode
+      const browser = await next.browser(`/delayed-action/${runtime}`, {
+        beforePageLoad(page) {
+          page.on('response', async (res: Response) => {
+            const headers = await res.allHeaders()
+            if (headers['x-action-redirect']) {
+              redirectResponseCode = res.status()
+            }
+          })
+        },
+      })
+
+      // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
+      await browser.elementById('run-action-redirect').click()
+
+      // navigate away from the page
+      await browser
+        .elementByCss(`[href='/delayed-action/${runtime}/other']`)
+        .click()
+        .waitForElementByCss('#other-page')
+
+      // confirm a successful response code on the redirected action
+      await retry(async () => {
+        expect(redirectResponseCode).toBe(200)
+      })
+
+      // confirm that the redirect was handled
+      await browser.waitForElementByCss('#run-action-redirect')
+    }
+  )
+
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
       const sourcemap = (
