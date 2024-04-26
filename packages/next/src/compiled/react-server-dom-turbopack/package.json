@@ -44,11 +44,10 @@
   },
   "dependencies": {
     "acorn-loose": "^8.3.0",
-    "neo-async": "^2.6.1",
-    "loose-envify": "^1.1.0"
+    "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "18.3.0-canary-14898b6a9-20240318",
-    "react-dom": "18.3.0-canary-14898b6a9-20240318"
+    "react": "18.3.0-canary-c3048aab4-20240326",
+    "react-dom": "18.3.0-canary-c3048aab4-20240326"
   }
 }

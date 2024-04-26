@@ -39,7 +39,7 @@ async function sync(channel = 'next') {
     newVersionStr = stdout.trim()
   }
 
-  const newVersionInfo = extractInfoFromReactCanaryVersion(newVersionStr)
+  const newVersionInfo = extractInfoFromReactVersion(newVersionStr)
   if (!newVersionInfo) {
     throw new Error(
       `New react version does not match expected format: ${newVersionStr}
@@ -50,6 +50,7 @@ Or, run this command with no arguments to use the most recently published versio
 `
     )
   }
+  newVersionInfo.releaseLabel = channel
 
   const cwd = process.cwd()
   const pkgJson = JSON.parse(
@@ -60,7 +61,7 @@ Or, run this command with no arguments to use the most recently published versio
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
 
-  const baseVersionInfo = extractInfoFromReactCanaryVersion(baseVersionStr)
+  const baseVersionInfo = extractInfoFromReactVersion(baseVersionStr)
   if (!baseVersionInfo) {
     throw new Error(
       'Base react version does not match expected format: ' + baseVersionStr
@@ -175,7 +176,7 @@ function readStringArg(argv, argName) {
   return argIndex === -1 ? null : argv[argIndex + 1]
 }
 
-function extractInfoFromReactCanaryVersion(reactCanaryVersion) {
+function extractInfoFromReactVersion(reactCanaryVersion) {
   const match = reactCanaryVersion.match(
     /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
   )

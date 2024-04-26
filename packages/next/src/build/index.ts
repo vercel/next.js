@@ -352,7 +352,10 @@ async function writeEdgePartialPrerenderManifest(
   // Use env vars in JS bundle and inject the actual vars to edge manifest.
   const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
     {
-      ...manifest,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      version: manifest.version,
       preview: {
         previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
         previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
@@ -2815,6 +2818,10 @@ export default async function build(
                   // normalize header values as initialHeaders
                   // must be Record<string, string>
                   for (const key of headerKeys) {
+                    // set-cookie is already handled - the middleware cookie setting case
+                    // isn't needed for the prerender manifest since it can't read cookies
+                    if (key === 'x-middleware-set-cookie') continue
+
                     let value = exportHeaders[key]
 
                     if (Array.isArray(value)) {
