@@ -144,7 +144,6 @@ import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import { getBuiltinWaitUntil } from './after/wait-until-builtin'
-import { createStandaloneWaitUntil } from './after/wait-until-node'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
