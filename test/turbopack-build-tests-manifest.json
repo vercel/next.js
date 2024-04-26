@@ -1166,6 +1166,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/app/flying-shuttle.test.ts": {
+      "passed": [],
+      "failed": [
+        "should output updated trace files - should have file hashes in trace files"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/app/standalone-gsp.test.ts": {
       "passed": [],
       "failed": [
