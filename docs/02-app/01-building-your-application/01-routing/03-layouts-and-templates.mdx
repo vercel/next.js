@@ -223,7 +223,7 @@ You can use the [usePathname()](/docs/app/api-reference/functions/use-pathname) 
 
 Since `usePathname()` is a client hook, you need to extract the nav links into a Client Component, which can be imported into your layout or template:
 
-```tsx filename="app/components/nav-links.tsx" switcher
+```tsx filename="app/ui/nav-links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -249,7 +249,7 @@ export function Links() {
 }
 ```
 
-```jsx filename="app/components/nav-links.js" switcher
+```jsx filename="app/ui/nav-links.js" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
