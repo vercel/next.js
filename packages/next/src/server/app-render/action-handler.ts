@@ -435,11 +435,11 @@ export async function handleAction({
         value: forwardedHostHeader,
       }
     : hostHeader
-    ? {
-        type: HostType.Host,
-        value: hostHeader,
-      }
-    : undefined
+      ? {
+          type: HostType.Host,
+          value: hostHeader,
+        }
+      : undefined
 
   let warning: string | undefined = undefined
 

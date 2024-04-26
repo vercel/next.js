@@ -1807,8 +1807,8 @@ export default class NextNodeServer extends BaseServer<
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : this.nextConfig.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+          ? `https://${req.headers.host || 'localhost'}${req.url}`
+          : req.url
 
     const isRSC = isRSCRequestCheck(req)
     if (isRSC) {

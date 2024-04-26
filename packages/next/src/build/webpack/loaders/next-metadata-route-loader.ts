@@ -55,8 +55,8 @@ async function getStaticAssetRouteCode(
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
       : process.env.NODE_ENV !== 'production'
-      ? cacheHeader.none
-      : cacheHeader.longCache
+        ? cacheHeader.none
+        : cacheHeader.longCache
   const code = `\
 /* static asset route */
 import { NextResponse } from 'next/server'

@@ -1352,7 +1352,9 @@ function loadNative(importPath?: string) {
     if (NEXT_TEST_NATIVE_DIR) {
       try {
         // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
-        bindings = require(`${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`)
+        bindings = require(
+          `${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`
+        )
         infoLog(
           'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
         )
@@ -1360,7 +1362,9 @@ function loadNative(importPath?: string) {
       } catch (e) {}
     } else {
       try {
-        bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
+        bindings = require(
+          `@next/swc/native/next-swc.${triple.platformArchABI}.node`
+        )
         infoLog('next-swc build: local built @next/swc')
         break
       } catch (e) {}

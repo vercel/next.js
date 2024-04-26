@@ -106,9 +106,10 @@ describe('required server files i18n', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', 'minimalMode: true,port:')
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        'minimalMode: true,port:'
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(

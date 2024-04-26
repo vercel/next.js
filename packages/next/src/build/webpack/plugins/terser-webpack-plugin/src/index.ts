@@ -185,8 +185,8 @@ export class TerserPlugin {
         this.options.swcMinify
           ? Infinity
           : numberOfAssetsForMinify > 0
-          ? numberOfWorkers
-          : Infinity
+            ? numberOfWorkers
+            : Infinity
       )
       const scheduledTasks = []
 
