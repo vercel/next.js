@@ -25,7 +25,7 @@ import {
   createDisabledAfterContext,
   type AfterContext,
 } from '../after/after'
-import type { LoadedRenderOpts } from '../base-server'
+import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -52,7 +52,7 @@ function getMutableCookies(
 }
 
 type WrapperRenderOpts = RenderOpts &
-  Partial<Pick<LoadedRenderOpts, 'waitUntil'>> &
+  Partial<RequestLifecycleOpts> &
   RenderOptsForRouteHandlerPartial &
   RenderOptsForWebServerPartial
 
@@ -198,9 +198,16 @@ function wrapCallbackForAfter<Result>(
       throw new Error('Invariant: missing waitUntil implementation')
     }
 
+  const onClose =
+    renderOpts.onClose ??
+    function missingOnClose() {
+      // Error lazily, only when after() is actually called.
+      throw new Error('Invariant: missing onClose implementation')
+    }
+
   const cacheScope = renderOpts.ComponentMod?.createCacheScope()
 
-  const afterContext = createAfterContext({ waitUntil, cacheScope })
+  const afterContext = createAfterContext({ waitUntil, onClose, cacheScope })
 
   const wrappedCallback: typeof callback = (requestStore) =>
     afterContext.run(requestStore, () => callback(requestStore)) as Result // TODO(after): check if non-promise cases can happen here

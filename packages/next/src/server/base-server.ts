@@ -232,9 +232,13 @@ export interface Options {
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
 export type LoadedRenderOpts = RenderOpts &
-  LoadComponentsReturnType & {
-    waitUntil: (promise: Promise<any>) => void
-  }
+  LoadComponentsReturnType &
+  RequestLifecycleOpts
+
+export type RequestLifecycleOpts = {
+  waitUntil: (promise: Promise<any>) => void
+  onClose: (callback: () => void) => void
+}
 
 type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
@@ -1646,23 +1650,16 @@ export default abstract class Server<
     )
   }
 
-  private getWaitUntil(res: ServerResponse) {
+  private getWaitUntil() {
     let useBuiltinWaitUntil =
       process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
 
     let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
 
     if (!waitUntil) {
-      const standaloneWaitUntil = createStandaloneWaitUntil()
-      let closeListenerAdded = false
-      waitUntil = (promise) => {
-        // only add onClose when actually needed, because it's expensive for WebNextResponse
-        if (!closeListenerAdded) {
-          res.onClose(() => standaloneWaitUntil.finish())
-          closeListenerAdded = true
-        }
-        return standaloneWaitUntil.waitUntil(promise)
-      }
+      // if we're not running in a serverless environment,
+      // we don't actually need waitUntil -- the server will stay alive anyway.
+      waitUntil = () => {}
     }
 
     return waitUntil
@@ -2338,7 +2335,8 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
-        waitUntil: this.getWaitUntil(res),
+        waitUntil: this.getWaitUntil(),
+        onClose: res.onClose.bind(res),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2380,7 +2378,8 @@ export default abstract class Server<
               incrementalCache,
               isRevalidate: isSSG,
               // @ts-expect-error TODO(after): fix the typing here
-              waitUntil: this.getWaitUntil(res),
+              waitUntil: this.getWaitUntil(),
+              onClose: res.onClose.bind(res),
             },
           }
 

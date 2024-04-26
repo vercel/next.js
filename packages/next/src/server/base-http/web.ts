@@ -1,5 +1,4 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import { PerformanceObserver } from 'perf_hooks'
 import type { FetchMetrics } from './index'
 
 import { toNodeOutgoingHttpHeaders } from '../web/utils'

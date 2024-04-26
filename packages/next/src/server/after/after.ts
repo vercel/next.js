@@ -11,6 +11,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { CacheScope } from './react-cache-scope'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
+import type { RequestLifecycleOpts } from '../base-server'
 
 type AfterTask<T = unknown> = Promise<T> | AfterCallback<T>
 type AfterCallback<T = unknown> = () => T | Promise<T>
@@ -63,9 +64,11 @@ export type AfterContext =
 
 export function createAfterContext({
   waitUntil,
+  onClose,
   cacheScope,
 }: {
   waitUntil: WaitUntilFn
+  onClose: RequestLifecycleOpts['onClose']
   cacheScope?: CacheScope
 }) {
   const keepAliveLock = createKeepAliveLock(waitUntil)
@@ -130,7 +133,11 @@ export function createAfterContext({
         const res = await (cacheScope
           ? cacheScope.run(() => callback())
           : callback())
-        runCallbacks(requestStore)
+
+        // NOTE: if the callback returns a stream, there may still be components that'll execute later,
+        // which means that more callbacks can be added.
+        // TODO: can we call onClose lazily?
+        onClose(() => runCallbacks(requestStore))
         return res
       } finally {
         // if something failed, make sure the request doesn't stay open forever.

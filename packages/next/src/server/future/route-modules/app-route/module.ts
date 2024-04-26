@@ -255,6 +255,8 @@ export class AppRouteRouteModule extends RouteModule<
       previewProps: context.prerenderManifest.preview,
       // @ts-expect-error TODO(after): fix the typing here
       waitUntil: context.renderOpts.waitUntil,
+      // @ts-expect-error TODO(after): fix the typing here
+      onClose: context.renderOpts.onClose,
       experimental: context.renderOpts.experimental,
     }
 

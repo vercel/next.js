@@ -279,6 +279,9 @@ async function exportPageImpl(
       waitUntil: function noWaitUntilInPrerender() {
         throw new Error('waitUntil cannot be called during prerendering.')
       },
+      onClose: function noOnCloseInPrerender() {
+        throw new Error('onClose cannot be called during prerendering.')
+      },
     }
 
     if (hasNextSupport) {
