@@ -9,10 +9,13 @@ import { createReadStream } from 'fs'
 import path from 'path'
 import { Telemetry } from '../telemetry/storage'
 
+const COMMON_ALLOWED_EVENTS = ['memory-usage']
+
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
 // it'll up uploaded to the trace server.
-const DEV_EVENT_ALLOW = new Set([
+const DEV_ALLOWED_EVENTS = new Set([
+  ...COMMON_ALLOWED_EVENTS,
   'client-hmr-latency',
   'hot-reloader',
   'webpack-invalid-client',
@@ -24,7 +27,8 @@ const DEV_EVENT_ALLOW = new Set([
   'server-restart-close-to-memory-threshold',
 ])
 
-const BUILD_EVENT_ALLOW = new Set([
+const BUILD_ALLOWED_EVENTS = new Set([
+  ...COMMON_ALLOWED_EVENTS,
   'next-build',
   'webpack-compilation',
   'run-webpack-compiler',
@@ -132,8 +136,8 @@ interface TraceMetadata {
         event.parentId === undefined ||
         shouldUploadFullTrace ||
         (mode === 'dev'
-          ? DEV_EVENT_ALLOW.has(event.name)
-          : BUILD_EVENT_ALLOW.has(event.name))
+          ? DEV_ALLOWED_EVENTS.has(event.name)
+          : BUILD_ALLOWED_EVENTS.has(event.name))
       ) {
         let trace = traces.get(event.traceId)
         if (trace === undefined) {
