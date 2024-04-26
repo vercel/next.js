@@ -98,6 +98,18 @@ pub enum ServerContextType {
     Instrumentation,
 }
 
+impl ServerContextType {
+    pub fn supports_react_server(&self) -> bool {
+        matches!(
+            self,
+            ServerContextType::AppRSC { .. }
+                | ServerContextType::AppRoute { .. }
+                | ServerContextType::PagesApi { .. }
+                | ServerContextType::Middleware
+        )
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
@@ -151,18 +163,10 @@ pub async fn get_server_resolve_options_context(
             .map(ToString::to_string),
     );
 
-    match ty {
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::Middleware { .. } => {
-            custom_conditions.push("react-server".to_string())
-        }
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::Instrumentation { .. } => {}
+    if ty.supports_react_server() {
+        custom_conditions.push("react-server".to_string());
     };
+
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
