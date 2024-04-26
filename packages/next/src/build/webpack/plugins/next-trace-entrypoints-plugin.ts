@@ -502,10 +502,12 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 const depMod = getModuleFromDependency(compilation, dep)
 
                 if (depMod?.resource && !depModMap.get(depMod.resource)) {
-                  this.traceHashes.set(
-                    depMod.resource,
-                    await getOriginalHash(depMod.resource)
-                  )
+                  if (this.flyingShuttle) {
+                    this.traceHashes.set(
+                      depMod.resource,
+                      await getOriginalHash(depMod.resource)
+                    )
+                  }
                   depModMap.set(depMod.resource, depMod)
                   await collectDependencies(depMod)
                 }
