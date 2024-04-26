@@ -1142,10 +1142,12 @@ export default class NextNodeServer extends BaseServer<
           const color = statusColor(res.statusCode)
           const method = req.method || 'GET'
           const requestUrl = req.url || ''
-          const url = isRSC ? stripNextRscUnionQuery(requestUrl) : requestUrl
+          const loggingUrl = isRSC
+            ? stripNextRscUnionQuery(requestUrl)
+            : requestUrl
 
           writeStdoutLine(
-            `${method} ${url} ${color(
+            `${method} ${loggingUrl} ${color(
               res.statusCode.toString()
             )} in ${reqDuration}ms`
           )
