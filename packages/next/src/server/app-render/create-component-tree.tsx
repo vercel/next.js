@@ -15,6 +15,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import { DynamicServerError } from '../../client/components/hooks-server-context'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -88,7 +89,6 @@ async function createComponentTreeInternal({
       ClientPageRoot,
       createUntrackedSearchParams,
       createDynamicallyTrackedSearchParams,
-      serverHooks: { DynamicServerError },
       Postpone,
     },
     pagePath,

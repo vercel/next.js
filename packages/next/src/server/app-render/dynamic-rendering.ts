@@ -196,9 +196,22 @@ export function trackDynamicFetch(
 ) {
   // If we aren't in a prerender, or we're in an unstable cache callback, we
   // don't need to postpone.
-  if (!store.prerenderState || store.isUnstableCacheCallback) return
+  if (store.isUnstableCacheCallback) return
 
-  postponeWithTracking(store.prerenderState, expression, store.urlPathname)
+  // If we're in a prerender, let's postpone.
+  if (store.prerenderState) {
+    postponeWithTracking(store.prerenderState, expression, store.urlPathname)
+  }
+
+  // Otherwise, we need to throw a dynamic usage error, and mark that the
+  // current store's revalidation time is `0` to indicate that this route is
+  // dynamic.
+  store.revalidate = 0
+
+  const err = new DynamicServerError(expression)
+  store.dynamicUsageErr = err
+  store.dynamicUsageDescription = expression
+  throw err
 }
 
 function postponeWithTracking(

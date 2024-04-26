@@ -32,20 +32,18 @@ const routeModule = new AppRouteRouteModule({
 // Pull out the exports that we need to expose from the module. This should
 // be eliminated when we've moved the other routes to the new format. These
 // are used to hook into the route.
-const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } =
-  routeModule
+const { requestAsyncStorage, staticGenerationAsyncStorage } = routeModule
 
 const originalPathname = 'VAR_ORIGINAL_PATHNAME'
 
 function patchFetch() {
-  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+  return _patchFetch({ staticGenerationAsyncStorage })
 }
 
 export {
   routeModule,
   requestAsyncStorage,
   staticGenerationAsyncStorage,
-  serverHooks,
   originalPathname,
   patchFetch,
 }

@@ -2,7 +2,6 @@ import type {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
 } from '../../client/components/static-generation-async-storage.external'
-import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
@@ -209,16 +208,12 @@ function trackFetchMetric(
 }
 
 interface PatchableModule {
-  serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
 function createPatchedFetcher(
   originFetch: Fetcher,
-  {
-    serverHooks: { DynamicServerError },
-    staticGenerationAsyncStorage,
-  }: PatchableModule
+  { staticGenerationAsyncStorage }: PatchableModule
 ): PatchedFetcher {
   // Create the patched fetch function. We don't set the type here, as it's
   // verified as the return value of this function.
@@ -693,19 +688,6 @@ function createPatchedFetcher(
 
             // If enabled, we should bail out of static generation.
             trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
-
-            // If partial prerendering is not enabled, then we should throw an
-            // error to indicate that this fetch is dynamic.
-            if (!staticGenerationStore.prerenderState) {
-              // PPR is not enabled, or React postpone is not available, we
-              // should set the revalidate to 0.
-              staticGenerationStore.revalidate = 0
-
-              const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageErr = err
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-              throw err
-            }
           }
 
           const hasNextConfig = 'next' in init
@@ -729,16 +711,6 @@ function createPatchedFetcher(
 
               // If enabled, we should bail out of static generation.
               trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
-
-              // If partial prerendering is not enabled, then we should throw an
-              // error to indicate that this fetch is dynamic.
-              if (!staticGenerationStore.prerenderState) {
-                const err = new DynamicServerError(dynamicUsageReason)
-                staticGenerationStore.dynamicUsageErr = err
-                staticGenerationStore.dynamicUsageDescription =
-                  dynamicUsageReason
-                throw err
-              }
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {

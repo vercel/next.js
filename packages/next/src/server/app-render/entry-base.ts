@@ -17,7 +17,6 @@ import {
   createUntrackedSearchParams,
   createDynamicallyTrackedSearchParams,
 } from '../../client/components/search-params'
-import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 // not being used but needs to be included in the client manifest for /_not-found
@@ -34,7 +33,7 @@ import { taintObjectReference } from '../../server/app-render/rsc/taint'
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 function patchFetch() {
-  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+  return _patchFetch({ staticGenerationAsyncStorage })
 }
 
 export {
@@ -46,7 +45,6 @@ export {
   actionAsyncStorage,
   createUntrackedSearchParams,
   createDynamicallyTrackedSearchParams,
-  serverHooks,
   preloadStyle,
   preloadFont,
   preconnect,

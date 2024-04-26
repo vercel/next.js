@@ -39,7 +39,6 @@ import { HeadersAdapter } from '../../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 
-import * as serverHooks from '../../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../../client/components/hooks-server-context'
 
 import { requestAsyncStorage } from '../../../../client/components/request-async-storage.external'
@@ -135,12 +134,6 @@ export class AppRouteRouteModule extends RouteModule<
    * A reference to the static generation async storage.
    */
   public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
-
-  /**
-   * An interface to call server hooks which interact with the underlying
-   * storage.
-   */
-  public readonly serverHooks = serverHooks
 
   public static readonly sharedModules = sharedModules
 
@@ -378,7 +371,6 @@ export class AppRouteRouteModule extends RouteModule<
                   async () => {
                     // Patch the global fetch.
                     patchFetch({
-                      serverHooks: this.serverHooks,
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
                     })
