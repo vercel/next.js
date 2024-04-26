@@ -591,6 +591,37 @@ describe('CLI Usage', () => {
       }
     })
 
+    test("NODE_OPTIONS='--require=file with spaces to--require.js'", async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          cwd: dirBasic,
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+          env: {
+            NODE_OPTIONS: '--require "./file with spaces to--require.js"',
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        expect(output).toContain(
+          'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
+        )
+        expect(errOutput).toBe('')
+      } finally {
+        await killApp(app)
+      }
+    })
+
     test('-p', async () => {
       const port = await findPort()
       let output = ''
