@@ -1,21 +1,20 @@
 /* eslint-env jest */
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { getRedboxComponentStack, hasRedbox } from 'next-test-utils'
 import path from 'path'
 
-createNextDescribe(
-  'Component Stack in error overlay',
-  {
+describe('Component Stack in error overlay', () => {
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'component-stack'),
-  },
-  ({ next }) => {
-    it('should show a component stack on hydration error', async () => {
-      const browser = await next.browser('/')
+  })
 
-      expect(await hasRedbox(browser)).toBe(true)
+  it('should show a component stack on hydration error', async () => {
+    const browser = await next.browser('/')
 
-      if (process.env.TURBOPACK) {
-        expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
+    expect(await hasRedbox(browser)).toBe(true)
+
+    if (process.env.TURBOPACK) {
+      expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
           "...
             <App>
               <Mismatch>
@@ -26,8 +25,8 @@ createNextDescribe(
                         "server"
                         "client""
         `)
-      } else {
-        expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
+    } else {
+      expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
           "<Mismatch>
             <main>
               <Component>
@@ -36,7 +35,6 @@ createNextDescribe(
                     "server"
                     "client""
         `)
-      }
-    })
-  }
-)
+    }
+  })
+})

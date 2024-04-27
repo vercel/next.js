@@ -124,6 +124,10 @@ program
     '--experimental-debug-memory-usage',
     'Enables memory profiling features to debug memory consumption.'
   )
+  .option(
+    '--experimental-upload-trace, <traceUrl>',
+    'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
+  )
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang

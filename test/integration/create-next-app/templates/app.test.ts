@@ -1,5 +1,6 @@
 import {
   createNextApp,
+  projectShouldHaveNoGitChanges,
   shouldBeTemplateProject,
   spawnExitPromise,
   tryNextDev,
@@ -70,10 +71,8 @@ describe('create-next-app --app (App Router)', () => {
       const exitCode = await spawnExitPromise(cp)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
-      await tryNextDev({
-        cwd,
-        projectName,
-      })
+      await tryNextDev({ cwd, projectName })
+      await projectShouldHaveNoGitChanges({ cwd, projectName })
     })
   })
 
