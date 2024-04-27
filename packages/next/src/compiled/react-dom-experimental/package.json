@@ -41,11 +41,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "loose-envify": "^1.1.0",
-    "scheduler": "0.0.0-experimental-14898b6a9-20240318"
+    "scheduler": "0.0.0-experimental-c3048aab4-20240326"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-14898b6a9-20240318"
+    "react": "0.0.0-experimental-c3048aab4-20240326"
   },
   "browser": {
     "./server.js": "./server.browser.js",

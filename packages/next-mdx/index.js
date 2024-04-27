@@ -3,12 +3,15 @@ module.exports =
   (nextConfig = {}) => {
     const extension = pluginOptions.extension || /\.mdx$/
 
-    const loader = nextConfig?.experimental?.mdxRs
+    const mdxRsOptions = nextConfig?.experimental?.mdxRs
+    const loader = mdxRsOptions
       ? {
           loader: require.resolve('./mdx-rs-loader'),
           options: {
             providerImportSource: 'next-mdx-import-source-file',
             ...pluginOptions.options,
+            // mdxRsOptions is a union of boolean and object type of MdxTransformOptions
+            ...(mdxRsOptions === true ? {} : mdxRsOptions),
           },
         }
       : {
