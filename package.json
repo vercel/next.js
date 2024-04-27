@@ -94,7 +94,7 @@
     "@swc/core": "1.5.0",
     "@swc/helpers": "0.5.11",
     "@testing-library/jest-dom": "6.1.2",
-    "@testing-library/react": "13.0.0",
+    "@testing-library/react": "^15.0.5",
     "@types/busboy": "1.5.3",
     "@types/cheerio": "0.22.16",
     "@types/cookie": "0.3.3",
