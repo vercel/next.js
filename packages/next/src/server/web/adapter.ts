@@ -2,7 +2,7 @@ import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
-import { fromNodeOutgoingHttpHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -18,7 +18,6 @@ import { requestAsyncStorage } from '../../client/components/request-async-stora
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
-import { normalizeNextQueryParam } from '../server-utils'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
