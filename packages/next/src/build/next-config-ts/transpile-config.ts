@@ -3,6 +3,7 @@ import type { Options as SWCOptions } from '@swc/core'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
+import { parseJsonFile } from '../load-jsconfig'
 import { transform } from '../swc'
 
 function resolveSWCOptions(
@@ -26,19 +27,10 @@ function resolveSWCOptions(
   } satisfies SWCOptions
 }
 
-// since tsconfig allows JS comments (jsonc), strip them for JSON.parse
-function stripComments(str: string) {
-  return str.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) =>
-    g ? '' : m
-  )
-}
-
 async function lazilyGetTSConfig(cwd: string) {
   let tsConfig: { compilerOptions: CompilerOptions }
   try {
-    tsConfig = JSON.parse(
-      stripComments(await readFile(join(cwd, 'tsconfig.json'), 'utf8'))
-    )
+    tsConfig = parseJsonFile(join(cwd, 'tsconfig.json'))
   } catch (error) {
     // ignore if tsconfig.json does not exist
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -71,7 +63,7 @@ export async function transpileConfig({
       hasRequire = true
     }
 
-    // filename / extension don't matter
+    // filename & extension don't matter here
     return requireFromString(code, join(cwd, 'next.config.compiled.js'))
   } catch (error) {
     throw error

@@ -970,7 +970,7 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
-    const isTypeScript = configFileName.endsWith('ts') // .ts, .mts
+    const isTypeScript = configFileName.endsWith('.ts')
 
     let userConfigModule: any
     try {
