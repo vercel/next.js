@@ -289,18 +289,31 @@ export function createRSCAliases(
   }
 
   if (isEdgeServer) {
+    // Why do we need these? Why aren't these resolved via import conditions?
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
       alias[
+        'next/dist/compiled/react$'
+      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
+      alias[
         'react/jsx-runtime$'
+      ] = `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`
+      alias[
+        'next/dist/compiled/react/jsx-runtime$'
       ] = `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`
       alias[
         'react/jsx-dev-runtime$'
       ] = `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`
       alias[
+        'next/dist/compiled/react/jsx-dev-runtime$'
+      ] = `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`
+      alias[
         'react-dom$'
+      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
+      alias[
+        'next/dist/compiled/react-dom$'
       ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
     }
   }
