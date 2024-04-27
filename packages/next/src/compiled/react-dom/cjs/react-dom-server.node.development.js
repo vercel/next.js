@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require("next/dist/compiled/react");
+var React = require('react');
 var util = require('util');
 var crypto = require('crypto');
 var async_hooks = require('async_hooks');

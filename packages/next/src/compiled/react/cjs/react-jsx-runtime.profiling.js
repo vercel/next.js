@@ -10,7 +10,7 @@
 
 'use strict';
 
-var React = require("next/dist/compiled/react");
+var React = require('react');
 
 // ATTENTION
 // When adding new symbols to this file,

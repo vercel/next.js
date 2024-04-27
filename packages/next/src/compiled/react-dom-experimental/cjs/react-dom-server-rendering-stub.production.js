@@ -10,7 +10,7 @@
 
 'use strict';
 
-var React = require("next/dist/compiled/react-experimental");
+var React = require('react');
 
 var ReactVersion = '18.3.0-experimental-c3048aab4-20240326';
 

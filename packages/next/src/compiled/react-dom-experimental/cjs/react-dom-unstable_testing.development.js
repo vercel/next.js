@@ -14,8 +14,8 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require("next/dist/compiled/react-experimental");
-var Scheduler = require("next/dist/compiled/scheduler-experimental");
+var React = require('react');
+var Scheduler = require('scheduler');
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
