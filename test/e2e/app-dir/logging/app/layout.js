@@ -5,19 +5,19 @@ export default function Layout({ children }) {
     <html>
       <body>
         <header>
-          <Link id="#nav-link" href={'/link'}>
+          <Link id="nav-link" href={'/link'}>
             /link
           </Link>
           <br />
-          <Link id="#nav-headers" href={'/headers'}>
+          <Link id="nav-headers" href={'/headers'}>
             /headers
           </Link>
           <br />
-          <Link id="#nav-default-cache" href={'/default-cache'}>
+          <Link id="nav-default-cache" href={'/default-cache'}>
             /default-cache
           </Link>
           <br />
-          <Link id="#nav-cache-revalidate" href={'/cache-revalidate'}>
+          <Link id="nav-cache-revalidate" href={'/cache-revalidate'}>
             /cache-revalidate
           </Link>
           <br />

@@ -185,9 +185,9 @@ describe('app-dir - logging', () => {
           await browser.elementByCss('a#nav-headers').click()
           await browser.waitForElementByCss('p')
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+
           expect(logs).toContain('GET /')
           expect(logs).toContain('GET /headers')
-
           expect(logs).not.toContain('/_next/static')
           expect(logs).not.toContain('?_rsc')
         })
