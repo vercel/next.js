@@ -14615,6 +14615,17 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
+      "passed": [
+        "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
+      ],
+      "failed": [
+        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-fetch-build-cache/app-fetch-build-cache.test.ts": {
       "passed": [
         "app fetch build cache should have done initial build",
