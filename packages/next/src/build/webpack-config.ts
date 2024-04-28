@@ -1682,6 +1682,13 @@ export default async function getBaseWebpackConfig(
             ]
           },
         },
+        {
+          resolve: {
+            alias: {
+              next: NEXT_PROJECT_ROOT,
+            },
+          },
+        },
       ],
     },
     plugins: [
