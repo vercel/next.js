@@ -13,7 +13,7 @@ let shouldSaveTraceEvents: boolean | undefined
 let savedTraceEvents: TraceEvent[] = []
 
 const RECORD_SPAN_THRESHOLD_MS = parseInt(
-  process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '0'
+  process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1'
 )
 
 // eslint typescript has a bug with TS enums
