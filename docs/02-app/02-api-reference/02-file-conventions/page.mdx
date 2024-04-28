@@ -11,7 +11,7 @@ export default function Page({
   searchParams,
 }: {
   params: { slug: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: Record<string, unknown>
 }) {
   return <h1>My Page</h1>
 }
