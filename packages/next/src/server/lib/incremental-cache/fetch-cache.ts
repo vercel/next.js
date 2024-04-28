@@ -1,4 +1,5 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type { IncrementalCacheValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import {
@@ -233,19 +234,19 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const cached = await res.json()
+        const cached: IncrementalCacheValue = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+          throw new Error('invalid cache value')
         }
 
         // if new tags were specified, merge those tags to the existing tags
         if (cached.kind === 'FETCH') {
           cached.tags ??= []
           for (const tag of tags ?? []) {
-            if (!cached.tags.include(tag)) {
-              cached.tag.push(tag)
+            if (!cached.tags.includes(tag)) {
+              cached.tags.push(tag)
             }
           }
         }

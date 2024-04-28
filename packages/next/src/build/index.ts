@@ -120,7 +120,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isAppBuiltinNotFoundPage,
-  serializePageInfos,
+  collectRoutesUsingEdgeRuntime,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -186,6 +186,7 @@ import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import uploadTrace from '../trace/upload-trace'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -352,7 +353,10 @@ async function writeEdgePartialPrerenderManifest(
   // Use env vars in JS bundle and inject the actual vars to edge manifest.
   const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
     {
-      ...manifest,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      version: manifest.version,
       preview: {
         previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
         previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
@@ -700,11 +704,13 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate',
+  traceUploadUrl: string | undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
 
+  let loadedConfig: NextConfigComplete | undefined
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
@@ -738,6 +744,7 @@ export default async function build(
             turborepoAccessTraceResult
           )
         )
+      loadedConfig = config
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
@@ -1650,11 +1657,12 @@ export default async function build(
                   config,
                   distDir,
                   // Serialize Map as this is sent to the worker.
-                  pageInfos: serializePageInfos(new Map()),
+                  edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
                   staticPages: [],
                   hasSsrAmpPages: false,
                   buildTraceContext,
                   outputFileTracingRoot,
+                  isFlyingShuttle: !!config.experimental.flyingShuttle,
                 })
                 .catch((err) => {
                   console.error(err)
@@ -2387,12 +2395,13 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageInfos,
+          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isFlyingShuttle: !!config.experimental.flyingShuttle,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -2815,6 +2824,10 @@ export default async function build(
                   // normalize header values as initialHeaders
                   // must be Record<string, string>
                   for (const key of headerKeys) {
+                    // set-cookie is already handled - the middleware cookie setting case
+                    // isn't needed for the prerender manifest since it can't read cookies
+                    if (key === 'x-middleware-set-cookie') continue
+
                     let value = exportHeaders[key]
 
                     if (Array.isArray(value)) {
@@ -3358,13 +3371,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      // TODO: remove in the next major version
-      if (config.analyticsId) {
-        Log.warn(
-          `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-        )
-      }
-
       if (Boolean(config.experimental.nextScriptWorkers)) {
         await nextBuildSpan
           .traceChild('verify-partytown-setup')
@@ -3446,5 +3452,15 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
+
+    if (traceUploadUrl && loadedConfig) {
+      uploadTrace({
+        traceUploadUrl,
+        mode: 'build',
+        projectDir: dir,
+        distDir: loadedConfig.distDir,
+        sync: true,
+      })
+    }
   }
 }

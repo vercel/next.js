@@ -38,6 +38,7 @@ export const installTemplate = async ({
   eslint,
   srcDir,
   importAlias,
+  skipInstall,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -230,6 +231,8 @@ export const installTemplate = async ({
     path.join(root, "package.json"),
     JSON.stringify(packageJson, null, 2) + os.EOL,
   );
+
+  if (skipInstall) return;
 
   console.log("\nInstalling dependencies:");
   for (const dependency in packageJson.dependencies)

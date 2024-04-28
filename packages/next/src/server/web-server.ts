@@ -54,7 +54,13 @@ interface WebServerOptions extends Options {
   }
 }
 
-export default class NextWebServer extends BaseServer<WebServerOptions> {
+type WebRouteHandler = RouteHandler<WebNextRequest, WebNextResponse>
+
+export default class NextWebServer extends BaseServer<
+  WebServerOptions,
+  WebNextRequest,
+  WebNextResponse
+> {
   constructor(options: WebServerOptions) {
     super(options)
 
@@ -152,7 +158,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected handleCatchallRenderRequest: RouteHandler = async (
+  protected handleCatchallRenderRequest: WebRouteHandler = async (
     req,
     res,
     parsedUrl

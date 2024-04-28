@@ -9,8 +9,9 @@ import type {
 import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { SizeLimit } from '../../types'
+import type { SizeLimit } from '../types'
 import type { SwrDelta } from './lib/revalidate'
+import type { SupportedTestRunners } from '../cli/next-test'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -181,6 +182,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -317,7 +319,16 @@ export interface ExperimentalConfig {
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
-  mdxRs?: boolean
+  mdxRs?:
+    | boolean
+    | {
+        development?: boolean
+        jsx?: boolean
+        jsxRuntime?: string
+        jsxImportSource?: string
+        providerImportSource?: string
+        mdxType?: 'gfm' | 'commonmark'
+      }
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
@@ -441,9 +452,14 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
-   * Enables `fetch` requests to be proxied to the experimental text proxy server
+   * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
+
+  /**
+   * Set a default test runner to be used by `next experimental-test`.
+   */
+  defaultTestRunner?: SupportedTestRunners
 }
 
 export type ExportPathMap = {
@@ -602,16 +618,6 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
-
-  /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
-   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
-   *
-   * @default ''
-   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
-   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
-   */
-  analyticsId?: string
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
@@ -844,7 +850,6 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -877,6 +882,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    flyingShuttle: false,
     prerenderEarlyExit: false,
     serverMinification: true,
     serverSourceMaps: false,

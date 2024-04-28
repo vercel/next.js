@@ -27,7 +27,7 @@ function generateBlocks(prs) {
     type: 'section',
     text: {
       type: 'mrkdwn',
-      text: `*A list of the top ${count} PRs sorted by most :+1: reactions (> 1) over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/pull_request_popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-prs.mjs|action> will run every Monday at 1PM UTC (9AM EST)._`,
+      text: `*A list of the top ${count} PRs sorted by most :+1: reactions (> 1) over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-prs.mjs|action> will run every Monday at 1PM UTC (9AM EST)._`,
     },
   })
 
@@ -54,7 +54,7 @@ async function run() {
     const { data } = await octoClient.rest.search.issuesAndPullRequests({
       order: 'desc',
       per_page: 15,
-      q: `repo:${owner}/${repo} is:pr is:open created:>=${ninetyDaysAgo()}`,
+      q: `repo:${owner}/${repo} -is:draft is:pr is:open created:>=${ninetyDaysAgo()}`,
       sort: 'reactions-+1',
     })
 

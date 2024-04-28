@@ -52,7 +52,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.12.5
+  TURBO_VERSION: 1.13.3-canary.2
   NODE_LTS_VERSION: 20.9.0
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -105,8 +105,6 @@ jobs:
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-        with:
-          components: rustfmt, clippy
 
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
@@ -125,7 +123,7 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'
@@ -134,6 +132,12 @@ jobs:
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+
+      # Configure a git user so that Create Next App can initialize git repos during integration tests.
+      - name: Set CI git user
+        run: |
+          git config --global user.name "vercel-ci-bot"
+          git config --global user.email "infra+ci@vercel.com"
 
       - run: cargo clean
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
