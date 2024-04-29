@@ -23,6 +23,7 @@
   "eslint",
   "express",
   "firebase-admin",
+  "isolated-vm",
   "jest",
   "jsdom",
   "libsql",

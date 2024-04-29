@@ -234,15 +234,24 @@ function makeGetDynamicParamFromSegment(
     }
 
     if (!value) {
-      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
-      if (segmentParam.type === 'optional-catchall') {
+      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
+      if (
+        segmentParam.type === 'optional-catchall' ||
+        segmentParam.type === 'catchall'
+      ) {
+        // If we weren't able to match the segment to a URL param, and we have a catch-all route,
+        // provide all of the known params (in array format) to the route
+        // It should be safe to assume the order of these params is consistent with the order of the segments.
+        // However, if not, we could re-parse the `pagePath` with `getRouteRegex` and iterate over the positional order.
+        value = Object.values(params).map((i) => encodeURIComponent(i))
+        const hasValues = value.length > 0
         const type = dynamicParamTypes[segmentParam.type]
         return {
           param: key,
-          value: null,
+          value: hasValues ? value : null,
           type: type,
           // This value always has to be a string.
-          treeSegment: [key, '', type],
+          treeSegment: [key, hasValues ? value.join('/') : '', type],
         }
       }
       return findDynamicParamFromRouterState(flightRouterState, segment)

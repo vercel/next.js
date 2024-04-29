@@ -18,12 +18,12 @@ const assign = Object.assign;
 // Alias __NEXT_MAJOR__ to true for easier skimming.
 // -----------------------------------------------------------------------------
 
-const __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+const __NEXT_MAJOR__ = true; // Removes legacy style context
 // as a normal prop instead of stripping it from the props object.
 // Passes `ref` as a normal prop instead of stripping it from the props object
 // during element creation.
 
-const enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+const enableRefAsProp = __NEXT_MAJOR__;
 
 /**
  * Keeps track of the current Cache dispatcher.
@@ -610,6 +610,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
     invokeCallback = true;
   } else {
     switch (type) {
+      case 'bigint':
+
+      // fallthrough for enabled BigInt support
+
       case 'string':
       case 'number':
         invokeCallback = true;
@@ -868,6 +872,13 @@ function use(usable) {
   const dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
+function useActionState(action, initialState, permalink) {
+  {
+    const dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+    return dispatcher.useActionState(action, initialState, permalink);
+  }
+}
 
 function forwardRef(render) {
 
@@ -1112,7 +1123,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-c3048aab4-20240326';
 
 const getPrototypeOf = Object.getPrototypeOf;
 
@@ -1245,6 +1256,7 @@ exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.unstable_postpone = postpone;
 exports.use = use;
+exports.useActionState = useActionState;
 exports.useCallback = useCallback;
 exports.useDebugValue = useDebugValue;
 exports.useId = useId;

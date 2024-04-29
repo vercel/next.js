@@ -27,8 +27,7 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                JsxTransformOptions, MdxTransformModuleOptions, ModuleOptionsContext, ModuleRule,
-                TypescriptTransformOptions,
+                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
             transition::Transition,
@@ -46,7 +45,7 @@ use crate::{
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
     next_config::NextConfig,
-    next_import_map::{get_next_server_import_map, mdx_import_source_file},
+    next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
@@ -97,6 +96,17 @@ pub enum ServerContextType {
     },
     Middleware,
     Instrumentation,
+}
+
+impl ServerContextType {
+    pub fn supports_react_server(&self) -> bool {
+        matches!(
+            self,
+            ServerContextType::AppRSC { .. }
+                | ServerContextType::AppRoute { .. }
+                | ServerContextType::PagesApi { .. }
+        )
+    }
 }
 
 #[turbo_tasks::function]
@@ -152,18 +162,10 @@ pub async fn get_server_resolve_options_context(
             .map(ToString::to_string),
     );
 
-    match ty {
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::Middleware { .. } => {
-            custom_conditions.push("react-server".to_string())
-        }
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::Instrumentation { .. } => {}
+    if ty.supports_react_server() {
+        custom_conditions.push("react-server".to_string());
     };
+
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
@@ -325,9 +327,11 @@ pub async fn get_server_module_options_context(
     let mut foreign_next_server_rules =
         get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
             .await?;
-    let internal_custom_rules =
-        get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
-            .await?;
+    let mut internal_custom_rules = get_next_server_internal_transforms_rules(
+        ty.into_value(),
+        next_config.mdx_rs().await?.is_some(),
+    )
+    .await?;
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
@@ -375,16 +379,7 @@ pub async fn get_server_module_options_context(
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let enable_mdx_rs = if *next_config.mdx_rs().await? {
-        Some(
-            MdxTransformModuleOptions {
-                provider_import_source: Some(mdx_import_source_file()),
-            }
-            .cell(),
-        )
-    } else {
-        None
-    };
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.
     // This matches to the behavior of existing webpack config, if issuer layer is
@@ -622,10 +617,16 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
         } => {
             next_server_rules.extend(source_transform_rules);
+
+            let mut common_next_server_rules = vec![
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                    .await?,
+            ];
+
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
             {
-                next_server_rules.push(get_ecma_transform_rule(
+                common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
                         ecmascript_client_reference_transition_name,
                     )),
@@ -634,10 +635,8 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
-            next_server_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
-                    .await?,
-            );
+            next_server_rules.extend(common_next_server_rules.iter().cloned());
+            internal_custom_rules.extend(common_next_server_rules);
 
             let module_options_context = ModuleOptionsContext {
                 esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),

@@ -20,7 +20,8 @@
       "amp-test-utils": ["test/lib/amp-test-utils"],
       "next-webdriver": ["test/lib/next-webdriver"],
       "e2e-utils": ["test/lib/e2e-utils"]
-    }
+    },
+    "target": "ES2017"
   },
   "include": [
     "test/integration/draft-mode/next-env.d.ts",

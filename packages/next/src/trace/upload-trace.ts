@@ -6,7 +6,7 @@ export default function uploadTrace({
   sync,
 }: {
   traceUploadUrl: string
-  mode: 'dev'
+  mode: 'dev' | 'build'
   projectDir: string
   distDir: string
   sync?: boolean

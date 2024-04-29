@@ -74,6 +74,7 @@ export {
   createNextApp,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
+  projectShouldHaveNoGitChanges,
   shouldBeTemplateProject,
   shouldBeJavascriptProject,
   shouldBeTypescriptProject,
