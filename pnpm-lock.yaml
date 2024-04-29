@@ -123,8 +123,8 @@ importers:
         specifier: 6.1.2
         version: 6.1.2(@types/jest@29.5.5)(jest@29.7.0)
       '@testing-library/react':
-        specifier: 13.0.0
-        version: 13.0.0(react-dom@18.2.0)(react@18.2.0)
+        specifier: ^15.0.5
+        version: 15.0.5(react-dom@18.2.0)(react@18.2.0)
       '@types/busboy':
         specifier: 1.5.3
         version: 1.5.3
@@ -6828,9 +6828,9 @@ packages:
       rewrite-imports: 1.4.0
     dev: true
 
-  /@testing-library/dom@8.20.0:
-    resolution: {integrity: sha512-d9ULIT+a4EXLX3UU8FBjauG9NnsZHkHztXoIcTsOKoOw030fyjheN9svkTULjJxtYag9DZz5Jz5qkWZDPxTFwA==}
-    engines: {node: '>=12'}
+  /@testing-library/dom@10.0.0:
+    resolution: {integrity: sha512-PmJPnogldqoVFf+EwbHvbBJ98MmqASV8kLrBYgsDNxQcFMeIS7JFL48sfyXvuMtgmWO/wMhh25odr+8VhDmn4g==}
+    engines: {node: '>=18'}
     dependencies:
       '@babel/code-frame': 7.22.5
       '@babel/runtime': 7.22.5
@@ -6872,15 +6872,15 @@ packages:
       redent: 3.0.0
     dev: true
 
-  /@testing-library/react@13.0.0(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-p0lYA1M7uoEmk2LnCbZLGmHJHyH59sAaZVXChTXlyhV/PRW9LoIh4mdf7tiXsO8BoNG+vN8UnFJff1hbZeXv+w==}
-    engines: {node: '>=12'}
+  /@testing-library/react@15.0.5(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-ttodVWYA2i2w4hRa6krKrmS1vKxAEkwDz34y+CwbcrbZUxFzUYN3a5xZyFKo+K6LBseCRCUkwcjATpaNn/UsIA==}
+    engines: {node: '>=18'}
     peerDependencies:
       react: ^18.0.0
       react-dom: ^18.0.0
     dependencies:
       '@babel/runtime': 7.22.5
-      '@testing-library/dom': 8.20.0
+      '@testing-library/dom': 10.0.0
       '@types/react-dom': 18.2.23
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
