@@ -414,7 +414,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeOrEdgeCompilation,
         distDir,
         pagesDir,
-        cwd: dir,
+        srcDir: path.dirname((appDir || pagesDir)!),
         development: dev,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
