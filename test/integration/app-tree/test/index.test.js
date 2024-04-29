@@ -33,16 +33,19 @@ const runTests = () => {
     const browser = await webdriver(appPort, '/')
     let html = await browser.eval(`document.documentElement.innerHTML`)
     expect(html).toMatch(/page:.*?\//)
+    console.log(1)
 
     browser.elementByCss('#another').click()
     await waitFor(waitTime)
     html = await browser.eval(`document.documentElement.innerHTML`)
     expect(html).toMatch(/page:.*?\//)
+    console.log(2)
 
     browser.elementByCss('#home').click()
     await waitFor(waitTime)
     html = await browser.eval(`document.documentElement.innerHTML`)
     expect(html).toMatch(/page:.*?\/another/)
+    console.log(3)
   })
 
   it('should pass AppTree to NextPageContext', async () => {
