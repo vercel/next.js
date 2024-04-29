@@ -171,7 +171,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
     it('should return project production url in production deployment', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
-      process.env.VERCEL_ENV = 'preview'
+      process.env.VERCEL_ENV = 'production'
       process.env.VERCEL_URL = 'vercel-url'
       process.env.VERCEL_PROJECT_PRODUCTION_URL = 'production-url'
       expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
