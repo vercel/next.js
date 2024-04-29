@@ -1,7 +1,7 @@
 name: Test E2E (Vercel Deploy), related
 
 on:
-  pull_request:
+  pull_request: 
     types: [opened, synchronize]
 
 jobs:
