@@ -8,10 +8,11 @@ import domain from 'domain'
 import http from 'http'
 import https from 'https'
 import os from 'os'
-import punycode from 'punycode'
-import process from 'process'
-import querystring from 'querystring'
-import stringDecoder from 'string_decoder'
+// TODO: These are accidentally polyfilled in edge runtime currently.
+// import punycode from 'punycode'
+// import process from 'process'
+// import querystring from 'querystring'
+// import stringDecoder from 'string_decoder'
 import sys from 'sys'
 import timers from 'timers'
 import tty from 'tty'
@@ -54,6 +55,20 @@ export default async function middleware(request) {
 
   response.headers.set('supported-result', JSON.stringify(supportedResult))
 
+  // TODO: These are accidentally polyfilled in edge runtime currently.
+  // assert.throws(() => {
+  //   console.log(punycode)
+  // })
+  // assert.throws(() => {
+  //   console.log(process.title)
+  // })
+  // assert.throws(() => {
+  //   console.log(querystring)
+  // })
+  // assert.throws(() => {
+  //   console.log(stringDecoder)
+  // })
+
   assert.throws(() => {
     console.log(domain)
   })
@@ -62,12 +77,6 @@ export default async function middleware(request) {
   })
   assert.throws(() => {
     console.log(https)
-  })
-  assert.throws(() => {
-    console.log(punycode)
-  })
-  assert.throws(() => {
-    console.log(stringDecoder)
   })
   assert.throws(() => {
     console.log(zlib.Gzip)
@@ -83,12 +92,6 @@ export default async function middleware(request) {
   })
   assert.throws(() => {
     console.log(path.join)
-  })
-  assert.throws(() => {
-    console.log(process.title)
-  })
-  assert.throws(() => {
-    console.log(querystring)
   })
   assert.throws(() => {
     console.log(vm)
@@ -107,18 +110,21 @@ export default async function middleware(request) {
   })
 
   const unsupportedResult = {
+    // TODO: these are accidentally polyfilled in edge runtime currently.
+    // punycode: false,
+    // process: false,
+    // querystring: false,
+    // stringDecoder: false,
+
     domain: false,
     http: false,
     https: false,
-    punycode: false,
-    stringDecoder: false,
     zlib: false,
     constants: false,
     crypto: false,
     os: false,
     path: false,
-    process: false,
-    querystring: false,
+
     vm: false,
     tty: false,
     timers: false,
