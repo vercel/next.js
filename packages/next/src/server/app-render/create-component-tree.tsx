@@ -352,7 +352,6 @@ async function createComponentTreeInternal({
         parentParams
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
@@ -436,7 +435,7 @@ async function createComponentTreeInternal({
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             asNotFound,
-            metadataOutlet,
+            metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
             ctx,
             missingSlots,
           })
@@ -589,6 +588,7 @@ async function createComponentTreeInternal({
         </>
       )
     } else {
+      console.log('{metadataOutlet}', layoutOrPagePath, page)
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
       props.searchParams = createDynamicallyTrackedSearchParams(query)
