@@ -153,9 +153,9 @@ export function getRedirectTypeFromError<U extends string>(
 export function getRedirectStatusCodeFromError<U extends string>(
   error: RedirectError<U>
 ): number {
-	if (!isRedirectError(error)) {
-		throw new Error('Not a redirect error')
-	}
+  if (!isRedirectError(error)) {
+    throw new Error('Not a redirect error')
+  }
 
-	return Number(error.digest.split(';').at(-2))
+  return Number(error.digest.split(';').at(-2))
 }
