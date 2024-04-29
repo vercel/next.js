@@ -24,6 +24,22 @@ describe('app dir - navigation', () => {
       expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
     })
 
+    it('should set query with semicolon correctly', async () => {
+      const browser = await next.browser('/')
+      expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
+        `""`
+      )
+
+      await browser.elementById('set-query').click()
+
+      await retry(() =>
+        expect(browser.elementById('query').text()).resolves.toEqual('a=b;c')
+      )
+
+      const url = new URL(await browser.url())
+      expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b;c"`)
+    })
+
     it('should handle unicode search params', async () => {
       const requests: Array<{
         pathname: string
