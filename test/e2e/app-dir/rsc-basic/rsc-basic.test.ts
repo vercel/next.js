@@ -456,9 +456,7 @@ describe('app dir - rsc basics', () => {
 
   // TODO: (PPR) remove once PPR is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ? '-experimental-'
-      : '-canary-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-beta-'
 
   // TODO: (React 19) During Beta, bundled and installed version match.
   it.skip('should not use bundled react for pages with app', async () => {

@@ -20,9 +20,9 @@ describe('custom server', () => {
   })
 
   describe('with app dir', () => {
-    it('should render app with react canary', async () => {
+    it('should render app with react beta', async () => {
       const $ = await next.render$(`/1`)
-      expect($('body').text()).toMatch(/app: .+-canary/)
+      expect($('body').text()).toMatch(/app: .+-beta/)
     })
 
     it('should render pages with installed react', async () => {
