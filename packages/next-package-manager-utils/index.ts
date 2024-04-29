@@ -59,7 +59,7 @@ const PackageManagers: readonly PackageManager[] = [
   {
     name: 'yarn',
     lockfile: 'yarn.lock',
-    registry: 'registry.yarnokg.com',
+    registry: 'registry.yarnpkg.com',
     install: {
       allDeps: 'install',
       addDep: 'add',
