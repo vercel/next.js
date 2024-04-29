@@ -33,6 +33,7 @@ import {
   type ClientBuildManifest,
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
+  processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import type { PageEntrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
@@ -294,6 +295,12 @@ export class TurbopackManifestLoader {
     pageEntrypoints: PageEntrypoints,
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
+    const processedRewrites = {
+      ...rewrites,
+      beforeFiles: (rewrites?.beforeFiles ?? []).map(processRoute),
+      afterFiles: (rewrites?.afterFiles ?? []).map(processRoute),
+      fallback: (rewrites?.fallback ?? []).map(processRoute),
+    }
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
     const middlewareBuildManifestPath = join(
@@ -319,7 +326,7 @@ export class TurbopackManifestLoader {
     )
 
     const interceptionRewrites = JSON.stringify(
-      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      processedRewrites.beforeFiles.filter(isInterceptionRouteRewrite)
     )
 
     await writeFileAtomic(
@@ -330,9 +337,7 @@ export class TurbopackManifestLoader {
     )
 
     const content: ClientBuildManifest = {
-      __rewrites: rewrites
-        ? (normalizeRewritesForBuildManifest(rewrites) as any)
-        : { afterFiles: [], beforeFiles: [], fallback: [] },
+      __rewrites: normalizeRewritesForBuildManifest(processedRewrites) as any,
       ...Object.fromEntries(
         [...pageEntrypoints.keys()].map((pathname) => [
           pathname,

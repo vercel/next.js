@@ -6,9 +6,9 @@ const logger = require('../util/logger')
 const execa = require('execa')
 
 const mockSpan = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
+  traceAsyncFn: (fn) => fn(mockSpan()),
+  traceFn: (fn) => fn(mockSpan()),
+  traceChild: () => mockSpan(),
 })
 
 module.exports = (actionInfo) => {

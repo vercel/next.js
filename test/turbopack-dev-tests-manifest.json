@@ -2511,7 +2511,10 @@
   },
   "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
     "passed": [
-      "app dir client cache semantics (experimental staleTimes) dynamic: 0 should skip dev",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0 should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0 without a loading boundary should get fresh data on every subsequent navigation",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0, static: 0 should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation",
+      "app dir client cache semantics (experimental staleTimes) dynamic: 0, static: 0 without a loading boundary should get fresh data on every subsequent navigation",
       "app dir client cache semantics (experimental staleTimes) static: 180 should skip dev"
     ],
     "failed": [],
@@ -2520,7 +2523,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
-    "passed": ["app dir client cache semantics should skip dev"],
+    "passed": [
+      "app dir client cache semantics should renew the 30s cache once the data is revalidated"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3793,6 +3798,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/interception-dynamic-segment-middleware/interception-dynamic-segment-middleware.test.ts": {
+    "passed": [
+      "interception-dynamic-segment-middleware should work when interception route is paired with a dynamic segment & middleware"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/interception-dynamic-segment/interception-dynamic-segment.test.ts": {
     "passed": [
       "interception-dynamic-segment should work when interception route is paired with a dynamic segment"
@@ -3926,6 +3940,7 @@
       "mdx with-mdx-rs app directory should work in initial html with mdx import",
       "mdx with-mdx-rs app directory should work using browser",
       "mdx with-mdx-rs app directory should work using browser with mdx import",
+      "mdx with-mdx-rs app directory should work with next/image",
       "mdx with-mdx-rs pages directory should allow overriding components",
       "mdx with-mdx-rs pages directory should work in initial html",
       "mdx with-mdx-rs pages directory should work in initial html with mdx import",
@@ -6807,6 +6822,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-test/next-test.test.ts": {
+    "passed": [
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-js",
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-ts",
+      "next test first time setup should fail if next.js config is missing experimental#testProxy",
+      "next test should execute playwright tests",
+      "next test should pass args to test runner",
+      "next test test runner validation should validate configured/specified test runner"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/no-eslint-warn-with-no-eslint-config/index.test.ts": {
     "passed": [
       "no-eslint-warn-with-no-eslint-config should not have eslint warnings when no eslint config",
@@ -8442,7 +8471,8 @@
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
       "create-next-app should not create if the target directory is not empty",
-      "create-next-app should not create if the target directory is not writable"
+      "create-next-app should not create if the target directory is not writable",
+      "create-next-app should not install dependencies if --skip-install"
     ],
     "failed": [],
     "pending": [],
@@ -8976,6 +9006,7 @@
       "Custom routes development mode should handle chained redirects successfully",
       "Custom routes development mode should handle chained rewrites successfully",
       "Custom routes development mode should handle encoded value in the pathname correctly",
+      "Custom routes development mode should handle external beforeFiles rewrite correctly",
       "Custom routes development mode should handle has query encoding correctly",
       "Custom routes development mode should handle named regex parameters with multi-match successfully",
       "Custom routes development mode should handle one-to-one rewrite successfully",
@@ -9060,9 +9091,7 @@
       "Custom routes should load custom routes when only one type is used development mode should work with just redirects",
       "Custom routes should load custom routes when only one type is used development mode should work with just rewrites"
     ],
-    "failed": [
-      "Custom routes development mode should handle external beforeFiles rewrite correctly"
-    ],
+    "failed": [],
     "pending": [
       "Custom routes production mode should add refresh header for 308 redirect",
       "Custom routes production mode should allow params in query for redirect",
@@ -14857,7 +14886,8 @@
     "passed": [
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with component correctly",
-      "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly"
+      "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly",
+      "MDX-rs Configuration MDX-rs Plugin support with mdx transform options should render an MDX page correctly"
     ],
     "failed": [],
     "pending": [],

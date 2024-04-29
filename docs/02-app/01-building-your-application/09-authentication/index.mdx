@@ -744,6 +744,7 @@ You can also extend the session's expiration time. This is useful for keeping th
 ```ts filename="app/lib/session.ts" switcher
 import 'server-only'
 import { cookies } from 'next/headers'
+import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
   const session = cookies().get('session')?.value
@@ -767,8 +768,9 @@ export async function updateSession() {
 ```js filename="app/lib/session.js" switcher
 import 'server-only'
 import { cookies } from 'next/headers'
+import { decrypt } from '@/app/lib/session'
 
-eexport async function updateSession() {
+export async function updateSession() {
   const session = cookies().get('session').value
   const payload = await decrypt(session)
 
@@ -844,6 +846,7 @@ You can use [API Routes](/docs/pages/building-your-application/routing/api-route
 ```ts filename="pages/api/login.ts" switcher
 import { serialize } from 'cookie'
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { encrypt } from '@/app/lib/session'
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const sessionData = req.body
@@ -862,6 +865,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
 ```js filename="pages/api/login.js" switcher
 import { serialize } from 'cookie'
+import { encrypt } from '@/app/lib/session'
 
 export default function handler(req, res) {
   const sessionData = req.body
@@ -895,6 +899,7 @@ For example:
 ```ts filename="app/lib/session.ts" switcher
 import cookies from 'next/headers'
 import { db } from '@/app/lib/db'
+import { encrypt } from '@/app/lib/session'
 
 export async function createSession(id: number) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -928,6 +933,7 @@ export async function createSession(id: number) {
 ```js filename="app/lib/session.js" switcher
 import cookies from 'next/headers'
 import { db } from '@/app/lib/db'
+import { encrypt } from '@/app/lib/session'
 
 export async function createSession(id) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -1358,7 +1364,7 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/building-your-application/routing/pages-and-layouts) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
+Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/building-your-application/routing/layouts-and-templates) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
 
 Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
 

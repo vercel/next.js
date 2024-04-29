@@ -167,13 +167,27 @@ describe('app-dir - logging', () => {
           })
         })
 
-        it('should exlucde Middleware invoked and _rsc requests', async () => {
+        it('should exclude Middleware invoked and _rsc requests', async () => {
           const outputIndex = next.cliOutput.length
 
           const browser = await next.browser('/link')
-          await browser.elementByCss('a').click()
+          await browser.elementByCss('a#foo').click()
           await browser.waitForElementByCss('h2')
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+          expect(logs).not.toContain('/_next/static')
+          expect(logs).not.toContain('?_rsc')
+        })
+
+        it('should not log _rsc query for client navigation RSC request', async () => {
+          const outputIndex = next.cliOutput.length
+
+          const browser = await next.browser('/')
+          await browser.elementByCss('a#nav-headers').click()
+          await browser.waitForElementByCss('p')
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          expect(logs).toContain('GET /')
+          expect(logs).toContain('GET /headers')
           expect(logs).not.toContain('/_next/static')
           expect(logs).not.toContain('?_rsc')
         })
