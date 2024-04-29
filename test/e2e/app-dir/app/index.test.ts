@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
+import {
+  check,
+  getRedboxDescriptionWarning,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
@@ -1424,7 +1429,13 @@ describe('app dir - basic', () => {
         const browser = await next.browser('/react-cache/client-component')
         const val1 = await browser.elementByCss('#value-1').text()
         const val2 = await browser.elementByCss('#value-2').text()
-        expect(val1).toBe(val2)
+        // React.cache is not supported in client components.
+        expect(val1).not.toBe(val2)
+        if (isDev) {
+          await expect(getRedboxDescriptionWarning(browser)).resolves.toEqual(
+            "Hydration failed because the server rendered HTML didn't match the client."
+          )
+        }
       })
 
       it('client component client-navigation', async () => {
@@ -1436,7 +1447,13 @@ describe('app dir - basic', () => {
           .waitForElementByCss('#value-1', 10000)
         const val1 = await browser.elementByCss('#value-1').text()
         const val2 = await browser.elementByCss('#value-2').text()
-        expect(val1).toBe(val2)
+        // React.cache is not supported in client components.
+        expect(val1).not.toBe(val2)
+        if (isDev) {
+          await expect(getRedboxDescriptionWarning(browser)).resolves.toEqual(
+            "Hydration failed because the server rendered HTML didn't match the client."
+          )
+        }
       })
 
       it('middleware overriding headers', async () => {
