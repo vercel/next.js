@@ -6,27 +6,27 @@ import { RedirectStatusCode } from './redirect-status-code'
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
 export enum RedirectType {
-	push = 'push',
-	replace = 'replace',
+  push = 'push',
+  replace = 'replace',
 }
 
 export type RedirectError<U extends string> = Error & {
-	digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${RedirectStatusCode};`
-	mutableCookies: ResponseCookies
+  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${RedirectStatusCode};`
+  mutableCookies: ResponseCookies
 }
 
 export function getRedirectError(
-	url: string,
-	type: RedirectType,
-	statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect
+  url: string,
+  type: RedirectType,
+  statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect
 ): RedirectError<typeof url> {
-	const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
-	error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${statusCode};`
-	const requestStore = requestAsyncStorage.getStore()
-	if (requestStore) {
-		error.mutableCookies = requestStore.mutableCookies
-	}
-	return error
+  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
+  error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${statusCode};`
+  const requestStore = requestAsyncStorage.getStore()
+  if (requestStore) {
+    error.mutableCookies = requestStore.mutableCookies
+  }
+  return error
 }
 
 /**
@@ -41,21 +41,21 @@ export function getRedirectError(
  * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
  */
 export function redirect(
-	/** The URL to redirect to */
-	url: string,
-	type: RedirectType = RedirectType.replace
+  /** The URL to redirect to */
+  url: string,
+  type: RedirectType = RedirectType.replace
 ): never {
-	const actionStore = actionAsyncStorage.getStore()
-	throw getRedirectError(
-		url,
-		type,
-		// If we're in an action, we want to use a 303 redirect
-		// as we don't want the POST request to follow the redirect,
-		// as it could result in erroneous re-submissions.
-		actionStore?.isAction
-			? RedirectStatusCode.SeeOther
-			: RedirectStatusCode.TemporaryRedirect
-	)
+  const actionStore = actionAsyncStorage.getStore()
+  throw getRedirectError(
+    url,
+    type,
+    // If we're in an action, we want to use a 303 redirect
+    // as we don't want the POST request to follow the redirect,
+    // as it could result in erroneous re-submissions.
+    actionStore?.isAction
+    ? RedirectStatusCode.SeeOther
+    : RedirectStatusCode.TemporaryRedirect
+  )
 }
 
 /**
@@ -70,21 +70,21 @@ export function redirect(
  * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
  */
 export function permanentRedirect(
-	/** The URL to redirect to */
-	url: string,
-	type: RedirectType = RedirectType.replace
+  /** The URL to redirect to */
+  url: string,
+  type: RedirectType = RedirectType.replace
 ): never {
-	const actionStore = actionAsyncStorage.getStore()
-	throw getRedirectError(
-		url,
-		type,
-		// If we're in an action, we want to use a 303 redirect
-		// as we don't want the POST request to follow the redirect,
-		// as it could result in erroneous re-submissions.
-		actionStore?.isAction
-			? RedirectStatusCode.SeeOther
-			: RedirectStatusCode.PermanentRedirect
-	)
+  const actionStore = actionAsyncStorage.getStore()
+  throw getRedirectError(
+  url,
+  type,
+  // If we're in an action, we want to use a 303 redirect
+  // as we don't want the POST request to follow the redirect,
+  // as it could result in erroneous re-submissions.
+  actionStore?.isAction
+    ? RedirectStatusCode.SeeOther
+    : RedirectStatusCode.PermanentRedirect
+  )
 }
 
 /**
@@ -95,31 +95,31 @@ export function permanentRedirect(
  * @returns true if the error is a redirect error
  */
 export function isRedirectError<U extends string>(
-	error: unknown
+  error: unknown
 ): error is RedirectError<U> {
-	if (
-		typeof error !== 'object' ||
-		error === null ||
-		!('digest' in error) ||
-		typeof error.digest !== 'string'
-	) {
-		return false
-	}
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('digest' in error) ||
+    typeof error.digest !== 'string'
+  ) {
+    return false
+  }
 
-	const digest = error.digest.split(';')
-	const [errorCode, type] = digest
-	const destination = digest.slice(2, -2).join(';')
-	const status = digest.at(-2)
+  const digest = error.digest.split(';')
+  const [errorCode, type] = digest
+  const destination = digest.slice(2, -2).join(';')
+  const status = digest.at(-2)
 
-	const statusCode = Number(status)
+  const statusCode = Number(status)
 
-	return (
-		errorCode === REDIRECT_ERROR_CODE &&
-		(type === 'replace' || type === 'push') &&
-		typeof destination === 'string' &&
-		!isNaN(statusCode) &&
-		statusCode in RedirectStatusCode
-	)
+  return (
+    errorCode === REDIRECT_ERROR_CODE &&
+    (type === 'replace' || type === 'push') &&
+    typeof destination === 'string' &&
+    !isNaN(statusCode) &&
+    statusCode in RedirectStatusCode
+  )
 }
 
 /**
@@ -133,15 +133,15 @@ export function getURLFromRedirectError<U extends string>(
 	error: RedirectError<U>
 ): U
 export function getURLFromRedirectError(error: unknown): string | null {
-	if (!isRedirectError(error)) return null
+  if (!isRedirectError(error)) return null
 
-	// Slices off the beginning of the digest that contains the code and the
-	// separating ';'.
-	return error.digest.split(';').slice(2, -2).join(";")
+  // Slices off the beginning of the digest that contains the code and the
+  // separating ';'.
+  return error.digest.split(';').slice(2, -2).join(";")
 }
 
 export function getRedirectTypeFromError<U extends string>(
-	error: RedirectError<U>
+  error: RedirectError<U>
 ): RedirectType {
 	if (!isRedirectError(error)) {
 		throw new Error('Not a redirect error')
