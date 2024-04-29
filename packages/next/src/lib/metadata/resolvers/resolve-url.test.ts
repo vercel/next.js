@@ -125,6 +125,8 @@ describe('getSocialImageFallbackMetadataBase', () => {
     afterEach(() => {
       delete process.env.VERCEL_URL
       delete process.env.VERCEL_ENV
+      delete process.env.VERCEL_BRANCH_URL
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL
 
       process.env = originalEnv
     })
@@ -145,17 +147,28 @@ describe('getSocialImageFallbackMetadataBase', () => {
       )
     })
 
-    it('preview deployment', () => {
+    it('should prefer branch url in preview deployment if presents', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
       process.env.VERCEL_ENV = 'preview'
       process.env.VERCEL_BRANCH_URL = 'branch-url'
+      process.env.VERCEL_URL = 'vercel-url'
       expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
         'https://branch-url/'
       )
     })
 
-    it('production deployment', () => {
+    it('should return vercel url in preview deployment if only it presents', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.VERCEL_ENV = 'preview'
+      process.env.VERCEL_URL = 'vercel-url'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://vercel-url/'
+      )
+    })
+
+    it('should return project production url in production deployment', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
       process.env.VERCEL_PROJECT_PRODUCTION_URL = 'production-url'
