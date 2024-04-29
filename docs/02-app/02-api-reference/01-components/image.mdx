@@ -305,19 +305,13 @@ Remember that the required width and height props can interact with your styling
 
 ### `onLoadingComplete`
 
-<AppOnly>
 
-```jsx
-'use client'
-
-<Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
-```
-
-</AppOnly>
 
 <PagesOnly>
 
 ```jsx
+'use client'
+
 <Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
 
