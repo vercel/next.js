@@ -11,14 +11,12 @@ function createLocalMetadataBase() {
 
 function getPreviewDeploymentUrl(): URL | undefined {
   const origin = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
-  if (!origin) return undefined
-  return new URL(`https://${origin}`)
+  return origin ? new URL(`https://${origin}`) : undefined
 }
 
 function getProductionDeploymentUrl(): URL | undefined {
   const origin = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  if (!origin) return undefined
-  return new URL(`https://${origin}`)
+  return origin ? new URL(`https://${origin}`) : undefined
 }
 
 // For deployment url for metadata routes, prefer to use the deployment url if possible

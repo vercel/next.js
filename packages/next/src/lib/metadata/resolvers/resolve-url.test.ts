@@ -1,4 +1,8 @@
-import { resolveUrl, resolveAbsoluteUrlWithPathname } from './resolve-url'
+import {
+  resolveUrl,
+  resolveAbsoluteUrlWithPathname,
+  getSocialImageFallbackMetadataBase,
+} from './resolve-url'
 
 // required to be resolved as URL with resolveUrl()
 describe('metadata: resolveUrl', () => {
@@ -102,6 +106,61 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
       expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
         'https://example.com/foo?bar'
+      )
+    })
+  })
+})
+
+describe('getSocialImageFallbackMetadataBase', () => {
+  describe('fallbackMetadataBase', () => {
+    let originalEnv: NodeJS.ProcessEnv
+    function getSocialImageFallbackMetadataBaseHelper(): string {
+      return getSocialImageFallbackMetadataBase(null).fallbackMetadataBase.href
+    }
+
+    beforeEach(() => {
+      originalEnv = process.env
+    })
+
+    afterEach(() => {
+      delete process.env.VERCEL_URL
+      delete process.env.VERCEL_ENV
+
+      process.env = originalEnv
+    })
+
+    it('should return localhost url in local dev mode', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'development'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'http://localhost:3000/'
+      )
+    })
+
+    it('should return metadataBase ', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'http://localhost:3000/'
+      )
+    })
+
+    it('preview deployment', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.VERCEL_ENV = 'preview'
+      process.env.VERCEL_BRANCH_URL = 'branch-url'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://branch-url/'
+      )
+    })
+
+    it('production deployment', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = 'production-url'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://production-url/'
       )
     })
   })
