@@ -728,7 +728,7 @@ async fn rsc_aliases(
     }
 
     if runtime == NextRuntime::Edge {
-        if matches!(ty, ServerContextType::AppRSC { .. }) {
+        if ty.supports_react_server() {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
             alias["react-dom"] =
                 format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");

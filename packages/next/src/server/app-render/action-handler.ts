@@ -206,6 +206,7 @@ async function createForwardedActionResponse(
       body,
       duplex: 'half',
       headers: forwardedHeaders,
+      redirect: 'manual',
       next: {
         // @ts-ignore
         internal: 1,
@@ -226,9 +227,11 @@ async function createForwardedActionResponse(
       response.body?.cancel()
     }
   } catch (err) {
-    // we couldn't stream the forwarded response, so we'll just do a normal redirect
+    // we couldn't stream the forwarded response, so we'll just return an empty response
     console.error(`failed to forward action response`, err)
   }
+
+  return RenderResult.fromStatic('{}')
 }
 
 async function createRedirectRenderResult(
