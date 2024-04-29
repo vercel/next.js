@@ -1016,20 +1016,29 @@ export class FlightClientEntryPlugin {
       edgeServerActions[id] = action
     }
 
-    const json = JSON.stringify(
-      {
-        node: serverActions,
-        edge: edgeServerActions,
-        encryptionKey: this.encryptionKey,
-      },
+    const serverManifest = {
+      node: serverActions,
+      edge: edgeServerActions,
+      encryptionKey: this.encryptionKey,
+    }
+    const edgeServerManifest = {
+      ...serverManifest,
+      encryptionKey: 'process.env.__NEXT_SERVER_ACTION_ENCRYPTION_KEY',
+    }
+
+    const json = JSON.stringify(serverManifest, null, this.dev ? 2 : undefined)
+    const edgeJson = JSON.stringify(
+      edgeServerManifest,
       null,
       this.dev ? 2 : undefined
     )
 
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
-      new sources.RawSource(
-        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
-      ) as unknown as webpack.sources.RawSource
+    if (this.isEdgeServer) {
+      assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+        new sources.RawSource(
+          `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
+        ) as unknown as webpack.sources.RawSource
+    }
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
   }

@@ -30,7 +30,7 @@ export type ClientBuildManifest = {
 export const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
 // Return different path for edge runtime and nodejs runtime
-// edge: '"/static/" + process.env.NEXT_BUILD_ID + "/low-priority.js"'
+// edge: '"/static/" + process.env.__NEXT_BUILD_ID + "/low-priority.js"'
 // nodejs: '/static/<build id>/low-priority.js'
 function buildLowPriorityPath(
   filename: string,
@@ -38,7 +38,7 @@ function buildLowPriorityPath(
   isEdgeRuntime: boolean
 ) {
   return isEdgeRuntime
-    ? `"${CLIENT_STATIC_FILES_PATH}/" + process.env.NEXT_BUILD_ID + "/${filename}"`
+    ? `"${CLIENT_STATIC_FILES_PATH}/" + process.env.__NEXT_BUILD_ID + "/${filename}"`
     : `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
 }
 
