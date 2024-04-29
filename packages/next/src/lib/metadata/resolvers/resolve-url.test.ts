@@ -112,7 +112,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
 })
 
 describe('getSocialImageFallbackMetadataBase', () => {
-  describe('fallbackMetadataBase', () => {
+  describe('fallbackMetadataBase when metadataBase is not present', () => {
     let originalEnv: NodeJS.ProcessEnv
     function getSocialImageFallbackMetadataBaseHelper(): string {
       return getSocialImageFallbackMetadataBase(null).fallbackMetadataBase.href
@@ -139,7 +139,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
       )
     })
 
-    it('should return metadataBase ', () => {
+    it('should return local url in local build mode', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
       expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
@@ -171,6 +171,8 @@ describe('getSocialImageFallbackMetadataBase', () => {
     it('should return project production url in production deployment', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
+      process.env.VERCEL_ENV = 'preview'
+      process.env.VERCEL_URL = 'vercel-url'
       process.env.VERCEL_PROJECT_PRODUCTION_URL = 'production-url'
       expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
         'https://production-url/'
