@@ -236,13 +236,13 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             conditionNames: ['react-server', '...'],
             alias: {
               react$: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
-              'next/dist/compiled/react$': `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+              [`next/dist/compiled/react${bundledReactChannel}$`]: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
               'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
-              'next/dist/compiled/react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+              [`next/dist/compiled/react${bundledReactChannel}/jsx-runtime$`]: `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
               'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
-              'next/dist/compiled/react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
+              [`next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime$`]: `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
               'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
-              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+              [`next/dist/compiled/react-dom${bundledReactChannel}$`]: `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
             },
           },
           layer: 'react-server',
@@ -252,18 +252,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
           resolve: {
             conditionNames: ['react-server', '...'],
             alias: {
-              react$: `next/dist/compiled/react${
-                experimental ? '-experimental' : ''
-              }/react.react-server`,
-              'next/dist/compiled/react$': `next/dist/compiled/react${
-                experimental ? '-experimental' : ''
-              }/react.react-server`,
-              'react-dom$': `next/dist/compiled/react-dom${
-                experimental ? '-experimental' : ''
-              }/react-dom.react-server`,
-              'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
-                experimental ? '-experimental' : ''
-              }/react-dom.react-server`,
+              react$: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+              [`next/dist/compiled/react${bundledReactChannel}$`]: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+              'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+              [`next/dist/compiled/react-dom${bundledReactChannel}$`]: `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
             },
           },
         },
