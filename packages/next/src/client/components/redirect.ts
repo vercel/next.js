@@ -53,8 +53,8 @@ export function redirect(
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
     actionStore?.isAction
-    ? RedirectStatusCode.SeeOther
-    : RedirectStatusCode.TemporaryRedirect
+      ? RedirectStatusCode.SeeOther
+      : RedirectStatusCode.TemporaryRedirect
   )
 }
 
@@ -76,14 +76,14 @@ export function permanentRedirect(
 ): never {
   const actionStore = actionAsyncStorage.getStore()
   throw getRedirectError(
-  url,
-  type,
-  // If we're in an action, we want to use a 303 redirect
-  // as we don't want the POST request to follow the redirect,
-  // as it could result in erroneous re-submissions.
-  actionStore?.isAction
-    ? RedirectStatusCode.SeeOther
-    : RedirectStatusCode.PermanentRedirect
+    url,
+    type,
+    // If we're in an action, we want to use a 303 redirect
+    // as we don't want the POST request to follow the redirect,
+    // as it could result in erroneous re-submissions.
+    actionStore?.isAction
+      ? RedirectStatusCode.SeeOther
+      : RedirectStatusCode.PermanentRedirect
   )
 }
 
@@ -130,7 +130,7 @@ export function isRedirectError<U extends string>(
  * @return the url if the error was a redirect error
  */
 export function getURLFromRedirectError<U extends string>(
-	error: RedirectError<U>
+  error: RedirectError<U>
 ): U
 export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
@@ -143,15 +143,15 @@ export function getURLFromRedirectError(error: unknown): string | null {
 export function getRedirectTypeFromError<U extends string>(
   error: RedirectError<U>
 ): RedirectType {
-	if (!isRedirectError(error)) {
-		throw new Error('Not a redirect error')
-	}
+  if (!isRedirectError(error)) {
+    throw new Error('Not a redirect error')
+  }
 
-	return error.digest.split(';', 2)[1] as RedirectType
+  return error.digest.split(';', 2)[1] as RedirectType
 }
 
 export function getRedirectStatusCodeFromError<U extends string>(
-	error: RedirectError<U>
+  error: RedirectError<U>
 ): number {
 	if (!isRedirectError(error)) {
 		throw new Error('Not a redirect error')
