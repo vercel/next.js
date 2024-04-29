@@ -25,26 +25,6 @@ Document.getInitialProps = (ctx) => {
 }
 `
 
-// describe.each([
-//   ['', 'swc'],
-//   ['/docs', 'swc'],
-//   ['', 'document.getInitialProps'],
-//   ['',]
-//   // ['', 'babel'],
-// ])(
-//   'basic next/dynamic usage, basePath: %p with %p',
-//   // (
-//     // basePath: string,
-//     // testCase:
-//       // 'swc'
-//     // | 'babel'
-//       // | 'document.getInitialProps'
-//   ) => {
-//     // process.env.TURBOPACK && testCase === 'babel' ? describe.skip :
-
-//   }
-// )
-
 const basePath = process.env.TEST_BASE_PATH || ''
 const srcPrefix = process.env.TEST_SRC_DIR ? 'src/' : ''
 
@@ -59,9 +39,11 @@ describe('next/dynamic', () => {
         ...(process.env.TEST_CUSTOMIZED_DOCUMENT === '1' && {
           [`${srcPrefix}/pages/_document.js`]: customDocumentGipContent,
         }),
-        ...(process.env.TEST_BABEL === '1' && {
-          '.babelrc': `{ "presets": ["next/babel"] }`,
-        }),
+        // When it's not turbopack and babel is enabled, we add a .babelrc file.
+        ...(!process.env.TURBOPACK &&
+          process.env.TEST_BABEL === '1' && {
+            '.babelrc': `{ "presets": ["next/babel"] }`,
+          }),
       },
       nextConfig: {
         basePath,
@@ -75,6 +57,7 @@ describe('next/dynamic', () => {
     return cheerio.load(html)
   }
 
+  // Turbopack doesn't support babel.
   ;(process.env.TURBOPACK && process.env.TEST_BABEL === '1'
     ? describe.skip
     : describe)('Dynamic import', () => {
