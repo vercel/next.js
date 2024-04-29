@@ -42,10 +42,10 @@ export interface EdgeFunctionDefinition {
   name: string
   page: string
   matchers: MiddlewareMatcher[]
+  environments: Record<string, string>
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
   regions?: string[] | string
-  environments?: Record<string, string>
 }
 
 export interface MiddlewareManifest {
