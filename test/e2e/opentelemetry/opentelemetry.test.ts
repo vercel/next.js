@@ -588,18 +588,13 @@ describe('opentelemetry', () => {
         })
 
         it('should handle client-side navigation', async () => {
-          const browser = await webdriver(
-            next.url,
-            `/app/foo/loading/page1`,
-            { waitHydration: true }
-          )
+          const browser = await webdriver(next.url, `/app/foo/loading/page1`, {
+            waitHydration: true,
+          })
 
           await browser.waitForElementByCss('#page1')
-          await browser
-            .elementByCss('a')
-            .click()
-            .waitForElementByCss('#page2')
-          
+          await browser.elementByCss('a').click().waitForElementByCss('#page2')
+
           await check(async () => {
             const traces = await getSanitizedTraces(4)
             if (traces.length < 7) {
