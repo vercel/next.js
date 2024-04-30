@@ -1033,12 +1033,10 @@ export class FlightClientEntryPlugin {
       this.dev ? 2 : undefined
     )
 
-    if (this.isEdgeServer) {
-      assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
-        new sources.RawSource(
-          `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
-        ) as unknown as webpack.sources.RawSource
-    }
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+      new sources.RawSource(
+        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
+      ) as unknown as webpack.sources.RawSource
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
   }

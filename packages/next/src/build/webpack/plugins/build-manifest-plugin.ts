@@ -275,8 +275,8 @@ export default class BuildManifestPlugin {
 
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
-        // eslint-disable-next-line
         .reduce(
+          // eslint-disable-next-line
           (a, c) => ((a[c] = assetMap.pages[c]), a),
           {} as typeof assetMap.pages
         )
