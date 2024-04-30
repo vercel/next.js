@@ -142,12 +142,12 @@ var enableRenderableContext = false;
 // Alias __NEXT_MAJOR__ to true for easier skimming.
 // -----------------------------------------------------------------------------
 
-var __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+var __NEXT_MAJOR__ = true; // Removes legacy style context
 // as a normal prop instead of stripping it from the props object.
 // Passes `ref` as a normal prop instead of stripping it from the props object
 // during element creation.
 
-var enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
+var enableRefAsProp = __NEXT_MAJOR__;
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
@@ -987,11 +987,9 @@ var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 var specialPropKeyWarningShown;
-var didWarnAboutStringRefs;
 var didWarnAboutElementRef;
 
 {
-  didWarnAboutStringRefs = {};
   didWarnAboutElementRef = {};
 }
 
@@ -1023,27 +1021,13 @@ function hasValidKey(config) {
   return config.key !== undefined;
 }
 
-function warnIfStringRefCannotBeAutoConverted(config, self) {
-  {
-    if (typeof config.ref === 'string' && ReactCurrentOwner.current && self && ReactCurrentOwner.current.stateNode !== self) {
-      var componentName = getComponentNameFromType(ReactCurrentOwner.current.type);
-
-      if (!didWarnAboutStringRefs[componentName]) {
-        error('Component "%s" contains the string ref "%s". ' + 'Support for string refs will be removed in a future major release. ' + 'This case cannot be automatically converted to an arrow function. ' + 'We ask you to manually fix this case by using useRef() or createRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-string-ref', getComponentNameFromType(ReactCurrentOwner.current.type), config.ref);
-
-        didWarnAboutStringRefs[componentName] = true;
-      }
-    }
-  }
-}
-
 function defineKeyPropWarningGetter(props, displayName) {
   {
     var warnAboutAccessingKey = function () {
       if (!specialPropKeyWarningShown) {
         specialPropKeyWarningShown = true;
 
-        error('%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://reactjs.org/link/special-props)', displayName);
+        error('%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://react.dev/link/special-props)', displayName);
       }
     };
 
@@ -1238,12 +1222,7 @@ function createElement(type, config, children) {
   var ref = null;
 
   if (config != null) {
-    if (hasValidRef(config)) {
-
-      {
-        warnIfStringRefCannotBeAutoConverted(config, config.__self);
-      }
-    }
+    if (hasValidRef(config)) ;
 
     if (hasValidKey(config)) {
       {
@@ -1523,7 +1502,7 @@ function validateExplicitKey(element, parentType) {
 
     setCurrentlyValidatingElement(element);
 
-    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://reactjs.org/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
+    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
 
     setCurrentlyValidatingElement(null);
   }
@@ -1719,6 +1698,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
     invokeCallback = true;
   } else {
     switch (type) {
+      case 'bigint':
+
+      // fallthrough for enabled BigInt support
+
       case 'string':
       case 'number':
         invokeCallback = true;
@@ -1954,7 +1937,7 @@ function resolveDispatcher() {
 
   {
     if (dispatcher === null) {
-      error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+      error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.');
     }
   } // Will result in a null access error if accessed outside render phase. We
   // intentionally don't throw our own error because this is in a hot path.
@@ -2013,6 +1996,13 @@ function useId() {
 function use(usable) {
   var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
+}
+function useActionState(action, initialState, permalink) {
+  {
+    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+    return dispatcher.useActionState(action, initialState, permalink);
+  }
 }
 
 function forwardRef(render) {
@@ -2406,7 +2396,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-c3048aab4-20240326';
 
 var getPrototypeOf = Object.getPrototypeOf;
 
@@ -2539,6 +2529,7 @@ exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.unstable_postpone = postpone;
 exports.use = use;
+exports.useActionState = useActionState;
 exports.useCallback = useCallback;
 exports.useDebugValue = useDebugValue;
 exports.useId = useId;

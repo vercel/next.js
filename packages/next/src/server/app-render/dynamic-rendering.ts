@@ -180,9 +180,11 @@ export function trackDynamicFetch(
   store: StaticGenerationStore,
   expression: string
 ) {
-  if (store.prerenderState) {
-    postponeWithTracking(store.prerenderState, expression, store.urlPathname)
-  }
+  // If we aren't in a prerender, or we're in an unstable cache callback, we
+  // don't need to postpone.
+  if (!store.prerenderState || store.isUnstableCacheCallback) return
+
+  postponeWithTracking(store.prerenderState, expression, store.urlPathname)
 }
 
 function postponeWithTracking(

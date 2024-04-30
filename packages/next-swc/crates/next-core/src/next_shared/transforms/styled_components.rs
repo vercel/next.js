@@ -13,7 +13,7 @@ use crate::{
 pub async fn get_styled_components_transform_rule(
     next_config: Vc<NextConfig>,
 ) -> Result<Option<ModuleRule>> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
 
     let module_rule = next_config
         .await?

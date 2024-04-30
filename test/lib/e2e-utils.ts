@@ -249,7 +249,7 @@ export function nextTestSetup(
     }
   }
 
-  let next: NextInstance
+  let next: NextInstance | undefined
   if (!skipped) {
     beforeAll(async () => {
       next = await createNext(options)
@@ -258,9 +258,7 @@ export function nextTestSetup(
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
       // by attempting to destroy on undefined.
-      if (next) {
-        await next.destroy()
-      }
+      await next?.destroy()
     })
   }
 
@@ -299,32 +297,4 @@ export function nextTestSetup(
     },
     skipped,
   }
-}
-
-/**
- * @deprecated use `nextTestSetup` directly.
- */
-export function createNextDescribe(
-  name: string,
-  options: Parameters<typeof createNext>[0] & {
-    skipDeployment?: boolean
-    dir?: string
-  },
-  fn: (context: {
-    isNextDev: boolean
-    isNextDeploy: boolean
-    isNextStart: boolean
-    isTurbopack: boolean
-    next: NextInstance
-  }) => void
-): void {
-  describe(name, () => {
-    const context = nextTestSetup(options)
-
-    if (context.skipped) {
-      return
-    }
-
-    fn(context)
-  })
 }

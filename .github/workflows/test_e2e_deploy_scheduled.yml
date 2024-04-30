@@ -26,7 +26,7 @@ jobs:
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
       TURBO_TEAM: 'vercel'
-      TURBO_VERSION: 1.13.2
+      TURBO_VERSION: 1.13.3-canary.2
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
 
@@ -60,11 +60,11 @@ jobs:
       - name: Run tests
         run: |
           docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.41.2-jammy /bin/bash -c "cd /work && \
-          NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && \
+          NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && \ 
           corepack enable > /dev/null && \
           NEXT_JUNIT_TEST_REPORT=${{ env.NEXT_JUNIT_TEST_REPORT }} \
           DATADOG_API_KEY=${{ env.DATADOG_API_KEY }} \
-          DD_ENV=${{ env.DD_ENV }} \
+          DD_ENV=${{ env.DD_ENV }} \ 
           VERCEL_TEST_TOKEN=${{ env.VERCEL_TEST_TOKEN }} \
           VERCEL_TEST_TEAM=${{ env.VERCEL_TEST_TEAM }} \
           NEXT_TEST_JOB=${{ env.NEXT_TEST_JOB }} \

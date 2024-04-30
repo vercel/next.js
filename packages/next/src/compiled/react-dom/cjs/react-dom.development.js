@@ -26,11 +26,22 @@ if (
           var React = require("next/dist/compiled/react");
 var Scheduler = require("next/dist/compiled/scheduler");
 
+function noop$3() {}
+
+var DefaultDispatcher = {
+  prefetchDNS: noop$3,
+  preconnect: noop$3,
+  preload: noop$3,
+  preloadModule: noop$3,
+  preinitScript: noop$3,
+  preinitStyle: noop$3,
+  preinitModuleScript: noop$3
+};
 var Internals = {
   usingClientEntryPoint: false,
   Events: null,
-  Dispatcher: {
-    current: null
+  ReactDOMCurrentDispatcher: {
+    current: DefaultDispatcher
   }
 };
 
@@ -95,8 +106,6 @@ function printWarning(level, format, args) {
   }
 }
 
-var assign = Object.assign;
-
 // -----------------------------------------------------------------------------
 // Killswitch
 //
@@ -112,7 +121,6 @@ var assign = Object.assign;
 // TODO: Finish rolling out in www
 
 var enableClientRenderFallbackOnTextMismatch = true;
-var enableFormActions = true;
 var enableAsyncActions = true; // Need to remove didTimeout argument from Scheduler before landing
 // Slated for removal in the future (significant effort)
 //
@@ -136,6 +144,13 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 var alwaysThrottleRetries = true;
 var syncLaneExpirationMs = 250;
 var transitionLaneExpirationMs = 5000; // -----------------------------------------------------------------------------
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to false for easier skimming.
+// -----------------------------------------------------------------------------
+
+var __NEXT_MAJOR__ = false; // Removes legacy style context
+var enableBigIntSupport = __NEXT_MAJOR__;
 // React DOM Chopping Block
 //
 // Similar to main Chopping Block but only flags related to React DOM. These are
@@ -158,6 +173,8 @@ var enableProfilerCommitHooks = true; // Phase param passed to onRender callback
 
 var enableProfilerNestedUpdatePhase = true; // Adds verbose console logging for e.g. state updates, suspense, and work loop
 
+var assign = Object.assign;
+
 var ReactCurrentDispatcher$3 = ReactSharedInternals.ReactCurrentDispatcher; // Since the "not pending" value is always the same, we can reuse the
 // same object across all transitions.
 
@@ -176,7 +193,7 @@ function resolveDispatcher() {
 
   {
     if (dispatcher === null) {
-      error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+      error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.');
     }
   } // Will result in a null access error if accessed outside render phase. We
   // intentionally don't throw our own error because this is in a hot path.
@@ -308,11 +325,11 @@ var hostTransitionProviderCursor = createCursor(null); // TODO: This should init
 
 var HostTransitionContext = {
   $$typeof: REACT_CONTEXT_TYPE,
+  Provider: null,
+  Consumer: null,
   _currentValue: null,
   _currentValue2: null,
-  _threadCount: 0,
-  Provider: null,
-  Consumer: null
+  _threadCount: 0
 };
 
 function requiredContext(c) {
@@ -664,7 +681,7 @@ function injectInternals(internals) {
 
   if (!hook.supportsFiber) {
     {
-      error('The installed version of React DevTools is too old and will not work ' + 'with the current version of React. Please update React DevTools. ' + 'https://reactjs.org/link/react-devtools');
+      error('The installed version of React DevTools is too old and will not work ' + 'with the current version of React. Please update React DevTools. ' + 'https://react.dev/link/react-devtools');
     } // DevTools exists, even though it doesn't support Fiber.
 
 
@@ -2265,7 +2282,7 @@ function getInstanceFromNode(node) {
   if (inst) {
     var tag = inst.tag;
 
-    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostRoot) {
+    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || tag === HostHoistable || tag === HostSingleton || tag === HostRoot) {
       return inst;
     } else {
       return null;
@@ -2282,7 +2299,7 @@ function getInstanceFromNode(node) {
 function getNodeFromInstance(inst) {
   var tag = inst.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
+  if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton || tag === HostText) {
     // In Fiber this, is just the state node right now. We assume it will be
     // a host component or host text.
     return inst.stateNode;
@@ -3230,6 +3247,14 @@ function toString(value) {
 }
 function getToStringValue(value) {
   switch (typeof value) {
+    case 'bigint':
+      {
+        // bigint is assigned as empty string
+        return '';
+      }
+
+    // fallthrough for BigInt support
+
     case 'boolean':
     case 'number':
     case 'string':
@@ -3422,13 +3447,13 @@ function validateInputProps(element, props) {
     // properties, at all is probably worth warning for. We could move this either direction
     // and just make it ok to pass null or just check hasOwnProperty.
     if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnCheckedDefaultChecked) {
-      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component', props.type);
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component', props.type);
 
       didWarnCheckedDefaultChecked = true;
     }
 
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValueDefaultValue$1) {
-      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component', props.type);
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component', props.type);
 
       didWarnValueDefaultValue$1 = true;
     }
@@ -3687,7 +3712,7 @@ function validateOptionProps(element, props) {
             return;
           }
 
-          if (typeof child === 'string' || typeof child === 'number') {
+          if (typeof child === 'string' || typeof child === 'number' || enableBigIntSupport ) {
             return;
           }
 
@@ -3835,7 +3860,7 @@ function validateSelectProps(element, props) {
     checkSelectPropTypes(props);
 
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValueDefaultValue) {
-      error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
+      error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components');
 
       didWarnValueDefaultValue = true;
     }
@@ -3895,7 +3920,7 @@ var didWarnValDefaultVal = false;
 function validateTextareaProps(element, props) {
   {
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValDefaultVal) {
-      error('%s contains a textarea with both value and defaultValue props. ' + 'Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component');
+      error('%s contains a textarea with both value and defaultValue props. ' + 'Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://react.dev/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component');
 
       didWarnValDefaultVal = true;
     }
@@ -4828,7 +4853,7 @@ function isCustomElement(tagName, props) {
     // These are reserved SVG and MathML elements.
     // We don't mind this list too much because we expect it to never grow.
     // The alternative is to track the namespace in a few places which is convoluted.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-core-concepts
     case 'annotation-xml':
     case 'color-profile':
     case 'font-face':
@@ -4852,9 +4877,9 @@ function getAttributeAlias (name) {
   return aliases.get(name) || name;
 }
 
-// When adding attributes to the HTML or SVG allowed attribute list, be sure to
 // also add them to this module to ensure casing and incorrect name
 // warnings.
+
 var possibleStandardNames = {
   // HTML
   accept: 'accept',
@@ -5479,9 +5504,9 @@ function validateProperties$2(type, props) {
     }).join(', ');
 
     if (invalidProps.length === 1) {
-      error('Invalid aria prop %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+      error('Invalid aria prop %s on <%s> tag. ' + 'For details, see https://react.dev/link/invalid-aria-props', unknownPropString, type);
     } else if (invalidProps.length > 1) {
-      error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
+      error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://react.dev/link/invalid-aria-props', unknownPropString, type);
     }
   }
 }
@@ -5524,22 +5549,20 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    }
+    } // Actions are special because unlike events they can have other value types.
 
-    {
-      // Actions are special because unlike events they can have other value types.
-      if (typeof value === 'function') {
-        if (tagName === 'form' && name === 'action') {
-          return true;
-        }
 
-        if (tagName === 'input' && name === 'formAction') {
-          return true;
-        }
+    if (typeof value === 'function') {
+      if (tagName === 'form' && name === 'action') {
+        return true;
+      }
 
-        if (tagName === 'button' && name === 'formAction') {
-          return true;
-        }
+      if (tagName === 'input' && name === 'formAction') {
+        return true;
+      }
+
+      if (tagName === 'button' && name === 'formAction') {
+        return true;
       }
     } // We can't rely on the event system being injected on the server.
 
@@ -5695,6 +5718,10 @@ function validateProperty(tagName, name, value, eventRegistry) {
                 // Boolean properties can accept boolean values
                 return true;
               }
+            // fallthrough
+
+            case 'inert':
+            // fallthrough for new boolean props without the flag on
 
             default:
               {
@@ -5758,6 +5785,9 @@ function validateProperty(tagName, name, value, eventRegistry) {
                   break;
                 }
 
+              case 'inert':
+              // fallthrough for new boolean props without the flag on
+
               default:
                 {
                   return true;
@@ -5793,9 +5823,9 @@ function warnUnknownProperties(type, props, eventRegistry) {
     }).join(', ');
 
     if (unknownProps.length === 1) {
-      error('Invalid value for prop %s on <%s> tag. Either remove it from the element, ' + 'or pass a string or number value to keep it in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+      error('Invalid value for prop %s on <%s> tag. Either remove it from the element, ' + 'or pass a string or number value to keep it in the DOM. ' + 'For details, see https://react.dev/link/attribute-behavior ', unknownPropString, type);
     } else if (unknownProps.length > 1) {
-      error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
+      error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://react.dev/link/attribute-behavior ', unknownPropString, type);
     }
   }
 }
@@ -6228,7 +6258,7 @@ function findCurrentHostFiberImpl(node) {
   // Next we'll drill down this component to find the first HostComponent/Text.
   var tag = node.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
+  if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton || tag === HostText) {
     return node;
   }
 
@@ -6256,7 +6286,7 @@ function findCurrentHostFiberWithNoPortalsImpl(node) {
   // Next we'll drill down this component to find the first HostComponent/Text.
   var tag = node.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
+  if (tag === HostComponent || tag === HostHoistable || tag === HostSingleton || tag === HostText) {
     return node;
   }
 
@@ -6745,11 +6775,6 @@ function markDidThrowWhileHydratingDEV() {
     didSuspendOrErrorDEV = true;
   }
 }
-function didSuspendOrErrorWhileHydratingDEV() {
-  {
-    return didSuspendOrErrorDEV;
-  }
-}
 
 function enterHydrationState(fiber) {
 
@@ -7078,19 +7103,14 @@ function tryToClaimNextHydratableTextInstance(fiber) {
   }
 
   var text = fiber.pendingProps;
-  var isHydratable = isHydratableText(text);
-  var shouldKeepWarning = true;
+  var shouldKeepWarning = true; // Validate that this is ok to render here before any mismatches.
 
-  if (isHydratable) {
-    // Validate that this is ok to render here before any mismatches.
-    var currentHostContext = getHostContext();
-    shouldKeepWarning = validateHydratableTextInstance(text, currentHostContext);
-  }
-
+  var currentHostContext = getHostContext();
+  shouldKeepWarning = validateHydratableTextInstance(text, currentHostContext);
   var initialInstance = nextHydratableInstance;
   var nextInstance = nextHydratableInstance;
 
-  if (!nextInstance || !isHydratable) {
+  if (!nextInstance) {
     // We exclude non hydrabable text because we know there are no matching hydratables.
     // We either throw or insert depending on the render mode.
     if (shouldClientRenderOnMismatch(fiber)) {
@@ -7401,10 +7421,6 @@ function popHydrationState(fiber) {
   }
 
   return true;
-}
-
-function hasUnhydratedTailNodes() {
-  return isHydrating && nextHydratableInstance !== null;
 }
 
 function warnIfUnhydratedTailNodes(fiber) {
@@ -8920,37 +8936,37 @@ var ReactStrictModeWarnings = {
     if (UNSAFE_componentWillMountUniqueNames.size > 0) {
       var sortedNames = setToSortedString(UNSAFE_componentWillMountUniqueNames);
 
-      error('Using UNSAFE_componentWillMount in strict mode is not recommended and may indicate bugs in your code. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move code with side effects to componentDidMount, and set initial state in the constructor.\n' + '\nPlease update the following components: %s', sortedNames);
+      error('Using UNSAFE_componentWillMount in strict mode is not recommended and may indicate bugs in your code. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move code with side effects to componentDidMount, and set initial state in the constructor.\n' + '\nPlease update the following components: %s', sortedNames);
     }
 
     if (UNSAFE_componentWillReceivePropsUniqueNames.size > 0) {
       var _sortedNames = setToSortedString(UNSAFE_componentWillReceivePropsUniqueNames);
 
-      error('Using UNSAFE_componentWillReceiveProps in strict mode is not recommended ' + 'and may indicate bugs in your code. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + "* If you're updating state whenever props change, " + 'refactor your code to use memoization techniques or move it to ' + 'static getDerivedStateFromProps. Learn more at: https://reactjs.org/link/derived-state\n' + '\nPlease update the following components: %s', _sortedNames);
+      error('Using UNSAFE_componentWillReceiveProps in strict mode is not recommended ' + 'and may indicate bugs in your code. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + "* If you're updating state whenever props change, " + 'refactor your code to use memoization techniques or move it to ' + 'static getDerivedStateFromProps. Learn more at: https://react.dev/link/derived-state\n' + '\nPlease update the following components: %s', _sortedNames);
     }
 
     if (UNSAFE_componentWillUpdateUniqueNames.size > 0) {
       var _sortedNames2 = setToSortedString(UNSAFE_componentWillUpdateUniqueNames);
 
-      error('Using UNSAFE_componentWillUpdate in strict mode is not recommended ' + 'and may indicate bugs in your code. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + '\nPlease update the following components: %s', _sortedNames2);
+      error('Using UNSAFE_componentWillUpdate in strict mode is not recommended ' + 'and may indicate bugs in your code. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + '\nPlease update the following components: %s', _sortedNames2);
     }
 
     if (componentWillMountUniqueNames.size > 0) {
       var _sortedNames3 = setToSortedString(componentWillMountUniqueNames);
 
-      warn('componentWillMount has been renamed, and is not recommended for use. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move code with side effects to componentDidMount, and set initial state in the constructor.\n' + '* Rename componentWillMount to UNSAFE_componentWillMount to suppress ' + 'this warning in non-strict mode. In React 18.x, only the UNSAFE_ name will work. ' + 'To rename all deprecated lifecycles to their new names, you can run ' + '`npx react-codemod rename-unsafe-lifecycles` in your project source folder.\n' + '\nPlease update the following components: %s', _sortedNames3);
+      warn('componentWillMount has been renamed, and is not recommended for use. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move code with side effects to componentDidMount, and set initial state in the constructor.\n' + '* Rename componentWillMount to UNSAFE_componentWillMount to suppress ' + 'this warning in non-strict mode. In React 18.x, only the UNSAFE_ name will work. ' + 'To rename all deprecated lifecycles to their new names, you can run ' + '`npx react-codemod rename-unsafe-lifecycles` in your project source folder.\n' + '\nPlease update the following components: %s', _sortedNames3);
     }
 
     if (componentWillReceivePropsUniqueNames.size > 0) {
       var _sortedNames4 = setToSortedString(componentWillReceivePropsUniqueNames);
 
-      warn('componentWillReceiveProps has been renamed, and is not recommended for use. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + "* If you're updating state whenever props change, refactor your " + 'code to use memoization techniques or move it to ' + 'static getDerivedStateFromProps. Learn more at: https://reactjs.org/link/derived-state\n' + '* Rename componentWillReceiveProps to UNSAFE_componentWillReceiveProps to suppress ' + 'this warning in non-strict mode. In React 18.x, only the UNSAFE_ name will work. ' + 'To rename all deprecated lifecycles to their new names, you can run ' + '`npx react-codemod rename-unsafe-lifecycles` in your project source folder.\n' + '\nPlease update the following components: %s', _sortedNames4);
+      warn('componentWillReceiveProps has been renamed, and is not recommended for use. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + "* If you're updating state whenever props change, refactor your " + 'code to use memoization techniques or move it to ' + 'static getDerivedStateFromProps. Learn more at: https://react.dev/link/derived-state\n' + '* Rename componentWillReceiveProps to UNSAFE_componentWillReceiveProps to suppress ' + 'this warning in non-strict mode. In React 18.x, only the UNSAFE_ name will work. ' + 'To rename all deprecated lifecycles to their new names, you can run ' + '`npx react-codemod rename-unsafe-lifecycles` in your project source folder.\n' + '\nPlease update the following components: %s', _sortedNames4);
     }
 
     if (componentWillUpdateUniqueNames.size > 0) {
       var _sortedNames5 = setToSortedString(componentWillUpdateUniqueNames);
 
-      warn('componentWillUpdate has been renamed, and is not recommended for use. ' + 'See https://reactjs.org/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + '* Rename componentWillUpdate to UNSAFE_componentWillUpdate to suppress ' + 'this warning in non-strict mode. In React 18.x, only the UNSAFE_ name will work. ' + 'To rename all deprecated lifecycles to their new names, you can run ' + '`npx react-codemod rename-unsafe-lifecycles` in your project source folder.\n' + '\nPlease update the following components: %s', _sortedNames5);
+      warn('componentWillUpdate has been renamed, and is not recommended for use. ' + 'See https://react.dev/link/unsafe-component-lifecycles for details.\n\n' + '* Move data fetching code or side effects to componentDidUpdate.\n' + '* Rename componentWillUpdate to UNSAFE_componentWillUpdate to suppress ' + 'this warning in non-strict mode. In React 18.x, only the UNSAFE_ name will work. ' + 'To rename all deprecated lifecycles to their new names, you can run ' + '`npx react-codemod rename-unsafe-lifecycles` in your project source folder.\n' + '\nPlease update the following components: %s', _sortedNames5);
     }
   };
 
@@ -9001,7 +9017,7 @@ var ReactStrictModeWarnings = {
       try {
         setCurrentFiber(firstFiber);
 
-        error('Legacy context API has been detected within a strict-mode tree.' + '\n\nThe old API will be supported in all 16.x releases, but applications ' + 'using it should migrate to the new version.' + '\n\nPlease update the following components: %s' + '\n\nLearn more about this warning here: https://reactjs.org/link/legacy-context', sortedNames);
+        error('Legacy context API has been detected within a strict-mode tree.' + '\n\nThe old API will be supported in all 16.x releases, but applications ' + 'using it should migrate to the new version.' + '\n\nPlease update the following components: %s' + '\n\nLearn more about this warning here: https://react.dev/link/legacy-context', sortedNames);
       } finally {
         resetCurrentFiber();
       }
@@ -9327,7 +9343,7 @@ var warnForMissingKey = function (child, returnFiber) {};
 
     ownerHasKeyUseWarning[componentName] = true;
 
-    error('Each child in a list should have a unique ' + '"key" prop. See https://reactjs.org/link/warning-keys for ' + 'more information.');
+    error('Each child in a list should have a unique ' + '"key" prop. See https://react.dev/link/warning-keys for ' + 'more information.');
   };
 }
 
@@ -9347,27 +9363,20 @@ function unwrapThenable(thenable) {
 }
 
 function convertStringRefToCallbackRef(returnFiber, current, element, mixedRef) {
-  var owner = element._owner;
-
-  if (!owner) {
-    if (typeof mixedRef !== 'string') {
-      throw new Error('Expected ref to be a function, a string, an object returned by React.createRef(), or null.');
-    }
-
-    throw new Error("Element ref was specified as a string (" + mixedRef + ") but no owner was set. This could happen for one of" + ' the following reasons:\n' + '1. You may be adding a ref to a function component\n' + "2. You may be adding a ref to a component that was not created inside a component's render method\n" + '3. You have multiple copies of React loaded\n' + 'See https://reactjs.org/link/refs-must-have-owner for more information.');
-  }
-
-  if (owner.tag !== ClassComponent) {
-    throw new Error('Function components cannot have string refs. ' + 'We recommend using useRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-string-ref');
-  } // At this point, we know the ref isn't an object or function but it could
-  // be a number. Coerce it to a string.
-
-
   {
     checkPropStringCoercion(mixedRef, 'ref');
   }
 
   var stringRef = '' + mixedRef;
+  var owner = element._owner;
+
+  if (!owner) {
+    throw new Error("Element ref was specified as a string (" + stringRef + ") but no owner was set. This could happen for one of" + ' the following reasons:\n' + '1. You may be adding a ref to a function component\n' + "2. You may be adding a ref to a component that was not created inside a component's render method\n" + '3. You have multiple copies of React loaded\n' + 'See https://react.dev/link/refs-must-have-owner for more information.');
+  }
+
+  if (owner.tag !== ClassComponent) {
+    throw new Error('Function components cannot have string refs. ' + 'We recommend using useRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://react.dev/link/strict-mode-string-ref');
+  }
 
   {
     if ( // Will already warn with "Function components cannot be given refs"
@@ -9375,7 +9384,7 @@ function convertStringRefToCallbackRef(returnFiber, current, element, mixedRef) 
       var componentName = getComponentNameFromFiber(returnFiber) || 'Component';
 
       if (!didWarnAboutStringRefs[componentName]) {
-        error('Component "%s" contains the string ref "%s". Support for string refs ' + 'will be removed in a future major release. We recommend using ' + 'useRef() or createRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-string-ref', componentName, stringRef);
+        error('Component "%s" contains the string ref "%s". Support for string refs ' + 'will be removed in a future major release. We recommend using ' + 'useRef() or createRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://react.dev/link/strict-mode-string-ref', componentName, stringRef);
 
         didWarnAboutStringRefs[componentName] = true;
       }
@@ -9420,9 +9429,7 @@ function coerceRef(returnFiber, current, workInProgress, element) {
 
   var coercedRef;
 
-  if (mixedRef !== null && typeof mixedRef !== 'function' && typeof mixedRef !== 'object') {
-    // Assume this is a string ref. If it's not, then this will throw an error
-    // to the user.
+  if ((typeof mixedRef === 'string' || typeof mixedRef === 'number' || typeof mixedRef === 'boolean')) {
     coercedRef = convertStringRefToCallbackRef(returnFiber, current, element, mixedRef);
   } else {
     coercedRef = mixedRef;
@@ -9523,7 +9530,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     return null;
   }
 
-  function mapRemainingChildren(returnFiber, currentFirstChild) {
+  function mapRemainingChildren(currentFirstChild) {
     // Add the remaining children to a temporary map so that we can find them by
     // keys quickly. Implicit (null) keys get added to this set with their index
     // instead.
@@ -9705,11 +9712,12 @@ function createChildReconciler(shouldTrackSideEffects) {
   }
 
   function createChild(returnFiber, newChild, lanes, debugInfo) {
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
       // Text nodes don't have keys. If the previous node is implicitly keyed
       // we can continue to replace it without aborting even if it is not a text
       // node.
-      var created = createFiberFromText('' + newChild, returnFiber.mode, lanes);
+      var created = createFiberFromText( // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, returnFiber.mode, lanes);
       created.return = returnFiber;
 
       {
@@ -9779,7 +9787,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         var context = newChild;
-        return createChild(returnFiber, readContextDuringReconcilation(returnFiber, context, lanes), lanes, debugInfo);
+        return createChild(returnFiber, readContextDuringReconciliation(returnFiber, context, lanes), lanes, debugInfo);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -9802,7 +9810,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     // Update the fiber if the keys match, otherwise return null.
     var key = oldFiber !== null ? oldFiber.key : null;
 
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
       // Text nodes don't have keys. If the previous node is implicitly keyed
       // we can continue to replace it without aborting even if it is not a text
       // node.
@@ -9810,7 +9818,8 @@ function createChildReconciler(shouldTrackSideEffects) {
         return null;
       }
 
-      return updateTextNode(returnFiber, oldFiber, '' + newChild, lanes, debugInfo);
+      return updateTextNode(returnFiber, oldFiber, // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, lanes, debugInfo);
     }
 
     if (typeof newChild === 'object' && newChild !== null) {
@@ -9859,7 +9868,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         var context = newChild;
-        return updateSlot(returnFiber, oldFiber, readContextDuringReconcilation(returnFiber, context, lanes), lanes, debugInfo);
+        return updateSlot(returnFiber, oldFiber, readContextDuringReconciliation(returnFiber, context, lanes), lanes, debugInfo);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -9879,11 +9888,12 @@ function createChildReconciler(shouldTrackSideEffects) {
   }
 
   function updateFromMap(existingChildren, returnFiber, newIdx, newChild, lanes, debugInfo) {
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
       // Text nodes don't have keys, so we neither have to check the old nor
       // new node for the key. If both are text nodes, they match.
       var matchedFiber = existingChildren.get(newIdx) || null;
-      return updateTextNode(returnFiber, matchedFiber, '' + newChild, lanes, debugInfo);
+      return updateTextNode(returnFiber, matchedFiber, // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, lanes, debugInfo);
     }
 
     if (typeof newChild === 'object' && newChild !== null) {
@@ -9924,7 +9934,7 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         var context = newChild;
-        return updateFromMap(existingChildren, returnFiber, newIdx, readContextDuringReconcilation(returnFiber, context, lanes), lanes, debugInfo);
+        return updateFromMap(existingChildren, returnFiber, newIdx, readContextDuringReconciliation(returnFiber, context, lanes), lanes, debugInfo);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
@@ -10112,7 +10122,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     } // Add all children to a key map for quick lookups.
 
 
-    var existingChildren = mapRemainingChildren(returnFiber, oldFiber); // Keep scanning and use the map to restore deleted items as moves.
+    var existingChildren = mapRemainingChildren(oldFiber); // Keep scanning and use the map to restore deleted items as moves.
 
     for (; newIdx < newChildren.length; newIdx++) {
       var _newFiber2 = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx], lanes, debugInfo);
@@ -10306,7 +10316,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     } // Add all children to a key map for quick lookups.
 
 
-    var existingChildren = mapRemainingChildren(returnFiber, oldFiber); // Keep scanning and use the map to restore deleted items as moves.
+    var existingChildren = mapRemainingChildren(oldFiber); // Keep scanning and use the map to restore deleted items as moves.
 
     for (; !step.done; newIdx++, step = newChildren.next()) {
       var _newFiber4 = updateFromMap(existingChildren, returnFiber, newIdx, step.value, lanes, debugInfo);
@@ -10542,14 +10552,15 @@ function createChildReconciler(shouldTrackSideEffects) {
 
       if (newChild.$$typeof === REACT_CONTEXT_TYPE) {
         var context = newChild;
-        return reconcileChildFibersImpl(returnFiber, currentFirstChild, readContextDuringReconcilation(returnFiber, context, lanes), lanes, debugInfo);
+        return reconcileChildFibersImpl(returnFiber, currentFirstChild, readContextDuringReconciliation(returnFiber, context, lanes), lanes, debugInfo);
       }
 
       throwOnInvalidObjectType(returnFiber, newChild);
     }
 
-    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number') {
-      return placeSingleChild(reconcileSingleTextNode(returnFiber, currentFirstChild, '' + newChild, lanes));
+    if (typeof newChild === 'string' && newChild !== '' || typeof newChild === 'number' || enableBigIntSupport ) {
+      return placeSingleChild(reconcileSingleTextNode(returnFiber, currentFirstChild, // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+      '' + newChild, lanes));
     }
 
     {
@@ -10977,7 +10988,7 @@ function warnOnHookMismatchInDev(currentHookName) {
           table += row;
         }
 
-        error('React has detected a change in the order of Hooks called by %s. ' + 'This will lead to bugs and errors if not fixed. ' + 'For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks\n\n' + '   Previous render            Next render\n' + '   ------------------------------------------------------\n' + '%s' + '   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n', componentName, table);
+        error('React has detected a change in the order of Hooks called by %s. ' + 'This will lead to bugs and errors if not fixed. ' + 'For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks\n\n' + '   Previous render            Next render\n' + '   ------------------------------------------------------\n' + '%s' + '   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n', componentName, table);
       }
     }
   }
@@ -11007,7 +11018,7 @@ function warnIfAsyncClientComponent(Component) {
 }
 
 function throwInvalidHookError() {
-  throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+  throw new Error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.');
 }
 
 function areHookInputsEqual(nextDeps, prevDeps) {
@@ -12158,7 +12169,7 @@ function rerenderOptimistic(passthrough, reducer) {
 // previous state as an argument. We store pending actions on a queue.
 
 
-function dispatchFormState(fiber, actionQueue, setState, payload) {
+function dispatchFormState(fiber, actionQueue, setPendingState, setState, payload) {
   if (isRenderPhaseUpdate(fiber)) {
     throw new Error('Cannot update form state while rendering.');
   }
@@ -12174,7 +12185,7 @@ function dispatchFormState(fiber, actionQueue, setState, payload) {
 
     };
     newLast.next = actionQueue.pending = newLast;
-    runFormStateAction(actionQueue, setState, payload);
+    runFormStateAction(actionQueue, setPendingState, setState, payload);
   } else {
     // There's already an action running. Add to the queue.
     var first = last.next;
@@ -12186,7 +12197,7 @@ function dispatchFormState(fiber, actionQueue, setState, payload) {
   }
 }
 
-function runFormStateAction(actionQueue, setState, payload) {
+function runFormStateAction(actionQueue, setPendingState, setState, payload) {
   var action = actionQueue.action;
   var prevState = actionQueue.state; // This is a fork of startTransition
 
@@ -12198,7 +12209,11 @@ function runFormStateAction(actionQueue, setState, payload) {
 
   {
     ReactCurrentBatchConfig$3.transition._updatedFibers = new Set();
-  }
+  } // Optimistically update the pending state, similar to useTransition.
+  // This will be reverted automatically when all actions are finished.
+
+
+  setPendingState(true);
 
   try {
     var returnValue = action(prevState, payload);
@@ -12211,16 +12226,16 @@ function runFormStateAction(actionQueue, setState, payload) {
 
       thenable.then(function (nextState) {
         actionQueue.state = nextState;
-        finishRunningFormStateAction(actionQueue, setState);
+        finishRunningFormStateAction(actionQueue, setPendingState, setState);
       }, function () {
-        return finishRunningFormStateAction(actionQueue, setState);
+        return finishRunningFormStateAction(actionQueue, setPendingState, setState);
       });
       setState(thenable);
     } else {
       setState(returnValue);
       var nextState = returnValue;
       actionQueue.state = nextState;
-      finishRunningFormStateAction(actionQueue, setState);
+      finishRunningFormStateAction(actionQueue, setPendingState, setState);
     }
   } catch (error) {
     // This is a trick to get the `useFormState` hook to rethrow the error.
@@ -12233,7 +12248,7 @@ function runFormStateAction(actionQueue, setState, payload) {
 
     };
     setState(rejectedThenable);
-    finishRunningFormStateAction(actionQueue, setState);
+    finishRunningFormStateAction(actionQueue, setPendingState, setState);
   } finally {
     ReactCurrentBatchConfig$3.transition = prevTransition;
 
@@ -12251,7 +12266,7 @@ function runFormStateAction(actionQueue, setState, payload) {
   }
 }
 
-function finishRunningFormStateAction(actionQueue, setState) {
+function finishRunningFormStateAction(actionQueue, setPendingState, setState) {
   // The action finished running. Pop it from the queue and run the next pending
   // action, if there are any.
   var last = actionQueue.pending;
@@ -12267,7 +12282,7 @@ function finishRunningFormStateAction(actionQueue, setState) {
       var next = first.next;
       last.next = next; // Run the next action.
 
-      runFormStateAction(actionQueue, setState, next.payload);
+      runFormStateAction(actionQueue, setPendingState, setState, next.payload);
     }
   }
 }
@@ -12309,7 +12324,11 @@ function mountFormState(action, initialStateProp, permalink) {
   };
   stateHook.queue = stateQueue;
   var setState = dispatchSetState.bind(null, currentlyRenderingFiber$1, stateQueue);
-  stateQueue.dispatch = setState; // Action queue hook. This is used to queue pending actions. The queue is
+  stateQueue.dispatch = setState; // Pending state. This is used to store the pending state of the action.
+  // Tracked optimistically, like a transition pending state.
+
+  var pendingStateHook = mountStateImpl(false);
+  var setPendingState = dispatchOptimisticSetState.bind(null, currentlyRenderingFiber$1, false, pendingStateHook.queue); // Action queue hook. This is used to queue pending actions. The queue is
   // shared between all instances of the hook. Similar to a regular state queue,
   // but different because the actions are run sequentially, and they run in
   // an event instead of during render.
@@ -12323,13 +12342,13 @@ function mountFormState(action, initialStateProp, permalink) {
     pending: null
   };
   actionQueueHook.queue = actionQueue;
-  var dispatch = dispatchFormState.bind(null, currentlyRenderingFiber$1, actionQueue, setState);
+  var dispatch = dispatchFormState.bind(null, currentlyRenderingFiber$1, actionQueue, setPendingState, setState);
   actionQueue.dispatch = dispatch; // Stash the action function on the memoized state of the hook. We'll use this
   // to detect when the action function changes so we can update it in
   // an effect.
 
   actionQueueHook.memoizedState = action;
-  return [initialState, dispatch];
+  return [initialState, dispatch, false];
 }
 
 function updateFormState(action, initialState, permalink) {
@@ -12340,7 +12359,10 @@ function updateFormState(action, initialState, permalink) {
 
 function updateFormStateImpl(stateHook, currentStateHook, action, initialState, permalink) {
   var _updateReducerImpl = updateReducerImpl(stateHook, currentStateHook, formStateReducer),
-      actionResult = _updateReducerImpl[0]; // This will suspend until the action finishes.
+      actionResult = _updateReducerImpl[0];
+
+  var _updateState = updateState(),
+      isPending = _updateState[0]; // This will suspend until the action finishes.
 
 
   var state = typeof actionResult === 'object' && actionResult !== null && // $FlowFixMe[method-unbinding]
@@ -12356,7 +12378,7 @@ function updateFormStateImpl(stateHook, currentStateHook, action, initialState, 
     pushEffect(HasEffect | Passive, formStateActionEffect.bind(null, actionQueue, action), createEffectInstance(), null);
   }
 
-  return [state, dispatch];
+  return [state, dispatch, isPending];
 }
 
 function formStateActionEffect(actionQueue, action) {
@@ -12377,16 +12399,19 @@ function rerenderFormState(action, initialState, permalink) {
   if (currentStateHook !== null) {
     // This is an update. Process the update queue.
     return updateFormStateImpl(stateHook, currentStateHook, action);
-  } // This is a mount. No updates to process.
+  }
 
+  updateWorkInProgressHook(); // State
+  // This is a mount. No updates to process.
 
   var state = stateHook.memoizedState;
   var actionQueueHook = updateWorkInProgressHook();
   var actionQueue = actionQueueHook.queue;
   var dispatch = actionQueue.dispatch; // This may have changed during the rerender.
 
-  actionQueueHook.memoizedState = action;
-  return [state, dispatch];
+  actionQueueHook.memoizedState = action; // For mount, pending is always false.
+
+  return [state, dispatch, false];
 }
 
 function pushEffect(tag, create, inst, deps) {
@@ -12848,8 +12873,8 @@ function mountTransition() {
 }
 
 function updateTransition() {
-  var _updateState = updateState(),
-      booleanOrThenable = _updateState[0];
+  var _updateState2 = updateState(),
+      booleanOrThenable = _updateState2[0];
 
   var hook = updateWorkInProgressHook();
   var start = hook.memoizedState;
@@ -13211,8 +13236,8 @@ var ContextOnlyDispatcher = {
   useContext: throwInvalidHookError,
   useEffect: throwInvalidHookError,
   useImperativeHandle: throwInvalidHookError,
-  useInsertionEffect: throwInvalidHookError,
   useLayoutEffect: throwInvalidHookError,
+  useInsertionEffect: throwInvalidHookError,
   useMemo: throwInvalidHookError,
   useReducer: throwInvalidHookError,
   useRef: throwInvalidHookError,
@@ -13231,6 +13256,7 @@ var ContextOnlyDispatcher = {
 {
   ContextOnlyDispatcher.useHostTransitionStatus = throwInvalidHookError;
   ContextOnlyDispatcher.useFormState = throwInvalidHookError;
+  ContextOnlyDispatcher.useActionState = throwInvalidHookError;
 }
 
 {
@@ -13251,7 +13277,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   };
 
   var warnInvalidHookAccess = function () {
-    error('Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. ' + 'You can only call Hooks at the top level of your React function. ' + 'For more information, see ' + 'https://reactjs.org/link/rules-of-hooks');
+    error('Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. ' + 'You can only call Hooks at the top level of your React function. ' + 'For more information, see ' + 'https://react.dev/link/rules-of-hooks');
   };
 
   HooksDispatcherOnMountInDEV = {
@@ -13376,6 +13402,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
     HooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
       currentHookNameInDev = 'useFormState';
+      mountHookTypesDev();
+      return mountFormState(action, initialState);
+    };
+
+    HooksDispatcherOnMountInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
       mountHookTypesDev();
       return mountFormState(action, initialState);
     };
@@ -13508,6 +13540,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return mountFormState(action, initialState);
     };
+
+    HooksDispatcherOnMountWithHookTypesInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
+      updateHookTypesDev();
+      return mountFormState(action, initialState);
+    };
   }
 
   {
@@ -13637,6 +13675,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateFormState(action);
     };
+
+    HooksDispatcherOnUpdateInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
+      updateHookTypesDev();
+      return updateFormState(action);
+    };
   }
 
   {
@@ -13763,6 +13807,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
     HooksDispatcherOnRerenderInDEV.useFormState = function useFormState(action, initialState, permalink) {
       currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return rerenderFormState(action);
+    };
+
+    HooksDispatcherOnRerenderInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
       updateHookTypesDev();
       return rerenderFormState(action);
     };
@@ -13911,6 +13961,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
     InvalidNestedHooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
       currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      mountHookTypesDev();
+      return mountFormState(action, initialState);
+    };
+
+    InvalidNestedHooksDispatcherOnMountInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
       warnInvalidHookAccess();
       mountHookTypesDev();
       return mountFormState(action, initialState);
@@ -14065,6 +14122,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateFormState(action);
     };
+
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return updateFormState(action);
+    };
   }
 
   {
@@ -14211,6 +14275,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
     InvalidNestedHooksDispatcherOnRerenderInDEV.useFormState = function useFormState(action, initialState, permalink) {
       currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return rerenderFormState(action);
+    };
+
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useActionState = function useActionState(action, initialState, permalink) {
+      currentHookNameInDev = 'useActionState';
       warnInvalidHookAccess();
       updateHookTypesDev();
       return rerenderFormState(action);
@@ -14850,7 +14921,7 @@ function constructClassInstance(workInProgress, ctor, props) {
         if (!didWarnAboutLegacyLifecyclesAndDerivedState.has(_componentName)) {
           didWarnAboutLegacyLifecyclesAndDerivedState.add(_componentName);
 
-          error('Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n' + '%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n' + 'The above lifecycles should be removed. Learn more about this warning here:\n' + 'https://reactjs.org/link/unsafe-component-lifecycles', _componentName, newApiName, foundWillMountName !== null ? "\n  " + foundWillMountName : '', foundWillReceivePropsName !== null ? "\n  " + foundWillReceivePropsName : '', foundWillUpdateName !== null ? "\n  " + foundWillUpdateName : '');
+          error('Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n' + '%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\n' + 'The above lifecycles should be removed. Learn more about this warning here:\n' + 'https://react.dev/link/unsafe-component-lifecycles', _componentName, newApiName, foundWillMountName !== null ? "\n  " + foundWillMountName : '', foundWillReceivePropsName !== null ? "\n  " + foundWillReceivePropsName : '', foundWillUpdateName !== null ? "\n  " + foundWillUpdateName : '');
         }
       }
     }
@@ -15255,44 +15326,24 @@ function logCapturedError(boundary, errorInfo) {
     if (true) {
       var source = errorInfo.source;
       var stack = errorInfo.stack;
-      var componentStack = stack !== null ? stack : ''; // Browsers support silencing uncaught errors by calling
-      // `preventDefault()` in window `error` handler.
-      // We record this information as an expando on the error.
-
-      if (error != null && error._suppressLogging) {
-        if (boundary.tag === ClassComponent) {
-          // The error is recoverable and was silenced.
-          // Ignore it and don't print the stack addendum.
-          // This is handy for testing error boundaries without noise.
-          return;
-        } // The error is fatal. Since the silencing might have
-        // been accidental, we'll surface it anyway.
-        // However, the browser would have silenced the original error
-        // so we'll print it first, and then print the stack addendum.
-
-
-        console['error'](error); // Don't transform to our wrapper
-        // For a more detailed description of this block, see:
-        // https://github.com/facebook/react/pull/13384
-      }
+      var componentStack = stack !== null ? stack : ''; // TODO: There's no longer a way to silence these warnings e.g. for tests.
+      // See https://github.com/facebook/react/pull/13384
 
       var componentName = source ? getComponentNameFromFiber(source) : null;
       var componentNameMessage = componentName ? "The above error occurred in the <" + componentName + "> component:" : 'The above error occurred in one of your React components:';
       var errorBoundaryMessage;
 
       if (boundary.tag === HostRoot) {
-        errorBoundaryMessage = 'Consider adding an error boundary to your tree to customize error handling behavior.\n' + 'Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.';
+        errorBoundaryMessage = 'Consider adding an error boundary to your tree to customize error handling behavior.\n' + 'Visit https://react.dev/link/error-boundaries to learn more about error boundaries.';
       } else {
         var errorBoundaryName = getComponentNameFromFiber(boundary) || 'Anonymous';
         errorBoundaryMessage = "React will try to recreate this component tree from scratch " + ("using the error boundary you provided, " + errorBoundaryName + ".");
-      }
+      } // In development, we provide our own message which includes the component stack
+      // in addition to the error.
 
-      var combinedMessage = componentNameMessage + "\n" + componentStack + "\n\n" + ("" + errorBoundaryMessage); // In development, we provide our own message with just the component stack.
-      // We don't include the original error message and JS stack because the browser
-      // has already printed it. Even if the application swallows the error, it is still
-      // displayed by the browser thanks to the DEV-only fake event trick in ReactErrorUtils.
 
-      console['error'](combinedMessage); // Don't transform to our wrapper
+      console['error']( // Don't transform to our wrapper
+      '%o\n\n%s\n%s\n\n%s', error, componentNameMessage, componentStack, errorBoundaryMessage);
     }
   } catch (e) {
     // This method must not throw, or React internal state will get messed up.
@@ -16257,14 +16308,23 @@ function updateProfiler(current, workInProgress, renderLanes) {
 }
 
 function markRef(current, workInProgress) {
-  // TODO: This is also where we should check the type of the ref and error if
-  // an invalid one is passed, instead of during child reconcilation.
+  // TODO: Check props.ref instead of fiber.ref when enableRefAsProp is on.
   var ref = workInProgress.ref;
 
-  if (current === null && ref !== null || current !== null && current.ref !== ref) {
-    // Schedule a Ref effect
-    workInProgress.flags |= Ref;
-    workInProgress.flags |= RefStatic;
+  if (ref === null) {
+    if (current !== null && current.ref !== null) {
+      // Schedule a Ref effect
+      workInProgress.flags |= Ref | RefStatic;
+    }
+  } else {
+    if (typeof ref !== 'function' && typeof ref !== 'object') {
+      throw new Error('Expected ref to be a function, an object returned by React.createRef(), or undefined/null.');
+    }
+
+    if (current === null || current.ref !== ref) {
+      // Schedule a Ref effect
+      workInProgress.flags |= Ref | RefStatic;
+    }
   }
 }
 
@@ -18384,7 +18444,7 @@ function attemptEarlyBailoutIfNoScheduledUpdate(current, workInProgress, renderL
   return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
 }
 
-function beginWork$1(current, workInProgress, renderLanes) {
+function beginWork(current, workInProgress, renderLanes) {
   {
     if (workInProgress._debugNeedsRemount && current !== null) {
       // This will restart the begin phase with a new fiber.
@@ -18863,7 +18923,7 @@ function readContext(context) {
 
   return readContextForConsumer(currentlyRenderingFiber, context);
 }
-function readContextDuringReconcilation(consumer, context, renderLanes) {
+function readContextDuringReconciliation(consumer, context, renderLanes) {
   if (currentlyRenderingFiber === null) {
     prepareToReadContext(consumer, renderLanes);
   }
@@ -19437,13 +19497,6 @@ function bubbleProperties(completedWork) {
 }
 
 function completeDehydratedSuspenseBoundary(current, workInProgress, nextState) {
-  if (hasUnhydratedTailNodes() && (workInProgress.mode & ConcurrentMode) !== NoMode && (workInProgress.flags & DidCapture) === NoFlags$1) {
-    warnIfUnhydratedTailNodes(workInProgress);
-    resetHydrationState();
-    workInProgress.flags |= ForceClientRender | DidCapture;
-    return false;
-  }
-
   var wasHydrated = popHydrationState(workInProgress);
 
   if (nextState !== null && nextState.dehydrated !== null) {
@@ -19832,7 +19885,6 @@ function completeWork(current, workInProgress, renderLanes) {
 
     case SuspenseComponent:
       {
-        popSuspenseHandler(workInProgress);
         var nextState = workInProgress.memoizedState; // Special path for dehydrated boundaries. We may eventually move this
         // to its own fiber type so that we can add other kinds of hydration
         // boundaries that aren't associated with a Suspense tree. In anticipation
@@ -19844,17 +19896,21 @@ function completeWork(current, workInProgress, renderLanes) {
 
           if (!fallthroughToNormalSuspensePath) {
             if (workInProgress.flags & ForceClientRender) {
-              // Special case. There were remaining unhydrated nodes. We treat
+              popSuspenseHandler(workInProgress); // Special case. There were remaining unhydrated nodes. We treat
               // this as a mismatch. Revert to client rendering.
+
               return workInProgress;
             } else {
-              // Did not finish hydrating, either because this is the initial
+              popSuspenseHandler(workInProgress); // Did not finish hydrating, either because this is the initial
               // render or because something suspended.
+
               return null;
             }
           } // Continue with the normal Suspense path.
 
         }
+
+        popSuspenseHandler(workInProgress);
 
         if ((workInProgress.flags & DidCapture) !== NoFlags$1) {
           // Something suspended. Re-render with the fallback children.
@@ -20490,254 +20546,6 @@ function unwindInterruptedWork(current, interruptedWork, renderLanes) {
   }
 }
 
-var fakeNode = null;
-
-{
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof document !== 'undefined' && // $FlowFixMe[method-unbinding]
-  typeof document.createEvent === 'function') {
-    fakeNode = document.createElement('react');
-  }
-}
-
-function invokeGuardedCallbackImpl(name, func, context) {
-  {
-    // In DEV mode, we use a special version
-    // that plays more nicely with the browser's DevTools. The idea is to preserve
-    // "Pause on exceptions" behavior. Because React wraps all user-provided
-    // functions in invokeGuardedCallback, and the production version of
-    // invokeGuardedCallback uses a try-catch, all user exceptions are treated
-    // like caught exceptions, and the DevTools won't pause unless the developer
-    // takes the extra step of enabling pause on caught exceptions. This is
-    // unintuitive, though, because even though React has caught the error, from
-    // the developer's perspective, the error is uncaught.
-    //
-    // To preserve the expected "Pause on exceptions" behavior, we don't use a
-    // try-catch in DEV. Instead, we synchronously dispatch a fake event to a fake
-    // DOM node, and call the user-provided callback from inside an event handler
-    // for that fake event. If the callback throws, the error is "captured" using
-    // event loop context, it does not interrupt the normal program flow.
-    // Effectively, this gives us try-catch behavior without actually using
-    // try-catch. Neat!
-    // fakeNode signifies we are in an environment with a document and window object
-    if (fakeNode) {
-      var evt = document.createEvent('Event');
-      var didCall = false; // Keeps track of whether the user-provided callback threw an error. We
-      // set this to true at the beginning, then set it to false right after
-      // calling the function. If the function errors, `didError` will never be
-      // set to false. This strategy works even if the browser is flaky and
-      // fails to call our global error handler, because it doesn't rely on
-      // the error event at all.
-
-      var didError = true; // Keeps track of the value of window.event so that we can reset it
-      // during the callback to let user code access window.event in the
-      // browsers that support it.
-
-      var windowEvent = window.event; // Keeps track of the descriptor of window.event to restore it after event
-      // dispatching: https://github.com/facebook/react/issues/13688
-
-      var windowEventDescriptor = Object.getOwnPropertyDescriptor(window, 'event');
-
-      var restoreAfterDispatch = function () {
-        // We immediately remove the callback from event listeners so that
-        // nested `invokeGuardedCallback` calls do not clash. Otherwise, a
-        // nested call would trigger the fake event handlers of any call higher
-        // in the stack.
-        fakeNode.removeEventListener(evtType, callCallback, false); // We check for window.hasOwnProperty('event') to prevent the
-        // window.event assignment in both IE <= 10 as they throw an error
-        // "Member not found" in strict mode, and in Firefox which does not
-        // support window.event.
-
-        if (typeof window.event !== 'undefined' && window.hasOwnProperty('event')) {
-          window.event = windowEvent;
-        }
-      }; // Create an event handler for our fake event. We will synchronously
-      // dispatch our fake event using `dispatchEvent`. Inside the handler, we
-      // call the user-provided callback.
-      // $FlowFixMe[method-unbinding]
-
-
-      var _funcArgs = Array.prototype.slice.call(arguments, 3);
-
-      var callCallback = function () {
-        didCall = true;
-        restoreAfterDispatch(); // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
-
-        func.apply(context, _funcArgs);
-        didError = false;
-      }; // Create a global error event handler. We use this to capture the value
-      // that was thrown. It's possible that this error handler will fire more
-      // than once; for example, if non-React code also calls `dispatchEvent`
-      // and a handler for that event throws. We should be resilient to most of
-      // those cases. Even if our error event handler fires more than once, the
-      // last error event is always used. If the callback actually does error,
-      // we know that the last error event is the correct one, because it's not
-      // possible for anything else to have happened in between our callback
-      // erroring and the code that follows the `dispatchEvent` call below. If
-      // the callback doesn't error, but the error event was fired, we know to
-      // ignore it because `didError` will be false, as described above.
-
-
-      var error; // Use this to track whether the error event is ever called.
-
-      var didSetError = false;
-      var isCrossOriginError = false;
-
-      var handleWindowError = function (event) {
-        error = event.error;
-        didSetError = true;
-
-        if (error === null && event.colno === 0 && event.lineno === 0) {
-          isCrossOriginError = true;
-        }
-
-        if (event.defaultPrevented) {
-          // Some other error handler has prevented default.
-          // Browsers silence the error report if this happens.
-          // We'll remember this to later decide whether to log it or not.
-          if (error != null && typeof error === 'object') {
-            try {
-              error._suppressLogging = true;
-            } catch (inner) {// Ignore.
-            }
-          }
-        }
-      }; // Create a fake event type.
-
-
-      var evtType = "react-" + (name ? name : 'invokeguardedcallback'); // Attach our event handlers
-
-      window.addEventListener('error', handleWindowError);
-      fakeNode.addEventListener(evtType, callCallback, false); // Synchronously dispatch our fake event. If the user-provided function
-      // errors, it will trigger our global error handler.
-
-      evt.initEvent(evtType, false, false);
-      fakeNode.dispatchEvent(evt);
-
-      if (windowEventDescriptor) {
-        Object.defineProperty(window, 'event', windowEventDescriptor);
-      }
-
-      if (didCall && didError) {
-        if (!didSetError) {
-          // The callback errored, but the error event never fired.
-          // eslint-disable-next-line react-internal/prod-error-codes
-          error = new Error('An error was thrown inside one of your components, but React ' + "doesn't know what it was. This is likely due to browser " + 'flakiness. React does its best to preserve the "Pause on ' + 'exceptions" behavior of the DevTools, which requires some ' + "DEV-mode only tricks. It's possible that these don't work in " + 'your browser. Try triggering the error in production mode, ' + 'or switching to a modern browser. If you suspect that this is ' + 'actually an issue with React, please file an issue.');
-        } else if (isCrossOriginError) {
-          // eslint-disable-next-line react-internal/prod-error-codes
-          error = new Error("A cross-origin error was thrown. React doesn't have access to " + 'the actual error object in development. ' + 'See https://reactjs.org/link/crossorigin-error for more information.');
-        }
-
-        this.onError(error);
-      } // Remove our event listeners
-
-
-      window.removeEventListener('error', handleWindowError);
-
-      if (didCall) {
-        return;
-      } else {
-        // Something went really wrong, and our event was not dispatched.
-        // https://github.com/facebook/react/issues/16734
-        // https://github.com/facebook/react/issues/16585
-        // Fall back to the production implementation.
-        restoreAfterDispatch(); // we fall through and call the prod version instead
-      }
-    } // We only get here if we are in an environment that either does not support the browser
-    // variant or we had trouble getting the browser to emit the error.
-    // $FlowFixMe[method-unbinding]
-
-
-    var funcArgs = Array.prototype.slice.call(arguments, 3);
-
-    try {
-      // $FlowFixMe[incompatible-call] Flow doesn't understand the arguments splicing.
-      func.apply(context, funcArgs);
-    } catch (error) {
-      this.onError(error);
-    }
-  }
-}
-
-var hasError = false;
-var caughtError = null; // Used by event system to capture/rethrow the first error.
-
-var hasRethrowError = false;
-var rethrowError = null;
-var reporter = {
-  onError: function (error) {
-    hasError = true;
-    caughtError = error;
-  }
-};
-/**
- * Call a function while guarding against errors that happens within it.
- * Returns an error if it throws, otherwise null.
- *
- * In production, this is implemented using a try-catch. The reason we don't
- * use a try-catch directly is so that we can swap out a different
- * implementation in DEV mode.
- *
- * @param {String} name of the guard to use for logging or debugging
- * @param {Function} func The function to invoke
- * @param {*} context The context to use when calling the function
- * @param {...*} args Arguments for function
- */
-
-function invokeGuardedCallback(name, func, context, a, b, c, d, e, f) {
-  hasError = false;
-  caughtError = null;
-  invokeGuardedCallbackImpl.apply(reporter, arguments);
-}
-/**
- * Same as invokeGuardedCallback, but instead of returning an error, it stores
- * it in a global so it can be rethrown by `rethrowCaughtError` later.
- * TODO: See if caughtError and rethrowError can be unified.
- *
- * @param {String} name of the guard to use for logging or debugging
- * @param {Function} func The function to invoke
- * @param {*} context The context to use when calling the function
- * @param {...*} args Arguments for function
- */
-
-function invokeGuardedCallbackAndCatchFirstError(name, func, context, a, b, c, d, e, f) {
-  invokeGuardedCallback.apply(this, arguments);
-
-  if (hasError) {
-    var error = clearCaughtError();
-
-    if (!hasRethrowError) {
-      hasRethrowError = true;
-      rethrowError = error;
-    }
-  }
-}
-/**
- * During execution of guarded functions we will capture the first error which
- * we will rethrow to be handled by the top level error handler.
- */
-
-function rethrowCaughtError() {
-  if (hasRethrowError) {
-    var error = rethrowError;
-    hasRethrowError = false;
-    rethrowError = null;
-    throw error;
-  }
-}
-function hasCaughtError() {
-  return hasError;
-}
-function clearCaughtError() {
-  if (hasError) {
-    var error = caughtError;
-    hasError = false;
-    caughtError = null;
-    return error;
-  } else {
-    throw new Error('clearCaughtError was called but no error was captured. This error ' + 'is likely caused by a bug in React. Please file an issue.');
-  }
-}
-
 var didWarnAboutUndefinedSnapshotBeforeUpdate = null;
 
 {
@@ -20756,20 +20564,6 @@ var inProgressRoot = null;
 
 function shouldProfile(current) {
   return (current.mode & ProfileMode) !== NoMode && (getExecutionContext() & CommitContext) !== NoContext;
-}
-
-function reportUncaughtErrorInDEV(error) {
-  // Wrapping each small part of the commit phase into a guarded
-  // callback is a bit too slow (https://github.com/facebook/react/pull/21666).
-  // But we rely on it to surface errors to DEV tools like overlays
-  // (https://github.com/facebook/react/issues/21712).
-  // As a compromise, rethrow only caught errors in a guard.
-  {
-    invokeGuardedCallback(null, function () {
-      throw error;
-    });
-    clearCaughtError();
-  }
 }
 
 function callComponentWillUnmountWithTimer(current, instance) {
@@ -21133,7 +20927,7 @@ function commitHookEffectListMount(flags, finishedWork) {
             if (destroy === null) {
               addendum = ' You returned null. If your effect does not require clean ' + 'up, return undefined (or nothing).';
             } else if (typeof destroy.then === 'function') {
-              addendum = '\n\nIt looks like you wrote ' + hookName + '(async () => ...) or returned a Promise. ' + 'Instead, write the async function inside your effect ' + 'and call it immediately:\n\n' + hookName + '(() => {\n' + '  async function fetchData() {\n' + '    // You can await here\n' + '    const response = await MyAPI.getData(someId);\n' + '    // ...\n' + '  }\n' + '  fetchData();\n' + "}, [someId]); // Or [] if effect doesn't need props or state\n\n" + 'Learn more about data fetching with Hooks: https://reactjs.org/link/hooks-data-fetching';
+              addendum = '\n\nIt looks like you wrote ' + hookName + '(async () => ...) or returned a Promise. ' + 'Instead, write the async function inside your effect ' + 'and call it immediately:\n\n' + hookName + '(() => {\n' + '  async function fetchData() {\n' + '    // You can await here\n' + '    const response = await MyAPI.getData(someId);\n' + '    // ...\n' + '  }\n' + '  fetchData();\n' + "}, [someId]); // Or [] if effect doesn't need props or state\n\n" + 'Learn more about data fetching with Hooks: https://react.dev/link/hooks-data-fetching';
             } else {
               addendum = ' You returned: ' + destroy;
             }
@@ -21683,6 +21477,8 @@ function commitAttachRef(finishedWork) {
       }
     } else {
       {
+        // TODO: We should move these warnings to happen during the render
+        // phase (markRef).
         if (!ref.hasOwnProperty('current')) {
           error('Unexpected ref object provided for %s. ' + 'Use either a ref-setter function or React.createRef().', getComponentNameFromFiber(finishedWork));
         }
@@ -24218,7 +24014,7 @@ function getRenderTargetTime() {
 }
 var hasUncaughtError = false;
 var firstUncaughtError = null;
-var legacyErrorBoundariesThatAlreadyFailed = null; // Only used when enableProfilerNestedUpdateScheduledHook is true;
+var legacyErrorBoundariesThatAlreadyFailed = null;
 var rootDoesHavePassiveEffects = false;
 var rootWithPendingPassiveEffects = null;
 var pendingPassiveEffectsLanes = NoLanes;
@@ -26207,7 +26003,7 @@ function commitRootImpl(root, recoverableErrors, transitions, didIncludeRenderPh
       // Mark the current commit time to be shared by all Profilers in this
       // batch. This enables them to be grouped later.
       recordCommitTime();
-    }
+    } // The next phase is the mutation phase, where we mutate the host tree.
 
 
     commitMutationEffects(root, finishedWork, lanes);
@@ -26227,7 +26023,7 @@ function commitRootImpl(root, recoverableErrors, transitions, didIncludeRenderPh
 
     {
       markLayoutEffectsStopped();
-    }
+    } // Tell Scheduler to yield at the end of the frame, so the browser has an
     // opportunity to paint.
 
 
@@ -26580,7 +26376,6 @@ function captureCommitPhaseErrorOnRoot(rootFiber, sourceFiber, error) {
 
 function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
   {
-    reportUncaughtErrorInDEV(error$1);
     setIsRunningInsertionEffect(false);
   }
 
@@ -26910,60 +26705,6 @@ function warnAboutUpdateOnNotYetMountedFiberInDEV(fiber) {
     }
   }
 }
-var beginWork;
-
-{
-  var dummyFiber = null;
-
-  beginWork = function (current, unitOfWork, lanes) {
-    // If a component throws an error, we replay it again in a synchronously
-    // dispatched event, so that the debugger will treat it as an uncaught
-    // error See ReactErrorUtils for more information.
-    // Before entering the begin phase, copy the work-in-progress onto a dummy
-    // fiber. If beginWork throws, we'll use this to reset the state.
-    var originalWorkInProgressCopy = assignFiberPropertiesInDEV(dummyFiber, unitOfWork);
-
-    try {
-      return beginWork$1(current, unitOfWork, lanes);
-    } catch (originalError) {
-      if (didSuspendOrErrorWhileHydratingDEV() || originalError === SuspenseException || originalError === SelectiveHydrationException || originalError !== null && typeof originalError === 'object' && typeof originalError.then === 'function') {
-        // Don't replay promises.
-        // Don't replay errors if we are hydrating and have already suspended or handled an error
-        throw originalError;
-      } // Don't reset current debug fiber, since we're about to work on the
-      // same fiber again.
-      // Unwind the failed stack frame
-
-
-      resetSuspendedWorkLoopOnUnwind(unitOfWork);
-      unwindInterruptedWork(current, unitOfWork); // Restore the original properties of the fiber.
-
-      assignFiberPropertiesInDEV(unitOfWork, originalWorkInProgressCopy);
-
-      if (unitOfWork.mode & ProfileMode) {
-        // Reset the profiler timer.
-        startProfilerTimer(unitOfWork);
-      } // Run beginWork again.
-
-
-      invokeGuardedCallback(null, beginWork$1, null, current, unitOfWork, lanes);
-
-      if (hasCaughtError()) {
-        var replayError = clearCaughtError();
-
-        if (typeof replayError === 'object' && replayError !== null && replayError._suppressLogging && typeof originalError === 'object' && originalError !== null && !originalError._suppressLogging) {
-          // If suppressed, let the flag carry over to the original error which is the one we'll rethrow.
-          originalError._suppressLogging = true;
-        }
-      } // We always throw the original error in case the second render pass is not idempotent.
-      // This can happen if a memoized function or CommonJS module doesn't throw after first invocation.
-
-
-      throw originalError;
-    }
-  };
-}
-
 var didWarnAboutUpdateInRender = false;
 var didWarnAboutUpdateInRenderForAnotherComponent;
 
@@ -26987,7 +26728,7 @@ function warnAboutRenderPhaseUpdatesInDEV(fiber) {
               didWarnAboutUpdateInRenderForAnotherComponent.add(dedupeKey);
               var setStateComponentName = getComponentNameFromFiber(fiber) || 'Unknown';
 
-              error('Cannot update a component (`%s`) while rendering a ' + 'different component (`%s`). To locate the bad setState() call inside `%s`, ' + 'follow the stack trace as described in https://reactjs.org/link/setstate-in-render', setStateComponentName, renderingComponentName, renderingComponentName);
+              error('Cannot update a component (`%s`) while rendering a ' + 'different component (`%s`). To locate the bad setState() call inside `%s`, ' + 'follow the stack trace as described in https://react.dev/link/setstate-in-render', setStateComponentName, renderingComponentName, renderingComponentName);
             }
 
             break;
@@ -27075,7 +26816,7 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
       try {
         setCurrentFiber(fiber);
 
-        error('An update to %s inside a test was not wrapped in act(...).\n\n' + 'When testing, code that causes React state updates should be ' + 'wrapped into act(...):\n\n' + 'act(() => {\n' + '  /* fire events that update state */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://reactjs.org/link/wrap-tests-with-act', getComponentNameFromFiber(fiber));
+        error('An update to %s inside a test was not wrapped in act(...).\n\n' + 'When testing, code that causes React state updates should be ' + 'wrapped into act(...):\n\n' + 'act(() => {\n' + '  /* fire events that update state */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://react.dev/link/wrap-tests-with-act', getComponentNameFromFiber(fiber));
       } finally {
         if (previousFiber) {
           setCurrentFiber(fiber);
@@ -27090,7 +26831,7 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
 function warnIfSuspenseResolutionNotWrappedWithActDEV(root) {
   {
     if (root.tag !== LegacyRoot && isConcurrentActEnvironment() && ReactCurrentActQueue.current === null) {
-      error('A suspended resource finished loading inside a test, but the event ' + 'was not wrapped in act(...).\n\n' + 'When testing, code that resolves suspended data should be wrapped ' + 'into act(...):\n\n' + 'act(() => {\n' + '  /* finish loading suspended data */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://reactjs.org/link/wrap-tests-with-act');
+      error('A suspended resource finished loading inside a test, but the event ' + 'was not wrapped in act(...).\n\n' + 'When testing, code that resolves suspended data should be wrapped ' + 'into act(...):\n\n' + 'act(() => {\n' + '  /* finish loading suspended data */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://react.dev/link/wrap-tests-with-act');
     }
   }
 }
@@ -27475,7 +27216,7 @@ function findChildHostInstancesForFiberShallowly(fiber, hostInstances) {
     var foundHostInstances = false;
 
     while (true) {
-      if (node.tag === HostComponent || (node.tag === HostHoistable ) || (node.tag === HostSingleton )) {
+      if (node.tag === HostComponent || node.tag === HostHoistable || (node.tag === HostSingleton )) {
         // We got a match.
         foundHostInstances = true;
         hostInstances.add(node.stateNode); // There may still be more, so keep searching.
@@ -28067,56 +27808,6 @@ function createFiberFromPortal(portal, mode, lanes) {
     implementation: portal.implementation
   };
   return fiber;
-} // Used for stashing WIP properties to replay failed work in DEV.
-
-function assignFiberPropertiesInDEV(target, source) {
-  if (target === null) {
-    // This Fiber's initial properties will always be overwritten.
-    // We only use a Fiber to ensure the same hidden class so DEV isn't slow.
-    target = createFiber(IndeterminateComponent, null, null, NoMode);
-  } // This is intentionally written as a list of all properties.
-  // We tried to use Object.assign() instead but this is called in
-  // the hottest path, and Object.assign() was too slow:
-  // https://github.com/facebook/react/issues/12502
-  // This code is DEV-only so size is not a concern.
-
-
-  target.tag = source.tag;
-  target.key = source.key;
-  target.elementType = source.elementType;
-  target.type = source.type;
-  target.stateNode = source.stateNode;
-  target.return = source.return;
-  target.child = source.child;
-  target.sibling = source.sibling;
-  target.index = source.index;
-  target.ref = source.ref;
-  target.refCleanup = source.refCleanup;
-  target.pendingProps = source.pendingProps;
-  target.memoizedProps = source.memoizedProps;
-  target.updateQueue = source.updateQueue;
-  target.memoizedState = source.memoizedState;
-  target.dependencies = source.dependencies;
-  target.mode = source.mode;
-  target.flags = source.flags;
-  target.subtreeFlags = source.subtreeFlags;
-  target.deletions = source.deletions;
-  target.lanes = source.lanes;
-  target.childLanes = source.childLanes;
-  target.alternate = source.alternate;
-
-  {
-    target.actualDuration = source.actualDuration;
-    target.actualStartTime = source.actualStartTime;
-    target.selfBaseDuration = source.selfBaseDuration;
-    target.treeBaseDuration = source.treeBaseDuration;
-  }
-
-  target._debugInfo = source._debugInfo;
-  target._debugOwner = source._debugOwner;
-  target._debugNeedsRemount = source._debugNeedsRemount;
-  target._debugHookTypes = source._debugHookTypes;
-  return target;
 }
 
 function FiberRootNode(containerInfo, // $FlowFixMe[missing-local-annot]
@@ -28221,7 +27912,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-14898b6a9-20240318';
+var ReactVersion = '18.3.0-canary-c3048aab4-20240326';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -28300,9 +27991,9 @@ function findHostInstanceWithWarning(component, methodName) {
           setCurrentFiber(hostFiber);
 
           if (fiber.mode & StrictLegacyMode) {
-            error('%s is deprecated in StrictMode. ' + '%s was passed an instance of %s which is inside StrictMode. ' + 'Instead, add a ref directly to the element you want to reference. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-find-node', methodName, methodName, componentName);
+            error('%s is deprecated in StrictMode. ' + '%s was passed an instance of %s which is inside StrictMode. ' + 'Instead, add a ref directly to the element you want to reference. ' + 'Learn more about using refs safely here: ' + 'https://react.dev/link/strict-mode-find-node', methodName, methodName, componentName);
           } else {
-            error('%s is deprecated in StrictMode. ' + '%s was passed an instance of %s which renders StrictMode children. ' + 'Instead, add a ref directly to the element you want to reference. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-find-node', methodName, methodName, componentName);
+            error('%s is deprecated in StrictMode. ' + '%s was passed an instance of %s which renders StrictMode children. ' + 'Instead, add a ref directly to the element you want to reference. ' + 'Learn more about using refs safely here: ' + 'https://react.dev/link/strict-mode-find-node', methodName, methodName, componentName);
           }
         } finally {
           // Ideally this should reset to previous but this shouldn't be called in
@@ -29992,79 +29683,77 @@ function retryIfBlockedOn(unblocked) {
         queuedExplicitHydrationTargets.shift();
       }
     }
-  }
+  } // Check the document if there are any queued form actions.
+  // If there's no ownerDocument, then this is the document.
 
-  {
-    // Check the document if there are any queued form actions.
-    // If there's no ownerDocument, then this is the document.
-    var root = unblocked.ownerDocument || unblocked;
-    var formReplayingQueue = root.$$reactFormReplay;
 
-    if (formReplayingQueue != null) {
-      for (var _i = 0; _i < formReplayingQueue.length; _i += 3) {
-        var form = formReplayingQueue[_i];
-        var submitterOrAction = formReplayingQueue[_i + 1];
-        var formProps = getFiberCurrentPropsFromNode(form);
+  var root = unblocked.ownerDocument || unblocked;
+  var formReplayingQueue = root.$$reactFormReplay;
 
-        if (typeof submitterOrAction === 'function') {
-          // This action has already resolved. We're just waiting to dispatch it.
-          if (!formProps) {
-            // This was not part of this React instance. It might have been recently
-            // unblocking us from dispatching our events. So let's make sure we schedule
-            // a retry.
-            scheduleReplayQueueIfNeeded(formReplayingQueue);
-          }
+  if (formReplayingQueue != null) {
+    for (var _i = 0; _i < formReplayingQueue.length; _i += 3) {
+      var form = formReplayingQueue[_i];
+      var submitterOrAction = formReplayingQueue[_i + 1];
+      var formProps = getFiberCurrentPropsFromNode(form);
 
-          continue;
+      if (typeof submitterOrAction === 'function') {
+        // This action has already resolved. We're just waiting to dispatch it.
+        if (!formProps) {
+          // This was not part of this React instance. It might have been recently
+          // unblocking us from dispatching our events. So let's make sure we schedule
+          // a retry.
+          scheduleReplayQueueIfNeeded(formReplayingQueue);
         }
 
-        var target = form;
-
-        if (formProps) {
-          // This form belongs to this React instance but the submitter might
-          // not be done yet.
-          var action = null;
-          var submitter = submitterOrAction;
-
-          if (submitter && submitter.hasAttribute('formAction')) {
-            // The submitter is the one that is responsible for the action.
-            target = submitter;
-            var submitterProps = getFiberCurrentPropsFromNode(submitter);
-
-            if (submitterProps) {
-              // The submitter is part of this instance.
-              action = submitterProps.formAction;
-            } else {
-              var blockedOn = findInstanceBlockingTarget(target);
-
-              if (blockedOn !== null) {
-                // The submitter is not hydrated yet. We'll wait for it.
-                continue;
-              } // The submitter must have been a part of a different React instance.
-              // Except the form isn't. We don't dispatch actions in this scenario.
-
-            }
-          } else {
-            action = formProps.action;
-          }
-
-          if (typeof action === 'function') {
-            formReplayingQueue[_i + 1] = action;
-          } else {
-            // Something went wrong so let's just delete this action.
-            formReplayingQueue.splice(_i, 3);
-            _i -= 3;
-          } // Schedule a replay in case this unblocked something.
-
-
-          scheduleReplayQueueIfNeeded(formReplayingQueue);
-          continue;
-        } // Something above this target is still blocked so we can't continue yet.
-        // We're not sure if this target is actually part of this React instance
-        // yet. It could be a different React as a child but at least some parent is.
-        // We must continue for any further queued actions.
-
+        continue;
       }
+
+      var target = form;
+
+      if (formProps) {
+        // This form belongs to this React instance but the submitter might
+        // not be done yet.
+        var action = null;
+        var submitter = submitterOrAction;
+
+        if (submitter && submitter.hasAttribute('formAction')) {
+          // The submitter is the one that is responsible for the action.
+          target = submitter;
+          var submitterProps = getFiberCurrentPropsFromNode(submitter);
+
+          if (submitterProps) {
+            // The submitter is part of this instance.
+            action = submitterProps.formAction;
+          } else {
+            var blockedOn = findInstanceBlockingTarget(target);
+
+            if (blockedOn !== null) {
+              // The submitter is not hydrated yet. We'll wait for it.
+              continue;
+            } // The submitter must have been a part of a different React instance.
+            // Except the form isn't. We don't dispatch actions in this scenario.
+
+          }
+        } else {
+          action = formProps.action;
+        }
+
+        if (typeof action === 'function') {
+          formReplayingQueue[_i + 1] = action;
+        } else {
+          // Something went wrong so let's just delete this action.
+          formReplayingQueue.splice(_i, 3);
+          _i -= 3;
+        } // Schedule a replay in case this unblocked something.
+
+
+        scheduleReplayQueueIfNeeded(formReplayingQueue);
+        continue;
+      } // Something above this target is still blocked so we can't continue yet.
+      // We're not sure if this target is actually part of this React instance
+      // yet. It could be a different React as a child but at least some parent is.
+      // We must continue for any further queued actions.
+
     }
   }
 }
@@ -32108,10 +31797,7 @@ function extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nat
     extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
     extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
     extractEvents$5(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-
-    {
-      extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-    }
+    extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
   }
 } // List of events that need to be individually attached to media elements.
 
@@ -32121,11 +31807,21 @@ var mediaEventTypes = ['abort', 'canplay', 'canplaythrough', 'durationchange', '
 // because these events do not consistently bubble in the DOM.
 
 var nonDelegatedEvents = new Set(['cancel', 'close', 'invalid', 'load', 'scroll', 'scrollend', 'toggle'].concat(mediaEventTypes));
+var hasError = false;
+var caughtError = null;
 
 function executeDispatch(event, listener, currentTarget) {
-  var type = event.type || 'unknown-event';
   event.currentTarget = currentTarget;
-  invokeGuardedCallbackAndCatchFirstError(type, listener, undefined, event);
+
+  try {
+    listener(event);
+  } catch (error) {
+    if (!hasError) {
+      hasError = true;
+      caughtError = error;
+    }
+  }
+
   event.currentTarget = null;
 }
 
@@ -32174,7 +31870,12 @@ function processDispatchQueue(dispatchQueue, eventSystemFlags) {
   } // This would be a good time to rethrow if any of the event handlers threw.
 
 
-  rethrowCaughtError();
+  if (hasError) {
+    var error = caughtError;
+    hasError = false;
+    caughtError = null;
+    throw error;
+  }
 }
 
 function dispatchEventsForPlugins(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer) {
@@ -32356,7 +32057,7 @@ function dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativ
 
             var parentTag = parentNode.tag;
 
-            if (parentTag === HostComponent || parentTag === HostText || (parentTag === HostHoistable ) || parentTag === HostSingleton) {
+            if (parentTag === HostComponent || parentTag === HostText || parentTag === HostHoistable || parentTag === HostSingleton) {
               node = ancestorInst = parentNode;
               continue mainLoop;
             }
@@ -32395,7 +32096,7 @@ function accumulateSinglePhaseListeners(targetFiber, reactName, nativeEventType,
         stateNode = _instance2.stateNode,
         tag = _instance2.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
       lastHostComponent = stateNode; // createEventHandle listeners
 
 
@@ -32437,7 +32138,7 @@ function accumulateTwoPhaseListeners(targetFiber, reactName) {
         stateNode = _instance3.stateNode,
         tag = _instance3.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
       var currentTarget = stateNode;
       var captureListener = getListener(instance, captureName);
 
@@ -32545,7 +32246,7 @@ function accumulateEnterLeaveListenersForEvent(dispatchQueue, event, target, com
       break;
     }
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
       var currentTarget = stateNode;
 
       if (inCapturePhase) {
@@ -32604,7 +32305,6 @@ var didWarnFormActionMethod = false;
 var canDiffStyleForHydrationWarning;
 
 {
-  // IE 11 parses & normalizes the style attribute as opposed to other
   // browsers. It adds spaces and sorts the properties in some
   // non-alphabetical order. Handling that would require sorting CSS
   // properties in the client & server versions or applying
@@ -32612,6 +32312,7 @@ var canDiffStyleForHydrationWarning;
   // normalized. Since it only affects IE, we're skipping style warnings
   // in that browser completely in favor of doing all that work.
   // See https://github.com/facebook/react/issues/11807
+
   canDiffStyleForHydrationWarning = canUseDOM && !document.documentMode;
 }
 
@@ -32833,14 +32534,16 @@ function setProp(domElement, tag, key, value, props, prevValue) {
           if (canSetTextContent) {
             setTextContent(domElement, value);
           }
-        } else if (typeof value === 'number') {
+        } else if (typeof value === 'number' || enableBigIntSupport ) {
           {
+            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
             validateTextNesting('' + value, tag);
           }
 
           var _canSetTextContent = tag !== 'body';
 
           if (_canSetTextContent) {
+            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
             setTextContent(domElement, '' + value);
           }
         }
@@ -32905,42 +32608,40 @@ function setProp(domElement, tag, key, value, props, prevValue) {
           validateFormActionInDevelopment(tag, key, value, props);
         }
 
-        {
-          if (typeof value === 'function') {
-            // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-            // because we'll preventDefault, but it can happen if a form is manually submitted or
-            // if someone calls stopPropagation before React gets the event.
-            // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-            // error message but the URL will be logged.
-            domElement.setAttribute(key, // eslint-disable-next-line no-script-url
-            "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
-            break;
-          } else if (typeof prevValue === 'function') {
-            // When we're switching off a Server Action that was originally hydrated.
-            // The server control these fields during SSR that are now trailing.
-            // The regular diffing doesn't apply since we compare against the previous props.
-            // Instead, we need to force them to be set to whatever they should be now.
-            // This would be a lot cleaner if we did this whole fork in the per-tag approach.
-            if (key === 'formAction') {
-              if (tag !== 'input') {
-                // Setting the name here isn't completely safe for inputs if this is switching
-                // to become a radio button. In that case we let the tag based override take
-                // control.
-                setProp(domElement, tag, 'name', props.name, props, null);
-              }
-
-              setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
-              setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
-              setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
-            } else {
-              setProp(domElement, tag, 'encType', props.encType, props, null);
-              setProp(domElement, tag, 'method', props.method, props, null);
-              setProp(domElement, tag, 'target', props.target, props, null);
+        if (typeof value === 'function') {
+          // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+          // because we'll preventDefault, but it can happen if a form is manually submitted or
+          // if someone calls stopPropagation before React gets the event.
+          // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+          // error message but the URL will be logged.
+          domElement.setAttribute(key, // eslint-disable-next-line no-script-url
+          "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
+          break;
+        } else if (typeof prevValue === 'function') {
+          // When we're switching off a Server Action that was originally hydrated.
+          // The server control these fields during SSR that are now trailing.
+          // The regular diffing doesn't apply since we compare against the previous props.
+          // Instead, we need to force them to be set to whatever they should be now.
+          // This would be a lot cleaner if we did this whole fork in the per-tag approach.
+          if (key === 'formAction') {
+            if (tag !== 'input') {
+              // Setting the name here isn't completely safe for inputs if this is switching
+              // to become a radio button. In that case we let the tag based override take
+              // control.
+              setProp(domElement, tag, 'name', props.name, props, null);
             }
+
+            setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
+            setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
+            setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
+          } else {
+            setProp(domElement, tag, 'encType', props.encType, props, null);
+            setProp(domElement, tag, 'method', props.method, props, null);
+            setProp(domElement, tag, 'target', props.target, props, null);
           }
         }
 
-        if (value == null || !enableFormActions  || typeof value === 'symbol' || typeof value === 'boolean') {
+        if (value == null || typeof value === 'symbol' || typeof value === 'boolean') {
           domElement.removeAttribute(key);
           break;
         } // `setAttribute` with objects becomes only `[object]` in IE8/9,
@@ -33001,7 +32702,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
       {
         if (value != null) {
           if (typeof value !== 'object' || !('__html' in value)) {
-            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
           }
 
           var nextHtml = value.__html;
@@ -33103,6 +32804,14 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         break;
       }
     // Boolean
+
+    case 'inert':
+      {
+        setValueForAttribute(domElement, key, value);
+        break;
+      }
+
+    // fallthrough for new boolean props without the flag on
 
     case 'allowFullScreen':
     case 'async':
@@ -33279,7 +32988,7 @@ function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
       {
         if (value != null) {
           if (typeof value !== 'object' || !('__html' in value)) {
-            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
           }
 
           var nextHtml = value.__html;
@@ -33302,7 +33011,8 @@ function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
       {
         if (typeof value === 'string') {
           setTextContent(domElement, value);
-        } else if (typeof value === 'number') {
+        } else if (typeof value === 'number' || enableBigIntSupport ) {
+          // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
           setTextContent(domElement, '' + value);
         }
 
@@ -33913,13 +33623,13 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
           var isControlled = nextProps.type === 'checkbox' || nextProps.type === 'radio' ? nextProps.checked != null : nextProps.value != null;
 
           if (!wasControlled && isControlled && !didWarnUncontrolledToControlled) {
-            error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
+            error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://react.dev/link/controlled-components');
 
             didWarnUncontrolledToControlled = true;
           }
 
           if (wasControlled && !isControlled && !didWarnControlledToUncontrolled) {
-            error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
+            error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://react.dev/link/controlled-components');
 
             didWarnControlledToUncontrolled = true;
           }
@@ -34765,10 +34475,10 @@ function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAt
             warnForPropDifference(propKey, 'function', value);
             continue;
           }
-        }
 
-        hydrateSanitizedAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes);
-        continue;
+          hydrateSanitizedAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes);
+          continue;
+        }
 
       case 'xlinkHref':
         hydrateSanitizedAttribute(domElement, propKey, 'xlink:href', value, extraAttributes);
@@ -34894,6 +34604,10 @@ function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAt
       case 'xmlSpace':
         hydrateAttribute(domElement, propKey, 'xml:space', value, extraAttributes);
         continue;
+
+      case 'inert':
+
+      // fallthrough for new boolean props without the flag on
 
       default:
         {
@@ -35049,7 +34763,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
   // TODO: Warn if there is more than a single textNode as a child.
   // TODO: Should we use domElement.firstChild.nodeValue to compare?
 
-  if (typeof children === 'string' || typeof children === 'number') {
+  if (typeof children === 'string' || typeof children === 'number' || enableBigIntSupport ) {
+    // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
     if (domElement.textContent !== '' + children) {
       if (props.suppressHydrationWarning !== true) {
         checkForUnmatchedText(domElement.textContent, children, isConcurrentMode, shouldWarnDev);
@@ -35157,14 +34872,6 @@ function warnForInsertedHydratedElement(parentNode, tag, props) {
 }
 function warnForInsertedHydratedText(parentNode, text) {
   {
-    if (text === '') {
-      // We expect to insert empty text nodes since they're not represented in
-      // the HTML.
-      // TODO: Remove this special case if we can just avoid inserting empty
-      // text nodes.
-      return;
-    }
-
     if (didWarnInvalidHydration) {
       return;
     }
@@ -35230,6 +34937,8 @@ function propNamesListJoin(list, combinator) {
       return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
   }
 }
+
+var ReactDOMCurrentDispatcher$1 = Internals.ReactDOMCurrentDispatcher; // Unused
 
 var SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
 var SUSPENSE_START_DATA = '$';
@@ -35529,7 +35238,7 @@ function finalizeInitialChildren(domElement, type, props, hostContext) {
   }
 }
 function shouldSetTextContent(type, props) {
-  return type === 'textarea' || type === 'noscript' || typeof props.children === 'string' || typeof props.children === 'number' || typeof props.dangerouslySetInnerHTML === 'object' && props.dangerouslySetInnerHTML !== null && props.dangerouslySetInnerHTML.__html != null;
+  return type === 'textarea' || type === 'noscript' || typeof props.children === 'string' || typeof props.children === 'number' || enableBigIntSupport  || typeof props.dangerouslySetInnerHTML === 'object' && props.dangerouslySetInnerHTML !== null && props.dangerouslySetInnerHTML.__html != null;
 }
 function createTextInstance(text, rootContainerInstance, hostContext, internalInstanceHandle) {
   {
@@ -35842,9 +35551,6 @@ function clearContainerSparingly(container) {
 
   return;
 } // Making this so we can eventually move all of the instance caching to the commit phase.
-function isHydratableText(text) {
-  return text !== '';
-}
 function canHydrateInstance(instance, type, props, inRootOrSingleton) {
   while (instance.nodeType === ELEMENT_NODE) {
     var element = instance;
@@ -36453,12 +36159,10 @@ function getCurrentResourceRoot() {
 
 function getDocumentFromRoot(root) {
   return root.ownerDocument || root;
-} // We want this to be the default dispatcher on ReactDOMSharedInternals but we don't want to mutate
-// internals in Module scope. Instead we export it and Internals will import it. There is already a cycle
-// from Internals -> ReactDOM -> HostConfig -> Internals so this doesn't introduce a new one.
+}
 
-
-var ReactDOMClientDispatcher = {
+var previousDispatcher = ReactDOMCurrentDispatcher$1.current;
+ReactDOMCurrentDispatcher$1.current = {
   prefetchDNS: prefetchDNS$1,
   preconnect: preconnect$1,
   preload: preload$1,
@@ -36473,14 +36177,16 @@ var ReactDOMClientDispatcher = {
 // This is notable because nowhere else in ReactDOM do we actually reference the global document or window
 // because we may be rendering inside an iframe.
 
-function getDocumentForImperativeFloatMethods() {
-  return document;
+var globalDocument = typeof document === 'undefined' ? null : document;
+
+function getGlobalDocument() {
+  return globalDocument;
 }
 
 function preconnectAs(rel, href, crossOrigin) {
-  var ownerDocument = getDocumentForImperativeFloatMethods();
+  var ownerDocument = getGlobalDocument();
 
-  if (typeof href === 'string' && href) {
+  if (ownerDocument && typeof href === 'string' && href) {
     var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
     var key = "link[rel=\"" + rel + "\"][href=\"" + limitedEscapedHref + "\"]";
 
@@ -36507,20 +36213,20 @@ function preconnectAs(rel, href, crossOrigin) {
 }
 
 function prefetchDNS$1(href) {
-
+  previousDispatcher.prefetchDNS(href);
   preconnectAs('dns-prefetch', href, null);
 }
 
 function preconnect$1(href, crossOrigin) {
-
+  previousDispatcher.preconnect(href, crossOrigin);
   preconnectAs('preconnect', href, crossOrigin);
 }
 
 function preload$1(href, as, options) {
+  previousDispatcher.preload(href, as, options);
+  var ownerDocument = getGlobalDocument();
 
-  var ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (href && as && ownerDocument) {
+  if (ownerDocument && href && as) {
     var preloadSelector = "link[rel=\"preload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"]";
 
     if (as === 'image') {
@@ -36584,10 +36290,10 @@ function preload$1(href, as, options) {
 }
 
 function preloadModule$1(href, options) {
+  previousDispatcher.preloadModule(href, options);
+  var ownerDocument = getGlobalDocument();
 
-  var ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (href) {
+  if (ownerDocument && href) {
     var as = options && typeof options.as === 'string' ? options.as : 'script';
     var preloadSelector = "link[rel=\"modulepreload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"][href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
     // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
@@ -36641,10 +36347,10 @@ function preloadModule$1(href, options) {
 }
 
 function preinitStyle(href, precedence, options) {
+  previousDispatcher.preinitStyle(href, precedence, options);
+  var ownerDocument = getGlobalDocument();
 
-  var ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (href) {
+  if (ownerDocument && href) {
     var styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
     var key = getStyleKey(href);
     precedence = precedence || 'default'; // Check if this resource already exists
@@ -36710,10 +36416,10 @@ function preinitStyle(href, precedence, options) {
 }
 
 function preinitScript(src, options) {
+  previousDispatcher.preinitScript(src, options);
+  var ownerDocument = getGlobalDocument();
 
-  var ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (src) {
+  if (ownerDocument && src) {
     var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
     var key = getScriptKey(src); // Check if this resource already exists
 
@@ -36761,10 +36467,10 @@ function preinitScript(src, options) {
 }
 
 function preinitModuleScript(src, options) {
+  previousDispatcher.preinitModuleScript(src, options);
+  var ownerDocument = getGlobalDocument();
 
-  var ownerDocument = getDocumentForImperativeFloatMethods();
-
-  if (src) {
+  if (ownerDocument && src) {
     var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
     var key = getScriptKey(src); // Check if this resource already exists
 
@@ -37755,12 +37461,6 @@ function insertStylesheetIntoRoot(root, resource, map) {
 
 var NotPendingTransition = NotPending;
 
-var Dispatcher$1 = Internals.Dispatcher;
-
-if (typeof document !== 'undefined') {
-  // Set the default dispatcher to the client dispatcher
-  Dispatcher$1.current = ReactDOMClientDispatcher;
-}
 /* global reportError */
 
 var defaultOnRecoverableError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
@@ -37867,7 +37567,6 @@ function createRoot$1(container, options) {
 
   var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks);
   markContainerAsRoot(root.current, container);
-  Dispatcher$1.current = ReactDOMClientDispatcher;
   var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
   listenToAllSupportedEvents(rootContainerElement); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
@@ -37934,8 +37633,7 @@ function hydrateRoot$1(container, initialChildren, options) {
   }
 
   var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState);
-  markContainerAsRoot(root.current, container);
-  Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
+  markContainerAsRoot(root.current, container); // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
   listenToAllSupportedEvents(container); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
@@ -38131,8 +37829,9 @@ function findDOMNode(componentOrElement) {
   }
 }
 function hydrate(element, container, callback) {
+
   {
-    error('ReactDOM.hydrate is no longer supported in React 18. Use hydrateRoot ' + 'instead. Until you switch to the new API, your app will behave as ' + "if it's running React 17. Learn " + 'more: https://reactjs.org/link/switch-to-createroot');
+    error('ReactDOM.hydrate is no longer supported in React 18. Use hydrateRoot ' + 'instead. Until you switch to the new API, your app will behave as ' + "if it's running React 17. Learn " + 'more: https://react.dev/link/switch-to-createroot');
   }
 
   if (!isValidContainerLegacy(container)) {
@@ -38151,8 +37850,9 @@ function hydrate(element, container, callback) {
   return legacyRenderSubtreeIntoContainer(null, element, container, true, callback);
 }
 function render(element, container, callback) {
+
   {
-    error('ReactDOM.render is no longer supported in React 18. Use createRoot ' + 'instead. Until you switch to the new API, your app will behave as ' + "if it's running React 17. Learn " + 'more: https://reactjs.org/link/switch-to-createroot');
+    error('ReactDOM.render is no longer supported in React 18. Use createRoot ' + 'instead. Until you switch to the new API, your app will behave as ' + "if it's running React 17. Learn " + 'more: https://react.dev/link/switch-to-createroot');
   }
 
   if (!isValidContainerLegacy(container)) {
@@ -38170,8 +37870,9 @@ function render(element, container, callback) {
   return legacyRenderSubtreeIntoContainer(null, element, container, false, callback);
 }
 function unstable_renderSubtreeIntoContainer(parentComponent, element, containerNode, callback) {
+
   {
-    error('ReactDOM.unstable_renderSubtreeIntoContainer() is no longer supported ' + 'in React 18. Consider using a portal instead. Until you switch to ' + "the createRoot API, your app will behave as if it's running React " + '17. Learn more: https://reactjs.org/link/switch-to-createroot');
+    error('ReactDOM.unstable_renderSubtreeIntoContainer() is no longer supported ' + 'in React 18. Consider using a portal instead. Until you switch to ' + "the createRoot API, your app will behave as if it's running React " + '17. Learn more: https://react.dev/link/switch-to-createroot');
   }
 
   if (!isValidContainerLegacy(containerNode)) {
@@ -38256,7 +37957,7 @@ function getCrossOriginStringAs(as, input) {
   return undefined;
 }
 
-var Dispatcher = Internals.Dispatcher;
+var ReactDOMCurrentDispatcher = Internals.ReactDOMCurrentDispatcher;
 function prefetchDNS(href) {
   {
     if (typeof href !== 'string' || !href) {
@@ -38272,10 +37973,8 @@ function prefetchDNS(href) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
-    dispatcher.prefetchDNS(href);
+  if (typeof href === 'string') {
+    ReactDOMCurrentDispatcher.current.prefetchDNS(href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -38292,11 +37991,9 @@ function preconnect(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
-    dispatcher.preconnect(href, crossOrigin);
+    ReactDOMCurrentDispatcher.current.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -38321,13 +38018,11 @@ function preload(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  if (typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
     var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    dispatcher.preload(href, as, {
+    ReactDOMCurrentDispatcher.current.preload(href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
       nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
@@ -38361,18 +38056,16 @@ function preloadModule(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (options) {
       var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-      dispatcher.preloadModule(href, {
+      ReactDOMCurrentDispatcher.current.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
         integrity: typeof options.integrity === 'string' ? options.integrity : undefined
       });
     } else {
-      dispatcher.preloadModule(href);
+      ReactDOMCurrentDispatcher.current.preloadModule(href);
     }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -38390,22 +38083,20 @@ function preinit(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+  if (typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
     var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
     if (as === 'style') {
-      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+      ReactDOMCurrentDispatcher.current.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
         crossOrigin: crossOrigin,
         integrity: integrity,
         fetchPriority: fetchPriority
       });
     } else if (as === 'script') {
-      dispatcher.preinitScript(href, {
+      ReactDOMCurrentDispatcher.current.preinitScript(href, {
         crossOrigin: crossOrigin,
         integrity: integrity,
         fetchPriority: fetchPriority,
@@ -38453,20 +38144,18 @@ function preinitModule(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (typeof options === 'object' && options !== null) {
       if (options.as == null || options.as === 'script') {
         var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-        dispatcher.preinitModuleScript(href, {
+        ReactDOMCurrentDispatcher.current.preinitModuleScript(href, {
           crossOrigin: crossOrigin,
           integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
           nonce: typeof options.nonce === 'string' ? options.nonce : undefined
         });
       }
     } else if (options == null) {
-      dispatcher.preinitModuleScript(href);
+      ReactDOMCurrentDispatcher.current.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -38486,7 +38175,7 @@ function getValueDescriptorExpectingEnumForWarning(thing) {
   if (typeof Map !== 'function' || // $FlowFixMe[prop-missing] Flow incorrectly thinks Map has no prototype
   Map.prototype == null || typeof Map.prototype.forEach !== 'function' || typeof Set !== 'function' || // $FlowFixMe[prop-missing] Flow incorrectly thinks Set has no prototype
   Set.prototype == null || typeof Set.prototype.clear !== 'function' || typeof Set.prototype.forEach !== 'function') {
-    error('React depends on Map and Set built-in types. Make sure that you load a ' + 'polyfill in older browsers. https://reactjs.org/link/react-polyfills');
+    error('React depends on Map and Set built-in types. Make sure that you load a ' + 'polyfill in older browsers. https://react.dev/link/react-polyfills');
   }
 }
 
@@ -38557,7 +38246,7 @@ var foundDevTools = injectIntoDevTools({
 
       if (/^(https?|file):$/.test(protocol)) {
         // eslint-disable-next-line react-internal/no-production-logging
-        console.info('%cDownload the React DevTools ' + 'for a better development experience: ' + 'https://reactjs.org/link/react-devtools' + (protocol === 'file:' ? '\nYou might need to use a local HTTP server (instead of file://): ' + 'https://reactjs.org/link/react-devtools-faq' : ''), 'font-weight:bold');
+        console.info('%cDownload the React DevTools ' + 'for a better development experience: ' + 'https://react.dev/link/react-devtools' + (protocol === 'file:' ? '\nYou might need to use a local HTTP server (instead of file://): ' + 'https://react.dev/link/react-devtools-faq' : ''), 'font-weight:bold');
       }
     }
   }
