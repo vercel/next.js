@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('app dir - next/dynamic', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -56,6 +57,26 @@ describe('app dir - next/dynamic', () => {
     const $ = await next.render$('/chunk-loading/server')
     expect($('h1').text()).toBe('hello')
   })
+
+  it('should not render loading by default', async () => {
+    const $ = await next.render$('/default')
+    expect($('#dynamic-component').text()).not.toContain('loading')
+  })
+
+  if (isNextDev) {
+    it('should directly raise error when dynamic component error on server', async () => {
+      const pagePath = 'app/default/dynamic-component.js'
+      const page = await next.readFile(pagePath)
+      await next.patchFile(
+        pagePath,
+        page.replace('const isDevTest = false', 'const isDevTest = true')
+      )
+      await retry(async () => {
+        const { status } = await next.fetch('/default')
+        expect(status).toBe(500)
+      })
+    })
+  }
 
   describe('no SSR', () => {
     it('should not render client component imported through ssr: false in client components in edge runtime', async () => {
