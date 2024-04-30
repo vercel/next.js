@@ -37,11 +37,7 @@ CSS Modules can be imported into any file inside the `app` directory:
 ```tsx filename="app/dashboard/layout.tsx" switcher
 import styles from './styles.module.css'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function DashboardLayout({ children }: React.PropsWithChildren) {
   return <section className={styles.dashboard}>{children}</section>
 }
 ```
