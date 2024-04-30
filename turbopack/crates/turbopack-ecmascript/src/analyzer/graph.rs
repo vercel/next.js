@@ -690,6 +690,7 @@ enum EarlyReturn {
 struct Analyzer<'a> {
     data: &'a mut VarGraph,
 
+    #[allow(clippy::vec_box)]
     effects: Vec<Effect>,
     hoisted_effects: Vec<Effect>,
     early_return_stack: Vec<EarlyReturn>,
@@ -756,6 +757,7 @@ impl Analyzer<'_> {
         self.add_value(id, value);
     }
 
+    #[inline]
     fn add_effect(&mut self, effect: Effect) {
         self.effects.push(effect);
     }
