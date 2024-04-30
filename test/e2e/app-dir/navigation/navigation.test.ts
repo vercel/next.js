@@ -25,19 +25,14 @@ describe('app dir - navigation', () => {
     })
 
     it('should set query with semicolon correctly', async () => {
-      const browser = await next.browser('/')
-      expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
-        `""`
-      )
-
-      await browser.elementById('set-query').click()
+      const browser = await next.browser('/redirect/semicolon')
 
       await retry(() =>
-        expect(browser.elementById('query').text()).resolves.toEqual('a=b;c')
+        expect(browser.elementById('query').text()).resolves.toEqual('a=b%3Bc')
       )
 
       const url = new URL(await browser.url())
-      expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b;c"`)
+      expect(url.searchParams.toString()).toBe('a=b%3Bc')
     })
 
     it('should handle unicode search params', async () => {

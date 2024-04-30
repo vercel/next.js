@@ -137,7 +137,7 @@ export function getURLFromRedirectError(error: unknown): string | null {
 
   // Slices off the beginning of the digest that contains the code and the
   // separating ';'.
-  return error.digest.split(';').slice(2, -2).join(";")
+  return error.digest.split(';').slice(2, -2).join(';')
 }
 
 export function getRedirectTypeFromError<U extends string>(
