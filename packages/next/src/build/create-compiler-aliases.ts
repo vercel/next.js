@@ -118,8 +118,6 @@ export function createWebpackAliases({
         }
       : undefined),
 
-    next: NEXT_PROJECT_ROOT,
-
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 
