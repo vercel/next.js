@@ -8,6 +8,7 @@
   "@libsql/client",
   "@mikro-orm/core",
   "@mikro-orm/knex",
+  "@node-rs/argon2",
   "@prisma/client",
   "@react-pdf/renderer",
   "@sentry/profiling-node",
