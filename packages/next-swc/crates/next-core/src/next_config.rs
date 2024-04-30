@@ -520,7 +520,7 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<String>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
-    ppr: Option<bool>,
+    ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
@@ -540,6 +540,49 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "lowercase")]
+pub enum ExperimentalPartialPrerenderingIncrementalValue {
+    Incremental,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ExperimentalPartialPrerendering {
+    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
+    Boolean(bool),
+}
+
+#[test]
+fn test_parse_experimental_partial_prerendering() {
+    let json = serde_json::json!({
+        "ppr": "incremental"
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.ppr,
+        Some(ExperimentalPartialPrerendering::Incremental(
+            ExperimentalPartialPrerenderingIncrementalValue::Incremental
+        ))
+    );
+
+    let json = serde_json::json!({
+        "ppr": true
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.ppr,
+        Some(ExperimentalPartialPrerendering::Boolean(true))
+    );
+
+    // Expect if we provide a random string, it will fail.
+    let json = serde_json::json!({
+        "ppr": "random"
+    });
+    let config = serde_json::from_value::<ExperimentalConfig>(json);
+    assert!(config.is_err());
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -570,6 +613,25 @@ pub enum EsmExternalsValue {
 pub enum EsmExternals {
     Loose(EsmExternalsValue),
     Bool(bool),
+}
+
+// Test for esm externals deserialization.
+#[test]
+fn test_esm_externals_deserialization() {
+    let json = serde_json::json!({
+        "esmExternals": true
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(config.esm_externals, Some(EsmExternals::Bool(true)));
+
+    let json = serde_json::json!({
+        "esmExternals": "loose"
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.esm_externals,
+        Some(EsmExternals::Loose(EsmExternalsValue::Loose))
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
@@ -934,7 +996,19 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .ppr
+                .as_ref()
+                .and_then(|ppr| match ppr {
+                    ExperimentalPartialPrerendering::Incremental(
+                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
+                    ) => Some(true),
+                    ExperimentalPartialPrerendering::Boolean(b) => Some(*b),
+                })
+                .unwrap_or(false),
+        ))
     }
 
     #[turbo_tasks::function]
