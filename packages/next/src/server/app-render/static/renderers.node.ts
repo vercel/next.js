@@ -1,25 +1,15 @@
+import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
 import type { RenderResult, Renderer } from './static-renderer'
-import { PassThrough, type Writable } from 'node:stream'
-
-type PipeableStream = {
-  pipe<T extends Writable>(destination: T): T
-}
-
-type RenderToPipeableStream = (
-  children: JSX.Element,
-  options?: unknown
-) => Promise<PipeableStream>
+import { PassThrough } from 'node:stream'
 
 export class ServerRenderer implements Renderer {
   private readonly renderToPipeableStream = require('react-dom/server')
-    .renderToPipeableStream as RenderToPipeableStream
+    .renderToPipeableStream as typeof import('react-dom/server.node')['renderToPipeableStream']
 
-  constructor(private readonly options: unknown) {}
+  constructor(private readonly options: RenderToPipeableStreamOptions) {}
 
   public async render(children: JSX.Element): Promise<RenderResult> {
-    const stream = await this.renderToPipeableStream(children, {
-      // FIXME: we aren't passing the options through here, we should
-    })
+    const stream = await this.renderToPipeableStream(children, this.options)
 
     // Create the passthrough stream that'll be used to pipe the React stream
     // into the final response.

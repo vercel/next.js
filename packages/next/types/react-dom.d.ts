@@ -125,3 +125,85 @@ declare module 'react-dom/static.edge' {
     postponed: object | null
   }>
 }
+
+declare module 'react-dom/server.node' {
+  import type { Writable } from 'node:stream'
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L320
+  interface BootstrapScriptDescriptor {
+    src: string
+    integrity?: string
+    crossOrigin?: string
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L790
+  interface ThrownInfo {
+    componentStack?: string
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L793
+  type ErrorInfo = ThrownInfo
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L794
+  type PostponeInfo = ThrownInfo
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/shared/ReactDOMTypes.js#L110
+  interface ImportMap {
+    imports?: {
+      [specifier: string]: string
+    }
+    scopes?: {
+      [scope: string]: {
+        [specifier: string]: string
+      }
+    }
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/shared/ReactTypes.js#L164
+  type ReactFormState<S, ReferenceId> = [
+    S /* actual state value */,
+    string /* key path */,
+    ReferenceId /* Server Reference ID */,
+    number /* number of bound arguments */
+  ]
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L103
+  interface HeadersDescriptor {
+    Link?: string
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L56
+  export interface Options {
+    identifierPrefix?: string
+    namespaceURI?: string
+    nonce?: string
+    bootstrapScriptContent?: string
+    bootstrapScripts?: Array<string | BootstrapScriptDescriptor>
+    bootstrapModules?: Array<string | BootstrapScriptDescriptor>
+    progressiveChunkSize?: number
+    onShellReady?: () => void
+    onShellError?: (error: unknown) => void
+    onAllReady?: () => void
+    onError?: (
+      error: unknown,
+      errorInfo: ErrorInfo
+    ) => string | undefined | null
+    onPostpone?: (reason: string, postponeInfo: PostponeInfo) => void
+    unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
+    importMap?: ImportMap
+    formState?: ReactFormState<any, any> | null
+    onHeaders?: (headers: HeadersDescriptor) => void
+    maxHeadersLength?: number
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L85
+  interface PipeableStream {
+    abort(reason: unknown): void
+    pipe<T extends Writable>(destination: T): T
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L123
+  export function renderToPipeableStream(
+    children: JSX.Element,
+    options?: Options
+  ): Promise<PipeableStream>
+}
