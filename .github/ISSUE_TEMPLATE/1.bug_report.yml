@@ -1,5 +1,5 @@
 name: Bug Report
-description: Create a bug report for the Next.js core
+description: Create a bug report for Next.js.
 labels: ['bug']
 body:
   - type: markdown
@@ -72,6 +72,7 @@ body:
       options:
         - 'Not sure'
         - 'create-next-app'
+        - 'Developer Experience'
         - 'Documentation'
         - 'Lazy Loading'
         - 'Font (next/font)'
@@ -82,6 +83,8 @@ body:
         - 'Markdown (MDX)'
         - 'Metadata'
         - 'Middleware'
+        - 'Module Resolution'
+        - 'Navigation'
         - 'Output (export/standalone)'
         - 'Pages Router'
         - 'Parallel & Intercepting Routes'
@@ -94,6 +97,7 @@ body:
         - 'TypeScript'
         - 'SWC'
         - 'Upstream'
+        - 'Webpack'
 
     validations:
       required: true

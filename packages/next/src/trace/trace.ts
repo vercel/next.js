@@ -12,6 +12,10 @@ let defaultParentSpanId: SpanId | undefined
 let shouldSaveTraceEvents: boolean | undefined
 let savedTraceEvents: TraceEvent[] = []
 
+const RECORD_SPAN_THRESHOLD_MS = parseInt(
+  process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1'
+)
+
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
 export enum SpanStatus {
@@ -90,9 +94,11 @@ export class Span {
       tags: this.attrs,
       startTime: this.now,
     }
-    reporter.report(traceEvent)
-    if (shouldSaveTraceEvents) {
-      savedTraceEvents.push(traceEvent)
+    if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
+      reporter.report(traceEvent)
+      if (shouldSaveTraceEvents) {
+        savedTraceEvents.push(traceEvent)
+      }
     }
   }
 
