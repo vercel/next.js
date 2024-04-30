@@ -10,7 +10,7 @@ function generateBlocks(issues) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/issue_popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-issues.mjs|action> will run every Monday at 1PM UTC (9AM EST)._',
+        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-issues.mjs|action> will run every Monday at 10AM UTC (6AM EST)._',
       },
     },
     {
