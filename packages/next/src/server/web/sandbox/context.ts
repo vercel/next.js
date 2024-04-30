@@ -127,8 +127,8 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill(environments: Record<string, string>) {
-  const processPolyfill = { env: buildEnvironmentVariablesFrom(environments) }
+function createProcessPolyfill(env: Record<string, string>) {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom(env) }
   const overriddenValue: Record<string, any> = {}
 
   for (const key of Object.keys(process)) {
@@ -258,7 +258,7 @@ async function createModuleContext(options: ModuleContextOptions) {
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill(edgeFunctionEntry.environments)
+      context.process = createProcessPolyfill(edgeFunctionEntry.env)
 
       Object.defineProperty(context, 'require', {
         enumerable: false,
@@ -477,10 +477,7 @@ interface ModuleContextOptions {
   onWarning: (warn: Error) => void
   useCache: boolean
   distDir: string
-  edgeFunctionEntry: Pick<
-    EdgeFunctionDefinition,
-    'assets' | 'wasm' | 'environments'
-  >
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {

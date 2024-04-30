@@ -42,7 +42,7 @@ export interface EdgeFunctionDefinition {
   name: string
   page: string
   matchers: MiddlewareMatcher[]
-  environments: Record<string, string>
+  env: Record<string, string>
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
   regions?: string[] | string
@@ -227,7 +227,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
-        environments: opts.edgeEnvironments,
+        env: opts.edgeEnvironments,
         ...(metadata.regions && { regions: metadata.regions }),
       }
 
