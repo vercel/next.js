@@ -290,42 +290,20 @@ export function createRSCAliases(
 
   if (isEdgeServer) {
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
-      alias[
-        'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
-      alias[
-        'next/dist/compiled/react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
-      alias[
-        'next/dist/compiled/react-experimental$'
-      ] = `next/dist/compiled/react-experimental/react.react-server`
-      alias[
-        'react/jsx-runtime$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`
-      alias[
-        'next/dist/compiled/react/jsx-runtime$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`
-      alias[
-        'next/dist/compiled/react-experimental/jsx-runtime$'
-      ] = `next/dist/compiled/react-experimental/jsx-runtime.react-server`
-      alias[
-        'react/jsx-dev-runtime$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`
-      alias[
-        'next/dist/compiled/react/jsx-dev-runtime$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`
-      alias[
-        'next/dist/compiled/react-experimental/jsx-dev-runtime$'
-      ] = `next/dist/compiled/react-experimental/jsx-dev-runtime.react-server`
-      alias[
-        'react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
-      alias[
-        'next/dist/compiled/react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
-      alias[
-        'next/dist/compiled/react-dom-experimental$'
-      ] = `next/dist/compiled/react-dom-experimental/react-dom.react-server`
+      alias = Object.assign(alias, {
+        react$: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+        'next/dist/compiled/react$': `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+        'next/dist/compiled/react-experimental$': `next/dist/compiled/react-experimental/react.react-server`,
+        'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+        'next/dist/compiled/react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+        'next/dist/compiled/react-experimental/jsx-runtime$': `next/dist/compiled/react-experimental/jsx-runtime.react-server`,
+        'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
+        'next/dist/compiled/react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
+        'next/dist/compiled/react-experimental/jsx-dev-runtime$': `next/dist/compiled/react-experimental/jsx-dev-runtime.react-server`,
+        'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+        'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+        'next/dist/compiled/react-dom-experimental$': `next/dist/compiled/react-dom-experimental/react-dom.react-server`,
+      })
     }
   }
 
