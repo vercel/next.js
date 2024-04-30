@@ -16,7 +16,6 @@ export type EdgeSSRLoaderQuery = {
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolutePagePath: string
-  buildId: string
   dev: boolean
   isServerComponent: boolean
   page: string
