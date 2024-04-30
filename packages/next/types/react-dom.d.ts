@@ -1,42 +1,85 @@
 declare module 'react-dom/server-rendering-stub'
 declare module 'react-dom/server.browser'
 
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L320
+interface BootstrapScriptDescriptor {
+  src: string
+  integrity?: string
+  crossOrigin?: string
+}
+
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L790
+interface ThrownInfo {
+  componentStack?: string
+}
+
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L793
+type ErrorInfo = ThrownInfo
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L794
+type PostponeInfo = ThrownInfo
+
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/shared/ReactDOMTypes.js#L110
+interface ImportMap {
+  imports?: {
+    [specifier: string]: string
+  }
+  scopes?: {
+    [scope: string]: {
+      [specifier: string]: string
+    }
+  }
+}
+
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/shared/ReactTypes.js#L164
+type ReactFormState<S, ReferenceId> = [
+  S /* actual state value */,
+  string /* key path */,
+  ReferenceId /* Server Reference ID */,
+  number /* number of bound arguments */
+]
+
+// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L103
+interface HeadersDescriptor {
+  Link?: string
+}
+
+// https://github.com/facebook/react/blob/4508873393058e86bed308b56e49ec883ece59d1/packages/react-server/src/ReactFizzServer.js#L4482
+interface PostponedState {
+  nextSegmentId: number
+  // Unused in `packages/next/src`
+  rootFormatContext: unknown
+  progressiveChunkSize: number
+  // Unused in `packages/next/src`
+  resumableState: unknown
+  // Unused in `packages/next/src`
+  replayNodes: unknown
+  // Unused in `packages/next/src`
+  replaySlots: unknown
+}
+
 declare module 'react-dom/server.edge' {
-  /**
-   * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
-   */
-  type BootstrapScriptDescriptor = {
-    src: string
-    integrity?: string
-    crossOrigin?: string
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L67
+  export type ReactDOMServerReadableStream = ReadableStream<Uint8Array> & {
+    allReady: Promise<void>
   }
 
-  /**
-   * Options for `resume`.
-   *
-   * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L54-L60
-   */
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L58
   export type ResumeOptions = {
     nonce?: string
     signal?: AbortSignal
-    onError?: (error: unknown, errorInfo: unknown) => string | undefined
+    onError?: (error: unknown) => string | undefined | null | void
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
   }
 
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L162
   export function resume(
     children: JSX.Element,
     postponedState: object,
-    options?: {
-      onError?: (error: Error, errorInfo: unknown) => void
-    }
-  ): Promise<ReadableStream<Uint8Array>>
+    options?: ResumeOptions
+  ): Promise<ReactDOMServerReadableStream>
 
-  /**
-   * Options for `renderToReadableStream`.
-   *
-   * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L36-L52
-   */
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L40
   export type Options = {
     identifierPrefix?: string
     namespaceURI?: string
@@ -46,49 +89,27 @@ declare module 'react-dom/server.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown, errorInfo: unknown) => string | undefined
-    onPostpone?: (reason: string) => void
+    onError?: (
+      error: unknown,
+      errorInfo: ErrorInfo
+    ) => string | undefined | null | void
+    onPostpone?: (reason: string, postponeInfo: PostponeInfo) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
-    importMap?: {
-      imports?: {
-        [specifier: string]: string
-      }
-      scopes?: {
-        [scope: string]: {
-          [specifier: string]: string
-        }
-      }
-    }
-    formState?: unknown
+    importMap?: ImportMap
+    formState?: ReactFormState<any, any> | null
     onHeaders?: (headers: Headers) => void
     maxHeadersLength?: number
   }
 
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L71
   export function renderToReadableStream(
     children: JSX.Element,
     options?: Options
-  ): Promise<
-    ReadableStream<Uint8Array> & {
-      allReady: Promise<void>
-    }
-  >
+  ): Promise<ReactDOMServerReadableStream>
 }
 
 declare module 'react-dom/static.edge' {
-  /**
-   * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
-   */
-  type BootstrapScriptDescriptor = {
-    src: string
-    integrity?: string
-    crossOrigin?: string
-  }
-
-  /**
-   * Options for `prerender`.
-   *
-   * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom/src/server/ReactDOMFizzStaticEdge.js#L35-L49
-   */
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticEdge.js#L39
   export type Options = {
     identifierPrefix?: string
     namespaceURI?: string
@@ -97,79 +118,32 @@ declare module 'react-dom/static.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown, errorInfo: unknown) => string | undefined
-    onPostpone?: (reason: string) => void
+    onError?: (
+      error: unknown,
+      errorInfo: ErrorInfo
+    ) => string | undefined | null | void
+    onPostpone?: (reason: string, postponeInfo: PostponeInfo) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
-    importMap?: {
-      imports?: {
-        [specifier: string]: string
-      }
-      scopes?: {
-        [scope: string]: {
-          [specifier: string]: string
-        }
-      }
-    }
+    importMap?: ImportMap
     onHeaders?: (headers: Headers) => void
     maxHeadersLength?: number
   }
 
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticEdge.js#L55
+  export type StaticResult = {
+    postponed: null | PostponedState
+    prelude: ReadableStream<Uint8Array>
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticEdge.js#L60
   export function prerender(
     children: JSX.Element,
-    options?: {
-      onError?: (error: Error, errorInfo: unknown) => void
-      onHeaders?: (headers: Headers) => void
-    }
-  ): Promise<{
-    prelude: ReadableStream<Uint8Array>
-    postponed: object | null
-  }>
+    options?: Options
+  ): Promise<StaticResult>
 }
 
 declare module 'react-dom/server.node' {
   import type { Writable } from 'node:stream'
-
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L320
-  interface BootstrapScriptDescriptor {
-    src: string
-    integrity?: string
-    crossOrigin?: string
-  }
-
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L790
-  interface ThrownInfo {
-    componentStack?: string
-  }
-
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L793
-  type ErrorInfo = ThrownInfo
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-server/src/ReactFizzServer.js#L794
-  type PostponeInfo = ThrownInfo
-
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/shared/ReactDOMTypes.js#L110
-  interface ImportMap {
-    imports?: {
-      [specifier: string]: string
-    }
-    scopes?: {
-      [scope: string]: {
-        [specifier: string]: string
-      }
-    }
-  }
-
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/shared/ReactTypes.js#L164
-  type ReactFormState<S, ReferenceId> = [
-    S /* actual state value */,
-    string /* key path */,
-    ReferenceId /* Server Reference ID */,
-    number /* number of bound arguments */
-  ]
-
-  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L103
-  interface HeadersDescriptor {
-    Link?: string
-  }
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L56
   export interface Options {
@@ -186,7 +160,7 @@ declare module 'react-dom/server.node' {
     onError?: (
       error: unknown,
       errorInfo: ErrorInfo
-    ) => string | undefined | null
+    ) => string | undefined | null | void
     onPostpone?: (reason: string, postponeInfo: PostponeInfo) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: ImportMap
@@ -206,4 +180,40 @@ declare module 'react-dom/server.node' {
     children: JSX.Element,
     options?: Options
   ): Promise<PipeableStream>
+}
+
+declare module 'react-dom/static.node' {
+  import type { Readable } from 'node:stream'
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticNode.js#L40
+  export interface Options {
+    identifierPrefix?: string
+    namespaceURI?: string
+    bootstrapScriptContent?: string
+    bootstrapScripts?: Array<string | BootstrapScriptDescriptor>
+    bootstrapModules?: Array<string | BootstrapScriptDescriptor>
+    progressiveChunkSize?: number
+    signal?: AbortSignal
+    onError?: (
+      error: unknown,
+      errorInfo: ErrorInfo
+    ) => string | undefined | null | void
+    onPostpone?: (reason: string, postponeInfo: PostponeInfo) => void
+    unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
+    importMap?: ImportMap
+    onHeaders?: (headers: HeadersDescriptor) => void
+    maxHeadersLength?: number
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticNode.js#L56
+  export type StaticResult = {
+    postponed: null | PostponedState
+    prelude: Readable
+  }
+
+  // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticNode.js#L77
+  export function prerenderToNodeStream(
+    children: JSX.Element,
+    options?: Options
+  ): Promise<StaticResult>
 }
