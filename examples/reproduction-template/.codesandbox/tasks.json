@@ -8,7 +8,7 @@
   "tasks": {
     "dev": {
       "name": "dev",
-      "command": "pnpm update next && pnpm dev",
+      "command": "pnpm update next@canary && pnpm dev",
       "runAtStart": true,
       "restartOn": {
         "clone": true
