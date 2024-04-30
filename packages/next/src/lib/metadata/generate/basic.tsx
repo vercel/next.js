@@ -73,9 +73,7 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
         // If it's same origin, and it's a preview deployment,
         // including credentials for manifest request.
         crossOrigin={
-          metadataBase &&
-          metadataBase.origin === manifestOrigin &&
-          process.env.VERCEL_ENV === 'preview'
+          !manifestOrigin && process.env.VERCEL_ENV === 'preview'
             ? 'use-credentials'
             : undefined
         }
