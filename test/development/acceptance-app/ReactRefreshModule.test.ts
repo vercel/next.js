@@ -7,8 +7,8 @@ describe('ReactRefreshModule app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: '19.0.0-beta-94eed63c49-20240425',
-      'react-dom': '19.0.0-beta-94eed63c49-20240425',
+      react: '19.0.0-beta-4508873393-20240430',
+      'react-dom': '19.0.0-beta-4508873393-20240430',
     },
     skipStart: true,
   })

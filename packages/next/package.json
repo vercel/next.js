@@ -104,8 +104,8 @@
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.41.2",
-    "react": "19.0.0-beta-94eed63c49-20240425",
-    "react-dom": "19.0.0-beta-94eed63c49-20240425",
+    "react": "19.0.0-beta-4508873393-20240430",
+    "react-dom": "19.0.0-beta-4508873393-20240430",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {

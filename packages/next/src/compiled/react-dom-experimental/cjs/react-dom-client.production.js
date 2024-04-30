@@ -14696,7 +14696,7 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 var devToolsConfig$jscomp$inline_1621 = {
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 0,
-  version: "19.0.0-experimental-94eed63c49-20240425",
+  version: "19.0.0-experimental-4508873393-20240430",
   rendererPackageName: "react-dom"
 };
 var internals$jscomp$inline_1999 = {
@@ -14726,7 +14726,7 @@ var internals$jscomp$inline_1999 = {
   scheduleRoot: null,
   setRefreshHandler: null,
   getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-experimental-94eed63c49-20240425"
+  reconcilerVersion: "19.0.0-experimental-4508873393-20240430"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2000 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -14832,4 +14832,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.0.0-experimental-94eed63c49-20240425";
+exports.version = "19.0.0-experimental-4508873393-20240430";

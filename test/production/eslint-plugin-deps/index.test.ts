@@ -94,7 +94,7 @@ describe('eslint plugin deps', () => {
         'eslint-plugin-react': 'latest',
         '@types/node': 'latest',
         '@types/react': 'latest',
-        '@types/react-dom': '19.0.0-beta-94eed63c49-20240425',
+        '@types/react-dom': '19.0.0-beta-4508873393-20240430',
         // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
         eslint: '8.56.0',
         'eslint-config-next': 'latest',

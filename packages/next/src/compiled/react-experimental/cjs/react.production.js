@@ -501,9 +501,6 @@ exports.unstable_postpone = function (reason) {
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
 };
-exports.unstable_useMemoCache = function (size) {
-  return ReactSharedInternals.H.useMemoCache(size);
-};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
@@ -562,4 +559,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-94eed63c49-20240425";
+exports.version = "19.0.0-experimental-4508873393-20240430";

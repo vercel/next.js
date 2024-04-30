@@ -4,8 +4,8 @@ describe('redirects and rewrites', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      react: '19.0.0-beta-94eed63c49-20240425',
-      'react-dom': '19.0.0-beta-94eed63c49-20240425',
+      react: '19.0.0-beta-4508873393-20240430',
+      'react-dom': '19.0.0-beta-4508873393-20240430',
       typescript: 'latest',
       '@types/react': 'latest',
       '@types/node': 'latest',

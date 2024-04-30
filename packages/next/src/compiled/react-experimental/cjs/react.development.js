@@ -114,7 +114,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '19.0.0-experimental-94eed63c49-20240425';
+var ReactVersion = '19.0.0-experimental-4508873393-20240430';
 
 // -----------------------------------------------------------------------------
 
@@ -2329,11 +2329,6 @@ function use(usable) {
   var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
-function useMemoCache(size) {
-  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
-  return dispatcher.useMemoCache(size);
-}
 function useEffectEvent(callback) {
   var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
 
@@ -2830,7 +2825,6 @@ exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_postpone = postpone;
 exports.unstable_useCacheRefresh = useCacheRefresh;
-exports.unstable_useMemoCache = useMemoCache;
 exports.use = use;
 exports.useActionState = useActionState;
 exports.useCallback = useCallback;

@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '19.0.0-beta-94eed63c49-20240425';
+          var ReactVersion = '19.0.0-beta-4508873393-20240430';
 
 // -----------------------------------------------------------------------------
 

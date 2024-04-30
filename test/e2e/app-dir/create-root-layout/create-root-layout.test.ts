@@ -74,8 +74,8 @@ import stripAnsi from 'strip-ansi'
                 ),
               },
               dependencies: {
-                react: '19.0.0-beta-94eed63c49-20240425',
-                'react-dom': '19.0.0-beta-94eed63c49-20240425',
+                react: '19.0.0-beta-4508873393-20240430',
+                'react-dom': '19.0.0-beta-4508873393-20240430',
               },
             })
           })
@@ -128,8 +128,8 @@ import stripAnsi from 'strip-ansi'
                 ),
               },
               dependencies: {
-                react: '19.0.0-beta-94eed63c49-20240425',
-                'react-dom': '19.0.0-beta-94eed63c49-20240425',
+                react: '19.0.0-beta-4508873393-20240430',
+                'react-dom': '19.0.0-beta-4508873393-20240430',
               },
             })
           })
@@ -237,8 +237,8 @@ import stripAnsi from 'strip-ansi'
               ),
             },
             dependencies: {
-              react: '19.0.0-beta-94eed63c49-20240425',
-              'react-dom': '19.0.0-beta-94eed63c49-20240425',
+              react: '19.0.0-beta-4508873393-20240430',
+              'react-dom': '19.0.0-beta-4508873393-20240430',
             },
           })
 

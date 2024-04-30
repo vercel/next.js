@@ -6657,4 +6657,4 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-94eed63c49-20240425";
+exports.version = "19.0.0-experimental-4508873393-20240430";
