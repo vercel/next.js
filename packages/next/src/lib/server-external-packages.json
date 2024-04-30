@@ -35,6 +35,7 @@
   "next-seo",
   "node-pty",
   "node-web-audio-api",
+  "oslo",
   "pg",
   "playwright",
   "postcss",
