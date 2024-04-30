@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react'
-import { createStreamingData } from '../../test/streaming-data'
+import { createStreamingData } from './streaming-data'
 
 const Data = createStreamingData()
 
