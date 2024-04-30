@@ -9,6 +9,7 @@
   "@mikro-orm/core",
   "@mikro-orm/knex",
   "@node-rs/argon2",
+  "@node-rs/bcrypt",
   "@prisma/client",
   "@react-pdf/renderer",
   "@sentry/profiling-node",
