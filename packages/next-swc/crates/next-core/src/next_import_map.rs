@@ -45,11 +45,12 @@ use crate::{
 /// This is not identical to the list of entire node.js internals, refer
 /// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 /// for the allowed imports.
-const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 44] = [
     "child_process",
     "cluster",
     "console",
     "constants",
+    "crypto",
     "dgram",
     "diagnostics_channel",
     "dns",
