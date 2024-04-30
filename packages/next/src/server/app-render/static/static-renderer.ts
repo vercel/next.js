@@ -1,52 +1,20 @@
 import type {
   Options as RenderToReadableStreamOptions,
-  ResumeOptions,
+  ResumeOptions as ResumeOptionsEdge,
 } from 'react-dom/server.edge'
 import type { Options as PrerenderOptions } from 'react-dom/static.edge'
-import type { Readable } from 'node:stream'
-
-import { ServerRenderer } from './renderers'
-
-export type RenderResult = {
-  stream: ReadableStream<Uint8Array> | Readable
-  postponed?: object | null
-  resumed?: boolean
-}
-
-export interface Renderer {
-  render(children: JSX.Element): Promise<RenderResult>
-}
-
-class StaticRenderer implements Renderer {
-  // this is for tree shaking. Couldn't find a better way to do it for some reason
-  private readonly prerender = (process.env.__NEXT_EXPERIMENTAL_REACT
-    ? require('react-dom/static.edge').prerender
-    : null) as typeof import('react-dom/static.edge')['prerender']
-
-  constructor(private readonly options: PrerenderOptions) {}
-
-  public async render(children: JSX.Element) {
-    const { prelude, postponed } = await this.prerender(children, this.options)
-
-    return { stream: prelude, postponed }
-  }
-}
-
-class StaticResumeRenderer implements Renderer {
-  private readonly resume = require('react-dom/server.edge')
-    .resume as typeof import('react-dom/server.edge')['resume']
-
-  constructor(
-    private readonly postponed: object,
-    private readonly options: ResumeOptions
-  ) {}
-
-  public async render(children: JSX.Element) {
-    const stream = await this.resume(children, this.postponed, this.options)
-
-    return { stream, resumed: true }
-  }
-}
+import type {
+  Options as RenderToPipeableStreamOptions,
+  ResumeOptions as ResumeOptionsNode,
+} from 'react-dom/server.node'
+import type { Options as PrerenderToNodeStreamOptions } from 'react-dom/static.node'
+import type { RenderResult, Renderer } from './renderers'
+import {
+  ServerRenderer,
+  StaticRenderer,
+  StaticResumeRenderer,
+} from './renderers'
+import type { PostponedState } from 'react-dom'
 
 export class VoidRenderer implements Renderer {
   public async render(_children: JSX.Element): Promise<RenderResult> {
@@ -69,24 +37,54 @@ export class VoidRenderer implements Renderer {
  * this type they should be added to the `createStaticRenderer` function as
  * well.
  */
-type StreamOptions = Pick<
-  ResumeOptions & RenderToReadableStreamOptions & PrerenderOptions,
-  | 'onError'
-  | 'onPostpone'
-  | 'onHeaders'
-  | 'maxHeadersLength'
-  | 'nonce'
-  | 'bootstrapScripts'
-  | 'formState'
-  | 'signal'
->
+// type StreamOptions = Pick<
+//   ResumeOptions & RenderToReadableStreamOptions & PrerenderOptions & RenderToPipeableStreamOptions & PrerenderToNodeStreamOptions,
+//   | 'onError'
+//   | 'onPostpone'
+//   | 'onHeaders'
+//   | 'maxHeadersLength'
+//   | 'nonce'
+//   | 'bootstrapScripts'
+//   | 'formState'
+//   | 'signal'
+// >
+
+// type O = 'onError'
+// | 'onPostpone'
+// | 'onHeaders'
+// | 'maxHeadersLength'
+// | 'nonce'
+// | 'bootstrapScripts'
+// | 'formState'
+// | 'signal'
+
+// type R1 = Pick<ResumeOptions, 'onError' | 'onPostpone' | 'nonce' | 'signal'>
+// type R2 = Pick<RenderToReadableStreamOptions, O>
+// type R3 = Pick<PrerenderOptions, 'onError' | 'onPostpone' | 'onHeaders' | 'maxHeadersLength' | 'bootstrapScripts' | 'signal'>
+// type R4 = Pick<RenderToPipeableStreamOptions, 'onError'
+// | 'onPostpone'
+// | 'onHeaders'
+// | 'maxHeadersLength'
+// | 'nonce'
+// | 'bootstrapScripts'
+// | 'formState'
+// >
+// type R5 = Pick<PrerenderToNodeStreamOptions, 'onError'
+// | 'onPostpone'
+// | 'onHeaders'
+// | 'maxHeadersLength'
+// | 'bootstrapScripts'
+// | 'signal'
+// >
+
+// type StreamOptions2 = R1 | R2 | R3 | R4 | R5
 
 export const DYNAMIC_DATA = 1 as const
 export const DYNAMIC_HTML = 2 as const
 
 type DynamicDataPostponedState = typeof DYNAMIC_DATA
 type DynamicHTMLPostponedState = [typeof DYNAMIC_HTML, object]
-export type PostponedState =
+export type DynamicPostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
 
@@ -117,7 +115,7 @@ type Options = {
    * The postponed state for the render. This is only used when resuming a
    * prerender that has postponed.
    */
-  postponed: null | PostponedState
+  postponed: null | DynamicPostponedState
 
   /**
    * The options for any of the renderers. This is a union of all the possible
@@ -125,37 +123,62 @@ type Options = {
    * for a renderer, they should be added to the `StreamOptions` type and then
    * added via the `createStaticRenderer` function.
    */
-  streamOptions: StreamOptions
+  streamOptions:
+    | ResumeOptionsEdge
+    | ResumeOptionsNode
+    | RenderToReadableStreamOptions
+    | PrerenderOptions
+    | RenderToPipeableStreamOptions
+    | PrerenderToNodeStreamOptions
 }
 
+// export function createStaticRenderer(options: PrerenderOptions | PrerenderToNodeStreamOptions) {
+//   return new StaticRenderer(options);
+// }
+
+// export function createServerRenderer(options: RenderToReadableStreamOptions | RenderToPipeableStreamOptions) {
+//   return new ServerRenderer(options);
+// }
+
+// export function createStaticResumeRenderer(postponed: null | Dyn, options: ResumeOptionsEdge | ResumeOptionsNode) {
+//   if (postponed === DYNAMIC_DATA) {
+//     // The HTML was complete, we don't actually need to render anything
+//     return new VoidRenderer()
+//   } else if (postponed) {
+//     const reactPostponedState = postponed[1]
+//     // The HTML had dynamic holes and we need to resume it
+//     return new StaticResumeRenderer(reactPostponedState, streamOptions)
+//   }
+// }
+
+// export function createStaticRenderer(options: {
+//   ppr: true,
+//   isStaticGeneration: false,
+//   postponed: null | DynamicPostponedState,
+//   streamOptions: ResumeOptionsEdge | ResumeOptionsNode
+// }): Renderer
+// export function createStaticRenderer(options: {
+//   ppr: true,
+//   isStaticGeneration: true,
+//   postponed: null | DynamicPostponedState,
+//   streamOptions: PrerenderOptions | PrerenderToNodeStreamOptions
+// }): Renderer
+// export function createStaticRenderer(options: {
+//   ppr: false,
+//   isStaticGeneration: boolean,
+//   postponed: null | DynamicPostponedState,
+//   streamOptions: RenderToReadableStreamOptions | RenderToPipeableStreamOptions
+// }): Renderer
 export function createStaticRenderer({
   ppr,
   isStaticGeneration,
   postponed,
-  streamOptions: {
-    signal,
-    onError,
-    onPostpone,
-    onHeaders,
-    maxHeadersLength,
-    nonce,
-    bootstrapScripts,
-    formState,
-  },
+  streamOptions,
 }: Options): Renderer {
   if (ppr) {
     if (isStaticGeneration) {
       // This is a Prerender
-      return new StaticRenderer({
-        signal,
-        onError,
-        onPostpone,
-        // We want to capture headers because we may not end up with a shell
-        // and being able to send headers is the next best thing
-        onHeaders,
-        maxHeadersLength,
-        bootstrapScripts,
-      })
+      return new StaticRenderer(streamOptions)
     } else {
       // This is a Resume
       if (postponed === DYNAMIC_DATA) {
@@ -164,41 +187,18 @@ export function createStaticRenderer({
       } else if (postponed) {
         const reactPostponedState = postponed[1]
         // The HTML had dynamic holes and we need to resume it
-        return new StaticResumeRenderer(reactPostponedState, {
-          signal,
-          onError,
-          onPostpone,
-          nonce,
-        })
+        return new StaticResumeRenderer(reactPostponedState, streamOptions)
       }
     }
   }
 
   if (isStaticGeneration) {
     // This is a static render (without PPR)
-    return new ServerRenderer({
-      signal,
-      onError,
-      // We don't pass onHeaders. In static builds we will either have no output
-      // or the entire page. In either case preload headers aren't necessary and could
-      // alter the prioritiy of relative loading of resources so we opt to keep them
-      // as tags exclusively.
-      nonce,
-      bootstrapScripts,
-      formState,
-    })
+    // @ts-ignore
+    delete streamOptions.onHeaders
+    return new ServerRenderer(streamOptions)
   }
 
   // This is a dynamic render (without PPR)
-  return new ServerRenderer({
-    signal,
-    onError,
-    // Static renders are streamed in realtime so sending headers early is
-    // generally good because it will likely go out before the shell is ready.
-    onHeaders,
-    maxHeadersLength,
-    nonce,
-    bootstrapScripts,
-    formState,
-  })
+  return new ServerRenderer(streamOptions)
 }
