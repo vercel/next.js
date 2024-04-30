@@ -1393,6 +1393,9 @@ export default async function build(
             // TODO: Implement
             middlewareMatchers: undefined,
           }),
+          buildId: NextBuildContext.buildId!,
+          encryptionKey: NextBuildContext.encryptionKey!,
+          previewProps: NextBuildContext.previewProps!,
         })
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })

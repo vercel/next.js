@@ -143,7 +143,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
-          // VAR_BUILD_ID: buildId,
         },
         {
           sriEnabled: JSON.stringify(sriEnabled),
@@ -165,7 +164,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
-          // VAR_BUILD_ID: buildId,
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
