@@ -1001,11 +1001,11 @@ impl NextConfig {
                 .experimental
                 .ppr
                 .as_ref()
-                .and_then(|ppr| match ppr {
+                .map(|ppr| match ppr {
                     ExperimentalPartialPrerendering::Incremental(
                         ExperimentalPartialPrerenderingIncrementalValue::Incremental,
-                    ) => Some(true),
-                    ExperimentalPartialPrerendering::Boolean(b) => Some(*b),
+                    ) => true,
+                    ExperimentalPartialPrerendering::Boolean(b) => *b,
                 })
                 .unwrap_or(false),
         ))
