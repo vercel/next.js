@@ -46,7 +46,6 @@ export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
 }
 
 export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
-  const { metadataBase } = metadata
   const manifestOrigin = metadata.manifest
     ? getOrigin(metadata.manifest)
     : undefined
