@@ -1,3 +1,3 @@
 module.exports = {
-  reactProductionProfiling: true,
+  reactProductionProfiling: process.env.REACT_PRODUCTION_PROFILING === 'true',
 }
