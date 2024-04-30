@@ -331,7 +331,7 @@ export function createRSCAliases(
 
   if (reactProductionProfiling) {
     alias[
-      'react-dom$'
+      'react-dom/client$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
@@ -398,6 +398,6 @@ function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
 }
 function getReactProfilingInProduction(): CompilerAliases {
   return {
-    'react-dom$': 'react-dom/profiling',
+    'react-dom/client$': 'react-dom/profiling',
   }
 }
