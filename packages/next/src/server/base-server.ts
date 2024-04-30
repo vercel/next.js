@@ -109,13 +109,10 @@ import { sendResponse } from './send-response'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
+  normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import {
-  CACHE_ONE_YEAR,
-  NEXT_CACHE_TAGS_HEADER,
-  NEXT_QUERY_PARAM_PREFIX,
-} from '../lib/constants'
+import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
@@ -1096,18 +1093,13 @@ export default abstract class Server<
           for (const key of Object.keys(parsedUrl.query)) {
             const value = parsedUrl.query[key]
 
-            if (
-              key !== NEXT_QUERY_PARAM_PREFIX &&
-              key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-            ) {
-              const normalizedKey = key.substring(
-                NEXT_QUERY_PARAM_PREFIX.length
-              )
-              parsedUrl.query[normalizedKey] = value
+            normalizeNextQueryParam(key, (normalizedKey) => {
+              if (!parsedUrl) return // typeguard
 
+              parsedUrl.query[normalizedKey] = value
               routeParamKeys.add(normalizedKey)
               delete parsedUrl.query[key]
-            }
+            })
           }
 
           // interpolate dynamic params and normalize URL if needed

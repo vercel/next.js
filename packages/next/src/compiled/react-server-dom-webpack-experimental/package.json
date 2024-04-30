@@ -43,12 +43,11 @@
   },
   "dependencies": {
     "acorn-loose": "^8.3.0",
-    "neo-async": "^2.6.1",
-    "loose-envify": "^1.1.0"
+    "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-14898b6a9-20240318",
-    "react-dom": "0.0.0-experimental-14898b6a9-20240318",
+    "react": "0.0.0-experimental-c3048aab4-20240326",
+    "react-dom": "0.0.0-experimental-c3048aab4-20240326",
     "webpack": "^5.59.0"
   }
 }

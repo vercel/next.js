@@ -45,11 +45,12 @@ use crate::{
 /// This is not identical to the list of entire node.js internals, refer
 /// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 /// for the allowed imports.
-const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 44] = [
     "child_process",
     "cluster",
     "console",
     "constants",
+    "crypto",
     "dgram",
     "diagnostics_channel",
     "dns",
@@ -728,7 +729,7 @@ async fn rsc_aliases(
     }
 
     if runtime == NextRuntime::Edge {
-        if matches!(ty, ServerContextType::AppRSC { .. }) {
+        if ty.supports_react_server() {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
             alias["react-dom"] =
                 format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
@@ -783,7 +784,7 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if *next_config.mdx_rs().await? {
+    if next_config.mdx_rs().await?.is_some() {
         insert_alias_to_alternatives(
             import_map,
             mdx_import_source_file(),

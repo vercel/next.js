@@ -27,7 +27,6 @@
 /**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi @ztanner @vercel/devex
 /**/*img*                                     @timneutkens @ijjk @shuding @styfle @huozhi @ztanner @vercel/devex
 /packages/next/client/use-intersection.tsx    @timneutkens @ijjk @shuding @styfle
-/packages/next/server/lib/squoosh/            @timneutkens @ijjk @shuding @styfle
 /packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle @huozhi @ztanner
 /packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle @huozhi @ztanner
 
