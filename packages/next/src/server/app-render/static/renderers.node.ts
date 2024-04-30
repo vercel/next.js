@@ -5,7 +5,7 @@ import type {
 import type { Options as PrerenderToNodeStreamOptions } from 'react-dom/static.node'
 import type { RenderResult, Renderer } from './renderers'
 import { PassThrough } from 'node:stream'
-import type { PostponedState } from 'react-dom'
+import type { PostponedState } from 'react-dom/types'
 
 export class ServerRenderer implements Renderer {
   private readonly renderToPipeableStream = require('react-dom/server.node')
