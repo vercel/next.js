@@ -99,7 +99,8 @@
     "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
     "postcss": "8.4.31",
-    "styled-jsx": "5.1.1"
+    "styled-jsx": "5.1.1",
+    "react-forget": "git@github.com:facebookexternal/forget-feedback.git#6b6460e3c18ec24f259c5c5333766c27d527c12b"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
