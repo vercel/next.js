@@ -46,7 +46,7 @@ pub mod virtual_fs {
 }
 
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";
-pub const SOURCE_MAP_ROOT_NAME: &str = "turbopack";
+pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
 
 #[doc(hidden)]
 pub mod __private {

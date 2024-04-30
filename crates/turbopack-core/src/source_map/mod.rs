@@ -14,7 +14,7 @@ use turbo_tasks_fs::{
     FileContent, FileSystemPath,
 };
 
-use crate::{source_pos::SourcePos, SOURCE_MAP_ROOT_NAME};
+use crate::{source_pos::SourcePos, SOURCE_MAP_PREFIX};
 
 pub(crate) mod source_map_asset;
 
@@ -398,7 +398,7 @@ impl SourceMap {
             Ok(
                 if let Some(path) = *origin.parent().try_join(source_request.to_string()).await? {
                     let path_str = path.to_string().await?;
-                    let source = format!("/{SOURCE_MAP_ROOT_NAME}/{}", path_str);
+                    let source = format!("{SOURCE_MAP_PREFIX}{}", path_str);
                     let source_content = if let Some(source_content) = source_content {
                         source_content
                     } else if let FileContent::Content(file) = &*path.read().await? {
@@ -416,7 +416,7 @@ impl SourceMap {
                         .replace_all(&source_request, |s: &regex::Captures<'_>| {
                             s[0].replace('.', "_")
                         });
-                    let source = format!("/{SOURCE_MAP_ROOT_NAME}/{}/{}", origin_str, source);
+                    let source = format!("{SOURCE_MAP_PREFIX}{}/{}", origin_str, source);
                     let source_content = source_content.unwrap_or_else(|| {
                         format!(
                             "unable to access {source_request} in {origin_str} (it's leaving the \

@@ -48,7 +48,7 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_ROOT_NAME,
+    SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -977,7 +977,7 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
                 let mut builder = SourceMapBuilder::new(None);
 
                 for src in source_map.get_sources() {
-                    builder.add_source(&format!("/{SOURCE_MAP_ROOT_NAME}/{src}"));
+                    builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
                 }
 
                 for (idx, content) in source_map.get_sources_content().iter().enumerate() {
