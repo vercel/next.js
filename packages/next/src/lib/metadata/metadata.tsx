@@ -96,9 +96,10 @@ export function createMetadataComponents({
       resolve(undefined)
     } else {
       error = resolvedError
-      // If the error triggers in initial metadata resolving, re-resolve with proper error type.
-      // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
-      // for not-found error: resolve not-found metadata
+      // If a not-found error is triggered during metadata resolution, we want to capture the metadata
+      // for the not-found route instead of whatever triggered the error. For all error types, we resolve an
+      // error, which will cause the outlet to throw it so it'll be handled by an error boundary
+      // (either an actual error, or an internal error that renders UI such as the NotFoundBoundary).
       if (!errorType && isNotFoundError(resolvedError)) {
         const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
           await resolveMetadata({
