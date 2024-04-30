@@ -1023,7 +1023,7 @@ export class FlightClientEntryPlugin {
     }
     const edgeServerManifest = {
       ...serverManifest,
-      encryptionKey: 'process.env.__NEXT_SERVER_ACTION_ENCRYPTION_KEY',
+      encryptionKey: 'process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
     }
 
     const json = JSON.stringify(serverManifest, null, this.dev ? 2 : undefined)
