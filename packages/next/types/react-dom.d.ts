@@ -43,7 +43,7 @@ interface HeadersDescriptor {
   Link?: string
 }
 
-declare module 'react-dom' {
+declare module 'react-dom/types' {
   // https://github.com/facebook/react/blob/4508873393058e86bed308b56e49ec883ece59d1/packages/react-server/src/ReactFizzServer.js#L4482
   interface PostponedState {
     nextSegmentId: number
@@ -111,7 +111,7 @@ declare module 'react-dom/server.edge' {
 }
 
 declare module 'react-dom/static.edge' {
-  import type { PostponedState } from 'react-dom'
+  import type { PostponedState } from 'react-dom/types'
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticEdge.js#L39
   export type Options = {
@@ -148,7 +148,7 @@ declare module 'react-dom/static.edge' {
 
 declare module 'react-dom/server.node' {
   import type { Writable } from 'node:stream'
-  import type { PostponedState } from 'react-dom'
+  import type { PostponedState } from 'react-dom/types'
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L56
   export interface Options {
@@ -209,7 +209,7 @@ declare module 'react-dom/server.node' {
 
 declare module 'react-dom/static.node' {
   import type { Readable } from 'node:stream'
-  import type { PostponedState } from 'react-dom'
+  import type { PostponedState } from 'react-dom/types'
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticNode.js#L40
   export interface Options {

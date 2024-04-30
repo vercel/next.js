@@ -14,7 +14,7 @@ import {
   StaticRenderer,
   StaticResumeRenderer,
 } from './renderers'
-import type { PostponedState } from 'react-dom'
+import type { PostponedState } from 'react-dom/types'
 
 export class VoidRenderer implements Renderer {
   public async render(_children: JSX.Element): Promise<RenderResult> {
@@ -83,13 +83,13 @@ export const DYNAMIC_DATA = 1 as const
 export const DYNAMIC_HTML = 2 as const
 
 type DynamicDataPostponedState = typeof DYNAMIC_DATA
-type DynamicHTMLPostponedState = [typeof DYNAMIC_HTML, object]
+type DynamicHTMLPostponedState = [typeof DYNAMIC_HTML, PostponedState]
 export type DynamicPostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
 
 export function getDynamicHTMLPostponedState(
-  data: object
+  data: PostponedState
 ): DynamicHTMLPostponedState {
   return [DYNAMIC_HTML, data]
 }
@@ -132,43 +132,6 @@ type Options = {
     | PrerenderToNodeStreamOptions
 }
 
-// export function createStaticRenderer(options: PrerenderOptions | PrerenderToNodeStreamOptions) {
-//   return new StaticRenderer(options);
-// }
-
-// export function createServerRenderer(options: RenderToReadableStreamOptions | RenderToPipeableStreamOptions) {
-//   return new ServerRenderer(options);
-// }
-
-// export function createStaticResumeRenderer(postponed: null | Dyn, options: ResumeOptionsEdge | ResumeOptionsNode) {
-//   if (postponed === DYNAMIC_DATA) {
-//     // The HTML was complete, we don't actually need to render anything
-//     return new VoidRenderer()
-//   } else if (postponed) {
-//     const reactPostponedState = postponed[1]
-//     // The HTML had dynamic holes and we need to resume it
-//     return new StaticResumeRenderer(reactPostponedState, streamOptions)
-//   }
-// }
-
-// export function createStaticRenderer(options: {
-//   ppr: true,
-//   isStaticGeneration: false,
-//   postponed: null | DynamicPostponedState,
-//   streamOptions: ResumeOptionsEdge | ResumeOptionsNode
-// }): Renderer
-// export function createStaticRenderer(options: {
-//   ppr: true,
-//   isStaticGeneration: true,
-//   postponed: null | DynamicPostponedState,
-//   streamOptions: PrerenderOptions | PrerenderToNodeStreamOptions
-// }): Renderer
-// export function createStaticRenderer(options: {
-//   ppr: false,
-//   isStaticGeneration: boolean,
-//   postponed: null | DynamicPostponedState,
-//   streamOptions: RenderToReadableStreamOptions | RenderToPipeableStreamOptions
-// }): Renderer
 export function createStaticRenderer({
   ppr,
   isStaticGeneration,

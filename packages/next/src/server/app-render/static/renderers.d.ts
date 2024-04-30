@@ -9,10 +9,11 @@ import type {
 } from 'react-dom/server.node'
 import type { Options as PrerenderToNodeStreamOptions } from 'react-dom/static.node'
 import type { Readable } from 'node:stream'
+import type { PostponedState } from 'react-dom/types'
 
 export type RenderResult = {
   stream: ReadableStream<Uint8Array> | Readable
-  postponed?: object | null
+  postponed?: PostponedState | null
   resumed?: boolean
 }
 
