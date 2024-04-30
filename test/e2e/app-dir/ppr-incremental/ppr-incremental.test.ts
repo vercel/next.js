@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 type Route = {
   route: string
@@ -121,9 +121,11 @@ const routes: ReadonlyArray<Route> = [
 ]
 
 describe('ppr-incremental', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-  })
+  // We don't perform static builds and partial prerendering in development
+  // mode.
+  if (isNextDev) return it.skip('should skip next dev', () => {})
+
+  const { next } = nextTestSetup({ files: __dirname })
 
   describe('ppr disabled', () => {
     describe.each(routes.filter(({ enabled }) => !enabled))(
