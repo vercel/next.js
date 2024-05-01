@@ -41,6 +41,12 @@ export async function createIpcServer(
           req.on('error', (err) => {
             reject(err)
           })
+          res.on('close', function () {
+            let aborted = !res.writableFinished
+            if (aborted) {
+              reject(new Error('ipc request aborted'))
+            }
+          })
         })
         const args: any[] = JSON.parse(body || '[]')
 
