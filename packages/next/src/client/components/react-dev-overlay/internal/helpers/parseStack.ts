@@ -1,5 +1,5 @@
-import { parse } from 'next/dist/compiled/stacktrace-parser'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { parse } from '@next/vendored/stacktrace-parser'
+import type { StackFrame } from '@next/vendored/stacktrace-parser'
 
 const regexNextStatic = /\/_next(\/static\/.+)/
 

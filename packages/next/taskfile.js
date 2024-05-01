@@ -77,18 +77,6 @@ const externals = {
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
-// eslint-disable-next-line camelcase
-externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
-export async function ncc_node_html_parser(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('node-html-parser')))
-    .ncc({
-      packageName: 'node-html-parser',
-      externals,
-      target: 'es5',
-    })
-    .target('src/compiled/node-html-parser')
-}
 
 // eslint-disable-next-line camelcase
 externals['@mswjs/interceptors/ClientRequest'] =
@@ -239,62 +227,6 @@ export async function copy_vercel_og(task, opts) {
   )
 }
 
-// eslint-disable-next-line camelcase
-externals['node-fetch'] = 'next/dist/compiled/node-fetch'
-export async function ncc_node_fetch(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('node-fetch')))
-    .ncc({ packageName: 'node-fetch', externals })
-    .target('src/compiled/node-fetch')
-}
-
-externals['anser'] = 'next/dist/compiled/anser'
-externals['next/dist/compiled/anser'] = 'next/dist/compiled/anser'
-export async function ncc_node_anser(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('anser')))
-    .ncc({ packageName: 'anser', externals })
-    .target('src/compiled/anser')
-}
-
-externals['stacktrace-parser'] = 'next/dist/compiled/stacktrace-parser'
-externals['next/dist/compiled/stacktrace-parser'] =
-  'next/dist/compiled/stacktrace-parser'
-export async function ncc_node_stacktrace_parser(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('stacktrace-parser')))
-    .ncc({ packageName: 'stacktrace-parser', externals })
-    .target('src/compiled/stacktrace-parser')
-}
-
-externals['data-uri-to-buffer'] = 'next/dist/compiled/data-uri-to-buffer'
-externals['next/dist/compiled/data-uri-to-buffer'] =
-  'next/dist/compiled/data-uri-to-buffer'
-export async function ncc_node_data_uri_to_buffer(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('data-uri-to-buffer')))
-    .ncc({ packageName: 'data-uri-to-buffer', externals })
-    .target('src/compiled/data-uri-to-buffer')
-}
-
-externals['css.escape'] = 'next/dist/compiled/css.escape'
-externals['next/dist/compiled/css.escape'] = 'next/dist/compiled/css.escape'
-export async function ncc_node_cssescape(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('css.escape')))
-    .ncc({ packageName: 'css.escape', externals })
-    .target('src/compiled/css.escape')
-}
-
-externals['shell-quote'] = 'next/dist/compiled/shell-quote'
-externals['next/dist/compiled/shell-quote'] = 'next/dist/compiled/shell-quote'
-export async function ncc_node_shell_quote(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('shell-quote')))
-    .ncc({ packageName: 'shell-quote', externals })
-    .target('src/compiled/shell-quote')
-}
-
 externals['platform'] = 'next/dist/compiled/platform'
 externals['next/dist/compiled/platform'] = 'next/dist/compiled/platform'
 export async function ncc_node_platform(task, opts) {
@@ -320,15 +252,6 @@ export async function ncc_node_platform(task, opts) {
       ''
     )
   )
-}
-
-// eslint-disable-next-line camelcase
-externals['acorn'] = 'next/dist/compiled/acorn'
-export async function ncc_acorn(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('acorn')))
-    .ncc({ packageName: 'acorn', externals })
-    .target('src/compiled/acorn')
 }
 
 // eslint-disable-next-line camelcase
@@ -625,69 +548,6 @@ export async function ncc_browserslist(task, opts) {
     .target('src/compiled/browserslist')
 
   await fs.writeFile(nodeFile, content)
-}
-
-// eslint-disable-next-line camelcase
-externals['@napi-rs/triples'] = 'next/dist/compiled/@napi-rs/triples'
-export async function ncc_napirs_triples(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('@napi-rs/triples')))
-    .ncc({ packageName: '@napi-rs/triples', externals })
-    .target('src/compiled/@napi-rs/triples')
-}
-
-// eslint-disable-next-line camelcase
-externals['p-limit'] = 'next/dist/compiled/p-limit'
-export async function ncc_p_limit(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('p-limit')))
-    .ncc({ packageName: 'p-limit', externals })
-    .target('src/compiled/p-limit')
-}
-
-// eslint-disable-next-line camelcase
-externals['raw-body'] = 'next/dist/compiled/raw-body'
-export async function ncc_raw_body(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('raw-body')))
-    .ncc({ packageName: 'raw-body', externals })
-    .target('src/compiled/raw-body')
-}
-
-// eslint-disable-next-line camelcase
-externals['image-size'] = 'next/dist/compiled/image-size'
-export async function ncc_image_size(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('image-size')))
-    .ncc({ packageName: 'image-size', externals })
-    .target('src/compiled/image-size')
-}
-
-// eslint-disable-next-line camelcase
-externals['get-orientation'] = 'next/dist/compiled/get-orientation'
-export async function ncc_get_orientation(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('get-orientation')))
-    .ncc({ packageName: 'get-orientation', externals })
-    .target('src/compiled/get-orientation')
-}
-
-// eslint-disable-next-line camelcase
-externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
-export async function ncc_hapi_accept(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('@hapi/accept')))
-    .ncc({ packageName: '@hapi/accept', externals })
-    .target('src/compiled/@hapi/accept')
-}
-
-// eslint-disable-next-line camelcase
-externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
-export async function ncc_amphtml_validator(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('amphtml-validator')))
-    .ncc({ packageName: 'amphtml-validator', externals })
-    .target('src/compiled/amphtml-validator')
 }
 
 // eslint-disable-next-line camelcase
@@ -1007,25 +867,6 @@ export async function ncc_amp_optimizer(task, opts) {
     })
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
-// eslint-disable-next-line camelcase
-externals['async-retry'] = 'next/dist/compiled/async-retry'
-export async function ncc_async_retry(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('async-retry')))
-    .ncc({
-      packageName: 'async-retry',
-      externals,
-    })
-    .target('src/compiled/async-retry')
-}
-// eslint-disable-next-line camelcase
-externals['async-sema'] = 'next/dist/compiled/async-sema'
-export async function ncc_async_sema(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('async-sema')))
-    .ncc({ packageName: 'async-sema', externals })
-    .target('src/compiled/async-sema')
-}
 
 externals['postcss-plugin-stub-for-cssnano-simple'] =
   'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple'
@@ -1150,13 +991,6 @@ export async function ncc_cli_select(task, opts) {
     .source(relative(__dirname, require.resolve('cli-select')))
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
-}
-externals['commmander'] = 'next/dist/compiled/commander'
-export async function ncc_commander(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('commander')))
-    .ncc({ packageName: 'commander', externals })
-    .target('src/compiled/commander')
 }
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
@@ -2175,25 +2009,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
-        'ncc_node_html_parser',
-        'ncc_napirs_triples',
-        'ncc_p_limit',
-        'ncc_raw_body',
-        'ncc_image_size',
-        'ncc_get_orientation',
-        'ncc_hapi_accept',
-        'ncc_commander',
-        'ncc_node_fetch',
-        'ncc_node_anser',
-        'ncc_node_stacktrace_parser',
-        'ncc_node_data_uri_to_buffer',
-        'ncc_node_cssescape',
         'ncc_node_platform',
-        'ncc_node_shell_quote',
-        'ncc_acorn',
-        'ncc_amphtml_validator',
-        'ncc_async_retry',
-        'ncc_async_sema',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_assert',
         'ncc_browser_zlib',

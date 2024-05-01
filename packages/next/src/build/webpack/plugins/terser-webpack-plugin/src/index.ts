@@ -4,7 +4,7 @@ import {
   ModuleFilenameHelpers,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import pLimit from 'next/dist/compiled/p-limit'
+import pLimit from '@next/vendored/p-limit'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 

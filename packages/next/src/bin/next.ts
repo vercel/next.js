@@ -2,7 +2,7 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, Option } from 'next/dist/compiled/commander'
+import { Argument, Command, Option } from '@next/vendored/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'

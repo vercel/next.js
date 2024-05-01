@@ -26,7 +26,7 @@ import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import shellQuote from 'next/dist/compiled/shell-quote'
+import shellQuote from '@next/vendored/shell-quote'
 
 function isTerminalEditor(editor: string) {
   switch (editor) {

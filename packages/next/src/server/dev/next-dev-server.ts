@@ -175,7 +175,7 @@ export default class DevServer extends Server {
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
       const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
+        require('@next/vendored/amphtml-validator') as typeof import('@next/vendored/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(

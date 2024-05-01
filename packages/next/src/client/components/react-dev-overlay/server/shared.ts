@@ -1,4 +1,4 @@
-import type { StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from '@next/vendored/stacktrace-parser'
 import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import isInternal, {

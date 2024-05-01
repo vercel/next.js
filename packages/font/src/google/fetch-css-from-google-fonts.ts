@@ -1,5 +1,5 @@
 // @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
+import fetch from '@next/vendored/node-fetch'
 import { nextFontError } from '../next-font-error'
 import { getProxyAgent } from './get-proxy-agent'
 import { retry } from './retry'

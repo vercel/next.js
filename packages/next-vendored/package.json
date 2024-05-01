@@ -25,14 +25,33 @@
     "task-runner": "./dist/cli"
   },
   "devDependencies": {
+    "@types/amphtml-validator": "1.0.0",
+    "@types/platform": "1.3.4",
+    "@types/shell-quote": "1.7.1",
     "typescript": "5.3.3"
   },
   "dependencies": {
+    "@hapi/accept": "5.0.2",
     "@napi-rs/triples": "1.2.0",
     "@vercel/ncc": "0.34.0",
+    "acorn": "8.5.0",
+    "amphtml-validator": "1.0.35",
+    "anser": "1.4.9",
     "arg": "4.1.0",
+    "async-retry": "1.2.3",
+    "async-sema": "3.0.0",
+    "commander": "12.0.0",
+    "css.escape": "1.5.1",
+    "data-uri-to-buffer": "3.0.1",
+    "get-orientation": "1.1.2",
     "glob": "10.3.12",
+    "image-size": "1.0.0",
     "node-html-parser": "5.3.3",
-    "regenerator-runtime": "0.13.4"
+    "p-limit": "3.1.0",
+    "platform": "1.3.6",
+    "raw-body": "2.4.1",
+    "regenerator-runtime": "0.13.4",
+    "shell-quote": "1.7.3",
+    "stacktrace-parser": "0.1.10"
   }
 }

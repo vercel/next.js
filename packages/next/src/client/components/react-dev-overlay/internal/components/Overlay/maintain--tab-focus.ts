@@ -7,7 +7,7 @@
 // Entrypoint: ally.js/maintain/tab-focus
 
 import _platform from 'next/dist/compiled/platform'
-import cssEscape from 'next/dist/compiled/css.escape'
+import cssEscape from '@next/vendored/css.escape'
 
 // input may be undefined, selector-tring, Node, NodeList, HTMLCollection, array of Nodes
 // yes, to some extent this is a bad replica of jQuery's constructor function

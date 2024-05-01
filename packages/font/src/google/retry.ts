@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 // @ts-expect-error File exists
-import asyncRetry from 'next/dist/compiled/async-retry'
+import asyncRetry from '@next/vendored/async-retry'
 
 export async function retry<T>(
   fn: asyncRetry.RetryFunction<T>,

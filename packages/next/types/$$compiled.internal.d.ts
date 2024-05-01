@@ -42,18 +42,6 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
-declare module 'next/dist/compiled/node-fetch' {
-  import fetch from 'node-fetch'
-  export * from 'node-fetch'
-  export default fetch
-}
-
-declare module 'next/dist/compiled/commander' {
-  import commander from 'commander'
-  export * from 'commander'
-  export default commander
-}
-
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
@@ -71,47 +59,8 @@ declare module 'next/dist/compiled/cssnano-simple' {
   export = cssnanoSimple
 }
 
-declare module 'next/dist/compiled/p-limit' {
-  import m from 'p-limit'
-  export = m
-}
-
-declare module 'next/dist/compiled/raw-body' {
-  import m from 'raw-body'
-  export = m
-}
-
-declare module 'next/dist/compiled/image-size' {
-  import m from 'image-size'
-  export = m
-}
-
-declare module 'next/dist/compiled/@hapi/accept' {
-  import m from '@hapi/accept'
-  export = m
-}
-
-declare module 'next/dist/compiled/get-orientation' {
-  import m from 'get-orientation'
-  export = m
-}
-
-declare module 'next/dist/compiled/acorn' {
-  import m from 'acorn'
-  export = m
-}
-declare module 'next/dist/compiled/amphtml-validator' {
-  import m from 'amphtml-validator'
-  export = m
-}
-
 declare module 'next/dist/compiled/superstruct' {
   import m from 'superstruct'
-  export = m
-}
-declare module 'next/dist/compiled/async-retry'
-declare module 'next/dist/compiled/async-sema' {
-  import m from 'async-sema'
   export = m
 }
 
@@ -360,32 +309,8 @@ declare module 'next/dist/compiled/react-dom' {
   export = m
 }
 
-declare module 'next/dist/compiled/stacktrace-parser' {
-  import * as m from 'stacktrace-parser'
-  export = m
-}
-
-declare module 'next/dist/compiled/anser' {
-  import * as m from 'anser'
-  export = m
-}
-
 declare module 'next/dist/compiled/platform' {
   import * as m from 'platform'
-  export = m
-}
-
-declare module 'next/dist/compiled/css.escape' {
-  export = CSS.escape
-}
-
-declare module 'next/dist/compiled/data-uri-to-buffer' {
-  import m from 'data-uri-to-buffer'
-  export = m
-}
-
-declare module 'next/dist/compiled/shell-quote' {
-  import * as m from 'shell-quote'
   export = m
 }
 
