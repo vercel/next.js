@@ -30,13 +30,16 @@ export async function createIpcServer(
         }
 
         const method = url.searchParams.get('method')
-        let body = await new Promise<string>((resolve) => {
+        let body = await new Promise<string>((resolve, reject) => {
           let str = ''
           req.on('data', (chunk) => {
             str += chunk
           })
           req.on('end', () => {
             resolve(str)
+          })
+          req.on('error', (err) => {
+            reject(err)
           })
         })
         const args: any[] = JSON.parse(body || '[]')
