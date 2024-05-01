@@ -303,6 +303,7 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
+    edgePreviewProps,
   }: {
     buildId: string
     encryptionKey: string
@@ -323,6 +324,7 @@ export default async function getBaseWebpackConfig(
     jsConfig: any
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
+    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -412,6 +414,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeOrEdgeCompilation,
         distDir,
         pagesDir,
+        srcDir: path.dirname((appDir || pagesDir)!),
         cwd: dir,
         development: dev,
         hasReactRefresh: dev && isClient,
@@ -817,6 +820,7 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
+  const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
@@ -837,6 +841,8 @@ export default async function getBaseWebpackConfig(
       return excludePath.includes('node_modules')
     },
   }
+
+  const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1324,7 +1330,7 @@ export default async function getBaseWebpackConfig(
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
                   and: [
-                    codeCondition.test,
+                    aliasCodeConditionTest,
                     {
                       not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
@@ -1381,15 +1387,14 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: asyncStoragesRegex,
                     issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
                       and: [
-                        codeCondition.test,
+                        aliasCodeConditionTest,
                         {
-                          not: [optOutBundlingPackageRegex],
+                          not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                         },
                       ],
                     },
@@ -1404,7 +1409,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    test: codeCondition.test,
+                    test: aliasCodeConditionTest,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
@@ -1417,7 +1422,7 @@ export default async function getBaseWebpackConfig(
                 ],
               },
               {
-                test: codeCondition.test,
+                test: aliasCodeConditionTest,
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
@@ -1497,6 +1502,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
+                    exclude: asyncStoragesRegex,
                     use: appSSRLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
@@ -1677,6 +1683,13 @@ export default async function getBaseWebpackConfig(
             ]
           },
         },
+        {
+          resolve: {
+            alias: {
+              next: NEXT_PROJECT_ROOT,
+            },
+          },
+        },
       ],
     },
     plugins: [
@@ -1737,6 +1750,7 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
+          appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
@@ -1756,6 +1770,8 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            flyingShuttle: !!config.experimental.flyingShuttle,
+            compilerType,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -1805,13 +1821,13 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
+          edgeEnvironments: edgePreviewProps || {},
         }),
       isClient &&
         new BuildManifestPlugin({
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
@@ -1876,7 +1892,8 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      isClient &&
+      !dev &&
+        isClient &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       !dev &&
         isClient &&

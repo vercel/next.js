@@ -221,6 +221,7 @@ async function getBarrelMapping(
             true,
             isClientEntry
           )
+
           if (targetMatches) {
             // Merge the export list
             exportList = exportList.concat(targetMatches.exportList)

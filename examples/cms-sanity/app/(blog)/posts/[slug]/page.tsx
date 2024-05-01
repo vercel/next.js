@@ -1,5 +1,5 @@
 import type { Metadata, ResolvingMetadata } from "next";
-import { groq } from "next-sanity";
+import { groq, type PortableTextBlock } from "next-sanity";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -10,33 +10,36 @@ import DateComponent from "../../date";
 import MoreStories from "../../more-stories";
 import PortableText from "../../portable-text";
 
-import { sanityFetch } from "@/sanity/lib/fetch";
-import {
-  PostQueryResponse,
-  SettingsQueryResponse,
-  postQuery,
-  settingsQuery,
-} from "@/sanity/lib/queries";
-import { resolveOpenGraphImage } from "@/sanity/lib/utils";
+import type {
+  PostQueryResult,
+  PostSlugsResult,
+  SettingsQueryResult,
+} from "@/sanity.types";
 import * as demo from "@/sanity/lib/demo";
+import { sanityFetch } from "@/sanity/lib/fetch";
+import { postQuery, settingsQuery } from "@/sanity/lib/queries";
+import { resolveOpenGraphImage } from "@/sanity/lib/utils";
 
 type Props = {
   params: { slug: string };
 };
 
+const postSlugs = groq`*[_type == "post"]{slug}`;
+
 export async function generateStaticParams() {
-  return sanityFetch<{ slug: string }[]>({
-    query: groq`*[_type == "post" && defined(slug.current)]{"slug": slug.current}`,
+  const params = await sanityFetch<PostSlugsResult>({
+    query: postSlugs,
     perspective: "published",
     stega: false,
   });
+  return params.map(({ slug }) => ({ slug: slug?.current }));
 }
 
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata,
 ): Promise<Metadata> {
-  const post = await sanityFetch<PostQueryResponse>({
+  const post = await sanityFetch<PostQueryResult>({
     query: postQuery,
     params,
     stega: false,
@@ -56,11 +59,11 @@ export async function generateMetadata(
 
 export default async function PostPage({ params }: Props) {
   const [post, settings] = await Promise.all([
-    sanityFetch<PostQueryResponse>({
+    sanityFetch<PostQueryResult>({
       query: postQuery,
       params,
     }),
-    sanityFetch<SettingsQueryResponse>({
+    sanityFetch<SettingsQueryResult>({
       query: settingsQuery,
     }),
   ]);
@@ -101,7 +104,10 @@ export default async function PostPage({ params }: Props) {
           </div>
         </div>
         {post.content?.length && (
-          <PortableText className="mx-auto max-w-2xl" value={post.content} />
+          <PortableText
+            className="mx-auto max-w-2xl"
+            value={post.content as PortableTextBlock[]}
+          />
         )}
       </article>
       <aside>

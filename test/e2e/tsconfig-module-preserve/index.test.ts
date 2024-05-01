@@ -37,6 +37,7 @@ describe('tsconfig module: preserve', () => {
       "{
         "compilerOptions": {
           "module": "preserve",
+          "target": "ES2017",
           "lib": [
             "dom",
             "dom.iterable",
