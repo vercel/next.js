@@ -25,7 +25,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { checkNodeDebugType } from './lib/utils'
+import { getNodeDebugType } from './lib/utils'
 
 let ServerImpl: typeof Server
 
@@ -277,7 +277,7 @@ class NextCustomServer extends NextServer {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
-    const isNodeDebugging = !!checkNodeDebugType()
+    const isNodeDebugging = typeof getNodeDebugType() === 'string'
 
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
@@ -285,7 +285,7 @@ class NextCustomServer extends NextServer {
       isDev: !!this.options.dev,
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
-      isNodeDebugging: !!isNodeDebugging,
+      isNodeDebugging,
       quiet: this.options.quiet,
     })
     this.requestHandler = initResult[0]

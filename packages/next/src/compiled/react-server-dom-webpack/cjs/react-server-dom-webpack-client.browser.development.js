@@ -247,120 +247,118 @@ function loadChunk(chunkId, filename) {
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
-var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
 function dispatchHint(code, model) {
   var dispatcher = ReactDOMCurrentDispatcher.current;
 
-  if (dispatcher) {
-    switch (code) {
-      case 'D':
-        {
-          var refined = refineModel(code, model);
-          var href = refined;
-          dispatcher.prefetchDNS(href);
-          return;
+  switch (code) {
+    case 'D':
+      {
+        var refined = refineModel(code, model);
+        var href = refined;
+        dispatcher.prefetchDNS(href);
+        return;
+      }
+
+    case 'C':
+      {
+        var _refined = refineModel(code, model);
+
+        if (typeof _refined === 'string') {
+          var _href = _refined;
+          dispatcher.preconnect(_href);
+        } else {
+          var _href2 = _refined[0];
+          var crossOrigin = _refined[1];
+          dispatcher.preconnect(_href2, crossOrigin);
         }
 
-      case 'C':
-        {
-          var _refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined === 'string') {
-            var _href = _refined;
-            dispatcher.preconnect(_href);
-          } else {
-            var _href2 = _refined[0];
-            var crossOrigin = _refined[1];
-            dispatcher.preconnect(_href2, crossOrigin);
-          }
+    case 'L':
+      {
+        var _refined2 = refineModel(code, model);
 
-          return;
+        var _href3 = _refined2[0];
+        var as = _refined2[1];
+
+        if (_refined2.length === 3) {
+          var options = _refined2[2];
+          dispatcher.preload(_href3, as, options);
+        } else {
+          dispatcher.preload(_href3, as);
         }
 
-      case 'L':
-        {
-          var _refined2 = refineModel(code, model);
+        return;
+      }
 
-          var _href3 = _refined2[0];
-          var as = _refined2[1];
+    case 'm':
+      {
+        var _refined3 = refineModel(code, model);
 
-          if (_refined2.length === 3) {
-            var options = _refined2[2];
-            dispatcher.preload(_href3, as, options);
-          } else {
-            dispatcher.preload(_href3, as);
-          }
-
-          return;
+        if (typeof _refined3 === 'string') {
+          var _href4 = _refined3;
+          dispatcher.preloadModule(_href4);
+        } else {
+          var _href5 = _refined3[0];
+          var _options = _refined3[1];
+          dispatcher.preloadModule(_href5, _options);
         }
 
-      case 'm':
-        {
-          var _refined3 = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined3 === 'string') {
-            var _href4 = _refined3;
-            dispatcher.preloadModule(_href4);
-          } else {
-            var _href5 = _refined3[0];
-            var _options = _refined3[1];
-            dispatcher.preloadModule(_href5, _options);
-          }
+    case 'S':
+      {
+        var _refined4 = refineModel(code, model);
 
-          return;
+        if (typeof _refined4 === 'string') {
+          var _href6 = _refined4;
+          dispatcher.preinitStyle(_href6);
+        } else {
+          var _href7 = _refined4[0];
+          var precedence = _refined4[1] === 0 ? undefined : _refined4[1];
+
+          var _options2 = _refined4.length === 3 ? _refined4[2] : undefined;
+
+          dispatcher.preinitStyle(_href7, precedence, _options2);
         }
 
-      case 'S':
-        {
-          var _refined4 = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined4 === 'string') {
-            var _href6 = _refined4;
-            dispatcher.preinitStyle(_href6);
-          } else {
-            var _href7 = _refined4[0];
-            var precedence = _refined4[1] === 0 ? undefined : _refined4[1];
+    case 'X':
+      {
+        var _refined5 = refineModel(code, model);
 
-            var _options2 = _refined4.length === 3 ? _refined4[2] : undefined;
-
-            dispatcher.preinitStyle(_href7, precedence, _options2);
-          }
-
-          return;
+        if (typeof _refined5 === 'string') {
+          var _href8 = _refined5;
+          dispatcher.preinitScript(_href8);
+        } else {
+          var _href9 = _refined5[0];
+          var _options3 = _refined5[1];
+          dispatcher.preinitScript(_href9, _options3);
         }
 
-      case 'X':
-        {
-          var _refined5 = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined5 === 'string') {
-            var _href8 = _refined5;
-            dispatcher.preinitScript(_href8);
-          } else {
-            var _href9 = _refined5[0];
-            var _options3 = _refined5[1];
-            dispatcher.preinitScript(_href9, _options3);
-          }
+    case 'M':
+      {
+        var _refined6 = refineModel(code, model);
 
-          return;
+        if (typeof _refined6 === 'string') {
+          var _href10 = _refined6;
+          dispatcher.preinitModuleScript(_href10);
+        } else {
+          var _href11 = _refined6[0];
+          var _options4 = _refined6[1];
+          dispatcher.preinitModuleScript(_href11, _options4);
         }
 
-      case 'M':
-        {
-          var _refined6 = refineModel(code, model);
-
-          if (typeof _refined6 === 'string') {
-            var _href10 = _refined6;
-            dispatcher.preinitModuleScript(_href10);
-          } else {
-            var _href11 = _refined6[0];
-            var _options4 = _refined6[1];
-            dispatcher.preinitModuleScript(_href11, _options4);
-          }
-
-          return;
-        }
-    }
+        return;
+      }
   }
 } // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
@@ -773,12 +771,32 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return '\n  ' + str;
 }
 
+function createTemporaryReferenceSet() {
+  return [];
+}
+function writeTemporaryReference(set, object) {
+  // We always create a new entry regardless if we've already written the same
+  // object. This ensures that we always generate a deterministic encoding of
+  // each slot in the reply for cacheability.
+  var newId = set.length;
+  set.push(object);
+  return newId;
+}
+function readTemporaryReference(set, id) {
+  if (id < 0 || id >= set.length) {
+    throw new Error("The RSC response contained a reference that doesn't exist in the temporary reference set. " + 'Always pass the matching set that was used to create the reply when parsing its response.');
+  }
+
+  return set[id];
+}
+
 var ObjectPrototype = Object.prototype;
 var knownServerReferences = new WeakMap(); // Serializable values
 // Thenable<ReactServerValue>
-// function serializeByValueID(id: number): string {
-//   return '$' + id.toString(16);
-// }
+
+function serializeByValueID(id) {
+  return '$' + id.toString(16);
+}
 
 function serializePromiseID(id) {
   return '$@' + id.toString(16);
@@ -788,8 +806,8 @@ function serializeServerReferenceID(id) {
   return '$F' + id.toString(16);
 }
 
-function serializeSymbolReference(name) {
-  return '$S' + name;
+function serializeTemporaryReferenceID(id) {
+  return '$T' + id.toString(16);
 }
 
 function serializeFormDataReference(id) {
@@ -847,7 +865,7 @@ function escapeStringValue(value) {
   }
 }
 
-function processReply(root, formFieldPrefix, resolve, reject) {
+function processReply(root, formFieldPrefix, temporaryReferences, resolve, reject) {
   var nextPartId = 1;
   var pendingParts = 0;
   var formData = null;
@@ -873,7 +891,86 @@ function processReply(root, formFieldPrefix, resolve, reject) {
     }
 
     if (typeof value === 'object') {
-      // $FlowFixMe[method-unbinding]
+      switch (value.$$typeof) {
+        case REACT_ELEMENT_TYPE:
+          {
+            if (temporaryReferences === undefined) {
+              throw new Error('React Element cannot be passed to Server Functions from the Client without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
+            }
+
+            return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
+          }
+
+        case REACT_LAZY_TYPE:
+          {
+            // Resolve lazy as if it wasn't here. In the future this will be encoded as a Promise.
+            var lazy = value;
+            var payload = lazy._payload;
+            var init = lazy._init;
+
+            if (formData === null) {
+              // Upgrade to use FormData to allow us to stream this value.
+              formData = new FormData();
+            }
+
+            pendingParts++;
+
+            try {
+              var resolvedModel = init(payload); // We always outline this as a separate part even though we could inline it
+              // because it ensures a more deterministic encoding.
+
+              var lazyId = nextPartId++;
+              var partJSON = JSON.stringify(resolvedModel, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+
+              var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+              data.append(formFieldPrefix + lazyId, partJSON);
+              return serializeByValueID(lazyId);
+            } catch (x) {
+              if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+                // Suspended
+                pendingParts++;
+
+                var _lazyId = nextPartId++;
+
+                var thenable = x;
+
+                var retry = function () {
+                  // While the first promise resolved, its value isn't necessarily what we'll
+                  // resolve into because we might suspend again.
+                  try {
+                    var _partJSON = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+
+
+                    var _data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+                    _data.append(formFieldPrefix + _lazyId, _partJSON);
+
+                    pendingParts--;
+
+                    if (pendingParts === 0) {
+                      resolve(_data);
+                    }
+                  } catch (reason) {
+                    reject(reason);
+                  }
+                };
+
+                thenable.then(retry, retry);
+                return serializeByValueID(_lazyId);
+              } else {
+                // In the future we could consider serializing this as an error
+                // that throws on the server instead.
+                reject(x);
+                return null;
+              }
+            } finally {
+              pendingParts--;
+            }
+          }
+      } // $FlowFixMe[method-unbinding]
+
+
       if (typeof value.then === 'function') {
         // We assume that any object with a .then property is a "Thenable" type,
         // or a Promise type. Either of which can be represented by a Promise.
@@ -884,23 +981,31 @@ function processReply(root, formFieldPrefix, resolve, reject) {
 
         pendingParts++;
         var promiseId = nextPartId++;
-        var thenable = value;
-        thenable.then(function (partValue) {
-          var partJSON = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+        var _thenable = value;
 
-          var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+        _thenable.then(function (partValue) {
+          try {
+            var _partJSON2 = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
-          data.append(formFieldPrefix + promiseId, partJSON);
-          pendingParts--;
 
-          if (pendingParts === 0) {
-            resolve(data);
+            var _data2 = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+            _data2.append(formFieldPrefix + promiseId, _partJSON2);
+
+            pendingParts--;
+
+            if (pendingParts === 0) {
+              resolve(_data2);
+            }
+          } catch (reason) {
+            reject(reason);
           }
         }, function (reason) {
           // In the future we could consider serializing this as an error
           // that throws on the server instead.
           reject(reason);
         });
+
         return serializePromiseID(promiseId);
       }
 
@@ -916,7 +1021,7 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           formData = new FormData();
         }
 
-        var data = formData;
+        var _data3 = formData;
         var refId = nextPartId++; // Copy all the form fields with a prefix for this reference.
         // These must come first in the form order because we assume that all the
         // fields are available before this is referenced.
@@ -924,32 +1029,32 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         var prefix = formFieldPrefix + refId + '_'; // $FlowFixMe[prop-missing]: FormData has forEach.
 
         value.forEach(function (originalValue, originalKey) {
-          data.append(prefix + originalKey, originalValue);
+          _data3.append(prefix + originalKey, originalValue);
         });
         return serializeFormDataReference(refId);
       }
 
       if (value instanceof Map) {
-        var partJSON = JSON.stringify(Array.from(value), resolveToJSON);
+        var _partJSON3 = JSON.stringify(Array.from(value), resolveToJSON);
 
         if (formData === null) {
           formData = new FormData();
         }
 
         var mapId = nextPartId++;
-        formData.append(formFieldPrefix + mapId, partJSON);
+        formData.append(formFieldPrefix + mapId, _partJSON3);
         return serializeMapID(mapId);
       }
 
       if (value instanceof Set) {
-        var _partJSON = JSON.stringify(Array.from(value), resolveToJSON);
+        var _partJSON4 = JSON.stringify(Array.from(value), resolveToJSON);
 
         if (formData === null) {
           formData = new FormData();
         }
 
         var setId = nextPartId++;
-        formData.append(formFieldPrefix + setId, _partJSON);
+        formData.append(formFieldPrefix + setId, _partJSON4);
         return serializeSetID(setId);
       }
 
@@ -963,15 +1068,16 @@ function processReply(root, formFieldPrefix, resolve, reject) {
       var proto = getPrototypeOf(value);
 
       if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
-        throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
+        if (temporaryReferences === undefined) {
+          throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
+        } // We can serialize class instances as temporary references.
+
+
+        return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
       }
 
       {
-        if (value.$$typeof === REACT_ELEMENT_TYPE) {
-          error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === REACT_LAZY_TYPE) {
-          error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === (REACT_PROVIDER_TYPE)) {
+        if (value.$$typeof === (REACT_PROVIDER_TYPE)) {
           error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (objectName(value) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
@@ -1036,19 +1142,19 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         return serializeServerReferenceID(_refId);
       }
 
-      throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
+      if (temporaryReferences === undefined) {
+        throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
+      }
+
+      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
     }
 
     if (typeof value === 'symbol') {
-      // $FlowFixMe[incompatible-type] `description` might be undefined
-      var name = value.description;
-
-      if (Symbol.for(name) !== value) {
-        throw new Error('Only global symbols received from Symbol.for(...) can be passed to Server Functions. ' + ("The symbol Symbol.for(" + // $FlowFixMe[incompatible-type] `description` might be undefined
-        value.description + ") cannot be found among global symbols."));
+      if (temporaryReferences === undefined) {
+        throw new Error('Symbols cannot be passed to a Server Function without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
       }
 
-      return serializeSymbolReference(name);
+      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
     }
 
     if (typeof value === 'bigint') {
@@ -1606,21 +1712,35 @@ function parseModelString(response, parentObject, key, value) {
           return createServerReferenceProxy(response, metadata);
         }
 
+      case 'T':
+        {
+          // Temporary Reference
+          var _id3 = parseInt(value.slice(2), 16);
+
+          var temporaryReferences = response._tempRefs;
+
+          if (temporaryReferences == null) {
+            throw new Error('Missing a temporary reference set but the RSC response returned a temporary reference. ' + 'Pass a temporaryReference option with the set that was used with the reply.');
+          }
+
+          return readTemporaryReference(temporaryReferences, _id3);
+        }
+
       case 'Q':
         {
           // Map
-          var _id3 = parseInt(value.slice(2), 16);
+          var _id4 = parseInt(value.slice(2), 16);
 
-          var data = getOutlinedModel(response, _id3);
+          var data = getOutlinedModel(response, _id4);
           return new Map(data);
         }
 
       case 'W':
         {
           // Set
-          var _id4 = parseInt(value.slice(2), 16);
+          var _id5 = parseInt(value.slice(2), 16);
 
-          var _data = getOutlinedModel(response, _id4);
+          var _data = getOutlinedModel(response, _id5);
 
           return new Set(_data);
         }
@@ -1686,9 +1806,9 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id5 = parseInt(value.slice(1), 16);
+          var _id6 = parseInt(value.slice(1), 16);
 
-          var _chunk2 = getChunk(response, _id5);
+          var _chunk2 = getChunk(response, _id6);
 
           switch (_chunk2.status) {
             case RESOLVED_MODEL:
@@ -1762,7 +1882,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -1777,7 +1897,8 @@ function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormActi
     _rowID: 0,
     _rowTag: 0,
     _rowLength: 0,
-    _buffer: []
+    _buffer: [],
+    _tempRefs: temporaryReferences
   }; // Don't inline this call because it causes closure to outline the call above.
 
   response._fromJSON = createFromJSONCallback(response);
@@ -2133,8 +2254,8 @@ function close(response) {
 
 function createResponseFromOptions(options) {
   return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined, // encodeFormAction
-  undefined // nonce
-  );
+  undefined, // nonce
+  options && options.temporaryReferences ? options.temporaryReferences : undefined);
 }
 
 function startReadingFromStream(response, stream) {
@@ -2177,17 +2298,18 @@ function createFromFetch(promiseForResponse, options) {
   return getRoot(response);
 }
 
-function encodeReply(value)
+function encodeReply(value, options)
 /* We don't use URLSearchParams yet but maybe */
 {
   return new Promise(function (resolve, reject) {
-    processReply(value, '', resolve, reject);
+    processReply(value, '', options && options.temporaryReferences ? options.temporaryReferences : undefined, resolve, reject);
   });
 }
 
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
 exports.createServerReference = createServerReference;
+exports.createTemporaryReferenceSet = createTemporaryReferenceSet;
 exports.encodeReply = encodeReply;
   })();
 }
