@@ -35,6 +35,7 @@ use turbopack_binding::{
             issue::PlainIssue,
             source_map::Token,
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
+            SOURCE_MAP_PREFIX,
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
@@ -921,7 +922,7 @@ pub async fn project_trace_source(
                 }
             };
 
-            let Some(source_file) = original_file.strip_prefix("/turbopack/") else {
+            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
                 bail!("Original file ({}) outside project", original_file)
             };
 

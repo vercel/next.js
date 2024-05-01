@@ -1,7 +1,7 @@
 import globOrig from 'glob'
 import cheerio from 'cheerio'
-import { promisify } from 'util'
-import { join } from 'path'
+import { promisify } from 'node:util'
+import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 import {
   check,
@@ -211,24 +211,22 @@ describe('app-dir static/dynamic handling', () => {
     if (isApi) {
       prevData = await res.json()
     } else {
-      const initialHtml = await res.text()
-      const initial$ = isApi ? undefined : cheerio.load(initialHtml)
-      prevData = JSON.parse(initial$('#props').text())
+      const $ = isApi ? undefined : cheerio.load(await res.text())
+      prevData = JSON.parse($('#props').text())
     }
 
     expect(prevData.data.random).toBeTruthy()
 
-    await check(async () => {
+    await retry(async () => {
       res = await next.fetch(pathname)
       expect(res.status).toBe(200)
-      let curData
 
+      let curData
       if (isApi) {
         curData = await res.json()
       } else {
-        const curHtml = await res.text()
-        const cur$ = cheerio.load(curHtml)
-        curData = JSON.parse(cur$('#props').text())
+        const $ = cheerio.load(await res.text())
+        curData = JSON.parse($('#props').text())
       }
 
       try {
@@ -237,8 +235,7 @@ describe('app-dir static/dynamic handling', () => {
       } finally {
         prevData = curData
       }
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should not have cache tags header for non-minimal mode', async () => {
@@ -2323,7 +2320,7 @@ describe('app-dir static/dynamic handling', () => {
             /partial-gen-params fetch ([\d]{1,})/
           )
 
-          if (matches[1]) {
+          if (matches?.[1]) {
             langFetchSlug = matches[1]
             slugFetchSlug = langFetchSlug
           }

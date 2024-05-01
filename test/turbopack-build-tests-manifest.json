@@ -1166,6 +1166,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/app/flying-shuttle.test.ts": {
+      "passed": [],
+      "failed": [
+        "should output updated trace files should have file hashes in trace files"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/app/standalone-gsp.test.ts": {
       "passed": [],
       "failed": [
@@ -14602,6 +14611,17 @@
     "test/production/app-dir-prevent-304-caching/index.test.ts": {
       "passed": ["app-dir-prevent-304-caching should not cache 304 status"],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
+      "passed": [
+        "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
+      ],
+      "failed": [
+        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
