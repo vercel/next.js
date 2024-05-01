@@ -24,6 +24,17 @@ describe('app dir - navigation', () => {
       expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
     })
 
+    it('should set query with semicolon correctly', async () => {
+      const browser = await next.browser('/redirect/semicolon')
+
+      await retry(() =>
+        expect(browser.elementById('query').text()).resolves.toEqual('a=b%3Bc')
+      )
+
+      const url = new URL(await browser.url())
+      expect(url.searchParams.toString()).toBe('a=b%3Bc')
+    })
+
     it('should handle unicode search params', async () => {
       const requests: Array<{
         pathname: string
