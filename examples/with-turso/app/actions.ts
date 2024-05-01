@@ -13,10 +13,10 @@ export const addTodo = async (formData: FormData) => {
   revalidatePath("/");
 };
 
-export const removeTodo = async (id: number) => {
+export const removeTodo = async (formData: FormData) => {
   await db.execute({
     sql: "DELETE FROM todos WHERE id = ?",
-    args: [id],
+    args: [formData.get("id") as string],
   });
 
   revalidatePath("/");

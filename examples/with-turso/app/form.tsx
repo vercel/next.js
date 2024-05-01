@@ -5,6 +5,16 @@ import { useFormStatus } from "react-dom";
 
 import { addTodo } from "./actions";
 
+function Submit() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" aria-disabled={pending} className="sr-only">
+      Add
+    </button>
+  );
+}
+
 export function Form() {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -32,15 +42,5 @@ export function Form() {
 
       <Submit />
     </form>
-  );
-}
-
-function Submit() {
-  const { pending } = useFormStatus();
-
-  return (
-    <button type="submit" aria-disabled={pending} className="sr-only">
-      Add
-    </button>
   );
 }
