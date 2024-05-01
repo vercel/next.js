@@ -26,8 +26,7 @@ export class ServerRenderer implements Renderer {
 }
 
 export class StaticRenderer implements Renderer {
-  // this is for tree shaking. Couldn't find a better way to do it for some reason
-  private readonly prerenderToNodeStream = require('react-dom/static.node')
+  private readonly prerenderToNodeStream = require('react-dom/server.node')
     .prerenderToNodeStream as typeof import('react-dom/static.node')['prerenderToNodeStream']
 
   constructor(private readonly options: PrerenderToNodeStreamOptions) {}
