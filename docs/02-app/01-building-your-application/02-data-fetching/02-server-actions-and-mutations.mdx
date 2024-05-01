@@ -16,6 +16,16 @@ Server Actions are **asynchronous functions** that are executed on the server. T
 
 A Server Action can be defined with the React [`"use server"`](https://react.dev/reference/react/use-server) directive. You can place the directive at the top of an `async` function to mark the function as a Server Action, or at the top of a separate file to mark all exports of that file as Server Actions.
 
+## Code Organization
+
+### Separate Server Actions
+
+Create dedicated files for your server actions to enhance code organization and reusability. This keeps your code clean and easier to maintain.
+
+### Descriptive Naming
+
+Use clear naming conventions for your server actions that accurately reflect their purpose. This improves readability and understanding at a glance. 
+
 ### Server Components
 
 Server Components can use the inline function level or module level `"use server"` directive. To inline a Server Action, add `"use server"` to the top of the function body:
