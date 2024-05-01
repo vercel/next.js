@@ -524,45 +524,6 @@ export async function ncc_browserslist(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_assert(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('assert/')))
-    .ncc({
-      packageName: 'assert',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/assert')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_browser_zlib(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('browserify-zlib/')))
-    .ncc({
-      packageName: 'browserify-zlib',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/browserify-zlib')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_buffer(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('buffer/')))
-    .ncc({
-      packageName: 'buffer',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/buffer')
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_react_is(task, opts) {
   await task
     .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
@@ -581,128 +542,6 @@ export async function copy_constants_browserify(task, opts) {
   await task
     .source(require.resolve('constants-browserify'))
     .target('src/compiled/constants-browserify')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_crypto_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('crypto-browserify/')))
-    .ncc({
-      packageName: 'crypto-browserify',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/crypto-browserify')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_domain_browser(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('domain-browser/')))
-    .ncc({
-      packageName: 'domain-browser',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/domain-browser')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_events(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('events/')))
-    .ncc({
-      packageName: 'events',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/events')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_stream_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('stream-browserify/')))
-    .ncc({
-      packageName: 'stream-browserify',
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/stream-browserify')
-
-  // while ncc'ing readable-stream the browser mapping does not replace the
-  // require('stream') with require('events').EventEmitter correctly so we
-  // patch this manually as leaving require('stream') causes a circular
-  // reference breaking the browser polyfill
-  const outputFile = join(__dirname, 'src/compiled/stream-browserify/index.js')
-
-  await fs.writeFile(
-    outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(`require("stream")`, `require("events").EventEmitter`)
-  )
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_stream_http(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('stream-http/')))
-    .ncc({
-      packageName: 'stream-http',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/stream-http')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_https_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('https-browserify/')))
-    .ncc({
-      packageName: 'https-browserify',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/https-browserify')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_os_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('os-browserify/browser')))
-    .ncc({
-      packageName: 'os-browserify',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/os-browserify')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_path_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('path-browserify/')))
-    .ncc({
-      packageName: 'path-browserify',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/path-browserify')
-
-  const filePath = join(__dirname, 'src/compiled/path-browserify/index.js')
-  const content = await fs.readFile(filePath, 'utf8')
-
-  // Remove process usage from path-browserify polyfill for edge-runtime
-  await fs.writeFile(filePath, content.replace(/process\.cwd\(\)/g, '""'))
 }
 
 // eslint-disable-next-line camelcase
@@ -1983,17 +1822,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_postcss_plugin_stub_for_cssnano_simple',
-        'ncc_assert',
-        'ncc_browser_zlib',
-        'ncc_buffer',
-        'ncc_crypto_browserify',
-        'ncc_domain_browser',
-        'ncc_events',
-        'ncc_stream_browserify',
-        'ncc_stream_http',
-        'ncc_https_browserify',
-        'ncc_os_browserify',
-        'ncc_path_browserify',
         'ncc_process',
         'ncc_querystring_es3',
         'ncc_string_decoder',

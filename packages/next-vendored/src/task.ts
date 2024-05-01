@@ -6,7 +6,7 @@ type TaskOptions<T extends Task = Task> = {
   tasks: Tasks<T>
 }
 
-type QueueFn = (files: TFile[]) => Promise<void> | void
+export type QueueFn = (files: TFile[]) => Promise<void> | void
 
 export type TFile = {
   path: string

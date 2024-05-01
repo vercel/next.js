@@ -1580,28 +1580,24 @@ export default async function getBaseWebpackConfig(
                           setImmediate: false,
                         }
                       : {
-                          assert: require.resolve('next/dist/compiled/assert'),
-                          buffer: require.resolve('next/dist/compiled/buffer/'),
+                          assert: require.resolve('@next/vendored/assert'),
+                          buffer: require.resolve('@next/vendored/buffer'),
                           constants: require.resolve(
                             'next/dist/compiled/constants-browserify'
                           ),
                           crypto: require.resolve(
-                            'next/dist/compiled/crypto-browserify'
+                            '@next/vendored/crypto-browserify'
                           ),
                           domain: require.resolve(
-                            'next/dist/compiled/domain-browser'
+                            '@next/vendored/domain-browser'
                           ),
-                          http: require.resolve(
-                            'next/dist/compiled/stream-http'
-                          ),
+                          http: require.resolve('@next/vendored/stream-http'),
                           https: require.resolve(
-                            'next/dist/compiled/https-browserify'
+                            '@next/vendored/https-browserify'
                           ),
-                          os: require.resolve(
-                            'next/dist/compiled/os-browserify'
-                          ),
+                          os: require.resolve('@next/vendored/os-browserify'),
                           path: require.resolve(
-                            'next/dist/compiled/path-browserify'
+                            '@next/vendored/path-browserify'
                           ),
                           punycode: require.resolve(
                             'next/dist/compiled/punycode'
@@ -1612,7 +1608,7 @@ export default async function getBaseWebpackConfig(
                             'next/dist/compiled/querystring-es3'
                           ),
                           stream: require.resolve(
-                            'next/dist/compiled/stream-browserify'
+                            '@next/vendored/stream-browserify'
                           ),
                           string_decoder: require.resolve(
                             'next/dist/compiled/string_decoder'
@@ -1631,9 +1627,9 @@ export default async function getBaseWebpackConfig(
                             'next/dist/compiled/vm-browserify'
                           ),
                           zlib: require.resolve(
-                            'next/dist/compiled/browserify-zlib'
+                            '@next/vendored/browserify-zlib'
                           ),
-                          events: require.resolve('next/dist/compiled/events/'),
+                          events: require.resolve('@next/vendored/events'),
                           setImmediate: require.resolve(
                             'next/dist/compiled/setimmediate'
                           ),
