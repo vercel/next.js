@@ -392,9 +392,11 @@ export default async function getBaseWebpackConfig(
   // auto-include optimizePackageImports in transpilePackages
   const finalTranspilePackages: string[] = config.transpilePackages || []
 
-  for (const pkg of config.experimental.optimizePackageImports || []) {
-    if (!finalTranspilePackages.includes(pkg)) {
-      finalTranspilePackages.push(pkg)
+  if (!dev) {
+    for (const pkg of config.experimental.optimizePackageImports || []) {
+      if (!finalTranspilePackages.includes(pkg)) {
+        finalTranspilePackages.push(pkg)
+      }
     }
   }
 
