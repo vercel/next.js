@@ -80,8 +80,9 @@ export class Task {
     return files
   }
 
-  async use(fn: QueueFn) {
+  use(fn: QueueFn) {
     this.queue.push(fn)
+    return this
   }
 
   async target(dir: string): Promise<void> {
@@ -98,13 +99,32 @@ export class Task {
     }
     this.queue = []
 
+    for (const file of files) {
+      const relPath = relative(relDir, file.path)
+      const outPath = join(dir, relPath)
+
+      // This is unlikely to be needed later on but for now it is a good guard.
+      if (relPath.startsWith('..')) {
+        throw new Error(
+          `It's not expected for target files to write to files outside the \
+taskfile directory. Please check that ${relPath} is a file that you're expecting \
+to write to.
+
+Original path: ${file.path}
+Relative path: ${relPath} (relative to ${relDir})
+Output dir: ${dir}
+Output dir + Relative path: ${outPath}
+`
+        )
+      }
+
+      file.path = outPath
+    }
+
     await Promise.all(
       files.map(async ({ path, data }) => {
-        const relPath = relative(relDir, path)
-        const outPath = join(dir, relPath)
-
-        await fs.mkdir(dirname(outPath), { recursive: true })
-        await fs.writeFile(outPath, data)
+        await fs.mkdir(dirname(path), { recursive: true })
+        await fs.writeFile(path, data)
       })
     )
   }

@@ -75,12 +75,15 @@ async function addMissingFiles(
 
   let packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
   const combinedPackageJson = { ...packageJson }
+  // ESM libraries can have a nested `package.json` so we'll check for a root one
   const rootPackageJsonPath = await findInPackage(
     dirname(dirPath),
     'package.json'
   )
-  // ESM libraries can have a nested `package.json` so we'll check for a root one
-  if (rootPackageJsonPath) {
+  const hasRootPackageJson =
+    !!rootPackageJsonPath && rootPackageJsonPath !== packageJsonPath
+
+  if (hasRootPackageJson) {
     const rootPackageJson = JSON.parse(
       await fs.readFile(rootPackageJsonPath, 'utf8')
     )
@@ -90,13 +93,13 @@ async function addMissingFiles(
   const { name, author, license } = combinedPackageJson
 
   files.push({
-    path: packageJsonPath,
+    path: join(dirPath, 'package.json'),
     data: Buffer.from(
       JSON.stringify(
         Object.assign(
           {},
           // Include the nested package.json if any
-          rootPackageJsonPath && packageJson,
+          hasRootPackageJson && packageJson,
           {
             name: packageJsonName ?? name,
             main: basename(indexPath),

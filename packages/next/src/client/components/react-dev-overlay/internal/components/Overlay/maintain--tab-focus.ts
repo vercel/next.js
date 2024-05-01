@@ -6,7 +6,7 @@
 //
 // Entrypoint: ally.js/maintain/tab-focus
 
-import _platform from 'next/dist/compiled/platform'
+import _platform from '@next/vendored/platform'
 import cssEscape from '@next/vendored/css.escape'
 
 // input may be undefined, selector-tring, Node, NodeList, HTMLCollection, array of Nodes

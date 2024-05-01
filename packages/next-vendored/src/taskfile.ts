@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 import { Task } from './custom-task.js'
 import type { Tasks } from './task.js'
+import { resolveCommonjs } from './resolve.cjs'
 
 export { Task }
 
@@ -36,7 +37,7 @@ const externals: Record<string, string> = {
 
 export const tasks: Tasks<Task> = {}
 
-const nccTasks = {
+const nccTasks: Record<string, string | { mod: string; cjs?: boolean }> = {
   ncc_node_html_parser: 'node-html-parser',
   ncc_napirs_triples: '@napi-rs/triples',
   ncc_p_limit: 'p-limit',
@@ -44,13 +45,12 @@ const nccTasks = {
   ncc_image_size: 'image-size',
   ncc_get_orientation: 'get-orientation',
   ncc_hapi_accept: '@hapi/accept',
-  ncc_commander: 'commander',
+  ncc_commander: { mod: 'commander', cjs: true },
   ncc_node_fetch: 'node-fetch',
   ncc_node_anser: 'anser',
   ncc_node_stacktrace_parser: 'stacktrace-parser',
   ncc_node_data_uri_to_buffer: 'data-uri-to-buffer',
   ncc_node_cssescape: 'css.escape',
-  ncc_node_platform: 'platform', // TODO: This one has additional logic
   ncc_node_shell_quote: 'shell-quote',
   ncc_acorn: 'acorn', // TODO: Not being used by next?
   ncc_amphtml_validator: 'amphtml-validator',
@@ -72,18 +72,53 @@ const nccTasks = {
   // ncc_path_browserify: '',
 }
 
-for (const [taskName, moduleName] of Object.entries(nccTasks)) {
-  externals[moduleName] = `@next/vendored/${moduleName}`
+for (let [taskName, modOptions] of Object.entries(nccTasks)) {
+  if (typeof modOptions === 'string') {
+    modOptions = { mod: modOptions }
+  }
+  const { mod, cjs } = modOptions
+
+  externals[mod] = `@next/vendored/${mod}`
   tasks[taskName] = async (task) => {
-    await task.clear(moduleName)
+    await task.clear(mod)
     await task
-      .source(resolve(moduleName))
+      .source(cjs ? resolveCommonjs(mod) : resolve(mod))
       .ncc({
-        packageName: moduleName,
+        packageName: mod,
         externals,
       })
-      .target(moduleName)
+      .target(mod)
   }
+}
+
+externals['platform'] = '@next/vendored/platform'
+export async function ncc_node_platform(task: Task) {
+  await task.clear('platform')
+  await task
+    .source(resolve('platform'))
+    .ncc({
+      packageName: 'platform',
+      externals,
+    })
+    .use(async (files) => {
+      const platformFile = files.find((file) =>
+        file.path.endsWith('platform.js')
+      )!
+      const content = platformFile.data.toString().replace(
+        // remove AMD define branch as this forces the module to not
+        // be treated as commonjs
+        new RegExp(
+          'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=d;define((function(){return d}))}else '.replace(
+            /[|\\{}()[\]^$+*?.-]/g,
+            '\\$&'
+          ),
+          'g'
+        ),
+        ''
+      )
+      platformFile.data = Buffer.from(content, 'utf8')
+    })
+    .target('platform')
 }
 
 export async function copy_regenerator_runtime(task: Task) {
@@ -95,5 +130,6 @@ export async function copy_regenerator_runtime(task: Task) {
 
 export async function ncc(task: Task) {
   await task.parallel(Object.keys(nccTasks))
+  await task.parallel(['ncc_node_platform'])
   await task.serial(['copy_regenerator_runtime'])
 }

@@ -309,11 +309,6 @@ declare module 'next/dist/compiled/react-dom' {
   export = m
 }
 
-declare module 'next/dist/compiled/platform' {
-  import * as m from 'platform'
-  export = m
-}
-
 declare module 'next/dist/compiled/@vercel/og/satori-types' {
   export * from 'satori'
 }

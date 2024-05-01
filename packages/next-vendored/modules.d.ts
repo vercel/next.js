@@ -63,6 +63,11 @@ declare module '@next/vendored/css.escape' {
   export = CSS.escape
 }
 
+declare module '@next/vendored/platform' {
+  import * as m from 'platform'
+  export = m
+}
+
 declare module '@next/vendored/shell-quote' {
   import * as m from 'shell-quote'
   export = m
