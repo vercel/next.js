@@ -1,14 +1,4 @@
 import type {
-  Options as RenderToReadableStreamOptions,
-  ResumeOptions as ResumeOptionsEdge,
-} from 'react-dom/server.edge'
-import type { Options as PrerenderOptions } from 'react-dom/static.edge'
-import type {
-  Options as RenderToPipeableStreamOptions,
-  ResumeOptions as ResumeOptionsNode,
-} from 'react-dom/server.node'
-import type { Options as PrerenderToNodeStreamOptions } from 'react-dom/static.node'
-import type {
   RenderResult,
   Renderer,
   ServerRendererOptions,

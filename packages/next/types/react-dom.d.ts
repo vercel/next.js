@@ -39,9 +39,10 @@ type ReactFormState<S, ReferenceId> = [
 ]
 
 // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L103
-interface HeadersDescriptor {
-  Link?: string
-}
+// interface HeadersDescriptor {
+//   Link?: string
+// }
+type HeadersDescriptor = Record<string, string | string[]>
 
 declare module 'react-dom/types' {
   // https://github.com/facebook/react/blob/4508873393058e86bed308b56e49ec883ece59d1/packages/react-server/src/ReactFizzServer.js#L4482

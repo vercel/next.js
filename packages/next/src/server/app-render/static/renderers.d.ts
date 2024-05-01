@@ -21,40 +21,38 @@ export interface Renderer {
   render(children: JSX.Element): Promise<RenderResult>
 }
 
-export type ServerRendererOptions = Omit<
-  RenderToReadableStreamOptions,
-  'onHeaders'
-> &
-  Omit<RenderToPipeableStreamOptions, 'onHeaders'> & {
-    onHeaders?: (headers: Headers | HeadersDescriptor) => void
-  }
+type InteropEdgeAndNodeTypes<A, B> = Omit<A, keyof B> & B
+
+export type ServerRendererOptions = InteropEdgeAndNodeTypes<
+  RenderToReadableStreamOptions & RenderToPipeableStreamOptions,
+  { onHeaders?: (headers: Headers | HeadersDescriptor) => void }
+>
 
 export class ServerRenderer implements Renderer {
   constructor(options: ServerRendererOptions)
   render(children: JSX.Element): Promise<RenderResult>
 }
 
-export type StaticRendererOptions = Omit<PrerenderOptions, 'onHeaders'> &
-  Omit<PrerenderToNodeStreamOptions, 'onHeaders'> & {
-    onHeaders?: (headers: Headers | HeadersDescriptor) => void
-  }
+export type StaticRendererOptions = InteropEdgeAndNodeTypes<
+  PrerenderOptions & PrerenderToNodeStreamOptions,
+  { onHeaders?: (headers: Headers | HeadersDescriptor) => void }
+>
 
 export class StaticRenderer implements Renderer {
   constructor(options: StaticRendererOptions)
   render(children: JSX.Element): Promise<RenderResult>
 }
 
-export type StaticResumeRendererOptions = Omit<
-  ResumeOptionsEdge,
-  'onError' | 'onPostpone'
-> &
-  Omit<ResumeOptionsNode, 'onError' | 'onPostpone'> & {
+export type StaticResumeRendererOptions = InteropEdgeAndNodeTypes<
+  ResumeOptionsEdge & ResumeOptionsNode,
+  {
     onError?: (
       error: unknown,
       errorInfo?: ErrorInfo
     ) => string | undefined | null | void
     onPostpone?: (reason: string, postponeInfo?: PostponeInfo) => void
   }
+>
 
 export class StaticResumeRenderer implements Renderer {
   constructor(postponed: PostponedState, options: StaticResumeRendererOptions)

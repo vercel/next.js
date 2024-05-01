@@ -109,6 +109,7 @@ import {
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -931,8 +932,7 @@ async function renderToHTMLOrFlightImpl(
       const onHeaders = staticGenerationStore.prerenderState
         ? // During prerender we write headers to metadata
           (headers: Headers | HeadersDescriptor) => {
-            // TODO (@Ethan-Arrowood): (Node.js stream support) Add support when `headers` is a HeadersDescriptor
-            ;(headers as Headers).forEach((value, key) => {
+            HeadersAdapter.from(headers).forEach((value, key) => {
               metadata.headers ??= {}
               metadata.headers[key] = value
             })
@@ -947,8 +947,7 @@ async function renderToHTMLOrFlightImpl(
         : // During dynamic renders that are not resumes we write
           // early headers to the response
           (headers: Headers | HeadersDescriptor) => {
-            // TODO (@Ethan-Arrowood): (Node.js stream support) Add support when `headers` is a HeadersDescriptor
-            ;(headers as Headers).forEach((value, key) => {
+            HeadersAdapter.from(headers).forEach((value, key) => {
               res.appendHeader(key, value)
             })
           }
