@@ -930,8 +930,9 @@ async function renderToHTMLOrFlightImpl(
 
       const onHeaders = staticGenerationStore.prerenderState
         ? // During prerender we write headers to metadata
-          (headers: Headers) => {
-            headers.forEach((value, key) => {
+          (headers: Headers | HeadersDescriptor) => {
+            // TODO (@Ethan-Arrowood): (Node.js stream support) Add support when `headers` is a HeadersDescriptor
+            ;(headers as Headers).forEach((value, key) => {
               metadata.headers ??= {}
               metadata.headers[key] = value
             })
@@ -945,8 +946,9 @@ async function renderToHTMLOrFlightImpl(
           undefined
         : // During dynamic renders that are not resumes we write
           // early headers to the response
-          (headers: Headers) => {
-            headers.forEach((value, key) => {
+          (headers: Headers | HeadersDescriptor) => {
+            // TODO (@Ethan-Arrowood): (Node.js stream support) Add support when `headers` is a HeadersDescriptor
+            ;(headers as Headers).forEach((value, key) => {
               res.appendHeader(key, value)
             })
           }

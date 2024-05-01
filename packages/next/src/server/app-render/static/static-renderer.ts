@@ -8,7 +8,13 @@ import type {
   ResumeOptions as ResumeOptionsNode,
 } from 'react-dom/server.node'
 import type { Options as PrerenderToNodeStreamOptions } from 'react-dom/static.node'
-import type { RenderResult, Renderer } from './renderers'
+import type {
+  RenderResult,
+  Renderer,
+  ServerRendererOptions,
+  StaticRendererOptions,
+  StaticResumeRendererOptions,
+} from './renderers'
 import {
   ServerRenderer,
   StaticRenderer,
@@ -75,12 +81,9 @@ type Options = {
    * added via the `createStaticRenderer` function.
    */
   streamOptions:
-    | ResumeOptionsEdge
-    | ResumeOptionsNode
-    | RenderToReadableStreamOptions
-    | PrerenderOptions
-    | RenderToPipeableStreamOptions
-    | PrerenderToNodeStreamOptions
+    | StaticResumeRendererOptions
+    | ServerRendererOptions
+    | StaticRendererOptions
 }
 
 export function createStaticRenderer({
@@ -91,8 +94,18 @@ export function createStaticRenderer({
 }: Options): Renderer {
   if (ppr) {
     if (isStaticGeneration) {
+      let _streamOptions = streamOptions as StaticRendererOptions
       // This is a Prerender
-      return new StaticRenderer(streamOptions)
+      return new StaticRenderer({
+        signal: _streamOptions.signal,
+        onError: _streamOptions.onError,
+        onPostpone: _streamOptions.onPostpone,
+        // We want to capture headers because we may not end up with a shell
+        // and being able to send headers is the next best thing
+        onHeaders: _streamOptions.onHeaders,
+        maxHeadersLength: _streamOptions.maxHeadersLength,
+        bootstrapScripts: _streamOptions.bootstrapScripts,
+      })
     } else {
       // This is a Resume
       if (postponed === DYNAMIC_DATA) {
@@ -100,19 +113,47 @@ export function createStaticRenderer({
         return new VoidRenderer()
       } else if (postponed) {
         const reactPostponedState = postponed[1]
+        let _streamOptions = streamOptions as StaticResumeRendererOptions
         // The HTML had dynamic holes and we need to resume it
-        return new StaticResumeRenderer(reactPostponedState, streamOptions)
+        return new StaticResumeRenderer(reactPostponedState, {
+          signal: _streamOptions.signal,
+          onError: _streamOptions.onError,
+          onPostpone: _streamOptions.onPostpone,
+          nonce: _streamOptions.nonce,
+        })
       }
     }
   }
+
+  let _streamOptions = streamOptions as ServerRendererOptions
 
   if (isStaticGeneration) {
     // This is a static render (without PPR)
     // @ts-ignore
     delete streamOptions.onHeaders
-    return new ServerRenderer(streamOptions)
+    return new ServerRenderer({
+      signal: _streamOptions.signal,
+      onError: _streamOptions.onError,
+      // We don't pass onHeaders. In static builds we will either have no output
+      // or the entire page. In either case preload headers aren't necessary and could
+      // alter the prioritiy of relative loading of resources so we opt to keep them
+      // as tags exclusively.
+      nonce: _streamOptions.nonce,
+      bootstrapScripts: _streamOptions.bootstrapScripts,
+      formState: _streamOptions.formState,
+    })
   }
 
   // This is a dynamic render (without PPR)
-  return new ServerRenderer(streamOptions)
+  return new ServerRenderer({
+    signal: _streamOptions.signal,
+    onError: _streamOptions.onError,
+    // Static renders are streamed in realtime so sending headers early is
+    // generally good because it will likely go out before the shell is ready.
+    onHeaders: _streamOptions.onHeaders,
+    maxHeadersLength: _streamOptions.maxHeadersLength,
+    nonce: _streamOptions.nonce,
+    bootstrapScripts: _streamOptions.bootstrapScripts,
+    formState: _streamOptions.formState,
+  })
 }

@@ -187,7 +187,7 @@ declare module 'react-dom/server.node' {
   ): PipeableStream
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L76
-  interface ResumeOptions {
+  export interface ResumeOptions {
     nonce?: string
     onShellReady?: () => void
     onShellError?: (error: unknown) => void
