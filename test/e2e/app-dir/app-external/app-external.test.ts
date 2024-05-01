@@ -20,7 +20,6 @@ describe('app dir - external dependency', () => {
     files: __dirname,
     dependencies: {
       swr: 'latest',
-      undici: 'latest',
     },
     packageJson: {
       scripts: {
