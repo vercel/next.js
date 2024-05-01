@@ -207,6 +207,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
+  pagePath: string,
   flightRouterState: FlightRouterState | undefined
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
@@ -239,11 +240,19 @@ function makeGetDynamicParamFromSegment(
         segmentParam.type === 'optional-catchall' ||
         segmentParam.type === 'catchall'
       ) {
-        // If we weren't able to match the segment to a URL param, and we have a catch-all route,
-        // provide all of the known params (in array format) to the route
-        // It should be safe to assume the order of these params is consistent with the order of the segments.
-        // However, if not, we could re-parse the `pagePath` with `getRouteRegex` and iterate over the positional order.
-        value = Object.values(params).map((i) => encodeURIComponent(i))
+        // derive the value from the page path, replacing any dynamic params with the actual values
+        value = pagePath
+          .split('/')
+          .slice(1)
+          .map((part) => {
+            const match = /^\[(.+)\]$/.exec(part)
+
+            if (match) {
+              return params[match[1]]
+            }
+
+            return part
+          })
         const hasValues = value.length > 0
         const type = dynamicParamTypes[segmentParam.type]
         return {
@@ -795,6 +804,7 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
+    pagePath,
     // `FlightRouterState` is unconditionally provided here because this method uses it
     // to extract dynamic params as a fallback if they're not present in the path.
     parsedFlightRouterState
