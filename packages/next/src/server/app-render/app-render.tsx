@@ -109,7 +109,7 @@ import {
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
-import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -236,58 +236,43 @@ function makeGetDynamicParamFromSegment(
     }
 
     if (!value) {
-      const dynamicParamType = dynamicParamTypes[segmentParam.type]
-      const routeRegex = getRouteRegex(pagePath)
-      const dynamicParams = routeRegex.groups
-      const dynamicParamEntries = Object.entries(dynamicParams)
       const isCatchall = segmentParam.type === 'catchall'
       const isOptionalCatchall = segmentParam.type === 'optional-catchall'
-      // does `pagePath` contain any `[[...abc]]` segments
-      const doesPagePathContainOptionalCatchAllParam = dynamicParamEntries.some(
-        ([, dynamicParam]) => dynamicParam.optional && dynamicParam.repeat
-      )
 
-      // handle the case where an optional catchall does not have a value,
-      // e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
-      if (isOptionalCatchall && doesPagePathContainOptionalCatchAllParam) {
-        return {
-          param: key,
-          value: null,
-          type: dynamicParamType,
-          treeSegment: [key, '', dynamicParamType],
-        }
-      }
-
-      // handle the case where a catchall or optional catchall does not have a value,
-      // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
       if (isCatchall || isOptionalCatchall) {
+        const dynamicParamType = dynamicParamTypes[segmentParam.type]
+        // handle the case where an optional catchall does not have a value,
+        // e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
+        if (isOptionalCatchall) {
+          return {
+            param: key,
+            value: null,
+            type: dynamicParamType,
+            treeSegment: [key, '', dynamicParamType],
+          }
+        }
+
+        // handle the case where a catchall or optional catchall does not have a value,
+        // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
         value = pagePath
           .split('/')
           // remove the first empty string
           .slice(1)
           // replace any dynamic params with the actual values
-          .map((part) => {
-            const match = /^\[(.+)\]$/.exec(part)
+          .map((pathSegment) => {
+            const param = parseParameter(pathSegment)
 
-            if (match) {
-              return params[match[1]]
-            }
-
-            return part
+            // if the segment matches a param, return the param value
+            // otherwise, it's a static segment, so just return that
+            return params[param.key] ?? param.key
           })
-
-        const hasValues = value.length > 0
 
         return {
           param: key,
-          value: hasValues ? value : null,
+          value,
           type: dynamicParamType,
           // This value always has to be a string.
-          treeSegment: [
-            key,
-            hasValues ? value.join('/') : '',
-            dynamicParamType,
-          ],
+          treeSegment: [key, value.join('/'), dynamicParamType],
         }
       }
 
