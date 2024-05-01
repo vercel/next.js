@@ -109,6 +109,7 @@ import {
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -235,15 +236,36 @@ function makeGetDynamicParamFromSegment(
     }
 
     if (!value) {
-      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
-      if (
-        segmentParam.type === 'optional-catchall' ||
-        segmentParam.type === 'catchall'
-      ) {
-        // derive the value from the page path, replacing any dynamic params with the actual values
+      const dynamicParamType = dynamicParamTypes[segmentParam.type]
+      const routeRegex = getRouteRegex(pagePath)
+      const dynamicParams = routeRegex.groups
+      const dynamicParamEntries = Object.entries(dynamicParams)
+      const isCatchall = segmentParam.type === 'catchall'
+      const isOptionalCatchall = segmentParam.type === 'optional-catchall'
+      // does `pagePath` contain any `[[...abc]]` segments
+      const doesPagePathContainOptionalCatchAllParam = dynamicParamEntries.some(
+        ([, dynamicParam]) => dynamicParam.optional && dynamicParam.repeat
+      )
+
+      // handle the case where an optional catchall does not have a value,
+      // e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
+      if (isOptionalCatchall && doesPagePathContainOptionalCatchAllParam) {
+        return {
+          param: key,
+          value: null,
+          type: dynamicParamType,
+          treeSegment: [key, '', dynamicParamType],
+        }
+      }
+
+      // handle the case where a catchall or optional catchall does not have a value,
+      // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
+      if (isCatchall || isOptionalCatchall) {
         value = pagePath
           .split('/')
+          // remove the first empty string
           .slice(1)
+          // replace any dynamic params with the actual values
           .map((part) => {
             const match = /^\[(.+)\]$/.exec(part)
 
@@ -253,16 +275,22 @@ function makeGetDynamicParamFromSegment(
 
             return part
           })
+
         const hasValues = value.length > 0
-        const type = dynamicParamTypes[segmentParam.type]
+
         return {
           param: key,
           value: hasValues ? value : null,
-          type: type,
+          type: dynamicParamType,
           // This value always has to be a string.
-          treeSegment: [key, hasValues ? value.join('/') : '', type],
+          treeSegment: [
+            key,
+            hasValues ? value.join('/') : '',
+            dynamicParamType,
+          ],
         }
       }
+
       return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
