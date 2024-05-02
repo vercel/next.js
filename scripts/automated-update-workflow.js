@@ -22,11 +22,12 @@ if (!SCRIPT) {
 }
 
 async function main() {
-  const octokit = new Octokit({ auth: GITHUB_TOKEN })
-  const branchName = `update/${BRANCH_NAME}-${Date.now()}`
+  // const octokit = new Octokit({ auth: GITHUB_TOKEN })
+  // const branchName = `update/${BRANCH_NAME}-${Date.now()}`
 
   await exec(`node ${SCRIPT}`)
-  await exec('git status')
+  const { stdout, stderr } = await exec(`git status`)
+  console.log('[test] stdout', stdout)
 
   // await exec(`git config user.name "vercel-release-bot"`)
   // await exec(`git config user.email "infra+release@vercel.com"`)
