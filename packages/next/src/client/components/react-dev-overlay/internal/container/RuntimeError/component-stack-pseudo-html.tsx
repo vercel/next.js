@@ -111,13 +111,16 @@ export function PseudoHtmlDiff({
     if (isReactHydrationDiff) {
       let currentComponentIndex = componentStackFrames.length - 1
       const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
+      const diffHtmlStack: React.ReactNode[] = []
       reactComponentDiffLines.forEach((line, index) => {
-        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
         let trimmedLine = line.trim()
-        if (/\+|\-/.test(trimmedLine[0])) {
+        const isDiffLine = /\+|\-/.test(trimmedLine[0])
+        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+
+        if (isDiffLine) {
           const sign = trimmedLine[0]
           trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
-          nestedHtmlStack.push(
+          diffHtmlStack.push(
             <span
               key={'comp-diff' + index}
               data-nextjs-container-errors-pseudo-html--diff={
@@ -150,7 +153,7 @@ export function PseudoHtmlDiff({
           }
         }
       })
-      return nestedHtmlStack
+      return nestedHtmlStack.concat(diffHtmlStack)
     }
 
     // Hydration mismatch: text or text-tag
