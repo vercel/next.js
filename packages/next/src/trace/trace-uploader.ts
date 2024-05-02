@@ -1,4 +1,4 @@
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 import fsPromise from 'fs/promises'
 import child_process from 'child_process'
 import assert from 'assert'

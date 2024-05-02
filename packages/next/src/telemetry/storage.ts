@@ -1,8 +1,8 @@
 import type { BinaryLike } from 'crypto'
 import { bold, cyan, magenta } from '../lib/picocolors'
-import Conf from 'next/dist/compiled/conf'
+import Conf from '@next/vendored/conf'
 import { createHash, randomBytes } from 'crypto'
-import isDockerFunction from 'next/dist/compiled/is-docker'
+import isDockerFunction from '@next/vendored/is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'

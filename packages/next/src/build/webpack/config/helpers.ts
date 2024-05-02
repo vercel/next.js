@@ -1,4 +1,4 @@
-import curry from 'next/dist/compiled/lodash.curry'
+import curry from '@next/vendored/lodash.curry'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export const loader = curry(function loader(

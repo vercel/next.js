@@ -1,0 +1,31 @@
+{
+  "name": "@next/task",
+  "version": "14.3.0-canary.12",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "next",
+    "next.js"
+  ],
+  "description": "Next.js internal task runner",
+  "author": "Next.js Team <support@vercel.com>",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "prepublishOnly": "cd ../../ && turbo run build"
+  },
+  "bin": {
+    "task-runner": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "devDependencies": {
+    "typescript": "5.3.3"
+  },
+  "dependencies": {
+    "arg": "4.1.0",
+    "glob": "10.3.12"
+  }
+}

@@ -3,7 +3,7 @@ import os from 'os'
 
 import { join } from 'path'
 
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 import { File, nextBuild, nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')

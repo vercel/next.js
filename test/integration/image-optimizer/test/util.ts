@@ -14,7 +14,7 @@ import {
   nextStart,
   waitFor,
 } from 'next-test-utils'
-import isAnimated from 'next/dist/compiled/is-animated'
+import isAnimated from '@next/vendored/is-animated'
 import type { RequestInit } from 'node-fetch'
 
 const largeSize = 1080 // defaults defined in server/config.ts

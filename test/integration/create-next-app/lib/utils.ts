@@ -8,7 +8,7 @@ import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
 import glob from 'glob'
-import Conf from 'next/dist/compiled/conf'
+import Conf from '@next/vendored/conf'
 
 import {
   getProjectSetting,

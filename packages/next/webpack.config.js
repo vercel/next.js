@@ -73,7 +73,7 @@ const sharedExternals = [
   'next/dist/server/capsize-font-metrics.json',
   'critters',
   '@next/vendored/node-html-parser',
-  'next/dist/compiled/compression',
+  '@next/vendored/compression',
   'next/dist/compiled/jsonwebtoken',
   'next/dist/compiled/@opentelemetry/api',
   'next/dist/compiled/@mswjs/interceptors/ClientRequest',

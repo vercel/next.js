@@ -16,7 +16,7 @@ import {
 } from '../../webpack-config'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
-import picomatch from 'next/dist/compiled/picomatch'
+import picomatch from '@next/vendored/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'

@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 import { Task } from './custom-task.js'
-import type { Tasks, QueueFn } from './task.js'
+import type { Tasks, QueueFn } from '@next/task'
 import { resolveCommonjs } from './resolve.cjs'
 
 export { Task }
@@ -18,7 +18,7 @@ const externals: Record<string, string> = {
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
   // Ensure latest version is used
-  'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
+  'postcss-safe-parser': '@next/vendored/postcss-safe-parser',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -31,6 +31,8 @@ const externals: Record<string, string> = {
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
+
+  'loader-utils': 'error loader-utils version not specified',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -229,6 +231,73 @@ const nccTasks: Record<
   //     }
   //   ),
   // },
+  ncc_bytes: 'bytes',
+  ncc_ci_info: 'ci-info',
+  ncc_cli_select: 'cli-select',
+  ncc_comment_json: 'comment-json',
+  ncc_compression: 'compression',
+  ncc_conf: 'conf',
+  ncc_content_disposition: 'content-disposition',
+  ncc_content_type: 'content-type',
+  ncc_cookie: 'cookie',
+  ncc_cross_spawn: 'cross-spawn',
+  ncc_debug: 'debug',
+  ncc_devalue: 'devalue',
+  ncc_find_up: 'find-up',
+  ncc_fresh: 'fresh',
+  ncc_glob: 'glob',
+  ncc_gzip_size: 'gzip-size',
+  ncc_http_proxy: 'http-proxy',
+  ncc_ignore_loader: 'ignore-loader',
+  ncc_is_animated: 'is-animated',
+  ncc_is_docker: 'is-docker',
+  ncc_is_wsl: 'is-wsl',
+  ncc_json5: 'json5',
+  // ncc_jsonwebtoken: 'jsonwebtoken', This one uses "dist"
+  ncc_loader_runner: 'loader-runner', // TODO: is this being used?
+  ncc_loader_utils2: 'loader-utils2',
+  ncc_loader_utils3: 'loader-utils3',
+  ncc_lodash_curry: 'lodash.curry',
+  ncc_lru_cache: 'lru-cache',
+  ncc_nanoid: 'nanoid', //TODO: check the output of this one
+  ncc_native_url: {
+    mod: 'native-url',
+    externals: { querystring: '@next/vendored/querystring-es3' },
+  },
+  ncc_neo_async: 'neo-async', // TODO: Not being used by next?
+  ncc_ora: 'ora',
+  ncc_postcss_safe_parser: 'postcss-safe-parser',
+  ncc_postcss_flexbugs_fixes: 'postcss-flexbugs-fixes',
+  ncc_postcss_preset_env: 'postcss-preset-env',
+  ncc_postcss_scss: {
+    mod: 'postcss-scss',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_postcss_modules_extract_imports: {
+    mod: 'postcss-modules-extract-imports',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_postcss_modules_local_by_default: {
+    mod: 'postcss-modules-local-by-default',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_postcss_modules_scope: {
+    mod: 'postcss-modules-scope',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_postcss_modules_values: {
+    mod: 'postcss-modules-values',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_postcss_value_parser: {
+    mod: 'postcss-value-parser',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_icss_utils: {
+    mod: 'icss-utils',
+    externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
+  },
+  ncc_picomatch: 'picomatch',
 }
 
 for (let [taskName, modOptions] of Object.entries(nccTasks)) {

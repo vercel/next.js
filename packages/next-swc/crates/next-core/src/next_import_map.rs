@@ -539,7 +539,7 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("sys", "@next/vendored/util"),
     ("timers", "@next/vendored/timers-browserify"),
     ("tty", "@next/vendored/tty-browserify"),
-    ("url", "next/dist/compiled/native-url"),
+    ("url", "@next/vendored/native-url"),
     ("util", "@next/vendored/util"),
     ("vm", "@next/vendored/vm-browserify"),
     ("zlib", "@next/vendored/browserify-zlib"),
@@ -766,8 +766,8 @@ async fn insert_optimized_module_aliases(
             "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
             "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
             "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
-            "url" => "next/dist/compiled/native-url".to_string(),
-            "node:url" => "next/dist/compiled/native-url".to_string(),
+            "url" => "@next/vendored/native-url".to_string(),
+            "node:url" => "@next/vendored/native-url".to_string(),
         },
     );
     Ok(())

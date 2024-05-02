@@ -4,7 +4,7 @@ import type {
   IncrementalCacheValue,
 } from '../../response-cache'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import LRUCache from '@next/vendored/lru-cache'
 
 import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'

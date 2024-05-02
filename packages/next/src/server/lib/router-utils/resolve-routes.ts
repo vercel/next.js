@@ -10,7 +10,7 @@ import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
 import path from 'node:path'
-import setupDebug from 'next/dist/compiled/debug'
+import setupDebug from '@next/vendored/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'

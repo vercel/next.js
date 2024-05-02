@@ -168,7 +168,7 @@ async function runSharedDependencyCheck(
   skipMessage: string
 ): Promise<TaskResult> {
   const currentPlatform = os.platform()
-  const spawn = require('next/dist/compiled/cross-spawn')
+  const spawn = require('@next/vendored/cross-spawn')
   const { getSupportedArchTriples } = require('../build/swc')
   const triples = getSupportedArchTriples()[currentPlatform]?.[os.arch()] ?? []
   // First, check if system have a tool installed. We can't install these by our own.
@@ -266,9 +266,9 @@ async function printVerboseInfo() {
         default: async () => {
           // Node.js diagnostic report contains basic information, i.e OS version, CPU architecture, etc.
           // Only collect few addtional details here.
-          const isWsl = require('next/dist/compiled/is-wsl')
-          const ciInfo = require('next/dist/compiled/ci-info')
-          const isDocker = require('next/dist/compiled/is-docker')
+          const isWsl = require('@next/vendored/is-wsl')
+          const ciInfo = require('@next/vendored/ci-info')
+          const isDocker = require('@next/vendored/is-docker')
 
           const output = `
   WSL: ${isWsl}

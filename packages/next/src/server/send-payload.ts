@@ -4,7 +4,7 @@ import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
-import fresh from 'next/dist/compiled/fresh'
+import fresh from '@next/vendored/fresh'
 import { formatRevalidate } from './lib/revalidate'
 import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 

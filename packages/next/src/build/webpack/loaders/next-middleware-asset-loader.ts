@@ -1,4 +1,4 @@
-import loaderUtils from 'next/dist/compiled/loader-utils3'
+import loaderUtils from '@next/vendored/loader-utils3'
 import { getModuleBuildInfo } from './get-module-build-info'
 
 export default function MiddlewareAssetLoader(this: any, source: Buffer) {

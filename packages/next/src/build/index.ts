@@ -11,14 +11,14 @@ import '../lib/setup-exception-listeners'
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import crypto from 'crypto'
-import { makeRe } from 'next/dist/compiled/picomatch'
+import { makeRe } from '@next/vendored/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
-import devalue from 'next/dist/compiled/devalue'
-import findUp from 'next/dist/compiled/find-up'
-import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
+import devalue from '@next/vendored/devalue'
+import findUp from '@next/vendored/find-up'
+import { nanoid } from '@next/vendored/nanoid/index.cjs'
 import { Sema } from '@next/vendored/async-sema'
 import path from 'path'
 import {
@@ -2435,7 +2435,7 @@ export default async function build(
 
       if (config.experimental.optimizeCss) {
         const globOrig =
-          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+          require('@next/vendored/glob') as typeof import('@next/vendored/glob')
 
         const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
           globOrig(

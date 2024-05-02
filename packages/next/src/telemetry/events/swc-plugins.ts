@@ -1,4 +1,4 @@
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 import path from 'path'
 import fs from 'fs'
 import type { NextConfig } from '../../server/config-shared'

@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
-import findUp from 'next/dist/compiled/find-up'
-import JSON5 from 'next/dist/compiled/json5'
+import findUp from '@next/vendored/find-up'
+import JSON5 from '@next/vendored/json5'
 import * as path from 'path'
 
 type PackageJsonDependencies = {

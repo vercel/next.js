@@ -37,7 +37,7 @@ import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoint
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 
-import origDebug from 'next/dist/compiled/debug'
+import origDebug from '@next/vendored/debug'
 import { Telemetry } from '../../telemetry/storage'
 
 const debug = origDebug('next:build:webpack-build')

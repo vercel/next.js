@@ -9,7 +9,7 @@ import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'
 
-import createDebug from 'next/dist/compiled/debug'
+import createDebug from '@next/vendored/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import {

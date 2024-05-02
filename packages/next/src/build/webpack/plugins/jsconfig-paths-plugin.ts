@@ -5,7 +5,7 @@
  */
 import path from 'path'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { debug } from 'next/dist/compiled/debug'
+import { debug } from '@next/vendored/debug'
 import type { ResolvedBaseUrl } from '../../load-jsconfig'
 
 const log = debug('next:jsconfig-paths-plugin')

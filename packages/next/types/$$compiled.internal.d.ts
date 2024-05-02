@@ -2,15 +2,8 @@
 
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
-declare module 'next/dist/compiled/postcss-value-parser'
-declare module 'next/dist/compiled/icss-utils'
-declare module 'next/dist/compiled/postcss-modules-values'
-declare module 'next/dist/compiled/postcss-modules-local-by-default'
-declare module 'next/dist/compiled/postcss-modules-extract-imports'
-declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
-declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
@@ -98,106 +91,6 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
 
-declare module 'next/dist/compiled/bytes' {
-  import m from 'bytes'
-  export = m
-}
-declare module 'next/dist/compiled/ci-info' {
-  import m from 'ci-info'
-  export = m
-}
-declare module 'next/dist/compiled/cli-select' {
-  import m from 'cli-select'
-  export = m
-}
-declare module 'next/dist/compiled/compression' {
-  import m from 'compression'
-  export = m
-}
-declare module 'next/dist/compiled/conf' {
-  import m from 'conf'
-  export = m
-}
-declare module 'next/dist/compiled/content-disposition' {
-  import m from 'content-disposition'
-  export = m
-}
-declare module 'next/dist/compiled/content-type' {
-  import m from 'content-type'
-  export = m
-}
-declare module 'next/dist/compiled/cookie' {
-  import m from 'cookie'
-  export = m
-}
-declare module 'next/dist/compiled/cross-spawn' {
-  import m from 'cross-spawn'
-  export = m
-}
-declare module 'next/dist/compiled/debug' {
-  import m from 'debug'
-  export = m
-}
-declare module 'next/dist/compiled/devalue' {
-  import m from 'devalue'
-  export = m
-}
-declare module 'next/dist/compiled/find-up' {
-  import m from 'find-up'
-  export = m
-}
-declare module 'next/dist/compiled/fresh' {
-  import m from 'fresh'
-  export = m
-}
-declare module 'next/dist/compiled/glob' {
-  import m from 'glob'
-  export = m
-}
-declare module 'next/dist/compiled/gzip-size' {
-  import m from 'gzip-size'
-  export = m
-}
-declare module 'next/dist/compiled/http-proxy' {
-  import m from 'http-proxy'
-  export = m
-}
-declare module 'next/dist/compiled/is-docker' {
-  import m from 'is-docker'
-  export = m
-}
-declare module 'next/dist/compiled/is-wsl' {
-  import m from 'is-wsl'
-  export = m
-}
-declare module 'next/dist/compiled/json5' {
-  import m from 'json5'
-  export = m
-}
-declare module 'next/dist/compiled/jsonwebtoken' {
-  import m from 'jsonwebtoken'
-  export = m
-}
-declare module 'next/dist/compiled/lodash.curry' {
-  import m from 'lodash.curry'
-  export = m
-}
-declare module 'next/dist/compiled/lru-cache' {
-  import m from 'lru-cache'
-  export = m
-}
-declare module 'next/dist/compiled/picomatch' {
-  import m from 'picomatch'
-  export = m
-}
-declare module 'next/dist/compiled/nanoid/index.cjs' {
-  import m from 'nanoid'
-  export = m
-}
-declare module 'next/dist/compiled/ora' {
-  import m from 'ora'
-  export = m
-}
 declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
@@ -244,10 +137,6 @@ declare module 'next/dist/compiled/semver' {
   import m from 'semver'
   export = m
 }
-declare module 'next/dist/compiled/postcss-scss' {
-  import m from 'postcss-scss'
-  export = m
-}
 
 declare module 'next/dist/compiled/text-table' {
   function textTable(
@@ -273,11 +162,6 @@ declare module 'next/dist/compiled/web-vitals-attribution' {}
 
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
-  export = m
-}
-
-declare module 'next/dist/compiled/comment-json' {
-  import m from 'comment-json'
   export = m
 }
 
@@ -345,10 +229,6 @@ declare module 'next/dist/compiled/watchpack' {
   export default Watchpack
 }
 
-declare module 'next/dist/compiled/is-animated' {
-  export default function isAnimated(buffer: Buffer): boolean
-}
-
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
   export = m
@@ -360,7 +240,6 @@ declare module 'next/dist/compiled/zod' {
 }
 
 declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils3'
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import type webpackSources from 'webpack-sources1'

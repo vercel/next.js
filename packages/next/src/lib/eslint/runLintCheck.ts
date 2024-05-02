@@ -2,9 +2,9 @@ import { promises as fs, existsSync } from 'fs'
 import { bold, cyan, red, underline, yellow } from '../picocolors'
 import path from 'path'
 
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 import semver from 'next/dist/compiled/semver'
-import * as CommentJson from 'next/dist/compiled/comment-json'
+import * as CommentJson from '@next/vendored/comment-json'
 
 import { formatResults } from './customFormatter'
 import type { LintResult } from './customFormatter'
@@ -55,7 +55,7 @@ async function cliPrompt(): Promise<{ config?: any }> {
 
   try {
     const cliSelect = (
-      await Promise.resolve(require('next/dist/compiled/cli-select'))
+      await Promise.resolve(require('@next/vendored/cli-select'))
     ).default
     const { value } = await cliSelect({
       values: ESLINT_PROMPT_VALUES,

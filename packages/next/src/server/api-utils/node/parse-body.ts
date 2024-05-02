@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 
-import { parse } from 'next/dist/compiled/content-type'
+import { parse } from '@next/vendored/content-type'
 import isError from '../../../lib/is-error'
 import type { SizeLimit } from '../../../types'
 import { ApiError } from '../index'

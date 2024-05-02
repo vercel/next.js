@@ -17,8 +17,8 @@ import fs from 'fs/promises'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
-import debugOriginal from 'next/dist/compiled/debug'
-import picomatch from 'next/dist/compiled/picomatch'
+import debugOriginal from '@next/vendored/debug'
+import picomatch from '@next/vendored/picomatch'
 import { defaultOverrides } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -652,7 +652,7 @@ export async function collectBuildTraces({
   const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
   await includeExcludeSpan.traceAsyncFn(async () => {
     const globOrig =
-      require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+      require('@next/vendored/glob') as typeof import('@next/vendored/glob')
     const glob = (pattern: string): Promise<string[]> => {
       return new Promise((resolve, reject) => {
         globOrig(

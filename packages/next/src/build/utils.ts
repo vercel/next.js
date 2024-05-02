@@ -37,7 +37,7 @@ import {
   bold,
   underline,
 } from '../lib/picocolors'
-import getGzipSize from 'next/dist/compiled/gzip-size'
+import getGzipSize from '@next/vendored/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { Task as CoreTask, type TFile } from './task.js'
+import { Task as CoreTask, type TFile } from '@next/task'
 import ncc, { type NccOptions } from '@vercel/ncc'
 
 type NccTaskOptions = {

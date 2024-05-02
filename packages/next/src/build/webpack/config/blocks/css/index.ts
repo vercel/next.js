@@ -1,4 +1,4 @@
-import curry from 'next/dist/compiled/lodash.curry'
+import curry from '@next/vendored/lodash.curry'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
 import { pipe } from '../../utils'
@@ -378,7 +378,7 @@ export const css = curry(async function css(
             // CSS imports have side effects, even on the server side.
             sideEffects: true,
             test: [regexCssGlobal, regexSassGlobal],
-            use: require.resolve('next/dist/compiled/ignore-loader'),
+            use: require.resolve('@next/vendored/ignore-loader'),
           }),
         ].filter(nonNullable),
       })

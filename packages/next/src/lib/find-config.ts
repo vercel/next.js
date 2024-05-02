@@ -1,6 +1,6 @@
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 import { readFile } from 'fs/promises'
-import JSON5 from 'next/dist/compiled/json5'
+import JSON5 from '@next/vendored/json5'
 import { pathToFileURL } from 'url'
 
 type RecursivePartial<T> = {
