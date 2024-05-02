@@ -8,6 +8,7 @@ import {
   PageNotFoundError,
   MiddlewareNotFoundError,
 } from '../shared/lib/utils'
+// Trigger e2e
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
