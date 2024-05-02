@@ -239,7 +239,7 @@ export function PseudoHtmlDiff({
       })
       const spaces = ' '.repeat(nestedHtmlStack.length * 2)
       let wrappedCodeLine
-      if (hydrationMismatchType === 'text') {
+      if (hydrationMismatchType === 'tag') {
         // hydration type is "text", represent [server content, client content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
