@@ -25,7 +25,7 @@ export interface RouteRegex {
  *   - `[foo]` -> `{ key: 'foo', repeat: false, optional: true }`
  *   - `bar` -> `{ key: 'bar', repeat: false, optional: false }`
  */
-function parseParameter(param: string) {
+export function parseParameter(param: string) {
   const optional = param.startsWith('[') && param.endsWith(']')
   if (optional) {
     param = param.slice(1, -1)

@@ -7,7 +7,7 @@ description: Learn how to override the invalidation time of the Client Router Ca
 
 `staleTimes` is an experimental feature that allows configuring the [invalidation period](/docs/app/building-your-application/caching#duration-3) of the client router cache.
 
-This configuration option is available as of v14.2.0-canary.53.
+This configuration option is available as of [v14.2.0](https://github.com/vercel/next.js/releases/tag/v14.2.0).
 
 You can enable this experimental feature & provide custom revalidation times by setting the experimental `staleTimes` flag:
 
@@ -27,7 +27,7 @@ module.exports = nextConfig
 
 The `static` and `dynamic` properties correspond with the time period (in seconds) based on different types of [link prefetching](/docs/app/api-reference/components/link#prefetch).
 
-- The `dynamic` property is used when the `prefetch` prop on `Link` is left unspecified.
+- The `dynamic` property is used when the `prefetch` prop on `Link` is left unspecified or is set to `false`.
   - Default: 30 seconds
 - The `static` property is used when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/building-your-application/caching#routerprefetch).
   - Default: 5 minutes
