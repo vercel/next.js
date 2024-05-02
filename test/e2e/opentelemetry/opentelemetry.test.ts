@@ -537,14 +537,104 @@ describe('opentelemetry', () => {
           await expectTrace(getCollector(), [
             {
               attributes: {
+                'http.method': 'GET',
+                'http.route': '/app/[param]/loading/page1',
+                'http.status_code': 200,
+                'http.target': '/app/foo/loading/page1',
                 'next.route': '/app/[param]/loading/page1',
-                'next.span_name':
-                  'render route (app) /app/[param]/loading/page1',
-                'next.span_type': 'AppRender.getBodyResult',
+                'next.rsc': false,
+                'next.span_name': 'GET /app/[param]/loading/page1',
+                'next.span_type': 'BaseServer.handleRequest',
               },
               kind: 0,
-              name: 'render route (app) /app/[param]/loading/page1',
-              parentId: '[parent-id]',
+              name: 'GET /app/[param]/loading/page1',
+              parentId: env.span.rootParentId,
+              runtime: 'nodejs',
+              spans: [
+                {
+                  name: 'render route (app) /app/[param]/loading/page1',
+                  kind: 0,
+                  attributes: {
+                    'next.route': '/app/[param]/loading/page1',
+                    'next.span_name':
+                      'render route (app) /app/[param]/loading/page1',
+                    'next.span_type': 'Render.renderDocument',
+                  },
+                  spans: [
+                    {
+                      kind: 0,
+                      attributes: {
+                        'next.segment': '__PAGE__',
+                        'next.span_name': 'resolve segment modules',
+                        'next.span_type':
+                          'NextNodeServer.getLayoutOrPageModule',
+                      },
+                      name: 'resolve segment modules',
+                      parentId: env.span.rootParentId,
+                      traceId: env.span.traceId,
+                      runtime: 'nodejs',
+                      spans: [],
+                      status: { code: 0 },
+                    },
+                    {
+                      attributes: {
+                        'next.segment': '[param]',
+                        'next.span_name': 'resolve segment modules',
+                        'next.span_type':
+                          'NextNodeServer.getLayoutOrPageModule',
+                      },
+                      kind: 0,
+                      name: 'resolve segment modules',
+                      parentId: env.span.rootParentId,
+                      traceId: env.span.traceId,
+                      runtime: 'nodejs',
+                      spans: [],
+                      status: { code: 0 },
+                    },
+                  ],
+                  status: { code: 0 },
+                  traceId: env.span.traceId,
+                },
+                {
+                  attributes: {
+                    'next.page': '/app/[param]/layout',
+                    'next.span_name': 'generateMetadata /app/[param]/layout',
+                    'next.span_type': 'ResolveMetadata.generateMetadata',
+                  },
+                  kind: 0,
+                  name: 'generateMetadata /app/[param]/layout',
+                  parentId: env.span.rootParentId,
+                  traceId: env.span.traceId,
+                  runtime: 'nodejs',
+                  spans: [],
+                  status: { code: 0 },
+                },
+                {
+                  attributes: {
+                    'next.clientComponentLoadCount': 5,
+                  },
+                  kind: 0,
+                  name: 'NextNodeServer.clientComponentLoading',
+                  parentId: env.span.rootParentId,
+                  traceId: env.span.traceId,
+                  runtime: 'nodejs',
+                  spans: [],
+                  status: { code: 0 },
+                },
+                {
+                  attributes: {
+                    'next.span_name': 'start response',
+                    'next.span_type': 'NextNodeServer.startResponse',
+                  },
+                  kind: 0,
+                  name: 'start response',
+                  parentId: env.span.rootParentId,
+                  traceId: env.span.traceId,
+                  runtime: 'nodejs',
+                  spans: [],
+                  status: { code: 0 },
+                },
+              ],
               status: {
                 code: 0,
               },
@@ -557,8 +647,6 @@ describe('opentelemetry', () => {
                 'http.status_code': 200,
                 'http.target': '/app/foo/loading/page1',
                 'next.route': '/app/[param]/loading/page1',
-                'next.span_name': 'GET /app/[param]/loading/page1',
-                'next.span_type': 'BaseServer.handleRequest',
               },
               kind: 1,
               name: 'GET /app/[param]/loading/page1',
