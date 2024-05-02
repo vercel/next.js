@@ -889,7 +889,7 @@ export const defaultConfig: NextConfig = {
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     appDocumentPreloading: undefined,
-    preloadEntriesOnStart: undefined,
+    preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
