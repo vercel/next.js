@@ -110,7 +110,10 @@ import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
-import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import {
+  handleBadRequestResponse,
+  handleInternalServerErrorResponse,
+} from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
@@ -2466,46 +2469,59 @@ export default abstract class Server<
 
             return null
           }
-        } else if (isPagesRouteModule(routeModule)) {
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend
-          // the object here but only updating its `clientReferenceManifest` and
-          // `nextFontManifest` properties.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
-          renderOpts.clientReferenceManifest =
-            components.clientReferenceManifest
+        } else if (
+          isPagesRouteModule(routeModule) ||
+          isAppPageRouteModule(routeModule)
+        ) {
+          // An OPTIONS request to a page/app route is invalid.
+          if (req.method === 'OPTIONS' && !is404Page) {
+            await sendResponse(req, res, handleBadRequestResponse())
+            return null
+          }
 
-          const request = isNodeNextRequest(req) ? req.originalRequest : req
-          const response = isNodeNextResponse(res) ? res.originalResponse : res
+          if (isPagesRouteModule(routeModule)) {
+            // Due to the way we pass data by mutating `renderOpts`, we can't extend
+            // the object here but only updating its `clientReferenceManifest` and
+            // `nextFontManifest` properties.
+            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+            renderOpts.nextFontManifest = this.nextFontManifest
+            renderOpts.clientReferenceManifest =
+              components.clientReferenceManifest
 
-          // Call the built-in render method on the module.
-          result = await routeModule.render(
-            // TODO: fix this type
-            // @ts-expect-error - preexisting accepted this
-            request,
-            response,
-            {
-              page: pathname,
+            const request = isNodeNextRequest(req) ? req.originalRequest : req
+            const response = isNodeNextResponse(res)
+              ? res.originalResponse
+              : res
+
+            // Call the built-in render method on the module.
+            result = await routeModule.render(
+              // TODO: fix this type
+              // @ts-expect-error - preexisting accepted this
+              request,
+              response,
+              {
+                page: pathname,
+                params: opts.params,
+                query,
+                renderOpts,
+              }
+            )
+          } else {
+            const module = components.routeModule as AppPageRouteModule
+
+            // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+            // object here but only updating its `nextFontManifest` field.
+            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+            renderOpts.nextFontManifest = this.nextFontManifest
+
+            // Call the built-in render method on the module.
+            result = await module.render(req, res, {
+              page: is404Page ? '/404' : pathname,
               params: opts.params,
               query,
               renderOpts,
-            }
-          )
-        } else if (isAppPageRouteModule(routeModule)) {
-          const module = components.routeModule as AppPageRouteModule
-
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-          // object here but only updating its `nextFontManifest` field.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
-
-          // Call the built-in render method on the module.
-          result = await module.render(req, res, {
-            page: is404Page ? '/404' : pathname,
-            params: opts.params,
-            query,
-            renderOpts,
-          })
+            })
+          }
         } else {
           throw new Error('Invariant: Unknown route module type')
         }
