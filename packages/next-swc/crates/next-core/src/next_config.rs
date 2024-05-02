@@ -409,7 +409,7 @@ pub struct ExperimentalTurboConfig {
     pub use_swc_css: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
@@ -417,14 +417,14 @@ pub struct RuleConfigItemOptions {
     pub rename_as: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItemOrShortcut {
     Loaders(Vec<LoaderItem>),
     Advanced(RuleConfigItem),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
@@ -432,7 +432,7 @@ pub enum RuleConfigItem {
     Boolean(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum LoaderItem {
     LoaderName(String),
@@ -445,6 +445,29 @@ pub enum MdxRsOptions {
     Boolean(bool),
     Option(MdxTransformOptions),
 }
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ForgetCompilationMode {
+    Infer,
+    Annotation,
+    All,
+}
+
+/// Subset of react-forget compiler options
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgetCompilerOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compilation_mode: Option<ForgetCompilationMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub panic_threshold: Option<String>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionalForgetCompilerOptions(Option<Vc<ForgetCompilerOptions>>);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
@@ -482,6 +505,7 @@ pub struct ExperimentalConfig {
     pub web_vitals_attribution: Option<Vec<String>>,
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
+    forget_compiler_options: Option<ForgetCompilerOptions>,
 
     // ---
     // UNSUPPORTED
@@ -887,6 +911,20 @@ impl NextConfig {
         };
 
         Ok(options.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn forget_compiler_options(
+        self: Vc<Self>,
+    ) -> Result<Vc<OptionalForgetCompilerOptions>> {
+        Ok(OptionalForgetCompilerOptions(
+            self.await?
+                .experimental
+                .forget_compiler_options
+                .as_ref()
+                .map(|m| m.clone().into()),
+        )
+        .cell())
     }
 
     #[turbo_tasks::function]

@@ -181,6 +181,17 @@ export interface NextJsWebpackConfig {
   ): any
 }
 
+/**
+ * Set of options for the react-forget compiler next.js
+ * currently supports.
+ *
+ * This can be changed without breaking changes while supporting
+ * react-forget is in the experimental phase.
+ */
+export interface ForgetCompilerOptions {
+  compilationMode?: 'infer' | 'annotation' | 'all'
+}
+
 export interface ExperimentalConfig {
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
@@ -460,6 +471,12 @@ export interface ExperimentalConfig {
    * Set a default test runner to be used by `next experimental-test`.
    */
   defaultTestRunner?: SupportedTestRunners
+  /**
+   * Enable experimental react-forget compiler optimization.
+   * Configuration accepts partial config object to the compiler, if provided
+   * compiler will be enabled.
+   */
+  forgetCompilerOptions?: ForgetCompilerOptions
 }
 
 export type ExportPathMap = {

@@ -419,6 +419,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
+        forgetCompilerOptions: z
+          .object({
+            compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          })
+          .optional(),
       })
       .optional(),
     exportPathMap: z
