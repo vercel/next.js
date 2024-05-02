@@ -60,14 +60,8 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary>
-              <InnerLayoutRouter>
-                <Mismatch>
-                  <div>
-                    <main>
-                      "server"
-                      "client""
+        +  client
+        -  server"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -127,11 +121,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <Mismatch>
-            <div>
-            ^^^^^
-              <main>
-              ^^^^^^"
+        +  <main className="only">"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -241,16 +231,9 @@ describe('Error overlay for hydration errors', () => {
 
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-              "...
-                <NotFoundErrorBoundary>
-                  <RedirectBoundary>
-                    <RedirectErrorBoundary>
-                      <InnerLayoutRouter>
-                        <Mismatch>
-                          <div>
-                            <div>
-                              "only""
-            `)
+        "...
+        -  only"
+      `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
@@ -596,15 +579,8 @@ describe('Error overlay for hydration errors', () => {
     const pseudoHtml = await session.getRedboxComponentStack()
     expect(pseudoHtml).toMatchInlineSnapshot(`
       "...
-        <div>
-          <div>
-            <div>
-              <div>
-                <Mismatch>
-                  <p>
-                    <span>
-      +                client
-      -                server"
+      +  client
+      -  server"
     `)
 
     await session.toggleCollapseComponentStack()
@@ -612,44 +588,10 @@ describe('Error overlay for hydration errors', () => {
     const fullPseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
-              "<Root>
-                <ServerRoot>
-                  <AppRouter>
-                    <ErrorBoundary>
-                      <ErrorBoundaryHandler>
-                        <Router>
-                          <HotReload>
-                            <ReactDevOverlay>
-                              <DevRootNotFoundBoundary>
-                                <NotFoundBoundary>
-                                  <NotFoundErrorBoundary>
-                                    <RedirectBoundary>
-                                      <RedirectErrorBoundary>
-                                        <RootLayout>
-                                          <html>
-                                            <body>
-                                              <OuterLayoutRouter>
-                                                <RenderFromTemplateContext>
-                                                  <ScrollAndFocusHandler>
-                                                    <InnerScrollAndFocusHandler>
-                                                      <ErrorBoundary>
-                                                        <LoadingBoundary>
-                                                          <NotFoundBoundary>
-                                                            <NotFoundErrorBoundary>
-                                                              <RedirectBoundary>
-                                                                <RedirectErrorBoundary>
-                                                                  <InnerLayoutRouter>
-                                                                    <Page>
-                                                                      <div>
-                                                                        <div>
-                                                                          <div>
-                                                                            <div>
-                                                                              <Mismatch>
-                                                                                <p>
-                                                                                  <span>
-                                                                                    "server"
-                                                                                    "client""
-            `)
+        "...
+        +  client
+        -  server"
+      `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
