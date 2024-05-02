@@ -81,7 +81,7 @@ describe('parallel-routes-breadcrumbs', () => {
 
     expect(await browser.elementByCss('h1').text()).toBe('Parallel Route!')
     expect(await browser.elementByCss('h2').text()).toBe(
-      '/buzz/[...fizz] Page!'
+      '/buzz/[[...fizz]] Page!'
     )
 
     // verify slot is rendering the params
