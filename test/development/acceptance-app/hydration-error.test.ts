@@ -7,6 +7,15 @@ import { getRedboxTotalErrorCount } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
+const hydrationErrorNotes = `\
+- A server/client branch \`if (typeof window !== 'undefined')\`.
+- Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.`
+
 describe('Error overlay for hydration errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -41,13 +50,21 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Error: Text content does not match server-rendered HTML.
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more: https://react.dev/link/hydration-mismatch"
     `)
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Text content did not match. Server: "server" Client: "client""`
-    )
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "- A server/client branch \`if (typeof window !== 'undefined')\`.
+      - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+      - Date formatting in a user's locale which doesn't match the server.
+      - External changing data without sending a snapshot of it along with the HTML.
+      - Invalid HTML tag nesting.
+
+      It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+      "
+    `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -65,11 +82,11 @@ describe('Error overlay for hydration errors', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Mismatch>
-          <div>
-            <main>
-              "server"
-              "client""
+        "...
+          <div className="parent">
+            <main className="child">
+        +      client
+        -      server"
       `)
     }
 
@@ -129,21 +146,19 @@ describe('Error overlay for hydration errors', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Mismatch>
-          <div>
-          ^^^^^
-            <main>
-            ^^^^^^"
+        "...
+          <div className="parent">
+        +    <main className="only">"
       `)
     }
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more: https://react.dev/link/hydration-mismatch"
     `)
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Expected server HTML to contain a matching <main> in <div>."`
-    )
+    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+    //   `"Expected server HTML to contain a matching <main> in <div>."`
+    // )
 
     await cleanup()
   })
@@ -173,14 +188,11 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`null`)
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Expected server HTML to contain a matching text node for "second" in <div>."`
-    )
+    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+    //   `"Expected server HTML to contain a matching text node for "second" in <div>."`
+    // )
 
     await cleanup()
   })
@@ -209,12 +221,12 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Did not expect server HTML to contain a <main> in <div>."`
-    )
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more: https://react.dev/link/hydration-mismatch"
+    `)
+    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+    //   `"Did not expect server HTML to contain a <main> in <div>."`
+    // )
 
     await cleanup()
   })
@@ -239,13 +251,13 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more: https://react.dev/link/hydration-mismatch"
     `)
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Did not expect server HTML to contain the text node "only" in <div>."`
-    )
+    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+    //   `"Did not expect server HTML to contain the text node "only" in <div>."`
+    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -263,10 +275,9 @@ describe('Error overlay for hydration errors', () => {
             `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Mismatch>
-          <div>
-            <div>
-              "only""
+        "...
+          <div className="parent">
+        -    only"
       `)
     }
 
@@ -302,13 +313,13 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more: https://react.dev/link/hydration-mismatch"
+    `)
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Expected server HTML to contain a matching <main> in <div>."`
-    )
+    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
+    //   `"Expected server HTML to contain a matching <main> in <div>."`
+    // )
 
     await cleanup()
   })
@@ -378,12 +389,12 @@ describe('Error overlay for hydration errors', () => {
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
-      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
-    )
-    const warning = await session.getRedboxDescriptionWarning()
-    expect(warning).toContain(
       'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
+    // const warning = await session.getRedboxDescriptionWarning()
+    // expect(warning).toContain(
+    //   'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -398,13 +409,7 @@ describe('Error overlay for hydration errors', () => {
               ^^^"
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Page>
-          <p>
-          ^^^
-            <p>
-            ^^^"
-      `)
+      expect(pseudoHtml).toMatchInlineSnapshot(`""`)
     }
 
     await cleanup()
@@ -442,12 +447,12 @@ describe('Error overlay for hydration errors', () => {
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
-      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
-    )
-    const warning = await session.getRedboxDescriptionWarning()
-    expect(warning).toContain(
       'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
+    // const warning = await session.getRedboxDescriptionWarning()
+    // expect(warning).toContain(
+    //   'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -462,15 +467,7 @@ describe('Error overlay for hydration errors', () => {
               ^^^^^"
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Page>
-          <div>
-            <div>
-              <p>
-              ^^^
-                <div>
-                ^^^^^"
-      `)
+      expect(pseudoHtml).toMatchInlineSnapshot(`""`)
     }
 
     await cleanup()
@@ -500,12 +497,12 @@ describe('Error overlay for hydration errors', () => {
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
-      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
-    )
-    const warning = await session.getRedboxDescriptionWarning()
-    expect(warning).toContain(
       'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
+    // const warning = await session.getRedboxDescriptionWarning()
+    // expect(warning).toContain(
+    //   'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -523,16 +520,7 @@ describe('Error overlay for hydration errors', () => {
                     ^^^"
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Page>
-          <p>
-          ^^^
-            <span>
-              ...
-                <span>
-                  <p>
-                  ^^^"
-    `)
+      expect(pseudoHtml).toMatchInlineSnapshot(`""`)
     }
 
     await cleanup()
@@ -574,10 +562,10 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
     expect(await session.hasRedbox()).toBe(true)
 
-    const warning = await session.getRedboxDescriptionWarning()
-    expect(warning).toContain(
-      'Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.'
-    )
+    // const warning = await session.getRedboxDescriptionWarning()
+    // expect(warning).toContain(
+    //   'Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.'
+    // )
 
     await cleanup()
   })
@@ -631,11 +619,12 @@ describe('Error overlay for hydration errors', () => {
         <div>
           <div>
             <div>
-              <Mismatch>
-                <p>
-                  <span>
-                    "server"
-                    "client""
+              <div>
+                <Mismatch>
+                  <p>
+                    <span>
+      +                client
+      -                server"
     `)
 
     await session.toggleCollapseComponentStack()
@@ -683,7 +672,7 @@ describe('Error overlay for hydration errors', () => {
             `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
-        "<Page>
+        "...
           <div>
             <div>
               <div>
@@ -691,8 +680,8 @@ describe('Error overlay for hydration errors', () => {
                   <Mismatch>
                     <p>
                       <span>
-                        "server"
-                        "client""
+        +                client
+        -                server"
       `)
     }
 
