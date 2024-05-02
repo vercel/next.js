@@ -40,9 +40,15 @@ describe('Error overlay for hydration errors', () => {
       `"Text content did not match. Server: "server" Client: "client""`
     )
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `undefined`
-    )
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "- A server/client branch \`if (typeof window !== 'undefined')\`.
+      - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+      - Date formatting in a user's locale which doesn't match the server.
+      - External changing data without sending a snapshot of it along with the HTML.
+      - Invalid HTML tag nesting.
+
+      It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
+    `)
 
     await session.patch(
       'index.js',

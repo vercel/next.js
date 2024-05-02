@@ -104,15 +104,12 @@ export function PseudoHtmlDiff({
               {'\n'}
             </span>
           )
-        } else {
+        } else if (currentComponentIndex >= 0) {
           const isUserLandComponent = trimmedLine.startsWith(
             '<' + componentStackFrames[currentComponentIndex].component
           )
           // If it's matched userland component or it's ... we will keep the component stack in diff
-          if (
-            (isUserLandComponent && currentComponentIndex >= 0) ||
-            trimmedLine === '...'
-          ) {
+          if (isUserLandComponent || trimmedLine === '...') {
             currentComponentIndex--
             componentStacks.push(
               <span key={'comp-diff' + index}>
@@ -128,7 +125,6 @@ export function PseudoHtmlDiff({
     }
 
     const nestedHtmlStack: React.ReactNode[] = []
-    console.log('nestedHtmlStack', nestedHtmlStack)
     const tagNames = isHtmlTagsWarning
       ? // tags could have < or > in the name, so we always remove them to match
         [firstContent.replace(/<|>/g, ''), secondContent.replace(/<|>/g, '')]

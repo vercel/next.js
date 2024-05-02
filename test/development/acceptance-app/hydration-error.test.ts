@@ -174,7 +174,10 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`null`)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
 
     await cleanup()
   })

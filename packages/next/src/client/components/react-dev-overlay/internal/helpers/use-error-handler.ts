@@ -53,6 +53,7 @@ if (typeof window !== 'undefined') {
       if (reactHydrationDiffSegments) {
         parsedHydrationErrorState = {
           ...(error as any).details,
+          ...hydrationErrorState,
           warning: hydrationErrorState.warning || [
             getDefaultHydrationErrorMessage(),
           ],
