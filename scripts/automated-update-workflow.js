@@ -23,16 +23,16 @@ if (!SCRIPT) {
 
 async function main() {
   // const octokit = new Octokit({ auth: GITHUB_TOKEN })
-  // const branchName = `update/${BRANCH_NAME}-${Date.now()}`
+  const branchName = `update/${BRANCH_NAME}-${Date.now()}`
 
   await exec(`node ${SCRIPT}`)
-  const { stdout, stderr } = await exec(`git status`)
-  console.log('[test] stdout', stdout)
 
-  // await exec(`git config user.name "vercel-release-bot"`)
-  // await exec(`git config user.email "infra+release@vercel.com"`)
-  // await exec(`git checkout -b ${branchName}`)
-  // await exec(`git add -A`)
+  await exec(`git config user.name "vercel-release-bot"`)
+  await exec(`git config user.email "infra+release@vercel.com"`)
+  await exec(`git checkout -b ${branchName}`)
+  await exec(`git add -A`)
+  const { stdout } = await exec(`git status --porcelain`)
+  console.log('[test] stdout =', stdout)
   // await exec(`git commit --message ${branchName}`)
 
   // const changesResult = await exec(`git diff HEAD~ --name-only`)
