@@ -68,15 +68,6 @@ function revalidate(tag: string, expression: string) {
     store.revalidatedTags.push(tag)
   }
 
-  if (!store.pendingRevalidates) {
-    store.pendingRevalidates = {}
-  }
-  store.pendingRevalidates[tag] = store.incrementalCache
-    .revalidateTag?.(tag)
-    .catch((err) => {
-      console.error(`revalidate failed for ${tag}`, err)
-    })
-
   // TODO: only revalidate if the path matches
   store.pathWasRevalidated = true
 }
