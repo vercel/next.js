@@ -22,12 +22,12 @@ import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
+import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
-import { HotlinkedText } from '../components/hot-linked-text'
 
 export type SupportedErrorEvent = {
   id: number
@@ -232,7 +232,7 @@ export function Errors({
     errorDetails.warning || [null, '', '']
 
   const hydrationErrorType = getHydrationWarningType(warningTemplate)
-  let hydrationWarning = warningTemplate
+  const hydrationWarning = warningTemplate
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
@@ -274,7 +274,10 @@ export function Errors({
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              <HotlinkedText text={hydrationWarning || error.name + ': '} />
+              <HotlinkedText
+                text={hydrationWarning || error.name + ': '}
+                matcher={isNextjsLink}
+              />
             </p>
             {notes ? (
               <>

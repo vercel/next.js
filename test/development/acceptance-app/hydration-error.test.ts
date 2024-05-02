@@ -52,9 +52,7 @@ describe('Error overlay for hydration errors', () => {
       - External changing data without sending a snapshot of it along with the HTML.
       - Invalid HTML tag nesting.
 
-      It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
-
-      "
+      It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
     `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -147,9 +145,6 @@ describe('Error overlay for hydration errors', () => {
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more: https://react.dev/link/hydration-mismatch"
     `)
-    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-    //   `"Expected server HTML to contain a matching <main> in <div>."`
-    // )
 
     await cleanup()
   })
@@ -181,10 +176,6 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`null`)
 
-    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-    //   `"Expected server HTML to contain a matching text node for "second" in <div>."`
-    // )
-
     await cleanup()
   })
 
@@ -215,9 +206,6 @@ describe('Error overlay for hydration errors', () => {
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more: https://react.dev/link/hydration-mismatch"
     `)
-    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-    //   `"Did not expect server HTML to contain a <main> in <div>."`
-    // )
 
     await cleanup()
   })
@@ -245,10 +233,6 @@ describe('Error overlay for hydration errors', () => {
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more: https://react.dev/link/hydration-mismatch"
     `)
-
-    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-    //   `"Did not expect server HTML to contain the text node "only" in <div>."`
-    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -307,10 +291,6 @@ describe('Error overlay for hydration errors', () => {
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more: https://react.dev/link/hydration-mismatch"
     `)
-
-    // expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-    //   `"Expected server HTML to contain a matching <main> in <div>."`
-    // )
 
     await cleanup()
   })
@@ -400,7 +380,13 @@ describe('Error overlay for hydration errors', () => {
               ^^^"
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`""`)
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <p>
+          ^^^
+            <p>
+            ^^^"
+      `)
     }
 
     await cleanup()
@@ -458,7 +444,15 @@ describe('Error overlay for hydration errors', () => {
               ^^^^^"
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`""`)
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <div>
+            <div>
+              <p>
+              ^^^
+                <div>
+                ^^^^^"
+      `)
     }
 
     await cleanup()
@@ -511,7 +505,16 @@ describe('Error overlay for hydration errors', () => {
                     ^^^"
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`""`)
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "<Page>
+          <p>
+          ^^^
+            <span>
+              ...
+                <span>
+                  <p>
+                  ^^^"
+      `)
     }
 
     await cleanup()

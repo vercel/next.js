@@ -158,7 +158,7 @@ export function PseudoHtmlDiff({
 
     // Hydration mismatch: text or text-tag
     if (
-      hydrationMismatchType === 'text' ||
+      hydrationMismatchType === 'tag' ||
       hydrationMismatchType === 'text-in-tag'
     ) {
       componentStack.forEach((component, index, componentList) => {

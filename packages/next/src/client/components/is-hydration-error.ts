@@ -36,7 +36,7 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   }
   rawMessage = rawMessage.slice(reactUnifiedMismatchWarning.length + 1).trim()
   const [message, trailing] = rawMessage.split(`${reactHydrationErrorDocLink}`)
-
+  const trimmedMessage = message.trim()
   // React built-in hydration diff starts with a newline, checking if length is > 1
   if (trailing && trailing.length > 1) {
     const stacks: string[] = []
@@ -51,14 +51,14 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
     })
 
     return {
-      message,
+      message: trimmedMessage,
       link: reactHydrationErrorDocLink,
       diff: diffs.join('\n'),
       stack: stacks.join('\n'),
     }
   } else {
     return {
-      message,
+      message: trimmedMessage,
       link: reactHydrationErrorDocLink,
       stack: trailing, // without hydration diff
     }
