@@ -27,6 +27,7 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
+import { HotlinkedText } from '../components/hot-linked-text'
 
 export type SupportedErrorEvent = {
   id: number
@@ -269,12 +270,11 @@ export function Errors({
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
-
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              {hydrationWarning || error.name + ': '}
+              <HotlinkedText text={hydrationWarning || error.name + ': '} />
             </p>
             {notes ? (
               <>

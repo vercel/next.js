@@ -4,7 +4,10 @@ import {
   getReactHydrationDiffSegments,
 } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
-import { isHydrationError } from '../../../is-hydration-error'
+import {
+  isHydrationError,
+  getDefaultHydrationErrorMessage,
+} from '../../../is-hydration-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -50,7 +53,9 @@ if (typeof window !== 'undefined') {
       if (reactHydrationDiffSegments) {
         parsedHydrationErrorState = {
           ...(error as any).details,
-          warning: hydrationErrorState.warning || ['Hydration Error'],
+          warning: hydrationErrorState.warning || [
+            getDefaultHydrationErrorMessage(),
+          ],
           notes: reactHydrationDiffSegments[0],
           reactOutputComponentDiff: reactHydrationDiffSegments[1],
         }

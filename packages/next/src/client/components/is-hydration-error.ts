@@ -7,6 +7,15 @@ const reactUnifiedMismatchWarning = `Hydration failed because the server rendere
 
 const reactHydrationErrorDocLink = 'https://react.dev/link/hydration-mismatch'
 
+export const getDefaultHydrationErrorMessage = () => {
+  return (
+    reactUnifiedMismatchWarning +
+    '\n' +
+    'See more: ' +
+    reactHydrationErrorDocLink
+  )
+}
+
 export function isHydrationError(error: unknown): boolean {
   return isError(error) && hydrationErrorRegex.test(error.message)
 }

@@ -109,28 +109,45 @@ export function PseudoHtmlDiff({
 
     // React 19 unified mismatch
     if (isReactHydrationDiff) {
+      let currentComponentIndex = componentStackFrames.length - 1
       const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
       reactComponentDiffLines.forEach((line, index) => {
-        const trimmedLine = line.trim()
+        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+        let trimmedLine = line.trim()
         if (/\+|\-/.test(trimmedLine[0])) {
+          const sign = trimmedLine[0]
+          trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
           nestedHtmlStack.push(
             <span
               key={'comp-diff' + index}
               data-nextjs-container-errors-pseudo-html--diff={
-                trimmedLine[0] === '+' ? 'add' : 'remove'
+                sign === '+' ? 'add' : 'remove'
               }
             >
-              {line}
+              {sign}
+              {spaces}
+              {trimmedLine}
               {'\n'}
             </span>
           )
         } else {
-          nestedHtmlStack.push(
-            <span key={'comp-diff' + index}>
-              {line}
-              {'\n'}
-            </span>
+          const isUserLandComponent = trimmedLine.startsWith(
+            '<' + componentStackFrames[currentComponentIndex].component
           )
+          // If it's matched userland component or it's ... we will keep the component stack in diff
+          if (
+            (isUserLandComponent && currentComponentIndex >= 0) ||
+            trimmedLine === '...'
+          ) {
+            currentComponentIndex--
+            nestedHtmlStack.push(
+              <span key={'comp-diff' + index}>
+                {spaces}
+                {trimmedLine}
+                {'\n'}
+              </span>
+            )
+          }
         }
       })
       return nestedHtmlStack
@@ -143,10 +160,8 @@ export function PseudoHtmlDiff({
     ) {
       componentStack.forEach((component, index, componentList) => {
         const spaces = ' '.repeat(nestedHtmlStack.length * 2)
-        // const prevComponent = componentList[index - 1]
-        // const nextComponent = componentList[index + 1]
-        // When component is the server or client tag name, highlight it
 
+        // When component is the server or client tag name, highlight it
         const isHighlightedTag = isHtmlTagsWarning
           ? index === matchedIndex[0] || index === matchedIndex[1]
           : tagNames.includes(component)
