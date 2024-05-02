@@ -71,13 +71,24 @@ describe('Component Stack in error overlay', () => {
       `)
     } else {
       expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "<Mismatch>
-          <main>
-            <Component>
-              <div>
-                <p>
-                  "server"
-                  "client""
+        "...
+            <RenderFromTemplateContext>
+              <ScrollAndFocusHandler segmentPath={[...]}>
+                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                    <LoadingBoundary hasLoading={false} loading={undefined} loadingStyles={undefined} loadingScripts={undefined}>
+                      <NotFoundBoundary notFound={[...]} notFoundStyles={[...]}>
+                        <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} ...>
+                          <RedirectBoundary>
+                            <RedirectErrorBoundary router={{...}}>
+                              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} ...>
+                                <Mismatch>
+                                  <main>
+                                    <Component>
+                                      <div>
+                                        <p>
+        +                                 client
+        -                                 server"
       `)
     }
 

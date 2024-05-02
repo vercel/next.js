@@ -22,7 +22,6 @@ import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
-import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   type HydrationErrorState,
@@ -227,17 +226,19 @@ export function Errors({
   )
 
   const errorDetails: HydrationErrorState = (error as any).details || {}
+  const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
   const hydrationErrorType = getHydrationWarningType(warningTemplate)
-  const hydrationWarning = warningTemplate
+  let hydrationWarning = warningTemplate
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
         .replace('%s', '') // remove the %s for stack
         .replace(/%s$/, '') // If there's still a %s at the end, remove it
         .replace(/^Warning: /, '')
+        .replace(/^Error: /, '')
     : null
 
   return (
@@ -268,32 +269,36 @@ export function Errors({
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
+
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              {error.name}:{' '}
-              <HotlinkedText text={error.message} matcher={isNextjsLink} />
+              {hydrationWarning || error.name + ': '}
             </p>
-            {hydrationWarning && (
+            {notes ? (
               <>
                 <p
                   id="nextjs__container_errors__notes"
                   className="nextjs__container_errors__notes"
                 >
-                  {hydrationWarning}
+                  {notes}
                 </p>
-                {activeError.componentStackFrames?.length ? (
-                  <PseudoHtmlDiff
-                    className="nextjs__container_errors__component-stack"
-                    hydrationMismatchType={hydrationErrorType}
-                    componentStackFrames={activeError.componentStackFrames}
-                    firstContent={serverContent}
-                    secondContent={clientContent}
-                  />
-                ) : null}
               </>
-            )}
+            ) : null}
+
+            {hydrationWarning &&
+            (activeError.componentStackFrames?.length ||
+              !!errorDetails.reactOutputComponentDiff) ? (
+              <PseudoHtmlDiff
+                className="nextjs__container_errors__component-stack"
+                hydrationMismatchType={hydrationErrorType}
+                componentStackFrames={activeError.componentStackFrames || []}
+                firstContent={serverContent}
+                secondContent={clientContent}
+                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+              />
+            ) : null}
             {isServerError ? (
               <div>
                 <small>
