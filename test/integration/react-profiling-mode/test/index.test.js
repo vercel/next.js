@@ -16,7 +16,7 @@ describe('React Profiling Mode', () => {
       describe('without config enabled', () => {
         beforeAll(async () => {
           await nextBuild(appDir, [], {
-            env: { REACT_PRODUCTION_PROFILING: 'false' },
+            env: { TEST_REACT_PRODUCTION_PROFILING: 'false' },
           })
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
@@ -36,7 +36,7 @@ describe('React Profiling Mode', () => {
       describe('with config enabled', () => {
         beforeAll(async () => {
           await nextBuild(appDir, ['--profile'], {
-            env: { REACT_PRODUCTION_PROFILING: 'true' },
+            env: { TEST_REACT_PRODUCTION_PROFILING: 'true' },
           })
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
