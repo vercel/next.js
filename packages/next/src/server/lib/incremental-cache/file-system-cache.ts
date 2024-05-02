@@ -29,7 +29,7 @@ type TagsManifest = {
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 let tagsManifest: TagsManifest | undefined
 
-export default class FileSystemCache {
+export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
