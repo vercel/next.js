@@ -44,12 +44,11 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.hasRedbox()).toBe(true)
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
-
     if (process.env.TEST_REACT_19 === '1') {
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      `)
       expect(await session.getRedboxDescriptionWarning())
         .toMatchInlineSnapshot(`
         "- A server/client branch \`if (typeof window !== 'undefined')\`.
@@ -59,6 +58,10 @@ describe('Error overlay for hydration errors', () => {
         - Invalid HTML tag nesting.
 
         It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
+      `)
+    } else {
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+        "Text content did not match. Server: "server" Client: "client""
       `)
     }
 
