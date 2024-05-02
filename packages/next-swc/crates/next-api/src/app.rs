@@ -52,8 +52,7 @@ use turbopack_binding::{
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
-            raw_module::RawModule,
-            resolve::{node::node_cjs_resolve_options, parse::Request},
+            source::Source,
             virtual_output::VirtualOutputAsset,
         },
         nodejs::EntryChunkGroupResult,
@@ -902,13 +901,13 @@ impl AppEndpoint {
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
             // load it as a RawModule.
             let next_package = get_next_package(this.app_project.project().project_path());
-            let polyfill_source_path =
-                next_package.join("dist/build/polyfills/polyfill-nomodule.js".to_string());
-            let polyfill_module = RawModule::new(Vc::upcast(FileSource::new(polyfill_source_path)));
+            let polyfill_source = FileSource::new(
+                next_package.join("dist/build/polyfills/polyfill-nomodule.js".to_string()),
+            );
             let polyfill_output_path =
-                client_chunking_context.chunk_path(polyfill_module.ident(), ".js".to_string());
+                client_chunking_context.chunk_path(polyfill_source.ident(), ".js".to_string());
             let polyfill_output_asset =
-                VirtualOutputAsset::new(polyfill_output_path, polyfill_module.content());
+                VirtualOutputAsset::new(polyfill_output_path, polyfill_source.content());
             let polyfill_client_path = client_relative_path_ref
                 .get_path_to(&*polyfill_output_path.await?)
                 .context("failed to resolve client-relative path to polyfill")?
