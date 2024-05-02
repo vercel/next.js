@@ -323,7 +323,9 @@ export default class NextNodeServer extends BaseServer<
         await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
-          throw new Error(`An error occurred while loading the instrumentation hook: ${err}`)
+          const desc = "message" in err ? err.message : JSON.stringify(err)
+
+          throw new Error(`An error occurred while loading the instrumentation hook: ${desc}`)
         }
       }
     }
