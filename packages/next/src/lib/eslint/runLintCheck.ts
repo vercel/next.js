@@ -3,7 +3,7 @@ import { bold, cyan, red, underline, yellow } from '../picocolors'
 import path from 'path'
 
 import findUp from '@next/vendored/find-up'
-import semver from 'next/dist/compiled/semver'
+import semver from '@next/vendored/semver'
 import * as CommentJson from '@next/vendored/comment-json'
 
 import { formatResults } from './customFormatter'

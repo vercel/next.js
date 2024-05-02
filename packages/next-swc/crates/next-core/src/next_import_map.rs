@@ -524,7 +524,7 @@ pub fn get_next_client_resolved_map(
 static NEXT_ALIASES: [(&str, &str); 23] = [
     ("assert", "@next/vendored/assert"),
     ("buffer", "@next/vendored/buffer"),
-    ("constants", "next/dist/compiled/constants-browserify"),
+    ("constants", "@next/vendored/constants-browserify"),
     ("crypto", "@next/vendored/crypto-browserify"),
     ("domain", "@next/vendored/domain-browser"),
     ("http", "@next/vendored/stream-http"),

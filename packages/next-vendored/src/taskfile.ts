@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
+import fs from 'node:fs/promises'
 import { Task } from './custom-task.js'
 import type { Tasks, QueueFn } from '@next/task'
 import { resolveCommonjs } from './resolve.cjs'
@@ -37,6 +38,7 @@ const externals: Record<string, string> = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   'loader-utils': 'error loader-utils version not specified',
+  'schema-utils': 'MISSING_VERSION schema-utils version not specified',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -75,6 +77,7 @@ const nccTasks: Record<
       browserOnly?: boolean
       use?: QueueFn
       externals?: typeof externals
+      minify?: boolean
     }
 > = {
   ncc_node_html_parser: 'node-html-parser', // TODO:ESM
@@ -266,6 +269,12 @@ const nccTasks: Record<
     externals: { 'postcss/lib/parser': 'postcss/lib/parser' },
   },
   ncc_picomatch: 'picomatch',
+  ncc_schema_utils2: 'schema-utils2',
+  ncc_schema_utils3: 'schema-utils3',
+  ncc_semver: 'semver',
+  ncc_send: 'send',
+  ncc_source_map: 'source-map',
+  ncc_source_map08: { mod: 'source-map08', minify: false },
 }
 
 for (let [taskName, modOptions] of Object.entries(nccTasks)) {
@@ -279,6 +288,7 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
     browserOnly,
     use,
     externals: extendedExternals,
+    minify,
   } = modOptions
 
   if (!browserOnly) {
@@ -297,10 +307,22 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
             target: 'es5',
           }
         : {}),
+      ...(minify !== undefined ? { minify } : {}),
     })
     if (use) task.use(use)
     await task.target(mod)
   }
+}
+
+export async function copy_constants_browserify(task: Task) {
+  await task.clear('constants-browserify')
+  await task
+    .source(resolve('constants-browserify'))
+    .target('constants-browserify')
+  await writeJson('constants-browserify/package.json', {
+    name: 'constants-browserify',
+    main: './constants.json',
+  })
 }
 
 export async function copy_regenerator_runtime(task: Task) {
@@ -312,5 +334,9 @@ export async function copy_regenerator_runtime(task: Task) {
 
 export async function ncc(task: Task) {
   await task.parallel(Object.keys(nccTasks))
-  await task.serial(['copy_regenerator_runtime'])
+  await task.serial(['copy_regenerator_runtime', 'copy_constants_browserify'])
+}
+
+function writeJson(file: string, obj: any) {
+  return fs.writeFile(file, JSON.stringify(obj, null) + '\n')
 }

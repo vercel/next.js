@@ -1,5 +1,5 @@
 // Validate next version
-const semver = require('next/dist/compiled/semver')
+const semver = require('@next/vendored/semver')
 if (semver.lt(require('next/package.json').version, '13.0.0')) {
   throw new Error('`@next/font` is only available in Next.js 13 and newer.')
 }

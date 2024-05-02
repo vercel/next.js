@@ -298,7 +298,7 @@ export async function collectBuildTraces({
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
+        '@next/vendored/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
           ? [

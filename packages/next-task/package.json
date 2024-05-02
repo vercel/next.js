@@ -15,11 +15,22 @@
     "dev": "tsc -w",
     "prepublishOnly": "cd ../../ && turbo run build"
   },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "task-runner": "./dist/cli.js"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js"
+    }
   },
   "devDependencies": {
     "typescript": "5.3.3"

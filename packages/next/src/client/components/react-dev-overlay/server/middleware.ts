@@ -1,6 +1,6 @@
 import { constants as FS, promises as fs } from 'fs'
 import path from 'path'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import { SourceMapConsumer } from '@next/vendored/source-map08'
 import type { StackFrame } from '@next/vendored/stacktrace-parser'
 import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
 import { launchEditor } from '../internal/helpers/launchEditor'

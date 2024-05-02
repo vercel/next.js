@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import { bold, cyan, white } from '../picocolors'
 import * as CommentJson from '@next/vendored/comment-json'
-import semver from 'next/dist/compiled/semver'
+import semver from '@next/vendored/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'

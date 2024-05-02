@@ -5,7 +5,7 @@ import '../server/require-hook'
 import { Argument, Command, Option } from '@next/vendored/commander'
 
 import { warn } from '../build/output/log'
-import semver from 'next/dist/compiled/semver'
+import semver from '@next/vendored/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'

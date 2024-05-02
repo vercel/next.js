@@ -6,6 +6,7 @@ import ncc, { type NccOptions } from '@vercel/ncc'
 type NccTaskOptions = {
   packageName: string
   packageJsonName?: string
+  bundleName?: string
 } & NccOptions
 
 export class Task extends CoreTask {
@@ -50,7 +51,8 @@ export class Task extends CoreTask {
           file.path,
           packageName,
           files,
-          options.packageJsonName
+          options.packageJsonName,
+          options.bundleName
         )
       }
 
@@ -64,7 +66,8 @@ async function addMissingFiles(
   indexPath: string,
   packageName: string,
   files: TFile[],
-  packageJsonName?: string
+  packageJsonName?: string,
+  bundleName?: string
 ) {
   const dirPath = dirname(indexPath)
   const packageJsonPath = await findInPackage(dirPath, 'package.json')

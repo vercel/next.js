@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import send from 'next/dist/compiled/send'
+import send from '@next/vendored/send'
 
 // TODO: Remove this once "send" has updated the "mime", or next.js use custom version of "mime"
 // Although "mime" has already add avif in version 2.4.7, "send" is still using mime@1.6.0

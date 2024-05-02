@@ -531,20 +531,6 @@ export async function copy_react_is(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_constants_browserify(task, opts) {
-  await fs.mkdir(join(__dirname, 'src/compiled/constants-browserify'), {
-    recursive: true,
-  })
-  await writeJson(
-    join(__dirname, 'src/compiled/constants-browserify/package.json'),
-    { name: 'constants-browserify', main: './constants.json' }
-  )
-  await task
-    .source(require.resolve('constants-browserify'))
-    .target('src/compiled/constants-browserify')
-}
-
-// eslint-disable-next-line camelcase
 externals['@ampproject/toolbox-optimizer'] =
   'next/dist/compiled/@ampproject/toolbox-optimizer'
 export async function ncc_amp_optimizer(task, opts) {
@@ -944,72 +930,6 @@ export async function ncc_sass_loader(task, opts) {
     .target('src/compiled/sass-loader')
 }
 // eslint-disable-next-line camelcase
-externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
-externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
-export async function ncc_schema_utils2(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('schema-utils2')))
-    .ncc({
-      packageName: 'schema-utils',
-      bundleName: 'schema-utils2',
-      externals,
-    })
-    .target('src/compiled/schema-utils2')
-}
-// eslint-disable-next-line camelcase
-externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
-export async function ncc_schema_utils3(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('schema-utils3')))
-    .ncc({
-      packageName: 'schema-utils',
-      bundleName: 'schema-utils3',
-      externals,
-    })
-    .target('src/compiled/schema-utils3')
-}
-externals['semver'] = 'next/dist/compiled/semver'
-export async function ncc_semver(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('semver')))
-    .ncc({ packageName: 'semver', externals })
-    .target('src/compiled/semver')
-}
-// eslint-disable-next-line camelcase
-externals['send'] = 'next/dist/compiled/send'
-export async function ncc_send(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('send')))
-    .ncc({ packageName: 'send', externals })
-    .target('src/compiled/send')
-}
-// eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['source-map'] = 'next/dist/compiled/source-map'
-export async function ncc_source_map(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('source-map')))
-    .ncc({ packageName: 'source-map', externals })
-    .target('src/compiled/source-map')
-}
-// eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['source-map08'] = 'next/dist/compiled/source-map08'
-externals['next/dist/compiled/source-map08'] = 'next/dist/compiled/source-map08'
-export async function ncc_source_map08(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('source-map08')))
-    .ncc({
-      packageName: 'source-map08',
-      packageJsonName: 'source-map08',
-      externals,
-      minify: false,
-    })
-    .target('src/compiled/source-map08')
-}
-// eslint-disable-next-line camelcase
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -1173,7 +1093,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './hmr': './hmr',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': '@next/vendored/schema-utils3',
       },
     })
     .target('src/compiled/mini-css-extract-plugin/hmr')
@@ -1309,12 +1229,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_babel_bundle',
         'ncc_jsonwebtoken',
-        'ncc_schema_utils2',
-        'ncc_schema_utils3',
-        'ncc_semver',
-        'ncc_send',
-        'ncc_source_map',
-        'ncc_source_map08',
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',
@@ -1348,7 +1262,6 @@ export async function ncc(task, opts) {
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_vercel_og',
-      'copy_constants_browserify',
       'copy_vendor_react',
       'copy_react_is',
       'ncc_sass_loader',

@@ -186,3 +186,19 @@ declare module '@next/vendored/picomatch' {
   import m from 'picomatch'
   export = m
 }
+declare module '@next/vendored/semver' {
+  import m from 'semver'
+  export = m
+}
+declare module '@next/vendored/send' {
+  import m from 'send'
+  export = m
+}
+declare module '@next/vendored/source-map' {
+  import m from 'source-map'
+  export = m
+}
+declare module '@next/vendored/source-map08' {
+  import m from 'source-map08'
+  export = m
+}

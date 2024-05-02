@@ -1583,7 +1583,7 @@ export default async function getBaseWebpackConfig(
                           assert: require.resolve('@next/vendored/assert'),
                           buffer: require.resolve('@next/vendored/buffer'),
                           constants: require.resolve(
-                            'next/dist/compiled/constants-browserify'
+                            '@next/vendored/constants-browserify'
                           ),
                           crypto: require.resolve(
                             '@next/vendored/crypto-browserify'

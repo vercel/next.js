@@ -99,18 +99,6 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
-declare module 'next/dist/compiled/send' {
-  import m from 'send'
-  export = m
-}
-declare module 'next/dist/compiled/source-map' {
-  import m from 'source-map'
-  export = m
-}
-declare module 'next/dist/compiled/source-map08' {
-  import m from 'source-map08'
-  export = m
-}
 declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
@@ -135,10 +123,6 @@ declare module 'next/dist/compiled/tar' {
 
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
-  export = m
-}
-declare module 'next/dist/compiled/semver' {
-  import m from 'semver'
   export = m
 }
 
