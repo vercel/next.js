@@ -36,7 +36,7 @@ const PARAMETER_PATTERN = /\[((?:\[.*\])|.+)\]/
  *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: false }`
  *   - `[[foo]]` -> `{ key: 'foo', repeat: false, optional: true }`
  *   - `[bar]` -> `{ key: 'bar', repeat: false, optional: false }`
- *   - `fizz` -> `{ key: 'bar', repeat: false, optional: false }`
+ *   - `fizz` -> `{ key: 'fizz', repeat: false, optional: false }`
  * @param param - The parameter to parse.
  * @returns The parsed parameter as a data structure.
  */
