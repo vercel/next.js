@@ -26,66 +26,67 @@ async function main() {
   const branchName = `update/${BRANCH_NAME}-${Date.now()}`
 
   await exec(`node ${SCRIPT}`)
+  await exec('git status')
 
-  await exec(`git config user.name "vercel-release-bot"`)
-  await exec(`git config user.email "infra+release@vercel.com"`)
-  await exec(`git checkout -b ${branchName}`)
-  await exec(`git add -A`)
-  await exec(`git commit --message ${branchName}`)
+  // await exec(`git config user.name "vercel-release-bot"`)
+  // await exec(`git config user.email "infra+release@vercel.com"`)
+  // await exec(`git checkout -b ${branchName}`)
+  // await exec(`git add -A`)
+  // await exec(`git commit --message ${branchName}`)
 
-  const changesResult = await exec(`git diff HEAD~ --name-only`)
-  const changedFiles = changesResult.stdout
-    .split('\n')
-    .filter((line) => line.trim())
+  // const changesResult = await exec(`git diff HEAD~ --name-only`)
+  // const changedFiles = changesResult.stdout
+  //   .split('\n')
+  //   .filter((line) => line.trim())
 
-  if (changedFiles.length === 0) {
-    console.log('No files changed skipping.')
-    return
-  }
+  // if (changedFiles.length === 0) {
+  //   console.log('No files changed skipping.')
+  //   return
+  // }
 
-  await exec(`git push origin ${branchName}`)
+  // await exec(`git push origin ${branchName}`)
 
-  const repo = 'next.js'
-  const owner = 'vercel'
+  // const repo = 'next.js'
+  // const owner = 'vercel'
 
-  const { data: pullRequests } = await octokit.rest.pulls.list({
-    owner,
-    repo,
-    state: 'open',
-    sort: 'created',
-    direction: 'desc',
-    per_page: 100,
-  })
+  // const { data: pullRequests } = await octokit.rest.pulls.list({
+  //   owner,
+  //   repo,
+  //   state: 'open',
+  //   sort: 'created',
+  //   direction: 'desc',
+  //   per_page: 100,
+  // })
 
-  const pullRequest = await octokit.rest.pulls.create({
-    owner,
-    repo,
-    head: branchName,
-    base: 'canary',
-    title: PR_TITLE,
-    body: PR_BODY,
-  })
+  // const pullRequest = await octokit.rest.pulls.create({
+  //   owner,
+  //   repo,
+  //   head: branchName,
+  //   base: 'canary',
+  //   title: PR_TITLE,
+  //   body: PR_BODY,
+  // })
 
-  console.log('Created pull request', pullRequest.url)
+  // console.log('Created pull request', pullRequest.url)
 
-  const previousPullRequests = pullRequests.filter(({ title, user }) => {
-    return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
-  })
+  // const previousPullRequests = pullRequests.filter(({ title, user }) => {
+  //   return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
+  // })
 
-  if (previousPullRequests.length) {
-    for await (const previousPullRequest of previousPullRequests) {
-      console.log(
-        `Closing previous pull request: ${previousPullRequest.html_url}`
-      )
+  // if (previousPullRequests.length) {
+  //   for await (const previousPullRequest of previousPullRequests) {
+  //     console.log(
+  //       `Closing previous pull request: ${previousPullRequest.html_url}`
+  //     )
 
-      await octokit.rest.pulls.update({
-        owner,
-        repo,
-        pull_number: previousPullRequest.number,
-        state: 'closed',
-      })
-    }
-  }
+  //     await octokit.rest.pulls.update({
+  //       owner,
+  //       repo,
+  //       pull_number: previousPullRequest.number,
+  //       state: 'closed',
+  //     })
+  //   }
+  // }
 }
 
 main().catch((err) => {
