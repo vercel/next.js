@@ -32,8 +32,8 @@ async function main() {
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
   await exec(`git commit --message ${branchName}`)
-  console.log('[test] stdout =', stdout)
   const { stdout, stderr } = await exec(`git status`)
+  console.log('[test] stdout =', stdout)
 
   // const changesResult = await exec(`git diff HEAD~ --name-only`)
   // const changedFiles = changesResult.stdout
