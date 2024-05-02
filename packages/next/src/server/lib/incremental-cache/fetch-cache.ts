@@ -126,7 +126,10 @@ export default class FetchCache implements CacheHandler {
     memoryCache?.reset()
   }
 
-  public async revalidateTag(tags: string | string[]) {
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
     tags = typeof tags === 'string' ? [tags] : tags
     if (this.debug) {
       console.log('revalidateTag', tags)

@@ -29,7 +29,7 @@ type TagsManifest = {
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 let tagsManifest: TagsManifest | undefined
 
-export default class FileSystemCache implements CacheHandler {
+export default class FileSystemCache {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
@@ -105,7 +105,10 @@ export default class FileSystemCache implements CacheHandler {
     if (this.debug) console.log('loadTagsManifest', tagsManifest)
   }
 
-  public async revalidateTag(tags: string | string[]) {
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
     tags = typeof tags === 'string' ? [tags] : tags
 
     if (this.debug) {
