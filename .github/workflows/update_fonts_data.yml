@@ -1,4 +1,4 @@
-name: update-font-data
+name: Update Font Data
 
 on:
   # Run every every day at midnight https://crontab.guru/#0_0_*_*_*/1
