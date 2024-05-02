@@ -10,9 +10,7 @@ const reactHydrationErrorDocLink = 'https://react.dev/link/hydration-mismatch'
 export const getDefaultHydrationErrorMessage = () => {
   return (
     reactUnifiedMismatchWarning +
-    '\n' +
-    'See more: ' +
-    reactHydrationErrorDocLink
+    '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
   )
 }
 

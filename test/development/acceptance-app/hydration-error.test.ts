@@ -42,7 +42,7 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more: https://react.dev/link/hydration-mismatch"
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
     expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
@@ -143,7 +143,7 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more: https://react.dev/link/hydration-mismatch"
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
     await cleanup()
@@ -204,7 +204,7 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more: https://react.dev/link/hydration-mismatch"
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
     await cleanup()
@@ -231,7 +231,7 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more: https://react.dev/link/hydration-mismatch"
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -289,7 +289,7 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more: https://react.dev/link/hydration-mismatch"
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
     await cleanup()
@@ -362,10 +362,6 @@ describe('Error overlay for hydration errors', () => {
     expect(description).toContain(
       'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
-    // const warning = await session.getRedboxDescriptionWarning()
-    // expect(warning).toContain(
-    //   'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
-    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -426,10 +422,6 @@ describe('Error overlay for hydration errors', () => {
     expect(description).toContain(
       'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
-    // const warning = await session.getRedboxDescriptionWarning()
-    // expect(warning).toContain(
-    //   'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
-    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -484,10 +476,6 @@ describe('Error overlay for hydration errors', () => {
     expect(description).toContain(
       'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
-    // const warning = await session.getRedboxDescriptionWarning()
-    // expect(warning).toContain(
-    //   'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
-    // )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -555,11 +543,6 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
     expect(await session.hasRedbox()).toBe(true)
-
-    // const warning = await session.getRedboxDescriptionWarning()
-    // expect(warning).toContain(
-    //   'Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.'
-    // )
 
     await cleanup()
   })

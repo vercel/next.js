@@ -77,36 +77,7 @@ export function PseudoHtmlDiff({
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
   const htmlComponents = useMemo(() => {
-    const tagNames = isHtmlTagsWarning
-      ? // tags could have < or > in the name, so we always remove them to match
-        [firstContent.replace(/<|>/g, ''), secondContent.replace(/<|>/g, '')]
-      : []
-    const nestedHtmlStack: React.ReactNode[] = []
-    let lastText = ''
-
-    const componentStack = componentStackFrames
-      .map((frame) => frame.component)
-      .reverse()
-
-    // [child index, parent index]
-    const matchedIndex = [-1, -1]
-    if (isHtmlTagsWarning) {
-      // Reverse search for the child tag
-      for (let i = componentStack.length - 1; i >= 0; i--) {
-        if (componentStack[i] === tagNames[0]) {
-          matchedIndex[0] = i
-          break
-        }
-      }
-      // Start searching parent tag from child tag above
-      for (let i = matchedIndex[0] - 1; i >= 0; i--) {
-        if (componentStack[i] === tagNames[1]) {
-          matchedIndex[1] = i
-          break
-        }
-      }
-    }
-
+    const componentStacks: React.ReactNode[] = []
     // React 19 unified mismatch
     if (isReactHydrationDiff) {
       let currentComponentIndex = componentStackFrames.length - 1
@@ -115,7 +86,7 @@ export function PseudoHtmlDiff({
       reactComponentDiffLines.forEach((line, index) => {
         let trimmedLine = line.trim()
         const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
-        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+        const spaces = ' '.repeat(componentStacks.length * 2)
 
         if (isDiffLine) {
           const sign = trimmedLine[0]
@@ -143,7 +114,7 @@ export function PseudoHtmlDiff({
             trimmedLine === '...'
           ) {
             currentComponentIndex--
-            nestedHtmlStack.push(
+            componentStacks.push(
               <span key={'comp-diff' + index}>
                 {spaces}
                 {trimmedLine}
@@ -153,93 +124,122 @@ export function PseudoHtmlDiff({
           }
         }
       })
-      return nestedHtmlStack.concat(diffHtmlStack)
+      return componentStacks.concat(diffHtmlStack)
     }
 
-    // Hydration mismatch: text or text-tag
-    if (
-      hydrationMismatchType === 'tag' ||
-      hydrationMismatchType === 'text-in-tag'
-    ) {
-      componentStack.forEach((component, index, componentList) => {
-        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+    const nestedHtmlStack: React.ReactNode[] = []
+    console.log('nestedHtmlStack', nestedHtmlStack)
+    const tagNames = isHtmlTagsWarning
+      ? // tags could have < or > in the name, so we always remove them to match
+        [firstContent.replace(/<|>/g, ''), secondContent.replace(/<|>/g, '')]
+      : []
 
-        // When component is the server or client tag name, highlight it
-        const isHighlightedTag = isHtmlTagsWarning
-          ? index === matchedIndex[0] || index === matchedIndex[1]
-          : tagNames.includes(component)
-        const isAdjacentTag =
-          isHighlightedTag ||
-          Math.abs(index - matchedIndex[0]) <= 1 ||
-          Math.abs(index - matchedIndex[1]) <= 1
+    let lastText = ''
 
-        const isLastFewFrames =
-          !isHtmlTagsWarning && index >= componentList.length - 6
+    const componentStack = componentStackFrames
+      .map((frame) => frame.component)
+      .reverse()
 
-        const adjProps = getAdjacentProps(isAdjacentTag)
+    // [child index, parent index]
+    const matchedIndex = [-1, -1]
+    if (isHtmlTagsWarning) {
+      // Reverse search for the child tag
+      for (let i = componentStack.length - 1; i >= 0; i--) {
+        if (componentStack[i] === tagNames[0]) {
+          matchedIndex[0] = i
+          break
+        }
+      }
+      // Start searching parent tag from child tag above
+      for (let i = matchedIndex[0] - 1; i >= 0; i--) {
+        if (componentStack[i] === tagNames[1]) {
+          matchedIndex[1] = i
+          break
+        }
+      }
+    }
 
-        if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
-          const codeLine = (
-            <span>
-              {spaces}
-              <span
-                {...adjProps}
-                {...{
-                  ...(isHighlightedTag
-                    ? {
-                        'data-nextjs-container-errors-pseudo-html--tag-error':
-                          true,
-                      }
-                    : undefined),
-                }}
-              >
-                {`<${component}>\n`}
+    componentStack.forEach((component, index, componentList) => {
+      const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+
+      // When component is the server or client tag name, highlight it
+      const isHighlightedTag = isHtmlTagsWarning
+        ? index === matchedIndex[0] || index === matchedIndex[1]
+        : tagNames.includes(component)
+      const isAdjacentTag =
+        isHighlightedTag ||
+        Math.abs(index - matchedIndex[0]) <= 1 ||
+        Math.abs(index - matchedIndex[1]) <= 1
+
+      const isLastFewFrames =
+        !isHtmlTagsWarning && index >= componentList.length - 6
+
+      const adjProps = getAdjacentProps(isAdjacentTag)
+
+      if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
+        const codeLine = (
+          <span>
+            {spaces}
+            <span
+              {...adjProps}
+              {...{
+                ...(isHighlightedTag
+                  ? {
+                      'data-nextjs-container-errors-pseudo-html--tag-error':
+                        true,
+                    }
+                  : undefined),
+              }}
+            >
+              {`<${component}>\n`}
+            </span>
+          </span>
+        )
+        lastText = component
+
+        const wrappedCodeLine = (
+          <Fragment key={nestedHtmlStack.length}>
+            {codeLine}
+            {/* Add ^^^^ to the target tags used for snapshots but not displayed for users */}
+            {isHighlightedTag && (
+              <span data-nextjs-container-errors-pseudo-html--hint>
+                {spaces + '^'.repeat(component.length + 2) + '\n'}
               </span>
+            )}
+          </Fragment>
+        )
+        nestedHtmlStack.push(wrappedCodeLine)
+      } else {
+        if (
+          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
+          isHtmlCollapsed
+        ) {
+          return
+        }
+
+        if (!isHtmlCollapsed || isLastFewFrames) {
+          nestedHtmlStack.push(
+            <span {...adjProps} key={nestedHtmlStack.length}>
+              {spaces}
+              {'<' + component + '>\n'}
             </span>
           )
-          lastText = component
-
-          const wrappedCodeLine = (
-            <Fragment key={nestedHtmlStack.length}>
-              {codeLine}
-              {/* Add ^^^^ to the target tags used for snapshots but not displayed for users */}
-              {isHighlightedTag && (
-                <span data-nextjs-container-errors-pseudo-html--hint>
-                  {spaces + '^'.repeat(component.length + 2) + '\n'}
-                </span>
-              )}
-            </Fragment>
+        } else if (isHtmlCollapsed && lastText !== '...') {
+          lastText = '...'
+          nestedHtmlStack.push(
+            <span {...adjProps} key={nestedHtmlStack.length}>
+              {spaces}
+              {'...\n'}
+            </span>
           )
-          nestedHtmlStack.push(wrappedCodeLine)
-        } else {
-          if (
-            nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
-            isHtmlCollapsed
-          ) {
-            return
-          }
-
-          if (!isHtmlCollapsed || isLastFewFrames) {
-            nestedHtmlStack.push(
-              <span {...adjProps} key={nestedHtmlStack.length}>
-                {spaces}
-                {'<' + component + '>\n'}
-              </span>
-            )
-          } else if (isHtmlCollapsed && lastText !== '...') {
-            lastText = '...'
-            nestedHtmlStack.push(
-              <span {...adjProps} key={nestedHtmlStack.length}>
-                {spaces}
-                {'...\n'}
-              </span>
-            )
-          }
         }
-      })
+      }
+    })
+    // Hydration mismatch: text or text-tag
+    if (!isHtmlTagsWarning) {
       const spaces = ' '.repeat(nestedHtmlStack.length * 2)
       let wrappedCodeLine
-      if (hydrationMismatchType === 'tag') {
+      if (hydrationMismatchType === 'text') {
         // hydration type is "text", represent [server content, client content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
