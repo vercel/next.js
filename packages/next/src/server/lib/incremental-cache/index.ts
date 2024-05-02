@@ -58,7 +58,9 @@ export class CacheHandler {
     ..._args: Parameters<IncrementalCache['set']>
   ): Promise<void> {}
 
-  public async revalidateTag(_tag: string | string[]): Promise<void> {}
+  public async revalidateTag(
+    ..._args: Parameters<IncrementalCache['revalidateTag']>
+  ): Promise<void> {}
 
   public resetRequestCache(): void {}
 }
@@ -280,7 +282,7 @@ export class IncrementalCache implements IncrementalCacheType {
     return unlockNext
   }
 
-  async revalidateTag(tags: string | string[]) {
+  async revalidateTag(tags: string | string[]): Promise<void> {
     if (
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
