@@ -274,8 +274,10 @@ export function Errors({
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
+              {/* If there's hydration warning, skip displaying the error name */}
+              {hydrationWarning ? '' : error.name + ': '}
               <HotlinkedText
-                text={hydrationWarning || error.name + ': '}
+                text={hydrationWarning || error.message}
                 matcher={isNextjsLink}
               />
             </p>
