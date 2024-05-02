@@ -73,8 +73,7 @@ export function PseudoHtmlDiff({
 
   // For text mismatch, mismatched text will take 2 rows, so we display 4 rows of component stack
   const MAX_NON_COLLAPSED_FRAMES = isHtmlTagsWarning ? 6 : 4
-  const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
-  const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
+  const [isHtmlCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
     const componentStacks: React.ReactNode[] = []
@@ -111,6 +110,14 @@ export function PseudoHtmlDiff({
           // If it's matched userland component or it's ... we will keep the component stack in diff
           if (isUserLandComponent || trimmedLine === '...') {
             currentComponentIndex--
+            componentStacks.push(
+              <span key={'comp-diff' + index}>
+                {spaces}
+                {trimmedLine}
+                {'\n'}
+              </span>
+            )
+          } else if (!isHtmlCollapsed) {
             componentStacks.push(
               <span key={'comp-diff' + index}>
                 {spaces}
