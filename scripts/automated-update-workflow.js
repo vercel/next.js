@@ -22,7 +22,7 @@ if (!SCRIPT) {
 }
 
 async function main() {
-  // const octokit = new Octokit({ auth: GITHUB_TOKEN })
+  const octokit = new Octokit({ auth: GITHUB_TOKEN })
   const branchName = `update/${BRANCH_NAME}-${Date.now()}`
 
   await exec(`node ${SCRIPT}`)
@@ -38,56 +38,54 @@ async function main() {
     .split('\n')
     .filter((line) => line.trim())
 
-  console.log('[test] changedFiles', changedFiles)
-
   if (changedFiles.length === 0) {
     console.log('No files changed skipping.')
     return
   }
 
-  // await exec(`git push origin ${branchName}`)
+  await exec(`git push origin ${branchName}`)
 
-  // const repo = 'next.js'
-  // const owner = 'vercel'
+  const repo = 'next.js'
+  const owner = 'vercel'
 
-  // const { data: pullRequests } = await octokit.rest.pulls.list({
-  //   owner,
-  //   repo,
-  //   state: 'open',
-  //   sort: 'created',
-  //   direction: 'desc',
-  //   per_page: 100,
-  // })
+  const { data: pullRequests } = await octokit.rest.pulls.list({
+    owner,
+    repo,
+    state: 'open',
+    sort: 'created',
+    direction: 'desc',
+    per_page: 100,
+  })
 
-  // const pullRequest = await octokit.rest.pulls.create({
-  //   owner,
-  //   repo,
-  //   head: branchName,
-  //   base: 'canary',
-  //   title: PR_TITLE,
-  //   body: PR_BODY,
-  // })
+  const pullRequest = await octokit.rest.pulls.create({
+    owner,
+    repo,
+    head: branchName,
+    base: 'canary',
+    title: PR_TITLE,
+    body: PR_BODY,
+  })
 
-  // console.log('Created pull request', pullRequest.url)
+  console.log('Created pull request', pullRequest.url)
 
-  // const previousPullRequests = pullRequests.filter(({ title, user }) => {
-  //   return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
-  // })
+  const previousPullRequests = pullRequests.filter(({ title, user }) => {
+    return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
+  })
 
-  // if (previousPullRequests.length) {
-  //   for await (const previousPullRequest of previousPullRequests) {
-  //     console.log(
-  //       `Closing previous pull request: ${previousPullRequest.html_url}`
-  //     )
+  if (previousPullRequests.length) {
+    for await (const previousPullRequest of previousPullRequests) {
+      console.log(
+        `Closing previous pull request: ${previousPullRequest.html_url}`
+      )
 
-  //     await octokit.rest.pulls.update({
-  //       owner,
-  //       repo,
-  //       pull_number: previousPullRequest.number,
-  //       state: 'closed',
-  //     })
-  //   }
-  // }
+      await octokit.rest.pulls.update({
+        owner,
+        repo,
+        pull_number: previousPullRequest.number,
+        state: 'closed',
+      })
+    }
+  }
 }
 
 main().catch((err) => {
