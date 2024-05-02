@@ -63,12 +63,12 @@ async function run() {
         })
       })
 
-      // await slackClient.chat.postMessage({
-      //   blocks: generateBlocks(data.items),
-      //   channel: '#team-next-js',
-      //   icon_emoji: ':github:',
-      //   username: 'GitHub Notifier',
-      // })
+      await slackClient.chat.postMessage({
+        blocks: generateBlocks(data.items),
+        channel: '#team-next-js',
+        icon_emoji: ':github:',
+        username: 'GitHub Notifier',
+      })
 
       info(`Posted to Slack!`)
     } else {
