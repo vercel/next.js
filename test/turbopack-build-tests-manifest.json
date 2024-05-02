@@ -148,6 +148,7 @@
         "app-dir action handling fetch actions should handle revalidateTag",
         "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling fetch actions should revalidate when cookies.set is called",
         "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
         "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
@@ -193,7 +194,6 @@
         "app-dir action handling should work with interception routes"
       ],
       "failed": [
-        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling should not expose action content in sourcemaps"
       ],
       "pending": [
@@ -2052,6 +2052,7 @@
         "app dir - navigation query string should handle unicode search params",
         "app dir - navigation query string should not reset shallow url updates on prefetch",
         "app dir - navigation query string should set query correctly",
+        "app dir - navigation query string should set query with semicolon correctly",
         "app dir - navigation query string useParams identity between renders should be stable in app",
         "app dir - navigation redirect components should only trigger the redirect once (/redirect/servercomponent)",
         "app dir - navigation redirect components should only trigger the redirect once (redirect/redirect-with-loading)",
@@ -2304,7 +2305,8 @@
     },
     "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts": {
       "passed": [
-        "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params"
+        "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params",
+        "parallel-routes-breadcrumbs should render the breadcrumbs correctly with the non-dynamic route segments"
       ],
       "failed": [],
       "pending": [],
