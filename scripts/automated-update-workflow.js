@@ -31,7 +31,7 @@ async function main() {
   await exec(`git config user.email "infra+release@vercel.com"`)
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
-  const { stdout } = await exec(`git status --porcelain`)
+  const { stdout, stderr } = await exec(`git status`)
   console.log('[test] stdout =', stdout)
   // await exec(`git commit --message ${branchName}`)
 
