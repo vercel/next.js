@@ -31,9 +31,9 @@ async function main() {
   await exec(`git config user.email "infra+release@vercel.com"`)
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
-  const { stdout, stderr } = await exec(`git status`)
+  await exec(`git commit --message ${branchName}`)
   console.log('[test] stdout =', stdout)
-  // await exec(`git commit --message ${branchName}`)
+  const { stdout, stderr } = await exec(`git status`)
 
   // const changesResult = await exec(`git diff HEAD~ --name-only`)
   // const changedFiles = changesResult.stdout
