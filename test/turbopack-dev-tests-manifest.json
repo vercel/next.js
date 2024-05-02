@@ -4239,6 +4239,7 @@
       "app dir - navigation query string should handle unicode search params",
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
+      "app dir - navigation query string should set query with semicolon correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should only trigger the redirect once (/redirect/servercomponent)",
@@ -4483,7 +4484,8 @@
   },
   "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts": {
     "passed": [
-      "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params"
+      "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params",
+      "parallel-routes-breadcrumbs should render the breadcrumbs correctly with the non-dynamic route segments"
     ],
     "failed": [],
     "pending": [],
