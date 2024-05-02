@@ -56,19 +56,19 @@ async function run() {
     if (data.items.length > 0) {
       data.items.forEach(async (item) => {
         await octoClient.rest.issues.addLabels({
-          issue_number: item.number,
-          labels: ['linear: next'],
           owner,
           repo,
+          issue_number: item.number,
+          labels: ['linear: next'],
         })
       })
 
-      await slackClient.chat.postMessage({
-        blocks: generateBlocks(data.items),
-        channel: '#team-next-js',
-        icon_emoji: ':github:',
-        username: 'GitHub Notifier',
-      })
+      // await slackClient.chat.postMessage({
+      //   blocks: generateBlocks(data.items),
+      //   channel: '#team-next-js',
+      //   icon_emoji: ':github:',
+      //   username: 'GitHub Notifier',
+      // })
 
       info(`Posted to Slack!`)
     } else {
