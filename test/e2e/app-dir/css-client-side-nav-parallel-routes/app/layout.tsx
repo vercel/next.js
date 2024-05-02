@@ -1,7 +1,16 @@
-export default function Root({ children }: { children: React.ReactNode }) {
+export default function Root({
+  children,
+  modal,
+}: {
+  children: React.ReactNode
+  modal: React.ReactNode
+}) {
   return (
     <html>
-      <body>{children}</body>
+      <body>
+        {children}
+        {modal}
+      </body>
     </html>
   )
 }
