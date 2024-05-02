@@ -3061,6 +3061,7 @@ dependencies = [
  "fxhash",
  "getrandom",
  "iana-time-zone",
+ "indexmap 1.9.3",
  "lightningcss-napi",
  "napi",
  "napi-build",
