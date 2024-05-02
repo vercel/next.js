@@ -268,33 +268,29 @@ export class TurbopackManifestLoader {
     )
   }
 
-  private mergeBuildManifests(
-    manifests: Iterable<BuildManifest>
-  ): Partial<BuildManifest> & Pick<BuildManifest, 'pages'> {
-    const polyfillFiles: string[] = []
-    const pages = {
-      '/_app': [],
-    }
-    let rootMainFiles: readonly string[] = []
-    for (const m of manifests) {
-      Object.assign(pages, m.pages)
-      if (m.rootMainFiles.length) rootMainFiles = m.rootMainFiles
-      polyfillFiles.push(...m.polyfillFiles)
-    }
-
-    return {
-      pages,
+  private mergeBuildManifests(manifests: Iterable<BuildManifest>) {
+    const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
+      pages: {
+        '/_app': [],
+      },
       // Something in next.js depends on these to exist even for app dir rendering
       devFiles: [],
       ampDevFiles: [],
-      polyfillFiles,
+      polyfillFiles: [],
       lowPriorityFiles: [
         'static/development/_ssgManifest.js',
         'static/development/_buildManifest.js',
       ],
-      rootMainFiles,
+      rootMainFiles: [],
       ampFirstPages: [],
     }
+    for (const m of manifests) {
+      Object.assign(manifest.pages, m.pages)
+      if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
+      // polyfillFiles should always be the same, so we can overwrite instead of actually merging
+      if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
+    }
+    return manifest
   }
 
   private async writeBuildManifest(

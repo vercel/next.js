@@ -7,7 +7,7 @@ use next_core::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
         MetadataItem,
     },
-    get_edge_resolve_options_context,
+    get_edge_resolve_options_context, get_next_package,
     next_app::{
         app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
@@ -45,12 +45,15 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EvaluatableAssets,
+            },
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
-            reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{node::node_cjs_resolve_options, parse::Request, resolve},
+            raw_module::RawModule,
+            resolve::{node::node_cjs_resolve_options, parse::Request},
             virtual_output::VirtualOutputAsset,
         },
         nodejs::EntryChunkGroupResult,
@@ -896,31 +899,26 @@ impl AppEndpoint {
             ));
             server_assets.push(app_build_manifest_output);
 
-            const POLYFILL_PATH: &str = "next/dist/build/polyfills/polyfill-nomodule.js";
-            let project_path = this.app_project.project().project_path();
-            let polyfill_path = resolve(
-                project_path,
-                Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-                Request::parse_string(POLYFILL_PATH.to_string()),
-                node_cjs_resolve_options(project_path),
-            )
-            .as_raw_module_result()
-            .primary_output_assets()
-            .await?
-            .first()
-            .with_context(|| format!("failed to resolve {POLYFILL_PATH}"))?
-            .ident()
-            .await?
-            .path
-            .await?;
-            let polyfill_path = client_relative_path_ref
-                .get_path_to(&polyfill_path)
-                .context("failed to resolve client-relative path to polyfill")?;
-            let polyfill_paths = vec![polyfill_path.to_string()];
+            // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
+            // load it as a RawModule.
+            let next_package = get_next_package(this.app_project.project().project_path());
+            let polyfill_source_path =
+                next_package.join("dist/build/polyfills/polyfill-nomodule.js".to_string());
+            let polyfill_module = RawModule::new(Vc::upcast(FileSource::new(polyfill_source_path)));
+            let polyfill_output_path =
+                client_chunking_context.chunk_path(polyfill_module.ident(), ".js".to_string());
+            let polyfill_output_asset =
+                VirtualOutputAsset::new(polyfill_output_path, polyfill_module.content());
+            let polyfill_client_path = client_relative_path_ref
+                .get_path_to(&*polyfill_output_path.await?)
+                .context("failed to resolve client-relative path to polyfill")?
+                .to_string();
+            let polyfill_client_paths = vec![polyfill_client_path];
+            client_assets.push(Vc::upcast(polyfill_output_asset));
 
             let build_manifest = BuildManifest {
                 root_main_files: client_shared_chunks_paths,
-                polyfill_files: polyfill_paths,
+                polyfill_files: polyfill_client_paths,
                 ..Default::default()
             };
             let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
