@@ -15,8 +15,8 @@ describe('Error overlay for hydration errors', () => {
     dependencies: {
       ...(process.env.TEST_REACT_19 === '1'
         ? {
-            react: 'beta',
-            'react-dom': 'beta',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
           }
         : {}),
     },
