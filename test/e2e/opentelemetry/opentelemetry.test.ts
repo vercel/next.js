@@ -537,7 +537,7 @@ describe('opentelemetry', () => {
           await expectTrace(getCollector(), [
             {
               runtime: 'nodejs',
-              traceId: '[trace-id]',
+              traceId: env.span.traceId,
               name: 'GET /app/[param]/loading/page1',
               kind: 1,
               attributes: {
@@ -558,8 +558,6 @@ describe('opentelemetry', () => {
               spans: [
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'render route (app) /app/[param]/loading/page1',
                   kind: 0,
                   attributes: {
@@ -576,8 +574,6 @@ describe('opentelemetry', () => {
                   spans: [
                     {
                       runtime: 'nodejs',
-                      traceId: '[trace-id]',
-                      parentId: env.span.rootParentId,
                       name: 'build component tree',
                       kind: 0,
                       attributes: {
@@ -592,8 +588,6 @@ describe('opentelemetry', () => {
                       spans: [
                         {
                           runtime: 'nodejs',
-                          traceId: '[trace-id]',
-                          parentId: env.span.rootParentId,
                           name: 'resolve segment modules',
                           kind: 0,
                           attributes: {
@@ -611,8 +605,6 @@ describe('opentelemetry', () => {
                         },
                         {
                           runtime: 'nodejs',
-                          traceId: '[trace-id]',
-                          parentId: env.span.rootParentId,
                           name: 'resolve segment modules',
                           kind: 0,
                           attributes: {
@@ -632,8 +624,6 @@ describe('opentelemetry', () => {
                     },
                     {
                       runtime: 'nodejs',
-                      traceId: '[trace-id]',
-                      parentId: env.span.rootParentId,
                       name: 'generateMetadata /app/[param]/layout',
                       kind: 0,
                       attributes: {
@@ -651,8 +641,6 @@ describe('opentelemetry', () => {
                     },
                     {
                       runtime: 'nodejs',
-                      traceId: '[trace-id]',
-                      parentId: env.span.rootParentId,
                       name: 'NextNodeServer.clientComponentLoading',
                       kind: 0,
                       attributes: {
@@ -667,8 +655,6 @@ describe('opentelemetry', () => {
                     },
                     {
                       runtime: 'nodejs',
-                      traceId: '[trace-id]',
-                      parentId: env.span.rootParentId,
                       name: 'start response',
                       kind: 0,
                       attributes: {
@@ -686,8 +672,6 @@ describe('opentelemetry', () => {
                 },
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'resolve page components',
                   kind: 0,
                   attributes: {
@@ -706,7 +690,7 @@ describe('opentelemetry', () => {
             },
             {
               runtime: 'nodejs',
-              traceId: '[trace-id]',
+              traceId: env.span.traceId,
               name: 'RSC GET /app/[param]/loading/page2',
               kind: 1,
               attributes: {
@@ -727,8 +711,6 @@ describe('opentelemetry', () => {
               spans: [
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'resolve page components',
                   kind: 0,
                   attributes: {
@@ -745,8 +727,6 @@ describe('opentelemetry', () => {
                 },
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'start response',
                   kind: 0,
                   attributes: {
@@ -764,7 +744,7 @@ describe('opentelemetry', () => {
             },
             {
               runtime: 'nodejs',
-              traceId: '[trace-id]',
+              traceId: env.span.traceId,
               name: 'RSC GET /app/[param]/loading/page2',
               kind: 1,
               attributes: {
@@ -785,8 +765,6 @@ describe('opentelemetry', () => {
               spans: [
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'build component tree',
                   kind: 0,
                   attributes: {
@@ -801,8 +779,6 @@ describe('opentelemetry', () => {
                   spans: [
                     {
                       runtime: 'nodejs',
-                      traceId: '[trace-id]',
-                      parentId: env.span.rootParentId,
                       name: 'resolve segment modules',
                       kind: 0,
                       attributes: {
@@ -822,8 +798,6 @@ describe('opentelemetry', () => {
                 },
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'generateMetadata /app/[param]/layout',
                   kind: 0,
                   attributes: {
@@ -840,8 +814,6 @@ describe('opentelemetry', () => {
                 },
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'resolve page components',
                   kind: 0,
                   attributes: {
@@ -858,8 +830,6 @@ describe('opentelemetry', () => {
                 },
                 {
                   runtime: 'nodejs',
-                  traceId: '[trace-id]',
-                  parentId: env.span.rootParentId,
                   name: 'start response',
                   kind: 0,
                   attributes: {
