@@ -32,18 +32,18 @@ async function main() {
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
   await exec(`git commit --message ${branchName}`)
-  const { stdout, stderr } = await exec(`git status`)
-  console.log('[test] stdout =', stdout)
 
-  // const changesResult = await exec(`git diff HEAD~ --name-only`)
-  // const changedFiles = changesResult.stdout
-  //   .split('\n')
-  //   .filter((line) => line.trim())
+  const changesResult = await exec(`git diff HEAD~ --name-only`)
+  const changedFiles = changesResult.stdout
+    .split('\n')
+    .filter((line) => line.trim())
 
-  // if (changedFiles.length === 0) {
-  //   console.log('No files changed skipping.')
-  //   return
-  // }
+  console.log('[test] changedFiles', changedFiles)
+
+  if (changedFiles.length === 0) {
+    console.log('No files changed skipping.')
+    return
+  }
 
   // await exec(`git push origin ${branchName}`)
 
