@@ -114,7 +114,7 @@ export function PseudoHtmlDiff({
       const diffHtmlStack: React.ReactNode[] = []
       reactComponentDiffLines.forEach((line, index) => {
         let trimmedLine = line.trim()
-        const isDiffLine = /\+|\-/.test(trimmedLine[0])
+        const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
         const spaces = ' '.repeat(nestedHtmlStack.length * 2)
 
         if (isDiffLine) {
@@ -276,6 +276,8 @@ export function PseudoHtmlDiff({
     isHtmlTagsWarning,
     hydrationMismatchType,
     MAX_NON_COLLAPSED_FRAMES,
+    isReactHydrationDiff,
+    reactOutputComponentDiff,
   ])
 
   return (
