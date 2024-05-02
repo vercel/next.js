@@ -1599,39 +1599,33 @@ export default async function getBaseWebpackConfig(
                           path: require.resolve(
                             '@next/vendored/path-browserify'
                           ),
-                          punycode: require.resolve(
-                            'next/dist/compiled/punycode'
-                          ),
+                          punycode: require.resolve('@next/vendored/punycode'),
                           process: require.resolve('./polyfills/process'),
                           // Handled in separate alias
                           querystring: require.resolve(
-                            'next/dist/compiled/querystring-es3'
+                            '@next/vendored/querystring-es3'
                           ),
                           stream: require.resolve(
                             '@next/vendored/stream-browserify'
                           ),
                           string_decoder: require.resolve(
-                            'next/dist/compiled/string_decoder'
+                            '@next/vendored/string_decoder'
                           ),
-                          sys: require.resolve('next/dist/compiled/util/'),
+                          sys: require.resolve('@next/vendored/util'),
                           timers: require.resolve(
-                            'next/dist/compiled/timers-browserify'
+                            '@next/vendored/timers-browserify'
                           ),
-                          tty: require.resolve(
-                            'next/dist/compiled/tty-browserify'
-                          ),
+                          tty: require.resolve('@next/vendored/tty-browserify'),
                           // Handled in separate alias
                           // url: require.resolve('url/'),
-                          util: require.resolve('next/dist/compiled/util/'),
-                          vm: require.resolve(
-                            'next/dist/compiled/vm-browserify'
-                          ),
+                          util: require.resolve('@next/vendored/util'),
+                          vm: require.resolve('@next/vendored/vm-browserify'),
                           zlib: require.resolve(
                             '@next/vendored/browserify-zlib'
                           ),
                           events: require.resolve('@next/vendored/events'),
                           setImmediate: require.resolve(
-                            'next/dist/compiled/setimmediate'
+                            '@next/vendored/setimmediate'
                           ),
                         },
                 },

@@ -281,11 +281,6 @@ declare module 'next/dist/compiled/comment-json' {
   export = m
 }
 
-declare module 'next/dist/compiled/process' {
-  import m from 'process'
-  export = m
-}
-
 declare module 'next/dist/compiled/edge-runtime' {
   import m from 'edge-runtime'
   export = m

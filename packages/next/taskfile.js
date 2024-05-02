@@ -545,126 +545,6 @@ export async function copy_constants_browserify(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_process(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('process/browser')))
-    .ncc({
-      packageName: 'process',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/process')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_querystring_es3(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('querystring-es3/')))
-    .ncc({
-      packageName: 'querystring-es3',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/querystring-es3')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_string_decoder(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('string_decoder/')))
-    .ncc({
-      packageName: 'string_decoder',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/string_decoder')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_util(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('util/')))
-    .ncc({
-      packageName: 'util',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/util')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_punycode(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('punycode/')))
-    .ncc({
-      packageName: 'punycode',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/punycode')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_set_immediate(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('setimmediate/')))
-    .ncc({
-      packageName: 'setimmediate',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/setimmediate')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_timers_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('timers-browserify/')))
-    .ncc({
-      packageName: 'timers-browserify',
-      externals: {
-        ...externals,
-        setimmediate: 'next/dist/compiled/setimmediate',
-      },
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/timers-browserify')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_tty_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('tty-browserify/')))
-    .ncc({
-      packageName: 'tty-browserify',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/tty-browserify')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_vm_browserify(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('vm-browserify/')))
-    .ncc({
-      packageName: 'vm-browserify',
-      externals,
-      mainFields: ['browser', 'main'],
-      target: 'es5',
-    })
-    .target('src/compiled/vm-browserify')
-}
-
-// eslint-disable-next-line camelcase
 externals['@ampproject/toolbox-optimizer'] =
   'next/dist/compiled/@ampproject/toolbox-optimizer'
 export async function ncc_amp_optimizer(task, opts) {
@@ -1028,7 +908,7 @@ export async function ncc_native_url(task, opts) {
       packageName: 'native-url',
       externals: {
         ...externals,
-        querystring: 'next/dist/compiled/querystring-es3',
+        querystring: '@next/vendored/querystring-es3',
       },
       target: 'es5',
     })
@@ -1822,15 +1702,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_postcss_plugin_stub_for_cssnano_simple',
-        'ncc_process',
-        'ncc_querystring_es3',
-        'ncc_string_decoder',
-        'ncc_util',
-        'ncc_punycode',
-        'ncc_set_immediate',
-        'ncc_timers_browserify',
-        'ncc_tty_browserify',
-        'ncc_vm_browserify',
         'ncc_babel_bundle',
         'ncc_bytes',
         'ncc_ci_info',

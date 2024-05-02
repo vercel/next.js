@@ -166,7 +166,7 @@ export function createWebpackAliases({
       '_'
     ),
 
-    setimmediate: 'next/dist/compiled/setimmediate',
+    setimmediate: '@next/vendored/setimmediate',
   }
 }
 

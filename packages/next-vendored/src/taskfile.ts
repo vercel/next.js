@@ -34,6 +34,28 @@ const externals: Record<string, string> = {
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
+const babelCorePackages = {
+  'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/generator': 'next/dist/compiled/babel/generator',
+  '@babel/traverse': 'next/dist/compiled/babel/traverse',
+  '@babel/types': 'next/dist/compiled/babel/types',
+  '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/parser': 'next/dist/compiled/babel/parser',
+  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
+  '@babel/core/lib/transformation/normalize-file':
+    'next/dist/compiled/babel/core-lib-normalize-config',
+  '@babel/core/lib/transformation/normalize-opts':
+    'next/dist/compiled/babel/core-lib-normalize-opts',
+  '@babel/core/lib/transformation/block-hoist-plugin':
+    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
+  '@babel/core/lib/transformation/plugin-pass':
+    'next/dist/compiled/babel/core-lib-plugin-pass',
+}
+
+externals['next/dist/compiled/babel/code-frame'] =
+  'next/dist/compiled/babel/code-frame'
+
+Object.assign(externals, babelCorePackages)
 
 export const tasks: Tasks<Task> = {}
 
@@ -46,6 +68,7 @@ const nccTasks: Record<
       cjs?: boolean
       browserOnly?: boolean
       use?: QueueFn
+      externals?: typeof externals
     }
 > = {
   ncc_node_html_parser: 'node-html-parser',
@@ -143,13 +166,83 @@ const nccTasks: Record<
       indexFile.data = Buffer.from(content, 'utf8')
     },
   },
+  ncc_process: {
+    mod: 'process',
+    modPath: 'process/browser',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_querystring_es3: {
+    mod: 'querystring-es3',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_string_decoder: {
+    mod: 'string_decoder/',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_util: {
+    mod: 'util/',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_punycode: {
+    mod: 'punycode/',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_set_immediate: {
+    mod: 'setimmediate/',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_timers_browserify: {
+    mod: 'timers-browserify',
+    cjs: true,
+    browserOnly: true,
+    externals: { setimmediate: '@next/vendored/setimmediate' },
+  },
+  ncc_tty_browserify: {
+    mod: 'tty-browserify',
+    cjs: true,
+    browserOnly: true,
+  },
+  ncc_vm_browserify: {
+    mod: 'vm-browserify',
+    cjs: true,
+    browserOnly: true,
+  },
+  // ncc_babel_bundle: {
+  //   mod: 'vm-browserify',
+  //   cjs: true,
+  //   browserOnly: true,
+  //   externals: Object.keys(babelCorePackages).reduce<Record<string, string>>(
+  //     (acc, key) => {
+  //       delete acc[key]
+  //       return acc
+  //     },
+  //     {
+  //       ...externals,
+  //       'next/dist/compiled/babel-packages':
+  //         'next/dist/compiled/babel-packages',
+  //     }
+  //   ),
+  // },
 }
 
 for (let [taskName, modOptions] of Object.entries(nccTasks)) {
   if (typeof modOptions === 'string') {
     modOptions = { mod: modOptions }
   }
-  const { mod, modPath = mod, cjs, browserOnly, use } = modOptions
+  const {
+    mod,
+    modPath = mod,
+    cjs,
+    browserOnly,
+    use,
+    externals: extendedExternals,
+  } = modOptions
 
   if (!browserOnly) {
     externals[mod] = `@next/vendored/${mod}`
@@ -158,7 +251,9 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
     await task.clear(mod)
     task.source(cjs ? resolveCommonjs(modPath) : resolve(modPath)).ncc({
       packageName: mod,
-      externals,
+      externals: extendedExternals
+        ? { ...externals, ...extendedExternals }
+        : externals,
       ...(browserOnly
         ? {
             mainFields: ['browser', 'main'],
