@@ -9,6 +9,10 @@ export { Task }
 const resolve = (modulePath: string) =>
   fileURLToPath(import.meta.resolve(modulePath))
 
+// Modules that import other compiled modules need to do so from `@next/vendored`
+// and that means going up one path.
+const next_vendored = '..'
+
 const externals: Record<string, string> = {
   // don't bundle caniuse-lite data so users can
   // update it manually
@@ -18,7 +22,7 @@ const externals: Record<string, string> = {
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
   // Ensure latest version is used
-  'postcss-safe-parser': '@next/vendored/postcss-safe-parser',
+  'postcss-safe-parser': `${next_vendored}/postcss-safe-parser`,
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -67,20 +71,20 @@ const nccTasks: Record<
   | {
       mod: string
       modPath?: string
-      cjs?: boolean
+      esm?: boolean
       browserOnly?: boolean
       use?: QueueFn
       externals?: typeof externals
     }
 > = {
-  ncc_node_html_parser: 'node-html-parser',
+  ncc_node_html_parser: 'node-html-parser', // TODO:ESM
   ncc_napirs_triples: '@napi-rs/triples',
   ncc_p_limit: 'p-limit',
   ncc_raw_body: 'raw-body',
   ncc_image_size: 'image-size',
   ncc_get_orientation: 'get-orientation',
   ncc_hapi_accept: '@hapi/accept',
-  ncc_commander: { mod: 'commander', cjs: true },
+  ncc_commander: 'commander',
   ncc_node_fetch: 'node-fetch',
   ncc_node_anser: 'anser',
   ncc_node_stacktrace_parser: 'stacktrace-parser',
@@ -108,26 +112,24 @@ const nccTasks: Record<
     },
   },
   ncc_node_shell_quote: 'shell-quote',
-  ncc_acorn: 'acorn', // TODO: Not being used by next?
+  ncc_acorn: 'acorn', // TODO: Not being used by next? // TODO:ESM
   ncc_amphtml_validator: 'amphtml-validator',
   ncc_async_retry: 'async-retry',
   ncc_async_sema: 'async-sema',
   // TODO: This one goes to next/src
   // ncc_postcss_plugin_stub_for_cssnano_simple: '',
   // These are Node.js browser polyfills
-  ncc_assert: { mod: 'assert/', cjs: true, browserOnly: true },
-  ncc_browser_zlib: { mod: 'browserify-zlib', cjs: true, browserOnly: true },
-  ncc_buffer: { mod: 'buffer/', cjs: true, browserOnly: true },
+  ncc_assert: { mod: 'assert/', browserOnly: true },
+  ncc_browser_zlib: { mod: 'browserify-zlib', browserOnly: true },
+  ncc_buffer: { mod: 'buffer/', browserOnly: true },
   ncc_crypto_browserify: {
     mod: 'crypto-browserify',
-    cjs: true,
     browserOnly: true,
   },
-  ncc_domain_browser: { mod: 'domain-browser', cjs: true, browserOnly: true },
-  ncc_events: { mod: 'events/', cjs: true, browserOnly: true },
+  ncc_domain_browser: { mod: 'domain-browser', browserOnly: true },
+  ncc_events: { mod: 'events/', browserOnly: true },
   ncc_stream_browserify: {
     mod: 'stream-browserify',
-    cjs: true,
     browserOnly: true,
     async use(files) {
       const indexFile = files.find((file) => file.path.endsWith('index.js'))!
@@ -142,21 +144,18 @@ const nccTasks: Record<
       indexFile.data = Buffer.from(content, 'utf8')
     },
   },
-  ncc_stream_http: { mod: 'stream-http', cjs: true, browserOnly: true },
+  ncc_stream_http: { mod: 'stream-http', browserOnly: true },
   ncc_https_browserify: {
     mod: 'https-browserify',
-    cjs: true,
     browserOnly: true,
   },
   ncc_os_browserify: {
     mod: 'os-browserify',
     modPath: 'os-browserify/browser',
-    cjs: true,
     browserOnly: true,
   },
   ncc_path_browserify: {
     mod: 'path-browserify',
-    cjs: true,
     browserOnly: true,
     async use(files) {
       const indexFile = files.find((file) => file.path.endsWith('index.js'))!
@@ -171,53 +170,22 @@ const nccTasks: Record<
   ncc_process: {
     mod: 'process',
     modPath: 'process/browser',
-    cjs: true,
     browserOnly: true,
   },
-  ncc_querystring_es3: {
-    mod: 'querystring-es3',
-    cjs: true,
-    browserOnly: true,
-  },
-  ncc_string_decoder: {
-    mod: 'string_decoder/',
-    cjs: true,
-    browserOnly: true,
-  },
-  ncc_util: {
-    mod: 'util/',
-    cjs: true,
-    browserOnly: true,
-  },
-  ncc_punycode: {
-    mod: 'punycode/',
-    cjs: true,
-    browserOnly: true,
-  },
-  ncc_set_immediate: {
-    mod: 'setimmediate/',
-    cjs: true,
-    browserOnly: true,
-  },
+  ncc_querystring_es3: { mod: 'querystring-es3', browserOnly: true },
+  ncc_string_decoder: { mod: 'string_decoder/', browserOnly: true },
+  ncc_util: { mod: 'util/', browserOnly: true },
+  ncc_punycode: { mod: 'punycode/', browserOnly: true },
+  ncc_set_immediate: { mod: 'setimmediate/', browserOnly: true },
   ncc_timers_browserify: {
     mod: 'timers-browserify',
-    cjs: true,
     browserOnly: true,
-    externals: { setimmediate: '@next/vendored/setimmediate' },
+    externals: { setimmediate: `${next_vendored}/setimmediate` },
   },
-  ncc_tty_browserify: {
-    mod: 'tty-browserify',
-    cjs: true,
-    browserOnly: true,
-  },
-  ncc_vm_browserify: {
-    mod: 'vm-browserify',
-    cjs: true,
-    browserOnly: true,
-  },
+  ncc_tty_browserify: { mod: 'tty-browserify', browserOnly: true },
+  ncc_vm_browserify: { mod: 'vm-browserify', browserOnly: true },
   // ncc_babel_bundle: {
   //   mod: 'vm-browserify',
-  //   cjs: true,
   //   browserOnly: true,
   //   externals: Object.keys(babelCorePackages).reduce<Record<string, string>>(
   //     (acc, key) => {
@@ -259,10 +227,10 @@ const nccTasks: Record<
   ncc_loader_utils3: 'loader-utils3',
   ncc_lodash_curry: 'lodash.curry',
   ncc_lru_cache: 'lru-cache',
-  ncc_nanoid: 'nanoid', //TODO: check the output of this one
+  ncc_nanoid: 'nanoid',
   ncc_native_url: {
     mod: 'native-url',
-    externals: { querystring: '@next/vendored/querystring-es3' },
+    externals: { querystring: `${next_vendored}/querystring-es3` },
   },
   ncc_neo_async: 'neo-async', // TODO: Not being used by next?
   ncc_ora: 'ora',
@@ -307,18 +275,18 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
   const {
     mod,
     modPath = mod,
-    cjs,
+    esm = false,
     browserOnly,
     use,
     externals: extendedExternals,
   } = modOptions
 
   if (!browserOnly) {
-    externals[mod] = `@next/vendored/${mod}`
+    externals[mod] = `${next_vendored}/${mod}`
   }
   tasks[taskName] = async (task) => {
     await task.clear(mod)
-    task.source(cjs ? resolveCommonjs(modPath) : resolve(modPath)).ncc({
+    task.source(esm ? resolve(modPath) : resolveCommonjs(modPath)).ncc({
       packageName: mod,
       externals: extendedExternals
         ? { ...externals, ...extendedExternals }

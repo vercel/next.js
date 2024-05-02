@@ -35,6 +35,10 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
+declare module 'next/dist/compiled/jsonwebtoken' {
+  import m from 'jsonwebtoken'
+  export = m
+}
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
