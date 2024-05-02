@@ -539,7 +539,6 @@ describe('opentelemetry', () => {
               runtime: 'nodejs',
               traceId: '[trace-id]',
               name: 'GET /app/[param]/loading/page1',
-              id: 'fa41fab7e825d6fa',
               kind: 1,
               attributes: {
                 'next.span_name': 'GET /app/[param]/loading/page1',
