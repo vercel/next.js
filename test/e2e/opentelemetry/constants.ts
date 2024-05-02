@@ -1,7 +1,5 @@
 import { SpanKind } from '@opentelemetry/api'
 
-export const traceFile = 'otel-trace.txt'
-
 export type SavedSpan = {
   runtime?: string
   traceId?: string

@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-import { SavedSpan, traceFile } from './constants'
+import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
 
 const EXTERNAL = {
@@ -32,72 +32,11 @@ describe('opentelemetry', () => {
     return collector
   }
 
-  const getTraces = async (): Promise<SavedSpan[]> => {
-    const traces = await next.readFile(traceFile)
-    return traces
-      .split('\n')
-      .filter((val) => {
-        if (val.includes('127.0.0.1')) {
-          return false
-        }
-        return !!val
-      })
-      .map((line) => JSON.parse(line))
-  }
-
-  /**
-   * Sanitize (modifies) span to make it ready for snapshot testing.
-   */
-  const sanitizeSpan = (span: SavedSpan) => {
-    delete span.duration
-    delete span.id
-    delete span.links
-    delete span.events
-    delete span.timestamp
-    span.traceId =
-      span.traceId === EXTERNAL.traceId ? span.traceId : '[trace-id]'
-    span.parentId =
-      span.parentId === undefined || span.parentId === EXTERNAL.spanId
-        ? span.parentId
-        : '[parent-id]'
-    return span
-  }
-  const sanitizeSpans = (spans: SavedSpan[]) => {
-    return spans
-      .sort((a, b) =>
-        (a.attributes?.['next.span_name'] ?? '').localeCompare(
-          b.attributes?.['next.span_name'] ?? ''
-        )
-      )
-      .sort((a, b) =>
-        (a.attributes?.['next.span_type'] ?? '').localeCompare(
-          b.attributes?.['next.span_type'] ?? ''
-        )
-      )
-      .map(sanitizeSpan)
-  }
-
-  const getSanitizedTraces = async (numberOfRootTraces: number) => {
-    let traces
-    await check(async () => {
-      traces = sanitizeSpans(await getTraces())
-
-      const rootSpans = traces.filter((span) => !span.parentId)
-      return String(rootSpans.length)
-    }, String(numberOfRootTraces))
-    return traces
-  }
-
-  const cleanTraces = async () => {
-    await next.patchFile(traceFile, '')
-  }
-
   beforeEach(async () => {
     collector = await connectCollector({ port: COLLECTOR_PORT })
   })
 
   afterEach(async () => {
-    await cleanTraces()
     await collector.shutdown()
   })
 
@@ -595,131 +534,123 @@ describe('opentelemetry', () => {
           await browser.waitForElementByCss('#page1')
           await browser.elementByCss('a').click().waitForElementByCss('#page2')
 
-          await check(async () => {
-            const traces = await getSanitizedTraces(4)
-            if (traces.length < 7) {
-              return `not enough traces, expected 7, but got ${traces.length}`
-            }
-            expect(traces).toMatchInlineSnapshot(`
-              [
-                {
-                  "attributes": {
-                    "next.route": "/app/[param]/loading/page1",
-                    "next.span_name": "render route (app) /app/[param]/loading/page1",
-                    "next.span_type": "AppRender.getBodyResult",
-                  },
-                  "kind": 0,
-                  "name": "render route (app) /app/[param]/loading/page1",
-                  "parentId": "[parent-id]",
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-                {
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/app/[param]/loading/page1",
-                    "http.status_code": 200,
-                    "http.target": "/app/foo/loading/page1",
-                    "next.route": "/app/[param]/loading/page1",
-                    "next.span_name": "GET /app/[param]/loading/page1",
-                    "next.span_type": "BaseServer.handleRequest",
-                  },
-                  "kind": 1,
-                  "name": "GET /app/[param]/loading/page1",
-                  "parentId": undefined,
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-                {
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/app/[param]/loading/page1",
-                    "http.status_code": 200,
-                    "http.target": "/app/foo/loading/page1?_rsc=4t3jn",
-                    "next.route": "/app/[param]/loading/page1",
-                    "next.span_name": "GET /app/[param]/loading/page1",
-                    "next.span_type": "BaseServer.handleRequest",
-                  },
-                  "kind": 1,
-                  "name": "GET /app/[param]/loading/page1",
-                  "parentId": undefined,
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-                {
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/app/[param]/loading/page2",
-                    "http.status_code": 200,
-                    "http.target": "/app/foo/loading/page2?_rsc=1lrnj",
-                    "next.route": "/app/[param]/loading/page2",
-                    "next.span_name": "GET /app/[param]/loading/page2",
-                    "next.span_type": "BaseServer.handleRequest",
-                  },
-                  "kind": 1,
-                  "name": "GET /app/[param]/loading/page2",
-                  "parentId": undefined,
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-                {
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/app/[param]/loading/page2",
-                    "http.status_code": 200,
-                    "http.target": "/app/foo/loading/page2?_rsc=1yei0",
-                    "next.route": "/app/[param]/loading/page2",
-                    "next.span_name": "GET /app/[param]/loading/page2",
-                    "next.span_type": "BaseServer.handleRequest",
-                  },
-                  "kind": 1,
-                  "name": "GET /app/[param]/loading/page2",
-                  "parentId": undefined,
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-                {
-                  "attributes": {
-                    "next.page": "/app/[param]/layout",
-                    "next.span_name": "generateMetadata /app/[param]/layout",
-                    "next.span_type": "ResolveMetadata.generateMetadata",
-                  },
-                  "kind": 0,
-                  "name": "generateMetadata /app/[param]/layout",
-                  "parentId": "[parent-id]",
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-                {
-                  "attributes": {
-                    "next.page": "/app/[param]/layout",
-                    "next.span_name": "generateMetadata /app/[param]/layout",
-                    "next.span_type": "ResolveMetadata.generateMetadata",
-                  },
-                  "kind": 0,
-                  "name": "generateMetadata /app/[param]/layout",
-                  "parentId": "[parent-id]",
-                  "status": {
-                    "code": 0,
-                  },
-                  "traceId": "[trace-id]",
-                },
-              ]
-              `)
-            return 'success'
-          }, 'success')
+          await expectTrace(getCollector(), [
+            {
+              attributes: {
+                'next.route': '/app/[param]/loading/page1',
+                'next.span_name':
+                  'render route (app) /app/[param]/loading/page1',
+                'next.span_type': 'AppRender.getBodyResult',
+              },
+              kind: 0,
+              name: 'render route (app) /app/[param]/loading/page1',
+              parentId: '[parent-id]',
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+            {
+              attributes: {
+                'http.method': 'GET',
+                'http.route': '/app/[param]/loading/page1',
+                'http.status_code': 200,
+                'http.target': '/app/foo/loading/page1',
+                'next.route': '/app/[param]/loading/page1',
+                'next.span_name': 'GET /app/[param]/loading/page1',
+                'next.span_type': 'BaseServer.handleRequest',
+              },
+              kind: 1,
+              name: 'GET /app/[param]/loading/page1',
+              parentId: undefined,
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+            {
+              attributes: {
+                'http.method': 'GET',
+                'http.route': '/app/[param]/loading/page1',
+                'http.status_code': 200,
+                'http.target': '/app/foo/loading/page1?_rsc=4t3jn',
+                'next.route': '/app/[param]/loading/page1',
+                'next.span_name': 'GET /app/[param]/loading/page1',
+                'next.span_type': 'BaseServer.handleRequest',
+              },
+              kind: 1,
+              name: 'GET /app/[param]/loading/page1',
+              parentId: undefined,
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+            {
+              attributes: {
+                'http.method': 'GET',
+                'http.route': '/app/[param]/loading/page2',
+                'http.status_code': 200,
+                'http.target': '/app/foo/loading/page2?_rsc=1lrnj',
+                'next.route': '/app/[param]/loading/page2',
+                'next.span_name': 'GET /app/[param]/loading/page2',
+                'next.span_type': 'BaseServer.handleRequest',
+              },
+              kind: 1,
+              name: 'GET /app/[param]/loading/page2',
+              parentId: undefined,
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+            {
+              attributes: {
+                'http.method': 'GET',
+                'http.route': '/app/[param]/loading/page2',
+                'http.status_code': 200,
+                'http.target': '/app/foo/loading/page2?_rsc=1yei0',
+                'next.route': '/app/[param]/loading/page2',
+                'next.span_name': 'GET /app/[param]/loading/page2',
+                'next.span_type': 'BaseServer.handleRequest',
+              },
+              kind: 1,
+              name: 'GET /app/[param]/loading/page2',
+              parentId: undefined,
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+            {
+              attributes: {
+                'next.page': '/app/[param]/layout',
+                'next.span_name': 'generateMetadata /app/[param]/layout',
+                'next.span_type': 'ResolveMetadata.generateMetadata',
+              },
+              kind: 0,
+              name: 'generateMetadata /app/[param]/layout',
+              parentId: '[parent-id]',
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+            {
+              attributes: {
+                'next.page': '/app/[param]/layout',
+                'next.span_name': 'generateMetadata /app/[param]/layout',
+                'next.span_type': 'ResolveMetadata.generateMetadata',
+              },
+              kind: 0,
+              name: 'generateMetadata /app/[param]/layout',
+              parentId: '[parent-id]',
+              status: {
+                code: 0,
+              },
+              traceId: '[trace-id]',
+            },
+          ])
         })
       })
 
