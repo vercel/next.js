@@ -287,28 +287,23 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
     esm = false,
     browserOnly,
     use,
-    externals: extendedExternals,
+    externals: addedExternals,
     minify,
   } = modOptions
 
-  if (!browserOnly) {
-    externals[mod] = `${next_vendored}/${mod}`
-  }
+  if (!browserOnly) externals[mod] = `${next_vendored}/${mod}`
   tasks[taskName] = async (task) => {
     await task.clear(mod)
-    task.source(esm ? resolve(modPath) : resolveCommonjs(modPath)).ncc({
-      packageName: mod,
-      externals: extendedExternals
-        ? { ...externals, ...extendedExternals }
-        : externals,
-      ...(browserOnly
-        ? {
-            mainFields: ['browser', 'main'],
-            target: 'es5',
-          }
-        : {}),
-      ...(minify !== undefined ? { minify } : {}),
-    })
+    task.source(esm ? resolve(modPath) : resolveCommonjs(modPath)).ncc(
+      Object.assign(
+        { packageName: mod, externals },
+        addedExternals && {
+          externals: { ...externals, ...addedExternals },
+        },
+        browserOnly && { mainFields: ['browser', 'main'], target: 'es5' },
+        minify !== undefined && { minify }
+      )
+    )
     if (use) task.use(use)
     await task.target(mod)
   }
