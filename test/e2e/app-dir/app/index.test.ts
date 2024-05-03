@@ -532,7 +532,7 @@ describe('app dir - basic', () => {
 
       try {
         // Click the link.
-        await check(async () => {
+        await retry(async () => {
           await browser.elementById('link-to-rewritten-path').click()
           await browser.waitForElementByCss('#from-dashboard', 5000)
 
@@ -544,8 +544,7 @@ describe('app dir - basic', () => {
           expect(await browser.elementByCss('#from-dashboard').text()).toBe(
             'hello from app/dashboard'
           )
-          return 'success'
-        }, 'success')
+        })
       } finally {
         await browser.close()
       }
@@ -807,7 +806,7 @@ describe('app dir - basic', () => {
 
       try {
         // Click the link.
-        await check(async () => {
+        await retry(async () => {
           await browser.elementById('pages-link').click()
 
           expect(
@@ -819,8 +818,7 @@ describe('app dir - basic', () => {
           expect(await browser.waitForElementByCss('#app-text').text()).toBe(
             'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
           )
-          return 'success'
-        }, 'success')
+        })
       } finally {
         await browser.close()
       }

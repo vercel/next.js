@@ -5,7 +5,7 @@ import { join } from 'path'
 import http from 'http'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
-import { check, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, renderViaHTTP, waitFor, retry } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
   if ((global as any).isNextDeploy) {
@@ -118,7 +118,7 @@ describe('manual-client-base-path', () => {
       expect(await browser.eval('window.location.pathname')).toBe(asPath)
       expect(await browser.eval('window.location.search')).toBe('?update=1')
 
-      await check(async () => {
+      await retry(async () => {
         assert.deepEqual(
           JSON.parse(await browser.elementByCss('#router').text()),
           {
@@ -131,8 +131,7 @@ describe('manual-client-base-path', () => {
             basePath,
           }
         )
-        return 'success'
-      }, 'success')
+      })
 
       await waitFor(5 * 1000)
       expect(await browser.eval('window.beforeNav')).toBe(1)

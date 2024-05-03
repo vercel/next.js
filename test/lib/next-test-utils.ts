@@ -655,6 +655,8 @@ export async function startCleanStaticServer(dir: string) {
  * @param {boolean} hardError
  * @param {number} maxRetries
  * @returns {Promise<boolean>}
+ *
+ * @deprecated Use {@link retry} instead
  */
 export async function check(
   contentFn: () => any | Promise<any>,

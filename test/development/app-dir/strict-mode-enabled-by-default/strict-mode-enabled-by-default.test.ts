@@ -1,6 +1,6 @@
 import { type BrowserInterface } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('Strict Mode enabled by default', () => {
   const { next } = nextTestSetup({
@@ -16,9 +16,9 @@ describe('Strict Mode enabled by default', () => {
   // Recommended for tests that need a full browser
   it('should work using browser', async () => {
     const browser: BrowserInterface = await next.browser('/')
-    await check(async () => {
+    await retry(async () => {
       const text = await browser.elementByCss('p').text()
-      return text === '2' ? 'success' : `failed: ${text}`
-    }, 'success')
+      expect(text).toBe('2')
+    })
   })
 })

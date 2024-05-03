@@ -3,7 +3,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { check, getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { check, getRedboxHeader, hasRedbox, retry } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
@@ -324,21 +324,20 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     try {
       await next.patchFile(page, JSON.stringify({ hello: 'replaced!!' }))
-      await check(async () => {
+      await retry(async () => {
         const props = JSON.parse(await browser.elementByCss('#props').text())
-        return props.count === 1 && props.data.hello === 'replaced!!'
-          ? 'success'
-          : JSON.stringify(props)
-      }, 'success')
+
+        expect(props.count).toBe(1)
+        expect(props.data.hello).toBe('replaced!!')
+      })
       expect(await browser.eval('window.beforeChange')).toBe('hi')
 
       await next.patchFile(page, originalContent)
-      await check(async () => {
+      await retry(async () => {
         const props = JSON.parse(await browser.elementByCss('#props').text())
-        return props.count === 1 && props.data.hello === 'world'
-          ? 'success'
-          : JSON.stringify(props)
-      }, 'success')
+        expect(props.count).toBe(1)
+        expect(props.data.hello).toBe('world')
+      })
     } finally {
       await next.patchFile(page, originalContent)
     }

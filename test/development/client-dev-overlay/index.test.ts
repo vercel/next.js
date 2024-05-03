@@ -2,7 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
   let next: NextInstance
@@ -46,13 +46,11 @@ describe('client-dev-overlay', () => {
     await getMinimizeButton().click()
     await getToast().click()
 
-    await check(async () => {
-      return (await elementExistsInNextJSPortalShadowDOM(
-        selectors.fullScreenDialog
-      ))
-        ? 'success'
-        : 'missing'
-    }, 'success')
+    await retry(() =>
+      expect(
+        elementExistsInNextJSPortalShadowDOM(selectors.toast)
+      ).resolves.toBeTruthy()
+    )
   })
 
   it('should be able to minimize the fullscreen overlay', async () => {
@@ -66,17 +64,17 @@ describe('client-dev-overlay', () => {
     await getMinimizeButton().click()
     await getHideButton().click()
 
-    await check(async () => {
+    await retry(async () => {
       const exists = await elementExistsInNextJSPortalShadowDOM('div')
-      return exists ? 'found' : 'success'
-    }, 'success')
+      expect(exists).toBe(false)
+    })
   })
 
   it('should have a role of "dialog" if the page is focused', async () => {
-    await check(async () => {
-      return (await elementExistsInNextJSPortalShadowDOM('[role="dialog"]'))
-        ? 'exists'
-        : 'missing'
-    }, 'exists')
+    await retry(async () => {
+      expect(
+        await elementExistsInNextJSPortalShadowDOM('[role="dialog"]')
+      ).toBe(true)
+    })
   })
 })

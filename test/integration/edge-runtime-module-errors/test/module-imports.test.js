@@ -4,13 +4,13 @@
 import { remove } from 'fs-extra'
 import { join } from 'path'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import {
   context,
@@ -88,10 +88,9 @@ describe('Edge runtime code with imports', () => {
       expect(res.status).toBe(500)
 
       const text = await res.text()
-      await check(async () => {
+      await retry(async () => {
         expectUnsupportedModuleDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
@@ -155,10 +154,9 @@ describe('Edge runtime code with imports', () => {
       expect(res.status).toBe(500)
 
       const text = await res.text()
-      await check(async () => {
+      await retry(async () => {
         expectModuleNotFoundDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
@@ -221,10 +219,9 @@ describe('Edge runtime code with imports', () => {
       expect(res.status).toBe(500)
 
       const text = await res.text()
-      await check(async () => {
+      await retry(async () => {
         expectModuleNotFoundDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',

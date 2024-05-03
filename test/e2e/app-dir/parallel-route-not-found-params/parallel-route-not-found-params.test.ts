@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 describe('parallel-route-not-found', () => {
   const { next } = nextTestSetup({
@@ -8,16 +8,14 @@ describe('parallel-route-not-found', () => {
 
   it('should behave correctly without any errors', async () => {
     const browser = await next.browser('/en')
-    await check(() => {
+    await retry(() => {
       if (
         next.cliOutput.includes('TypeError') ||
         next.cliOutput.includes('Warning')
       ) {
         return 'has-errors'
       }
-
-      return 'success'
-    }, 'success')
+    })
 
     expect(await browser.elementByCss('body').text()).not.toContain(
       'Interception Modal'
@@ -26,16 +24,14 @@ describe('parallel-route-not-found', () => {
 
     await browser.elementByCss("[href='/en/show']").click()
 
-    await check(() => {
+    await retry(() => {
       if (
         next.cliOutput.includes('TypeError') ||
         next.cliOutput.includes('Warning')
       ) {
         return 'has-errors'
       }
-
-      return 'success'
-    }, 'success')
+    })
 
     await check(() => browser.elementByCss('body').text(), /Interception Modal/)
     await check(() => browser.elementByCss('body').text(), /Locale: en/)
@@ -47,16 +43,14 @@ describe('parallel-route-not-found', () => {
 
   it('should handle the not found case correctly without any errors', async () => {
     const browser = await next.browser('/de/show')
-    await check(() => {
+    await retry(() => {
       if (
         next.cliOutput.includes('TypeError') ||
         next.cliOutput.includes('Warning')
       ) {
         return 'has-errors'
       }
-
-      return 'success'
-    }, 'success')
+    })
 
     expect(await browser.elementByCss('body').text()).toContain(
       'Custom Not Found'

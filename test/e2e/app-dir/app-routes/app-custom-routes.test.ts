@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
 
 import {
@@ -63,15 +63,14 @@ describe('app-custom-routes', () => {
         now: expect.any(Number),
       })
       if (isNextStart) {
-        await check(async () => {
+        await retry(async () => {
           expect(
             await next.readFile(`.next/server/app/${path}.body`)
           ).toBeTruthy()
           expect(
             await next.readFile(`.next/server/app/${path}.meta`)
           ).toBeTruthy()
-          return 'success'
-        }, 'success')
+        })
       }
     })
 
@@ -86,21 +85,19 @@ describe('app-custom-routes', () => {
         now: expect.any(Number),
       })
 
-      await check(async () => {
+      await retry(async () => {
         expect(data).not.toEqual(JSON.parse(await next.render(basePath + path)))
-        return 'success'
-      }, 'success')
+      })
 
       if (isNextStart) {
-        await check(async () => {
+        await retry(async () => {
           expect(
             await next.readFile(`.next/server/app/${path}.body`)
           ).toBeTruthy()
           expect(
             await next.readFile(`.next/server/app/${path}.meta`)
           ).toBeTruthy()
-          return 'success'
-        }, 'success')
+        })
       }
     })
   })

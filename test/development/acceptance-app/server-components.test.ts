@@ -2,7 +2,7 @@
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('Error Overlay for server components', () => {
@@ -39,7 +39,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -47,8 +47,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
@@ -95,7 +94,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -103,8 +102,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
@@ -150,7 +148,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -158,8 +156,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
@@ -187,7 +184,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -195,8 +192,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
@@ -222,7 +218,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -230,8 +226,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
@@ -257,11 +252,10 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         expect(html).toContain('experimental_useOptimistic')
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain('experimental_useOptimistic')
 
@@ -303,7 +297,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -311,8 +305,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
@@ -356,7 +349,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -364,8 +357,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
@@ -394,7 +386,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -402,8 +394,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'This might be caused by a React Class Component being rendered in a Server Component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
@@ -448,7 +439,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -456,8 +447,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'This might be caused by a React Class Component being rendered in a Server Component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
@@ -502,7 +492,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
+      await retry(async () => {
         expect(
           await browser
             .waitForElementByCss('#nextjs__container_errors_desc')
@@ -510,8 +500,7 @@ describe('Error Overlay for server components', () => {
         ).toContain(
           'This might be caused by a React Class Component being rendered in a Server Component'
         )
-        return 'success'
-      }, 'success')
+      })
 
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'

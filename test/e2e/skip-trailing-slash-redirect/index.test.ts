@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -198,11 +198,10 @@ describe('skip-trailing-slash-redirect', () => {
       await browser.eval('window.beforeNav = 1')
 
       await browser.elementByCss(`#${pathname.replace(/\//g, '')}`).click()
-      await check(async () => {
+      await retry(async () => {
         const query = JSON.parse(await browser.elementByCss('#query').text())
         expect(query).toEqual({ slug: 'first' })
-        return 'success'
-      }, 'success')
+      })
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }

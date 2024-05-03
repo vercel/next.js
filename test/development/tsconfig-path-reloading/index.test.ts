@@ -5,6 +5,7 @@ import {
   hasRedbox,
   renderViaHTTP,
   getRedboxSource,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -161,14 +162,13 @@ describe('tsconfig-path-reloading', () => {
 
         expect(await hasRedbox(browser)).toBe(false)
 
-        await check(async () => {
+        await retry(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')
           expect(html2).toContain('first button')
           expect(html2).not.toContain('second button')
           expect(html2).toContain('third button')
           expect(html2).toContain('first-data')
-          return 'success'
-        }, 'success')
+        })
       } finally {
         await next.patchFile(indexPage, indexContent)
         await next.patchFile(tsConfigFile, tsconfigContent)

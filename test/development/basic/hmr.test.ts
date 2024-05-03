@@ -33,14 +33,14 @@ describe.each([[''], ['/docs']])(
 
     it('should show hydration error correctly', async () => {
       const browser = await webdriver(next.url, basePath + '/hydration-error')
-      await check(async () => {
-        const logs = await browser.log()
-        return logs.some((log) =>
-          log.message.includes('messages/react-hydration-error')
-        )
-          ? 'success'
-          : JSON.stringify(logs, null, 2)
-      }, 'success')
+      await retry(async () => {
+        const messages = await browser
+          .log()
+          .then((logs) => logs.map((log) => log.message))
+          .join('\n')
+
+        expect(messages).toContain('messages/react-hydration-error')
+      })
     })
 
     it('should have correct router.isReady for auto-export page', async () => {

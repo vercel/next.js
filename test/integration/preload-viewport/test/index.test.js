@@ -7,6 +7,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import http from 'http'
 import httpProxy from 'http-proxy'
@@ -101,7 +102,7 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/')
 
-          await check(async () => {
+          await retry(async () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
             let found = false
 
@@ -113,8 +114,7 @@ describe('Prefetching Links in viewport', () => {
               }
             }
             expect(found).toBe(true)
-            return 'success'
-          }, 'success')
+          })
         } finally {
           if (browser) await browser.close()
         }
@@ -157,7 +157,7 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/rewrite-prefetch')
 
-          await check(async () => {
+          await retry(async () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
             let found = false
 
@@ -169,8 +169,7 @@ describe('Prefetching Links in viewport', () => {
               }
             }
             expect(found).toBe(true)
-            return 'success'
-          }, 'success')
+          })
 
           const hrefs = await browser.eval(
             `Object.keys(window.next.router.sdc)`
@@ -462,7 +461,7 @@ describe('Prefetching Links in viewport', () => {
         // want to be re-fetched/re-observed.
         const browser = await webdriver(appPort, '/')
 
-        await check(async () => {
+        await retry(async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
           let found = false
 
@@ -474,8 +473,7 @@ describe('Prefetching Links in viewport', () => {
             }
           }
           expect(found).toBe(true)
-          return 'success'
-        }, 'success')
+        })
 
         await browser.eval(`(function() {
       window.calledPrefetch = false

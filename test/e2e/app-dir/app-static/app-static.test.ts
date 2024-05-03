@@ -364,7 +364,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(initLayoutData).toBeTruthy()
         expect(initPageData).toBeTruthy()
 
-        await check(async () => {
+        await retry(async () => {
           const revalidateRes = await next.fetch(
             `${revalidateApi}?tag=thankyounext`
           )
@@ -401,8 +401,7 @@ describe('app-dir static/dynamic handling', () => {
           expect(newNestedCacheData).not.toBe(initNestedCacheData)
           expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
           expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
-          return 'success'
-        }, 'success')
+        })
       }
     )
   }
@@ -458,7 +457,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(initLayoutData).toBeTruthy()
         expect(initPageData).toBeTruthy()
 
-        await check(async () => {
+        await retry(async () => {
           const revalidateRes = await next.fetch(
             `${revalidateApi}?path=/variable-revalidate/revalidate-360-isr`
           )
@@ -476,8 +475,7 @@ describe('app-dir static/dynamic handling', () => {
           expect(newPageData).toBeTruthy()
           expect(newLayoutData).not.toBe(initLayoutData)
           expect(newPageData).not.toBe(initPageData)
-          return 'success'
-        }, 'success')
+        })
       }
     )
   }
@@ -496,7 +494,7 @@ describe('app-dir static/dynamic handling', () => {
       expect(initLayoutData).toBeTruthy()
       expect(initPageData).toBeTruthy()
 
-      await check(async () => {
+      await retry(async () => {
         const revalidateRes = await next.fetch(
           '/api/revalidate-path-node?path=/variable-revalidate/revalidate-360-isr'
         )
@@ -514,8 +512,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(newPageData).toBeTruthy()
         expect(newLayoutData).not.toBe(initLayoutData)
         expect(newPageData).not.toBe(initPageData)
-        return 'success'
-      }, 'success')
+      })
     })
   }
 
@@ -550,19 +547,18 @@ describe('app-dir static/dynamic handling', () => {
       let prevInitialRandomData
 
       // wait for a fresh revalidation
-      await check(async () => {
+      await retry(async () => {
         const $ = await next.render$('/variable-config-revalidate/revalidate-3')
         prevInitialDate = $('#date').text()
         prevInitialRandomData = $('#random-data').text()
 
         expect(prevInitialDate).not.toBe(initialDate)
         expect(prevInitialRandomData).not.toBe(initialRandomData)
-        return 'success'
-      }, 'success')
+      })
 
       // the date should revalidate first after 3 seconds
       // while the fetch data stays in place for 9 seconds
-      await check(async () => {
+      await retry(async () => {
         const $ = await next.render$('/variable-config-revalidate/revalidate-3')
         const curDate = $('#date').text()
         const curRandomData = $('#random-data').text()
@@ -572,13 +568,12 @@ describe('app-dir static/dynamic handling', () => {
 
         prevInitialDate = curDate
         prevInitialRandomData = curRandomData
-        return 'success'
-      }, 'success')
+      })
     })
   }
 
   it('should not cache non-ok statusCode', async () => {
-    await check(async () => {
+    await retry(async () => {
       const $ = await next.render$('/variable-revalidate/status-code')
       const origData = JSON.parse($('#page-data').text())
 
@@ -588,8 +583,7 @@ describe('app-dir static/dynamic handling', () => {
       const newData = JSON.parse(new$('#page-data').text())
       expect(newData.status).toBe(origData.status)
       expect(newData.text).not.toBe(origData.text)
-      return 'success'
-    }, 'success')
+    })
   })
 
   if (isNextStart) {
@@ -1993,7 +1987,7 @@ describe('app-dir static/dynamic handling', () => {
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
 
-    await check(async () => {
+    await retry(async () => {
       const curRes = await next.fetch('/default-cache')
       expect(curRes.status).toBe(200)
 
@@ -2020,8 +2014,7 @@ describe('app-dir static/dynamic handling', () => {
         prevHtml = curHtml
         prev$ = cur$
       }
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly for fetchCache = force-cache', async () => {
@@ -2031,7 +2024,7 @@ describe('app-dir static/dynamic handling', () => {
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
 
-    await check(async () => {
+    await retry(async () => {
       const curRes = await next.fetch('/force-cache')
       expect(curRes.status).toBe(200)
 
@@ -2051,9 +2044,7 @@ describe('app-dir static/dynamic handling', () => {
       expect(cur$('#data-auto-cache').text()).toBe(
         prev$('#data-auto-cache').text()
       )
-
-      return 'success'
-    }, 'success')
+    })
 
     if (!isNextDeploy) {
       expect(next.cliOutput).toContain(
@@ -2069,7 +2060,7 @@ describe('app-dir static/dynamic handling', () => {
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
 
-    await check(async () => {
+    await retry(async () => {
       const curRes = await next.fetch('/fetch-no-cache')
       expect(curRes.status).toBe(200)
 
@@ -2096,8 +2087,7 @@ describe('app-dir static/dynamic handling', () => {
         prevHtml = curHtml
         prev$ = cur$
       }
-      return 'success'
-    }, 'success')
+    })
   })
 
   if (isNextDev) {
@@ -2377,7 +2367,7 @@ describe('app-dir static/dynamic handling', () => {
   }
 
   it('should honor fetch cache correctly', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate/revalidate-3'
@@ -2402,8 +2392,7 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#page-data').text()).toBe(pageData)
       expect($2('#page-data-2').text()).toBe(pageData2)
       expect(pageData).toBe(pageData2)
-      return 'success'
-    }, 'success')
+    })
 
     if (isNextStart) {
       expect(next.cliOutput).toContain(
@@ -2413,7 +2402,7 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   it('should honor fetch cache correctly (edge)', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate-edge/revalidate-3'
@@ -2439,12 +2428,11 @@ describe('app-dir static/dynamic handling', () => {
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
       }
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly with authorization header and revalidate', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate/authorization'
@@ -2466,8 +2454,7 @@ describe('app-dir static/dynamic handling', () => {
 
       expect($2('#layout-data').text()).toBe(layoutData)
       expect($2('#page-data').text()).toBe(pageData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should not cache correctly with POST method request init', async () => {
@@ -2495,7 +2482,7 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   it('should cache correctly with post method and revalidate', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate/post-method'
@@ -2528,12 +2515,11 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#data-body1').text()).toBe(dataBody1)
       expect($2('#data-body2').text()).toBe(dataBody2)
       expect($2('#data-body3').text()).toBe(dataBody3)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly with post method and revalidate edge', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate-edge/post-method'
@@ -2563,12 +2549,11 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#data-body2').text()).toBe(dataBody2)
       expect($2('#data-body3').text()).toBe(dataBody3)
       expect($2('#data-body4').text()).toBe(dataBody4)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly with POST method and revalidate', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate/post-method'
@@ -2590,12 +2575,11 @@ describe('app-dir static/dynamic handling', () => {
 
       expect($2('#layout-data').text()).toBe(layoutData)
       expect($2('#page-data').text()).toBe(pageData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly with cookie header and revalidate', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -2611,12 +2595,11 @@ describe('app-dir static/dynamic handling', () => {
 
       expect($2('#layout-data').text()).toBe(layoutData)
       expect($2('#page-data').text()).toBe(pageData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly with utf8 encoding', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(next.url, '/variable-revalidate/encoding')
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -2636,12 +2619,11 @@ describe('app-dir static/dynamic handling', () => {
 
       expect($2('#layout-data').text()).toBe(layoutData)
       expect($2('#page-data').text()).toBe(pageData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly with utf8 encoding edge', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(
         next.url,
         '/variable-revalidate-edge/encoding'
@@ -2667,12 +2649,11 @@ describe('app-dir static/dynamic handling', () => {
 
       expect($2('#layout-data').text()).toBe(layoutData)
       expect($2('#page-data').text()).toBe(pageData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should cache correctly handle JSON body', async () => {
-    await check(async () => {
+    await retry(async () => {
       const res = await fetchViaHTTP(next.url, '/variable-revalidate-edge/body')
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -2693,8 +2674,7 @@ describe('app-dir static/dynamic handling', () => {
 
       expect($2('#layout-data').text()).toBe(layoutData)
       expect($2('#page-data').text()).toBe(pageData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
@@ -2795,7 +2775,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(html).toContain('one')
     const initData = cheerio.load(html)('#data').text()
 
-    await check(async () => {
+    await retry(async () => {
       const res2 = await next.fetch('/gen-params-dynamic-revalidate/one')
 
       expect(res2.status).toBe(200)
@@ -2803,8 +2783,7 @@ describe('app-dir static/dynamic handling', () => {
       const $ = cheerio.load(await res2.text())
       expect($('#data').text()).toBeTruthy()
       expect($('#data').text()).not.toBe(initData)
-      return 'success'
-    }, 'success')
+    })
   })
 
   if (!process.env.CUSTOM_CACHE_HANDLER) {
@@ -3328,15 +3307,14 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1 && data2).toBeTruthy()
         expect(data1).not.toEqual(data2)
 
-        await check(async () => {
+        await retry(async () => {
           expect(
             next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
           ).toBe(2)
           expect(next.cliOutput.substring(cliOutputStart)).toContain(
             'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
           )
-          return 'success'
-        }, 'success')
+        })
       })
     }
     if (process.env.CUSTOM_CACHE_HANDLER && isNextDev) {
@@ -3355,12 +3333,11 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1 && data2).toBeTruthy()
         expect(data1).toEqual(data2)
 
-        await check(async () => {
+        await retry(async () => {
           expect(
             next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
           ).toBe(1)
-          return 'success'
-        }, 'success')
+        })
 
         expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
           'Error: Failed to set Next.js data cache, items over 2MB can not be cached'

@@ -63,11 +63,10 @@ describe('Prerender prefetch', () => {
 
       await browser.elementByCss('#to-blog-first').click()
 
-      await check(async () => {
+      await retry(async () => {
         const data = await getData()
         assert.notDeepEqual(initialData, data)
-        return 'success'
-      }, 'success')
+      })
     })
 
     it('should update cache using prefetch with unstable_skipClientCache', async () => {

@@ -934,7 +934,7 @@ describe('app-dir action handling', () => {
 
       await browser.elementByCss('#revalidate-justputit').click()
 
-      await check(async () => {
+      await retry(async () => {
         const newRandomNumber = await browser
           .elementByCss('#random-number')
           .text()
@@ -946,9 +946,7 @@ describe('app-dir action handling', () => {
         expect(newRandomNumber).not.toBe(randomNumber)
         expect(newJustPutIt).not.toBe(justPutIt)
         expect(newThankYouNext).toBe(thankYouNext)
-
-        return 'success'
-      }, 'success')
+      })
     })
 
     // TODO: investigate flakey behavior with revalidate
@@ -960,7 +958,7 @@ describe('app-dir action handling', () => {
 
       await browser.elementByCss('#revalidate-path-redirect').click()
 
-      await check(async () => {
+      await retry(async () => {
         const newRandomNumber = await browser
           .elementByCss('#random-number')
           .text()
@@ -972,9 +970,7 @@ describe('app-dir action handling', () => {
         expect(newRandomNumber).toBe(randomNumber)
         expect(newJustPutIt).not.toBe(justPutIt)
         expect(newThankYouNext).toBe(thankYouNext)
-
-        return 'success'
-      }, 'success')
+      })
     })
 
     it('should store revalidation data in the prefetch cache', async () => {
@@ -984,11 +980,10 @@ describe('app-dir action handling', () => {
 
       // TODO: investigate flakiness when deployed
       if (!isNextDeploy) {
-        await check(async () => {
+        await retry(async () => {
           const newJustPutIt = await browser.elementByCss('#justputit').text()
           expect(newJustPutIt).not.toBe(justPutIt)
-          return 'success'
-        }, 'success')
+        })
       }
 
       const newJustPutIt = await browser.elementByCss('#justputit').text()
@@ -1400,13 +1395,11 @@ describe('app-dir action handling', () => {
 
       await browser.waitForElementByCss('#trigger-fetch').click()
 
-      await check(async () => {
+      await retry(async () => {
         const newNumber = await getNumber()
         // Expect that the number changes on each click
         expect(newNumber).not.toBe(firstNumber)
-
-        return 'success'
-      }, 'success')
+      })
     })
 
     it('should not override force-cache in server action', async () => {
@@ -1423,13 +1416,11 @@ describe('app-dir action handling', () => {
 
       await browser.waitForElementByCss('#trigger-fetch').click()
 
-      await check(async () => {
+      await retry(async () => {
         const newNumber = await getNumber()
         // Expect that the number is the same on each click
         expect(newNumber).toBe(firstNumber)
-
-        return 'success'
-      }, 'success')
+      })
     })
 
     // Implicit force-cache
@@ -1447,13 +1438,11 @@ describe('app-dir action handling', () => {
 
       await browser.waitForElementByCss('#trigger-fetch').click()
 
-      await check(async () => {
+      await retry(async () => {
         const newNumber = await getNumber()
         // Expect that the number is the same on each click
         expect(newNumber).toBe(firstNumber)
-
-        return 'success'
-      }, 'success')
+      })
     })
   })
 })

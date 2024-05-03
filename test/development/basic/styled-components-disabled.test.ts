@@ -2,7 +2,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 
 // TODO: Somehow the warning doesn't show up with Turbopack, even though the transform is not enabled.
 ;(process.env.TURBOPACK ? describe.skip : describe)(
@@ -27,18 +27,6 @@ import { check, fetchViaHTTP } from 'next-test-utils'
     })
     afterAll(() => next.destroy())
 
-    async function matchLogs$(browser) {
-      let foundLog = false
-
-      const browserLogs = await browser.log('browser')
-
-      browserLogs.forEach((log) => {
-        if (log.message.includes('Warning: Prop `%s` did not match.')) {
-          foundLog = true
-        }
-      })
-      return foundLog
-    }
     it('should have hydration mismatch with styled-components transform disabled', async () => {
       let browser
       try {
@@ -47,11 +35,16 @@ import { check, fetchViaHTTP } from 'next-test-utils'
         // Compile /_error
         await fetchViaHTTP(next.url, '/404')
 
-        await check(async () => {
+        await retry(async () => {
           await browser.refresh()
-          const foundLog = await matchLogs$(browser)
-          return foundLog ? 'success' : await browser.log('browser')
-        }, 'success')
+
+          const messages = await browser
+            .log('browser')
+            .then((logs) => logs.map((log) => log.message))
+            .join('\n')
+
+          expect(messages).toContain('Warning: Prop `%s` did not match.')
+        })
       } finally {
         if (browser) {
           await browser.close()

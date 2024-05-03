@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import { check, describeVariants as describe, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -303,10 +303,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     expect(await session.hasRedbox()).toBe(true)
 
-    await check(async () => {
+    await retry(async () => {
       const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+      expect(source).toInclude('render() {')
+    })
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"

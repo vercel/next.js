@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
+import { hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -284,11 +284,10 @@ describe('app dir - external dependency', () => {
       expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
 
       browser.elementByCss('#dual-pkg-outout button').click()
-      await check(async () => {
+      await retry(async () => {
         const text = await browser.elementByCss('#dual-pkg-outout p').text()
         expect(text).toBe('dual-pkg-optout:cjs')
-        return 'success'
-      }, /success/)
+      })
     })
 
     it('should compile server actions from node_modules in client components', async () => {
@@ -297,10 +296,9 @@ describe('app dir - external dependency', () => {
       const browser = await next.browser('/action/client')
       await browser.elementByCss('#action').click()
 
-      await check(() => {
+      await retry(() => {
         expect(next.cliOutput).toContain('action-log:server:action1')
-        return 'success'
-      }, /success/)
+      })
     })
   })
 

@@ -14,6 +14,7 @@ import {
   killApp,
   fetchViaHTTP,
   check,
+  retry,
 } from 'next-test-utils'
 
 let app
@@ -231,15 +232,14 @@ describe('Env Config', () => {
             ).toBe(1)
             expect(output.substring(outputIdx)).not.toContain('.env.local')
 
-            await check(async () => {
+            await retry(async () => {
               html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
               renderedEnv = JSON.parse(cheerio.load(html)('p').text())
               expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
               expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
                 'localenv'
               )
-              return 'success'
-            }, 'success')
+            })
 
             outputIdx = output.length
 
@@ -258,15 +258,14 @@ describe('Env Config', () => {
             ).toBe(1)
             expect(output.substring(outputIdx)).toContain('.env.local')
 
-            await check(async () => {
+            await retry(async () => {
               html = await fetchViaHTTP(appPort, '/').then((res) => res.text())
               renderedEnv = JSON.parse(cheerio.load(html)('p').text())
               expect(renderedEnv['ENV_FILE_KEY']).toBe('env-updated')
               expect(renderedEnv['ENV_FILE_LOCAL_OVERRIDE_TEST']).toBe(
                 'localenv-updated'
               )
-              return 'success'
-            }, 'success')
+            })
           } finally {
             await fs.writeFile(envFile, envContent)
             await fs.writeFile(envLocalFile, envLocalContent)

@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
@@ -129,10 +129,9 @@ describe('app dir - metadata dynamic routes', () => {
       )
 
       if (isNextDev) {
-        await check(async () => {
+        await retry(async () => {
           next.hasFile('.next/server/app-paths-manifest.json')
-          return 'success'
-        }, /success/)
+        })
 
         const appPathsManifest = JSON.parse(
           await next.readFile('.next/server/app-paths-manifest.json')
@@ -445,12 +444,11 @@ describe('app dir - metadata dynamic routes', () => {
       const output = outputAfterFetch.replace(outputBeforeFetch, '')
 
       try {
-        await check(async () => {
+        await retry(async () => {
           expect(output).toContain(
             `id property is required for every item returned from generateImageMetadata`
           )
-          return 'success'
-        }, /success/)
+        })
       } finally {
         await next.deleteFile(iconFilePath)
         await next.fetch('/metadata-base/unset/icon/100')
@@ -486,12 +484,11 @@ describe('app dir - metadata dynamic routes', () => {
       const output = outputAfterFetch.replace(outputBeforeFetch, '')
 
       try {
-        await check(async () => {
+        await retry(async () => {
           expect(output).toContain(
             `id property is required for every item returned from generateSitemaps`
           )
-          return 'success'
-        }, /success/)
+        })
       } finally {
         await next.deleteFile(sitemapFilePath)
         await next.fetch('/metadata-base/unset/sitemap.xml/0')
@@ -513,12 +510,11 @@ describe('app dir - metadata dynamic routes', () => {
         )
         const currentNextCliOutputLength = next.cliOutput.length
 
-        await check(async () => {
+        await retry(async () => {
           await next.fetch('/opengraph-image')
           const output = next.cliOutput.slice(currentNextCliOutputLength)
           expect(output).toContain(`Default export is missing in`)
-          return 'success'
-        }, /success/)
+        })
       } finally {
         await next.patchFile(ogImageFilePath, ogImageFileContent)
       }

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('custom-app-hmr', () => {
   const { next } = nextTestSetup({
@@ -17,27 +17,23 @@ describe('custom-app-hmr', () => {
     )
     await next.patchFile(customAppFilePath, newCustomAppContent)
 
-    await check(async () => {
+    await retry(async () => {
       const pText = await browser.elementByCss('h1').text()
       expect(pText).toBe('hmr text changed')
 
       // Should keep the value on window, which indicates there's no full reload
       const hmrConstantValue = await browser.eval('window.hmrConstantValue')
       expect(hmrConstantValue).toBe('should-not-change')
-
-      return 'success'
-    }, 'success')
+    })
 
     await next.patchFile(customAppFilePath, customAppContent)
-    await check(async () => {
+    await retry(async () => {
       const pText = await browser.elementByCss('h1').text()
       expect(pText).toBe('hmr text origin')
 
       // Should keep the value on window, which indicates there's no full reload
       const hmrConstantValue = await browser.eval('window.hmrConstantValue')
       expect(hmrConstantValue).toBe('should-not-change')
-
-      return 'success'
-    }, 'success')
+    })
   })
 })

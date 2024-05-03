@@ -2,7 +2,6 @@ import path from 'path'
 import { outdent } from 'outdent'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  check,
   getRedboxDescription,
   getRedboxSource,
   getVersionCheckerText,
@@ -29,10 +28,10 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/server')
 
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await retry(async () => {
+      expect(await hasRedbox(browser)).toBe(true)
+    })
+
     const errorDescription = await getRedboxDescription(browser)
 
     expect(errorDescription).toContain(
@@ -55,10 +54,10 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/client')
 
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await retry(async () => {
+      expect(await hasRedbox(browser)).toBe(true)
+    })
+
     const errorDescription = await getRedboxDescription(browser)
 
     expect(errorDescription).toContain(
@@ -77,10 +76,9 @@ describe('Error overlay - RSC runtime errors', () => {
     )
 
     const browser = await next.browser('/server')
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await retry(async () => {
+      expect(await hasRedbox(browser)).toBe(true)
+    })
 
     const errorDescription = await getRedboxDescription(browser)
 
@@ -98,10 +96,9 @@ describe('Error overlay - RSC runtime errors', () => {
         `
     )
     const browser = await next.browser('/server')
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await retry(async () => {
+      expect(await hasRedbox(browser)).toBe(true)
+    })
 
     const source = await getRedboxSource(browser)
     // Can show the original source code

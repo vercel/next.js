@@ -15,6 +15,7 @@ import {
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
   check,
+  retry,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -512,18 +513,17 @@ function runTests(dev = false) {
   })
 
   it('should not warn if response body is larger than 4MB with responseLimit config = false', async () => {
-    await check(async () => {
+    await retry(async () => {
       let res = await fetchViaHTTP(appPort, '/api/large-response-with-config')
       expect(res.ok).toBeTruthy()
       expect(stderr).not.toContain(
         'API response for /api/large-response-with-config exceeds 4MB. API Routes are meant to respond quickly.'
       )
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should warn with configured size if response body is larger than configured size', async () => {
-    await check(async () => {
+    await retry(async () => {
       let res = await fetchViaHTTP(
         appPort,
         '/api/large-response-with-config-size'
@@ -532,8 +532,7 @@ function runTests(dev = false) {
       expect(stderr).toContain(
         'API response for /api/large-response-with-config-size exceeds 5MB. API Routes are meant to respond quickly.'
       )
-      return 'success'
-    }, 'success')
+    })
   })
 
   if (dev) {

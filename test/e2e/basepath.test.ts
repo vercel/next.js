@@ -11,6 +11,7 @@ import {
   hasRedbox,
   renderViaHTTP,
   waitFor,
+  retry,
 } from 'next-test-utils'
 
 describe('basePath', () => {
@@ -908,7 +909,7 @@ describe('basePath', () => {
         await browser.eval('window._clearEventLog()')
         await browser.elementByCss('#error-route').click()
 
-        await check(async () => {
+        await retry(async () => {
           const eventLog = await browser.eval('window._getEventLog()')
           assert.deepEqual(eventLog, [
             ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
@@ -920,8 +921,7 @@ describe('basePath', () => {
               { shallow: false },
             ],
           ])
-          return 'success'
-        }, 'success')
+        })
       } finally {
         await browser.close()
       }
