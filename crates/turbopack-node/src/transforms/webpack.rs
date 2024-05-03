@@ -204,7 +204,11 @@ impl WebpackLoadersProcessedAsset {
             .await?
             .get_relative_path_to(&resource_fs_path_ref)
         else {
-            bail!("Resource path need to be on project filesystem");
+            bail!(format!(
+                "Resource path \"{}\" need to be on project filesystem \"{}\"",
+                resource_fs_path_ref,
+                project_path.await?
+            ));
         };
         let loaders = transform.loaders.await?;
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
