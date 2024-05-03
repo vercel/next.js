@@ -12,7 +12,7 @@ function makeClient() {
     // See more information about this GraphQL endpoint at https://studio.apollographql.com/public/spacex-l4uc6p/variant/main/home
     uri: "https://main--spacex-l4uc6p.apollographos.net/graphql",
     // you can configure the Next.js fetch cache here if you want to
-    fetchOptions: { cache: "no-store" },
+    fetchOptions: { cache: "force-cache" },
     // alternatively you can override the default `fetchOptions` on a per query basis
     // via the `context` property on the options passed as a second argument
     // to an Apollo Client data fetching hook, e.g.:
@@ -22,7 +22,7 @@ function makeClient() {
     //   {
     //     context: {
     //       fetchOptions: {
-    //         cache: "force-cache"
+    //         cache: "no-store"
     //       }
     //     }
     //   }
