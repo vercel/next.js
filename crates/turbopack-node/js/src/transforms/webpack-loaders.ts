@@ -132,6 +132,10 @@ class DummySpan {
   async traceAsyncFn<T>(fn: (span: DummySpan) => T | Promise<T>): Promise<T> {
     return await fn(this);
   }
+
+  stop() {
+    return;
+  }
 }
 
 type ResolveOptions = {
