@@ -1,13 +1,37 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { type NextInstance } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
+import {
+  fetchViaHTTP,
+  getRedboxHeader,
+  hasRedbox,
+  renderViaHTTP,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
+import path from 'path'
 import url from 'url'
 
-export default function (next: NextInstance, render, fetch, ctx) {
+describe('Client Navigation rendering ', () => {
+  const { next } = nextTestSetup({
+    files: path.join(__dirname, 'fixture'),
+  })
+
+  function render(
+    pathname: Parameters<typeof renderViaHTTP>[1],
+    query?: Parameters<typeof renderViaHTTP>[2]
+  ) {
+    return renderViaHTTP(next.appPort, pathname, query)
+  }
+
+  function fetch(
+    pathname: Parameters<typeof renderViaHTTP>[1],
+    query?: Parameters<typeof renderViaHTTP>[2]
+  ) {
+    return fetchViaHTTP(next.appPort, pathname, query)
+  }
+
   async function get$(path: any, query?: any) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -254,7 +278,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
     })
 
     test('getInitialProps circular structure', async () => {
-      const browser = await webdriver(ctx.appPort, '/circular-json-error')
+      const browser = await webdriver(next.appPort, '/circular-json-error')
       const expectedErrorMessage =
         'Circular structure in "getInitialProps" result of page "/circular-json-error".'
 
@@ -265,7 +289,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
 
     test('getInitialProps should be class method', async () => {
       const browser = await webdriver(
-        ctx.appPort,
+        next.appPort,
         '/instance-get-initial-props'
       )
 
@@ -278,7 +302,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
     })
 
     test('getInitialProps resolves to null', async () => {
-      const browser = await webdriver(ctx.appPort, '/empty-get-initial-props')
+      const browser = await webdriver(next.appPort, '/empty-get-initial-props')
       const expectedErrorMessage =
         '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
 
@@ -317,14 +341,14 @@ export default function (next: NextInstance, render, fetch, ctx) {
     })
 
     test('default export is not a React Component', async () => {
-      const browser = await webdriver(ctx.appPort, '/no-default-export')
+      const browser = await webdriver(next.appPort, '/no-default-export')
       expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/The default export is not a React Component/)
     })
 
     test('error-inside-page', async () => {
-      const browser = await webdriver(ctx.appPort, '/error-inside-page')
+      const browser = await webdriver(next.appPort, '/error-inside-page')
       expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/This is an expected error/)
@@ -332,7 +356,10 @@ export default function (next: NextInstance, render, fetch, ctx) {
     })
 
     test('error-in-the-global-scope', async () => {
-      const browser = await webdriver(ctx.appPort, '/error-in-the-global-scope')
+      const browser = await webdriver(
+        next.appPort,
+        '/error-in-the-global-scope'
+      )
       expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
       expect(text).toMatch(/aa is not defined/)
@@ -432,7 +459,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
     })
 
     it('should show a valid error when undefined is thrown', async () => {
-      const browser = await webdriver(ctx.appPort, '/throw-undefined')
+      const browser = await webdriver(next.appPort, '/throw-undefined')
       expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
 
@@ -441,4 +468,4 @@ export default function (next: NextInstance, render, fetch, ctx) {
       )
     })
   })
-}
+})

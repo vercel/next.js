@@ -5,13 +5,11 @@ import {
   getRedboxSource,
   hasRedbox,
   getRedboxHeader,
-  renderViaHTTP,
   waitFor,
   check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
-import renderingSuite from './rendering'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Client Navigation', () => {
@@ -1845,11 +1843,4 @@ describe('Client Navigation', () => {
 
     await browser.close()
   })
-
-  renderingSuite(
-    next,
-    (p, q) => renderViaHTTP(next.appPort, p, q),
-    (p, q) => fetchViaHTTP(next.appPort, p, q),
-    next
-  )
 })
