@@ -1,5 +1,5 @@
 import React from 'react'
-import Head from 'next/head'
+import Script from 'next/script'
 
 const Page = () => {
   const [counter, setCounter] = React.useState(0)
@@ -7,9 +7,7 @@ const Page = () => {
 
   return (
     <>
-      <Head>
-        <script nonce="abc123" src={useSrc1 ? '/src-1.js' : '/src-2.js'} />
-      </Head>
+      <Script nonce="abc123" src={useSrc1 ? '/src-1.js' : '/src-2.js'} />
       <h1 id="h1">{'Count ' + counter}</h1>
       <button id="force-rerender" onClick={() => setCounter(counter + 1)}>
         Re-render
