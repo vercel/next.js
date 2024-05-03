@@ -113,7 +113,7 @@ export async function walkTreeWithFlightRouterState({
 
   const shouldSkipComponentTree =
     // loading.tsx has no effect on prefetching when PPR is enabled
-    !experimental.supportsPPR &&
+    !experimental.isRoutePPREnabled &&
     isPrefetch &&
     !Boolean(components.loading) &&
     (flightRouterState ||

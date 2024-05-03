@@ -187,7 +187,10 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import { isPPREnabled, isPPRSupported } from '../server/lib/experimental/ppr'
+import {
+  checkIsAppPPREnabled,
+  checkIsRoutePPREnabled,
+} from '../server/lib/experimental/ppr'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1808,7 +1811,7 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
-          pprEnabled: isPPREnabled(config.experimental.ppr),
+          isAppPPREnabled: checkIsAppPPREnabled(config.experimental.ppr),
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
@@ -1984,7 +1987,7 @@ export default async function build(
                   computedManifestData
                 )
 
-                let supportsPPR = false
+                let isRoutePPREnabled = false
                 let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
@@ -2118,8 +2121,8 @@ export default async function build(
                           // If this route can be partially pre-rendered, then
                           // mark it as such and mark that it can be
                           // generated server-side.
-                          if (workerResult.supportsPPR) {
-                            supportsPPR = workerResult.supportsPPR
+                          if (workerResult.isRoutePPREnabled) {
+                            isRoutePPREnabled = workerResult.isRoutePPREnabled
                             isSSG = true
                             isStatic = true
 
@@ -2181,7 +2184,7 @@ export default async function build(
                                 appStaticPaths.set(originalAppPath, [])
                                 appStaticPathsEncoded.set(originalAppPath, [])
                                 isStatic = true
-                                supportsPPR = false
+                                isRoutePPREnabled = false
                               }
                             }
                           }
@@ -2315,7 +2318,7 @@ export default async function build(
                   totalSize,
                   isStatic,
                   isSSG,
-                  supportsPPR,
+                  isRoutePPREnabled,
                   isHybridAmp,
                   ssgPageRoutes,
                   initialRevalidateSeconds: false,
@@ -2618,8 +2621,11 @@ export default async function build(
                     query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
                     _isDynamicError: appConfig?.dynamic === 'error',
                     _isAppDir: true,
-                    _supportsPPR: appConfig
-                      ? isPPRSupported(config.experimental.ppr, appConfig)
+                    _isRoutePPREnabled: appConfig
+                      ? checkIsRoutePPREnabled(
+                          config.experimental.ppr,
+                          appConfig
+                        )
                       : undefined,
                   }
                 })
@@ -2729,7 +2735,7 @@ export default async function build(
             // partial pre-rendering.
             const experimentalPPR: true | undefined =
               !isRouteHandler &&
-              isPPRSupported(config.experimental.ppr, appConfig)
+              checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
                 ? true
                 : undefined
 

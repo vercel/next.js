@@ -88,7 +88,7 @@ async function exportPageImpl(
 
     // If this page supports partial prerendering, then we need to pass that to
     // the renderOpts.
-    _supportsPPR: supportsPPR,
+    _isRoutePPREnabled: isRoutePPREnabled,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -231,7 +231,7 @@ async function exportPageImpl(
             distDir,
             dir,
             enabledDirectories,
-            pprEnabled: input.renderOpts.experimental.pprEnabled,
+            isAppPPREnabled: input.renderOpts.experimental.isAppPPREnabled,
             // skip writing to disk in minimal mode for now, pending some
             // changes to better support it
             flushToDisk: !hasNextSupport,
@@ -272,7 +272,7 @@ async function exportPageImpl(
       originalPathname: page,
       experimental: {
         ...input.renderOpts.experimental,
-        supportsPPR,
+        isRoutePPREnabled,
       },
     }
 

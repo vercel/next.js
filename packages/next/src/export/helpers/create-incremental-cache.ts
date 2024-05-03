@@ -14,7 +14,7 @@ export async function createIncrementalCache({
   distDir,
   dir,
   enabledDirectories,
-  pprEnabled,
+  isAppPPREnabled,
   flushToDisk,
 }: {
   cacheHandler?: string
@@ -23,7 +23,7 @@ export async function createIncrementalCache({
   distDir: string
   dir: string
   enabledDirectories: NextEnabledDirectories
-  pprEnabled: boolean
+  isAppPPREnabled: boolean
   flushToDisk?: boolean
 }) {
   // Custom cache handler overrides.
@@ -60,7 +60,7 @@ export async function createIncrementalCache({
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,
-    pprEnabled,
+    isAppPPREnabled,
   })
 
   ;(globalThis as any).__incrementalCache = incrementalCache

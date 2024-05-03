@@ -481,7 +481,7 @@ export type ExportPathMap = {
     /**
      * @internal
      */
-    _supportsPPR?: boolean
+    _isRoutePPREnabled?: boolean
   }
 }
 

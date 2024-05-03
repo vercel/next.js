@@ -93,7 +93,7 @@ export default class NextWebServer extends BaseServer<
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
-      pprEnabled: false,
+      isAppPPREnabled: false,
     })
   }
   protected getResponseCache() {

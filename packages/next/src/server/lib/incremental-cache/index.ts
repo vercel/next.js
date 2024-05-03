@@ -31,7 +31,7 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
-  pprEnabled?: boolean
+  isAppPPREnabled?: boolean
   _appDir: boolean
   _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
@@ -104,7 +104,7 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
-    pprEnabled,
+    isAppPPREnabled,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -121,7 +121,7 @@ export class IncrementalCache implements IncrementalCacheType {
     getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
-    pprEnabled: boolean
+    isAppPPREnabled: boolean
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
@@ -193,7 +193,7 @@ export class IncrementalCache implements IncrementalCacheType {
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
-        pprEnabled,
+        isAppPPREnabled,
       })
     }
   }

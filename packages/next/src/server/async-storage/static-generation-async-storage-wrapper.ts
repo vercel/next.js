@@ -16,7 +16,7 @@ export type StaticGenerationContext = {
     fetchCache?: StaticGenerationStore['fetchCache']
     isServerAction?: boolean
     waitUntil?: Promise<any>
-    experimental?: Pick<RenderOptsPartial['experimental'], 'supportsPPR'>
+    experimental?: Pick<RenderOptsPartial['experimental'], 'isRoutePPREnabled'>
 
     /**
      * Fetch metrics attached in patch-fetch.ts
@@ -77,7 +77,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       !renderOpts.isServerAction
 
     const prerenderState: StaticGenerationStore['prerenderState'] =
-      isStaticGeneration && renderOpts.experimental?.supportsPPR
+      isStaticGeneration && renderOpts.experimental?.isRoutePPREnabled
         ? createPrerenderState(renderOpts.isDebugPPRSkeleton)
         : null
 

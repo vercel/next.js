@@ -21,10 +21,10 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 
   /**
-   * pprEnabled is true when PPR has been enabled either globally or just for
+   * isAppPPREnabled is true when PPR has been enabled either globally or just for
    * some pages via the `incremental` option.
    */
-  pprEnabled: boolean
+  isAppPPREnabled: boolean
 }
 
 type TagsManifest = {
@@ -42,7 +42,7 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
-  private readonly pprEnabled: boolean
+  private readonly isAppPPREnabled: boolean
   private debug: boolean
 
   constructor(ctx: FileSystemCacheContext) {
@@ -52,7 +52,7 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
-    this.pprEnabled = ctx.pprEnabled
+    this.isAppPPREnabled = ctx.isAppPPREnabled
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
@@ -230,7 +230,9 @@ export default class FileSystemCache implements CacheHandler {
           const pageData = isAppPath
             ? await this.fs.readFile(
                 this.getFilePath(
-                  `${key}${this.pprEnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                  `${key}${
+                    this.isAppPPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
+                  }`,
                   'app'
                 ),
                 'utf8'
@@ -373,7 +375,7 @@ export default class FileSystemCache implements CacheHandler {
         this.getFilePath(
           `${key}${
             isAppPath
-              ? this.pprEnabled
+              ? this.isAppPPREnabled
                 ? RSC_PREFETCH_SUFFIX
                 : RSC_SUFFIX
               : NEXT_DATA_SUFFIX

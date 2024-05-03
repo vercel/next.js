@@ -142,7 +142,7 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { isPPREnabled } from './lib/experimental/ppr'
+import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -477,22 +477,21 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    const pprEnabled = isPPREnabled(this.nextConfig.experimental.ppr)
+    const isAppPPREnabled =
+      this.enabledDirectories.app &&
+      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        this.enabledDirectories.app && pprEnabled && this.minimalMode
+        isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
-      rsc:
-        this.enabledDirectories.app && this.minimalMode
-          ? new RSCPathnameNormalizer()
-          : undefined,
+      rsc: this.minimalMode ? new RSCPathnameNormalizer() : undefined,
       prefetchRSC:
-        this.enabledDirectories.app && pprEnabled && this.minimalMode
+        isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
@@ -552,7 +551,7 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        pprEnabled,
+        isAppPPREnabled,
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
         swrDelta: this.nextConfig.experimental.swrDelta,
@@ -1945,10 +1944,14 @@ export default abstract class Server<
 
     const { routeModule } = components
 
+    /**
+     * If the route being rendered is an app page, and the ppr feature has been
+     * enabled, then the given route _could_ support PPR.
+     */
     const couldSupportPPR: boolean =
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule) &&
-      this.renderOpts.experimental.pprEnabled
+      this.renderOpts.experimental.isAppPPREnabled
 
     // If this is a request that's rendering an app page that support's PPR,
     // then if we're in development mode (or using the experimental test
@@ -1957,15 +1960,16 @@ export default abstract class Server<
     // show the skeleton in development. Ideally we would check the appConfig
     // to see if this page has it enabled or not, but that would require
     // plumbing the appConfig through to the server during development.
-    const isDebugPPRSkeleton = Boolean(
+    const isDebugPPRSkeleton =
+      query.__nextppronly &&
       couldSupportPPR &&
-        (this.renderOpts.dev || this.experimentalTestProxy) &&
-        query.__nextppronly
-    )
+      (this.renderOpts.dev || this.experimentalTestProxy)
+        ? true
+        : false
 
     // This page supports PPR if it has `experimentalPPR` set to `true` in the
     // prerender manifest and this is an app page.
-    const supportsPPR: boolean =
+    const isRoutePPREnabled: boolean =
       couldSupportPPR &&
       ((
         prerenderManifest.routes[pathname] ??
@@ -1976,7 +1980,7 @@ export default abstract class Server<
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    const minimalPostponed = supportsPPR
+    const minimalPostponed = isRoutePPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
 
@@ -1984,7 +1988,7 @@ export default abstract class Server<
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
-      supportsPPR && isRSCRequest && !isPrefetchRSCRequest
+      isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isRSCRequest) {
@@ -2297,7 +2301,7 @@ export default abstract class Server<
             : resolvedUrl,
         experimental: {
           ...opts.experimental,
-          supportsPPR,
+          isRoutePPREnabled,
         },
         supportsDynamicHTML,
         isOnDemandRevalidate,
@@ -2476,7 +2480,7 @@ export default abstract class Server<
         isSSG &&
         metadata.revalidate === 0 &&
         !this.renderOpts.dev &&
-        !supportsPPR
+        !isRoutePPREnabled
       ) {
         const staticBailoutInfo = metadata.staticBailoutInfo
 
@@ -2761,7 +2765,7 @@ export default abstract class Server<
       this.minimalMode &&
       isRSCRequest &&
       !isPrefetchRSCRequest &&
-      supportsPPR
+      isRoutePPREnabled
     ) {
       revalidate = 0
     } else if (
@@ -2922,7 +2926,7 @@ export default abstract class Server<
       // If the request is a data request, then we shouldn't set the status code
       // from the response because it should always be 200. This should be gated
       // behind the experimental PPR flag.
-      if (cachedData.status && (!isDataReq || !supportsPPR)) {
+      if (cachedData.status && (!isDataReq || !isRoutePPREnabled)) {
         res.statusCode = cachedData.status
       }
 

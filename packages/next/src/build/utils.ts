@@ -88,7 +88,7 @@ import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
-import { isPPRSupported } from '../server/lib/experimental/ppr'
+import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -349,7 +349,10 @@ export interface PageInfo {
   totalSize: number
   isStatic: boolean
   isSSG: boolean
-  supportsPPR: boolean
+  /**
+   * If true, it means that the route has partial prerendering enabled.
+   */
+  isRoutePPREnabled: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
@@ -491,7 +494,7 @@ export async function printTreeView(
         symbol = ' '
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
         symbol = 'ƒ'
-      } else if (pageInfo?.supportsPPR) {
+      } else if (pageInfo?.isRoutePPREnabled) {
         if (
           // If the page has an empty prelude, then it's equivalent to a dynamic page
           pageInfo?.hasEmptyPrelude ||
@@ -1376,7 +1379,7 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
-    pprEnabled: false,
+    isAppPPREnabled: false,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
@@ -1522,7 +1525,7 @@ export async function isPageStatic({
   nextConfigOutput: 'standalone' | 'export'
   pprConfig: ExperimentalPPRConfig | undefined
 }): Promise<{
-  supportsPPR?: boolean
+  isRoutePPREnabled?: boolean
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
@@ -1597,7 +1600,7 @@ export async function isPageStatic({
       const routeModule: RouteModule =
         componentsResult.ComponentMod?.routeModule
 
-      let supportsPPR: boolean = false
+      let isRoutePPREnabled: boolean = false
 
       if (pageType === 'app') {
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
@@ -1676,15 +1679,15 @@ export async function isPageStatic({
         // A page supports partial prerendering if it is an app page and either
         // the whole app has PPR enabled or this page has PPR enabled when we're
         // in incremental mode.
-        supportsPPR =
+        isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
           !isInterceptionRouteAppPath(page) &&
-          isPPRSupported(pprConfig, appConfig)
+          checkIsRoutePPREnabled(pprConfig, appConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
         // TODO: (PPR) remove this once PPR is enabled by default
-        if (appConfig.dynamic === 'force-dynamic' && !supportsPPR) {
+        if (appConfig.dynamic === 'force-dynamic' && !isRoutePPREnabled) {
           appConfig.revalidate = 0
         }
 
@@ -1780,13 +1783,13 @@ export async function isPageStatic({
 
       // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
-      if (supportsPPR) {
+      if (isRoutePPREnabled) {
         isStatic = true
       }
 
       return {
         isStatic,
-        supportsPPR,
+        isRoutePPREnabled,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,

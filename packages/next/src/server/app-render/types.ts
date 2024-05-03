@@ -162,13 +162,13 @@ export interface RenderOptsPartial {
     /**
      * When true, some routes support partial prerendering (PPR).
      */
-    pprEnabled: boolean
+    isAppPPREnabled: boolean
 
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
-    supportsPPR?: boolean
+    isRoutePPREnabled?: boolean
     missingSuspenseWithCSRBailout: boolean
     swrDelta: SwrDelta | undefined
   }
