@@ -1955,7 +1955,7 @@ export default abstract class Server<
     // proxy) and the query parameter is set, then we should render the
     // skeleton. We assume that if the page _could_ support it, we should
     // show the skeleton in development. Ideally we would check the appConfig
-    // to see if this page has it enabled or not, but that would require\
+    // to see if this page has it enabled or not, but that would require
     // plumbing the appConfig through to the server during development.
     const isDebugPPRSkeleton = Boolean(
       couldSupportPPR &&
