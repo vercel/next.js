@@ -2245,14 +2245,15 @@
     },
     "test/e2e/app-dir/parallel-route-not-found/parallel-route-not-found.test.ts": {
       "passed": [
-        "parallel-route-not-found should handle `notFound()` in a slot",
-        "parallel-route-not-found should handle `notFound()` in a slot with no `children` slot",
-        "parallel-route-not-found should handle `notFound()` in generateMetadata on a page that also renders a parallel route",
         "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
         "parallel-route-not-found should handle multiple missing parallel routes",
         "parallel-route-not-found should render the page & slots if all parallel routes are found"
       ],
-      "failed": [],
+      "failed": [
+        "parallel-route-not-found should handle `notFound()` in a slot",
+        "parallel-route-not-found should handle `notFound()` in a slot with no `children` slot",
+        "parallel-route-not-found should handle `notFound()` in generateMetadata on a page that also renders a parallel route"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
