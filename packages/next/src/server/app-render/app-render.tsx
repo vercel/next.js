@@ -1003,31 +1003,17 @@ async function renderToHTMLOrFlightImpl(
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
 
-        // FIXME: this is a poor-mans way of handling the interplay
-        if (process.env.NEXT_RUNTIME !== 'edge') {
-          if (!(stream instanceof ReadableStream)) {
-            const node = stream
-            const web = new ReadableStream<Uint8Array>({
-              start: async (controller) => {
-                node.on('data', (chunk) => {
-                  controller.enqueue(chunk)
-                })
-                node.on('end', () => {
-                  controller.close()
-                })
-                node.on('error', (err) => {
-                  controller.error(err)
-                })
-              },
-            })
-
-            stream = web
-          }
+        if (
+          process.env.NEXT_RUNTIME === 'nodejs' &&
+          !(stream instanceof ReadableStream)
+        ) {
+          const { Readable } = await import('node:stream')
+          stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
         }
 
-        // FIXME: shouldn't need this when when the rest supports ReadableStream | Readable
+        // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
         if (!(stream instanceof ReadableStream)) {
-          throw new Error("Invariant: stream wasn't a ReadableStream")
+          throw new Error("Invariant: stream isn't a ReadableStream")
         }
 
         const prerenderState = staticGenerationStore.prerenderState
