@@ -126,10 +126,16 @@ export default class FetchCache implements CacheHandler {
     memoryCache?.reset()
   }
 
-  public async revalidateTag(tag: string) {
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
+    tags = typeof tags === 'string' ? [tags] : tags
     if (this.debug) {
-      console.log('revalidateTag', tag)
+      console.log('revalidateTag', tags)
     }
+
+    if (!tags.length) return
 
     if (Date.now() < rateLimitedUntil) {
       if (this.debug) {
@@ -140,9 +146,9 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const res = await fetch(
-        `${
-          this.cacheEndpoint
-        }/v1/suspense-cache/revalidate?tags=${encodeURIComponent(tag)}`,
+        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
+          .map((tag) => encodeURIComponent(tag))
+          .join(',')}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -160,7 +166,7 @@ export default class FetchCache implements CacheHandler {
         throw new Error(`Request failed with status ${res.status}.`)
       }
     } catch (err) {
-      console.warn(`Failed to revalidate tag ${tag}`, err)
+      console.warn(`Failed to revalidate tag ${tags}`, err)
     }
   }
 
