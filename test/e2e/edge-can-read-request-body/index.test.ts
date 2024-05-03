@@ -1,7 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
-import FormData from 'form-data'
 import path from 'path'
 import type { Response } from 'node-fetch'
 
@@ -102,14 +101,10 @@ describe('Edge can read request body', () => {
       const formData = new FormData()
       formData.append('hello', 'world')
 
-      const response = await fetchViaHTTP(
-        next.url,
-        '/api/nothing?middleware-handler=formData',
-        null,
-        {
-          method: 'POST',
-          body: formData,
-        }
+      // @ts-expect-error use `fetchViaHTTP` when we drop `node-fetch`
+      const response: Response = await fetch(
+        new URL(next.url + '/api/nothing?middleware-handler=formData'),
+        { method: 'POST', body: formData }
       )
 
       expect(await serialize(response)).toMatchObject({

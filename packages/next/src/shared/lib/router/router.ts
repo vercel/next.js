@@ -7,6 +7,7 @@ import type { RouterEvent } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
+import type { AppContextType, NextPageContext, NEXT_DATA } from '../utils'
 import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import {
   getClientBuildManifest,
@@ -18,15 +19,7 @@ import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
-import {
-  AppContextType,
-  getLocationOrigin,
-  getURL,
-  loadGetInitialProps,
-  NextPageContext,
-  ST,
-  NEXT_DATA,
-} from '../utils'
+import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import resolveRewrites from './utils/resolve-rewrites'
@@ -330,30 +323,17 @@ async function withMiddlewareEffects<T extends FetchDataOutput>(
     return null
   }
 
-  try {
-    const data = await options.fetchData()
+  const data = await options.fetchData()
 
-    const effect = await getMiddlewareData(
-      data.dataHref,
-      data.response,
-      options
-    )
+  const effect = await getMiddlewareData(data.dataHref, data.response, options)
 
-    return {
-      dataHref: data.dataHref,
-      json: data.json,
-      response: data.response,
-      text: data.text,
-      cacheKey: data.cacheKey,
-      effect,
-    }
-  } catch {
-    /**
-     * TODO: Revisit this in the future.
-     * For now we will not consider middleware data errors to be fatal.
-     * maybe we should revisit in the future.
-     */
-    return null
+  return {
+    dataHref: data.dataHref,
+    json: data.json,
+    response: data.response,
+    text: data.text,
+    cacheKey: data.cacheKey,
+    effect,
   }
 }
 
@@ -453,7 +433,7 @@ function fetchRetry(
     //
     // > `fetch` won’t send cookies, unless you set the credentials init
     // > option.
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    // https://developer.mozilla.org/docs/Web/API/Fetch_API/Using_Fetch
     //
     // > For maximum browser compatibility when it comes to sending &
     // > receiving cookies, always supply the `credentials: 'same-origin'`
@@ -785,12 +765,23 @@ export default class Router implements BaseRouter {
       const { BloomFilter } =
         require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
 
-      const staticFilterData:
-        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
-        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
+      type Filter = ReturnType<
+        import('../../lib/bloom-filter').BloomFilter['export']
+      >
 
-      const dynamicFilterData: typeof staticFilterData = process.env
+      const routerFilterSValue: Filter | false = process.env
+        .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+      const staticFilterData: Filter | undefined = routerFilterSValue
+        ? routerFilterSValue
+        : undefined
+
+      const routerFilterDValue: Filter | false = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+      const dynamicFilterData: Filter | undefined = routerFilterDValue
+        ? routerFilterDValue
+        : undefined
 
       if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
@@ -830,6 +821,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      self.__NEXT_DATA__.isExperimentalCompile ||
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
@@ -1325,13 +1317,6 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url: as, router: this })
-      return new Promise(() => {})
-    }
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -1371,6 +1356,13 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     const isMiddlewareRewrite = !!(
       parsedAsPathname &&
@@ -1843,7 +1835,7 @@ export default class Router implements BaseRouter {
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
-        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        // https://developer.mozilla.org/docs/Web/API/History/replaceState
         '',
         as
       )
@@ -1962,12 +1954,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined
@@ -2225,8 +2217,8 @@ export default class Router implements BaseRouter {
 
   onlyAHashChange(as: string): boolean {
     if (!this.asPath) return false
-    const [oldUrlNoHash, oldHash] = this.asPath.split('#')
-    const [newUrlNoHash, newHash] = as.split('#')
+    const [oldUrlNoHash, oldHash] = this.asPath.split('#', 2)
+    const [newUrlNoHash, newHash] = as.split('#', 2)
 
     // Makes sure we scroll to the provided hash if the url/hash are the same
     if (newHash && oldUrlNoHash === newUrlNoHash && oldHash === newHash) {
@@ -2246,7 +2238,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash = ''] = as.split('#')
+    const [, hash = ''] = as.split('#', 2)
 
     handleSmoothScroll(
       () => {
@@ -2409,7 +2401,7 @@ export default class Router implements BaseRouter {
                   locale,
                 }),
                 hasMiddleware: true,
-                isServerRender: this.isSsr,
+                isServerRender: false,
                 parseJSON: true,
                 inflightCache: this.sdc,
                 persistCache: !this.isPreview,

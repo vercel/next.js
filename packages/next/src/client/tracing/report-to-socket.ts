@@ -1,5 +1,5 @@
-import { sendMessage } from '../dev/error-overlay/websocket'
-import { Span } from './tracer'
+import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
+import type { Span } from './tracer'
 
 export default function reportToSocket(span: Span) {
   if (span.state.state !== 'ended') {

@@ -28,7 +28,8 @@ const startServer = async (optEnv = {}, opts) => {
   context.server = await initNextServerScript(scriptPath, /ready on/i, env)
 }
 
-describe('On Demand Entries', () => {
+// Tests are skipped in Turbopack because they are not relevant to Turbopack.
+;(process.env.TURBOPACK ? describe.skip : describe)('On Demand Entries', () => {
   it('should pass', () => {})
   beforeAll(async () => {
     await startServer()

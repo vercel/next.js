@@ -1,7 +1,7 @@
 // @ts-check
 
 const path = require('path')
-const { readJson, writeJson } = require('fs-extra')
+const fsp = require('fs/promises')
 const execa = require('execa')
 
 /** @type {any} */
@@ -39,7 +39,7 @@ async function sync(channel = 'next') {
     newVersionStr = stdout.trim()
   }
 
-  const newVersionInfo = extractInfoFromReactCanaryVersion(newVersionStr)
+  const newVersionInfo = extractInfoFromReactVersion(newVersionStr)
   if (!newVersionInfo) {
     throw new Error(
       `New react version does not match expected format: ${newVersionStr}
@@ -50,15 +50,18 @@ Or, run this command with no arguments to use the most recently published versio
 `
     )
   }
+  newVersionInfo.releaseLabel = channel
 
   const cwd = process.cwd()
-  const pkgJson = await readJson(path.join(cwd, 'package.json'))
+  const pkgJson = JSON.parse(
+    await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
+  )
   const devDependencies = pkgJson.devDependencies
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
 
-  const baseVersionInfo = extractInfoFromReactCanaryVersion(baseVersionStr)
+  const baseVersionInfo = extractInfoFromReactVersion(baseVersionStr)
   if (!baseVersionInfo) {
     throw new Error(
       'Base react version does not match expected format: ' + baseVersionStr
@@ -90,7 +93,10 @@ Or, run this command with no arguments to use the most recently published versio
       )
     }
   }
-  await writeJson(path.join(cwd, 'package.json'), pkgJson, { spaces: 2 })
+  await fsp.writeFile(
+    path.join(cwd, 'package.json'),
+    JSON.stringify(pkgJson, null, 2)
+  )
   console.log('Successfully updated React dependencies in package.json.\n')
 
   // Install the updated dependencies and build the vendored React files.
@@ -170,7 +176,7 @@ function readStringArg(argv, argName) {
   return argIndex === -1 ? null : argv[argIndex + 1]
 }
 
-function extractInfoFromReactCanaryVersion(reactCanaryVersion) {
+function extractInfoFromReactVersion(reactCanaryVersion) {
   const match = reactCanaryVersion.match(
     /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
   )

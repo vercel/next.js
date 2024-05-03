@@ -1,4 +1,4 @@
-import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import type { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
 import { LocaleRouteMatcher } from './locale-route-matcher'
 import { RouteMatcher } from './route-matcher'
 

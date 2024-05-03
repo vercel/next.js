@@ -1,4 +1,4 @@
-import withJoi from 'next-joi'
+import withJoi from "next-joi";
 
 export const validate = withJoi({
   /**
@@ -6,6 +6,6 @@ export const validate = withJoi({
    * we can customize the error response.
    */
   onValidationError: (_, res) => {
-    return res.status(418).json({ message: "I'm a Teapot" })
+    return res.status(418).json({ message: "I'm a Teapot" });
   },
-})
+});

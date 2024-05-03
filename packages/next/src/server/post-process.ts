@@ -210,15 +210,17 @@ async function postProcessHTML(
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
           const getFontDefinition = (url: string) => {
-            if (renderOpts.fontManifest) {
-              const { getFontDefinitionFromManifest } =
-                require('./font-utils') as typeof import('./font-utils')
-              return getFontDefinitionFromManifest!(
-                url,
-                renderOpts.fontManifest
-              )
+            if (!renderOpts.fontManifest) {
+              return ''
             }
-            return ''
+            return (
+              renderOpts.fontManifest.find((font) => {
+                if (font && font.url === url) {
+                  return true
+                }
+                return false
+              })?.content || ''
+            )
           }
           return await processHTML(
             html,
@@ -240,6 +242,9 @@ async function postProcessHTML(
             publicPath: `${renderOpts.assetPrefix}/_next/`,
             preload: 'media',
             fonts: false,
+            logLevel:
+              process.env.CRITTERS_LOG_LEVEL ||
+              (process.env.NODE_ENV === 'production' ? 'warn' : 'info'),
             ...renderOpts.optimizeCss,
           })
           return await cssOptimizer.process(html)

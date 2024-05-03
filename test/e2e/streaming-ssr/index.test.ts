@@ -1,6 +1,6 @@
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createNext, nextTestSetup } from 'e2e-utils'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -13,15 +13,9 @@ import {
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
 describe('streaming SSR with custom next configs', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: join(__dirname, 'streaming-ssr'),
-      installCommand: 'npm install',
-    })
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'streaming-ssr'),
   })
-  afterAll(() => next.destroy())
 
   it('should match more specific route along with dynamic routes', async () => {
     const res1 = await fetchViaHTTP(next.url, '/api/user/login')
@@ -32,7 +26,7 @@ describe('streaming SSR with custom next configs', () => {
 
   it('should render styled-jsx styles in streaming', async () => {
     const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('color:blue')
+    expect(html).toMatch(/color:(?:blue|#00f)/)
   })
 
   it('should redirect paths without trailing-slash and render when slash is appended', async () => {
@@ -67,20 +61,20 @@ describe('streaming SSR with custom next configs', () => {
       await next.patchFile(
         'pages/_document.js',
         `
-        import { Html, Head, Main, NextScript } from 'next/document'
+      import { Html, Head, Main, NextScript } from 'next/document'
 
-        export default function Document() {
-          return (
-            <Html>
-              <Head />
-              <body>
-                <Main />
-                <NextScript />
-              </body>
-            </Html>
-          )
-        }
-      `
+      export default function Document() {
+        return (
+          <Html>
+            <Head />
+            <body>
+              <Main />
+              <NextScript />
+            </body>
+          </Html>
+        )
+      }
+    `
       )
       await check(async () => {
         return await renderViaHTTP(next.url, '/')
@@ -97,11 +91,7 @@ if (isNextProd) {
     let appPort
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'custom-server/pages')),
-          'server.js': new FileRef(join(__dirname, 'custom-server/server.js')),
-        },
-        nextConfig: require(join(__dirname, 'custom-server/next.config.js')),
+        files: join(__dirname, 'custom-server'),
       })
       await next.stop()
 

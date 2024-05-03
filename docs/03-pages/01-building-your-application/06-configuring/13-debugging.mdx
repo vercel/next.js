@@ -29,20 +29,28 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
     },
     {
       "name": "Next.js: debug full stack",
-      "type": "node-terminal",
+      "type": "node",
       "request": "launch",
-      "command": "npm run dev",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "runtimeArgs": ["--inspect"],
+      "skipFiles": ["<node_internals>/**"],
       "serverReadyAction": {
-        "pattern": "started server on .+, url: (https?://.+)",
+        "action": "debugWithEdge",
+        "killOnServerStop": true,
+        "pattern": "- Local:.+(https?://.+)",
         "uriFormat": "%s",
-        "action": "debugWithChrome"
+        "webRoot": "${workspaceFolder}"
       }
     }
   ]
 }
 ```
 
-`npm run dev` can be replaced with `yarn dev` if you're using Yarn. If you're [changing the port number](/docs/pages/api-reference/next-cli#development) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
+`npm run dev` can be replaced with `yarn dev` if you're using Yarn or `pnpm dev` if you're using pnpm.
+
+If you're [changing the port number](/docs/pages/api-reference/next-cli#development) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
+
+If you're running Next.js from a directory other than root (for example, if you're using Turborepo) then you need to add `cwd` to the server-side and full stack debugging tasks. For example, `"cwd": "${workspaceFolder}/apps/web"`.
 
 Now go to the Debug panel (`Ctrl+Shift+D` on Windows/Linux, `⇧+⌘+D` on macOS), select a launch configuration, then press `F5` or select **Debug: Start Debugging** from the Command Palette to start your debugging session.
 
@@ -56,7 +64,7 @@ Click the drop down menu listing the runtime configuration, and click `Edit Conf
 
 Start your development server as usual by running `next dev`, `npm run dev`, or `yarn dev`. Once the server starts, open `http://localhost:3000` (or your alternate URL) in Chrome. Next, open Chrome's Developer Tools (`Ctrl+Shift+J` on Windows/Linux, `⌥+⌘+I` on macOS), then go to the **Sources** tab.
 
-Now, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS to search for a file and set breakpoints manually. Note that when searching here, your source files will have paths starting with `webpack://_N_E/./`.
+Now, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS to search for a file and set breakpoints manually. Note that when searching here, your source files will have paths starting with `webpack://_N_E/./`.
 
 ### Server-side code
 

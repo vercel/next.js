@@ -1,6 +1,14 @@
 import fs from 'fs'
 import eventStream from 'event-stream'
-import chalk from 'chalk'
+import {
+  bold,
+  blue,
+  cyan,
+  green,
+  magenta,
+  red,
+  yellow,
+} from '../packages/next/dist/lib/picocolors.js'
 
 const file = fs.createReadStream(process.argv[2])
 
@@ -47,8 +55,8 @@ const aggregate = (event) => {
   }
 }
 
-const formatDuration = (duration, bold) => {
-  const color = bold ? chalk.bold : (x) => x
+const formatDuration = (duration, isBold) => {
+  const color = isBold ? bold : (x) => x
   if (duration < 1000) {
     return color(`${duration} µs`)
   } else if (duration < 10000) {
@@ -56,15 +64,15 @@ const formatDuration = (duration, bold) => {
   } else if (duration < 100000) {
     return color(`${Math.round(duration / 1000)} ms`)
   } else if (duration < 1_000_000) {
-    return color(chalk.cyan(`${Math.round(duration / 1000)} ms`))
+    return color(cyan(`${Math.round(duration / 1000)} ms`))
   } else if (duration < 10_000_000) {
-    return color(chalk.green(`${Math.round(duration / 100000) / 10}s`))
+    return color(green(`${Math.round(duration / 100000) / 10}s`))
   } else if (duration < 20_000_000) {
-    return color(chalk.yellow(`${Math.round(duration / 1000000)}s`))
+    return color(yellow(`${Math.round(duration / 1000000)}s`))
   } else if (duration < 100_000_000) {
-    return color(chalk.red(`${Math.round(duration / 1000000)}s`))
+    return color(red(`${Math.round(duration / 1000000)}s`))
   } else {
-    return color('🔥' + chalk.red(`${Math.round(duration / 1000000)}s`))
+    return color('🔥' + red(`${Math.round(duration / 1000000)}s`))
   }
 }
 
@@ -74,7 +82,7 @@ const formatTimes = (event) => {
   if (event.total && event.total !== range)
     additionalInfo.push(`total ${formatDuration(event.total)}`)
   if (event.duration !== range)
-    additionalInfo.push(`self ${formatDuration(event.duration, chalk.bold)}`)
+    additionalInfo.push(`self ${formatDuration(event.duration, bold)}`)
   return `${formatDuration(range, additionalInfo.length === 0)}${
     additionalInfo.length ? ` (${additionalInfo.join(', ')})` : ''
   }`
@@ -107,25 +115,21 @@ const formatEvent = (event) => {
   let head
   switch (event.name) {
     case 'webpack-compilation':
-      head = `${chalk.bold(`${event.tags.name} compilation`)} ${formatTimes(
-        event
-      )}`
+      head = `${bold(`${event.tags.name} compilation`)} ${formatTimes(event)}`
       break
     case 'webpack-invalidated-client':
     case 'webpack-invalidated-server':
-      head = `${chalk.bold(`${event.name.slice(-6)} recompilation`)} ${
+      head = `${bold(`${event.name.slice(-6)} recompilation`)} ${
         event.tags.trigger === 'manual'
           ? '(new page discovered)'
           : `(${formatFilename(event.tags.trigger)})`
       } ${formatTimes(event)}`
       break
     case 'add-entry':
-      head = `${chalk.blueBright('entry')} ${formatFilename(
-        event.tags.request
-      )}`
+      head = `${blue('entry')} ${formatFilename(event.tags.request)}`
       break
     case 'hot-reloader':
-      head = `${chalk.bold.green(`hot reloader`)}`
+      head = `${bold(green(`hot reloader`))}`
       break
     case 'export-page':
       head = `${event.name} ${event.tags.path}  ${formatTimes(event)}`
@@ -133,11 +137,11 @@ const formatEvent = (event) => {
     default:
       if (event.name.startsWith('build-module-')) {
         const { mergedChildren, childrenTimings, packageName } = event
-        head = `${chalk.magentaBright('module')} ${
+        head = `${magenta('module')} ${
           packageName
-            ? `${chalk.bold.cyan(packageName)} (${formatFilename(
-                event.tags.name
-              )}${mergedChildren ? ` + ${mergedChildren}` : ''})`
+            ? `${bold(cyan(packageName))} (${formatFilename(event.tags.name)}${
+                mergedChildren ? ` + ${mergedChildren}` : ''
+              })`
             : formatFilename(event.tags.name)
         } ${formatTimes(event)}`
         if (childrenTimings && Object.keys(childrenTimings).length) {

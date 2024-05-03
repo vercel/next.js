@@ -1,17 +1,17 @@
-import React from 'react'
+import React from "react";
 
-import { Button } from './Button'
-import './header.css'
+import { Button } from "./Button";
+import "./header.css";
 
 type User = {
-  name: string
-}
+  name: string;
+};
 
 interface HeaderProps {
-  user?: User
-  onLogin: () => void
-  onLogout: () => void
-  onCreateAccount: () => void
+  user?: User;
+  onLogin?: () => void;
+  onLogout?: () => void;
+  onCreateAccount?: () => void;
 }
 
 export const Header = ({
@@ -21,7 +21,7 @@ export const Header = ({
   onCreateAccount,
 }: HeaderProps) => (
   <header>
-    <div className="wrapper">
+    <div className="storybook-header">
       <div>
         <svg
           width="32"
@@ -68,4 +68,4 @@ export const Header = ({
       </div>
     </div>
   </header>
-)
+);

@@ -1,23 +1,24 @@
-import { promises as fs } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { promises as fs, existsSync } from 'fs'
+import { bold, cyan, red, underline, yellow } from '../picocolors'
 import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 
-import { LintResult, formatResults } from './customFormatter'
+import { formatResults } from './customFormatter'
+import type { LintResult } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
 import { writeOutputFile } from './writeOutputFile'
 
 import { ESLINT_PROMPT_VALUES } from '../constants'
-import { existsSync, findPagesDir } from '../find-pages-dir'
+import { findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
 
 import * as Log from '../../build/output/log'
-import { EventLintCheckCompleted } from '../../telemetry/events/build'
+import type { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
 
@@ -45,8 +46,8 @@ const requiredPackages = [
 
 async function cliPrompt(): Promise<{ config?: any }> {
   console.log(
-    chalk.bold(
-      `${chalk.cyan(
+    bold(
+      `${cyan(
         '?'
       )} How would you like to configure ESLint? https://nextjs.org/docs/basic-features/eslint`
     )
@@ -65,10 +66,10 @@ async function cliPrompt(): Promise<{ config?: any }> {
         }: { title: string; recommended?: boolean; config: any },
         selected: boolean
       ) => {
-        const name = selected ? chalk.bold.underline.cyan(title) : title
-        return name + (recommended ? chalk.bold.yellow(' (recommended)') : '')
+        const name = selected ? bold(underline(cyan(title))) : title
+        return name + (recommended ? bold(yellow(' (recommended)')) : '')
       },
-      selected: chalk.cyan('❯ '),
+      selected: cyan('❯ '),
       unselected: '  ',
     })
 
@@ -116,12 +117,14 @@ async function lint(
       Log.error(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
-        } ${chalk.bold.cyan(
-          (packageManager === 'yarn'
-            ? 'yarn add --dev'
-            : packageManager === 'pnpm'
-            ? 'pnpm install --save-dev'
-            : 'npm install --save-dev') + ' eslint'
+        } ${bold(
+          cyan(
+            (packageManager === 'yarn'
+              ? 'yarn add --dev'
+              : packageManager === 'pnpm'
+              ? 'pnpm install --save-dev'
+              : 'npm install --save-dev') + ' eslint'
+          )
         )}`
       )
       return null
@@ -133,7 +136,7 @@ async function lint(
     let eslintVersion = ESLint?.version ?? mod.CLIEngine?.version
 
     if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
-      return `${chalk.red(
+      return `${red(
         'error'
       )} - Your project has an older version of ESLint installed${
         eslintVersion ? ' (' + eslintVersion + ')' : ''
@@ -343,8 +346,8 @@ export async function runLintCheck(
       if (lintDuringBuild) {
         if (config.emptyPkgJsonConfig || config.emptyEslintrc) {
           Log.warn(
-            `No ESLint configuration detected. Run ${chalk.bold.cyan(
-              'next lint'
+            `No ESLint configuration detected. Run ${bold(
+              cyan('next lint')
             )} to begin setup`
           )
         }
@@ -366,14 +369,23 @@ export async function runLintCheck(
         } else {
           // Check if necessary deps installed, and install any that are missing
           deps = await hasNecessaryDependencies(baseDir, requiredPackages)
-          if (deps.missing.length > 0)
+          if (deps.missing.length > 0) {
+            deps.missing.forEach((dep) => {
+              if (dep.pkg === 'eslint') {
+                // eslint v9 has breaking changes, so lock to 8 until dependency plugins fully support v9.
+                dep.pkg = 'eslint@^8'
+              }
+            })
+
             await installDependencies(baseDir, deps.missing, true)
+          }
 
           // Write default ESLint config.
           // Check for /pages and src/pages is to make sure this happens in Next.js folder
           if (
-            existsSync(path.join(baseDir, 'pages')) ||
-            existsSync(path.join(baseDir, 'src/pages'))
+            ['app', 'src/app', 'pages', 'src/pages'].some((dir) =>
+              existsSync(path.join(baseDir, dir))
+            )
           ) {
             await writeDefaultConfig(
               baseDir,
@@ -387,8 +399,8 @@ export async function runLintCheck(
         }
 
         Log.ready(
-          `ESLint has successfully been configured. Run ${chalk.bold.cyan(
-            'next lint'
+          `ESLint has successfully been configured. Run ${bold(
+            cyan('next lint')
           )} again to view warnings and errors.`
         )
 

@@ -1,58 +1,48 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime, SizeLimit } from '../../../types'
-import { NextConfigComplete } from '../../server/config-shared'
+import type { ServerRuntime, SizeLimit } from '../../types'
+import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { ParsedUrlQuery } from 'querystring'
+import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { SwrDelta } from '../lib/revalidate'
+import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
-import zod from 'zod'
+import s from 'next/dist/compiled/superstruct'
 
-export type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
+export type DynamicParamTypes =
+  | 'catchall'
+  | 'catchall-intercepted'
+  | 'optional-catchall'
+  | 'dynamic'
+  | 'dynamic-intercepted'
 
-const dynamicParamTypesSchema = zod.enum(['c', 'oc', 'd'])
-/**
- * c = catchall
- * oc = optional catchall
- * d = dynamic
- */
-export type DynamicParamTypesShort = zod.infer<typeof dynamicParamTypesSchema>
+const dynamicParamTypesSchema = s.enums(['c', 'ci', 'oc', 'd', 'di'])
 
-const segmentSchema = zod.union([
-  zod.string(),
-  zod.tuple([zod.string(), zod.string(), dynamicParamTypesSchema]),
+export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
+
+const segmentSchema = s.union([
+  s.string(),
+  s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
 ])
-/**
- * Segment in the router state.
- */
-export type Segment = zod.infer<typeof segmentSchema>
 
-export const flightRouterStateSchema: zod.ZodType<FlightRouterState> = zod.lazy(
-  () => {
-    const parallelRoutesSchema = zod.record(flightRouterStateSchema)
-    const urlSchema = zod.string().nullable().optional()
-    const refreshSchema = zod.literal('refetch').nullable().optional()
-    const isRootLayoutSchema = zod.boolean().optional()
+export type Segment = s.Infer<typeof segmentSchema>
 
-    // Due to the lack of optional tuple types in Zod, we need to use union here.
-    // https://github.com/colinhacks/zod/issues/1465
-    return zod.union([
-      zod.tuple([
-        segmentSchema,
-        parallelRoutesSchema,
-        urlSchema,
-        refreshSchema,
-        isRootLayoutSchema,
-      ]),
-      zod.tuple([
-        segmentSchema,
-        parallelRoutesSchema,
-        urlSchema,
-        refreshSchema,
-      ]),
-      zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema]),
-      zod.tuple([segmentSchema, parallelRoutesSchema]),
-    ])
-  }
-)
+// unfortunately the tuple is not understood well by Describe so we have to
+// use any here. This does not have any impact on the runtime type since the validation
+// does work correctly.
+export const flightRouterStateSchema: s.Describe<any> = s.tuple([
+  segmentSchema,
+  s.record(
+    s.string(),
+    s.lazy(() => flightRouterStateSchema)
+  ),
+  s.optional(s.nullable(s.string())),
+  s.optional(s.nullable(s.union([s.literal('refetch'), s.literal('refresh')]))),
+  s.optional(s.boolean()),
+])
+
 /**
  * Router state
  */
@@ -60,7 +50,13 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string | null,
-  refresh?: 'refetch' | null,
+  /*
+  /* "refresh" and "refetch", despite being similarly named, have different semantics.
+   * - "refetch" is a server indicator which informs where rendering should start from.
+   * - "refresh" is a client router indicator that it should re-fetch the data from the server for the current segment.
+   *   It uses the "url" property above to determine where to fetch from.
+   */
+  refresh?: 'refetch' | 'refresh' | null,
   isRootLayout?: boolean
 ]
 
@@ -80,6 +76,22 @@ export type FlightSegmentPath =
       parallelRouterKey: string
     ]
 
+/**
+ * Represents a tree of segments and the Flight data (i.e. React nodes) that
+ * correspond to each one. The tree is isomorphic to the FlightRouterState;
+ * however in the future we want to be able to fetch arbitrary partial segments
+ * without having to fetch all its children. So this response format will
+ * likely change.
+ */
+export type CacheNodeSeedData = [
+  segment: Segment,
+  parallelRoutes: {
+    [parallelRouterKey: string]: CacheNodeSeedData | null
+  },
+  node: React.ReactNode | null,
+  loading: LoadingModuleData
+]
+
 export type FlightDataPath =
   // Uses `any` as repeating pattern can't be typed.
   | any[]
@@ -89,7 +101,7 @@ export type FlightDataPath =
       ...FlightSegmentPath[],
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
+      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
       /* head */ React.ReactNode | null
     ]
 
@@ -109,28 +121,20 @@ export type ActionFlightResponse =
   // This case happens when `redirect()` is called in a server action.
   | NextFlightResponse
 
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
-}
-
-export type RenderOptsPartial = {
+export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   buildId: string
   basePath: string
-  clientReferenceManifest?: ClientReferenceManifest
+  trailingSlash: boolean
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   assetPrefix?: string
-  nextFontManifest?: NextFontManifest
+  crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
@@ -148,7 +152,25 @@ export type RenderOptsPartial = {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
+  params?: ParsedUrlQuery
+  isPrefetch?: boolean
+  experimental: {
+    ppr: boolean
+    missingSuspenseWithCSRBailout: boolean
+    swrDelta: SwrDelta | undefined
+  }
+  postponed?: string
+  /**
+   * When true, only the skeleton of the PPR page will be rendered. This will
+   * also enable other debugging features such as logging.
+   */
+  isDebugPPRSkeleton?: boolean
+  isStaticGeneration?: boolean
 }
 
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
+  RenderOptsPartial

@@ -1,4 +1,4 @@
-import {
+import type {
   Compiler as WebpackCompiler,
   Template as WebpackTemplate,
   RuntimeModule as WebpackRuntimeModule,

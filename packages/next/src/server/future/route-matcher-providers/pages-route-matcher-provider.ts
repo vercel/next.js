@@ -5,12 +5,12 @@ import {
   PagesLocaleRouteMatcher,
   PagesRouteMatcher,
 } from '../route-matchers/pages-route-matcher'
-import {
+import type {
   Manifest,
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
-import { I18NProvider } from '../helpers/i18n-provider'
+import type { I18NProvider } from '../helpers/i18n-provider'
 import { PagesNormalizers } from '../normalizers/built/pages'
 
 export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {

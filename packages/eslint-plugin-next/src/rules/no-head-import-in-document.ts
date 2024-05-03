@@ -20,7 +20,7 @@ export = defineRule({
           return
         }
 
-        const document = context.getFilename().split('pages')[1]
+        const document = context.getFilename().split('pages', 2)[1]
         if (!document) {
           return
         }

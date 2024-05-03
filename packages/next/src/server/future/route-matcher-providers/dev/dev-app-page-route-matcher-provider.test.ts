@@ -1,7 +1,7 @@
-import { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
+import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevAppPageRouteMatcherProvider } from './dev-app-page-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 
 describe('DevAppPageRouteMatcher', () => {
   const dir = '<root>'
@@ -12,7 +12,7 @@ describe('DevAppPageRouteMatcher', () => {
     const provider = new DevAppPageRouteMatcherProvider(dir, extensions, reader)
     const matchers = await provider.matchers()
     expect(matchers).toHaveLength(0)
-    expect(reader.read).toBeCalledWith(dir)
+    expect(reader.read).toHaveBeenCalledWith(dir)
   })
 
   describe('filename matching', () => {
@@ -81,7 +81,7 @@ describe('DevAppPageRouteMatcher', () => {
         )
         const matchers = await provider.matchers()
         expect(matchers).toHaveLength(1)
-        expect(reader.read).toBeCalledWith(dir)
+        expect(reader.read).toHaveBeenCalledWith(dir)
         expect(matchers[0].definition).toEqual(route)
       }
     )

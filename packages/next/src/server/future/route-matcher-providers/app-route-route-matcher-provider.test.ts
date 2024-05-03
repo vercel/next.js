@@ -1,8 +1,8 @@
 import { SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
+import type { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
 import { RouteKind } from '../route-kind'
 import { AppRouteRouteMatcherProvider } from './app-route-route-matcher-provider'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import type { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 
 describe('AppRouteRouteMatcherProvider', () => {
   it('returns no routes with an empty manifest', async () => {

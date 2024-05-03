@@ -2,6 +2,8 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
 
@@ -79,6 +81,38 @@ fn match_metadata_file<'a>(
     })
 }
 
+pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
+    let stem = &*path.file_stem().await?;
+    let ext = &*path.extension().await?;
+
+    let name = stem.as_deref().unwrap_or_default();
+    let mut ext = ext.as_str();
+    if ext == "jpg" {
+        ext = "jpeg"
+    }
+
+    if name == "favicon" && ext == "ico" {
+        return Ok("image/x-icon".to_string());
+    }
+    if name == "sitemap" {
+        return Ok("application/xml".to_string());
+    }
+    if name == "robots" {
+        return Ok("text/plain".to_string());
+    }
+    if name == "manifest" {
+        return Ok("application/manifest+json".to_string());
+    }
+
+    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
+        return Ok(mime_guess::from_ext(ext)
+            .first_or_octet_stream()
+            .to_string());
+    }
+
+    Ok("text/plain".to_string())
+}
+
 pub fn match_local_metadata_file<'a>(
     basename: &'a str,
     page_extensions: &[String],
@@ -119,7 +153,7 @@ fn filename(path: &str) -> &str {
     split_directory(path).1
 }
 
-fn split_extension(path: &str) -> (&str, Option<&str>) {
+pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
     let filename = filename(path);
     if let Some((filename_before_extension, ext)) = filename.rsplit_once('.') {
         if filename_before_extension.is_empty() {
@@ -217,14 +251,14 @@ pub fn is_metadata_route(mut route: &str) -> bool {
     !page.ends_with("/page") && is_metadata_route_file(&page, &[], false)
 }
 
-/// http://www.cse.yorku.ca/~oz/hash.html
+/// djb_2 hash implementation referenced from [here](http://www.cse.yorku.ca/~oz/hash.html)
 fn djb2_hash(str: &str) -> u32 {
     str.chars().fold(5381, |hash, c| {
         ((hash << 5).wrapping_add(hash)).wrapping_add(c as u32) // hash * 33 + c
     })
 }
 
-// this is here to mirror next.js behaviour.
+// this is here to mirror next.js behaviour (`toString(36).slice(0, 6)`)
 fn format_radix(mut x: u32, radix: u32) -> String {
     let mut result = vec![];
 
@@ -239,7 +273,8 @@ fn format_radix(mut x: u32, radix: u32) -> String {
         }
     }
 
-    result.into_iter().rev().collect()
+    result.reverse();
+    result[..6].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
@@ -283,7 +318,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
-        let is_static_metadata_file = is_static_metadata_route_file(&route);
+        let is_static_metadata_file = is_static_metadata_route_file(&page.to_string());
         let (base_name, ext) = split_extension(&route);
 
         let is_static_route = route.starts_with("/robots")

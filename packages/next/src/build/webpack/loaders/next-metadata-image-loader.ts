@@ -7,23 +7,29 @@ import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
 } from './metadata/types'
-import fs from 'fs/promises'
+import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
-import { fileExists } from '../../../lib/file-exists'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import type { PageExtensions } from '../../page-extensions-type'
+import { getLoaderModuleNamedExports } from './utils'
 
 interface Options {
   segment: string
   type: PossibleImageFileNameConvention
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   basePath: string
 }
 
-async function nextMetadataImageLoader(this: any, content: Buffer) {
+// [NOTE] For turbopack
+// refer loader_tree's write_static|dynamic_metadata for corresponding features
+async function nextMetadataImageLoader(
+  this: webpack.LoaderContext<Options>,
+  content: Buffer
+) {
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
   const { resourcePath, rootContext: context } = this
@@ -55,33 +61,9 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const pathnamePrefix = normalizePathSep(path.join(basePath, segment))
 
   if (isDynamicResource) {
-    const mod = await new Promise<webpack.NormalModule>((res, rej) => {
-      this.loadModule(
-        resourcePath,
-        (err: null | Error, _source: any, _sourceMap: any, module: any) => {
-          if (err) {
-            return rej(err)
-          }
-          res(module)
-        }
-      )
-    })
-
-    const exportedFieldsExcludingDefault =
-      mod.dependencies
-        ?.filter((dep) => {
-          return (
-            [
-              'HarmonyExportImportedSpecifierDependency',
-              'HarmonyExportSpecifierDependency',
-            ].includes(dep.constructor.name) &&
-            'name' in dep &&
-            dep.name !== 'default'
-          )
-        })
-        .map((dep: any) => {
-          return dep.name
-        }) || []
+    const exportedFieldsExcludingDefault = (
+      await getLoaderModuleNamedExports(resourcePath, this)
+    ).filter((name) => name !== 'default')
 
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
@@ -145,8 +127,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   }
 
   const imageSize: { width?: number; height?: number } = await getImageSize(
-    content,
-    extension as 'avif' | 'webp' | 'png' | 'jpeg'
+    content
   ).catch((err) => err)
 
   if (imageSize instanceof Error) {
@@ -179,7 +160,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       fileNameBase + '.alt.txt'
     )
 
-    if (await fileExists(altPath)) {
+    if (existsSync(altPath)) {
       imageData.alt = await fs.readFile(altPath, 'utf8')
     }
   }

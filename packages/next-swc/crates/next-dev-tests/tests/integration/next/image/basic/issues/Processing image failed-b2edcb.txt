@@ -1,5 +1,0 @@
-error - [image] [root of the server]/_next/static/media/broken.11d09843.jpeg  Processing image failed
-  unable to decode image data
-  
-  Caused by:
-  - failed to fill whole buffer

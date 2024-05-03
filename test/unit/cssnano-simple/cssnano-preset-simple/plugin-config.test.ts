@@ -3,7 +3,7 @@ import postcss from 'postcss'
 import mod from './plugin'
 import css from '../noop-template'
 
-describe('accepts plugin configuration', () => {
+describe('cssnano accepts plugin configuration', () => {
   test('should not remove all comments', async () => {
     const input = css`
       p {

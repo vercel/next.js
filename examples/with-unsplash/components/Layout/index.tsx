@@ -1,9 +1,9 @@
-import Head from 'next/head'
-import User from 'components/User'
+import Head from "next/head";
+import User from "components/User";
 
-import styles from './layout.module.css'
+import styles from "./layout.module.css";
 
-export const siteTitle = 'Unsplash Profile with Nextjs'
+export const siteTitle = "Unsplash Profile with Nextjs";
 
 const Layout = ({ children }) => {
   return (
@@ -21,7 +21,7 @@ const Layout = ({ children }) => {
 
       <main>{children}</main>
     </div>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

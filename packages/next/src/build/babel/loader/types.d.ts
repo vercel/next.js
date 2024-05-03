@@ -1,5 +1,5 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { Span } from '../../../trace'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Span } from '../../../trace'
 
 export interface NextJsLoaderContext extends webpack.LoaderContext<{}> {
   currentTraceSpan: Span
@@ -17,4 +17,5 @@ export interface NextBabelLoaderOptions {
   caller: any
   configFile: string | undefined
   cwd: string
+  srcDir: string
 }

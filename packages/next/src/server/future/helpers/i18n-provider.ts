@@ -55,7 +55,7 @@ export class I18NProvider {
       const domain = domainLocale.domain.toLowerCase()
       return {
         defaultLocale: domainLocale.defaultLocale.toLowerCase(),
-        hostname: domain.split(':')[0],
+        hostname: domain.split(':', 1)[0],
         domain,
         locales: domainLocale.locales?.map((locale) => locale.toLowerCase()),
         http: domainLocale.http,
@@ -154,7 +154,7 @@ export class I18NProvider {
 
     // The first segment will be empty, because it has a leading `/`. If
     // there is no further segment, there is no locale (or it's the default).
-    const segments = pathname.split('/')
+    const segments = pathname.split('/', 2)
     if (!segments[1])
       return {
         detectedLocale,

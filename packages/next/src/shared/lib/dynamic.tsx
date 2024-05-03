@@ -74,6 +74,12 @@ export function noSSR<P = {}>(
   )
 }
 
+/**
+ * This function lets you dynamically import a component.
+ * It uses [React.lazy()](https://react.dev/reference/react/lazy) with [Suspense](https://react.dev/reference/react/Suspense) under the hood.
+ *
+ * Read more: [Next.js Docs: `next/dynamic`](https://nextjs.org/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic)
+ */
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>

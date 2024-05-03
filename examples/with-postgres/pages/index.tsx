@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react'
-import Head from 'next/head'
+import { useState, useEffect } from "react";
+import Head from "next/head";
 
-import { type ToDo } from '../lib/todos'
+import { type ToDo } from "../lib/todos";
 
-import styles from '../styles/Home.module.css'
+import styles from "../styles/Home.module.css";
 
 interface ToDoComponentProps {
-  key: number
-  text: string
-  done: boolean
-  onChange: () => void
-  onRemove: () => void
+  key: number;
+  text: string;
+  done: boolean;
+  onChange: () => void;
+  onRemove: () => void;
 }
 
 const ToDoComponent = ({
@@ -19,13 +19,13 @@ const ToDoComponent = ({
   onChange,
   onRemove,
 }: ToDoComponentProps) => {
-  const cards = ['card', 'card2', 'card3', 'card4', 'card5']
+  const cards = ["card", "card2", "card3", "card4", "card5"];
 
   return (
     <div className={styles[cards[Math.floor(Math.random() * cards.length)]]}>
       <div
         className={styles.text}
-        style={{ textDecoration: done ? 'line-through' : '' }}
+        style={{ textDecoration: done ? "line-through" : "" }}
       >
         {text}
       </div>
@@ -41,66 +41,66 @@ const ToDoComponent = ({
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default function Home() {
-  const [newText, setNewText] = useState('')
-  const [toDos, setToDos] = useState<ToDo[]>([])
+  const [newText, setNewText] = useState("");
+  const [toDos, setToDos] = useState<ToDo[]>([]);
 
   const getToDos = async () => {
-    const resp = await fetch('api/todos')
-    const toDos = await resp.json()
-    setToDos(toDos)
-  }
+    const resp = await fetch("api/todos");
+    const toDos = await resp.json();
+    setToDos(toDos);
+  };
 
   const createToDo = async () => {
-    await fetch('api/todos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch("api/todos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: newText }),
-    })
+    });
 
-    setNewText('')
+    setNewText("");
 
-    await getToDos()
-  }
+    await getToDos();
+  };
 
   const updateToDo = async (todo: ToDo) => {
     const newBody = {
       id: todo.id,
       done: !todo.done,
-    }
+    };
 
-    await fetch('api/todos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch("api/todos", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newBody),
-    })
+    });
 
-    await getToDos()
-  }
+    await getToDos();
+  };
 
   const removeToDo = async (todo: ToDo) => {
     const newBody = {
       id: todo.id,
-    }
+    };
 
-    await fetch('api/todos', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch("api/todos", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newBody),
-    })
+    });
 
-    await getToDos()
-  }
+    await getToDos();
+  };
 
   useEffect(() => {
-    getToDos()
-  }, [])
+    getToDos();
+  }, []);
 
-  const done = toDos.filter((todo) => todo.done)
-  const undone = toDos.filter((todo) => !todo.done)
+  const done = toDos.filter((todo) => todo.done);
+  const undone = toDos.filter((todo) => !todo.done);
 
   return (
     <div className={styles.container}>
@@ -110,7 +110,7 @@ export default function Home() {
       </Head>
       <header className={styles.header}>
         <h2>
-          <a href="https://github.com/porsager/postgres">postgres.js</a> +{' '}
+          <a href="https://github.com/porsager/postgres">postgres.js</a> +{" "}
           <a href="https://nextjs.org">next.js</a> to dos
         </h2>
       </header>
@@ -123,7 +123,7 @@ export default function Home() {
                 className={styles.input}
                 value={newText}
                 onChange={(e) => setNewText(e.target.value)}
-                onKeyDown={(e) => e.code === 'Enter' && createToDo()}
+                onKeyDown={(e) => e.code === "Enter" && createToDo()}
               ></input>
               <button className={styles.createBtn} onClick={createToDo}>
                 &#10011;
@@ -171,5 +171,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  )
+  );
 }

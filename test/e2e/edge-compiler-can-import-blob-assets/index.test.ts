@@ -1,11 +1,14 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { readJson } from 'fs-extra'
 
-describe('Edge Compiler can import asset assets', () => {
+// TODO: `node-fetch` hangs on some of these tests in Node.js.
+// Re-enable when `node-fetch` is dropped.
+// See: https://github.com/vercel/next.js/pull/55112
+describe.skip('Edge Compiler can import asset assets', () => {
   let next: NextInstance
 
   // TODO: remove after this is supported for deploy
@@ -29,16 +32,9 @@ describe('Edge Compiler can import asset assets', () => {
   })
 
   it('allows to fetch a remote URL with a path and basename', async () => {
-    const response = await fetchViaHTTP(
-      next.url,
-      '/api/edge',
-      {
-        handler: 'remote-with-base',
-      },
-      {
-        compress: true,
-      }
-    )
+    const response = await fetchViaHTTP(next.url, '/api/edge', {
+      handler: 'remote-with-base',
+    })
     expect(await response.text()).toContain('Example Domain')
   })
 

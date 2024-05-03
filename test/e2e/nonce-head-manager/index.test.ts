@@ -1,10 +1,10 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
-describe('should set-up next', () => {
+describe('nonce head manager', () => {
   let next: NextInstance
 
   beforeAll(async () => {

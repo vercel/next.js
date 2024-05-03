@@ -1,7 +1,7 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 describe('TypeScript basic', () => {
   let next: NextInstance

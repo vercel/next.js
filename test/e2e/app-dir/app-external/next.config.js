@@ -1,7 +1,10 @@
 module.exports = {
   reactStrictMode: true,
-  transpilePackages: ['untranspiled-module', 'css', 'font'],
+  transpilePackages: ['css', 'font', 'transpile-ts-lib', 'transpile-cjs-lib'],
   experimental: {
-    serverComponentsExternalPackages: ['conditional-exports-optout'],
+    serverComponentsExternalPackages: [
+      'conditional-exports-optout',
+      'dual-pkg-optout',
+    ],
   },
 }

@@ -2,19 +2,26 @@ import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
+import type { RenderOptsPartial } from '../app-render/types'
+
+import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
+import type { FetchMetric } from '../base-http'
 
 export type StaticGenerationContext = {
   urlPathname: string
+  requestEndedState?: { ended?: boolean }
   renderOpts: {
-    originalPathname?: string
     incrementalCache?: IncrementalCache
-    supportsDynamicHTML: boolean
-    isRevalidate?: boolean
     isOnDemandRevalidate?: boolean
-    isBot?: boolean
-    nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
-    isDraftMode?: boolean
+    isServerAction?: boolean
+    waitUntil?: Promise<any>
+    experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
+
+    /**
+     * Fetch metrics attached in patch-fetch.ts
+     **/
+    fetchMetrics?: FetchMetric[]
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -25,7 +32,17 @@ export type StaticGenerationContext = {
      */
     // TODO: remove this when we resolve accessing the store outside the execution context
     store?: StaticGenerationStore
-  }
+  } & Pick<
+    // Pull some properties from RenderOptsPartial so that the docs are also
+    // mirrored.
+    RenderOptsPartial,
+    | 'originalPathname'
+    | 'supportsDynamicHTML'
+    | 'isRevalidate'
+    | 'nextExport'
+    | 'isDraftMode'
+    | 'isDebugPPRSkeleton'
+  >
 }
 
 export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
@@ -34,7 +51,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { urlPathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts, requestEndedState }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -49,11 +66,20 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
      *
      *    3.) If the request is in draft mode, we must generate dynamic HTML.
      *
+     *    4.) If the request is a server action, we must generate dynamic HTML.
+     *
      * These rules help ensure that other existing features like request caching,
      * coalescing, and ISR continue working as intended.
      */
     const isStaticGeneration =
-      !renderOpts.supportsDynamicHTML && !renderOpts.isDraftMode
+      !renderOpts.supportsDynamicHTML &&
+      !renderOpts.isDraftMode &&
+      !renderOpts.isServerAction
+
+    const prerenderState: StaticGenerationStore['prerenderState'] =
+      isStaticGeneration && renderOpts.experimental.ppr
+        ? createPrerenderState(renderOpts.isDebugPPRSkeleton)
+        : null
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
@@ -69,6 +95,9 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
+
+      prerenderState,
+      requestEndedState,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

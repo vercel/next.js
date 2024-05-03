@@ -1,6 +1,6 @@
 import { SERVER_DIRECTORY } from '../../../../../shared/lib/constants'
 import path from '../../../../../shared/lib/isomorphic/path'
-import { Manifest, ManifestLoader } from './manifest-loader'
+import type { Manifest, ManifestLoader } from './manifest-loader'
 
 export class NodeManifestLoader implements ManifestLoader {
   constructor(private readonly distDir: string) {}

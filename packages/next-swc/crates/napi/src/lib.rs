@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 #[macro_use]
 extern crate napi_derive;
@@ -48,13 +47,19 @@ use turbopack_binding::swc::core::{
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod app_structure;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod css;
 pub mod mdx;
 pub mod minify;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
 pub mod transform;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod turbotrace;
 pub mod util;
 
@@ -65,6 +70,7 @@ shadow_rs::shadow!(build);
 // compile error
 #[cfg(not(any(
     all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
+    target_arch = "wasm32",
     feature = "__internal_dhat-heap",
     feature = "__internal_dhat-ad-hoc"
 )))]
@@ -82,6 +88,7 @@ static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     Arc::new(Compiler::new(cm))
 });
 
+#[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
 fn init() {
     if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
@@ -120,6 +127,7 @@ pub type ArcCompiler = Arc<Compiler>;
 
 static REGISTER_ONCE: Once = Once::new();
 
+#[cfg(not(target_arch = "wasm32"))]
 fn register() {
     REGISTER_ONCE.call_once(|| {
         ::next_api::register();
@@ -128,8 +136,7 @@ fn register() {
     });
 }
 
-#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
-compile_error!("You can't enable both `native-tls` and `rustls-tls`");
-
-#[cfg(all(not(feature = "native-tls"), not(feature = "rustls-tls")))]
-compile_error!("You have to enable one of the TLS backends: `native-tls` or `rustls-tls`");
+#[cfg(target_arch = "wasm32")]
+fn register() {
+    //noop
+}

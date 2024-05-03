@@ -1,21 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
 export default function ScrollToButtonButton() {
-  const [hasScrollToTopButton, setHasScrollToTopButton] = useState(false)
+  const [hasScrollToTopButton, setHasScrollToTopButton] = useState(false);
 
   function toggleScrollTopButton() {
     setHasScrollToTopButton(
-      document.body.scrollTop > 50 || document.documentElement.scrollTop > 50
-    )
+      document.body.scrollTop > 50 || document.documentElement.scrollTop > 50,
+    );
   }
 
   useEffect(() => {
-    window.addEventListener('scroll', toggleScrollTopButton)
+    window.addEventListener("scroll", toggleScrollTopButton);
 
     return () => {
-      window.removeEventListener('scroll', toggleScrollTopButton)
-    }
-  }, [])
+      window.removeEventListener("scroll", toggleScrollTopButton);
+    };
+  }, []);
 
   return (
     <>
@@ -25,5 +25,5 @@ export default function ScrollToButtonButton() {
         </a>
       )}
     </>
-  )
+  );
 }

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use next_core::{next_config::Rewrites, turbopack::core::issue::IssueSeverity};
+use next_core::next_config::Rewrites;
+use turbopack_binding::turbopack::core::issue::IssueSeverity;
 
 #[derive(Clone, Debug)]
 pub struct BuildOptions {
@@ -9,6 +10,9 @@ pub struct BuildOptions {
 
     /// The project's directory.
     pub dir: Option<PathBuf>,
+
+    /// next.config.js's distDir.
+    pub dist_dir: Option<String>,
 
     /// The maximum memory to use for the build.
     pub memory_limit: Option<usize>,
@@ -27,6 +31,8 @@ pub struct BuildOptions {
 
     /// The Next.js build context.
     pub build_context: Option<BuildContext>,
+
+    pub define_env: DefineEnv,
 }
 
 #[derive(Clone, Debug)]
@@ -36,4 +42,11 @@ pub struct BuildContext {
 
     /// Next.js config rewrites.
     pub rewrites: Rewrites,
+}
+
+#[derive(Debug, Clone)]
+pub struct DefineEnv {
+    pub client: Vec<(String, String)>,
+    pub edge: Vec<(String, String)>,
+    pub nodejs: Vec<(String, String)>,
 }

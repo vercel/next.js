@@ -1,4 +1,7 @@
-use std::fmt::Write;
+use std::{
+    fmt::Write,
+    mem::{replace, take},
+};
 
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -22,8 +25,10 @@ use crate::{
         get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
         MetadataWithAltItem,
     },
-    mode::NextMode,
-    next_app::{metadata::image::dynamic_image_metadata_source, AppPage},
+    next_app::{
+        metadata::{get_content_type, image::dynamic_image_metadata_source},
+        AppPage,
+    },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
 
@@ -33,15 +38,10 @@ pub struct LoaderTreeBuilder {
     imports: Vec<String>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
-    mode: NextMode,
-    server_component_transition: ServerComponentTransition,
+    server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
-}
-
-#[derive(Clone, Debug)]
-pub enum ServerComponentTransition {
-    Transition(Vc<Box<dyn Transition>>),
-    TransitionName(String),
+    /// next.config.js' basePath option to construct og metadata.
+    base_path: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,8 +72,8 @@ impl ComponentType {
 impl LoaderTreeBuilder {
     fn new(
         context: Vc<ModuleAssetContext>,
-        server_component_transition: ServerComponentTransition,
-        mode: NextMode,
+        server_component_transition: Vc<Box<dyn Transition>>,
+        base_path: Option<String>,
     ) -> Self {
         LoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -82,8 +82,8 @@ impl LoaderTreeBuilder {
             loader_tree_code: String::new(),
             context,
             server_component_transition,
-            mode,
             pages: Vec::new(),
+            base_path,
         }
     }
 
@@ -107,58 +107,29 @@ impl LoaderTreeBuilder {
             let i = self.unique_number();
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
-            match self.mode {
-                NextMode::Development | NextMode::DevServer => {
-                    let chunks_identifier =
-                        magic_identifier::mangle(&format!("chunks of {name} #{i}"));
-                    writeln!(
-                        self.loader_tree_code,
-                        "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + \
-                         '.js'],",
-                        name = StringifyJs(name)
-                    )?;
-                    self.imports.push(formatdoc!(
-                        r#"
-                            ("TURBOPACK {{ chunking-type: isolatedParallel }}");
-                            import {}, {{ chunks as {} }} from "COMPONENT_{}";
-                        "#,
-                        identifier,
-                        chunks_identifier,
-                        i
-                    ));
-                }
-                NextMode::Build => {
-                    writeln!(
-                        self.loader_tree_code,
-                        "  {name}: [() => {identifier}, {path}],",
-                        name = StringifyJs(name),
-                        path = StringifyJs(&component.to_string().await?)
-                    )?;
-
-                    self.imports.push(formatdoc!(
-                        r#"
-                        import {} from "COMPONENT_{}";
-                        "#,
-                        identifier,
-                        i
-                    ));
-                }
-            }
-
             let source = Vc::upcast(FileSource::new(component));
             let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
                 EcmaScriptModulesReferenceSubType::Undefined,
             ));
+            let module = self
+                .server_component_transition
+                .process(source, self.context, reference_ty)
+                .module();
 
-            let module = match &self.server_component_transition {
-                ServerComponentTransition::Transition(transition) => {
-                    transition.process(source, self.context, reference_ty)
-                }
-                ServerComponentTransition::TransitionName(transition_name) => self
-                    .context
-                    .with_transition(transition_name.clone())
-                    .process(source, reference_ty),
-            };
+            writeln!(
+                self.loader_tree_code,
+                "  {name}: [() => {identifier}, {path}],",
+                name = StringifyJs(name),
+                path = StringifyJs(&module.ident().path().to_string().await?)
+            )?;
+
+            self.imports.push(formatdoc!(
+                r#"
+                    import {} from "COMPONENT_{}";
+                    "#,
+                identifier,
+                i
+            ));
 
             self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
@@ -169,7 +140,7 @@ impl LoaderTreeBuilder {
         &mut self,
         app_page: &AppPage,
         metadata: &Metadata,
-        global_metadata: &GlobalMetadata,
+        global_metadata: Option<&GlobalMetadata>,
     ) -> Result<()> {
         if metadata.is_empty() {
             return Ok(());
@@ -180,14 +151,28 @@ impl LoaderTreeBuilder {
             twitter,
             open_graph,
             sitemap: _,
+            base_page,
         } = metadata;
-        let GlobalMetadata {
-            favicon: _,
-            manifest,
-            robots: _,
-        } = global_metadata;
-
+        let app_page = base_page.as_ref().unwrap_or(app_page);
         self.loader_tree_code += "  metadata: {";
+
+        // naively convert metadataitem -> metadatawithaltitem to iterate along with
+        // other icon items
+        let icon = if let Some(favicon) = global_metadata.and_then(|m| m.favicon) {
+            let item = match favicon {
+                MetadataItem::Static { path } => MetadataWithAltItem::Static {
+                    path,
+                    alt_path: None,
+                },
+                MetadataItem::Dynamic { path } => MetadataWithAltItem::Dynamic { path },
+            };
+            let mut item = vec![item];
+            item.extend(icon.iter());
+            item
+        } else {
+            icon.clone()
+        };
+
         self.write_metadata_items(app_page, "icon", icon.iter())
             .await?;
         self.write_metadata_items(app_page, "apple", apple.iter())
@@ -196,7 +181,11 @@ impl LoaderTreeBuilder {
             .await?;
         self.write_metadata_items(app_page, "openGraph", open_graph.iter())
             .await?;
-        self.write_metadata_manifest(*manifest).await?;
+
+        if let Some(global_metadata) = global_metadata {
+            self.write_metadata_manifest(global_metadata.manifest)
+                .await?;
+        }
         self.loader_tree_code += "  },";
         Ok(())
     }
@@ -260,15 +249,16 @@ impl LoaderTreeBuilder {
                     app_page.clone(),
                 );
 
-                self.inner_assets.insert(
-                    inner_module_id,
-                    self.context.process(
+                let module = self
+                    .context
+                    .process(
                         source,
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
                         )),
-                    ),
-                );
+                    )
+                    .module();
+                self.inner_assets.insert(inner_module_id, module);
 
                 let s = "      ";
                 writeln!(self.loader_tree_code, "{s}{identifier},")?;
@@ -286,11 +276,13 @@ impl LoaderTreeBuilder {
         alt_path: Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
         let i = self.unique_number();
+
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import = "import { fillMetadataSegment } from \
                              \"next/dist/lib/metadata/get-metadata-route\""
             .to_string();
+
         if !self.imports.contains(&helper_import) {
             self.imports.push(helper_import);
         }
@@ -308,13 +300,17 @@ impl LoaderTreeBuilder {
 
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-
+        let pathname_prefix = if let Some(base_path) = &self.base_path {
+            format!("{}/{}", base_path, app_page)
+        } else {
+            app_page.to_string()
+        };
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
             "{s}  url: fillMetadataSegment({}, props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&app_page.to_string()),
+            StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
         )?;
 
@@ -329,20 +325,24 @@ impl LoaderTreeBuilder {
             )?;
         }
 
+        let content_type = get_content_type(path).await?;
+        writeln!(self.loader_tree_code, "{s}  type: `{content_type}`,")?;
+
         if let Some(alt_path) = alt_path {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
             self.imports
                 .push(format!("import {identifier} from \"{inner_module_id}\";"));
-            self.inner_assets.insert(
-                inner_module_id,
-                self.context.process(
+            let module = self
+                .context
+                .process(
                     Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
                         alt_path,
                     )))),
                     Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                ),
-            );
+                )
+                .module();
+            self.inner_assets.insert(inner_module_id, module);
 
             writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
         }
@@ -353,7 +353,7 @@ impl LoaderTreeBuilder {
     }
 
     #[async_recursion]
-    async fn walk_tree(&mut self, loader_tree: Vc<LoaderTree>) -> Result<()> {
+    async fn walk_tree(&mut self, loader_tree: Vc<LoaderTree>, root: bool) -> Result<()> {
         use std::fmt::Write;
 
         let LoaderTree {
@@ -369,13 +369,9 @@ impl LoaderTreeBuilder {
             "[{segment}, {{",
             segment = StringifyJs(segment)
         )?;
-        // add parallel_routes
-        for (key, &parallel_route) in parallel_routes.iter() {
-            write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
-            self.walk_tree(parallel_route).await?;
-            writeln!(self.loader_tree_code, ",")?;
-        }
-        writeln!(self.loader_tree_code, "}}, {{")?;
+
+        // Components need to be referenced first
+        let temp_loader_tree_code = take(&mut self.loader_tree_code);
         // add components
         let Components {
             page,
@@ -388,25 +384,45 @@ impl LoaderTreeBuilder {
             metadata,
             route: _,
         } = &*components.await?;
+        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Page, *page).await?;
         self.write_component(ComponentType::DefaultPage, *default)
             .await?;
         self.write_component(ComponentType::Error, *error).await?;
-        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Loading, *loading)
             .await?;
         self.write_component(ComponentType::Template, *template)
             .await?;
         self.write_component(ComponentType::NotFound, *not_found)
             .await?;
-        self.write_metadata(app_page, metadata, &*global_metadata.await?)
-            .await?;
+        let components_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
+
+        // add parallel_routes
+        for (key, &parallel_route) in parallel_routes.iter() {
+            write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
+            self.walk_tree(parallel_route, false).await?;
+            writeln!(self.loader_tree_code, ",")?;
+        }
+        writeln!(self.loader_tree_code, "}}, {{")?;
+
+        self.loader_tree_code += &components_code;
+
+        // Ensure global metadata being written only once at the root level
+        // Otherwise child pages will have redundant metadata
+        let global_metadata = &*global_metadata.await?;
+        self.write_metadata(
+            app_page,
+            metadata,
+            if root { Some(global_metadata) } else { None },
+        )
+        .await?;
+
         write!(self.loader_tree_code, "}}]")?;
         Ok(())
     }
 
     async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
-        self.walk_tree(loader_tree).await?;
+        self.walk_tree(loader_tree, true).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
             loader_tree_code: self.loader_tree_code,
@@ -427,10 +443,10 @@ impl LoaderTreeModule {
     pub async fn build(
         loader_tree: Vc<LoaderTree>,
         context: Vc<ModuleAssetContext>,
-        server_component_transition: ServerComponentTransition,
-        mode: NextMode,
+        server_component_transition: Vc<Box<dyn Transition>>,
+        base_path: Option<String>,
     ) -> Result<Self> {
-        LoaderTreeBuilder::new(context, server_component_transition, mode)
+        LoaderTreeBuilder::new(context, server_component_transition, base_path)
             .build(loader_tree)
             .await
     }

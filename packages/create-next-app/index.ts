@@ -5,6 +5,7 @@ import Commander from 'commander'
 import Conf from 'conf'
 import path from 'path'
 import prompts from 'prompts'
+import type { InitialReturnValue } from 'prompts'
 import checkForUpdate from 'update-check'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
@@ -21,7 +22,11 @@ const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
 
-const onPromptState = (state: any) => {
+const onPromptState = (state: {
+  value: InitialReturnValue
+  aborted: boolean
+  exited: boolean
+}) => {
   if (state.aborted) {
     // If we don't re-enable the terminal cursor before exiting
     // the program, the cursor will remain hidden
@@ -141,6 +146,13 @@ const program = new Commander.Command(packageJson.name)
   Explicitly tell the CLI to reset any stored preferences
 `
   )
+  .option(
+    '--skip-install',
+    `
+
+  Explicitly tell the CLI to skip installing packages
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -179,7 +191,7 @@ async function run(): Promise<void> {
         if (validation.valid) {
           return true
         }
-        return 'Invalid project name: ' + validation.problems![0]
+        return 'Invalid project name: ' + validation.problems[0]
       },
     })
 
@@ -202,15 +214,17 @@ async function run(): Promise<void> {
   const resolvedProjectPath = path.resolve(projectPath)
   const projectName = path.basename(resolvedProjectPath)
 
-  const { valid, problems } = validateNpmName(projectName)
-  if (!valid) {
+  const validation = validateNpmName(projectName)
+  if (!validation.valid) {
     console.error(
       `Could not create a project called ${red(
         `"${projectName}"`
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach((p) => console.error(`    ${red(bold('*'))} ${p}`))
+    validation.problems.forEach((p) =>
+      console.error(`    ${red(bold('*'))} ${p}`)
+    )
     process.exit(1)
   }
 
@@ -246,6 +260,7 @@ async function run(): Promise<void> {
       typescript: true,
       eslint: true,
       tailwind: true,
+      app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
@@ -357,7 +372,7 @@ async function run(): Promise<void> {
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (ciInfo.isCI) {
-        program.app = true
+        program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
         const { appRouter } = await prompts({
@@ -365,7 +380,7 @@ async function run(): Promise<void> {
           type: 'toggle',
           name: 'appRouter',
           message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: true,
+          initial: getPrefOrDefault('app'),
           active: 'Yes',
           inactive: 'No',
         })
@@ -373,12 +388,16 @@ async function run(): Promise<void> {
       }
     }
 
+    const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
+      !importAliasPattern.test(program.importAlias)
     ) {
       if (ciInfo.isCI) {
-        program.importAlias = '@/*'
+        // We don't use preferences here because the default value is @/* regardless of existing preferences
+        program.importAlias = defaults.importAlias
+      } else if (process.argv.includes('--no-import-alias')) {
+        program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
 
@@ -386,14 +405,15 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the default ${styledImportAlias}?`,
+          message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',
         })
 
         if (!customizeImportAlias) {
-          program.importAlias = '@/*'
+          // We don't use preferences here because the default value is @/* regardless of existing preferences
+          program.importAlias = defaults.importAlias
         } else {
           const { importAlias } = await prompts({
             onState: onPromptState,
@@ -402,7 +422,7 @@ async function run(): Promise<void> {
             message: `What ${styledImportAlias} would you like configured?`,
             initial: getPrefOrDefault('importAlias'),
             validate: (value) =>
-              /.+\/\*/.test(value)
+              importAliasPattern.test(value)
                 ? true
                 : 'Import alias must follow the pattern <prefix>/*',
           })
@@ -425,6 +445,7 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      skipInstall: program.skipInstall,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -453,6 +474,7 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      skipInstall: program.skipInstall,
     })
   }
   conf.set('preferences', preferences)

@@ -22,9 +22,11 @@ module.exports = {
   experimental: {
     outputFileTracingIncludes: {
       '/index': ['include-me/**/*'],
+      '/route1': ['include-me/**/*'],
     },
     outputFileTracingExcludes: {
       '/index': ['public/exclude-me/**/*'],
+      '/route1': ['public/exclude-me/**/*'],
     },
   },
 }

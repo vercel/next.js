@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@jesstelford/react-portal-universal": "1.0.0",
+    "@jesstelford/react-portal-universal": "1.0.6",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

@@ -33,8 +33,7 @@ var unstable_now = getCurrentTime; // Scheduler periodically yields in case ther
 
 var yieldInterval = 5;
 var deadline = 0;
-var currentPriorityLevel_DEPRECATED = NormalPriority; // `isInputPending` is not available. Since we have no way of knowing if
-// there's pending input, always yield at the end of the frame.
+var currentPriorityLevel_DEPRECATED = NormalPriority; // Always yield at the end of the frame.
 
 function unstable_shouldYield() {
   return getCurrentTime() >= deadline;
@@ -64,9 +63,10 @@ function unstable_scheduleCallback(priorityLevel, callback, options) {
       break;
   }
 
-  var controller = new TaskController();
+  var controller = new TaskController({
+    priority: postTaskPriority
+  });
   var postTaskOptions = {
-    priority: postTaskPriority,
     delay: typeof options === 'object' && options !== null ? options.delay : 0,
     signal: controller.signal
   };
@@ -88,14 +88,9 @@ function runTask(priorityLevel, postTaskPriority, node, callback) {
     if (typeof result === 'function') {
       // Assume this is a continuation
       var continuation = result;
-      var continuationController = new TaskController();
       var continuationOptions = {
-        priority: postTaskPriority,
-        signal: continuationController.signal
-      }; // Update the original callback node's controller, since even though we're
-      // posting a new task, conceptually it's the same one.
-
-      node._controller = continuationController;
+        signal: node._controller.signal
+      };
       var nextTask = runTask.bind(null, priorityLevel, postTaskPriority, node, continuation);
 
       if (scheduler.yield !== undefined) {

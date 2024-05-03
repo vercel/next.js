@@ -16,17 +16,11 @@ packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 
 .github/actions/next-stats-action/.work
-.github/actions/issue-validator/*/index.mjs
-.github/actions/validate-docs-links/lib/index.js
-.github/actions/needs-triage/index.js
-.github/actions/*/index.mjs
 
 packages/next-swc/crates/**/tests/**/output*
 packages/next-swc/crates/core/tests/loader/issue-32553/input.js
-packages/next-swc/crates/next-dev-tests/tests/integration/turbopack/basic/error/input/broken.js
-packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/no-options/input/pages/hello.raw.js
-packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/no-options/input/raw/hello.js
 packages/next-swc/native/**/*
+packages/next-swc/docs/assets/**/*
 
 packages/next-codemod/transforms/__testfixtures__/**
 packages/next-codemod/transforms/__tests__/**
@@ -43,3 +37,6 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
+test/lib/amp-validator-wasm.js
+test/production/pages-dir/production/fixture/amp-validator-wasm.js
+test/e2e/async-modules/amp-validator-wasm.js

@@ -73,7 +73,7 @@ This project includes a setup script which you can use to set up the content mod
 
 In your Contentful dashboard go to **Settings > General Settings** and copy the **Space ID**.
 
-Next, go to **Settings > API > Content management tokens** and create a new token by clicking **Generate personal token**. This token has the same access rights as the logged in user. **Do not share it publicly**, you will only use it to set up your space and can delete it afterwards.
+Next, go to **Settings > CMA tokens** and create a new token by clicking **Create personal access token**. This token has the same access rights as the logged in user. **Do not share it publicly**, you will only use it to set up your space and can delete it afterwards.
 
 With the space ID and management access token at hand run the following command:
 

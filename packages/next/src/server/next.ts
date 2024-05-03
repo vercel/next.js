@@ -1,75 +1,31 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
-import type { NodeRequestHandler } from './next-server'
+import type {
+  NodeRequestHandler,
+  Options as ServerOptions,
+} from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import { spawnSync } from 'child_process'
-import { getEsmLoaderPath } from './lib/get-esm-loader-path'
-import {
-  RESTART_EXIT_CODE,
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './lib/setup-server-worker'
-
-// if we are not inside of the esm loader enabled
-// worker we need to re-spawn with correct args
-// we can't do this if imported in jest test file otherwise
-// it duplicates tests
-if (
-  typeof jest === 'undefined' &&
-  !process.env.NEXT_PRIVATE_WORKER &&
-  (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT ||
-    process.env.NODE_ENV === 'development')
-) {
-  const nodePath = process.argv0
-
-  const newArgs = [
-    '--experimental-loader',
-    getEsmLoaderPath(),
-    '--no-warnings',
-    ...process.argv.splice(1),
-  ]
-  function startWorker() {
-    try {
-      const result = spawnSync(nodePath, newArgs, {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          NEXT_PRIVATE_WORKER: '1',
-        },
-      })
-
-      if (
-        result.status === RESTART_EXIT_CODE &&
-        process.env.NODE_ENV === 'development'
-      ) {
-        startWorker()
-      }
-      process.exit(0)
-    } catch (err) {
-      console.error(err)
-      process.exit(1)
-    }
-  }
-  startWorker()
-}
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
-import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
-import { default as Server } from './next-server'
+import type { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { resolve } from 'path'
+import path, { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  SERVER_FILES_MANIFEST,
+} from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { checkIsNodeDebugging } from './lib/is-node-debugging'
+import { getNodeDebugType } from './lib/utils'
 
 let ServerImpl: typeof Server
 
@@ -80,10 +36,15 @@ const getServerImpl = async () => {
   return ServerImpl
 }
 
-export type NextServerOptions = Partial<DevServerOptions> & {
-  preloadedConfig?: NextConfigComplete
-  internal_setStandaloneConfig?: boolean
-}
+export type NextServerOptions = Omit<
+  ServerOptions | DevServerOptions,
+  // This is assigned in this server abstraction.
+  'conf'
+> &
+  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>> & {
+    preloadedConfig?: NextConfigComplete
+    internal_setStandaloneConfig?: boolean
+  }
 
 export interface RequestHandler {
   (
@@ -199,7 +160,9 @@ export class NextServer {
     return (server as any).close()
   }
 
-  private async createServer(options: DevServerOptions): Promise<Server> {
+  private async createServer(
+    options: ServerOptions | DevServerOptions
+  ): Promise<Server> {
     let ServerImplementation: typeof Server
     if (options.dev) {
       ServerImplementation = require('./dev/next-dev-server').default
@@ -212,16 +175,39 @@ export class NextServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    return (
+    const dir = resolve(this.options.dir || '.')
+
+    const config =
       this.options.preloadedConfig ||
-      loadConfig(
+      (await loadConfig(
         this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-        resolve(this.options.dir || '.'),
-        this.options.conf,
-        undefined,
-        !!this.options._renderWorker
-      )
-    )
+        dir,
+        {
+          customConfig: this.options.conf,
+          silent: true,
+        }
+      ))
+
+    // check serialized build config when available
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const serializedConfig = require(path.join(
+          dir,
+          '.next',
+          SERVER_FILES_MANIFEST
+        )).config
+
+        // @ts-expect-error internal field
+        config.experimental.isExperimentalCompile =
+          serializedConfig.experimental.isExperimentalCompile
+      } catch (_) {
+        // if distDir is customized we don't know until we
+        // load the config so fallback to loading the config
+        // from next.config.js
+      }
+    }
+
+    return config
   }
 
   private async getServer() {
@@ -284,12 +270,14 @@ class NextCustomServer extends NextServer {
   protected requestHandler: WorkerRequestHandler
   // @ts-expect-error These are initialized in prepare()
   protected upgradeHandler: WorkerUpgradeHandler
+  // @ts-expect-error These are initialized in prepare()
+  protected renderServer: NextServer
 
   async prepare() {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
-    const isNodeDebugging = checkIsNodeDebugging()
+    const isNodeDebugging = typeof getNodeDebugType() === 'string'
 
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
@@ -297,10 +285,12 @@ class NextCustomServer extends NextServer {
       isDev: !!this.options.dev,
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
-      isNodeDebugging: !!isNodeDebugging,
+      isNodeDebugging,
+      quiet: this.options.quiet,
     })
     this.requestHandler = initResult[0]
     this.upgradeHandler = initResult[1]
+    this.renderServer = initResult[2]
   }
 
   private setupWebSocketHandler(
@@ -353,6 +343,11 @@ class NextCustomServer extends NextServer {
 
     await this.requestHandler(req as any, res as any)
     return
+  }
+
+  setAssetPrefix(assetPrefix: string): void {
+    super.setAssetPrefix(assetPrefix)
+    this.renderServer.setAssetPrefix(assetPrefix)
   }
 }
 

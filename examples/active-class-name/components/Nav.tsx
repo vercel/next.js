@@ -1,14 +1,14 @@
-import ActiveLink from './ActiveLink'
+import ActiveLink from "./ActiveLink";
 
 const Nav = () => (
   <nav>
-    <style jsx>{`
+    <style jsx global>{`
       .nav-link {
         text-decoration: none;
       }
 
       .active:after {
-        content: ' (current page)';
+        content: " (current page)";
       }
     `}</style>
     <ul className="nav">
@@ -39,6 +39,6 @@ const Nav = () => (
       </li>
     </ul>
   </nav>
-)
+);
 
-export default Nav
+export default Nav;

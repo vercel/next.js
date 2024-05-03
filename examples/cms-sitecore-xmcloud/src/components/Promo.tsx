@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 import {
   Image as JssImage,
   Link as JssLink,
@@ -7,19 +7,19 @@ import {
   Field,
   LinkField,
   Text,
-} from '@sitecore-jss/sitecore-jss-nextjs'
+} from "@sitecore-jss/sitecore-jss-nextjs";
 
 interface Fields {
-  PromoIcon: ImageField
-  PromoText: Field<string>
-  PromoLink: LinkField
-  PromoText2: Field<string>
+  PromoIcon: ImageField;
+  PromoText: Field<string>;
+  PromoLink: LinkField;
+  PromoText2: Field<string>;
 }
 
 type PromoProps = {
-  params: { [key: string]: string }
-  fields: Fields
-}
+  params: { [key: string]: string };
+  fields: Fields;
+};
 
 const PromoDefaultComponent = (props: PromoProps): JSX.Element => (
   <div className={`component promo ${props.params.styles}`}>
@@ -27,10 +27,10 @@ const PromoDefaultComponent = (props: PromoProps): JSX.Element => (
       <span className="is-empty-hint">Promo</span>
     </div>
   </div>
-)
+);
 
 export const Default = (props: PromoProps): JSX.Element => {
-  const id = props.params.RenderingIdentifier
+  const id = props.params.RenderingIdentifier;
   if (props.fields) {
     return (
       <div
@@ -53,14 +53,14 @@ export const Default = (props: PromoProps): JSX.Element => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  return <PromoDefaultComponent {...props} />
-}
+  return <PromoDefaultComponent {...props} />;
+};
 
 export const WithText = (props: PromoProps): JSX.Element => {
-  const id = props.params.RenderingIdentifier
+  const id = props.params.RenderingIdentifier;
   if (props.fields) {
     return (
       <div
@@ -83,8 +83,8 @@ export const WithText = (props: PromoProps): JSX.Element => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  return <PromoDefaultComponent {...props} />
-}
+  return <PromoDefaultComponent {...props} />;
+};

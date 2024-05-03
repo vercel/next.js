@@ -63,13 +63,15 @@ pub async fn dynamic_image_metadata_source(
     };
 
     let source = Vc::upcast(FileSource::new(path));
-    let exports = &*collect_direct_exports(asset_context.process(
-        source,
-        turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
-    ))
-    .await?;
+    let module = asset_context
+        .process(
+            source,
+            turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::Undefined,
+            )),
+        )
+        .module();
+    let exports = &*collect_direct_exports(module).await?;
     let exported_fields_excluding_default = exports
         .iter()
         .filter(|e| *e != "default")

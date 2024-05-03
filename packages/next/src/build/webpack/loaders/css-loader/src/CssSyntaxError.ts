@@ -15,7 +15,7 @@ export default class CssSyntaxError extends Error {
       this.message += `(${line}:${column}) `
     }
 
-    this.message += `${reason}`
+    this.message += reason
 
     const code = error.showSourceCode()
 

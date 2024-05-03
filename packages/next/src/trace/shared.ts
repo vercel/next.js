@@ -1,5 +1,3 @@
-export type SpanId = number
-
 let _traceGlobals: Map<any, any> = (global as any)._traceGlobals
 
 if (!_traceGlobals) {

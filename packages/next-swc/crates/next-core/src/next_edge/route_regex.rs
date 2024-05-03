@@ -68,8 +68,17 @@ fn escape_string_regexp(segment: &str) -> String {
     regex::escape(segment)
 }
 
+/// Removes the trailing slash for a given route or page path. Preserves the
+/// root page. Examples:
+///  - `/foo/bar/` -> `/foo/bar`
+///  - `/foo/bar` -> `/foo/bar`
+///  - `/` -> `/`
 fn remove_trailing_slash(route: &str) -> &str {
-    route.trim_end_matches('/')
+    if route == "/" {
+        route
+    } else {
+        route.trim_end_matches('/')
+    }
 }
 
 static PARAM_MATCH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());

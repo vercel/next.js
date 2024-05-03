@@ -5,10 +5,14 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
-describe('Customized webpack config with main.js', () => {
-  it('should run correctly with main.js customized', async () => {
-    const { code } = await nextBuild(appDir, [], {})
+// Skip webpack specific test in Turbopack
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'Customized webpack config with main.js',
+  () => {
+    it('should run correctly with main.js customized', async () => {
+      const { code } = await nextBuild(appDir, [], {})
 
-    expect(code).toBe(0)
-  })
-})
+      expect(code).toBe(0)
+    })
+  }
+)

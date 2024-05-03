@@ -5,6 +5,7 @@ import type { RequestStore } from '../../client/components/request-async-storage
 import type { RenderOpts } from '../app-render/types'
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { NextRequest } from '../web/spec-extension/request'
+import type { __ApiPreviewProps } from '../api-utils'
 
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import {
@@ -16,8 +17,8 @@ import {
   RequestCookiesAdapter,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
-import { __ApiPreviewProps } from '../api-utils'
+import type { ResponseCookies } from '../web/spec-extension/cookies'
+import { RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -100,9 +101,26 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       },
       get cookies() {
         if (!cache.cookies) {
+          // if middleware is setting cookie(s), then include those in
+          // the initial cached cookies so they can be read in render
+          let combinedCookies
+          if (
+            'x-middleware-set-cookie' in req.headers &&
+            typeof req.headers['x-middleware-set-cookie'] === 'string'
+          ) {
+            combinedCookies = `${req.headers.cookie}; ${req.headers['x-middleware-set-cookie']}`
+          }
+
           // Seal the cookies object that'll freeze out any methods that could
           // mutate the underlying data.
-          cache.cookies = getCookies(req.headers)
+          cache.cookies = getCookies(
+            combinedCookies
+              ? {
+                  ...req.headers,
+                  cookie: combinedCookies,
+                }
+              : req.headers
+          )
         }
 
         return cache.cookies
@@ -129,6 +147,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
         return cache.draftMode
       },
+      reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
+      assetPrefix: renderOpts?.assetPrefix || '',
     }
 
     return storage.run(store, callback, store)

@@ -70,6 +70,7 @@
   font-size: 0.9rem;
   line-height: 1.5;
   max-width: 30ch;
+  text-wrap: balance;
 }
 
 .center {
@@ -97,7 +98,7 @@
 
 .center::before,
 .center::after {
-  content: '';
+  content: "";
   left: 50%;
   position: absolute;
   filter: blur(45px);

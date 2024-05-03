@@ -63,18 +63,18 @@ The `metric` object passed as the hook's argument consists of a number of proper
 - `id`: Unique identifier for the metric in the context of the current page load
 - `name`: The name of the performance metric. Possible values include names of [Web Vitals](#web-vitals) metrics (TTFB, FCP, LCP, FID, CLS) specific to a web application.
 - `delta`: The difference between the current value and the previous value of the metric. The value is typically in milliseconds and represents the change in the metric's value over time.
-- `entries`: An array of [Performance Entries](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry) associated with the metric. These entries provide detailed information about the performance events related to the metric.
-- `navigationType`: Indicates the [type of navigation](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming/type) that triggered the metric collection. Possible values include `"navigate"`, `"reload"`, `"back_forward"`, and `"prerender"`.
+- `entries`: An array of [Performance Entries](https://developer.mozilla.org/docs/Web/API/PerformanceEntry) associated with the metric. These entries provide detailed information about the performance events related to the metric.
+- `navigationType`: Indicates the [type of navigation](https://developer.mozilla.org/docs/Web/API/PerformanceNavigationTiming/type) that triggered the metric collection. Possible values include `"navigate"`, `"reload"`, `"back_forward"`, and `"prerender"`.
 - `rating`: A qualitative rating of the metric value, providing an assessment of the performance. Possible values are `"good"`, `"needs-improvement"`, and `"poor"`. The rating is typically determined by comparing the metric value against predefined thresholds that indicate acceptable or suboptimal performance.
-- `value`: The actual value or duration of the performance entry, typically in milliseconds. The value provides a quantitative measure of the performance aspect being tracked by the metric. The source of the value depends on the specific metric being measured and can come from various [Performance API](https://developer.mozilla.org/en-US/docs/Web/API/Performance_API)s.
+- `value`: The actual value or duration of the performance entry, typically in milliseconds. The value provides a quantitative measure of the performance aspect being tracked by the metric. The source of the value depends on the specific metric being measured and can come from various [Performance API](https://developer.mozilla.org/docs/Web/API/Performance_API)s.
 
 ## Web Vitals
 
 [Web Vitals](https://web.dev/vitals/) are a set of useful metrics that aim to capture the user
 experience of a web page. The following web vitals are all included:
 
-- [Time to First Byte](https://developer.mozilla.org/en-US/docs/Glossary/Time_to_first_byte) (TTFB)
-- [First Contentful Paint](https://developer.mozilla.org/en-US/docs/Glossary/First_contentful_paint) (FCP)
+- [Time to First Byte](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) (TTFB)
+- [First Contentful Paint](https://developer.mozilla.org/docs/Glossary/First_contentful_paint) (FCP)
 - [Largest Contentful Paint](https://web.dev/lcp/) (LCP)
 - [First Input Delay](https://web.dev/fid/) (FID)
 - [Cumulative Layout Shift](https://web.dev/cls/) (CLS)
@@ -164,21 +164,27 @@ measure the time it takes for the page to hydrate and render:
 
 You can handle all the results of these metrics separately:
 
-```js
-export function reportWebVitals(metric) {
-  switch (metric.name) {
-    case 'Next.js-hydration':
-      // handle hydration results
-      break
-    case 'Next.js-route-change-to-render':
-      // handle route-change to render results
-      break
-    case 'Next.js-render':
-      // handle render results
-      break
-    default:
-      break
-  }
+```jsx filename="pages/_app.js"
+import { useReportWebVitals } from 'next/web-vitals'
+
+function MyApp({ Component, pageProps }) {
+  useReportWebVitals((metric) => {
+    switch (metric.name) {
+      case 'Next.js-hydration':
+        // handle hydration results
+        break
+      case 'Next.js-route-change-to-render':
+        // handle route-change to render results
+        break
+      case 'Next.js-render':
+        // handle render results
+        break
+      default:
+        break
+    }
+  })
+
+  return <Component {...pageProps} />
 }
 ```
 
@@ -188,7 +194,8 @@ These metrics work in all browsers that support the [User Timing API](https://ca
 
 ## Usage on Vercel
 
-[Vercel Speed Insights](https://vercel.com/docs/concepts/speed-insights) are automatically configured on Vercel deployments, and don't require the use of `useReportWebVitals`. This hook is useful in local development, or if you're using a different analytics service.
+[Vercel Speed Insights](https://vercel.com/docs/speed-insights/quickstart) does not `useReportWebVitals`, but `@vercel/speed-insights` package instead.
+`useReportWebVitals` hook is useful in local development, or if you're using a different service for collecting Web Vitals.
 
 ## Sending results to external systems
 

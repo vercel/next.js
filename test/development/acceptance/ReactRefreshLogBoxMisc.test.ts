@@ -30,7 +30,7 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children"`
     )
@@ -64,7 +64,7 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
     )
@@ -79,7 +79,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -103,7 +103,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -127,7 +127,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -151,7 +151,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -175,7 +175,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchSnapshot()
 
     await session.patch(
@@ -200,7 +200,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchSnapshot()
 
     await cleanup()
@@ -226,7 +226,7 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await cleanup()
   })
 })

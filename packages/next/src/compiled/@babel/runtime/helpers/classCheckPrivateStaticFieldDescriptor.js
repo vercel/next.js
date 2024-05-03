@@ -3,6 +3,4 @@ function _classCheckPrivateStaticFieldDescriptor(descriptor, action) {
     throw new TypeError("attempted to " + action + " private static field before its declaration");
   }
 }
-
-module.exports = _classCheckPrivateStaticFieldDescriptor;
-module.exports["default"] = module.exports, module.exports.__esModule = true;
+module.exports = _classCheckPrivateStaticFieldDescriptor, module.exports.__esModule = true, module.exports["default"] = module.exports;

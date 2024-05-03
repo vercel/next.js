@@ -2,10 +2,10 @@ import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
-describe('should set-up next', () => {
+describe('next/head', () => {
   let next: NextInstance
 
   beforeAll(async () => {

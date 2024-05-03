@@ -1,11 +1,11 @@
-import Alert from '../components/alert'
-import Footer from '../components/footer'
-import Meta from '../components/meta'
+import Alert from "../components/alert";
+import Footer from "../components/footer";
+import Meta from "../components/meta";
 
 type LayoutProps = {
-  preview: boolean
-  children: React.ReactNode
-}
+  preview: boolean;
+  children: React.ReactNode;
+};
 
 export default function Layout({ preview, children }: LayoutProps) {
   return (
@@ -17,5 +17,5 @@ export default function Layout({ preview, children }: LayoutProps) {
       </div>
       <Footer />
     </>
-  )
+  );
 }

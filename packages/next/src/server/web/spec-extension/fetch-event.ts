@@ -1,5 +1,5 @@
 import { PageSignatureError } from '../error'
-import { NextRequest } from './request'
+import type { NextRequest } from './request'
 
 const responseSymbol = Symbol('response')
 const passThroughSymbol = Symbol('passThrough')

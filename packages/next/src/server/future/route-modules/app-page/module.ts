@@ -1,4 +1,3 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../../render-result'
 import type { RenderOpts } from '../../../app-render/types'
@@ -11,7 +10,24 @@ import {
   type RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-import * as sharedModules from './shared-modules'
+import * as vendoredContexts from './vendored/contexts/entrypoints'
+import type { BaseNextRequest, BaseNextResponse } from '../../../base-http'
+
+let vendoredReactRSC
+let vendoredReactSSR
+
+// the vendored Reacts are loaded from their original source in the edge runtime
+if (process.env.NEXT_RUNTIME !== 'edge') {
+  vendoredReactRSC = require('./vendored/rsc/entrypoints')
+  vendoredReactSSR = require('./vendored/ssr/entrypoints')
+}
+
+/**
+ * The AppPageModule is the type of the module exported by the bundled app page
+ * module.
+ */
+export type AppPageModule =
+  typeof import('../../../../build/templates/app-page')
 
 type AppPageUserlandModule = {
   /**
@@ -35,11 +51,9 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
-  static readonly sharedModules = sharedModules
-
   public render(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
     return renderToHTMLOrFlight(
@@ -52,6 +66,12 @@ export class AppPageRouteModule extends RouteModule<
   }
 }
 
-export { renderToHTMLOrFlight }
+const vendored = {
+  'react-rsc': vendoredReactRSC,
+  'react-ssr': vendoredReactSSR,
+  contexts: vendoredContexts,
+}
+
+export { renderToHTMLOrFlight, vendored }
 
 export default AppPageRouteModule

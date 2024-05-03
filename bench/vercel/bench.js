@@ -1,8 +1,6 @@
 import { Command } from 'commander'
 import console from 'console'
 
-import chalk from 'chalk'
-
 import PQueue from 'p-queue'
 import {
   generateProjects,
@@ -11,6 +9,7 @@ import {
 } from './project-utils.js'
 import { printBenchmarkResults } from './chart.js'
 import { genRetryableRequest } from './gen-request.js'
+import { bold, red } from '../../packages/next/dist/lib/picocolors.js'
 
 const program = new Command()
 
@@ -60,7 +59,7 @@ try {
 
   const headBenchResults = await runBenchmark(headBenchmarkURL)
 
-  console.log(chalk.bold('Benchmark results for cold:'))
+  console.log(bold('Benchmark results for cold:'))
   printBenchmarkResults(
     {
       origin: benchResults,
@@ -68,7 +67,7 @@ try {
     },
     (r) => r.cold && r.firstByte <= TTFB_OUTLIERS_THRESHOLD && r.firstByte
   )
-  console.log(chalk.bold('Benchmark results for hot:'))
+  console.log(bold('Benchmark results for hot:'))
   printBenchmarkResults(
     {
       origin: benchResults,
@@ -77,7 +76,7 @@ try {
     (r) => !r.cold && r.firstByte <= TTFB_OUTLIERS_THRESHOLD && r.firstByte
   )
 } catch (err) {
-  console.log(chalk.red('Benchmark failed: ', err))
+  console.log(red('Benchmark failed: ', err))
 } finally {
   await cleanupProjectFolders()
 }

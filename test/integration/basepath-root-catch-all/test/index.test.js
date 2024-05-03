@@ -27,8 +27,10 @@ const runTests = () => {
   })
 }
 
-describe('dev mode', () => {
+// Skip as it runs `next build`, seems that is a bug.
+;(process.env.TURBOPACK ? describe.skip : describe)('development mode', () => {
   beforeAll(async () => {
+    // TODO: This look like a bug, `nextBuild` shouldn't be required here.
     await nextBuild(appDir)
     appPort = await findPort()
     buildId = 'development'
@@ -37,14 +39,16 @@ describe('dev mode', () => {
   afterAll(() => killApp(app))
   runTests()
 })
-
-describe('production mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
-  runTests()
-})
+;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+  'production mode',
+  () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  }
+)

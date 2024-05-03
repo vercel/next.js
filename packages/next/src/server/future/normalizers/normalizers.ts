@@ -1,4 +1,4 @@
-import { Normalizer } from './normalizer'
+import type { Normalizer } from './normalizer'
 
 /**
  * Normalizers combines many normalizers into a single normalizer interface that

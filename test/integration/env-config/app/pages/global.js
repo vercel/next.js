@@ -1,3 +1,8 @@
+import { useEffect, useState } from 'react'
 export default function Page() {
-  return <p>{process.env.NEXT_PUBLIC_TEST_DEST}</p>
+  const [path, setPath] = useState(null)
+  useEffect(() => {
+    setPath(process.env.NEXT_PUBLIC_TEST_DEST)
+  }, [])
+  return path ? <p id="global-value">{path}</p> : <p>Waiting </p>
 }

@@ -19,14 +19,24 @@ const TEMPLATES_ESM_FOLDER = path.normalize(
  * handle replacement values that are related to imports.
  *
  * @param entrypoint the entrypoint to load
- * @param replacements the replacements to perform
+ * @param replacements string replacements to perform
+ * @param injections code injections to perform
+ * @param imports optional imports to insert or set to null
  * @returns the loaded file with the replacements
  */
-
 export async function loadEntrypoint(
-  entrypoint: 'pages' | 'pages-api' | 'app-page' | 'app-route',
+  entrypoint:
+    | 'app-page'
+    | 'app-route'
+    | 'edge-app-route'
+    | 'edge-ssr'
+    | 'edge-ssr-app'
+    | 'middleware'
+    | 'pages'
+    | 'pages-api',
   replacements: Record<`VAR_${string}`, string>,
-  injections?: Record<string, string>
+  injections?: Record<string, string>,
+  imports?: Record<string, string | null>
 ): Promise<string> {
   const filepath = path.resolve(
     path.join(TEMPLATES_ESM_FOLDER, `${entrypoint}.js`)
@@ -38,7 +48,7 @@ export async function loadEntrypoint(
   // imports to be relative to the root of the `next` package.
   let count = 0
   file = file.replaceAll(
-    /(?:from "(\..*)"|import "(\..*)")/g,
+    /from '(\..*)'|import '(\..*)'/g,
     function (_, fromRequest, importRequest) {
       count++
 
@@ -80,12 +90,12 @@ export async function loadEntrypoint(
   file = file.replaceAll(
     new RegExp(
       `${Object.keys(replacements)
-        .map((k) => `"${k}"`)
+        .map((k) => `'${k}'`)
         .join('|')}`,
       'g'
     ),
     (match) => {
-      const key = JSON.parse(match)
+      const key = JSON.parse(match.replace(/'/g, `"`))
 
       if (!(key in replacements)) {
         throw new Error(`Invariant: Unexpected template variable ${key}`)
@@ -162,6 +172,57 @@ export async function loadEntrypoint(
 
     throw new Error(
       `Invariant: Expected to inject all injections, missing ${difference.join(
+        ', '
+      )} in template`
+    )
+  }
+
+  // Replace the optional imports.
+  const importsAdded = new Set<string>()
+  if (imports) {
+    // Track all the imports to ensure that we're not missing any.
+    file = file.replaceAll(
+      new RegExp(
+        `// OPTIONAL_IMPORT:(\\* as )?(${Object.keys(imports).join('|')})`,
+        'g'
+      ),
+      (_, asNamespace = '', key) => {
+        if (!(key in imports)) {
+          throw new Error(`Invariant: Unexpected optional import ${key}`)
+        }
+
+        importsAdded.add(key)
+
+        if (imports[key]) {
+          return `import ${asNamespace}${key} from ${JSON.stringify(
+            imports[key]
+          )}`
+        } else {
+          return `const ${key} = null`
+        }
+      }
+    )
+  }
+
+  // Check to see if there's any remaining imports.
+  matches = file.match(/\/\/ OPTIONAL_IMPORT:(\* as )?[A-Za-z0-9_]+/g)
+  if (matches) {
+    throw new Error(
+      `Invariant: Expected to inject all imports, found ${matches.join(', ')}`
+    )
+  }
+
+  // Check to see if any import was provided but not used.
+  if (importsAdded.size !== Object.keys(imports ?? {}).length) {
+    // Find the difference between the provided imports and the injected
+    // imports. This will let us notify the user of any imports that were
+    // not used but were provided.
+    const difference = Object.keys(imports ?? {}).filter(
+      (key) => !importsAdded.has(key)
+    )
+
+    throw new Error(
+      `Invariant: Expected to inject all imports, missing ${difference.join(
         ', '
       )} in template`
     )

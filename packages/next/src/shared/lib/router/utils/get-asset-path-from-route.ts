@@ -9,6 +9,6 @@ export default function getAssetPathFromRoute(
       ? '/index'
       : /^\/index(\/|$)/.test(route)
       ? `/index${route}`
-      : `${route}`
+      : route
   return path + ext
 }

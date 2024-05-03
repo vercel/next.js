@@ -23,28 +23,34 @@ function runTest() {
   })
 }
 
-describe('dev mode', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
+;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+  'development mode',
+  () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-  runTest()
-})
+    runTest()
+  }
+)
 
-// TODO enable that once turbopack supports middleware in dev mode
-describe.skip('production mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
+// TODO enable that once turbopack supports middleware in development mode
+;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+  'production mode',
+  () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-    const outdir = join(__dirname, '..', 'out')
-    await fs.remove(outdir).catch(() => {})
+      const outdir = join(__dirname, '..', 'out')
+      await fs.remove(outdir).catch(() => {})
 
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-  runTest()
-})
+    runTest()
+  }
+)
