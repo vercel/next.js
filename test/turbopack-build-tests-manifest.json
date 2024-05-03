@@ -148,6 +148,7 @@
         "app-dir action handling fetch actions should handle revalidateTag",
         "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling fetch actions should revalidate when cookies.set is called",
         "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
         "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
@@ -193,7 +194,6 @@
         "app-dir action handling should work with interception routes"
       ],
       "failed": [
-        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling should not expose action content in sourcemaps"
       ],
       "pending": [
@@ -1505,8 +1505,7 @@
         "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
         "app dir - next/dynamic should handle next/dynamic in SSR correctly",
         "app dir - next/dynamic should handle next/dynamic in hydration correctly",
-        "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
-        "app dir - next/dynamic should not render loading by default"
+        "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled"
       ],
       "failed": [
         "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime"
@@ -2052,6 +2051,7 @@
         "app dir - navigation query string should handle unicode search params",
         "app dir - navigation query string should not reset shallow url updates on prefetch",
         "app dir - navigation query string should set query correctly",
+        "app dir - navigation query string should set query with semicolon correctly",
         "app dir - navigation query string useParams identity between renders should be stable in app",
         "app dir - navigation redirect components should only trigger the redirect once (/redirect/servercomponent)",
         "app dir - navigation redirect components should only trigger the redirect once (redirect/redirect-with-loading)",
@@ -2271,7 +2271,6 @@
       "passed": [
         "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
         "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
-        "parallel-routes-and-interception parallel routes should gracefully handle when two page segments match the `children` parallel slot",
         "parallel-routes-and-interception parallel routes should handle a loading state",
         "parallel-routes-and-interception parallel routes should load CSS for a default page that exports another page",
         "parallel-routes-and-interception parallel routes should match parallel routes",
@@ -2295,7 +2294,8 @@
         "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
         "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
         "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-        "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
+        "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+        "parallel-routes-and-interception with patching should gracefully handle when two page segments match the `children` parallel slot"
       ],
       "failed": [],
       "pending": [],
@@ -2304,7 +2304,10 @@
     },
     "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts": {
       "passed": [
-        "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params"
+        "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params",
+        "parallel-routes-breadcrumbs should render the breadcrumbs correctly with catchall route segments",
+        "parallel-routes-breadcrumbs should render the breadcrumbs correctly with optional catchall route segments",
+        "parallel-routes-breadcrumbs should render the breadcrumbs correctly with the non-dynamic route segments"
       ],
       "failed": [],
       "pending": [],
@@ -3063,13 +3066,6 @@
       "passed": [
         "(SCSS) Multi Global Support (reversed) should render the page"
       ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/e2e/app-dir/scss/multi-global/multi-global.test.ts": {
-      "passed": ["Multi Global Support should render the page"],
       "failed": [],
       "pending": [],
       "flakey": [],
