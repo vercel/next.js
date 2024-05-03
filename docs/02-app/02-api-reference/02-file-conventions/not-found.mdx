@@ -83,6 +83,18 @@ export default async function NotFound() {
 }
 ```
 
+> **Good to know**:
+>
+> - Because **not-found** is included as part of every route, using [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions) in a **not-found** file will cause every page to be opted into dynamic rendering.
+> - To revert to the default caching behavior, the following Route Segment Config can be used in the affected pages:
+> ```tsx filename="page.tsx" switcher
+> export const fetchCache = 'default-cache'
+> ```
+> 
+> ```js filename="page.js" switcher
+> export const fetchCache = 'default-cache'
+> ```
+
 If you need to use Client Component hooks like `usePathname` to display content based on the path, you must fetch data on the client-side instead.
 
 ## Version History
