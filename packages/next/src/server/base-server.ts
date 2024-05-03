@@ -139,7 +139,7 @@ import {
 } from './future/route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
-import { getIsServerAction } from './lib/server-action-request-meta'
+import { checkIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -1875,7 +1875,7 @@ export default abstract class Server<
 
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-    const isServerAction = getIsServerAction(req)
+    const isServerAction = checkIsServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
