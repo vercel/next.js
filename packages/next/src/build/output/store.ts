@@ -36,7 +36,7 @@ export function formatTrigger(trigger: string) {
   }
   return trigger
 }
-
+// @ts-ignore Typescript complains here when emitting declarations.
 export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,

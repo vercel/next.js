@@ -288,7 +288,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     doResolve: (
       request: string,
       parent: string,
-      job: import('@vercel/nft/out/node-file-trace').Job,
+      job: import('@next/vendored/@vercel/nft/out/node-file-trace').Job,
       isEsmRequested: boolean
     ) => Promise<string>,
     readlink: any,
@@ -640,7 +640,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return (
             parent: string,
             request: string,
-            job: import('@vercel/nft/out/node-file-trace').Job
+            job: import('@next/vendored/@vercel/nft/out/node-file-trace').Job
           ) =>
             new Promise<[string, boolean]>((resolve, reject) => {
               const context = nodePath.dirname(parent)
@@ -743,7 +743,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         const doResolve = async (
           request: string,
           parent: string,
-          job: import('@vercel/nft/out/node-file-trace').Job,
+          job: import('@next/vendored/@vercel/nft/out/node-file-trace').Job,
           isEsmRequested: boolean
         ): Promise<string> => {
           const context = nodePath.dirname(parent)

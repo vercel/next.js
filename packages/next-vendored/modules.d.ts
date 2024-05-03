@@ -210,6 +210,10 @@ declare module '@next/vendored/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module '@next/vendored/@vercel/nft/out/node-file-trace' {
+  import m from '@vercel/nft/out/node-file-trace'
+  export = m
+}
 declare module '@next/vendored/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
@@ -235,8 +239,13 @@ declare module '@next/vendored/text-table' {
   export = textTable
 }
 declare module '@next/vendored/unistore' {
-  import m from 'unistore'
-  export = m
+  import createStore from 'unistore'
+  import { Store } from 'unistore'
+  export { Store }
+  export default createStore
+}
+declare module '@next/vendored/unistore' {
+  export * from 'unistore'
 }
 declare module '@next/vendored/watchpack' {
   import { EventEmitter } from 'events'
