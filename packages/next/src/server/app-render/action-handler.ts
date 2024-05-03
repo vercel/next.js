@@ -117,9 +117,12 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(
-    Object.values(staticGenerationStore.pendingRevalidates || [])
-  )
+  await Promise.all([
+    staticGenerationStore.incrementalCache?.revalidateTag(
+      staticGenerationStore.revalidatedTags || []
+    ),
+    ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+  ])
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -481,9 +484,12 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(
-          Object.values(staticGenerationStore.pendingRevalidates || [])
-        )
+        await Promise.all([
+          staticGenerationStore.incrementalCache?.revalidateTag(
+            staticGenerationStore.revalidatedTags || []
+          ),
+          ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ])
 
         const promise = Promise.reject(error)
         try {
@@ -840,9 +846,12 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(
-        Object.values(staticGenerationStore.pendingRevalidates || [])
-      )
+      await Promise.all([
+        staticGenerationStore.incrementalCache?.revalidateTag(
+          staticGenerationStore.revalidatedTags || []
+        ),
+        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+      ])
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
