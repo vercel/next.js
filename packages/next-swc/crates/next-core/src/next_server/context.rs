@@ -98,6 +98,17 @@ pub enum ServerContextType {
     Instrumentation,
 }
 
+impl ServerContextType {
+    pub fn supports_react_server(&self) -> bool {
+        matches!(
+            self,
+            ServerContextType::AppRSC { .. }
+                | ServerContextType::AppRoute { .. }
+                | ServerContextType::PagesApi { .. }
+        )
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
@@ -151,18 +162,10 @@ pub async fn get_server_resolve_options_context(
             .map(ToString::to_string),
     );
 
-    match ty {
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::Middleware { .. } => {
-            custom_conditions.push("react-server".to_string())
-        }
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::Instrumentation { .. } => {}
+    if ty.supports_react_server() {
+        custom_conditions.push("react-server".to_string());
     };
+
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
@@ -324,7 +327,7 @@ pub async fn get_server_module_options_context(
     let mut foreign_next_server_rules =
         get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
             .await?;
-    let internal_custom_rules = get_next_server_internal_transforms_rules(
+    let mut internal_custom_rules = get_next_server_internal_transforms_rules(
         ty.into_value(),
         next_config.mdx_rs().await?.is_some(),
     )
@@ -614,10 +617,16 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
         } => {
             next_server_rules.extend(source_transform_rules);
+
+            let mut common_next_server_rules = vec![
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                    .await?,
+            ];
+
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
             {
-                next_server_rules.push(get_ecma_transform_rule(
+                common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
                         ecmascript_client_reference_transition_name,
                     )),
@@ -626,10 +635,8 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
-            next_server_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
-                    .await?,
-            );
+            next_server_rules.extend(common_next_server_rules.iter().cloned());
+            internal_custom_rules.extend(common_next_server_rules);
 
             let module_options_context = ModuleOptionsContext {
                 esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),

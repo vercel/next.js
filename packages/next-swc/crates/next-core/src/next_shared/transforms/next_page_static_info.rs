@@ -100,6 +100,8 @@ impl CustomTransformer for NextPageStaticInfo {
                         messages.push(format!("- `export const preferredRegion = {}`", regions));
                     }
 
+                    messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
+
                     PageStaticInfoIssue {
                         file_path: ctx.file_path,
                         messages,
