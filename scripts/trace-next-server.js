@@ -4,7 +4,7 @@ const execa = require('execa')
 const fsp = require('fs/promises')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('@next/vendored/gzip-size')
-const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
+const { nodeFileTrace } = require('@next/vendored/@vercel/nft')
 const { linkPackages } =
   require('../.github/actions/next-stats-action/src/prepare/repo-setup')()
 

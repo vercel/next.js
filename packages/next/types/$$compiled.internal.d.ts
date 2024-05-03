@@ -56,11 +56,6 @@ declare module 'next/dist/compiled/cssnano-simple' {
   export = cssnanoSimple
 }
 
-declare module 'next/dist/compiled/superstruct' {
-  import m from 'superstruct'
-  export = m
-}
-
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
@@ -99,49 +94,11 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
-declare module 'next/dist/compiled/string-hash' {
-  import m from 'string-hash'
-  export = m
-}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
   export = m
 }
-declare module 'next/dist/compiled/strip-ansi' {
-  import m from 'strip-ansi'
-  export = m
-}
-declare module 'next/dist/compiled/@vercel/nft' {
-  import m from '@vercel/nft'
-  export = m
-}
 
-declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
-}
-
-declare module 'next/dist/compiled/terser' {
-  import m from 'terser'
-  export = m
-}
-
-declare module 'next/dist/compiled/text-table' {
-  function textTable(
-    rows: Array<Array<{}>>,
-    opts?: {
-      hsep?: string
-      align?: Array<'l' | 'r' | 'c' | '.'>
-      stringLength?(str: string): number
-    }
-  ): string
-
-  export = textTable
-}
-declare module 'next/dist/compiled/unistore' {
-  import m from 'unistore'
-  export = m
-}
 declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
@@ -194,36 +151,8 @@ declare namespace NodeJS {
   }
 }
 
-declare module 'next/dist/compiled/watchpack' {
-  import { EventEmitter } from 'events'
-
-  class Watchpack extends EventEmitter {
-    constructor(options?: any)
-    watch(params: {
-      files?: string[]
-      directories?: string[]
-      startTime?: number
-      missing?: string[]
-    }): void
-    watch(files: string[], directories: string[], startTime?: number): void
-    close(): void
-
-    getTimeInfoEntries(): Map<
-      string,
-      { safeTime: number; timestamp: number; accuracy?: number }
-    >
-  }
-
-  export default Watchpack
-}
-
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
-  export = m
-}
-
-declare module 'next/dist/compiled/zod' {
-  import * as m from 'zod'
   export = m
 }
 

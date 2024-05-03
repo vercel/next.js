@@ -9,7 +9,7 @@ import type { SwrDelta } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
-import s from 'next/dist/compiled/superstruct'
+import s from '@next/vendored/superstruct'
 
 export type DynamicParamTypes =
   | 'catchall'

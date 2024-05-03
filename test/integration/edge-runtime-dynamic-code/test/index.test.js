@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import { join } from 'path'
 import {
   fetchViaHTTP,

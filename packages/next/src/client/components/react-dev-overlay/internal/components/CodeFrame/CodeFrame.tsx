@@ -1,7 +1,7 @@
 import Anser from '@next/vendored/anser'
 import * as React from 'react'
 import type { StackFrame } from '@next/vendored/stacktrace-parser'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { HotlinkedText } from '../hot-linked-text'

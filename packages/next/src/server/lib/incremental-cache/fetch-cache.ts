@@ -6,8 +6,8 @@ import type {
 
 import LRUCache from '@next/vendored/lru-cache'
 
-import { z } from 'next/dist/compiled/zod'
-import type zod from 'next/dist/compiled/zod'
+import { z } from '@next/vendored/zod'
+import type zod from '@next/vendored/zod'
 
 import {
   CACHE_ONE_YEAR,

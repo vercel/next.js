@@ -22,8 +22,8 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
-import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
-import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
+import { ZodParsedType, util as ZodUtil } from '@next/vendored/zod'
+import type { ZodError, ZodIssue } from '@next/vendored/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
 
 export { normalizeConfig } from './config-shared'

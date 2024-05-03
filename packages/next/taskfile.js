@@ -396,15 +396,6 @@ export async function ncc_next_font(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['watchpack'] = 'next/dist/compiled/watchpack'
-export async function ncc_watchpack(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('watchpack')))
-    .ncc({ packageName: 'watchpack', externals })
-    .target('src/compiled/watchpack')
-}
-
-// eslint-disable-next-line camelcase
 externals['jest-worker'] = 'next/dist/compiled/jest-worker'
 export async function ncc_jest_worker(task, opts) {
   await rmrf(join(__dirname, 'src/compiled/jest-worker'))
@@ -929,82 +920,6 @@ export async function ncc_sass_loader(task, opts) {
     })
     .target('src/compiled/sass-loader')
 }
-// eslint-disable-next-line camelcase
-externals['string-hash'] = 'next/dist/compiled/string-hash'
-export async function ncc_string_hash(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('string-hash')))
-    .ncc({ packageName: 'string-hash', externals })
-    .target('src/compiled/string-hash')
-}
-// eslint-disable-next-line camelcase
-externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
-externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
-export async function ncc_strip_ansi(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('strip-ansi')))
-    .ncc({ packageName: 'strip-ansi', externals })
-    .target('src/compiled/strip-ansi')
-}
-// eslint-disable-next-line camelcase
-externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
-export async function ncc_nft(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('@vercel/nft')))
-    .ncc({ packageName: '@vercel/nft', externals })
-    .target('src/compiled/@vercel/nft')
-}
-
-// eslint-disable-next-line camelcase
-externals['tar'] = 'next/dist/compiled/tar'
-export async function ncc_tar(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('tar')))
-    .ncc({ packageName: 'tar', externals })
-    .target('src/compiled/tar')
-}
-
-// eslint-disable-next-line camelcase
-externals['terser'] = 'next/dist/compiled/terser'
-export async function ncc_terser(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('terser')))
-    .ncc({ packageName: 'terser', externals })
-    .target('src/compiled/terser')
-}
-// eslint-disable-next-line camelcase
-externals['text-table'] = 'next/dist/compiled/text-table'
-export async function ncc_text_table(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('text-table')))
-    .ncc({ packageName: 'text-table', externals })
-    .target('src/compiled/text-table')
-}
-// eslint-disable-next-line camelcase
-externals['unistore'] = 'next/dist/compiled/unistore'
-export async function ncc_unistore(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('unistore')))
-    .ncc({ packageName: 'unistore', externals })
-    .target('src/compiled/unistore')
-}
-
-// eslint-disable-next-line camelcase
-externals['superstruct'] = 'next/dist/compiled/superstruct'
-export async function ncc_superstruct(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('superstruct')))
-    .ncc({ packageName: 'superstruct', externals })
-    .target('src/compiled/superstruct')
-}
-
-externals['zod'] = 'next/dist/compiled/zod'
-export async function ncc_zod(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('zod')))
-    .ncc({ packageName: 'zod', externals })
-    .target('src/compiled/zod')
-}
 
 // eslint-disable-next-line camelcase
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
@@ -1229,16 +1144,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_babel_bundle',
         'ncc_jsonwebtoken',
-        'ncc_string_hash',
-        'ncc_strip_ansi',
-        'ncc_superstruct',
-        'ncc_zod',
-        'ncc_nft',
-        'ncc_tar',
-        'ncc_terser',
-        'ncc_text_table',
-        'ncc_unistore',
-        'ncc_watchpack',
         'ncc_web_vitals',
         'ncc_web_vitals_attribution',
         'ncc_webpack_bundle5',

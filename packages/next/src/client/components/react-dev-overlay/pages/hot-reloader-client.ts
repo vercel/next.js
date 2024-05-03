@@ -36,7 +36,7 @@ import {
   onRefresh,
   onVersionInfo,
 } from './client'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'

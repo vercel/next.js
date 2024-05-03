@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
-import tar from 'next/dist/compiled/tar'
+import tar from '@next/vendored/tar'
 const { WritableStream } = require('node:stream/web') as {
   WritableStream: typeof global.WritableStream
 }

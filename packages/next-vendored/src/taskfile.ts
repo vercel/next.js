@@ -275,6 +275,16 @@ const nccTasks: Record<
   ncc_send: 'send',
   ncc_source_map: 'source-map',
   ncc_source_map08: { mod: 'source-map08', minify: false },
+  ncc_string_hash: 'string-hash',
+  ncc_strip_ansi: 'strip-ansi',
+  ncc_superstruct: 'superstruct',
+  ncc_zod: 'zod',
+  ncc_nft: '@vercel/nft',
+  ncc_tar: 'tar',
+  ncc_terser: 'terser',
+  ncc_text_table: 'text-table',
+  ncc_unistore: 'unistore',
+  ncc_watchpack: 'watchpack',
 }
 
 for (let [taskName, modOptions] of Object.entries(nccTasks)) {

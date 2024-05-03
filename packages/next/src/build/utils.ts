@@ -38,11 +38,11 @@ import {
   underline,
 } from '../lib/picocolors'
 import getGzipSize from '@next/vendored/gzip-size'
-import textTable from 'next/dist/compiled/text-table'
+import textTable from '@next/vendored/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import browserslist from 'next/dist/compiled/browserslist'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,

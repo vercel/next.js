@@ -202,3 +202,69 @@ declare module '@next/vendored/source-map08' {
   import m from 'source-map08'
   export = m
 }
+declare module '@next/vendored/string-hash' {
+  import m from 'string-hash'
+  export = m
+}
+declare module '@next/vendored/strip-ansi' {
+  import m from 'strip-ansi'
+  export = m
+}
+declare module '@next/vendored/@vercel/nft' {
+  import m from '@vercel/nft'
+  export = m
+}
+declare module '@next/vendored/tar' {
+  import m from 'tar'
+  export = m
+}
+declare module '@next/vendored/terser' {
+  import m from 'terser'
+  export = m
+}
+declare module '@next/vendored/text-table' {
+  function textTable(
+    rows: Array<Array<{}>>,
+    opts?: {
+      hsep?: string
+      align?: Array<'l' | 'r' | 'c' | '.'>
+      stringLength?(str: string): number
+    }
+  ): string
+
+  export = textTable
+}
+declare module '@next/vendored/unistore' {
+  import m from 'unistore'
+  export = m
+}
+declare module '@next/vendored/watchpack' {
+  import { EventEmitter } from 'events'
+
+  class Watchpack extends EventEmitter {
+    constructor(options?: any)
+    watch(params: {
+      files?: string[]
+      directories?: string[]
+      startTime?: number
+      missing?: string[]
+    }): void
+    watch(files: string[], directories: string[], startTime?: number): void
+    close(): void
+
+    getTimeInfoEntries(): Map<
+      string,
+      { safeTime: number; timestamp: number; accuracy?: number }
+    >
+  }
+
+  export default Watchpack
+}
+declare module '@next/vendored/zod' {
+  import * as m from 'zod'
+  export = m
+}
+declare module '@next/vendored/superstruct' {
+  import m from 'superstruct'
+  export = m
+}

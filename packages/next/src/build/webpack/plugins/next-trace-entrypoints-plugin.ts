@@ -2,8 +2,8 @@ import nodePath from 'path'
 import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from '@next/vendored/@vercel/nft'
+import type { NodeFileTraceReasons } from '@next/vendored/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
