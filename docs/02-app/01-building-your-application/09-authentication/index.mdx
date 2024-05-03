@@ -770,7 +770,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
-eexport async function updateSession() {
+export async function updateSession() {
   const session = cookies().get('session').value
   const payload = await decrypt(session)
 

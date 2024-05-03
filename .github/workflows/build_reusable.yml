@@ -133,6 +133,12 @@ jobs:
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
+      # Configure a git user so that Create Next App can initialize git repos during integration tests.
+      - name: Set CI git user
+        run: |
+          git config --global user.name "vercel-ci-bot"
+          git config --global user.email "infra+ci@vercel.com"
+
       - run: cargo clean
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 

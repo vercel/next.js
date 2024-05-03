@@ -1,5 +1,6 @@
 import {
   createNextApp,
+  projectShouldHaveNoGitChanges,
   shouldBeTemplateProject,
   spawnExitPromise,
   tryNextDev,
@@ -78,11 +79,8 @@ describe('create-next-app --no-app (Pages Router)', () => {
         template: 'default',
         mode: 'ts',
       })
-      await tryNextDev({
-        cwd,
-        projectName,
-        isApp: false,
-      })
+      await tryNextDev({ cwd, projectName, isApp: false })
+      await projectShouldHaveNoGitChanges({ cwd, projectName })
     })
   })
 
