@@ -1847,6 +1847,8 @@ export default abstract class Server<
       fallbackMode = pathsResult.fallbackMode
       hasFallback = typeof fallbackMode !== 'undefined'
 
+      if (!!staticPaths?.length) pathsResult.fallbackMode = 'static'
+
       if (this.nextConfig.output === 'export') {
         const page = components.page
 
