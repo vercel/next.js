@@ -31,12 +31,21 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
 
   let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
 
-  if (type) {
-    normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
-  } else if (isDynamicRoute(originalPath)) {
-    console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
-    )
+  // A static route should not have a type, because a cache tag belonging to a dynamic
+  // page won't ever be tagged with `/page` or `/layout` -- it'd just be the canonical URL.
+  // We only append the type in the dynamic case, or for the root layout.
+  if (isDynamicRoute(originalPath)) {
+    if (type) {
+      normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
+    } else {
+      console.warn(
+        `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
+      )
+    }
+  } else if (normalizedPath === '/' && type === 'layout') {
+    // the only time we want to append "type" is if it's a root layout revalidation,
+    // as all cached fetches are tagged with `/layout`.
+    normalizedPath = '/layout'
   }
   return revalidate(normalizedPath, `revalidatePath ${originalPath}`)
 }
