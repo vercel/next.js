@@ -36,11 +36,11 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
+        tasks_fs::{File, FileContent, FileSystemPath},
     },
     turbopack::{
         core::{
@@ -1242,36 +1242,6 @@ impl AppEndpoint {
 
         Ok(endpoint_output)
     }
-}
-
-#[turbo_tasks::function]
-async fn concatenate_output_assets(
-    path: Vc<FileSystemPath>,
-    files: Vc<OutputAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let mut concatenated_content = RopeBuilder::default();
-    let contents = files
-        .await?
-        .iter()
-        .map(|&file| async move {
-            Ok(
-                if let AssetContent::File(content) = *file.content().await? {
-                    Some(content.await?)
-                } else {
-                    None
-                },
-            )
-        })
-        .try_flat_join()
-        .await?;
-    for file in contents.iter().flat_map(|content| content.as_content()) {
-        concatenated_content.concat(file.content());
-        concatenated_content.push_static_bytes(b"\n\n");
-    }
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        path,
-        AssetContent::file(FileContent::Content(concatenated_content.build().into()).cell()),
-    )))
 }
 
 #[turbo_tasks::value_impl]
