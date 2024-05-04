@@ -20,7 +20,7 @@ import type { RequestInit } from 'node-fetch'
 type SetupTestsCtx = {
   appDir: string
   imagesDir: string
-  nextConfigImages?: import('next').NextConfig['images'] | undefined
+  nextConfigImages?: Partial<import('next').NextConfig['images']>
   isDev?: boolean
 }
 
@@ -261,7 +261,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
-  if (ctx.nextConfigImages.dangerouslyAllowSVG) {
+  if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should maintain vector svg', async () => {
       const query = { w: ctx.w, q: 90, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
@@ -810,7 +810,7 @@ export function runTests(ctx: RunTestsCtx) {
       const json2 = await fsToJson(ctx.imagesDir)
       expect(json2).toStrictEqual(json1)
 
-      if (ctx.nextConfigImages.minimumCacheTTL) {
+      if (ctx.nextConfigImages?.minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
         await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
@@ -956,7 +956,7 @@ export function runTests(ctx: RunTestsCtx) {
     const json2 = await fsToJson(ctx.imagesDir)
     expect(json2).toStrictEqual(json1)
 
-    if (ctx.nextConfigImages.minimumCacheTTL) {
+    if (ctx.nextConfigImages?.minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
       await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
@@ -1015,7 +1015,7 @@ export function runTests(ctx: RunTestsCtx) {
     }
   })
 
-  if (ctx.nextConfigImages.dangerouslyAllowSVG) {
+  if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should use cached image file when parameters are the same for svg', async () => {
       await cleanImagesDir(ctx)
 
