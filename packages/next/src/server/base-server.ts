@@ -1845,6 +1845,7 @@ export default abstract class Server<
 
       staticPaths = pathsResult.staticPaths
 
+      // change [fallbackMode] if staticPaths is defined and not empty
       if (!!staticPaths?.length) pathsResult.fallbackMode = 'static'
 
       fallbackMode = pathsResult.fallbackMode
