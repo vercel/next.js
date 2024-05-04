@@ -17,6 +17,21 @@ import {
 import isAnimated from 'next/dist/compiled/is-animated'
 import type { RequestInit } from 'node-fetch'
 
+type SetupTestsCtx = {
+  appDir: string
+  imagesDir: string
+  nextConfigImages?: import('next').NextConfig['images'] | undefined
+  isDev?: boolean
+}
+
+type RunTestsCtx = SetupTestsCtx & {
+  w: number
+  app?: import('child_process').ChildProcess
+  appDir?: string
+  appPort?: number
+  nextOutput?: string
+}
+
 const largeSize = 1080 // defaults defined in server/config.ts
 const animatedWarnText =
   'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
@@ -53,7 +68,7 @@ export async function serveSlowImage() {
   }
 }
 
-export async function fsToJson(dir, output = {}) {
+export async function fsToJson(dir: string, output = {}) {
   const files = await fs.readdir(dir)
   for (let file of files) {
     const fsPath = join(dir, file)
@@ -77,12 +92,16 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
-export const cleanImagesDir = async (ctx) => {
+export const cleanImagesDir = async (ctx: { imagesDir: string }) => {
   console.warn('Cleaning', ctx.imagesDir)
   await fs.remove(ctx.imagesDir)
 }
 
-async function expectAvifSmallerThanWebp(w, q, appPort) {
+async function expectAvifSmallerThanWebp(
+  w: number,
+  q: number,
+  appPort: number
+) {
   const query = { url: '/mountains.jpg', w, q }
   const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
     headers: {
@@ -130,7 +149,7 @@ async function fetchWithDuration(
   return { duration, buffer, res }
 }
 
-export function runTests(ctx) {
+export function runTests(ctx: RunTestsCtx) {
   const { isDev, nextConfigImages } = ctx
   const {
     contentDispositionType = 'inline',
@@ -242,7 +261,7 @@ export function runTests(ctx) {
     expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
-  if (ctx.dangerouslyAllowSVG) {
+  if (ctx.nextConfigImages.dangerouslyAllowSVG) {
     it('should maintain vector svg', async () => {
       const query = { w: ctx.w, q: 90, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
@@ -266,7 +285,12 @@ export function runTests(ctx) {
         'utf8'
       )
       expect(actual).toMatch(expected)
-      expect(ctx.nextOutput).not.toContain('The requested resource')
+      expect(ctx.nextOutput).not.toContain(
+        `The requested resource isn't a valid image`
+      )
+      expect(ctx.nextOutput).not.toContain(
+        `valid but image type is not allowed`
+      )
     })
   } else {
     it('should not allow vector svg', async () => {
@@ -299,6 +323,16 @@ export function runTests(ctx) {
 
     it('should not allow svg with uppercase header', async () => {
       const query = { w: ctx.w, q: 65, url: '/api/uppercase.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toContain(
+        '"url" parameter is valid but image type is not allowed'
+      )
+    })
+
+    it('should not allow svg with wrong header', async () => {
+      const query = { w: ctx.w, q: 65, url: '/api/wrong-header.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -615,6 +649,23 @@ export function runTests(ctx) {
     // FIXME: await expectWidth(res, ctx.w)
   })
 
+  it('should resize tiff', async () => {
+    const query = { url: '/test.tiff', w: ctx.w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.webp"`
+    )
+    await expectWidth(res, ctx.w)
+  })
+
   it('should resize relative url and old Chrome accept header as webp', async () => {
     const query = { url: '/test.png', w: ctx.w, q: 80 }
     const opts = {
@@ -759,9 +810,9 @@ export function runTests(ctx) {
       const json2 = await fsToJson(ctx.imagesDir)
       expect(json2).toStrictEqual(json1)
 
-      if (ctx.minimumCacheTTL) {
+      if (ctx.nextConfigImages.minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(ctx.minimumCacheTTL * 1000)
+        await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
         const [three, four] = await Promise.all([
           fetchWithDuration(ctx.appPort, '/_next/image', query, opts),
@@ -905,9 +956,9 @@ export function runTests(ctx) {
     const json2 = await fsToJson(ctx.imagesDir)
     expect(json2).toStrictEqual(json1)
 
-    if (ctx.minimumCacheTTL) {
+    if (ctx.nextConfigImages.minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
-      await waitFor(ctx.minimumCacheTTL * 1000)
+      await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
       const [three, four] = await Promise.all([
         fetchWithDuration(ctx.appPort, '/_next/image', query, opts),
@@ -964,7 +1015,7 @@ export function runTests(ctx) {
     }
   })
 
-  if (ctx.dangerouslyAllowSVG) {
+  if (ctx.nextConfigImages.dangerouslyAllowSVG) {
     it('should use cached image file when parameters are the same for svg', async () => {
       await cleanImagesDir(ctx)
 
@@ -1235,7 +1286,7 @@ export function runTests(ctx) {
   }
 }
 
-export const setupTests = (ctx) => {
+export const setupTests = (ctx: SetupTestsCtx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
 
   describe('dev support w/o next.config.js', () => {
@@ -1244,7 +1295,7 @@ export const setupTests = (ctx) => {
       return
     }
     const size = 384 // defaults defined in server/config.ts
-    const curCtx = {
+    const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       isDev: true,
@@ -1277,7 +1328,7 @@ export const setupTests = (ctx) => {
 
   describe('dev support with next.config.js', () => {
     const size = 400
-    const curCtx = {
+    const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       isDev: true,
@@ -1289,7 +1340,7 @@ export const setupTests = (ctx) => {
           'assets.vercel.com',
           'image-optimization-test.vercel.app',
         ],
-        formats: ['image/avif', 'image/webp'],
+        formats: ['image/avif', 'image/webp'] as any,
         deviceSizes: [largeSize],
         imageSizes: [size],
         ...ctx.nextConfigImages,
@@ -1328,7 +1379,7 @@ export const setupTests = (ctx) => {
         return
       }
       const size = 384 // defaults defined in server/config.ts
-      const curCtx = {
+      const curCtx: RunTestsCtx = {
         ...ctx,
         w: size,
         isDev: false,
@@ -1363,7 +1414,7 @@ export const setupTests = (ctx) => {
     'Production Mode Server support with next.config.js',
     () => {
       const size = 399
-      const curCtx = {
+      const curCtx: RunTestsCtx = {
         ...ctx,
         w: size,
         isDev: false,
@@ -1375,7 +1426,7 @@ export const setupTests = (ctx) => {
             'assets.vercel.com',
             'image-optimization-test.vercel.app',
           ],
-          formats: ['image/avif', 'image/webp'],
+          formats: ['image/avif', 'image/webp'] as any,
           deviceSizes: [size, largeSize],
           ...ctx.nextConfigImages,
         },
