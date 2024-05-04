@@ -914,7 +914,13 @@ export function runTests(ctx: RunTestsCtx) {
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
     await cleanImagesDir(ctx)
 
-    const query = { url: '/test.png', w: ctx.w, q: 80 }
+    if (globalThis.isrImgQuality) {
+      globalThis.isrImgQuality++
+    } else {
+      globalThis.isrImgQuality = 80
+    }
+
+    const query = { url: '/test.png', w: ctx.w, q: globalThis.isrImgQuality }
     const opts = { headers: { accept: 'image/webp' } }
 
     const one = await fetchWithDuration(
@@ -1371,7 +1377,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
 
     runTests(curCtx)
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'Production Mode Server support w/o next.config.js',
     () => {
       if (ctx.nextConfigImages) {
