@@ -255,7 +255,9 @@ async function createRedirectRenderResult(
   const parsedRedirectUrl = new URL(redirectUrl, 'http://n')
   const isAppRelativeRedirect =
     redirectUrl.startsWith('/') ||
-    (originalHost && originalHost.value === parsedRedirectUrl.host)
+    (originalHost &&
+      originalHost.value === parsedRedirectUrl.host &&
+      parsedRedirectUrl.pathname.startsWith(basePath))
 
   if (isAppRelativeRedirect) {
     if (!originalHost) {
