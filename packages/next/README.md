@@ -44,7 +44,7 @@ Do note that our [Code of Conduct](https://github.com/vercel/next.js/blob/canary
 
 ## Usage Trend
 
-[Usage Trend of Next.js](https://npm-compare.com/next/#timeRange=THREE_YEARS)
+[Usage Trend of Next.js](https://npm-compare.com/next#timeRange=THREE_YEARS)
 
 <a href="https://npm-compare.com/next#timeRange=THREE_YEARS" target="_blank">
   <img src="https://npm-compare.com/img/npm-trend/THREE_YEARS/next.png" width="100%" alt="NPM Usage Trend of Next.js" />
