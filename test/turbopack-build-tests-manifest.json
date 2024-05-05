@@ -14307,9 +14307,7 @@
     },
     "test/production/deterministic-build/index.test.ts": {
       "passed": [],
-      "failed": [
-        "deterministic build > should have same md5 file across build"
-      ],
+      "failed": ["deterministic build should have same md5 file across build"],
       "pending": [],
       "flakey": [],
       "runtimeError": false
