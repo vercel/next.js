@@ -109,6 +109,7 @@ import {
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
+import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -207,6 +208,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
+  pagePath: string,
   flightRouterState: FlightRouterState | undefined
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
@@ -234,17 +236,45 @@ function makeGetDynamicParamFromSegment(
     }
 
     if (!value) {
-      // Handle case where optional catchall does not have a value, e.g. `/dashboard/[...slug]` when requesting `/dashboard`
-      if (segmentParam.type === 'optional-catchall') {
-        const type = dynamicParamTypes[segmentParam.type]
+      const isCatchall = segmentParam.type === 'catchall'
+      const isOptionalCatchall = segmentParam.type === 'optional-catchall'
+
+      if (isCatchall || isOptionalCatchall) {
+        const dynamicParamType = dynamicParamTypes[segmentParam.type]
+        // handle the case where an optional catchall does not have a value,
+        // e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
+        if (isOptionalCatchall) {
+          return {
+            param: key,
+            value: null,
+            type: dynamicParamType,
+            treeSegment: [key, '', dynamicParamType],
+          }
+        }
+
+        // handle the case where a catchall or optional catchall does not have a value,
+        // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
+        value = pagePath
+          .split('/')
+          // remove the first empty string
+          .slice(1)
+          // replace any dynamic params with the actual values
+          .flatMap((pathSegment) => {
+            const param = parseParameter(pathSegment)
+            // if the segment matches a param, return the param value
+            // otherwise, it's a static segment, so just return that
+            return params[param.key] ?? param.key
+          })
+
         return {
           param: key,
-          value: null,
-          type: type,
+          value,
+          type: dynamicParamType,
           // This value always has to be a string.
-          treeSegment: [key, '', type],
+          treeSegment: [key, value.join('/'), dynamicParamType],
         }
       }
+
       return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
@@ -786,6 +816,7 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
+    pagePath,
     // `FlightRouterState` is unconditionally provided here because this method uses it
     // to extract dynamic params as a fallback if they're not present in the path.
     parsedFlightRouterState
@@ -1343,9 +1374,12 @@ async function renderToHTMLOrFlightImpl(
 
   // If we have pending revalidates, wait until they are all resolved.
   if (staticGenerationStore.pendingRevalidates) {
-    options.waitUntil = Promise.all(
-      Object.values(staticGenerationStore.pendingRevalidates)
-    )
+    options.waitUntil = Promise.all([
+      staticGenerationStore.incrementalCache?.revalidateTag(
+        staticGenerationStore.revalidatedTags || []
+      ),
+      ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+    ])
   }
 
   addImplicitTags(staticGenerationStore)

@@ -118,8 +118,6 @@ export function createWebpackAliases({
         }
       : undefined),
 
-    next: NEXT_PROJECT_ROOT,
-
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 
@@ -259,9 +257,9 @@ export function createRSCAliases(
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    // TODO: restore optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,

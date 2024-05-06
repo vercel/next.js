@@ -1,4 +1,4 @@
-import { type NextInstance, createNextDescribe, FileRef } from 'e2e-utils'
+import { type NextInstance, nextTestSetup, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import fs from 'fs'
 
@@ -27,37 +27,40 @@ function runTests(
   })
 }
 
-createNextDescribe(
-  'app-dir - custom-cache-handler - cjs',
-  {
+describe('app-dir - custom-cache-handler - cjs', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     env: {
       CUSTOM_CACHE_HANDLER: 'cache-handler.js',
     },
-  },
-  ({ next, isNextDev }) => {
-    runTests('cjs module exports', { next, isNextDev })
-  }
-)
+  })
 
-createNextDescribe(
-  'app-dir - custom-cache-handler - cjs-default-export',
-  {
+  if (skipped) {
+    return
+  }
+
+  runTests('cjs module exports', { next, isNextDev })
+})
+
+describe('app-dir - custom-cache-handler - cjs-default-export', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     env: {
       CUSTOM_CACHE_HANDLER: 'cache-handler-cjs-default-export.js',
     },
-  },
-  ({ next, isNextDev }) => {
-    runTests('cjs default export', { next, isNextDev })
-  }
-)
+  })
 
-createNextDescribe(
-  'app-dir - custom-cache-handler - esm',
-  {
+  if (skipped) {
+    return
+  }
+
+  runTests('cjs default export', { next, isNextDev })
+})
+
+describe('app-dir - custom-cache-handler - esm', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: {
       app: new FileRef(__dirname + '/app'),
       'cache-handler-esm.js': new FileRef(__dirname + '/cache-handler-esm.js'),
@@ -73,8 +76,11 @@ createNextDescribe(
     env: {
       CUSTOM_CACHE_HANDLER: 'cache-handler-esm.js',
     },
-  },
-  ({ next, isNextDev }) => {
-    runTests('esm default export', { next, isNextDev })
+  })
+
+  if (skipped) {
+    return
   }
-)
+
+  runTests('esm default export', { next, isNextDev })
+})

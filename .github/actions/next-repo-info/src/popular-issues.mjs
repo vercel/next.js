@@ -10,7 +10,7 @@ function generateBlocks(issues) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/issue_popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-issues.mjs|action> will run every Monday at 1PM UTC (9AM EST)._',
+        text: '*A list of the top 15 issues sorted by the most reactions over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-issues.mjs|action> will run every Monday at 10AM UTC (6AM EST). These issues are automatically synced to Linear._',
       },
     },
     {
@@ -21,9 +21,9 @@ function generateBlocks(issues) {
   let text = ''
 
   issues.forEach((issue, i) => {
-    text += `${i + 1}. [<${issue.html_url}|#${issue.number}>, :+1: ${
-      issue.reactions['+1']
-    }, ${formattedDate(issue.created_at)}]: ${issue.title}\n`
+    text += `${i + 1}. [<${issue.html_url}|#${issue.number}>, ${
+      issue.reactions.total_count
+    } reactions, ${formattedDate(issue.created_at)}]: ${issue.title}\n`
   })
 
   blocks.push({
@@ -50,10 +50,19 @@ async function run() {
       order: 'desc',
       per_page: 15,
       q: `repo:${owner}/${repo} is:issue is:open created:>=${ninetyDaysAgo()}`,
-      sort: 'reactions-+1',
+      sort: 'reactions',
     })
 
     if (data.items.length > 0) {
+      data.items.forEach(async (item) => {
+        await octoClient.rest.issues.addLabels({
+          owner,
+          repo,
+          issue_number: item.number,
+          labels: ['linear: next'],
+        })
+      })
+
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
         channel: '#team-next-js',
