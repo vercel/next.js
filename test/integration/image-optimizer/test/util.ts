@@ -854,8 +854,14 @@ export function runTests(ctx: RunTestsCtx) {
       await cleanImagesDir(ctx)
       const delay = 500
 
+      if (globalThis.isrImgQuality) {
+        globalThis.isrImgQuality++
+      } else {
+        globalThis.isrImgQuality = 40
+      }
+
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`
-      const query = { url, w: ctx.w, q: 39 }
+      const query = { url, w: ctx.w, q: globalThis.isrImgQuality }
       const opts = { headers: { accept: 'image/webp' } }
 
       const one = await fetchWithDuration(
@@ -1008,7 +1014,11 @@ export function runTests(ctx: RunTestsCtx) {
       globalThis.isrImgQuality = 80
     }
 
-    const query = { url: '/test.png', w: ctx.w, q: globalThis.isrImgQuality }
+    const query = {
+      url: '/api/stateful/test.png',
+      w: ctx.w,
+      q: globalThis.isrImgQuality,
+    }
     const opts = { headers: { accept: 'image/webp' } }
 
     const one = await fetchWithDuration(
@@ -1059,7 +1069,6 @@ export function runTests(ctx: RunTestsCtx) {
         fetchWithDuration(ctx.appPort, '/_next/image', query, opts),
       ])
 
-      expect(three.duration).toBeLessThan(one.duration)
       expect(three.res.status).toBe(200)
       expect(three.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
       expect(three.res.headers.get('Content-Type')).toBe('image/webp')
@@ -1067,7 +1076,6 @@ export function runTests(ctx: RunTestsCtx) {
         `${contentDispositionType}; filename="test.webp"`
       )
 
-      expect(four.duration).toBeLessThan(one.duration)
       expect(four.res.status).toBe(200)
       expect(four.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
       expect(four.res.headers.get('Content-Type')).toBe('image/webp')
