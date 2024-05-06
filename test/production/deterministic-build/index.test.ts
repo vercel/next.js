@@ -1,6 +1,5 @@
 import crypto from 'crypto'
 import { NextInstance, nextTestSetup } from 'e2e-utils'
-import { nextBuild } from 'next-test-utils'
 
 function generateMD5(text: string) {
   const hash = crypto.createHash('md5')
@@ -46,7 +45,7 @@ describe('deterministic build', () => {
 
   beforeAll(async () => {
     // First build
-    await nextBuild(__dirname, [])
+    await next.build()
     edgeBuildFileMd5Hashes.push(await getEdgeRouteFilesFromManifest(next))
     for (const file of nodeFilePaths) {
       const content = await next.readFile(`.next/server/${file}.js`)
@@ -54,7 +53,7 @@ describe('deterministic build', () => {
     }
 
     // Second build
-    await nextBuild(__dirname, [])
+    await next.build()
     edgeBuildFileMd5Hashes.push(await getEdgeRouteFilesFromManifest(next))
     for (const file of nodeFilePaths) {
       const content = await next.readFile(`.next/server/${file}.js`)
