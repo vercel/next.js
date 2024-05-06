@@ -143,14 +143,6 @@ export async function createHotReloaderTurbopack(
       middlewareMatchers: undefined,
     }),
   })
-  // Intentionally not awaited as it starts a server
-  if (process.env.NEXT_TURBOPACK_TRACING) {
-    bindings.turbo.startTurbopackTraceServer(join(distDir, 'trace.log'))
-    Log.warn(
-      'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
-    )
-  }
-
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentEntrypoints: Entrypoints = {
