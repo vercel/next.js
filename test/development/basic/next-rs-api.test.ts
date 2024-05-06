@@ -218,6 +218,13 @@ describe('next.rs api', () => {
         hasRewrites: false,
         middlewareMatchers: undefined,
       }),
+      buildId: 'development',
+      encryptionKey: '12345',
+      previewProps: {
+        previewModeId: 'development',
+        previewModeEncryptionKey: '12345',
+        previewModeSigningKey: '12345',
+      },
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
