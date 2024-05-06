@@ -419,7 +419,7 @@ export async function exportAppImpl(
           serverActionsManifest,
         }
       : {}),
-    strictNextHead: !!nextConfig.experimental.strictNextHead,
+    strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     experimental: {
       ppr: nextConfig.experimental.ppr === true,
