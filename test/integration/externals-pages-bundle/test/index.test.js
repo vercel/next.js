@@ -21,7 +21,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
         expect(output).not.toContain('require("external-package")')
       })
 
-      it('should respect the serverComponentsExternals config', async () => {
+      it('should respect the serverExternalPackages config', async () => {
         const output = await fs.readFile(
           join(appDir, '.next/server/pages/index.js'),
           'utf8'

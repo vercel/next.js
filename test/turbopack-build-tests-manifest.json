@@ -8481,7 +8481,7 @@
       "passed": [],
       "failed": [
         "bundle pages externals with config.bundlePagesRouterDependencies production mode should have no externals with the config set",
-        "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverComponentsExternals config"
+        "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverExternalPackages config"
       ],
       "pending": [],
       "flakey": [],

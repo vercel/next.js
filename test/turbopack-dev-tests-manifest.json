@@ -10499,7 +10499,7 @@
     "failed": [],
     "pending": [
       "bundle pages externals with config.bundlePagesRouterDependencies production mode should have no externals with the config set",
-      "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverComponentsExternals config"
+      "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverExternalsPackages config"
     ],
     "flakey": [],
     "runtimeError": false
