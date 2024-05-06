@@ -1397,9 +1397,6 @@ export default async function build(
             // TODO: Implement
             middlewareMatchers: undefined,
           }),
-          buildId: NextBuildContext.buildId!,
-          encryptionKey: NextBuildContext.encryptionKey!,
-          previewProps: NextBuildContext.previewProps!,
         })
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
@@ -2753,8 +2750,7 @@ export default async function build(
               },
             ]
 
-            // Always sort the routes to get consistent output in manifests
-            getSortedRoutes(routes).forEach((route) => {
+            routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
 

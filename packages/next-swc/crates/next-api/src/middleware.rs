@@ -161,7 +161,6 @@ impl MiddlewareEndpoint {
             page: "/".to_string(),
             regions: None,
             matchers,
-            env: this.project.edge_env().await?.clone_value(),
             ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {

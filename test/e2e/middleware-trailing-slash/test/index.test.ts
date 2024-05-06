@@ -112,7 +112,7 @@ describe('Middleware Runtime trailing slash', () => {
         const middlewareWithoutEnvs = {
           ...manifest.middleware['/'],
         }
-        delete middlewareWithoutEnvs.env
+        delete middlewareWithoutEnvs.environments
         expect(middlewareWithoutEnvs).toEqual({
           files: expect.arrayContaining([
             'prerender-manifest.js',

@@ -170,9 +170,9 @@ describe('Middleware Runtime', () => {
           ...manifest.middleware['/'],
         }
         const envs = {
-          ...middlewareWithoutEnvs.env,
+          ...middlewareWithoutEnvs.environments,
         }
-        delete middlewareWithoutEnvs.env
+        delete middlewareWithoutEnvs.environments
         expect(middlewareWithoutEnvs).toEqual({
           files: expect.arrayContaining([
             'server/edge-runtime-webpack.js',
@@ -186,11 +186,9 @@ describe('Middleware Runtime', () => {
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
-          'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
-          '__NEXT_BUILD_ID',
-          '__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
-          '__NEXT_PREVIEW_MODE_ID',
-          '__NEXT_PREVIEW_MODE_SIGNING_KEY',
+          'previewModeEncryptionKey',
+          'previewModeId',
+          'previewModeSigningKey',
         ])
       })
 
