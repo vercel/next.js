@@ -169,6 +169,9 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.instrument,
       WEBPACK_LAYERS_NAMES.middleware,
+    ],
+    neutralTarget: [
+      // pages api
       WEBPACK_LAYERS_NAMES.api,
     ],
     clientOnly: [
