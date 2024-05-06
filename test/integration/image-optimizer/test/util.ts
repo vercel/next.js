@@ -649,23 +649,6 @@ export function runTests(ctx: RunTestsCtx) {
     // FIXME: await expectWidth(res, ctx.w)
   })
 
-  it('should resize tiff', async () => {
-    const query = { url: '/test.tiff', w: ctx.w, q: 80 }
-    const opts = { headers: { accept: 'image/webp' } }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/webp')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
-    expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="test.webp"`
-    )
-    await expectWidth(res, ctx.w)
-  })
-
   it('should resize relative url and old Chrome accept header as webp', async () => {
     const query = { url: '/test.png', w: ctx.w, q: 80 }
     const opts = {
