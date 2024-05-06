@@ -1,5 +1,7 @@
-import { WEBPACK_LAYERS } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
+import type { NextConfigComplete } from '../server/config-shared'
+import type { ResolveOptions } from 'webpack'
+import { WEBPACK_LAYERS } from '../lib/constants'
 import { defaultOverrides } from '../server/require-hook'
 import { BARREL_OPTIMIZATION_PREFIX } from '../shared/lib/constants'
 import path from '../shared/lib/isomorphic/path'
@@ -10,7 +12,6 @@ import {
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerOnlyLayer } from './utils'
-import type { NextConfigComplete } from '../server/config-shared'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
@@ -59,7 +60,7 @@ export async function resolveExternal(
   isEsmRequested: boolean,
   _optOutBundlingPackages: string[],
   getResolve: (
-    options: any
+    options: ResolveOptions
   ) => (
     resolveContext: string,
     resolveRequest: string
@@ -87,9 +88,9 @@ export async function resolveExternal(
       : [false]
 
   for (const preferEsm of preferEsmOptions) {
-    const resolve = getResolve(
-      preferEsm ? esmResolveOptions : nodeResolveOptions
-    )
+    const resolveOptions = preferEsm ? esmResolveOptions : nodeResolveOptions
+
+    const resolve = getResolve(resolveOptions)
 
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
@@ -416,14 +417,14 @@ function resolveBundlingOptOutPackages({
       config.transpilePackages,
       resolvedExternalPackageDirs
     ) ||
-    (isEsm && isAppLayer) ||
+    // (isEsm && isAppLayer) ||
     (!isAppLayer && config.experimental.bundlePagesExternals)
 
-  if (nodeModulesRegex.test(resolvedRes)) {
+  if (nodeModulesRegex.test(resolvedRes) || !resolvedRes.startsWith('.')) {
     const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
     // Apply bundling rules to all app layers.
     // Since handleExternals only handle the server layers, we don't need to exclude client here
-    if (isWebpackAppLayer(layer)) {
+    if (isAppLayer) {
       if (isOptOutBundling) {
         return `${externalType} ${request}` // Externalize if opted out
       }

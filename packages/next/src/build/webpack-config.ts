@@ -213,7 +213,7 @@ export const NODE_RESOLVE_OPTIONS = {
   importsFields: ['imports'],
   conditionNames: ['node', 'require'],
   descriptionFiles: ['package.json'],
-  extensions: ['.js', '.json', '.node'],
+  extensions: ['.cjs', '.js', '.json', '.node'],
   enforceExtensions: false,
   symlinks: true,
   mainFields: ['main'],
@@ -235,6 +235,7 @@ export const NODE_ESM_RESOLVE_OPTIONS = {
   alias: false,
   dependencyType: 'esm',
   conditionNames: ['node', 'import'],
+  extensions: ['.mjs', '.js', '.json', '.node'],
   fullySpecified: true,
 }
 

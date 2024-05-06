@@ -39,6 +39,7 @@ import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { interopDefault } from './interop-default'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -765,14 +766,17 @@ export async function handleAction({
         }
       }
 
-      const actionHandler = (
+      const actionMod = interopDefault(
         await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
+      )
+      const actionHandler =
+        actionMod[
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
+        ]
 
       const returnVal = await actionHandler.apply(null, bound)
+      console.log('actionMod', actionMod, actionHandler, 'returnVal', returnVal)
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
