@@ -1647,7 +1647,6 @@ export async function isPageStatic({
               builtConfig.fetchCache = fetchCache
             }
             // If partial prerendering has been set, only override it if the current value is
-            // If it has been set, only override it if the current value is
             // provided as it's resolved from root layout to leaf page.
             if (typeof experimental_ppr !== 'undefined') {
               builtConfig.experimental_ppr = experimental_ppr
