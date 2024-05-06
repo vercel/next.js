@@ -45,15 +45,11 @@ export function checkIsRoutePPREnabled(
     experimental_ppr?: boolean
   }
 ): boolean {
-  // If the config is undefined or false, partial prerendering is disabled.
-  if (typeof config === 'undefined' || config === false) {
-    return false
-  }
+  // If the config is undefined, partial prerendering is disabled.
+  if (typeof config === 'undefined') return false
 
-  // If the config is set to true, then the page supports partial prerendering.
-  if (config === true) {
-    return true
-  }
+  // If the config is a boolean, use it directly.
+  if (typeof config === 'boolean') return config
 
   // If the config is a string, it must be 'incremental' to enable partial
   // prerendering.

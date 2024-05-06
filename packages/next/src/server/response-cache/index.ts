@@ -1,10 +1,10 @@
 import type {
+  IncrementalCache,
   ResponseCacheEntry,
   ResponseGenerator,
   IncrementalCacheItem,
   ResponseCacheBase,
   IncrementalCacheKindHint,
-  ResponseCacheBaseContext,
 } from './types'
 import { RouteKind } from '../future/route-kind'
 
@@ -48,7 +48,12 @@ export default class ResponseCache implements ResponseCacheBase {
   public async get(
     key: string | null,
     responseGenerator: ResponseGenerator,
-    context: ResponseCacheBaseContext
+    context: {
+      routeKind?: RouteKind
+      isOnDemandRevalidate?: boolean
+      isPrefetch?: boolean
+      incrementalCache: IncrementalCache
+    }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the
     // cache so just return the result of the response generator.
