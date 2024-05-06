@@ -259,9 +259,8 @@ function makeGetDynamicParamFromSegment(
           // remove the first empty string
           .slice(1)
           // replace any dynamic params with the actual values
-          .map((pathSegment) => {
+          .flatMap((pathSegment) => {
             const param = parseParameter(pathSegment)
-
             // if the segment matches a param, return the param value
             // otherwise, it's a static segment, so just return that
             return params[param.key] ?? param.key
@@ -1375,9 +1374,12 @@ async function renderToHTMLOrFlightImpl(
 
   // If we have pending revalidates, wait until they are all resolved.
   if (staticGenerationStore.pendingRevalidates) {
-    options.waitUntil = Promise.all(
-      Object.values(staticGenerationStore.pendingRevalidates)
-    )
+    options.waitUntil = Promise.all([
+      staticGenerationStore.incrementalCache?.revalidateTag(
+        staticGenerationStore.revalidatedTags || []
+      ),
+      ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+    ])
   }
 
   addImplicitTags(staticGenerationStore)

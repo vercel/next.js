@@ -1,4 +1,4 @@
-import { Suspense, Fragment, lazy } from 'react'
+import { Suspense, lazy } from 'react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 import { PreloadCss } from './preload-css'
@@ -48,10 +48,7 @@ function Loadable(options: LoadableOptions) {
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
 
-    const isSSR = opts.ssr
-    const Wrap = isSSR ? Fragment : Suspense
-    const wrapProps = isSSR ? {} : { fallback: fallbackElement }
-    const children = isSSR ? (
+    const children = opts.ssr ? (
       <>
         {/* During SSR, we need to preload the CSS from the dynamic component to avoid flash of unstyled content */}
         {typeof window === 'undefined' ? (
@@ -65,7 +62,7 @@ function Loadable(options: LoadableOptions) {
       </BailoutToCSR>
     )
 
-    return <Wrap {...wrapProps}>{children}</Wrap>
+    return <Suspense fallback={fallbackElement}>{children}</Suspense>
   }
 
   LoadableComponent.displayName = 'LoadableComponent'

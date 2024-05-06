@@ -45,6 +45,7 @@ pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,
 };
+pub use next_import_map::get_next_package;
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
 use turbopack_binding::{turbo, turbopack};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
