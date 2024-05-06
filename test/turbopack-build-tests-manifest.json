@@ -10842,6 +10842,7 @@
         "with contentDispositionType attachment dev support with next.config.js should use cached image file when parameters are the same for animated gif"
       ],
       "failed": [
+        "with contentDispositionType attachment Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
         "with contentDispositionType attachment Production Mode Server support with next.config.js should set cache-control to immutable for static images"
       ],
       "pending": [],
@@ -10961,6 +10962,7 @@
         "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for animated gif"
       ],
       "failed": [
+        "with dangerouslyAllowSVG config Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should set cache-control to immutable for static images"
       ],
       "pending": [],
@@ -11114,6 +11116,7 @@
         "with minimumCacheTTL of 5 sec dev support with next.config.js should use cached image file when parameters are the same for animated gif"
       ],
       "failed": [
+        "with minimumCacheTTL of 5 sec Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should set cache-control to immutable for static images"
       ],
       "pending": [],
