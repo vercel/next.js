@@ -112,15 +112,10 @@ describe('module layer', () => {
         await next.patchFile(pagesApiFile, pagesApiContent)
       })
 
-      it('should error when import client packages in pages/api', async () => {
-        const existingCliOutputLength = next.cliOutput.length
+      it('should not error when import client packages in pages/api', async () => {
         await retry(async () => {
-          await next.fetch('/api/mixed')
-          const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
-          expect(newCliOutput).toContain('./pages/api/mixed.js')
-          expect(newCliOutput).toContain(
-            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
-          )
+          const { status } = await next.fetch('/api/mixed')
+          expect(status).toBe(200)
         })
       })
     })
