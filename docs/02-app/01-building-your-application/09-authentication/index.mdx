@@ -290,7 +290,7 @@ export function SignupForm() {
 
 You can also use the `useFormStatus()` hook to handle the pending state on form submission:
 
-```tsx filename="app/ui/signup-form.tsx" highlight={7} switcher
+```tsx filename="app/ui/signup-form.tsx" highlight={6} switcher
 'use client'
 
 import { useFormStatus, useFormState } from 'react-dom'
@@ -306,7 +306,7 @@ export function SignupButton() {
 }
 ```
 
-```jsx filename="app/ui/signup-form.js"  highlight={7} switcher
+```jsx filename="app/ui/signup-form.js"  highlight={6} switcher
 'use client'
 
 import { useFormStatus, useFormState } from 'react-dom'
@@ -1517,20 +1517,6 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 Using context providers for auth work due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
-
-```tsx filename="app/layout.ts" switcher
-import { ContextProvider } from 'auth-lib'
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        <ContextProvider>{children}</ContextProvider>
-      </body>
-    </html>
-  )
-}
-```
 
 ```tsx filename="app/layout.ts" switcher
 import { ContextProvider } from 'auth-lib'
