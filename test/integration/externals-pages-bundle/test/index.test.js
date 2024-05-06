@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
-describe('bundle pages externals with config.experimental.bundlePagesExternals', () => {
+describe('bundle pages externals with config.bundlePagesRouterDependencies', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

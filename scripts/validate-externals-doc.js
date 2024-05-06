@@ -3,7 +3,7 @@ const path = require('path')
 
 const serverExternals = require('../packages/next/src/lib/server-external-packages.json')
 
-const docPath = `docs/02-app/02-api-reference/05-next-config-js/serverComponentsExternalPackages.mdx`
+const docPath = `docs/02-app/02-api-reference/05-next-config-js/serverExternalPackages.mdx`
 const docContent = fs.readFileSync(path.join(__dirname, '..', docPath), 'utf8')
 
 const docPkgs = []

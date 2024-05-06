@@ -133,6 +133,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
+    bundlePagesRouterDependencies: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
@@ -317,7 +318,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
-        serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
@@ -411,7 +411,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
-        bundlePagesExternals: z.boolean().optional(),
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
@@ -568,6 +567,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     // saas option is unknown, use z.any() here
     sassOptions: z.record(z.string(), z.any()).optional(),
+    serverExternalPackages: z.array(z.string()).optional(),
     serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
