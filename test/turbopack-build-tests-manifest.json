@@ -10729,7 +10729,7 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/integration/image-optimizer/test/content-disposition-type.test.ts": {
+    "test/integration/image-optimizer/test/dangerously-allow-svg.test.ts": {
       "passed": [
         "with contentDispositionType attachment Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType attachment Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
