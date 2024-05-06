@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -249,11 +249,21 @@ pub async fn project_new(
             .context("Unable to create .next directory")
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
-        let trace_writer = std::fs::File::create(trace_file).unwrap();
+        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         let guard = ExitGuard::new(guard).unwrap();
+
+        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
+        if trace_server.is_some() {
+            thread::spawn(move || {
+                turbopack_binding::turbopack::trace_server::start_turbopack_trace_server(
+                    trace_file,
+                );
+            });
+            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+        }
 
         subscriber.init();
 

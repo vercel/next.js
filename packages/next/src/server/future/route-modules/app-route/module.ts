@@ -395,11 +395,14 @@ export class AppRouteRouteModule extends RouteModule<
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    context.renderOpts.waitUntil = Promise.all(
-                      Object.values(
-                        staticGenerationStore.pendingRevalidates || []
-                      )
-                    )
+                    context.renderOpts.waitUntil = Promise.all([
+                      staticGenerationStore.incrementalCache?.revalidateTag(
+                        staticGenerationStore.revalidatedTags || []
+                      ),
+                      ...Object.values(
+                        staticGenerationStore.pendingRevalidates || {}
+                      ),
+                    ])
 
                     addImplicitTags(staticGenerationStore)
                     ;(context.renderOpts as any).fetchTags =
