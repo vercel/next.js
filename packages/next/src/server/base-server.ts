@@ -477,21 +477,24 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    const isAppPPREnabled = checkIsAppPPREnabled(
-      this.nextConfig.experimental.ppr
-    )
+    const isAppPPREnabled =
+      this.enabledDirectories.app &&
+      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        this.enabledDirectories.app && isAppPPREnabled && this.minimalMode
+        isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
-      rsc: this.minimalMode ? new RSCPathnameNormalizer() : undefined,
+      rsc:
+        this.enabledDirectories.app && this.minimalMode
+          ? new RSCPathnameNormalizer()
+          : undefined,
       prefetchRSC:
-        this.enabledDirectories.app && isAppPPREnabled && this.minimalMode
+        isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
