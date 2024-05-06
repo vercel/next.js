@@ -139,6 +139,7 @@ __turbopack_ecmascript_hmr_protocol = [
   "turbopack-ecmascript-hmr-protocol",
 ]
 __turbopack_trace_utils = ["__turbopack", "turbopack-trace-utils"]
+__turbopack_trace_server = ["__turbopack", "turbopack-trace-server"]
 
 __turbopack_env = ["__turbopack", "turbopack-env"]
 __turbopack_image = ["__turbopack", "turbopack-image"]
@@ -236,4 +237,5 @@ turbopack-nodejs = { optional = true, workspace = true }
 turbopack-static = { optional = true, workspace = true }
 turbopack-swc-utils = { optional = true, workspace = true }
 turbopack-test-utils = { optional = true, workspace = true }
+turbopack-trace-server = { optional = true, workspace = true }
 turbopack-trace-utils = { optional = true, workspace = true }
