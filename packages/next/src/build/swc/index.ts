@@ -161,7 +161,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
     ) => Promise<Project>
-    startTurbopackTraceServer: (path: string, inProcess: boolean) => void
+    startTurbopackTraceServer: (path: string) => void
   }
   mdx: {
     compile: any
@@ -1483,14 +1483,11 @@ function loadNative(importPath?: string) {
           },
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
-        startTurbopackTraceServer: (traceFilePath, inProcess) => {
+        startTurbopackTraceServer: (traceFilePath) => {
           Log.warn(
             'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
           )
-          ;(customBindings ?? bindings).startTurbopackTraceServer(
-            traceFilePath,
-            inProcess
-          )
+          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
         },
       },
       mdx: {
