@@ -909,7 +909,12 @@
       "getNamedRouteRegex should handle multi-level interception markers",
       "getNamedRouteRegex should handle optional catch-all dynamic path segments",
       "getNamedRouteRegex should handle optional dynamic path segments",
-      "getNamedRouteRegex should match named routes correctly when interception markers are adjacent to dynamic segments"
+      "getNamedRouteRegex should match named routes correctly when interception markers are adjacent to dynamic segments",
+      "parseParameter should parse a catchall parameter",
+      "parseParameter should parse a dynamic parameter",
+      "parseParameter should parse a optional catchall parameter",
+      "parseParameter should parse a optional parameter",
+      "parseParameter should parse non-dynamic parameter"
     ],
     "failed": [],
     "pending": [],
@@ -3344,15 +3349,14 @@
       "app dir - basic should serve from public",
       "app dir - basic should serve nested parent",
       "app dir - basic should serve page as a segment name correctly",
+      "app dir - basic should serve polyfills for browsers that do not support modules",
       "app dir - basic should use new root layout when provided",
       "app dir - basic should use text/x-component for flight",
       "app dir - basic should use text/x-component for flight with edge runtime",
       "app dir - basic should work for catch-all edge page",
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
-    "failed": [
-      "app dir - basic should serve polyfills for browsers that do not support modules"
-    ],
+    "failed": [],
     "pending": [
       "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -3685,12 +3689,10 @@
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
       "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component",
-      "app dir - next/dynamic should directly raise error when dynamic component error on server",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
-      "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
-      "app dir - next/dynamic should not render loading by default"
+      "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled"
     ],
     "failed": [],
     "pending": [],
@@ -4239,6 +4241,7 @@
       "app dir - navigation query string should handle unicode search params",
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
+      "app dir - navigation query string should set query with semicolon correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should only trigger the redirect once (/redirect/servercomponent)",
@@ -4449,7 +4452,6 @@
     "passed": [
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
-      "parallel-routes-and-interception parallel routes should gracefully handle when two page segments match the `children` parallel slot",
       "parallel-routes-and-interception parallel routes should handle a loading state",
       "parallel-routes-and-interception parallel routes should load CSS for a default page that exports another page",
       "parallel-routes-and-interception parallel routes should match parallel routes",
@@ -4474,7 +4476,8 @@
       "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
+      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception with patching should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
     "pending": [],
@@ -4483,7 +4486,10 @@
   },
   "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts": {
     "passed": [
-      "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params"
+      "parallel-routes-breadcrumbs should provide an unmatched catch-all route with params",
+      "parallel-routes-breadcrumbs should render the breadcrumbs correctly with catchall route segments",
+      "parallel-routes-breadcrumbs should render the breadcrumbs correctly with optional catchall route segments",
+      "parallel-routes-breadcrumbs should render the breadcrumbs correctly with the non-dynamic route segments"
     ],
     "failed": [],
     "pending": [],
