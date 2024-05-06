@@ -354,11 +354,7 @@ describe.each([[false], [true]])(
           ? '<meta charSet="utf-8" data-next-head=""/>'
           : '<meta charSet="utf-8"/>'
       )
-      expect(html).toContain(
-        strictNextHead
-          ? '<meta charSet="utf-8" data-next-head=""/>'
-          : '<meta charSet="utf-8"/>'
-      )
+      expect(html).toContain('next-head, but only once.')
     })
 
     test('header renders default viewport', async () => {
