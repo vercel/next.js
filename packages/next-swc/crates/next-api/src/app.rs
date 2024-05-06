@@ -1100,7 +1100,6 @@ impl AppEndpoint {
                         .clone()
                         .map(Regions::Multiple),
                     matchers: vec![matchers],
-                    env: this.app_project.project().edge_env().await?.clone_value(),
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {

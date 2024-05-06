@@ -1821,11 +1821,7 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
-          edgeEnvironments: {
-            __NEXT_BUILD_ID: buildId,
-            NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
-            ...edgePreviewProps,
-          },
+          edgeEnvironments: edgePreviewProps || {},
         }),
       isClient &&
         new BuildManifestPlugin({

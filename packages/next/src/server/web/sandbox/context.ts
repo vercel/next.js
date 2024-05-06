@@ -107,14 +107,9 @@ async function loadWasm(
   return modules
 }
 
-function buildEnvironmentVariablesFrom(
-  injectedEnvironments: Record<string, string>
-): Record<string, string | undefined> {
+function buildEnvironmentVariablesFrom(): Record<string, string | undefined> {
   const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
-  for (const key of Object.keys(injectedEnvironments)) {
-    env[key] = injectedEnvironments[key]
-  }
   env.NEXT_RUNTIME = 'edge'
   return env
 }
@@ -127,16 +122,15 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill(env: Record<string, string>) {
-  const processPolyfill = { env: buildEnvironmentVariablesFrom(env) }
-  const overriddenValue: Record<string, any> = {}
-
+function createProcessPolyfill() {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom() }
+  const overridenValue: Record<string, any> = {}
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overriddenValue[key] !== undefined) {
-          return overriddenValue[key]
+        if (overridenValue[key] !== undefined) {
+          return overridenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
           return () => throwUnsupportedAPIError(`process.${key}`)
@@ -144,7 +138,7 @@ function createProcessPolyfill(env: Record<string, string>) {
         return undefined
       },
       set(value) {
-        overriddenValue[key] = value
+        overridenValue[key] = value
       },
       enumerable: false,
     })
@@ -250,15 +244,14 @@ export const requestStore = new AsyncLocalStorage<{
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
-  const { edgeFunctionEntry } = options
-  const wasm = await loadWasm(edgeFunctionEntry.wasm ?? [])
+  const wasm = await loadWasm(options.edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill(edgeFunctionEntry.env)
+      context.process = createProcessPolyfill()
 
       Object.defineProperty(context, 'require', {
         enumerable: false,
@@ -477,7 +470,7 @@ interface ModuleContextOptions {
   onWarning: (warn: Error) => void
   useCache: boolean
   distDir: string
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {
