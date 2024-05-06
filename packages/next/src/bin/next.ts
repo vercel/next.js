@@ -385,7 +385,9 @@ program
 
 const internal = program
   .command('internal')
-  .description('Internal debugging commands.')
+  .description(
+    'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
 
 internal
   .command('turbo-trace-server')
