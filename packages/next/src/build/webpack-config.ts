@@ -1854,6 +1854,7 @@ export default async function getBaseWebpackConfig(
             })
           : new FlightClientEntryPlugin({
               appDir,
+              ignore: config.experimental.serverOnlyDependencies ?? [],
               dev,
               isEdgeServer,
               encryptionKey,

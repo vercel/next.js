@@ -46,6 +46,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 interface Options {
   dev: boolean
   appDir: string
+  ignore: string[]
   isEdgeServer: boolean
   encryptionKey: string
 }
@@ -170,10 +171,12 @@ export class FlightClientEntryPlugin {
   encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
+  ignore: string[]
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
+    this.ignore = options.ignore
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
     this.encryptionKey = options.encryptionKey
@@ -662,7 +665,9 @@ export class FlightClientEntryPlugin {
         modRequest = mod.matchResource + ':' + modRequest
       }
 
-      if (!modRequest) return
+      // If there is no modRequest, or it's explicitly ignored by `serverOnlyDependencies`,
+      // we can skip everything from here on for this import
+      if (!modRequest || this.ignore.includes(modRequest)) return
       if (visited.has(modRequest)) {
         if (clientComponentImports[modRequest]) {
           const isCjsModule =

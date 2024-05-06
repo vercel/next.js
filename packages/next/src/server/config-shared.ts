@@ -281,6 +281,10 @@ export interface ExperimentalConfig {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverComponentsExternalPackages
    */
   serverComponentsExternalPackages?: string[]
+  /**
+   * A list of imports that should completely disable any client dependencies from being added to generated client JS.
+   */
+  serverOnlyDependencies?: string[]
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 

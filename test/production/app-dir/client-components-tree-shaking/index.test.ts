@@ -41,6 +41,31 @@ createNextDescribe(
       ).toBe(false)
     })
 
+    it('should not add any client dependencies resulting from modules defined in experimental.serverOnlyDependencies', async () => {
+      const clientChunksDir = join(
+        next.testDir,
+        '.next',
+        'static',
+        'chunks',
+        'app',
+        'server-only-dep'
+      )
+      const staticChunksDirents = fs.readdirSync(clientChunksDir, {
+        withFileTypes: true,
+      })
+      const chunkContents = staticChunksDirents
+        .filter((dirent) => dirent.isFile())
+        .map((chunkDirent) =>
+          fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
+        )
+
+      expect(
+        chunkContents.every((content) => {
+          return !content.includes('better not include me!')
+        })
+      ).toBe(true)
+    })
+
     it('should only include imported components 3rd party package in browser bundle with direct imports', async () => {
       const clientChunksDir = join(
         next.testDir,
