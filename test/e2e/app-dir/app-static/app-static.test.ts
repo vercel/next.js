@@ -955,7 +955,7 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialHeaders": {
               "content-type": "application/json",
-              "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data/page,_N_T_/api/large-data",
+              "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
             },
             "initialRevalidateSeconds": false,
             "srcRoute": "/api/large-data",
@@ -1455,7 +1455,7 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialHeaders": {
               "content-type": "application/json",
-              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static/page,_N_T_/route-handler/no-store-force-static",
+              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/no-store-force-static/layout,_N_T_/route-handler/no-store-force-static/route,_N_T_/route-handler/no-store-force-static",
             },
             "initialRevalidateSeconds": 3,
             "srcRoute": "/route-handler/no-store-force-static",
@@ -1475,7 +1475,7 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialHeaders": {
               "content-type": "application/json",
-              "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr/page,_N_T_/route-handler/revalidate-360-isr",
+              "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr",
             },
             "initialRevalidateSeconds": 10,
             "srcRoute": "/route-handler/revalidate-360-isr",
@@ -1495,7 +1495,7 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialHeaders": {
               "set-cookie": "theme=light; Path=/,my_company=ACME; Path=/",
-              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies/page,_N_T_/route-handler/static-cookies",
+              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
             },
             "initialRevalidateSeconds": false,
             "srcRoute": "/route-handler/static-cookies",
