@@ -174,6 +174,22 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
   })
 
+  it('should maintain icns', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.icns' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/x-icns')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.icns"`
+    )
+    await expectWidth(res, 256)
+  })
+
   it('should maintain animated gif', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
