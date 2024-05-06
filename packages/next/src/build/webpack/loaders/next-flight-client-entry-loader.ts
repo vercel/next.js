@@ -50,9 +50,9 @@ export default function transformSource(
       // Otherwise, we use eager mode with webpackExports to only include the necessary exports.
       // If we have '*' in the ids, we include all the imports
       if (ids.length === 0 || ids.includes('*')) {
-        return `import(/* webpackMode: "eager" */ ${importPath});\n`
+        return `await import(/* webpackMode: "eager" */ ${importPath});\n`
       } else {
-        return `import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
+        return `await import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
           ids
         )} */ ${importPath});\n`
       }
@@ -65,5 +65,13 @@ export default function transformSource(
     type: RSC_MODULE_TYPES.client,
   }
 
-  return code
+  const asyncModuleCode = `
+  async function deps() {
+    ${code}
+  }
+
+  export const __client = await deps()
+  `
+  return asyncModuleCode
+  // return code
 }

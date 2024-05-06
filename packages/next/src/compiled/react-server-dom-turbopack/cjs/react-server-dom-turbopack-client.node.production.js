@@ -73,7 +73,7 @@ function resolveClientReference(bundlerConfig, metadata) {
       name = metadata[NAME];
     }
 
-    if (resolvedModuleData.async || isAsyncImport(metadata)) {
+    if (isAsyncImport(metadata)) {
       return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1
       /* async */
       ];
