@@ -15,7 +15,7 @@
     "glob": "10.3.10"
   },
   "devDependencies": {
-    "eslint": "7.24.0"
+    "eslint": "8.56.0"
   },
   "scripts": {
     "build": "swc -d dist src",
