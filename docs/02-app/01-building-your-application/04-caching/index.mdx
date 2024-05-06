@@ -369,7 +369,7 @@ The cache is stored in the browser's temporary memory. Two factors determine how
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
 
-> **Note**: There is [experimental support](/docs/app/api-reference/next-config-js/staleTimes) for configuring these values as of v14.2.0-canary.53.
+> **Note**: There is [experimental support](/docs/app/api-reference/next-config-js/staleTimes) for configuring these values as of This configuration option is available as of [v14.2.0](https://github.com/vercel/next.js/releases/tag/v14.2.0).
 
 ### Invalidation
 
@@ -421,7 +421,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`headers`, `searchParams`](#dynamic-functions)                         |                            | Opt out               |                       |             |
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |             |
 | [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache       |
-| [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       |                       |             |
+| [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       | Cache                 |             |
 
 ### `<Link>`
 

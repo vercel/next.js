@@ -11,7 +11,7 @@ use turbopack_binding::turbopack::core::{
 
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
 /// dynamic assets should appear in the dynamic manifest.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct NextDynamicEntryModule {
     pub client_entry_module: Vc<Box<dyn Module>>,
 }

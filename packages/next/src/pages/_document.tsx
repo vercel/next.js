@@ -682,30 +682,29 @@ export class Head extends React.Component<HeadProps> {
     let cssPreloads: Array<JSX.Element> = []
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
-      head.forEach((c) => {
-        let metaTag
-
-        if (this.context.strictNextHead) {
-          metaTag = React.createElement('meta', {
-            name: 'next-head',
-            content: '1',
-          })
-        }
-
+      head.forEach((child) => {
         if (
-          c &&
-          c.type === 'link' &&
-          c.props['rel'] === 'preload' &&
-          c.props['as'] === 'style'
+          child &&
+          child.type === 'link' &&
+          child.props['rel'] === 'preload' &&
+          child.props['as'] === 'style'
         ) {
-          metaTag && cssPreloads.push(metaTag)
-          cssPreloads.push(c)
+          if (this.context.strictNextHead) {
+            cssPreloads.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
+          } else {
+            cssPreloads.push(child)
+          }
         } else {
-          if (c) {
-            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
-              otherHeadElements.push(metaTag)
+          if (child) {
+            if (this.context.strictNextHead) {
+              otherHeadElements.push(
+                React.cloneElement(child, { 'data-next-head': '' })
+              )
+            } else {
+              otherHeadElements.push(child)
             }
-            otherHeadElements.push(c)
           }
         }
       })

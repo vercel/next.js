@@ -47,10 +47,10 @@ export function getDynamicDataPostponedState(): DynamicDataPostponedState {
 
 type Options = {
   /**
-   * Whether or not PPR is enabled. This is used to determine which renderer to
-   * use.
+   * Whether or not PPR is enabled for this page. This is used to determine
+   * which renderer to use.
    */
-  ppr: boolean
+  isRoutePPREnabled: boolean
 
   /**
    * Whether or not this is a static generation render. This is used to
@@ -77,12 +77,12 @@ type Options = {
 }
 
 export function createStaticRenderer({
-  ppr,
+  isRoutePPREnabled,
   isStaticGeneration,
   postponed,
   streamOptions,
 }: Options): Renderer {
-  if (ppr) {
+  if (isRoutePPREnabled) {
     if (isStaticGeneration) {
       let _streamOptions = streamOptions as StaticRendererOptions
       // This is a Prerender
