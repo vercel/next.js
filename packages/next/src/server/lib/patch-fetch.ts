@@ -15,6 +15,7 @@ import {
 import * as Log from '../../build/output/log'
 import { trackDynamicFetch } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
+import { addPathSuffix } from '../../shared/lib/router/utils/add-path-suffix'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -149,12 +150,21 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
 
   if (urlPathname) {
     const parsedPathname = new URL(urlPathname, 'http://n').pathname
+    const derivedTags = [
+      // for the canonical browser URL, we still want to add derived tags so that it's possible
+      // to call `revalidatePath("/some/dynamic/path", "page")` and have it revalidate the page
+      ...getDerivedTags(addPathSuffix(parsedPathname, '/page')),
+      // we also add the pathname itself for when "page" / "layout" aren't provided
+      parsedPathname,
+    ]
 
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${parsedPathname}`
-    if (!staticGenerationStore.tags?.includes(tag)) {
-      staticGenerationStore.tags.push(tag)
+    for (let tag of derivedTags) {
+      tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
+      if (!staticGenerationStore.tags?.includes(tag)) {
+        staticGenerationStore.tags.push(tag)
+      }
+      newTags.push(tag)
     }
-    newTags.push(tag)
   }
   return newTags
 }
