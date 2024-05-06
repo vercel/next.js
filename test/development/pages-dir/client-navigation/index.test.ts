@@ -1676,6 +1676,20 @@ describe.each([[false], [true]])(
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(1)
+
+        await browser.elementByCss('#reverseScriptOrder').click()
+        await waitFor(2000)
+
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(1)
+
+        await browser.elementByCss('#toggleScript').click()
+        await waitFor(2000)
+
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(1)
       } finally {
         if (browser) {
           await browser.close()
