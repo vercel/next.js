@@ -72,6 +72,7 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<String>>,
+    pub experimental_ppr: Option<bool>,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,6 +94,7 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            experimental_ppr,
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
@@ -100,6 +102,7 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
+        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a paralllel route to this config, returning an
@@ -133,6 +136,7 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            experimental_ppr,
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
@@ -147,6 +151,11 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "referredRegion",
+        )?;
+        merge_parallel(
+            experimental_ppr,
+            &parallel_config.experimental_ppr,
+            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -421,6 +430,15 @@ fn parse_config_value(
             };
 
             config.preferred_region = Some(preferred_region);
+        }
+        "experimental_ppr" => {
+            let value = eval_context.eval(init);
+            let Some(val) = value.as_bool() else {
+                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
+                return;
+            };
+
+            config.experimental_ppr = Some(val);
         }
         _ => {}
     }
