@@ -4606,6 +4606,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-root-slot/parallel-routes-root-slot.test.ts": {
+    "passed": [
+      "parallel-routes-root-slot Should render the root parallel route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-use-selected-layout-segment/parallel-routes-use-selected-layout-segment.test.ts": {
     "passed": [
       "parallel-routes-use-selected-layout-segment hard nav to parallel route",
