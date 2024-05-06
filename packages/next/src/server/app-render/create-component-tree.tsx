@@ -265,7 +265,7 @@ async function createComponentTreeInternal({
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
-    ? interopDefault(layoutOrPageMod)
+    ? await interopDefault(layoutOrPageMod)
     : undefined
 
   /**

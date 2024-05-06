@@ -272,23 +272,6 @@ export function makeExternalHandler({
       return resolveNextExternal(request)
     }
 
-    // Early return if the request needs to be bundled, such as in the client layer.
-    // Treat react packages and next internals as external for SSR layer,
-    // also map react to builtin ones with require-hook.
-    // Otherwise keep continue the process to resolve the externals.
-    if (layer === WEBPACK_LAYERS.serverSideRendering) {
-      const isRelative = request.startsWith('.')
-      const fullRequest = isRelative
-        ? normalizePathSep(path.join(context, request))
-        : request
-
-      // Check if it's opt out bundling package first
-      if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
-        return fullRequest
-      }
-      return resolveNextExternal(fullRequest)
-    }
-
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
     const resolveResult = await resolveExternal(
       dir,
@@ -326,6 +309,25 @@ export function makeExternalHandler({
         `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
       )
     }
+
+    // Early return if the request needs to be bundled, such as in the client layer.
+    // Treat react packages and next internals as external for SSR layer,
+    // also map react to builtin ones with require-hook.
+    // Otherwise keep continue the process to resolve the externals.
+    // if (layer === WEBPACK_LAYERS.serverSideRendering) {
+    //   const isRelative = request.startsWith('.')
+    //   const fullRequest = isRelative
+    //     ? normalizePathSep(path.join(context, request))
+    //     : request
+
+    // //   // Check if it's opt out bundling package first
+    // //   if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
+    // //     return fullRequest
+    // //   }
+    //   const nextExternalRes = resolveNextExternal(res)
+    //   if (nextExternalRes) return nextExternalRes
+    //   return undefined
+    // }
 
     const externalType = isEsm ? 'module' : 'commonjs'
 
@@ -419,7 +421,9 @@ function resolveBundlingOptOutPackages({
 
   if (nodeModulesRegex.test(resolvedRes)) {
     const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
-    if (isWebpackServerOnlyLayer(layer)) {
+    // Apply bundling rules to all app layers.
+    // Since handleExternals only handle the server layers, we don't need to exclude client here
+    if (isWebpackAppLayer(layer)) {
       if (isOptOutBundling) {
         return `${externalType} ${request}` // Externalize if opted out
       }

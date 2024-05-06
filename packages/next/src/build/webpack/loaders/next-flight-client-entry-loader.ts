@@ -50,9 +50,9 @@ export default function transformSource(
       // Otherwise, we use eager mode with webpackExports to only include the necessary exports.
       // If we have '*' in the ids, we include all the imports
       if (ids.length === 0 || ids.includes('*')) {
-        return `await import(/* webpackMode: "eager" */ ${importPath});\n`
+        return `import(/* webpackMode: "eager" */ ${importPath});\n`
       } else {
-        return `await import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
+        return `import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
           ids
         )} */ ${importPath});\n`
       }
@@ -66,11 +66,11 @@ export default function transformSource(
   }
 
   const asyncModuleCode = `
-  async function deps() {
+  function deps() {
     ${code}
   }
 
-  export const __client = await deps()
+  export const __client = deps()
   `
   return asyncModuleCode
   // return code
