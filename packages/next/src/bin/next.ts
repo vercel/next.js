@@ -383,4 +383,19 @@ program
   })
   .usage('[directory] [options]')
 
+const internal = program
+  .command('internal')
+  .description(
+    'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
+
+internal
+  .command('turbo-trace-server')
+  .argument('[file]', 'Trace file to serve.')
+  .action((file) => {
+    return import('../cli/internal/turbo-trace-server.js').then((mod) =>
+      mod.startTurboTraceServerCli(file)
+    )
+  })
+
 program.parse(process.argv)
