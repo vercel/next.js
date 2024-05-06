@@ -364,8 +364,7 @@ async function createComponentTreeInternal({
   const parallelRouteMap = await Promise.all(
     Object.keys(parallelRoutes).map(
       async (
-        parallelRouteKey,
-        parallelRouteIndex
+        parallelRouteKey
       ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const currentSegmentPath: FlightSegmentPath = firstItem
@@ -447,8 +446,7 @@ async function createComponentTreeInternal({
               // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
               // We only want to render an outlet once per segment, as otherwise the error will be triggered
               // multiple times causing an uncaught error.
-              metadataOutlet:
-                parallelRouteIndex === 0 ? metadataOutlet : undefined,
+              metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
               ctx,
               missingSlots,
             })
