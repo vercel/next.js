@@ -1512,7 +1512,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       runTests(curCtx)
     }
   )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'Production Mode Server support with next.config.js',
     () => {
       const size = 399
