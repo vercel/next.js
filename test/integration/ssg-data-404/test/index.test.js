@@ -65,6 +65,12 @@ describe('SSG data 404', () => {
         proxyPort = await findPort()
 
         proxyServer = http.createServer((req, res) => {
+          req.on('error', (e) => {
+            require('console').error(e)
+          })
+          res.on('error', (e) => {
+            require('console').error(e)
+          })
           if (should404Data && req.url.match(/\/_next\/data/)) {
             res.statusCode = 404
             return res.end('not found')
@@ -99,11 +105,19 @@ describe('SSG data 404', () => {
         proxyPort = await findPort()
 
         proxyServer = http.createServer((req, res) => {
+          req.on('error', (e) => {
+            require('console').error(e)
+          })
+          res.on('error', (e) => {
+            require('console').error(e)
+          })
           if (should404Data && req.url.match(/\/_next\/data/)) {
             res.statusCode = 404
             return res.end('not found')
           }
-          proxy.web(req, res)
+          proxy.web(req, res, undefined, (e) => {
+            require('console').error(e)
+          })
         })
 
         await new Promise((resolve) => {

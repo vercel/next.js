@@ -154,12 +154,7 @@ export default (
         },
       ],
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
-      [
-        require('next/dist/compiled/babel/plugin-syntax-import-attributes'),
-        {
-          deprecatedAssertSyntax: true,
-        },
-      ],
+      require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
       require('./plugins/react-loadable-plugin'),
       [
         require('next/dist/compiled/babel/plugin-proposal-class-properties'),

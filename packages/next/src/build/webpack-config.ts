@@ -414,6 +414,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeOrEdgeCompilation,
         distDir,
         pagesDir,
+        srcDir: path.dirname((appDir || pagesDir)!),
         cwd: dir,
         development: dev,
         hasReactRefresh: dev && isClient,
@@ -1682,6 +1683,13 @@ export default async function getBaseWebpackConfig(
             ]
           },
         },
+        {
+          resolve: {
+            alias: {
+              next: NEXT_PROJECT_ROOT,
+            },
+          },
+        },
       ],
     },
     plugins: [
@@ -1762,6 +1770,8 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            flyingShuttle: !!config.experimental.flyingShuttle,
+            compilerType,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

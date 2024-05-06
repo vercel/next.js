@@ -113,9 +113,12 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(
-    Object.values(staticGenerationStore.pendingRevalidates || [])
-  )
+  await Promise.all([
+    staticGenerationStore.incrementalCache?.revalidateTag(
+      staticGenerationStore.revalidatedTags || []
+    ),
+    ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+  ])
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -206,6 +209,7 @@ async function createForwardedActionResponse(
       body,
       duplex: 'half',
       headers: forwardedHeaders,
+      redirect: 'manual',
       next: {
         // @ts-ignore
         internal: 1,
@@ -226,9 +230,11 @@ async function createForwardedActionResponse(
       response.body?.cancel()
     }
   } catch (err) {
-    // we couldn't stream the forwarded response, so we'll just do a normal redirect
+    // we couldn't stream the forwarded response, so we'll just return an empty response
     console.error(`failed to forward action response`, err)
   }
+
+  return RenderResult.fromStatic('{}')
 }
 
 async function createRedirectRenderResult(
@@ -477,9 +483,12 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(
-          Object.values(staticGenerationStore.pendingRevalidates || [])
-        )
+        await Promise.all([
+          staticGenerationStore.incrementalCache?.revalidateTag(
+            staticGenerationStore.revalidatedTags || []
+          ),
+          ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ])
 
         const promise = Promise.reject(error)
         try {
@@ -864,9 +873,12 @@ export async function handleAction({
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(
-        Object.values(staticGenerationStore.pendingRevalidates || [])
-      )
+      await Promise.all([
+        staticGenerationStore.incrementalCache?.revalidateTag(
+          staticGenerationStore.revalidatedTags || []
+        ),
+        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+      ])
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
