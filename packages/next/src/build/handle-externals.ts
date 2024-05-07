@@ -379,9 +379,7 @@ function resolveBundlingOptOutPackages({
 }) {
   if (nodeModulesRegex.test(resolvedRes)) {
     const shouldBundlePages =
-      !isAppLayer &&
-      config.experimental.bundlePagesExternals &&
-      !isOptOutBundling
+      !isAppLayer && config.bundlePagesRouterDependencies && !isOptOutBundling
     const shouldBeBundled =
       shouldBundlePages ||
       isResourceInPackages(

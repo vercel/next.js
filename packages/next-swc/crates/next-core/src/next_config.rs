@@ -120,6 +120,9 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
+    /// A list of packages that should be treated as external in the RSC server
+    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_external_packages)
+    pub server_external_packages: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -460,9 +463,6 @@ pub struct ExperimentalConfig {
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
-    /// A list of packages that should be treated as external in the RSC server
-    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages)
-    pub server_components_external_packages: Option<Vec<String>>,
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
@@ -737,11 +737,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_component_externals(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
         Ok(Vc::cell(
             self.await?
-                .experimental
-                .server_components_external_packages
+                .server_external_packages
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
