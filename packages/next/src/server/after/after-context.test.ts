@@ -2,7 +2,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { AsyncLocalStorage } from 'async_hooks'
 
 import type { RequestStore } from '../../client/components/request-async-storage.external'
-import type { AfterContext } from './after'
+import type { AfterContext } from './after-context'
 
 const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
   return {
@@ -23,9 +23,10 @@ describe('createAfterContext', () => {
   type RASMod =
     typeof import('../../client/components/request-async-storage.external')
   type AfterMod = typeof import('./after')
+  type AfterContextMod = typeof import('./after-context')
 
   let requestAsyncStorage: RASMod['requestAsyncStorage']
-  let createAfterContext: AfterMod['createAfterContext']
+  let createAfterContext: AfterContextMod['createAfterContext']
   let after: AfterMod['unstable_after']
 
   beforeAll(async () => {
@@ -37,8 +38,10 @@ describe('createAfterContext', () => {
     )
     requestAsyncStorage = RASMod.requestAsyncStorage
 
+    const AfterContextMod = await import('./after-context')
+    createAfterContext = AfterContextMod.createAfterContext
+
     const AfterMod = await import('./after')
-    createAfterContext = AfterMod.createAfterContext
     after = AfterMod.unstable_after
   })
 
