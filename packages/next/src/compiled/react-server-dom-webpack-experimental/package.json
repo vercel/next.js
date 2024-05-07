@@ -37,7 +37,7 @@
     "./server.edge": "./server.edge.js",
     "./server.node": "./server.node.js",
     "./server.node.unbundled": "./server.node.unbundled.js",
-    "./node-loader": "./esm/react-server-dom-webpack-node-loader.production.min.js",
+    "./node-loader": "./esm/react-server-dom-webpack-node-loader.production.js",
     "./node-register": "./node-register.js",
     "./package.json": "./package.json"
   },
@@ -46,8 +46,8 @@
     "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-c3048aab4-20240326",
-    "react-dom": "0.0.0-experimental-c3048aab4-20240326",
+    "react": "0.0.0-experimental-4508873393-20240430",
+    "react-dom": "0.0.0-experimental-4508873393-20240430",
     "webpack": "^5.59.0"
   }
 }

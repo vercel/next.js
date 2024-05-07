@@ -140,12 +140,12 @@ pub async fn get_server_resolve_options_context(
 
     // Add the config's own list of external packages.
     external_packages.extend(
-        (*next_config.server_component_externals().await?)
+        (*next_config.server_external_packages().await?)
             .iter()
             .cloned(),
     );
 
-    let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
+    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
@@ -196,7 +196,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
