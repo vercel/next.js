@@ -19,7 +19,12 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
-  experimental: { ppr: boolean }
+
+  /**
+   * isAppPPREnabled is true when PPR has been enabled either globally or just for
+   * some pages via the `incremental` option.
+   */
+  isAppPPREnabled: boolean
 }
 
 type TagsManifest = {
@@ -37,7 +42,7 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
-  private readonly experimental: { ppr: boolean }
+  private readonly isAppPPREnabled: boolean
   private debug: boolean
 
   constructor(ctx: FileSystemCacheContext) {
@@ -47,34 +52,36 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
-    this.experimental = ctx.experimental
+    this.isAppPPREnabled = ctx.isAppPPREnabled
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
-    if (ctx.maxMemoryCacheSize && !memoryCache) {
-      if (this.debug) {
-        console.log('using memory store for fetch cache')
-      }
+    if (ctx.maxMemoryCacheSize) {
+      if (!memoryCache) {
+        if (this.debug) {
+          console.log('using memory store for fetch cache')
+        }
 
-      memoryCache = new LRUCache({
-        max: ctx.maxMemoryCacheSize,
-        length({ value }) {
-          if (!value) {
-            return 25
-          } else if (value.kind === 'REDIRECT') {
-            return JSON.stringify(value.props).length
-          } else if (value.kind === 'IMAGE') {
-            throw new Error('invariant image should not be incremental-cache')
-          } else if (value.kind === 'FETCH') {
-            return JSON.stringify(value.data || '').length
-          } else if (value.kind === 'ROUTE') {
-            return value.body.length
-          }
-          // rough estimate of size of cache value
-          return (
-            value.html.length + (JSON.stringify(value.pageData)?.length || 0)
-          )
-        },
-      })
+        memoryCache = new LRUCache({
+          max: ctx.maxMemoryCacheSize,
+          length({ value }) {
+            if (!value) {
+              return 25
+            } else if (value.kind === 'REDIRECT') {
+              return JSON.stringify(value.props).length
+            } else if (value.kind === 'IMAGE') {
+              throw new Error('invariant image should not be incremental-cache')
+            } else if (value.kind === 'FETCH') {
+              return JSON.stringify(value.data || '').length
+            } else if (value.kind === 'ROUTE') {
+              return value.body.length
+            }
+            // rough estimate of size of cache value
+            return (
+              value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+            )
+          },
+        })
+      }
     } else if (this.debug) {
       console.log('not using memory store for fetch cache')
     }
@@ -226,7 +233,7 @@ export default class FileSystemCache implements CacheHandler {
             ? await this.fs.readFile(
                 this.getFilePath(
                   `${key}${
-                    this.experimental.ppr ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
+                    this.isAppPPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
                   }`,
                   'app'
                 ),
@@ -370,7 +377,7 @@ export default class FileSystemCache implements CacheHandler {
         this.getFilePath(
           `${key}${
             isAppPath
-              ? this.experimental.ppr
+              ? this.isAppPPREnabled
                 ? RSC_PREFETCH_SUFFIX
                 : RSC_SUFFIX
               : NEXT_DATA_SUFFIX
