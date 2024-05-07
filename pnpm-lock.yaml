@@ -823,12 +823,6 @@ importers:
       postcss:
         specifier: 8.4.31
         version: 8.4.31
-      react:
-        specifier: ^18.2.0
-        version: 18.2.0
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.2.0(react@18.2.0)
       sass:
         specifier: ^1.3.0
         version: 1.54.0
