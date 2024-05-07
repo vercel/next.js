@@ -35,7 +35,7 @@ createNextDescribe(
     buildCommand: 'pnpm build',
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isTurbopack }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -284,14 +284,17 @@ createNextDescribe(
     })
 
     describe('server actions', () => {
-      it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+      it('should prefer to resolve esm over cjs for bundling optout packages', async () => {
         const browser = await next.browser('/optout/action')
         expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
 
         browser.elementByCss('#dual-pkg-outout button').click()
         await check(async () => {
           const text = await browser.elementByCss('#dual-pkg-outout p').text()
-          expect(text).toBe('dual-pkg-optout:cjs')
+          // TODO: enable esm externals for app router in turbopack for actions
+          expect(text).toBe(
+            isTurbopack ? 'dual-pkg-optout:cjs' : 'dual-pkg-optout:mjs'
+          )
           return 'success'
         }, /success/)
       })
