@@ -235,7 +235,6 @@ export const NODE_ESM_RESOLVE_OPTIONS = {
   alias: false,
   dependencyType: 'esm',
   conditionNames: ['node', 'import'],
-  extensions: ['.js', '.json', '.node'],
   fullySpecified: true,
 }
 
