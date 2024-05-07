@@ -1,6 +1,7 @@
 import { DetachedPromise } from '../../lib/detached-promise'
 
 import {
+  getExpectedRequestStore,
   requestAsyncStorage,
   type RequestStore,
 } from '../../client/components/request-async-storage.external'
@@ -22,16 +23,9 @@ type WaitUntilFn = <T>(promise: Promise<T>) => void
  * This function allows you to schedule callbacks to be executed after the current request finishes.
  */
 export function unstable_after<T>(task: AfterTask<T>) {
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      'Invalid unstable_after() call. unstable_after() can only be called:\n' +
-        '  - from within a server component\n' +
-        '  - in a route handler\n' +
-        '  - in a server action\n' +
-        '  - in middleware\n'
-    )
-  }
+  const callingExpression = 'unstable_after'
+
+  const requestStore = getExpectedRequestStore(callingExpression)
 
   const { afterContext } = requestStore
   if (!afterContext) {
@@ -43,7 +37,6 @@ export function unstable_after<T>(task: AfterTask<T>) {
     )
   }
 
-  const callingExpression = 'unstable_after'
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
   if (staticGenerationStore) {
