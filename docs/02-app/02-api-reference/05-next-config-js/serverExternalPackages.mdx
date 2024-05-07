@@ -1,5 +1,5 @@
 ---
-title: serverComponentsExternalPackages
+title: serverExternalPackages
 description: Opt-out specific dependencies from the Server Components bundling and use native Node.js `require`.
 ---
 
@@ -10,9 +10,7 @@ If a dependency is using Node.js specific features, you can choose to opt-out sp
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['@acme/ui'],
-  },
+  serverExternalPackages: ['@acme/ui'],
 }
 
 module.exports = nextConfig

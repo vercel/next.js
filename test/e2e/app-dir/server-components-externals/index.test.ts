@@ -6,7 +6,7 @@ describe('app-dir - server components externals', () => {
     files: __dirname,
   })
 
-  it('should have externals for those in config.experimental.serverComponentsExternalPackages', async () => {
+  it('should have externals for those in config.serverExternalPackages', async () => {
     const $ = await next.render$('/')
 
     const text = $('#directory').text()
@@ -28,7 +28,7 @@ describe('app-dir - server components externals', () => {
 
   // Inspect webpack server bundles
   if (!isTurbopack) {
-    it('should externalize serverComponentsExternalPackages for server rendering layer', async () => {
+    it('should externalize serversExternalPackages for server rendering layer', async () => {
       await next.fetch('/client')
       const ssrBundle = await next.readFile('.next/server/app/client/page.js')
       expect(ssrBundle).not.toContain('external-package-mark:index')

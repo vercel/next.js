@@ -279,12 +279,6 @@ export interface ExperimentalConfig {
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
 
-  /**
-   * A list of packages that should be treated as external in the RSC server build.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverComponentsExternalPackages
-   */
-  serverComponentsExternalPackages?: string[]
-
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
   /**
@@ -420,10 +414,7 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
-  /**
-   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
-   */
-  bundlePagesExternals?: boolean
+
   /**
    * Uses an IPC server to dedupe build-time requests to the cache handler
    */
@@ -838,6 +829,17 @@ export interface NextConfig extends Record<string, any> {
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
+
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesRouterDependencies?: boolean
+
+  /**
+   * A list of packages that should be treated as external in the RSC server build.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
+   */
+  serverExternalPackages?: string[]
 }
 
 export const defaultConfig: NextConfig = {
@@ -942,7 +944,6 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
-    bundlePagesExternals: false,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
@@ -963,6 +964,7 @@ export const defaultConfig: NextConfig = {
       static: 300,
     },
   },
+  bundlePagesRouterDependencies: false,
 }
 
 export async function normalizeConfig(phase: string, config: any) {

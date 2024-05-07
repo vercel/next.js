@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
-describe('bundle pages externals with config.experimental.bundlePagesExternals', () => {
+describe('bundle pages externals with config.bundlePagesRouterDependencies', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
@@ -21,7 +21,7 @@ describe('bundle pages externals with config.experimental.bundlePagesExternals',
         expect(output).not.toContain('require("external-package")')
       })
 
-      it('should respect the serverComponentsExternals config', async () => {
+      it('should respect the serverExternalPackages config', async () => {
         const output = await fs.readFile(
           join(appDir, '.next/server/pages/index.js'),
           'utf8'

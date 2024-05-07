@@ -3283,8 +3283,8 @@
     },
     "test/e2e/app-dir/server-components-externals/index.test.ts": {
       "passed": [
-        "app-dir - server components externals should externalize serverComponentsExternalPackages for server rendering layer",
-        "app-dir - server components externals should have externals for those in config.experimental.serverComponentsExternalPackages",
+        "app-dir - server components externals should externalize serverExternalPackages for server rendering layer",
+        "app-dir - server components externals should have externals for those in config.serverExternalPackages",
         "app-dir - server components externals uses externals for predefined list in server-external-packages.json"
       ],
       "failed": [],
@@ -8481,8 +8481,8 @@
     "test/integration/externals-pages-bundle/test/index.test.js": {
       "passed": [],
       "failed": [
-        "bundle pages externals with config.experimental.bundlePagesExternals production mode should have no externals with the config set",
-        "bundle pages externals with config.experimental.bundlePagesExternals production mode should respect the serverComponentsExternals config"
+        "bundle pages externals with config.bundlePagesRouterDependencies production mode should have no externals with the config set",
+        "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverExternalPackages config"
       ],
       "pending": [],
       "flakey": [],
