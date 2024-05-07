@@ -540,7 +540,11 @@ impl ReactServerComponentValidator {
                 JsWord::from("react-dom/server"),
                 JsWord::from("next/router"),
             ],
-            invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
+            invalid_client_imports: vec![
+                JsWord::from("server-only"),
+                JsWord::from("next/headers"),
+                JsWord::from("next/server"),
+            ],
         }
     }
 

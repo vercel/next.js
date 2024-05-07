@@ -2,6 +2,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getRedboxDescription, hasRedbox, retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
+import { sandbox } from '../../../lib/development-sandbox'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -72,7 +73,7 @@ describe('unstable_after()', () => {
   })
 
   if (isNextDev) {
-    it('errors with `dynamic = "error"`', async () => {
+    it('errors at compile time with `dynamic = "error"`', async () => {
       const filePath = 'app/static/page.js'
       const origContent = await next.readFile(filePath)
 
@@ -86,7 +87,6 @@ describe('unstable_after()', () => {
         const browser = await next.browser('/static')
 
         expect(await hasRedbox(browser)).toBe(true)
-        console.log(await getRedboxDescription(browser))
         expect(await getRedboxDescription(browser)).toContain(
           'Route /static with `dynamic = "error"` couldn\'t be rendered statically because it used `unstable_after`'
         )
@@ -226,64 +226,64 @@ describe('unstable_after()', () => {
     })
   })
 
-  const INVALID_CALL_MESSAGE =
-    'Invalid unstable_after() call. unstable_after() can only be called:\n' +
-    '  - from within a server component\n' +
-    '  - in a route handler\n' +
-    '  - in a server action\n' +
-    '  - in middleware\n'
+  if (isNextDev) {
+    describe('invalid usages', () => {
+      it('errors at compile time when used in a client module', async () => {
+        const { session, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'app/invalid-in-client/page.js',
+              (
+                await next.readFile('app/invalid-in-client/page.js')
+              ).replace(`// 'use client'`, `'use client'`),
+            ],
+          ]),
+          '/invalid-in-client'
+        )
+        try {
+          expect(await session.getRedboxSource(true)).toContain(
+            `You're importing a component that needs next/server. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+          )
+          expect(getLogs()).toHaveLength(0)
+        } finally {
+          await cleanup()
+        }
+      })
 
-  it.failing('errors when used in client modules', async () => {
-    const path = '/invalid-in-client'
-    const cliOutputIndex = next.cliOutput.length
+      describe('errors at compile time when used in pages dir', () => {
+        it.each([
+          {
+            path: '/pages-dir/invalid-in-gssp',
+            file: 'pages-dir/invalid-in-gssp.js',
+          },
+          {
+            path: '/pages-dir/123/invalid-in-gsp',
+            file: 'pages-dir/[id]/invalid-in-gsp.js',
+          },
+          {
+            path: '/pages-dir/invalid-in-page',
+            file: 'pages-dir/invalid-in-page.js',
+          },
+        ])('$file', async ({ path, file }) => {
+          const { session, cleanup } = await sandbox(
+            next,
+            new Map([[`pages/${file}`, await next.readFile(`_pages/${file}`)]]),
+            path
+          )
 
-    await next.fetch(path)
-
-    await retry(() => {
-      const newCliOutput = next.cliOutput.slice(cliOutputIndex)
-      expect(newCliOutput).toContain(INVALID_CALL_MESSAGE)
-      expect(getLogs()).not.toContainEqual({
-        source: `[page] ${path}`,
+          try {
+            expect(await session.getRedboxSource(true)).toContain(
+              `You're importing a component that needs next/server. That only works in a Server Component which is not supported in the pages/ directory.`
+            )
+            expect(getLogs()).toHaveLength(0)
+          } finally {
+            await cleanup()
+          }
+        })
       })
     })
-  })
-
-  describe('errors when used in pages dir', () => {
-    it.each(['/pages-dir/invalid-in-gssp', '/pages-dir/123/invalid-in-gsp'])(
-      '%s',
-      async (path) => {
-        const cliOutputIndex = next.cliOutput.length
-
-        const res = await next.fetch(path)
-        expect(res.status).toBe(500)
-
-        await retry(() => {
-          const newCliOutput = next.cliOutput.slice(cliOutputIndex)
-          expect(newCliOutput).toContain(INVALID_CALL_MESSAGE)
-          expect(getLogs()).not.toContainEqual({
-            source: `[pages-dir] ${path}`,
-          })
-        })
-      }
-    )
-
-    it('/invalid-in-page', async () => {
-      const path = '/pages-dir/invalid-in-page'
-      const cliOutputIndex = next.cliOutput.length
-
-      const res = await next.fetch(path)
-      expect(res.status).toBe(500)
-
-      await retry(() => {
-        const newCliOutput = next.cliOutput.slice(cliOutputIndex)
-        expect(newCliOutput).toContain(INVALID_CALL_MESSAGE)
-        const cliLogs = LogCLI.readCliLogs(newCliOutput)
-        expect(cliLogs).not.toContainEqual({
-          source: `[pages-dir] ${path}`,
-        })
-      })
-    })
-  })
+  }
 
   it.todo('does not allow modifying cookies')
 })
