@@ -427,8 +427,8 @@ function resolveBundlingOptOutPackages({
     // (isEsm && isAppLayer) ||
     (!isAppLayer && config.experimental.bundlePagesExternals)
 
-  if (nodeModulesRegex.test(resolvedRes) || !resolvedRes.startsWith('.')) {
-    if (!isAppLayer && !shouldBeBundled) {
+  if (nodeModulesRegex.test(resolvedRes)) {
+    if (!isAppLayer || !shouldBeBundled) {
       return `${externalType} ${request}` // Externalize if not bundled or opted out
     }
   }
