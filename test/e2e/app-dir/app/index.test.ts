@@ -12,6 +12,10 @@ describe('app dir - basic', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
       files: __dirname,
+      env: {
+        // This won't take affect until PPR is also enabled for this build.
+        __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: '1',
+      },
       buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
         ? `pnpm next build --experimental-build-mode=compile`
         : undefined,

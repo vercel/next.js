@@ -2014,8 +2014,12 @@ export default abstract class Server<
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
+    // When enabled, this will allow the use of the `?__nextppronly` query to
+    // enable debugging of the static shell.
     const hasDebugStaticShellQuery =
-      typeof query.__nextppronly !== 'undefined' && couldSupportPPR
+      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
+      typeof query.__nextppronly !== 'undefined' &&
+      couldSupportPPR
 
     // This page supports PPR if it has `experimentalPPR` set to `true` in the
     // prerender manifest and this is an app page.
