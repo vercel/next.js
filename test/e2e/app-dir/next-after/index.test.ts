@@ -225,6 +225,21 @@ describe('unstable_after()', () => {
     '  - in a server action\n' +
     '  - in middleware\n'
 
+  it.failing('errors when used in client modules', async () => {
+    const path = '/invalid-in-client'
+    const cliOutputIndex = next.cliOutput.length
+
+    await next.fetch(path)
+
+    await retry(() => {
+      const newCliOutput = next.cliOutput.slice(cliOutputIndex)
+      expect(newCliOutput).toContain(INVALID_CALL_MESSAGE)
+      expect(getLogs()).not.toContainEqual({
+        source: `[page] ${path}`,
+      })
+    })
+  })
+
   describe('errors when used in pages dir', () => {
     it.each(['/pages-dir/invalid-in-gssp', '/pages-dir/123/invalid-in-gsp'])(
       '%s',
@@ -261,8 +276,6 @@ describe('unstable_after()', () => {
       })
     })
   })
-
-  it.todo('errors when used in client modules')
 
   it.todo('does not allow modifying cookies')
 })
