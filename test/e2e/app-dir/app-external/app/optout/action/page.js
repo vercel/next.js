@@ -10,8 +10,7 @@ export default function Page() {
       <p>{optoutDisplayValue}</p>
       <button
         onClick={async () => {
-          const value = await getDualOptoutValue()
-          setOptoutDisplayValue(value)
+          setOptoutDisplayValue(await getDualOptoutValue())
         }}
       >
         dual-pkg-optout
