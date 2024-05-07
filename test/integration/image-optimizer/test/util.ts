@@ -982,6 +982,13 @@ export function runTests(ctx: RunTestsCtx) {
     expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
+  it('should fail when url is too long', async () => {
+    const query = { url: `/${'a'.repeat(4000)}`, w: ctx.w, q: 1 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is too long`)
+  })
+
   it('should fail when internal url is not an image', async () => {
     const url = `//<h1>not-an-image</h1>`
     const query = { url, w: ctx.w, q: 39 }
