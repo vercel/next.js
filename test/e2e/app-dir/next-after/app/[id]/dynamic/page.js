@@ -6,26 +6,21 @@ import { headers } from 'next/headers'
 const thing = cache(() => Symbol('cache me please'))
 
 export default function Index({ params }) {
-  headers()
+  const hostFromRender = headers().get('host')
   const valueFromRender = thing()
 
-  after(async () => {
+  after(() => {
+    const hostFromAfter = headers().get('host')
     const valueFromAfter = thing()
 
-    console.log(
-      [
-        '[page] /[id]/dynamic',
-        '  - ' +
-          (valueFromRender === valueFromAfter
-            ? 'cache() WORKS in after()!!!'
-            : "cache() doesn't work in after() :("),
-        '  - ' +
-          'headers().get("host"): ' +
-          JSON.stringify(headers().get('host')),
-      ].join('\n')
-    )
-
-    persistentLog({ source: '[page] /[id]/dynamic', value: params.id })
+    persistentLog({
+      source: '[page] /[id]/dynamic',
+      value: params.id,
+      assertions: {
+        'cache() works in after()': valueFromRender === valueFromAfter,
+        'headers() works in after()': hostFromRender === hostFromAfter,
+      },
+    })
   })
 
   return <div>Page with after()</div>

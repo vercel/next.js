@@ -25,12 +25,16 @@ describe('unstable_after()', () => {
   it('runs in dynamic pages', async () => {
     await next.render('/123/dynamic')
     await retry(() => {
+      expect(getLogs()).toContainEqual({ source: '[layout] /[id]' })
       expect(getLogs()).toContainEqual({
         source: '[page] /[id]/dynamic',
         value: '123',
+        assertions: {
+          'cache() works in after()': true,
+          'headers() works in after()': true,
+        },
       })
     })
-    expect(getLogs()).toContainEqual({ source: '[layout] /[id]' })
   })
 
   it('runs in dynamic route handlers', async () => {
@@ -52,6 +56,10 @@ describe('unstable_after()', () => {
       expect(getLogs()).toContainEqual({
         source: '[action] /[id]/with-action',
         value: '123',
+        assertions: {
+          'cache() works in after()': true,
+          'headers() works in after()': true,
+        },
       })
     })
     // TODO: server seems to close before the response fully returns?
