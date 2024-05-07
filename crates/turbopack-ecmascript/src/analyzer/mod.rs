@@ -370,7 +370,7 @@ pub enum JsValue {
     /// A constant primitive value.
     Constant(ConstantValue),
     /// An constant URL object.
-    Url(Url),
+    Url(Box<Url>),
     /// Some kind of well-known object
     /// (must not be an array, otherwise Array.concat needs to be changed)
     WellKnownObject(WellKnownObjectKind),
