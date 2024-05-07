@@ -452,6 +452,10 @@ export interface ExperimentalConfig {
    * Set a default test runner to be used by `next experimental-test`.
    */
   defaultTestRunner?: SupportedTestRunners
+  /**
+   * Allow NODE_ENV=development even for `next build`.
+   */
+  allowDevelopmentBuild?: true
 }
 
 export type ExportPathMap = {
@@ -963,6 +967,7 @@ export const defaultConfig: NextConfig = {
       dynamic: 30,
       static: 300,
     },
+    allowDevelopmentBuild: undefined,
   },
   bundlePagesRouterDependencies: false,
 }
