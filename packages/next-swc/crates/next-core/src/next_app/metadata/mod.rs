@@ -153,7 +153,7 @@ fn filename(path: &str) -> &str {
     split_directory(path).1
 }
 
-fn split_extension(path: &str) -> (&str, Option<&str>) {
+pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
     let filename = filename(path);
     if let Some((filename_before_extension, ext)) = filename.rsplit_once('.') {
         if filename_before_extension.is_empty() {

@@ -181,31 +181,31 @@ Alternatively, you can upload your video using a server action. For detailed ins
 Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense:
 
 ```jsx filename="app/page.jsx"
-import { Suspense } from 'react';
-import { list } from '@vercel/blob';
+import { Suspense } from 'react'
+import { list } from '@vercel/blob'
 
 export default function Page() {
   return (
     <Suspense fallback={<p>Loading video...</p>}>
       <VideoComponent fileName="my-video.mp4" />
     </Suspense>
-  );
-};
+  )
+}
 
 async function VideoComponent({ fileName }) {
-  const {blobs} = await list({
+  const { blobs } = await list({
     prefix: fileName,
-    limit: 1
-  });
-  const { url } = blobs[0];
+    limit: 1,
+  })
+  const { url } = blobs[0]
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={url} type="video/mp4">
+      <source src={url} type="video/mp4" />
       Your browser does not support the video tag.
     </video>
-  );
-};
+  )
+}
 ```
 
 In this approach, the page uses the video's `@vercel/blob` URL to display the video using the `VideoComponent`. React Suspense is used to show a fallback until the video URL is fetched and the video is ready to be displayed.
@@ -225,7 +225,7 @@ async function VideoComponent({ fileName }) {
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={url} type="video/mp4">
+      <source src={url} type="video/mp4" />
       <track
         src={captionsUrl}
         kind="subtitles"

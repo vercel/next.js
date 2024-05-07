@@ -9,7 +9,7 @@ use turbopack_binding::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
             },
-            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
+            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
         dev::DevChunkingContext,
@@ -79,11 +79,10 @@ async fn next_edge_free_vars(
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
+        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
     )))
     .defines(next_edge_defines(define_env))
     .free_var_references(next_edge_free_vars(project_path, define_env))

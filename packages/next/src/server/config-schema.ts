@@ -193,6 +193,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             cssProp: z.boolean().optional(),
           }),
         ]),
+        styledJsx: z.union([
+          z.boolean().optional(),
+          z.object({
+            useLightningcss: z.boolean().optional(),
+          }),
+        ]),
       })
       .optional(),
     compress: z.boolean().optional(),
@@ -266,6 +272,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         gzipSize: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
+        linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         nextScriptWorkers: z.boolean().optional(),

@@ -2,6 +2,8 @@
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
+import type { NextServer } from '../next'
+
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
 import '../require-hook'
@@ -67,7 +69,7 @@ export async function initialize(opts: {
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
+}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -178,7 +180,7 @@ export async function initialize(opts: {
         removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
         res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
-        res.statusCode = 200
+        res.statusCode = 404
         res.setHeader('content-type', 'application/json')
         res.end('{}')
         return null
@@ -625,5 +627,5 @@ export async function initialize(opts: {
     }
   }
 
-  return [requestHandler, upgradeHandler]
+  return [requestHandler, upgradeHandler, handlers.app]
 }

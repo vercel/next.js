@@ -71,7 +71,8 @@ function getOriginalStackFrame(
       expanded: !Boolean(
         /* collapsed */
         (source.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.includes('node_modules')) ??
+          body.originalStackFrame?.file?.includes('node_modules') ||
+          body.originalStackFrame?.file?.startsWith('[turbopack]/')) ??
           true
       ),
       sourceStackFrame: source,

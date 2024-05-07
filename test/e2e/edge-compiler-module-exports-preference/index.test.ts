@@ -36,16 +36,17 @@ describe('Edge compiler module exports preference', () => {
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./my-lib ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: `yarn setup && next ${
+          copy: `cp -r ./my-lib ./node_modules`,
+          build: 'pnpm copy && next build',
+          dev: `pnpm copy && next ${
             shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
           }`,
           start: 'next start',
         },
       },
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm run build',
       dependencies: {},
     })
   })

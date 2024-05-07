@@ -256,6 +256,72 @@ createNextDescribe(
       )
     })
 
+    describe('Navigation Signals', () => {
+      const delay = 500
+
+      describe.each([
+        {
+          signal: 'notFound()' as const,
+          pathnames: ['/navigation/not-found', '/navigation/not-found/dynamic'],
+        },
+        {
+          signal: 'redirect()' as const,
+          pathnames: ['/navigation/redirect', '/navigation/redirect/dynamic'],
+        },
+      ])('$signal', ({ signal, pathnames }) => {
+        describe.each(pathnames)('for %s', (pathname) => {
+          it('should have correct headers', async () => {
+            const res = await next.fetch(pathname, {
+              redirect: 'manual',
+            })
+            expect(res.status).toEqual(signal === 'redirect()' ? 307 : 404)
+            expect(res.headers.get('content-type')).toEqual(
+              'text/html; charset=utf-8'
+            )
+
+            if (!isNextDev) {
+              expect(res.headers.get('cache-control')).toEqual(
+                's-maxage=31536000, stale-while-revalidate'
+              )
+            }
+
+            if (signal === 'redirect()') {
+              const location = res.headers.get('location')
+              expect(typeof location).toEqual('string')
+
+              // The URL returned in `Location` is absolute, so we need to parse it
+              // to get the pathname.
+              const url = new URL(location)
+              expect(url.pathname).toEqual('/navigation/redirect/location')
+            }
+          })
+
+          if (pathname.endsWith('/dynamic')) {
+            it('should cache the static part', async () => {
+              const start = Date.now()
+              const res = await next.fetch(pathname, {
+                redirect: 'manual',
+                headers: {
+                  'X-Delay': delay.toString(),
+                },
+              })
+
+              const result = await measure(res.body)
+              expect(result.streamFirstChunk - start).toBeLessThan(delay)
+
+              if (isNextDev) {
+                // This is because the signal should throw and interrupt the
+                // delay timer.
+                expect(result.streamEnd - start).toBeGreaterThanOrEqual(delay)
+              } else {
+                expect(result.streamEnd - start).toBeLessThan(delay)
+              }
+            })
+          }
+        })
+      })
+    })
+
     if (!isNextDev) {
       describe('Prefetch RSC Response', () => {
         describe.each(pages)('for $pathname', ({ pathname, revalidate }) => {
@@ -344,6 +410,162 @@ createNextDescribe(
               expect(text).not.toContain(unexpected)
             })
           }
+        })
+      })
+
+      describe('Dynamic Data pages', () => {
+        describe('Optimistic UI', () => {
+          it('should initially render with optimistic UI', async () => {
+            const $ = await next.render$('/dynamic-data?foo=bar')
+
+            // We defined some server html let's make sure it flushed both in the head
+            // There may be additional flushes in the body but we want to ensure that
+            // server html is getting inserted in the shell correctly here
+            const serverHTML = $('head meta[name="server-html"]')
+            expect(serverHTML.length).toEqual(1)
+            expect($(serverHTML[0]).attr('content')).toEqual('0')
+
+            // We expect the server HTML to be the optimistic output
+            expect($('#foosearch').text()).toEqual('foo search: optimistic')
+
+            // We expect hydration to patch up the render with dynamic data
+            // from the resume
+            const browser = await next.browser('/dynamic-data?foo=bar')
+            try {
+              await browser.waitForElementByCss('#foosearch')
+              expect(
+                await browser.eval(
+                  'document.getElementById("foosearch").textContent'
+                )
+              ).toEqual('foo search: bar')
+            } finally {
+              await browser.close()
+            }
+          })
+          it('should render entirely statically with force-static', async () => {
+            const $ = await next.render$('/dynamic-data/force-static?foo=bar')
+
+            // We defined some server html let's make sure it flushed both in the head
+            // There may be additional flushes in the body but we want to ensure that
+            // server html is getting inserted in the shell correctly here
+            const serverHTML = $('head meta[name="server-html"]')
+            expect(serverHTML.length).toEqual(1)
+            expect($(serverHTML[0]).attr('content')).toEqual('0')
+
+            // We expect the server HTML to be forced static so no params
+            // were made available but also nothing threw and was caught for
+            // optimistic UI
+            expect($('#foosearch').text()).toEqual('foo search: ')
+
+            // There is no hydration mismatch, we continue to have empty searchParmas
+            const browser = await next.browser(
+              '/dynamic-data/force-static?foo=bar'
+            )
+            try {
+              await browser.waitForElementByCss('#foosearch')
+              expect(
+                await browser.eval(
+                  'document.getElementById("foosearch").textContent'
+                )
+              ).toEqual('foo search: ')
+            } finally {
+              await browser.close()
+            }
+          })
+          it('should render entirely dynamically when force-dynamic', async () => {
+            const $ = await next.render$('/dynamic-data/force-dynamic?foo=bar')
+
+            // We defined some server html let's make sure it flushed both in the head
+            // There may be additional flushes in the body but we want to ensure that
+            // server html is getting inserted in the shell correctly here
+            const serverHTML = $('head meta[name="server-html"]')
+            expect(serverHTML.length).toEqual(1)
+            expect($(serverHTML[0]).attr('content')).toEqual('0')
+
+            // We expect the server HTML to render dynamically
+            expect($('#foosearch').text()).toEqual('foo search: bar')
+          })
+        })
+
+        describe('Incidental postpones', () => {
+          it('should initially render with optimistic UI', async () => {
+            const $ = await next.render$(
+              '/dynamic-data/incidental-postpone?foo=bar'
+            )
+
+            // We defined some server html let's make sure it flushed both in the head
+            // There may be additional flushes in the body but we want to ensure that
+            // server html is getting inserted in the shell correctly here
+            const serverHTML = $('head meta[name="server-html"]')
+            expect(serverHTML.length).toEqual(1)
+            expect($(serverHTML[0]).attr('content')).toEqual('0')
+
+            // We expect the server HTML to be the optimistic output
+            expect($('#foosearch').text()).toEqual('foo search: optimistic')
+
+            // We expect hydration to patch up the render with dynamic data
+            // from the resume
+            const browser = await next.browser(
+              '/dynamic-data/incidental-postpone?foo=bar'
+            )
+            try {
+              await browser.waitForElementByCss('#foosearch')
+              expect(
+                await browser.eval(
+                  'document.getElementById("foosearch").textContent'
+                )
+              ).toEqual('foo search: bar')
+            } finally {
+              await browser.close()
+            }
+          })
+          it('should render entirely statically with force-static', async () => {
+            const $ = await next.render$(
+              '/dynamic-data/incidental-postpone/force-static?foo=bar'
+            )
+
+            // We defined some server html let's make sure it flushed both in the head
+            // There may be additional flushes in the body but we want to ensure that
+            // server html is getting inserted in the shell correctly here
+            const serverHTML = $('head meta[name="server-html"]')
+            expect(serverHTML.length).toEqual(1)
+            expect($(serverHTML[0]).attr('content')).toEqual('0')
+
+            // We expect the server HTML to be forced static so no params
+            // were made available but also nothing threw and was caught for
+            // optimistic UI
+            expect($('#foosearch').text()).toEqual('foo search: ')
+
+            // There is no hydration mismatch, we continue to have empty searchParmas
+            const browser = await next.browser(
+              '/dynamic-data/incidental-postpone/force-static?foo=bar'
+            )
+            try {
+              await browser.waitForElementByCss('#foosearch')
+              expect(
+                await browser.eval(
+                  'document.getElementById("foosearch").textContent'
+                )
+              ).toEqual('foo search: ')
+            } finally {
+              await browser.close()
+            }
+          })
+          it('should render entirely dynamically when force-dynamic', async () => {
+            const $ = await next.render$(
+              '/dynamic-data/incidental-postpone/force-dynamic?foo=bar'
+            )
+
+            // We defined some server html let's make sure it flushed both in the head
+            // There may be additional flushes in the body but we want to ensure that
+            // server html is getting inserted in the shell correctly here
+            const serverHTML = $('head meta[name="server-html"]')
+            expect(serverHTML.length).toEqual(1)
+            expect($(serverHTML[0]).attr('content')).toEqual('0')
+
+            // We expect the server HTML to render dynamically
+            expect($('#foosearch').text()).toEqual('foo search: bar')
+          })
         })
       })
     }

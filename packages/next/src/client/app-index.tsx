@@ -1,4 +1,3 @@
-/* global location */
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
@@ -36,11 +35,6 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document
-
-const getCacheKey = () => {
-  const { pathname, search } = location
-  return pathname + search
-}
 
 const encoder = new TextEncoder()
 
@@ -118,36 +112,18 @@ const nextServerDataLoadingGlobal = ((self as any).__next_f =
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-function createResponseCache() {
-  return new Map<string, any>()
-}
-const rscCache = createResponseCache()
+const readable = new ReadableStream({
+  start(controller) {
+    nextServerDataRegisterWriter(controller)
+  },
+})
 
-function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
-  const response = rscCache.get(cacheKey)
-  if (response) return response
+const initialServerResponse = createFromReadableStream(readable, {
+  callServer,
+})
 
-  const readable = new ReadableStream({
-    start(controller) {
-      nextServerDataRegisterWriter(controller)
-    },
-  })
-
-  const newResponse = createFromReadableStream(readable, {
-    callServer,
-  })
-
-  rscCache.set(cacheKey, newResponse)
-  return newResponse
-}
-
-function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
-  React.useEffect(() => {
-    rscCache.delete(cacheKey)
-  })
-  const response = useInitialServerResponse(cacheKey)
-  const root = use(response)
-  return root
+function ServerRoot(): React.ReactNode {
+  return use(initialServerResponse)
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -175,10 +151,6 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   }
 
   return children as React.ReactElement
-}
-
-function RSCComponent(props: any): JSX.Element {
-  return <ServerRoot {...props} cacheKey={getCacheKey()} />
 }
 
 export function hydrate() {
@@ -238,7 +210,7 @@ export function hydrate() {
       >
         <ActionQueueContext.Provider value={actionQueue}>
           <Root>
-            <RSCComponent />
+            <ServerRoot />
           </Root>
         </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>

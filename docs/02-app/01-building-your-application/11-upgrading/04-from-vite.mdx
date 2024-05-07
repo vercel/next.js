@@ -22,11 +22,15 @@ The previous issue of slow loading times can be somewhat managed with code split
 
 ### Network waterfalls
 
-A common cause of poor performance occurs when applications make sequential client-server requests to fetch data. One common pattern for data fetching in an SPA is to initially render a placeholder, and then fetch data after the component has mounted. Unfortunately, this means that a child component that fetches data can't start fetching until the parent component has finished loading its own data. With Next.js, [this issue is resolved](https://github.com/reactjs/rfcs/blob/main/text/0188-server-components.md#no-client-server-waterfalls) by fetching data in Server Components.
+A common cause of poor performance occurs when applications make sequential client-server requests to fetch data. One common pattern for data fetching in an SPA is to initially render a placeholder, and then fetch data after the component has mounted. Unfortunately, this means that a child component that fetches data can't start fetching until the parent component has finished loading its own data.
+
+While fetching data on the client is supported with Next.js, it also gives you the option to shift data fetching to the server, which can eliminate client-server waterfalls.
 
 ### Fast and intentional loading states
 
-Thanks to built-in support for [Streaming with Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), with Next.js, you can be more intentional about which parts of your UI you want to load first and in what order without introducing network waterfalls. This enables you to build pages that are faster to load and also eliminate [layout shifts](https://web.dev/cls/).
+With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can be more intentional about which parts of your UI you want to load first and in what order without introducing network waterfalls.
+
+This enables you to build pages that are faster to load and eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
 
 ### Choose the data fetching strategy
 
@@ -359,45 +363,98 @@ containing `page.tsx` file.
 2. **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-'use client'
-
-import dynamic from 'next/dynamic'
 import '../../index.css'
 
-const App = dynamic(() => import('../../App'), { ssr: false })
+export function generateStaticParams() {
+  return [{ slug: [''] }]
+}
 
 export default function Page() {
-  return <App />
+  return '...' // We'll update this
 }
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-'use client'
-
-import dynamic from 'next/dynamic'
 import '../../index.css'
 
-const App = dynamic(() => import('../../App'), { ssr: false })
+export function generateStaticParams() {
+  return [{ slug: [''] }]
+}
 
 export default function Page() {
-  return <App />
+  return '...' // We'll update this
 }
 ```
 
 > **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Page files.
 
-This file contains a `<Page>` component which is marked as a
-[Client Component](/docs/app/building-your-application/rendering/client-components) by the `'use client'`
-directive. Without that directive, the component would have been a
-[Server Component](/docs/app/building-your-application/rendering/server-components).
+This file is a [Server Component](/docs/app/building-your-application/rendering/server-components). When you run `next build`, the file is prerendered into a static asset. It does _not_ require any dynamic code.
 
-In Next.js, Client Components are [prerendered to HTML](/docs/app/building-your-application/rendering/client-components#how-are-client-components-rendered)
-on the server before being sent to the client, but since we want to first have a purely client-side
-application, you need to tell Next.js to disable the prerendering for the `<App>` component by
-dynamically importing it with the `ssr` option set to `false`:
+This file imports our global CSS and tells [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) we are only going to generate one route, the index route at `/`.
+
+Now, let's move the rest of our Vite application which will run client-only.
+
+```tsx filename="app/[[...slug]]/client.tsx" switcher
+'use client'
+
+import React from 'react'
+import dynamic from 'next/dynamic'
+
+const App = dynamic(() => import('../../App'), { ssr: false })
+
+export function ClientOnly() {
+  return <App />
+}
+```
+
+```jsx filename="app/[[...slug]]/client.js" switcher
+'use client'
+
+import React from 'react'
+import dynamic from 'next/dynamic'
+
+const App = dynamic(() => import('../../App'), { ssr: false })
+
+export function ClientOnly() {
+  return <App />
+}
+```
+
+This file is a [Client Component](/docs/app/building-your-application/rendering/client-components), defined by the `'use client'`
+directive. Client Components are still [prerendered to HTML](/docs/app/building-your-application/rendering/client-components#how-are-client-components-rendered) on the server before being sent to the client.
+
+Since we want a client-only application to start, we can configure Next.js to disable prerendering from the `App` component down.
 
 ```tsx
 const App = dynamic(() => import('../../App'), { ssr: false })
+```
+
+Now, update your entrypoint page to use the new component:
+
+```tsx filename="app/[[...slug]]/page.tsx" switcher
+import '../../index.css'
+import { ClientOnly } from './client'
+
+export function generateStaticParams() {
+  return [{ slug: [''] }]
+}
+
+export default function Page() {
+  return <ClientOnly />
+}
+```
+
+```jsx filename="app/[[...slug]]/page.js" switcher
+import '../../index.css'
+import { ClientOnly } from './client'
+
+export function generateStaticParams() {
+  return [{ slug: [''] }]
+}
+
+export default function Page() {
+  return <ClientOnly />
+}
 ```
 
 ### Step 6: Update Static Image Imports
@@ -426,8 +483,7 @@ styled to `auto`. When not styled to `auto`, the dimension will default to the `
 attribute's value, which can cause the image to appear distorted.
 
 Keeping the `<img>` tag will reduce the amount of changes in your application and prevent the above
-issues. However, you'll still want to later migrate to the `<Image>` component to take advantage of
-the automatic optimizations.
+issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/building-your-application/optimizing/images#loaders), or moving to the default Next.js server which has automatic image optimization.
 
 1. **Convert absolute import paths for images imported from `/public` into relative imports:**
 
@@ -448,6 +504,8 @@ import logo from '../public/logo.png'
 // After
 <img src={logo.src} />
 ```
+
+Alternatively, you can reference the public URL for the image asset based on the filename. For example, `public/logo.png` will serve the image at `/logo.png` for your application, which would be the `src` value.
 
 > **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src`
 > property. You can safely ignore those for now. They will be fixed by the end of this guide.
@@ -514,13 +572,10 @@ and add `.next` and `next-env.d.ts` to your `.gitignore`:
 # ...
 .next
 next-env.d.ts
+dist
 ```
 
-Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should
-hopefully see your application now running on Next.js.
-
-If your application followed a conventional Vite configuration, this is all you would need to do
-to have a working version of your application.
+Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
 
 > **Example:** Check out [this pull request](https://github.com/inngest/vite-to-nextjs/pull/1) for a
 > working example of a Vite application migrated to Next.js.

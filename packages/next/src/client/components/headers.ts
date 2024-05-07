@@ -10,6 +10,15 @@ import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-render
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 import { getExpectedRequestStore } from './request-async-storage.external'
 
+/**
+ * This function allows you to read the HTTP incoming request headers in
+ * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+ * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations),
+ * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) and
+ * [Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware).
+ *
+ * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
+ */
 export function headers() {
   const callingExpression = 'headers'
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()

@@ -831,9 +831,6 @@ function assignDefaults(
     lodash: {
       transform: 'lodash/{{member}}',
     },
-    'next/server': {
-      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
-    },
   }
 
   const userProvidedOptimizePackageImports =

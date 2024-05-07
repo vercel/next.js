@@ -200,6 +200,10 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr6/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123/.a/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/team/usr4/pic.jpg'))).toBe(
+      false
+    )
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
   })
 
@@ -241,6 +245,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/act123/usr4/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/.sr6/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/team4/pic.jpg'))).toBe(
       false
     )
@@ -293,6 +298,8 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/usr5/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr6/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/.a/pic.jpg'))).toBe(true)
+    expect(m(p, new URL('https://example.com/act123/team/.pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://sub.example.com/act123/team/pic.jpg'))).toBe(

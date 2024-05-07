@@ -24,17 +24,17 @@ createNextDescribe(
     },
     packageJson: {
       scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
+        copy: `cp -r ./node_modules_bak/* ./node_modules`,
+        build: 'pnpm copy && next build',
+        dev: `pnpm copy && next ${
           shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
         }`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
     skipDeployment: true,
   },
   ({ next }) => {
@@ -206,6 +206,11 @@ createNextDescribe(
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
       })
+
+      it('should support namespace import with ESM packages', async () => {
+        const $ = await next.render$('/esm/react-namespace-import')
+        expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
+      })
     })
 
     describe('mixed syntax external modules', () => {
@@ -246,11 +251,13 @@ createNextDescribe(
     })
 
     it('should have proper tree-shaking for known modules in CJS', async () => {
-      const html = await next.render('/test-middleware')
-      expect(html).toContain('it works')
+      const html = await next.render('/cjs/server')
+      expect(html).toContain('resolve response')
 
-      const middlewareBundle = await next.readFile('.next/server/middleware.js')
-      expect(middlewareBundle).not.toContain('image-response')
+      const outputFile = await next.readFile(
+        '.next/server/app/cjs/server/page.js'
+      )
+      expect(outputFile).not.toContain('image-response')
     })
 
     it('should use the same async storages if imported directly', async () => {
@@ -281,6 +288,15 @@ createNextDescribe(
           expect(next.cliOutput).toContain('action-log:server:action1')
           return 'success'
         }, /success/)
+      })
+    })
+
+    describe('app route', () => {
+      it('should resolve next/server api from external esm package', async () => {
+        const res = await next.fetch('/app-routes')
+        const text = await res.text()
+        expect(res.status).toBe(200)
+        expect(text).toBe('get route')
       })
     })
   }

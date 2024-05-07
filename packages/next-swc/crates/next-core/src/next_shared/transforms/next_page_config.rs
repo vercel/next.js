@@ -26,9 +26,10 @@ pub fn get_next_page_config_rule(
     }) as _));
     ModuleRule::new(
         module_rule_match_pages_page_file(enable_mdx_rs, pages_dir),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 

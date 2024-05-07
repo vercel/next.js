@@ -73,6 +73,18 @@
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
     },
+    "build-native-wasi": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "dependsOn": ["^build-native-wasi"],
+      "outputs": ["native/*"]
+    },
     "cache-build-native": {
       "inputs": [
         "../../.cargo/**",

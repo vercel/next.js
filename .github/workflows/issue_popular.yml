@@ -1,4 +1,4 @@
-name: Notify about the top 15 issues (most reacted) in the last month
+name: Notify about the top 15 issues (most reacted) in the last 90 days
 
 on:
   schedule:

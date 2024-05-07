@@ -10,10 +10,20 @@ import {
 } from '../../../lib/constants'
 import { getPathname } from '../../../lib/url'
 
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+ *
+ * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
+ */
 export function revalidateTag(tag: string) {
   return revalidate(tag, `revalidateTag ${tag}`)
 }
 
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
+ *
+ * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
+ */
 export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(

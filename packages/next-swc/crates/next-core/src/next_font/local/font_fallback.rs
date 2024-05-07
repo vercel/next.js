@@ -40,36 +40,30 @@ pub(super) async fn get_font_fallbacks(
 
     match options.adjust_font_fallback {
         AdjustFontFallback::Arial => font_fallbacks.push(
-            FontFallback::Automatic(
-                AutomaticFontFallback {
-                    scoped_font_family,
-                    local_font_family: Vc::cell("Arial".to_owned()),
-                    adjustment: Some(
-                        get_font_adjustment(context, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
-                    ),
-                }
-                .cell(),
-            )
+            FontFallback::Automatic(AutomaticFontFallback {
+                scoped_font_family,
+                local_font_family: Vc::cell("Arial".to_owned()),
+                adjustment: Some(
+                    get_font_adjustment(context, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
+                ),
+            })
             .into(),
         ),
         AdjustFontFallback::TimesNewRoman => font_fallbacks.push(
-            FontFallback::Automatic(
-                AutomaticFontFallback {
-                    scoped_font_family,
-                    local_font_family: Vc::cell("Times New Roman".to_owned()),
-                    adjustment: Some(
-                        get_font_adjustment(context, options_vc, &DEFAULT_SERIF_FONT).await?,
-                    ),
-                }
-                .cell(),
-            )
+            FontFallback::Automatic(AutomaticFontFallback {
+                scoped_font_family,
+                local_font_family: Vc::cell("Times New Roman".to_owned()),
+                adjustment: Some(
+                    get_font_adjustment(context, options_vc, &DEFAULT_SERIF_FONT).await?,
+                ),
+            })
             .into(),
         ),
         AdjustFontFallback::None => (),
     };
 
     if let Some(fallback) = &options.fallback {
-        font_fallbacks.push(FontFallback::Manual(Vc::cell(fallback.clone())).into());
+        font_fallbacks.push(FontFallback::Manual(fallback.clone()).into());
     }
 
     Ok(Vc::cell(font_fallbacks))

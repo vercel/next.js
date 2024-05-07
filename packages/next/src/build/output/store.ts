@@ -105,6 +105,7 @@ store.subscribe((state) => {
   }
 
   if (state.errors) {
+    // Log compilation errors
     Log.error(state.errors[0])
 
     const cleanError = stripAnsi(state.errors[0])

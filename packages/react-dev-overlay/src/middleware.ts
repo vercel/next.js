@@ -194,6 +194,7 @@ export async function createOriginalStackFrame({
 
       return moduleNotFoundResult
     }
+    // This returns 1-based lines and 0-based columns
     return await findOriginalSourcePositionAndContent(source, {
       line,
       column,
@@ -225,7 +226,7 @@ export async function createOriginalStackFrame({
       ? path.relative(rootDirectory, filePath)
       : sourcePosition.source,
     lineNumber: sourcePosition.line,
-    column: sourcePosition.column,
+    column: (sourcePosition.column ?? 0) + 1,
     methodName:
       sourcePosition.name ||
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
@@ -245,7 +246,7 @@ export async function createOriginalStackFrame({
           {
             start: {
               line: sourcePosition.line,
-              column: sourcePosition.column ?? 0,
+              column: (sourcePosition.column ?? 0) + 1,
             },
           },
           { forceColor: true }

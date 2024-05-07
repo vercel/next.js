@@ -1,5 +1,3 @@
-use turbopack_binding::turbo::tasks_build::generate_register;
-
 extern crate napi_build;
 
 fn main() {
@@ -10,5 +8,6 @@ fn main() {
 
     napi_build::setup();
 
-    generate_register();
+    #[cfg(not(target_arch = "wasm32"))]
+    turbopack_binding::turbo::tasks_build::generate_register();
 }

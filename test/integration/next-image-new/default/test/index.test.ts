@@ -1319,6 +1319,9 @@ function runTests(mode) {
         expect(warnings).toContain(
           'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
         )
+        expect(warnings).toContain(
+          'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
+        )
       })
       it('should not log warnings when image unmounts', async () => {
         browser = await webdriver(appPort, '/should-not-warn-unmount')
