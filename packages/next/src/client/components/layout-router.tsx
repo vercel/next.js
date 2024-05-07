@@ -19,7 +19,6 @@ import React, {
   Suspense,
   useDeferredValue,
 } from 'react'
-import ReactDOM from 'react-dom'
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
@@ -84,33 +83,6 @@ function walkAddRefetch(
   }
 
   return treeToRecreate
-}
-
-// TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
-/**
- * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
- */
-function findDOMNode(
-  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
-): ReturnType<typeof ReactDOM.findDOMNode> {
-  // Tree-shake for server bundle
-  if (typeof window === 'undefined') return null
-  // Only apply strict mode warning when not in production
-  if (process.env.NODE_ENV !== 'production') {
-    const originalConsoleError = console.error
-    try {
-      console.error = (...messages) => {
-        // Ignore strict mode warning for the findDomNode call below
-        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
-          originalConsoleError(...messages)
-        }
-      }
-      return ReactDOM.findDOMNode(instance)
-    } finally {
-      console.error = originalConsoleError!
-    }
-  }
-  return ReactDOM.findDOMNode(instance)
 }
 
 const rectProperties = [
@@ -179,6 +151,7 @@ interface ScrollAndFocusHandlerProps {
   segmentPath: FlightSegmentPath
 }
 class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+  childRef = React.createRef<Element>()
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef, segmentPath } = this.props
@@ -200,7 +173,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       let domNode:
         | ReturnType<typeof getHashFragmentDomNode>
-        | ReturnType<typeof findDOMNode> = null
+        | (typeof this.childRef.current) = null
       const hashFragment = focusAndScrollRef.hashFragment
 
       if (hashFragment) {
@@ -210,7 +183,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
       // This already caused a bug where the first child was a <link/> in head.
       if (!domNode) {
-        domNode = findDOMNode(this)
+        domNode = this.childRef.current
       }
 
       // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
@@ -290,7 +263,11 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
   }
 
   render() {
-    return this.props.children
+    if (React.isValidElement<any>(this.props.children)) {
+      return React.cloneElement(this.props.children, { ref: this.childRef })
+    } else {
+      return this.props.children
+    }
   }
 }
 
