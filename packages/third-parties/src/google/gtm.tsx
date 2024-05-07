@@ -8,7 +8,7 @@ import type { GTMParams } from '../types/google'
 let currDataLayerName: string | undefined = undefined
 
 export function GoogleTagManager(props: GTMParams) {
-  const { gtmId, dataLayerName = 'dataLayer', auth, preview, dataLayer } = props
+  const { gtmId, dataLayerName = 'dataLayer', auth, preview, dataLayer, nonce = undefined } = props
 
   if (currDataLayerName === undefined) {
     currDataLayerName = dataLayerName
@@ -48,6 +48,7 @@ export function GoogleTagManager(props: GTMParams) {
         id="_next-gtm"
         data-ntpc="GTM"
         src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
+        nonce={nonce}
       />
     </>
   )

@@ -11,6 +11,7 @@ export type GTMParams = {
   dataLayerName?: string
   auth?: string
   preview?: string
+  nonce?: string
 }
 
 export type GAParams = {
