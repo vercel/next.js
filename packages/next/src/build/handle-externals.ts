@@ -399,7 +399,6 @@ function resolveBundlingOptOutPackages({
       config.transpilePackages,
       resolvedExternalPackageDirs
     ) ||
-    (isEsm && isAppLayer) ||
     (!isAppLayer && config.experimental.bundlePagesExternals)
 
   if (nodeModulesRegex.test(resolvedRes)) {
