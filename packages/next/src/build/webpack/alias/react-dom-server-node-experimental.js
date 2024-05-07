@@ -1,6 +1,6 @@
 var b
 if (process.env.NODE_ENV === 'production') {
-  b = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server.node.production.min.js')
+  b = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server.node.production.js')
 } else {
   b = require('next/dist/compiled/react-dom-experimental/cjs/react-dom-server.node.development.js')
 }
