@@ -1,7 +1,6 @@
 import type { WebpackLayerName } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ResolveOptions } from 'webpack'
-import { WEBPACK_LAYERS } from '../lib/constants'
 import { defaultOverrides } from '../server/require-hook'
 import { BARREL_OPTIMIZATION_PREFIX } from '../shared/lib/constants'
 import path from '../shared/lib/isomorphic/path'
@@ -354,13 +353,11 @@ export function makeExternalHandler({
 
     const resolvedBundlingOptOutRes = resolveBundlingOptOutPackages({
       resolvedRes: res,
-      optOutBundlingPackageRegex,
       config,
       resolvedExternalPackageDirs,
-      isEsm,
       isAppLayer,
-      layer,
       externalType,
+      isOptOutBundling,
       request,
     })
     if (resolvedBundlingOptOutRes) {
@@ -374,28 +371,28 @@ export function makeExternalHandler({
 
 function resolveBundlingOptOutPackages({
   resolvedRes,
-  optOutBundlingPackageRegex,
   config,
   resolvedExternalPackageDirs,
-  isEsm,
   isAppLayer,
-  layer,
   externalType,
+  isOptOutBundling,
   request,
 }: {
   resolvedRes: string
-  optOutBundlingPackageRegex: RegExp
   config: NextConfigComplete
   resolvedExternalPackageDirs: Map<string, string>
-  isEsm: boolean
   isAppLayer: boolean
-  layer: WebpackLayerName | null
   externalType: string
+  isOptOutBundling: boolean
   request: string
 }) {
   if (nodeModulesRegex.test(resolvedRes)) {
+    const shouldBundlePages =
+      !isAppLayer &&
+      config.experimental.bundlePagesExternals &&
+      !isOptOutBundling
     const shouldBeBundled =
-      (!isAppLayer && config.experimental.bundlePagesExternals) ||
+      shouldBundlePages ||
       isResourceInPackages(
         resolvedRes,
         config.transpilePackages,
