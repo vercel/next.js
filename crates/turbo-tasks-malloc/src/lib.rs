@@ -42,7 +42,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let ret = mimalloc::MiMalloc.alloc_zeroed(layout);
-        if ret.is_null() {
+        if !ret.is_null() {
             add(layout.size());
         }
         ret
@@ -82,7 +82,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let ret = std::alloc::System.alloc_zeroed(layout);
-        if ret.is_null() {
+        if !ret.is_null() {
             add(layout.size());
         }
         ret
