@@ -11,7 +11,6 @@ export default function Page() {
       <button
         onClick={async () => {
           const value = await getDualOptoutValue()
-          console.log('value', value, 'from', getDualOptoutValue)
           setOptoutDisplayValue(value)
         }}
       >
