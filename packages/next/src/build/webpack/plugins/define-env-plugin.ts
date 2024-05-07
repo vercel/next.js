@@ -255,6 +255,8 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
+    'process.env.__NEXT_HARDENED_XSS_PROTECTION':
+      config.future.hardenedXSSProtection ?? false,
   }
   return serializeDefineEnv(defineEnv)
 }

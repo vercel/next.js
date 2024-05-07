@@ -8,6 +8,7 @@ import type {
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState } from '../../server/app-render/types'
 import React from 'react'
+import type { TrustedHref, UntrustedHref } from './xss-protection'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -140,16 +141,16 @@ export interface AppRouterInstance {
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
-  push(href: string, options?: NavigateOptions): void
+  push(href: UntrustedHref | TrustedHref, options?: NavigateOptions): void
   /**
    * Navigate to the provided href.
    * Replaces the current history entry.
    */
-  replace(href: string, options?: NavigateOptions): void
+  replace(href: UntrustedHref | TrustedHref, options?: NavigateOptions): void
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string, options?: PrefetchOptions): void
+  prefetch(href: UntrustedHref | TrustedHref, options?: PrefetchOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(

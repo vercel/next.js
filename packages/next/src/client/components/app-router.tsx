@@ -20,6 +20,7 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
+import { trustHref } from '../../shared/lib/xss-protection'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_FAST_REFRESH,
@@ -354,7 +355,8 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: (href, options) => {
+      prefetch: (untrustedHref, options) => {
+        const trustedHref = trustHref(untrustedHref)
         // Don't prefetch for bots as they don't navigate.
         // Don't prefetch during development (improves compilation performance)
         if (
@@ -363,7 +365,7 @@ function Router({
         ) {
           return
         }
-        const url = new URL(addBasePath(href), window.location.href)
+        const url = new URL(addBasePath(trustedHref), window.location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -376,14 +378,16 @@ function Router({
           })
         })
       },
-      replace: (href, options = {}) => {
+      replace: (untrustedHref, options = {}) => {
+        const trustedHref = trustHref(untrustedHref)
         startTransition(() => {
-          navigate(href, 'replace', options.scroll ?? true)
+          navigate(trustedHref, 'replace', options.scroll ?? true)
         })
       },
-      push: (href, options = {}) => {
+      push: (untrustedHref, options = {}) => {
+        const trustedHref = trustHref(untrustedHref)
         startTransition(() => {
-          navigate(href, 'push', options.scroll ?? true)
+          navigate(trustedHref, 'push', options.scroll ?? true)
         })
       },
       refresh: () => {
